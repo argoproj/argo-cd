@@ -25,7 +25,7 @@ service VersionService {
 	// Version returns version information of the API server
 	rpc Version(VersionMessage) returns (VersionMessage) {
 		option (google.api.http) = {
-			get: "/version"
+			get: "/api/version"
 		};
 	}
 }

@@ -116,7 +116,7 @@ func RegisterVersionServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_VersionService_Version_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"version"}, ""))
+	pattern_VersionService_Version_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "version"}, ""))
 )
 
 var (

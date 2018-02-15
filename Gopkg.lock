@@ -32,6 +32,12 @@
   version = "v1.0.4"
 
 [[projects]]
+  name = "github.com/soheilhy/cmux"
+  packages = ["."]
+  revision = "e09e9389d85d8492d313d73d1469c029e710623f"
+  version = "v0.1.4"
+
+[[projects]]
   name = "github.com/spf13/cobra"
   packages = ["."]
   revision = "7b2c5ac9fc04fc5efafb60700713d4fa609b777b"
@@ -82,6 +88,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ed26a891928e3b7bd6834c37250f4d211ad3ad23c50756f47c48688558576101"
+  inputs-digest = "8236e4aa41d9a90c6abbd3c4895477cd5a22b5612b861e1584426e5f24580101"
   solver-name = "gps-cdcl"
   solver-version = 1

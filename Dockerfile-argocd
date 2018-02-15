@@ -3,7 +3,8 @@ FROM debian:9.3 as builder
 RUN apt-get update && apt-get install -y \
     git \
     make \
-    wget && \
+    wget \
+    zip && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -14,25 +15,35 @@ ENV GOPATH /root/go
 ENV PATH ${GOPATH}/bin:/usr/local/go/bin:${PATH}
 RUN wget https://storage.googleapis.com/golang/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
     tar -C /usr/local/ -xf /go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
-    rm /go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
-    # A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
-    # to install all the packages of our dep lock file
-    mkdir -p ${GOPATH}/src/dummy
+    rm /go${GO_VERSION}.linux-${GO_ARCH}.tar.gz
 
-# Install Go dependencies and some tooling
-COPY Gopkg.toml ${GOPATH}/src/dummy
-COPY Gopkg.lock ${GOPATH}/src/dummy
+# Install protoc
+ENV PROTOBUF_VERSION 3.5.1
+RUN cd /usr/local && \
+    wget https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protoc-${PROTOBUF_VERSION}-linux-x86_64.zip && \
+    unzip protoc-*.zip
+
+# Install Go project dependencies and some tooling
 RUN go get -u github.com/golang/dep/cmd/dep && \
-    rm -rf ${GOPATH}/src/github.com && \
-    cd ${GOPATH}/src/dummy && \
+    go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway && \
+    go get -u github.com/golang/protobuf/protoc-gen-go && \
+    rm -rf ${GOPATH}/src/*
+
+# A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
+# to install all the packages of our dep lock file
+COPY Gopkg.toml ${GOPATH}/src/dummy/Gopkg.toml
+COPY Gopkg.lock ${GOPATH}/src/dummy/Gopkg.lock
+
+RUN cd ${GOPATH}/src/dummy && \
     dep ensure -vendor-only && \
     mv vendor/* ${GOPATH}/src/ && \
     rmdir vendor
 
-# Perform the build
+# Perform the build. Remove vendor directory after copying to make sure we are not pulling random
+# cruft from user's workspace and are only using what is locked by dep.
 WORKDIR /root/go/src/github.com/argoproj/argo-cd
 COPY . .
-RUN make argocd
+RUN rm -rf vendor && make argocd
 
 FROM alpine:3.7  
 RUN apk --no-cache add ca-certificates
