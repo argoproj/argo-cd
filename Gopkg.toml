@@ -1,3 +1,7 @@
+required = [
+  "k8s.io/code-generator/cmd/go-to-protobuf",
+]
+
 [[constraint]]
   name = "google.golang.org/grpc"
   version = "1.9.2"

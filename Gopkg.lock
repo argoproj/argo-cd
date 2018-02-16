@@ -20,6 +20,18 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
+  name = "github.com/argoproj/argo"
+  packages = [".","pkg/apis/workflow"]
+  revision = "0978b9c61cb7435d31ef8d252b80e03708a70adc"
+  version = "v2.0.0"
+
+[[projects]]
+  name = "github.com/cockroachdb/cockroach"
+  packages = ["pkg/util/httputil","pkg/util/protoutil","pkg/util/syncutil"]
+  revision = "ec52ded95a5235d71f26b6cbc59924bd6733fb3a"
+  version = "v1.1.5"
+
+[[projects]]
   name = "github.com/emicklei/go-restful"
   packages = [".","log"]
   revision = "26b41036311f2da8242db402557a0dbd09dc83da"
@@ -57,7 +69,7 @@
 
 [[projects]]
   name = "github.com/gogo/protobuf"
-  packages = ["proto","sortkeys"]
+  packages = ["jsonpb","proto","sortkeys","types"]
   revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
   version = "v1.0.0"
 
@@ -152,6 +164,24 @@
   version = "v2.0.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/petermattis/goid"
+  packages = ["."]
+  revision = "b0b1615b78e5ee59739545bb38426383b2cda4c9"
+
+[[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
+  name = "github.com/sasha-s/go-deadlock"
+  packages = ["."]
+  revision = "03d40e5dbd5488667a13b3c2600b2f7c2886f02f"
+  version = "v0.2.0"
+
+[[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
@@ -204,6 +234,12 @@
   name = "golang.org/x/text"
   packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable","width"]
   revision = "4e4a3210bb54bb31f6ab2cdca2edcc0b50c420c1"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/tools"
+  packages = ["go/ast/astutil","imports"]
+  revision = "ce871d178848e3eea1e8795e5cfb74053dde4bb9"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -260,6 +296,18 @@
   revision = "9389c055a838d4f208b699b3c7c51b70f2368861"
 
 [[projects]]
+  branch = "release-1.9"
+  name = "k8s.io/code-generator"
+  packages = ["cmd/go-to-protobuf","cmd/go-to-protobuf/protobuf","third_party/forked/golang/reflect"]
+  revision = "91d3f6a57905178524105a085085901bb73bd3dc"
+
+[[projects]]
+  branch = "master"
+  name = "k8s.io/gengo"
+  packages = ["args","generator","namer","parser","types"]
+  revision = "8394c995ab8fbe52216f38d0e1a37de36d820528"
+
+[[projects]]
   branch = "master"
   name = "k8s.io/kube-openapi"
   packages = ["pkg/common"]
@@ -268,6 +316,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0ebdd723e771cc4a24642889db53f014125d792cf00dcab95050caad2944e303"
+  inputs-digest = "be9bff72b9e9e5876f18eaa46b8531836d6473939ad3ace65c77a267e40d64fd"
   solver-name = "gps-cdcl"
   solver-version = 1

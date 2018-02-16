@@ -6,5 +6,5 @@ package core;
 
 // NameMessage is a name of a resource
 message NameMessage {
-	string Name = 1;
+	string name = 1;
 }

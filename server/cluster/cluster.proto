@@ -1,45 +1,28 @@
-syntax = "proto3";
+syntax = "proto2";
 option go_package = "github.com/argoproj/argo-cd/server/cluster";
 
 // Cluster Service
 //
-// Cluster Service API allows 
+// Cluster Service API performs CRUD actions against cluster resources 
 package cluster;
 
 import "google/api/annotations.proto";
-import "server/core/core.proto";
-
-// ClusterMessage holds Kuberentes cluster information
-message ClusterMessage {
-    string Name = 1;
-    string Server = 2;
-    string Certificate = 3;
-    string Token = 4;
-    string Description = 5;
-}
-
-// ClusterListMessage holds multiple clusters
-message ClusterListMessage {
-    repeated ClusterMessage items = 1;
-}
-
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
+import "github.com/argoproj/argo-cd/server/core/core.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/cluster/v1alpha1/generated.proto";
 
 message ClusterQuery {}
 
 // ClusterService 
 service ClusterService {
 	// GetClusters returns list of clusters
-	rpc GetClusters(ClusterQuery) returns (ClusterListMessage) {
-		option (google.api.http) = {
-			get: "/api/v1/clusters"
-		};
+	rpc GetClusters(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.cluster.v1alpha1.ClusterList) {
+		option (google.api.http).get = "/api/v1/clusters";
 	}
 
     // GetCluster returns a cluster by name
-    rpc GetCluster(core.NameMessage) returns (ClusterMessage) {
-		option (google.api.http) = {
-			get: "/api/v1/clusters/{Name}"
-		};
+    rpc GetCluster(core.NameMessage) returns (github.com.argoproj.argo_cd.pkg.apis.cluster.v1alpha1.Cluster) {
+		option (google.api.http).get = "/api/v1/clusters/{name}";
 	}
 
 }
