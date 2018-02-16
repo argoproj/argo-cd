@@ -20,12 +20,6 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
-  name = "github.com/argoproj/argo"
-  packages = [".","pkg/apis/workflow"]
-  revision = "0978b9c61cb7435d31ef8d252b80e03708a70adc"
-  version = "v2.0.0"
-
-[[projects]]
   name = "github.com/cockroachdb/cockroach"
   packages = ["pkg/util/httputil","pkg/util/protoutil","pkg/util/syncutil"]
   revision = "ec52ded95a5235d71f26b6cbc59924bd6733fb3a"
@@ -316,6 +310,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "be9bff72b9e9e5876f18eaa46b8531836d6473939ad3ace65c77a267e40d64fd"
+  inputs-digest = "5b082aff7213e756664250a65e0d21d43ddc5062f0e6cd2186c9c6352dd5ef53"
   solver-name = "gps-cdcl"
   solver-version = 1

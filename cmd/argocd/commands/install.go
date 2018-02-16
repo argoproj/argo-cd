@@ -6,7 +6,6 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo/pkg/apis/workflow"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -73,12 +72,12 @@ func installCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensions
 		if !apierr.IsAlreadyExists(err) {
 			log.Fatalf("Failed to create CustomResourceDefinition: %v", err)
 		}
-		fmt.Printf("CustomResourceDefinition '%s' already exists\n", workflow.FullName)
+		fmt.Printf("CustomResourceDefinition '%s' already exists\n", application.FullName)
 	}
 	// wait for CRD being established
 	var crd *apiextensionsv1beta1.CustomResourceDefinition
 	err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		crd, err = extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(workflow.FullName, metav1.GetOptions{})
+		crd, err = extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(application.FullName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}

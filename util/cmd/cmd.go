@@ -5,7 +5,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/argoproj/argo"
+	argocd "github.com/argoproj/argo-cd"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +16,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 		Use:   "version",
 		Short: fmt.Sprintf("Print version information"),
 		Run: func(cmd *cobra.Command, args []string) {
-			version := argo.GetVersion()
+			version := argocd.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
 			if short {
 				return
