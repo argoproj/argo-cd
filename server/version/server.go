@@ -2,13 +2,14 @@ package version
 
 import (
 	argocd "github.com/argoproj/argo-cd"
+	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 )
 
 type Server struct{}
 
 // Version returns the version of the API server
-func (v *Server) Version(context.Context, *VersionMessage) (*VersionMessage, error) {
+func (s *Server) Version(context.Context, *empty.Empty) (*VersionMessage, error) {
 	vers := argocd.GetVersion()
 	return &VersionMessage{
 		Version:      vers.Version,

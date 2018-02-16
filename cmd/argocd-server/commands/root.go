@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"github.com/argoproj/argo-cd/argocd/server"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/util/cmd"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

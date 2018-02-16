@@ -1,11 +1,7 @@
 package commands
 
 const (
-	// cliName is the name of the CLI
 	cliName = "argocd"
-
-	// defaultArgoCDConfigMap is the default name of the argocd configmap
-	defaultArgoCDConfigMap = "argocd-configmap"
 )
 
 var (

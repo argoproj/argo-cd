@@ -39,7 +39,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: argocd
+all: argocd server
 
 .PHONY: protogen
 protogen:
@@ -49,10 +49,14 @@ protogen:
 argocd: protogen
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd
 
-.PHONY: argocd-image
-argocd-image:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f Dockerfile-argocd .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)workflow-controller:$(IMAGE_TAG) ; fi
+.PHONY: server
+server: protogen
+	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
+
+.PHONY: server-image
+server-image:
+	docker build -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-server .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
 
 .PHONY: lint
 lint:

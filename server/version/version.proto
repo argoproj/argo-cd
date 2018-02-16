@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "version";
+option go_package = "github.com/argoproj/argo-cd/server/version";
 
 // Version Service
 //
@@ -7,6 +7,7 @@ option go_package = "version";
 package version;
 
 import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
 
 // VersionMessage represents version of the ArgoCD API server
 message VersionMessage {
@@ -23,7 +24,7 @@ message VersionMessage {
 // VersionService returns the version of the API server.
 service VersionService {
 	// Version returns version information of the API server
-	rpc Version(VersionMessage) returns (VersionMessage) {
+	rpc Version(google.protobuf.Empty) returns (VersionMessage) {
 		option (google.api.http) = {
 			get: "/api/version"
 		};

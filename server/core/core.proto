@@ -1,0 +1,10 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/core";
+
+// Core types
+package core;
+
+// NameMessage is a name of a resource
+message NameMessage {
+	string Name = 1;
+}

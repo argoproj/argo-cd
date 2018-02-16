@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	argocd "github.com/argoproj/argo-cd"
-	"github.com/argoproj/argo-cd/argocd/version"
+	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/version"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -52,15 +53,15 @@ func (a *ArgoCDServer) Run() {
 	// gRPC Server
 	grpcS := grpc.NewServer()
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
+	cluster.RegisterClusterServiceServer(grpcS, &cluster.Server{})
 
 	// HTTP 1.1+JSON Server
 	mux := http.NewServeMux()
 	gwmux := runtime.NewServeMux()
 	mux.Handle("/", gwmux)
-	err = version.RegisterVersionServiceHandlerFromEndpoint(ctx, gwmux, endpoint, []grpc.DialOption{grpc.WithInsecure()})
-	if err != nil {
-		panic(err)
-	}
+	dOpts := []grpc.DialOption{grpc.WithInsecure()}
+	mustRegisterGWHandler(version.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(cluster.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	httpS := &http.Server{
 		Addr:    endpoint,
 		Handler: mux,
@@ -73,6 +74,16 @@ func (a *ArgoCDServer) Run() {
 	go httpS.Serve(httpL)
 
 	err = m.Serve()
+	if err != nil {
+		panic(err)
+	}
+}
+
+type registerFunc func(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) error
+
+// mustRegisterGWHandler is a convenience function to register a gateway handler
+func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) {
+	err := register(ctx, mux, endpoint, opts)
 	if err != nil {
 		panic(err)
 	}
