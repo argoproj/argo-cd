@@ -20,12 +20,6 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
-  name = "github.com/argoproj/argo"
-  packages = [".","pkg/apis/workflow"]
-  revision = "0978b9c61cb7435d31ef8d252b80e03708a70adc"
-  version = "v2.0.0"
-
-[[projects]]
   name = "github.com/emicklei/go-restful"
   packages = [".","log"]
   revision = "26b41036311f2da8242db402557a0dbd09dc83da"
@@ -274,6 +268,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6aabebb575c93de33004a144a4a28e9d5410b811990c3327c304d78bde9e2459"
+  inputs-digest = "0ebdd723e771cc4a24642889db53f014125d792cf00dcab95050caad2944e303"
   solver-name = "gps-cdcl"
   solver-version = 1
