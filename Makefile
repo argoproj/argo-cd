@@ -45,6 +45,10 @@ all: argocd server
 protogen:
 	./hack/generate-proto.sh
 
+.PHONY: codegen
+codegen: protogen
+	./hack/update-codegen.sh
+
 .PHONY: argocd
 argocd: protogen
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd

@@ -11,6 +11,9 @@ import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 option go_package = "v1alpha1";
 
 // Cluster is the definition of a cluster resource
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message Cluster {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -18,6 +21,7 @@ message Cluster {
 }
 
 // ClusterList is a collection of Clusters.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ClusterList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
@@ -26,6 +30,7 @@ message ClusterList {
 
 // ClusterSpec is the cluster specification
 message ClusterSpec {
+  // Server is the API server URL of the Kubernetes cluster
   optional string server = 1;
 }
 

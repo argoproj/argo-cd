@@ -6,6 +6,7 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/apis/cluster"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,7 +35,8 @@ func NewInstallCommand(globalArgs *globalFlags) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			client := getKubeClient(globalArgs.kubeConfigPath, globalArgs.kubeConfigOverrides)
 			extensionsClient := apiextensionsclient.NewForConfigOrDie(getKubeConfig(globalArgs.kubeConfigPath, globalArgs.kubeConfigOverrides))
-			installCRD(client, extensionsClient, installArgs)
+			installAppCRD(client, extensionsClient, installArgs)
+			installClusterCRD(client, extensionsClient, installArgs)
 		},
 	}
 	command.Flags().BoolVar(&installArgs.DryRun, "dry-run", false, "print the kubernetes manifests to stdout instead of installing")
@@ -42,7 +44,7 @@ func NewInstallCommand(globalArgs *globalFlags) *cobra.Command {
 	return command
 }
 
-func installCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
+func installAppCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
 	applicationCRD := apiextensionsv1beta1.CustomResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1alpha1",
@@ -62,22 +64,47 @@ func installCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensions
 			},
 		},
 	}
-	if args.DryRun {
-		printYAML(applicationCRD)
+	createCRDHelper(clientset, extensionsClient, applicationCRD, args.DryRun)
+}
+
+func installClusterCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
+	clusterCRD := apiextensionsv1beta1.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apiextensions.k8s.io/v1alpha1",
+			Kind:       "CustomResourceDefinition",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cluster.FullName,
+		},
+		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+			Group:   cluster.Group,
+			Version: appv1.SchemeGroupVersion.Version,
+			Scope:   apiextensionsv1beta1.NamespaceScoped,
+			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+				Plural:     cluster.Plural,
+				Kind:       cluster.Kind,
+				ShortNames: []string{cluster.ShortName},
+			},
+		},
+	}
+	createCRDHelper(clientset, extensionsClient, clusterCRD, args.DryRun)
+}
+
+func createCRDHelper(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, crd apiextensionsv1beta1.CustomResourceDefinition, dryRun bool) {
+	if dryRun {
+		printYAML(crd)
 		return
 	}
-
-	_, err := extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(&applicationCRD)
+	_, err := extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(&crd)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
 			log.Fatalf("Failed to create CustomResourceDefinition: %v", err)
 		}
-		fmt.Printf("CustomResourceDefinition '%s' already exists\n", application.FullName)
+		fmt.Printf("CustomResourceDefinition '%s' already exists\n", crd.ObjectMeta.Name)
 	}
 	// wait for CRD being established
-	var crd *apiextensionsv1beta1.CustomResourceDefinition
 	err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		crd, err = extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(application.FullName, metav1.GetOptions{})
+		_, err = extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
