@@ -9,11 +9,16 @@ import (
 
 type ArgoprojV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClustersGetter
 }
 
 // ArgoprojV1alpha1Client is used to interact with features provided by the argoproj.io group.
 type ArgoprojV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *ArgoprojV1alpha1Client) Clusters(namespace string) ClusterInterface {
+	return newClusters(c, namespace)
 }
 
 // NewForConfig creates a new ArgoprojV1alpha1Client for the given config.

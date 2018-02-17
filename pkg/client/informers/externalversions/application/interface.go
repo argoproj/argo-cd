@@ -3,7 +3,7 @@
 package argoproj
 
 import (
-	v1alpha1 "github.com/argoproj/argo-cd/pkg/client/informers/externalversions/cluster/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	internalinterfaces "github.com/argoproj/argo-cd/pkg/client/informers/externalversions/internalinterfaces"
 )
 

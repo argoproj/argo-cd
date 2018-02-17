@@ -1,12 +1,17 @@
 package fake
 
 import (
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
 
 type FakeArgoprojV1alpha1 struct {
 	*testing.Fake
+}
+
+func (c *FakeArgoprojV1alpha1) Clusters(namespace string) v1alpha1.ClusterInterface {
+	return &FakeClusters{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

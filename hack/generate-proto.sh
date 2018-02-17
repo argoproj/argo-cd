@@ -15,13 +15,13 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 
 # Generate protobufs for our types
 PACKAGES=(
-    github.com/argoproj/argo-cd/pkg/apis/cluster/v1alpha1
+    github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1
 )
 go-to-protobuf \
     --logtostderr \
     --go-header-file=${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
     --packages=$(IFS=, ; echo "${PACKAGES[*]}") \
-    --apimachinery-packages=-k8s.io/apimachinery/pkg/apis/meta/v1 \
+    --apimachinery-packages=-k8s.io/apimachinery/pkg/apis/meta/v1,-k8s.io/api/core/v1,-k8s.io/apimachinery/pkg/runtime/schema \
     --proto-import=./vendor
 
 

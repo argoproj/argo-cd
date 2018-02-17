@@ -33,6 +33,5 @@ func init() {
 // correctly.
 func AddToScheme(scheme *runtime.Scheme) {
 	argoprojv1alpha1.AddToScheme(scheme)
-	argoprojv1alpha1.AddToScheme(scheme)
 
 }

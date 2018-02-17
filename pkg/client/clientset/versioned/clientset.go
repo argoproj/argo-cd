@@ -2,7 +2,6 @@ package versioned
 
 import (
 	argoprojv1alpha1 "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	argoprojv1alpha1 "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/cluster/v1alpha1"
 	glog "github.com/golang/glog"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -14,9 +13,6 @@ type Interface interface {
 	ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
 	Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface
-	ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -24,18 +20,6 @@ type Interface interface {
 type Clientset struct {
 	*discovery.DiscoveryClient
 	argoprojV1alpha1 *argoprojv1alpha1.ArgoprojV1alpha1Client
-	argoprojV1alpha1 *argoprojv1alpha1.ArgoprojV1alpha1Client
-}
-
-// ArgoprojV1alpha1 retrieves the ArgoprojV1alpha1Client
-func (c *Clientset) ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alpha1Interface {
-	return c.argoprojV1alpha1
-}
-
-// Deprecated: Argoproj retrieves the default version of ArgoprojClient.
-// Please explicitly pick a version.
-func (c *Clientset) Argoproj() argoprojv1alpha1.ArgoprojV1alpha1Interface {
-	return c.argoprojV1alpha1
 }
 
 // ArgoprojV1alpha1 retrieves the ArgoprojV1alpha1Client
@@ -69,10 +53,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
-	cs.argoprojV1alpha1, err = argoprojv1alpha1.NewForConfig(&configShallowCopy)
-	if err != nil {
-		return nil, err
-	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -87,7 +67,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.argoprojV1alpha1 = argoprojv1alpha1.NewForConfigOrDie(c)
-	cs.argoprojV1alpha1 = argoprojv1alpha1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -96,7 +75,6 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.argoprojV1alpha1 = argoprojv1alpha1.New(c)
 	cs.argoprojV1alpha1 = argoprojv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)

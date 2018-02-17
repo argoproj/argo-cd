@@ -1,11 +1,20 @@
 package application
 
-// Application constants
 const (
-	Kind      string = "Application"
-	Group     string = "argoproj.io"
-	Singular  string = "application"
-	Plural    string = "applications"
-	ShortName string = "app"
-	FullName  string = Plural + "." + Group
+	// API Group
+	Group string = "argoproj.io"
+
+	// Application constants
+	ApplicationKind      string = "Application"
+	ApplicationSingular  string = "application"
+	ApplicationPlural    string = "applications"
+	ApplicationShortName string = "app"
+	ApplicationFullName  string = ApplicationPlural + "." + Group
+
+	// Cluster constants
+	ClusterKind      string = "Cluster"
+	ClusterSingular  string = "cluster"
+	ClusterPlural    string = "clusters"
+	ClusterShortName string = "cluster"
+	ClusterFullName  string = ClusterPlural + "." + Group
 )

@@ -50,11 +50,11 @@ codegen: protogen
 	./hack/update-codegen.sh
 
 .PHONY: argocd
-argocd: protogen
+argocd:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd
 
 .PHONY: server
-server: protogen
+server:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
 
 .PHONY: server-image

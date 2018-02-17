@@ -6,7 +6,6 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/pkg/apis/cluster"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -51,16 +50,16 @@ func installAppCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensi
 			Kind:       "CustomResourceDefinition",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: application.FullName,
+			Name: application.ApplicationFullName,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
 			Group:   application.Group,
 			Version: appv1.SchemeGroupVersion.Version,
 			Scope:   apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural:     application.Plural,
-				Kind:       application.Kind,
-				ShortNames: []string{application.ShortName},
+				Plural:     application.ApplicationPlural,
+				Kind:       application.ApplicationKind,
+				ShortNames: []string{application.ApplicationShortName},
 			},
 		},
 	}
@@ -74,16 +73,16 @@ func installClusterCRD(clientset *kubernetes.Clientset, extensionsClient *apiext
 			Kind:       "CustomResourceDefinition",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cluster.FullName,
+			Name: application.ClusterFullName,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   cluster.Group,
+			Group:   application.Group,
 			Version: appv1.SchemeGroupVersion.Version,
 			Scope:   apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural:     cluster.Plural,
-				Kind:       cluster.Kind,
-				ShortNames: []string{cluster.ShortName},
+				Plural:     application.ClusterPlural,
+				Kind:       application.ClusterKind,
+				ShortNames: []string{application.ClusterShortName},
 			},
 		},
 	}
