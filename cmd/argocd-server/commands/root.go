@@ -2,10 +2,13 @@ package commands
 
 import (
 	"github.com/argoproj/argo-cd/errors"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/util/cmd"
+	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes"
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -23,7 +26,13 @@ func NewCommand() *cobra.Command {
 			level, err := log.ParseLevel(logLevel)
 			errors.CheckError(err)
 			log.SetLevel(level)
-			argocd := server.NewServer()
+
+			config, err := kube.GetClientConfig(kubeConfig)
+			errors.CheckError(err)
+			kubeclientset := kubernetes.NewForConfigOrDie(config)
+			appclientset := appclientset.NewForConfigOrDie(config)
+
+			argocd := server.NewServer(kubeclientset, appclientset)
 			argocd.Run()
 		},
 	}

@@ -63,7 +63,7 @@ func installAppCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensi
 			},
 		},
 	}
-	createCRDHelper(clientset, extensionsClient, applicationCRD, args.DryRun)
+	createCRDHelper(clientset, extensionsClient, &applicationCRD, args.DryRun)
 }
 
 func installClusterCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
@@ -86,28 +86,30 @@ func installClusterCRD(clientset *kubernetes.Clientset, extensionsClient *apiext
 			},
 		},
 	}
-	createCRDHelper(clientset, extensionsClient, clusterCRD, args.DryRun)
+	createCRDHelper(clientset, extensionsClient, &clusterCRD, args.DryRun)
 }
 
-func createCRDHelper(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, crd apiextensionsv1beta1.CustomResourceDefinition, dryRun bool) {
+func createCRDHelper(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, crd *apiextensionsv1beta1.CustomResourceDefinition, dryRun bool) {
 	if dryRun {
 		printYAML(crd)
 		return
 	}
-	_, err := extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(&crd)
+	_, err := extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
 			log.Fatalf("Failed to create CustomResourceDefinition: %v", err)
 		}
 		fmt.Printf("CustomResourceDefinition '%s' already exists\n", crd.ObjectMeta.Name)
+	} else {
+		fmt.Printf("CustomResourceDefinition '%s' created", crd.ObjectMeta.Name)
 	}
 	// wait for CRD being established
 	err = wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-		_, err = extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.ObjectMeta.Name, metav1.GetOptions{})
+		getCrd, err := extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crd.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
-		for _, cond := range crd.Status.Conditions {
+		for _, cond := range getCrd.Status.Conditions {
 			switch cond.Type {
 			case apiextensionsv1beta1.Established:
 				if cond.Status == apiextensionsv1beta1.ConditionTrue {

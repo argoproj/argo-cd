@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	argocd "github.com/argoproj/argo-cd"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/cockroachdb/cockroach/pkg/util/protoutil"
@@ -14,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -26,11 +28,16 @@ var (
 
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
+	kubeclientset kubernetes.Interface
+	appclientset  appclientset.Interface
 }
 
 // NewServer returns a new instance of the ArgoCD API server
-func NewServer() *ArgoCDServer {
-	return &ArgoCDServer{}
+func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *ArgoCDServer {
+	return &ArgoCDServer{
+		kubeclientset: kubeclientset,
+		appclientset:  appclientset,
+	}
 }
 
 // Run runs the API Server
@@ -55,7 +62,7 @@ func (a *ArgoCDServer) Run() {
 	// gRPC Server
 	grpcS := grpc.NewServer()
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
-	cluster.RegisterClusterServiceServer(grpcS, &cluster.Server{})
+	cluster.RegisterClusterServiceServer(grpcS, cluster.NewServer(a.appclientset))
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
