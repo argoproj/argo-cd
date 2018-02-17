@@ -6,6 +6,8 @@ import (
 )
 
 // Application is a definition of Application resource.
+// +genclient
+// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`

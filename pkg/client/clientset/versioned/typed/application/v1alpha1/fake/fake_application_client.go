@@ -10,6 +10,10 @@ type FakeArgoprojV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeArgoprojV1alpha1) Applications(namespace string) v1alpha1.ApplicationInterface {
+	return &FakeApplications{c, namespace}
+}
+
 func (c *FakeArgoprojV1alpha1) Clusters(namespace string) v1alpha1.ClusterInterface {
 	return &FakeClusters{c, namespace}
 }

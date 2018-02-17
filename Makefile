@@ -45,9 +45,12 @@ all: argocd server
 protogen:
 	./hack/generate-proto.sh
 
-.PHONY: codegen
-codegen: protogen
+.PHONY: clientgen
+clientgen:
 	./hack/update-codegen.sh
+
+.PHONY: codegen
+codegen: protogen clientgen
 
 .PHONY: argocd
 argocd:

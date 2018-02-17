@@ -2,6 +2,14 @@
 
 package v1alpha1
 
+// ApplicationListerExpansion allows custom methods to be added to
+// ApplicationLister.
+type ApplicationListerExpansion interface{}
+
+// ApplicationNamespaceListerExpansion allows custom methods to be added to
+// ApplicationNamespaceLister.
+type ApplicationNamespaceListerExpansion interface{}
+
 // ClusterListerExpansion allows custom methods to be added to
 // ClusterLister.
 type ClusterListerExpansion interface{}

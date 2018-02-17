@@ -13,6 +13,8 @@ import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 option go_package = "v1alpha1";
 
 // Application is a definition of Application resource.
+// +genclient
+// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message Application {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
