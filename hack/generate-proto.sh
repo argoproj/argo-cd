@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# This script auto-generates protobuf related files. It is intended to be run manually when either
+# API types are added/modified, or server gRPC calls are added. The generated files should then
+# be checked into source control.
+
 set -x
 set -o errexit
 set -o nounset
@@ -7,13 +11,16 @@ set -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${PROJECT_ROOT}; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
+PATH="${PROJECT_ROOT}/dist:${PATH}"
 
+# protbuf tooling required to build .proto files from go annotations from k8s-like api types
 go build -i -o dist/go-to-protobuf ./vendor/k8s.io/code-generator/cmd/go-to-protobuf
 go build -i -o dist/protoc-gen-gogo ./vendor/k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
 
-PATH="${PROJECT_ROOT}/dist:${PATH}"
-
-# Generate protobufs for our types
+# Generate pkg/apis/<group>/<apiversion>/(generated.proto,generated.pb.go)
+# NOTE: any dependencies of our types to the k8s.io apimachinery types should be added to the
+# --apimachinery-packages= option so that go-to-protobuf can locate teh types, but prefixed with a
+# '-' so that go-to-protobuf will not generate .proto files for it.
 PACKAGES=(
     github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1
 )
@@ -24,19 +31,27 @@ go-to-protobuf \
     --apimachinery-packages=-k8s.io/apimachinery/pkg/apis/meta/v1,-k8s.io/api/core/v1,-k8s.io/apimachinery/pkg/runtime/schema \
     --proto-import=./vendor
 
+# protobuf tooling required to build server/*/<service>.pb.go and <service>.pb.gw.go files from
+# .proto files
+go build -i -o dist/protoc-gen-go ./vendor/github.com/golang/protobuf/protoc-gen-go
+go build -i -o dist/protoc-gen-grpc-gateway ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 
-# Generate protobufs for our services
+# Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
 PROTO_FILES=$(find ${PROJECT_ROOT}/server -name "*.proto" -not -path "${PROJECT_ROOT}/vendor/*")
 for i in ${PROTO_FILES}; do
-    # Both /root/go and ${PROJECT_ROOT} are added to the protoc includes, in order to support
-    # the requirement of running make inside docker and on desktop, respectively.
+    # Path to the google API gateway annotations.proto will be different depending if we are
+    # building natively (e.g. from workspace) vs. part of a docker build.
+    if [ -f /.dockerenv ]; then
+        GOOGLE_PROTO_API_PATH=/root/go/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
+    else
+        GOOGLE_PROTO_API_PATH=${PROJECT_ROOT}/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
+    fi
     protoc \
         -I${PROJECT_ROOT} \
         -I/usr/local/include \
         -I./vendor \
         -I$GOPATH/src \
-        -I/root/go/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
-        -I${PROJECT_ROOT}/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
+        -I${GOOGLE_PROTO_API_PATH} \
         --go_out=plugins=grpc:$GOPATH/src \
         --grpc-gateway_out=logtostderr=true:$GOPATH/src \
         $i

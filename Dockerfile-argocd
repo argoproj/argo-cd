@@ -17,17 +17,13 @@ RUN wget https://storage.googleapis.com/golang/go${GO_VERSION}.linux-${GO_ARCH}.
     tar -C /usr/local/ -xf /go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
     rm /go${GO_VERSION}.linux-${GO_ARCH}.tar.gz
 
-# Install protoc
+# Install protoc and dep
 ENV PROTOBUF_VERSION 3.5.1
 RUN cd /usr/local && \
     wget https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protoc-${PROTOBUF_VERSION}-linux-x86_64.zip && \
-    unzip protoc-*.zip
-
-# Install Go project dependencies and some tooling
-RUN go get -u github.com/golang/dep/cmd/dep && \
-    go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway && \
-    go get -u github.com/golang/protobuf/protoc-gen-go && \
-    rm -rf ${GOPATH}/src/*
+    unzip protoc-*.zip && \
+    wget https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -O /usr/local/bin/dep && \
+    chmod +x /usr/local/bin/dep
 
 # A dummy directory is created under $GOPATH/src/dummy so we are able to use dep
 # to install all the packages of our dep lock file
@@ -38,14 +34,13 @@ RUN cd ${GOPATH}/src/dummy && \
     dep ensure -vendor-only && \
     mv vendor/* ${GOPATH}/src/ && \
     rmdir vendor
-
-# Perform the build. Remove vendor directory after copying to make sure we are not pulling random
-# cruft from user's workspace and are only using what is locked by dep.
+    
+# Perform the build
 WORKDIR /root/go/src/github.com/argoproj/argo-cd
 COPY . .
-RUN rm -rf vendor && make argocd
+RUN make server
 
 FROM alpine:3.7  
 RUN apk --no-cache add ca-certificates
-COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/argocd /argocd
-CMD ["/argocd"] 
+COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/argocd-server /argocd-server
+CMD ["/argocd-server"] 

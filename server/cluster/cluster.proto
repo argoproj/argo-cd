@@ -16,18 +16,18 @@ message ClusterQuery {}
 
 // ClusterService 
 service ClusterService {
-	// GetClusters returns list of clusters
-	rpc GetClusters(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
+	// List returns list of clusters
+	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ClusterList) {
 		option (google.api.http).get = "/api/v1/clusters";
 	}
 
-	// CreateCluster creates a cluster
-	rpc CreateCluster(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	// Create creates a cluster
+	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).post = "/api/v1/clusters";
 	}
 	
-    // GetCluster returns a cluster by name
-    rpc GetCluster(core.NameMessage) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+    // Get returns a cluster by name
+    rpc Get(core.NameMessage) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).get = "/api/v1/clusters/{name}";
 	}
 
@@ -37,7 +37,7 @@ service ClusterService {
 	// }
 
 	// DeleteCluster updates a cluster
-	rpc DeleteCluster(core.NameMessage) returns (google.protobuf.Empty) {
+	rpc Delete(core.NameMessage) returns (google.protobuf.Empty) {
 		option (google.api.http).delete = "/api/v1/clusters/{name}";
 	}
 }

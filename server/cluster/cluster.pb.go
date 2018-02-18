@@ -65,14 +65,14 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for ClusterService service
 
 type ClusterServiceClient interface {
-	// GetClusters returns list of clusters
-	GetClusters(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error)
-	// CreateCluster creates a cluster
-	CreateCluster(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
-	// GetCluster returns a cluster by name
-	GetCluster(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	// List returns list of clusters
+	List(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error)
+	// Create creates a cluster
+	Create(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	// Get returns a cluster by name
+	Get(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// DeleteCluster updates a cluster
-	DeleteCluster(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
+	Delete(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
 }
 
 type clusterServiceClient struct {
@@ -83,36 +83,36 @@ func NewClusterServiceClient(cc *grpc.ClientConn) ClusterServiceClient {
 	return &clusterServiceClient{cc}
 }
 
-func (c *clusterServiceClient) GetClusters(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error) {
+func (c *clusterServiceClient) List(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error) {
 	out := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList)
-	err := grpc.Invoke(ctx, "/cluster.ClusterService/GetClusters", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/cluster.ClusterService/List", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *clusterServiceClient) CreateCluster(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
+func (c *clusterServiceClient) Create(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
 	out := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
-	err := grpc.Invoke(ctx, "/cluster.ClusterService/CreateCluster", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/cluster.ClusterService/Create", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *clusterServiceClient) GetCluster(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
+func (c *clusterServiceClient) Get(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
 	out := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
-	err := grpc.Invoke(ctx, "/cluster.ClusterService/GetCluster", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/cluster.ClusterService/Get", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *clusterServiceClient) DeleteCluster(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
+func (c *clusterServiceClient) Delete(ctx context.Context, in *core.NameMessage, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
 	out := new(google_protobuf1.Empty)
-	err := grpc.Invoke(ctx, "/cluster.ClusterService/DeleteCluster", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/cluster.ClusterService/Delete", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,88 +122,88 @@ func (c *clusterServiceClient) DeleteCluster(ctx context.Context, in *core.NameM
 // Server API for ClusterService service
 
 type ClusterServiceServer interface {
-	// GetClusters returns list of clusters
-	GetClusters(context.Context, *ClusterQuery) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error)
-	// CreateCluster creates a cluster
-	CreateCluster(context.Context, *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
-	// GetCluster returns a cluster by name
-	GetCluster(context.Context, *core.NameMessage) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	// List returns list of clusters
+	List(context.Context, *ClusterQuery) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error)
+	// Create creates a cluster
+	Create(context.Context, *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	// Get returns a cluster by name
+	Get(context.Context, *core.NameMessage) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// DeleteCluster updates a cluster
-	DeleteCluster(context.Context, *core.NameMessage) (*google_protobuf1.Empty, error)
+	Delete(context.Context, *core.NameMessage) (*google_protobuf1.Empty, error)
 }
 
 func RegisterClusterServiceServer(s *grpc.Server, srv ClusterServiceServer) {
 	s.RegisterService(&_ClusterService_serviceDesc, srv)
 }
 
-func _ClusterService_GetClusters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ClusterService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ClusterQuery)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ClusterServiceServer).GetClusters(ctx, in)
+		return srv.(ClusterServiceServer).List(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cluster.ClusterService/GetClusters",
+		FullMethod: "/cluster.ClusterService/List",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).GetClusters(ctx, req.(*ClusterQuery))
+		return srv.(ClusterServiceServer).List(ctx, req.(*ClusterQuery))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ClusterService_CreateCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ClusterService_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ClusterServiceServer).CreateCluster(ctx, in)
+		return srv.(ClusterServiceServer).Create(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cluster.ClusterService/CreateCluster",
+		FullMethod: "/cluster.ClusterService/Create",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).CreateCluster(ctx, req.(*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster))
+		return srv.(ClusterServiceServer).Create(ctx, req.(*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ClusterService_GetCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ClusterService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(core.NameMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ClusterServiceServer).GetCluster(ctx, in)
+		return srv.(ClusterServiceServer).Get(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cluster.ClusterService/GetCluster",
+		FullMethod: "/cluster.ClusterService/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).GetCluster(ctx, req.(*core.NameMessage))
+		return srv.(ClusterServiceServer).Get(ctx, req.(*core.NameMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ClusterService_DeleteCluster_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ClusterService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(core.NameMessage)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ClusterServiceServer).DeleteCluster(ctx, in)
+		return srv.(ClusterServiceServer).Delete(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cluster.ClusterService/DeleteCluster",
+		FullMethod: "/cluster.ClusterService/Delete",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).DeleteCluster(ctx, req.(*core.NameMessage))
+		return srv.(ClusterServiceServer).Delete(ctx, req.(*core.NameMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -213,20 +213,20 @@ var _ClusterService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ClusterServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetClusters",
-			Handler:    _ClusterService_GetClusters_Handler,
+			MethodName: "List",
+			Handler:    _ClusterService_List_Handler,
 		},
 		{
-			MethodName: "CreateCluster",
-			Handler:    _ClusterService_CreateCluster_Handler,
+			MethodName: "Create",
+			Handler:    _ClusterService_Create_Handler,
 		},
 		{
-			MethodName: "GetCluster",
-			Handler:    _ClusterService_GetCluster_Handler,
+			MethodName: "Get",
+			Handler:    _ClusterService_Get_Handler,
 		},
 		{
-			MethodName: "DeleteCluster",
-			Handler:    _ClusterService_DeleteCluster_Handler,
+			MethodName: "Delete",
+			Handler:    _ClusterService_Delete_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -236,30 +236,29 @@ var _ClusterService_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("server/cluster/cluster.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 385 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x92, 0xdd, 0x4a, 0x23, 0x31,
-	0x14, 0xc7, 0xe9, 0xb2, 0xb0, 0x90, 0xdd, 0x96, 0xdd, 0xc0, 0x7e, 0xcd, 0x16, 0x16, 0x7a, 0x59,
-	0x34, 0xa1, 0xc5, 0x0b, 0xaf, 0x5b, 0x3f, 0x10, 0x54, 0x10, 0xef, 0xf4, 0x42, 0xd2, 0xe9, 0x31,
-	0x8d, 0x9d, 0x99, 0x84, 0x24, 0x33, 0x50, 0xc4, 0x1b, 0x11, 0x5f, 0xc0, 0x27, 0xe9, 0xb3, 0xf8,
-	0x0a, 0x3e, 0x88, 0x4c, 0x26, 0x71, 0x8a, 0x55, 0x11, 0xec, 0xcd, 0x4c, 0x72, 0x92, 0xff, 0xf9,
-	0xff, 0x72, 0xce, 0x41, 0x6d, 0x03, 0xba, 0x00, 0x4d, 0xe3, 0x24, 0x37, 0xb6, 0xfe, 0x13, 0xa5,
-	0xa5, 0x95, 0xf8, 0x8b, 0xdf, 0x46, 0x6d, 0x2e, 0x25, 0x4f, 0x80, 0x32, 0x25, 0x28, 0xcb, 0x32,
-	0x69, 0x99, 0x15, 0x32, 0x33, 0xd5, 0xb5, 0xe8, 0x9f, 0x3f, 0x75, 0xbb, 0x51, 0x7e, 0x4e, 0x21,
-	0x55, 0x76, 0xe6, 0x0f, 0x37, 0xa6, 0x9b, 0x86, 0x08, 0x59, 0x4a, 0x53, 0x16, 0x4f, 0x44, 0x06,
-	0x7a, 0x46, 0xd5, 0x94, 0x97, 0x01, 0x43, 0x53, 0xb0, 0x8c, 0x16, 0x3d, 0xca, 0x21, 0x03, 0xcd,
-	0x2c, 0x8c, 0xbd, 0xaa, 0xcf, 0x85, 0x9d, 0xe4, 0x23, 0x12, 0xcb, 0x94, 0x32, 0xcd, 0xa5, 0xd2,
-	0xf2, 0xc2, 0x2d, 0xd6, 0xe3, 0x31, 0x0d, 0xcc, 0x52, 0x83, 0xfb, 0x78, 0xcd, 0xde, 0x5b, 0x9a,
-	0x27, 0x47, 0xa6, 0x54, 0x22, 0x62, 0xc7, 0x4f, 0x8b, 0x1e, 0x4b, 0xd4, 0x84, 0x2d, 0xd9, 0x77,
-	0x5a, 0xe8, 0xdb, 0xb0, 0x7a, 0xfa, 0x51, 0x0e, 0x7a, 0xd6, 0x9f, 0x7f, 0x46, 0x2d, 0x1f, 0x38,
-	0x06, 0x5d, 0x88, 0x18, 0xf0, 0x6d, 0x03, 0x7d, 0xdd, 0x05, 0xeb, 0xa3, 0x06, 0xff, 0x24, 0xa1,
-	0x76, 0x8b, 0xca, 0x68, 0x87, 0xd4, 0x54, 0x24, 0x50, 0xb9, 0xc5, 0x59, 0x3c, 0x26, 0x6a, 0xca,
-	0x49, 0x49, 0x45, 0x16, 0xa8, 0x48, 0xa0, 0x0a, 0x89, 0xf6, 0x85, 0xb1, 0x9d, 0x3f, 0xd7, 0xf7,
-	0x0f, 0x77, 0x9f, 0x30, 0xfe, 0xee, 0x7a, 0x50, 0xf4, 0x42, 0xa7, 0x0c, 0x9e, 0x37, 0x50, 0x73,
-	0xa8, 0x81, 0x59, 0xf0, 0xf7, 0xf1, 0xe0, 0xe3, 0x9e, 0xd1, 0x0a, 0x72, 0x04, 0xe6, 0xce, 0x32,
-	0xf3, 0x4d, 0x03, 0xa1, 0xba, 0x78, 0xf8, 0x07, 0x71, 0x6d, 0x3c, 0x64, 0x29, 0x1c, 0x80, 0x31,
-	0x8c, 0xc3, 0x4a, 0xfc, 0xff, 0x3b, 0xff, 0xbf, 0xf8, 0xf7, 0x73, 0x7f, 0x7a, 0x99, 0xb1, 0x14,
-	0xae, 0xf0, 0x29, 0x6a, 0x6e, 0x41, 0x02, 0x75, 0xe5, 0x5e, 0x00, 0xf9, 0x45, 0xaa, 0xe9, 0x26,
-	0x61, 0xba, 0xc9, 0x76, 0x39, 0xdd, 0x21, 0x79, 0xf7, 0xb5, 0xe4, 0x83, 0xb5, 0x93, 0xee, 0x7b,
-	0x86, 0xb8, 0x52, 0x3d, 0x06, 0x00, 0x00, 0xff, 0xff, 0x5e, 0x67, 0x9b, 0xd6, 0x89, 0x03, 0x00,
-	0x00,
+	// 373 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x92, 0xdd, 0x4a, 0xf3, 0x30,
+	0x1c, 0xc6, 0x79, 0x5f, 0xc7, 0x84, 0x22, 0x43, 0x03, 0x7e, 0xd5, 0x81, 0xb0, 0xc3, 0xa1, 0x09,
+	0x1b, 0x1e, 0x78, 0xbc, 0xf9, 0x81, 0xa0, 0x82, 0xe8, 0x91, 0x27, 0x92, 0x65, 0x7f, 0xb3, 0xb8,
+	0xb6, 0x09, 0x49, 0x5a, 0x18, 0x32, 0x04, 0x6f, 0x61, 0x77, 0xe1, 0xed, 0x78, 0x0b, 0x5e, 0x88,
+	0x34, 0x6d, 0xdc, 0x70, 0x2a, 0x82, 0x3b, 0x69, 0xf3, 0xd1, 0xe7, 0x79, 0x7e, 0x4d, 0x9e, 0xa0,
+	0x6e, 0x40, 0x67, 0xa0, 0x09, 0x8b, 0x52, 0x63, 0xa7, 0x6f, 0xac, 0xb4, 0xb4, 0x12, 0x2d, 0x97,
+	0xd3, 0xb0, 0xce, 0xa5, 0xe4, 0x11, 0x10, 0xaa, 0x04, 0xa1, 0x49, 0x22, 0x2d, 0xb5, 0x42, 0x26,
+	0xa6, 0xf8, 0x2c, 0xdc, 0x29, 0x77, 0xdd, 0xac, 0x97, 0xde, 0x13, 0x88, 0x95, 0x1d, 0x95, 0x9b,
+	0x07, 0xc3, 0x43, 0x83, 0x85, 0xcc, 0xa5, 0x31, 0x65, 0x03, 0x91, 0x80, 0x1e, 0x11, 0x35, 0xe4,
+	0xf9, 0x82, 0x21, 0x31, 0x58, 0x4a, 0xb2, 0x16, 0xe1, 0x90, 0x80, 0xa6, 0x16, 0xfa, 0xa5, 0xaa,
+	0xcd, 0x85, 0x1d, 0xa4, 0x3d, 0xcc, 0x64, 0x4c, 0xa8, 0xe6, 0x52, 0x69, 0xf9, 0xe0, 0x06, 0xfb,
+	0xac, 0x4f, 0x3c, 0xb3, 0xd4, 0xe0, 0x1e, 0xa5, 0xe6, 0xec, 0x27, 0xcd, 0x47, 0x22, 0x55, 0x2a,
+	0x12, 0xcc, 0xf1, 0x93, 0xac, 0x45, 0x23, 0x35, 0xa0, 0x73, 0xf1, 0x8d, 0x5a, 0xb0, 0xd2, 0x2d,
+	0x7e, 0xfd, 0x2a, 0x05, 0x3d, 0x6a, 0x4f, 0x2a, 0x41, 0xad, 0x5c, 0xb8, 0x06, 0x9d, 0x09, 0x06,
+	0xe8, 0x29, 0xa8, 0x9c, 0x0b, 0x63, 0xd1, 0x3a, 0xf6, 0x67, 0x36, 0xab, 0x08, 0x4f, 0xf0, 0x94,
+	0x06, 0x7b, 0x1a, 0x37, 0xb8, 0x63, 0x7d, 0xac, 0x86, 0x1c, 0xe7, 0x34, 0x78, 0x86, 0x06, 0x7b,
+	0x1a, 0x6f, 0x94, 0xdb, 0x37, 0xb6, 0x9e, 0x5f, 0xdf, 0x26, 0xff, 0x11, 0x5a, 0x75, 0x67, 0x9f,
+	0xb5, 0xfc, 0x0d, 0x19, 0xf4, 0xf2, 0x2f, 0xa8, 0x76, 0x35, 0x50, 0x0b, 0xa8, 0xf3, 0xf7, 0xb0,
+	0x70, 0x01, 0x1e, 0x1e, 0xb6, 0x31, 0x0f, 0x3b, 0x0e, 0x96, 0x4e, 0xc1, 0xa2, 0x35, 0xec, 0xee,
+	0xeb, 0x92, 0xc6, 0x70, 0x01, 0xc6, 0x50, 0x0e, 0x0b, 0xc9, 0xdd, 0x75, 0xb9, 0xdb, 0x68, 0xf3,
+	0x73, 0x2e, 0x79, 0x4c, 0x68, 0x0c, 0x63, 0x74, 0x13, 0x54, 0x8f, 0x20, 0x02, 0x0b, 0x5f, 0x11,
+	0x6c, 0xe0, 0xa2, 0xbf, 0xd8, 0xf7, 0x17, 0x1f, 0xe7, 0xfd, 0xf5, 0xae, 0xcd, 0xef, 0x5c, 0x3b,
+	0x7b, 0xb7, 0xcd, 0xdf, 0xd4, 0xb4, 0x50, 0xbd, 0x07, 0x00, 0x00, 0xff, 0xff, 0x53, 0xdd, 0x33,
+	0x04, 0x6b, 0x03, 0x00, 0x00,
 }
