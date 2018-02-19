@@ -6,8 +6,8 @@ import (
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/server/core"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -54,9 +54,11 @@ func NewClusterGetCommand() *cobra.Command {
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)
 			for _, clusterName := range args {
-				clst, err := clusterIf.Get(context.Background(), &core.NameMessage{Name: clusterName})
+				clst, err := clusterIf.Get(context.Background(), &cluster.ClusterQuery{Name: clusterName})
 				errors.CheckError(err)
-				fmt.Printf("%v\n", clst)
+				yamlBytes, err := yaml.Marshal(clst)
+				errors.CheckError(err)
+				fmt.Printf("%v\n", string(yamlBytes))
 			}
 		},
 	}
@@ -75,7 +77,7 @@ func NewClusterRemoveCommand() *cobra.Command {
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)
 			for _, clusterName := range args {
-				_, err := clusterIf.Delete(context.Background(), &core.NameMessage{Name: clusterName})
+				_, err := clusterIf.Delete(context.Background(), &cluster.ClusterQuery{Name: clusterName})
 				errors.CheckError(err)
 			}
 		},

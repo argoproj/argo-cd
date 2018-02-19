@@ -1,4 +1,5 @@
 required = [
+  "github.com/gogo/protobuf/protoc-gen-gofast",
   "k8s.io/code-generator/cmd/go-to-protobuf",
 ]
 

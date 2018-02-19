@@ -10,7 +10,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/version"
-	"github.com/cockroachdb/cockroach/pkg/util/protoutil"
+	jsonutil "github.com/argoproj/argo-cd/util/json"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -62,14 +62,16 @@ func (a *ArgoCDServer) Run() {
 	// gRPC Server
 	grpcS := grpc.NewServer()
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
-	cluster.RegisterClusterServiceServer(grpcS, cluster.NewServer(a.appclientset))
+	cluster.RegisterClusterServiceServer(grpcS, cluster.NewServer(a.kubeclientset, a.appclientset))
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
 	mux := http.NewServeMux()
-	// The following option is used with grpc-gateway to work around the following issue:
-	// https://github.com/gogo/protobuf/issues/212#issuecomment-253709966
-	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(protoutil.JSONPb))
+	// NOTE: if a marshaller option is not supplied, grpc-gateway will default to the jsonpb from
+	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
+	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
+	// we use our own Marshaler
+	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
 	gwmux := runtime.NewServeMux(gwMuxOpts)
 	mux.Handle("/", gwmux)
 	dOpts := []grpc.DialOption{grpc.WithInsecure()}
@@ -80,12 +82,10 @@ func (a *ArgoCDServer) Run() {
 		Handler: mux,
 	}
 
+	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d", argocd.GetVersion(), port)
-
-	// Use the muxed listeners for your servers.
 	go grpcS.Serve(grpcL)
 	go httpS.Serve(httpL)
-
 	err = m.Serve()
 	if err != nil {
 		panic(err)

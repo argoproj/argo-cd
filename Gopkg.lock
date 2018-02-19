@@ -20,16 +20,6 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
-  name = "github.com/cockroachdb/cockroach"
-  packages = [
-    "pkg/util/httputil",
-    "pkg/util/protoutil",
-    "pkg/util/syncutil"
-  ]
-  revision = "ec52ded95a5235d71f26b6cbc59924bd6733fb3a"
-  version = "v1.1.5"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -77,10 +67,32 @@
 [[projects]]
   name = "github.com/gogo/protobuf"
   packages = [
-    "jsonpb",
+    "gogoproto",
+    "plugin/compare",
+    "plugin/defaultcheck",
+    "plugin/description",
+    "plugin/embedcheck",
+    "plugin/enumstringer",
+    "plugin/equal",
+    "plugin/face",
+    "plugin/gostring",
+    "plugin/marshalto",
+    "plugin/oneofcheck",
+    "plugin/populate",
+    "plugin/size",
+    "plugin/stringer",
+    "plugin/testgen",
+    "plugin/union",
+    "plugin/unmarshal",
     "proto",
+    "protoc-gen-gofast",
+    "protoc-gen-gogo/descriptor",
+    "protoc-gen-gogo/generator",
+    "protoc-gen-gogo/grpc",
+    "protoc-gen-gogo/plugin",
     "sortkeys",
-    "types"
+    "vanity",
+    "vanity/command"
   ]
   revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
   version = "v1.0.0"
@@ -208,24 +220,6 @@
   packages = ["."]
   revision = "5f041e8faa004a95c88a202771f4cc3e991971e6"
   version = "v2.0.1"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/petermattis/goid"
-  packages = ["."]
-  revision = "b0b1615b78e5ee59739545bb38426383b2cda4c9"
-
-[[projects]]
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
-  version = "v0.8.0"
-
-[[projects]]
-  name = "github.com/sasha-s/go-deadlock"
-  packages = ["."]
-  revision = "03d40e5dbd5488667a13b3c2600b2f7c2886f02f"
-  version = "v0.2.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -576,6 +570,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1fbd546dd2cccd6830dd624612f202d2ef46f7c5329a9752872634473a87c9ff"
+  inputs-digest = "4dc0497ff23781736bf92a00dd1a9b0bb89f5c8b67d1651890ee8da7ca4c4cb3"
   solver-name = "gps-cdcl"
   solver-version = 1

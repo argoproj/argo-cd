@@ -3,24 +3,32 @@ package cluster
 import (
 	clusterv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/server/core"
-	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Server provides a Cluster service
 type Server struct {
-	ns           string
-	appclientset appclientset.Interface
+	ns            string
+	kubeclientset kubernetes.Interface
+	appclientset  appclientset.Interface
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(appclientset appclientset.Interface) *Server {
+func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *Server {
 	return &Server{
-		ns:           "default",
-		appclientset: appclientset,
+		ns:            "default",
+		appclientset:  appclientset,
+		kubeclientset: kubeclientset,
 	}
+}
+
+// ListPods returns application related pods in a cluster
+func (s *Server) ListPods(ctx context.Context, in *ClusterQuery) (*apiv1.PodList, error) {
+	// TODO: filter by the app label
+	return s.kubeclientset.CoreV1().Pods(s.ns).List(metav1.ListOptions{})
 }
 
 // List returns list of clusters
@@ -33,13 +41,24 @@ func (s *Server) Create(ctx context.Context, c *clusterv1.Cluster) (*clusterv1.C
 	return s.appclientset.ArgoprojV1alpha1().Clusters(s.ns).Create(c)
 }
 
-// Get returns list of clusters
-func (s *Server) Get(ctx context.Context, name *core.NameMessage) (*clusterv1.Cluster, error) {
-	return s.appclientset.ArgoprojV1alpha1().Clusters(s.ns).Get(name.Name, metav1.GetOptions{})
+// Get returns a cluster from a query
+func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*clusterv1.Cluster, error) {
+	return s.appclientset.ArgoprojV1alpha1().Clusters(s.ns).Get(q.Name, metav1.GetOptions{})
 }
 
+// Update updates a cluster
+func (s *Server) Update(ctx context.Context, c *clusterv1.Cluster) (*clusterv1.Cluster, error) {
+	return s.appclientset.ArgoprojV1alpha1().Clusters(s.ns).Update(c)
+}
+
+// //Update updates a cluster
+// func (s *Server) Update(ctx context.Context, req *ClusterUpdateRequest) (*clusterv1.Cluster, error) {
+// 	log.Info(req)
+// 	return s.appclientset.ArgoprojV1alpha1().Clusters(s.ns).Update(req.Cluster)
+// }
+
 // Delete deletes a cluster by name
-func (s *Server) Delete(ctx context.Context, name *core.NameMessage) (*empty.Empty, error) {
-	err := s.appclientset.ArgoprojV1alpha1().Clusters(s.ns).Delete(name.Name, &metav1.DeleteOptions{})
-	return &empty.Empty{}, err
+func (s *Server) Delete(ctx context.Context, q *ClusterQuery) (*ClusterResponse, error) {
+	err := s.appclientset.ArgoprojV1alpha1().Clusters(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
+	return &ClusterResponse{}, err
 }
