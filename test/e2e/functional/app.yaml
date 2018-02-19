@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  targetRevision: abc123
+  source:
+    gitRepoSecret:
+      name: my-git-repo
+    path: apps/elk
+    environment: prod/us-west-2

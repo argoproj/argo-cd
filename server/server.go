@@ -8,6 +8,7 @@ import (
 
 	argocd "github.com/argoproj/argo-cd"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/version"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
@@ -63,6 +64,7 @@ func (a *ArgoCDServer) Run() {
 	grpcS := grpc.NewServer()
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, cluster.NewServer(a.kubeclientset, a.appclientset))
+	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.kubeclientset, a.appclientset))
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
@@ -77,6 +79,7 @@ func (a *ArgoCDServer) Run() {
 	dOpts := []grpc.DialOption{grpc.WithInsecure()}
 	mustRegisterGWHandler(version.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(cluster.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(application.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	httpS := &http.Server{
 		Addr:    endpoint,
 		Handler: mux,

@@ -1,0 +1,61 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/application";
+
+// Application Service
+//
+// Application Service API performs CRUD actions against application resources 
+package application;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "k8s.io/api/core/v1/generated.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+
+// ApplicationQuery is a query for application resources
+message ApplicationQuery {
+	string name = 1;
+}
+
+message ApplicationResponse {}
+
+// ApplicationService 
+service ApplicationService {
+
+	// List returns list of applications
+	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
+		option (google.api.http).get = "/api/v1/applications";
+	}
+
+	// Create creates a application
+	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			post: "/api/v1/applications"
+			body: "*"
+		};
+	}
+	
+    // Get returns a application by name
+    rpc Get(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http).get = "/api/v1/applications/{name}";
+	}
+
+	// Update updates a application
+	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			put: "/api/v1/applications/{metadata.name}"
+			body: "*"
+		};
+	}
+
+	// Delete updates a application
+	rpc Delete(ApplicationQuery) returns (ApplicationResponse) {
+		option (google.api.http).delete = "/api/v1/applications/{name}";
+	}
+
+	// ListPods returns pods in a application
+	rpc ListPods(ApplicationQuery) returns (k8s.io.api.core.v1.PodList) {
+		option (google.api.http).get = "/api/v1/applications/{name}/pods";
+	}
+
+}
