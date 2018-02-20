@@ -14,7 +14,6 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 )
 
 // InstallFlags has all the required parameters for installing Argo CD.
@@ -32,10 +31,9 @@ func NewInstallCommand(globalArgs *globalFlags) *cobra.Command {
 		Short: "Install the argocd components",
 		Long:  "Install the argocd components",
 		Run: func(c *cobra.Command, args []string) {
-			client := getKubeClient(globalArgs.kubeConfigPath, globalArgs.kubeConfigOverrides)
-			extensionsClient := apiextensionsclient.NewForConfigOrDie(getKubeConfig(globalArgs.kubeConfigPath, globalArgs.kubeConfigOverrides))
-			installAppCRD(client, extensionsClient, installArgs)
-			installClusterCRD(client, extensionsClient, installArgs)
+			extensionsClient := apiextensionsclient.NewForConfigOrDie(GetKubeConfig(globalArgs.kubeConfigPath, globalArgs.kubeConfigOverrides))
+			installAppCRD(extensionsClient, installArgs)
+			installClusterCRD(extensionsClient, installArgs)
 		},
 	}
 	command.Flags().BoolVar(&installArgs.DryRun, "dry-run", false, "print the kubernetes manifests to stdout instead of installing")
@@ -43,7 +41,7 @@ func NewInstallCommand(globalArgs *globalFlags) *cobra.Command {
 	return command
 }
 
-func installAppCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
+func installAppCRD(extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
 	applicationCRD := apiextensionsv1beta1.CustomResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1alpha1",
@@ -63,10 +61,10 @@ func installAppCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensi
 			},
 		},
 	}
-	createCRDHelper(clientset, extensionsClient, &applicationCRD, args.DryRun)
+	createCRDHelper(extensionsClient, &applicationCRD, args.DryRun)
 }
 
-func installClusterCRD(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
+func installClusterCRD(extensionsClient *apiextensionsclient.Clientset, args InstallFlags) {
 	clusterCRD := apiextensionsv1beta1.CustomResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1alpha1",
@@ -86,10 +84,10 @@ func installClusterCRD(clientset *kubernetes.Clientset, extensionsClient *apiext
 			},
 		},
 	}
-	createCRDHelper(clientset, extensionsClient, &clusterCRD, args.DryRun)
+	createCRDHelper(extensionsClient, &clusterCRD, args.DryRun)
 }
 
-func createCRDHelper(clientset *kubernetes.Clientset, extensionsClient *apiextensionsclient.Clientset, crd *apiextensionsv1beta1.CustomResourceDefinition, dryRun bool) {
+func createCRDHelper(extensionsClient *apiextensionsclient.Clientset, crd *apiextensionsv1beta1.CustomResourceDefinition, dryRun bool) {
 	if dryRun {
 		printYAML(crd)
 		return
