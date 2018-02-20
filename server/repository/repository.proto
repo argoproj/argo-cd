@@ -1,0 +1,65 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/repository";
+
+// Repository Service
+//
+// Repository Service API performs CRUD actions against repository resources 
+package repository;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "k8s.io/api/core/v1/generated.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+
+// RepoQuery is a query for respository resources
+message RepoQuery {
+	string repo = 1;
+}
+
+message RepoResponse {}
+
+message RepoUpdateRequest {
+	string url = 1;
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Respository repo = 2;
+}
+
+// RepositoryService 
+service RepositoryService {
+
+	// List returns list of repos
+	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RespositoryList) {
+		option (google.api.http).get = "/api/v1/repositories";
+	}
+
+	// Create creates a repo
+	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Respository) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Respository) {
+		option (google.api.http) = {
+			post: "/api/v1/repositories"
+			body: "*"
+		};
+	}
+	
+    // Get returns a repo by name
+    rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Respository) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}";
+	}
+
+	// Update updates a repo
+	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Respository) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Respository) {
+	}
+
+	// Update updates a repo (special handler intended to be used only by the gRPC gateway)
+	rpc UpdateREST(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Respository) {
+		option (google.api.http) = {
+			put: "/api/v1/repositories/{url}"
+			body: "repo"
+		};
+	}
+
+	// Delete updates a repo
+	rpc Delete(RepoQuery) returns (RepoResponse) {
+		option (google.api.http).delete = "/api/v1/repositories/{repo}";
+	}
+
+}

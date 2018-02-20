@@ -8,9 +8,7 @@ import (
 )
 
 // JSONMarshaler is a type which satisfies the grpc-gateway Marshaler interface
-type JSONMarshaler struct {
-	json.Decoder
-}
+type JSONMarshaler struct{}
 
 // ContentType implements gwruntime.Marshaler.
 func (j *JSONMarshaler) ContentType() string {

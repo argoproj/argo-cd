@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/server/cluster"
@@ -20,6 +21,7 @@ func NewClusterCommand() *cobra.Command {
 		Short: fmt.Sprintf("%s cluster COMMAND", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
+			os.Exit(1)
 		},
 	}
 
@@ -37,6 +39,7 @@ func NewClusterAddCommand() *cobra.Command {
 		Short: fmt.Sprintf("%s cluster add CLUSTERNAME", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
+			os.Exit(1)
 		},
 	}
 	return command
@@ -50,6 +53,7 @@ func NewClusterGetCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
+				os.Exit(1)
 			}
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)
@@ -73,6 +77,7 @@ func NewClusterRemoveCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
+				os.Exit(1)
 			}
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)

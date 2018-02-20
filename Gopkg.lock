@@ -151,6 +151,17 @@
   revision = "2bcd89a1743fd4b373f7370ce8ddc14dfbd18229"
 
 [[projects]]
+  branch = "bugfix/37-panic-on-err"
+  name = "github.com/grpc-ecosystem/go-grpc-middleware"
+  packages = [
+    ".",
+    "logging",
+    "logging/logrus",
+    "tags"
+  ]
+  revision = "b9814e2370c8552db05c796c139b76a6ca45b34f"
+
+[[projects]]
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
     "runtime",
@@ -570,6 +581,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4dc0497ff23781736bf92a00dd1a9b0bb89f5c8b67d1651890ee8da7ca4c4cb3"
+  inputs-digest = "f952799b75f7db46976f7e4aa15d5f9b1908f28fbd4d9ddb20381a5f160cc07e"
   solver-name = "gps-cdcl"
   solver-version = 1

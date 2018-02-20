@@ -69,29 +69,6 @@ type Cluster struct {
 	Spec              ClusterSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
-// objectMeta and corresponding GetMetadata() methods is a hack to allow us to use grpc-gateway
-// side-by-side with k8s protobuf codegen. The grpc-gateway generated .gw.pb.go files expect a
-// GetMetadata() method to be generated because it assumes the .proto files were generated from
-// protoc --go_out=plugins=grpc. Instead, kubernetes uses go-to-protobuf to generate .proto files
-// from go types, and this method is not auto-generated (presumably since ObjectMeta is embedded but
-// is nested in the 'metadata' field in JSON form).
-type objectMeta struct {
-	Name *string
-}
-
-func (a *Application) GetMetadata() *objectMeta {
-	namePtr := &a.Name
-	return &objectMeta{
-		Name: namePtr,
-	}
-}
-func (c *Cluster) GetMetadata() *objectMeta {
-	namePtr := &c.Name
-	return &objectMeta{
-		Name: namePtr,
-	}
-}
-
 // ClusterList is a collection of Clusters.
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type ClusterList struct {
@@ -104,4 +81,17 @@ type ClusterList struct {
 type ClusterSpec struct {
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
+}
+
+// Respository is a Git repository holding application configurations
+type Respository struct {
+	Repo     string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	Username string `json:"username" protobuf:"bytes,2,opt,name=username"`
+	Password string `json:"password" protobuf:"bytes,3,opt,name=password"`
+}
+
+// RespositoryList is a collection of Repositories.
+type RespositoryList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []Respository `json:"items" protobuf:"bytes,2,rep,name=items"`
 }

@@ -86,3 +86,19 @@ message ClusterSpec {
   optional string server = 1;
 }
 
+// Respository is a Git repository holding application configurations
+message Respository {
+  optional string repo = 1;
+
+  optional string username = 2;
+
+  optional string password = 3;
+}
+
+// RespositoryList is a collection of Repositories.
+message RespositoryList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated Respository items = 2;
+}
+

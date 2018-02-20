@@ -17,9 +17,9 @@ type Server struct {
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *Server {
+func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *Server {
 	return &Server{
-		ns:            "default",
+		ns:            namespace,
 		appclientset:  appclientset,
 		kubeclientset: kubeclientset,
 	}
