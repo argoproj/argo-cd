@@ -201,8 +201,8 @@
 [[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
-  revision = "28452fcdec4e44348d2af0d91d1e9e38da3a9e0a"
-  version = "1.0.5"
+  revision = "e7c7f3b33712573affdcc7a107218e7926b9a05b"
+  version = "1.0.6"
 
 [[projects]]
   name = "github.com/juju/ratelimit"
@@ -260,7 +260,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "650f4a345ab4e5b245a3034b110ebc7299e68186"
+  revision = "432090b8f568c018896cd8a0fb0345872bbac6ce"
 
 [[projects]]
   branch = "master"
@@ -275,7 +275,7 @@
     "lex/httplex",
     "trace"
   ]
-  revision = "f5dfe339be1d06f81b22525fe34671ee7d2c8904"
+  revision = "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb"
 
 [[projects]]
   branch = "master"
@@ -327,7 +327,7 @@
     "go/ast/astutil",
     "imports"
   ]
-  revision = "ce871d178848e3eea1e8795e5cfb74053dde4bb9"
+  revision = "5e776fee60db37e560cee3fb46db699d2f095386"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -366,6 +366,7 @@
     "connectivity",
     "credentials",
     "encoding",
+    "encoding/proto",
     "grpclb/grpc_lb_v1/messages",
     "grpclog",
     "internal",
@@ -381,8 +382,8 @@
     "tap",
     "transport"
   ]
-  revision = "6b51017f791ae1cfbec89c52efdf444b13b550ef"
-  version = "v1.9.2"
+  revision = "8e4536a86ab602859c20df5ebfd0bd4228d08655"
+  version = "v1.10.0"
 
 [[projects]]
   name = "gopkg.in/inf.v0"
@@ -441,7 +442,7 @@
     "pkg/client/clientset/clientset/scheme",
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
   ]
-  revision = "c726b9ed6b50a8e7247ea43a9087b06b5ed40379"
+  revision = "b89f5ce12ce6e022fc3e9d7586d61346e694d56e"
 
 [[projects]]
   branch = "release-1.9"
@@ -546,7 +547,8 @@
     "util/flowcontrol",
     "util/homedir",
     "util/integer",
-    "util/jsonpath"
+    "util/jsonpath",
+    "util/workqueue"
   ]
   revision = "9389c055a838d4f208b699b3c7c51b70f2368861"
 
@@ -576,11 +578,11 @@
   branch = "master"
   name = "k8s.io/kube-openapi"
   packages = ["pkg/common"]
-  revision = "275e2ce91dec4c05a4094a7b1daee5560b555ac9"
+  revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f952799b75f7db46976f7e4aa15d5f9b1908f28fbd4d9ddb20381a5f160cc07e"
+  inputs-digest = "0aa93ce59362fb4c878e843ba8ebed06d419f8aa29012f099a213aded7b4940c"
   solver-name = "gps-cdcl"
   solver-version = 1
