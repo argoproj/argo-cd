@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/version"
+	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -71,9 +72,11 @@ func (a *ArgoCDServer) Run() {
 	grpcS := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_logrus.StreamServerInterceptor(a.log),
+			grpc_util.PanicLoggerStreamServerInterceptor(a.log),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_logrus.UnaryServerInterceptor(a.log),
+			grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 		)),
 	)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})

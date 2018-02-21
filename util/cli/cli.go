@@ -1,6 +1,6 @@
 // Package cmd provides functionally common to various argo CLIs
 
-package cmd
+package cli
 
 import (
 	"fmt"

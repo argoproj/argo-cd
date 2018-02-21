@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"github.com/argoproj/argo-cd/util/cmd"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 	// load the gcp plugin (required to authenticate against GKE clusters).
@@ -34,7 +34,7 @@ func NewCommand() *cobra.Command {
 	clientcmd.BindOverrideFlags(&globalArgs.kubeConfigOverrides, command.PersistentFlags(), clientcmd.RecommendedConfigOverrideFlags(""))
 	command.PersistentFlags().StringVar(&globalArgs.logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 
-	command.AddCommand(cmd.NewVersionCmd(cliName))
+	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.AddCommand(NewClusterCommand())
 	command.AddCommand(NewApplicationCommand())
 	command.AddCommand(NewRepoCommand())

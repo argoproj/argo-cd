@@ -4,7 +4,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server"
-	"github.com/argoproj/argo-cd/util/cmd"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -40,6 +40,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&kubeConfig, "kubeconfig", "", "Kubernetes config (used when running outside of cluster)")
 	command.Flags().StringVar(&configMap, "configmap", defaultArgoCDConfigMap, "Name of K8s configmap to retrieve argocd configuration")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-	command.AddCommand(cmd.NewVersionCmd(cliName))
+	command.AddCommand(cli.NewVersionCmd(cliName))
 	return command
 }
