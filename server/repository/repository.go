@@ -37,7 +37,7 @@ func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientse
 }
 
 // List returns list of repositories
-func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RespositoryList, error) {
+func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.SecretTypeRepository})
@@ -50,8 +50,8 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RespositoryLis
 	if err != nil {
 		return nil, err
 	}
-	repoList := appsv1.RespositoryList{
-		Items: make([]appsv1.Respository, len(repoSecrets.Items)),
+	repoList := appsv1.RepositoryList{
+		Items: make([]appsv1.Repository, len(repoSecrets.Items)),
 	}
 	for i, repoSec := range repoSecrets.Items {
 		repoList.Items[i] = *secretToRepo(&repoSec)
@@ -60,7 +60,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RespositoryLis
 }
 
 // Create creates a repository
-func (s *Server) Create(ctx context.Context, r *appsv1.Respository) (*appsv1.Respository, error) {
+func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repoURL := git.NormalizeGitURL(r.Repo)
 	err := git.TestRepo(repoURL, r.Username, r.Password)
 	if err != nil {
@@ -90,7 +90,7 @@ func (s *Server) Create(ctx context.Context, r *appsv1.Respository) (*appsv1.Res
 }
 
 // Get returns a repository by URL
-func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Respository, error) {
+func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, error) {
 	secName := repoURLToSecretName(q.Repo)
 	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Respository, er
 }
 
 // Update updates a repository
-func (s *Server) Update(ctx context.Context, r *appsv1.Respository) (*appsv1.Respository, error) {
+func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	secName := repoURLToSecretName(r.Repo)
 	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
@@ -124,7 +124,7 @@ func (s *Server) Update(ctx context.Context, r *appsv1.Respository) (*appsv1.Res
 }
 
 // UpdateREST updates a repository (from a REST request)
-func (s *Server) UpdateREST(ctx context.Context, r *RepoUpdateRequest) (*appsv1.Respository, error) {
+func (s *Server) UpdateREST(ctx context.Context, r *RepoUpdateRequest) (*appsv1.Repository, error) {
 	return s.Update(ctx, r.Repo)
 }
 
@@ -147,8 +147,8 @@ func repoURLToSecretName(repo string) string {
 }
 
 // secretToRepo converts a secret into a repository object
-func secretToRepo(s *apiv1.Secret) *appsv1.Respository {
-	repo := appsv1.Respository{
+func secretToRepo(s *apiv1.Secret) *appsv1.Repository {
+	repo := appsv1.Repository{
 		Repo:     string(s.Data["repository"]),
 		Username: string(s.Data["username"]),
 		Password: string(s.Data["password"]),

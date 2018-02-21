@@ -14,13 +14,13 @@ const (
 )
 
 var (
-	// Parts of the image for installation
-	// These values may be overridden by the link flags during build
-	imageNamespace = "argoproj"
-	imageTag       = "latest"
+// Parts of the image for installation
+// These values may be overridden by the link flags during build
+//imageNamespace = "argoproj"
+//imageTag       = "latest"
 )
 
-// GetKubeClient creates new kubernetes client config using specified config path and config overrides variables
+// GetKubeConfig creates new kubernetes client config using specified config path and config overrides variables
 func GetKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.ExplicitPath = configPath

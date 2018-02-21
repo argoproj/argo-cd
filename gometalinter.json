@@ -1,0 +1,26 @@
+{
+    "Vendor": true,
+    "DisableAll": true,
+    "Deadline": "3m",
+    "Enable": [
+        "vet",
+        "gofmt",
+        "deadcode",
+        "errcheck",
+        "varcheck",
+        "structcheck",
+        "ineffassign",
+        "unconvert",
+        "misspell"
+    ],
+    "Skip": [
+        "pkg/client",
+        "vendor/",
+        ".pb.go"
+    ],
+    "Exclude": [
+        "pkg/client",
+        "vendor/",
+        ".pb.go"
+    ]
+}

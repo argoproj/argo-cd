@@ -67,7 +67,8 @@ server-image:
 
 .PHONY: lint
 lint:
-	gometalinter --config gometalinter.json ./...
+# CGO_ENABLED=0 required due to: # https://github.com/alecthomas/gometalinter/issues/149#issuecomment-351272924
+	CGO_ENABLED=0 gometalinter.v2 --config gometalinter.json ./...
 
 .PHONY: test
 test:

@@ -39,7 +39,7 @@ func NewRepoCommand() *cobra.Command {
 // NewRepoAddCommand returns a new instance of an `argocd repo add` command
 func NewRepoAddCommand() *cobra.Command {
 	var (
-		repo appsv1.Respository
+		repo appsv1.Repository
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -73,7 +73,7 @@ func NewRepoAddCommand() *cobra.Command {
 	return command
 }
 
-func promptCredentials(repo *appsv1.Respository) {
+func promptCredentials(repo *appsv1.Repository) {
 	reader := bufio.NewReader(os.Stdin)
 	if repo.Username == "" {
 		fmt.Print("Username: ")
@@ -82,7 +82,7 @@ func promptCredentials(repo *appsv1.Respository) {
 	}
 	if repo.Password == "" {
 		fmt.Print("Password: ")
-		bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
+		bytePassword, _ := terminal.ReadPassword(syscall.Stdin)
 		repo.Password = string(bytePassword)
 	}
 }
@@ -123,7 +123,7 @@ func NewRepoListCommand() *cobra.Command {
 			for _, r := range repos.Items {
 				fmt.Fprintf(w, "%s\t%s\n", r.Repo, r.Username)
 			}
-			w.Flush()
+			_ = w.Flush()
 		},
 	}
 	return command

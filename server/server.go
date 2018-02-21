@@ -106,8 +106,8 @@ func (a *ArgoCDServer) Run() {
 
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d", argocd.GetVersion(), port)
-	go grpcS.Serve(grpcL)
-	go httpS.Serve(httpL)
+	go func() { _ = grpcS.Serve(grpcL) }()
+	go func() { _ = httpS.Serve(httpL) }()
 	err = m.Serve()
 	if err != nil {
 		panic(err)

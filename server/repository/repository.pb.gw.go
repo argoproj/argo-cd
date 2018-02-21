@@ -47,7 +47,7 @@ func request_RepositoryService_List_0(ctx context.Context, marshaler runtime.Mar
 }
 
 func request_RepositoryService_Create_0(ctx context.Context, marshaler runtime.Marshaler, client RepositoryServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq v1alpha1.Respository
+	var protoReq v1alpha1.Repository
 	var metadata runtime.ServerMetadata
 
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
