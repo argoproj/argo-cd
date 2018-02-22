@@ -44,7 +44,11 @@ func newCommand() *cobra.Command {
 			namespace := "default"
 			appResyncPeriod := time.Minute * 10
 
-			appManager := application.NewAppManager(nativeGitClient, repository.NewServer(namespace, kubeClient, appClient), appResyncPeriod)
+			appManager := application.NewAppManager(
+				nativeGitClient,
+				repository.NewServer(namespace, kubeClient, appClient),
+				application.NewKsonnetAppComparator(),
+				appResyncPeriod)
 
 			appController := controller.NewApplicationController(kubeClient, appClient, appManager, appResyncPeriod)
 

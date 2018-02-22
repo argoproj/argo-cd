@@ -21,6 +21,7 @@ type Manager struct {
 	gitClient            git.Client
 	repoService          repository.RepositoryServiceServer
 	statusRefreshTimeout time.Duration
+	appComparator        AppComparator
 }
 
 // NeedRefreshAppStatus answers if application status needs to be refreshed. Returns true if application never been compared, has changed or comparison result has expired.
@@ -66,7 +67,7 @@ func (m *Manager) tryRefreshAppStatus(app *v1alpha1.Application) (*v1alpha1.Appl
 	if err != nil {
 		return nil, err
 	}
-	comparisonResult, err := m.compareAppState(appRepoPath, app)
+	comparisonResult, err := m.appComparator.CompareAppState(appRepoPath, app)
 	if err != nil {
 		return nil, err
 	}
@@ -75,20 +76,16 @@ func (m *Manager) tryRefreshAppStatus(app *v1alpha1.Application) (*v1alpha1.Appl
 	}, nil
 }
 
-func (m *Manager) compareAppState(appRepoPath string, app *v1alpha1.Application) (*v1alpha1.ComparisonResult, error) {
-	// TODO (amatyushentsev): Implement actual comparison
-	return &v1alpha1.ComparisonResult{
-		Status:     v1alpha1.ComparisonStatusEqual,
-		ComparedTo: app.Spec.Source,
-		ComparedAt: metav1.Time{Time: time.Now().UTC()},
-	}, nil
-}
-
-// NewAppManager creates new instance of app.Manager
-func NewAppManager(gitClient git.Client, repoService repository.RepositoryServiceServer, statusRefreshTimeout time.Duration) *Manager {
+// NewAppManager creates new instance of app manager.
+func NewAppManager(
+	gitClient git.Client,
+	repoService repository.RepositoryServiceServer,
+	appComparator AppComparator,
+	statusRefreshTimeout time.Duration) *Manager {
 	return &Manager{
 		gitClient:            gitClient,
 		repoService:          repoService,
 		statusRefreshTimeout: statusRefreshTimeout,
+		appComparator:        appComparator,
 	}
 }
