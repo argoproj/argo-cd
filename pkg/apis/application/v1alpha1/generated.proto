@@ -5,7 +5,6 @@ syntax = 'proto2';
 
 package github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1;
 
-import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
@@ -36,30 +35,26 @@ message ApplicationList {
 
 // ApplicationSource contains secret reference which has information about github repository, path within repository and target application environment.
 message ApplicationSource {
-  // GitRepoSecret is a secret reference which has information about github repository.
-  optional k8s.io.api.core.v1.LocalObjectReference gitRepoSecret = 1;
+  optional string targetRevision = 1;
+
+  // RepoURL is repository URL which contains application project.
+  optional string repoURL = 2;
 
   // Path is a directory path within repository which contains ksonnet project.
-  optional string path = 2;
+  optional string path = 3;
 
   // Environment is a ksonnet project environment name.
-  optional string environment = 3;
+  optional string environment = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 message ApplicationSpec {
-  optional string targetRevision = 1;
-
-  optional ApplicationSource source = 2;
+  optional ApplicationSource source = 1;
 }
 
 // ApplicationStatus contains information about application status in target environment.
 message ApplicationStatus {
-  // ComparisonResult is a comparison result of application spec and deployed application.
-  optional string comparisonResult = 1;
-
-  // DifferenceDetails contains string representation of detected differences between application spec and deployed application.
-  optional string differenceDetails = 2;
+  optional ComparisonResult comparisonResult = 1;
 }
 
 // Cluster is the definition of a cluster resource
@@ -84,6 +79,19 @@ message ClusterList {
 message ClusterSpec {
   // Server is the API server URL of the Kubernetes cluster
   optional string server = 1;
+}
+
+// ComparisonResult is a comparison result of application spec and deployed application.
+message ComparisonResult {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time comparedAt = 1;
+
+  optional ApplicationSource comparedTo = 2;
+
+  optional string status = 3;
+
+  optional string differenceDetails = 4;
+
+  optional string comparisonErrorDetails = 5;
 }
 
 // Repository is a Git repository holding application configurations

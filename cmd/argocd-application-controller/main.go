@@ -3,13 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/application/controller"
+	"os"
+	"time"
+
+	"github.com/argoproj/argo-cd/application"
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/controller"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
 )
 
 const (
@@ -25,13 +30,23 @@ func newCommand() *cobra.Command {
 	var command = cobra.Command{
 		Use:   cliName,
 		Short: "application-controller is a controller to operate on applications CRD",
-		Run: func(c *cobra.Command, args []string) {
+		RunE: func(c *cobra.Command, args []string) error {
 			kubeConfig := commands.GetKubeConfig(kubeConfigPath, kubeConfigOverrides)
 
+			nativeGitClient, err := git.NewNativeGitClient()
+			if err != nil {
+				return err
+			}
 			kubeClient := kubernetes.NewForConfigOrDie(kubeConfig)
 			appClient := appclientset.NewForConfigOrDie(kubeConfig)
 
-			appController := controller.NewApplicationController(kubeClient, appClient)
+			// TODO (amatyushentsev): Use config map to store controller configuration
+			namespace := "default"
+			appResyncPeriod := time.Minute * 10
+
+			appManager := application.NewAppManager(nativeGitClient, repository.NewServer(namespace, kubeClient, appClient), appResyncPeriod)
+
+			appController := controller.NewApplicationController(kubeClient, appClient, appManager, appResyncPeriod)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()

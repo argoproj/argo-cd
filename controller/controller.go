@@ -3,12 +3,14 @@ package controller
 import (
 	"context"
 
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	log "github.com/sirupsen/logrus"
 
 	"time"
 
+	"github.com/argoproj/argo-cd/application"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -16,27 +18,29 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-const (
-	appResyncPeriod = 10 * time.Minute
-)
-
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	kubeclientset        kubernetes.Interface
-	applicationclientset appclientset.Interface
-	appQueue             workqueue.RateLimitingInterface
+	appManager *application.Manager
 
-	appInformer cache.SharedIndexInformer
+	kubeClientset        kubernetes.Interface
+	applicationClientset appclientset.Interface
+	appQueue             workqueue.RateLimitingInterface
+	appInformer          cache.SharedIndexInformer
 }
 
 // NewApplicationController creates new instance of ApplicationController.
-func NewApplicationController(kubeclientset kubernetes.Interface, applicationclientset appclientset.Interface) *ApplicationController {
+func NewApplicationController(
+	kubeClientset kubernetes.Interface,
+	applicationClientset appclientset.Interface,
+	appManager *application.Manager,
+	appResyncPeriod time.Duration) *ApplicationController {
 	appQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	return &ApplicationController{
-		kubeclientset:        kubeclientset,
-		applicationclientset: applicationclientset,
+		appManager:           appManager,
+		kubeClientset:        kubeClientset,
+		applicationClientset: applicationClientset,
 		appQueue:             appQueue,
-		appInformer:          newApplicationInformer(applicationclientset, appQueue),
+		appInformer:          newApplicationInformer(applicationClientset, appQueue, appResyncPeriod),
 	}
 }
 
@@ -61,10 +65,33 @@ func (ctrl *ApplicationController) Run(ctx context.Context, appWorkers int) {
 
 func (ctrl *ApplicationController) processNextItem() bool {
 	appKey, shutdown := ctrl.appQueue.Get()
-	defer ctrl.appQueue.Done(appKey)
 	if shutdown {
 		return false
 	}
+
+	defer ctrl.appQueue.Done(appKey)
+
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
+	if err != nil {
+		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
+		return true
+	}
+	if !exists {
+		// This happens after app was deleted, but the work queue still had an entry for it.
+		return true
+	}
+	app, ok := obj.(*appv1.Application)
+	if !ok {
+		log.Warnf("Key '%s' in index is not an application", appKey)
+		return true
+	}
+
+	updatedApp := app.DeepCopy()
+	if ctrl.appManager.NeedRefreshAppStatus(updatedApp) {
+		updatedApp.Status = *ctrl.appManager.RefreshAppStatus(updatedApp)
+		ctrl.persistApp(updatedApp)
+	}
+
 	return true
 }
 
@@ -73,9 +100,18 @@ func (ctrl *ApplicationController) runWorker() {
 	}
 }
 
-func newApplicationInformer(appclientset appclientset.Interface, appQueue workqueue.RateLimitingInterface) cache.SharedIndexInformer {
+func (ctrl *ApplicationController) persistApp(app *appv1.Application) {
+	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+	_, err := appClient.Update(app)
+	if err != nil {
+		log.Warnf("Error updating application: %v", err)
+	}
+	log.Info("Application update successful")
+}
+
+func newApplicationInformer(appClientset appclientset.Interface, appQueue workqueue.RateLimitingInterface, appResyncPeriod time.Duration) cache.SharedIndexInformer {
 	appInformerFactory := appinformers.NewSharedInformerFactory(
-		appclientset,
+		appClientset,
 		appResyncPeriod,
 	)
 	informer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
