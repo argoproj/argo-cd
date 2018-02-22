@@ -3,9 +3,8 @@ kind: Application
 metadata:
   name: my-app
 spec:
-  targetRevision: abc123
   source:
-    gitRepoSecret:
-      name: my-git-repo
+    targetRevision: abc123
+    repoURL: http://my-git-repo.git
     path: apps/elk
     environment: prod/us-west-2

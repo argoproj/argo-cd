@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -26,37 +25,43 @@ type ApplicationList struct {
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
-	TargetRevision string            `json:"targetRevision" protobuf:"bytes,1,opt,name=targetRevision"`
-	Source         ApplicationSource `json:"source" protobuf:"bytes,2,opt,name=source"`
+	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
 }
 
 // ApplicationSource contains secret reference which has information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
-	// GitRepoSecret is a secret reference which has information about github repository.
-	GitRepoSecret apiv1.LocalObjectReference `json:"gitRepoSecret" protobuf:"bytes,1,opt,name=gitRepoSecret"`
+	TargetRevision string `json:"targetRevision" protobuf:"bytes,1,opt,name=targetRevision"`
+	// RepoURL is repository URL which contains application project.
+	RepoURL string `json:"repoURL" protobuf:"bytes,2,opt,name=repoURL"`
 	// Path is a directory path within repository which contains ksonnet project.
-	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
+	Path string `json:"path" protobuf:"bytes,3,opt,name=path"`
 	// Environment is a ksonnet project environment name.
-	Environment string `json:"environment" protobuf:"bytes,3,opt,name=environment"`
+	Environment string `json:"environment" protobuf:"bytes,4,opt,name=environment"`
 }
 
-// ComparisonResult is a comparison result of application spec and deployed application.
-type ComparisonResult string
+// ComparisonStatus is a type which represents possible comparison results
+type ComparisonStatus string
 
 // Possible comparison results
 const (
-	ComparisonResultUnknown   ComparisonResult = "Unknown"
-	ComparisonResultError     ComparisonResult = "Error"
-	ComparisonResultEqual     ComparisonResult = "Equal"
-	ComparisonResultDifferent ComparisonResult = "Different"
+	ComparisonStatusUnknown   ComparisonStatus = ""
+	ComparisonStatusError     ComparisonStatus = "Error"
+	ComparisonStatusEqual     ComparisonStatus = "Equal"
+	ComparisonStatusDifferent ComparisonStatus = "Different"
 )
 
 // ApplicationStatus contains information about application status in target environment.
 type ApplicationStatus struct {
-	// ComparisonResult is a comparison result of application spec and deployed application.
-	ComparisonResult ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult,casttype=ComparisonResult"`
-	// DifferenceDetails contains string representation of detected differences between application spec and deployed application.
-	DifferenceDetails string `json:"differenceDetails" protobuf:"bytes,2,opt,name=differenceDetails"`
+	ComparisonResult ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
+}
+
+// ComparisonResult is a comparison result of application spec and deployed application.
+type ComparisonResult struct {
+	ComparedAt             metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
+	ComparedTo             ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
+	Status                 ComparisonStatus  `json:"status" protobuf:"bytes,3,opt,name=status,casttype=ComparisonStatus"`
+	DifferenceDetails      string            `json:"differenceDetails" protobuf:"bytes,4,opt,name=differenceDetails"`
+	ComparisonErrorDetails string            `json:"comparisonErrorDetails" protobuf:"bytes,5,opt,name=comparisonErrorDetails"`
 }
 
 // Cluster is the definition of a cluster resource
@@ -94,4 +99,9 @@ type Repository struct {
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// Equals compares two instances of ApplicationSource and return true if instances are equal.
+func (source ApplicationSource) Equals(other ApplicationSource) bool {
+	return source.TargetRevision == other.TargetRevision && source.RepoURL == other.RepoURL && source.Path == other.Path && source.Environment == other.Environment
 }

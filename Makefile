@@ -65,6 +65,10 @@ server-image:
 	docker build -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
 
+.PHONY: controller
+controller:
+	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
+
 .PHONY: lint
 lint:
 # CGO_ENABLED=0 required due to: # https://github.com/alecthomas/gometalinter/issues/149#issuecomment-351272924
