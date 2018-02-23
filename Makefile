@@ -71,8 +71,8 @@ controller:
 
 .PHONY: controller-image
 controller-image:
-	docker build  --build-arg BINARY=argocd-application-controller --build-arg MAKE_TARGET=controller -t $(IMAGE_PREFIX)argocd-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-controller:$(IMAGE_TAG) ; fi
+	docker build  --build-arg BINARY=argocd-application-controller --build-arg MAKE_TARGET=controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) ; fi
 
 .PHONY: lint
 lint:
