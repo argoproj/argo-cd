@@ -34,13 +34,17 @@ RUN cd ${GOPATH}/src/dummy && \
     dep ensure -vendor-only && \
     mv vendor/* ${GOPATH}/src/ && \
     rmdir vendor
-    
+
+ARG MAKE_TARGET
+
 # Perform the build
 WORKDIR /root/go/src/github.com/argoproj/argo-cd
 COPY . .
-RUN make server
+RUN make ${MAKE_TARGET}
 
 FROM alpine:3.7  
 RUN apk --no-cache add ca-certificates
-COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/argocd-server /argocd-server
-CMD ["/argocd-server"] 
+ARG BINARY
+COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/${BINARY} /${BINARY}
+ENV BINARY=$BINARY
+CMD /$BINARY
