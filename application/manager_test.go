@@ -7,6 +7,8 @@ import (
 
 	"context"
 
+	"sync"
+
 	"github.com/argoproj/argo-cd/application"
 	appMocks "github.com/argoproj/argo-cd/application/mocks"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -17,6 +19,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type appComparatorStub struct {
+	compareAppState func(appRepoPath string, app *v1alpha1.Application) (*v1alpha1.ComparisonResult, error)
+}
+
+func (stub *appComparatorStub) CompareAppState(appRepoPath string, app *v1alpha1.Application) (*v1alpha1.ComparisonResult, error) {
+	return stub.compareAppState(appRepoPath, app)
+}
 
 func TestManager(t *testing.T) {
 
@@ -103,12 +113,50 @@ func TestManager(t *testing.T) {
 			return repoPath == receivedRepoPath
 		}), appSource.TargetRevision).Return(nil)
 
-		appComparatorMock.On("CompareAppState", mock.MatchedBy(func(receivedRepoPath string) bool {
-			return repoPath == receivedRepoPath
-		}), &app).Return(&v1alpha1.ComparisonResult{
-			Status: v1alpha1.ComparisonStatusEqual,
-		}, nil)
-		updatedAppStatus := manager.RefreshAppStatus(&app)
-		assert.Equal(t, updatedAppStatus.ComparisonResult.Status, v1alpha1.ComparisonStatusEqual)
+		t.Run("TestCheckoutRepoAndCompareStart", func(t *testing.T) {
+			appComparatorMock.On("CompareAppState", mock.MatchedBy(func(receivedRepoPath string) bool {
+				return repoPath == receivedRepoPath
+			}), &app).Return(&v1alpha1.ComparisonResult{
+				Status: v1alpha1.ComparisonStatusEqual,
+			}, nil)
+
+			updatedAppStatus := manager.RefreshAppStatus(&app)
+			assert.Equal(t, updatedAppStatus.ComparisonResult.Status, v1alpha1.ComparisonStatusEqual)
+		})
+
+		t.Run("TestDoesNotProcessSameRepoSimultaneously", func(t *testing.T) {
+			cnt := 3
+			processingCnt := 0
+			completeProcessing := make(chan bool)
+
+			comparatorStub := appComparatorStub{
+				compareAppState: func(appRepoPath string, app *v1alpha1.Application) (*v1alpha1.ComparisonResult, error) {
+					processingCnt++
+					assert.Equal(t, 1, processingCnt)
+					<-completeProcessing
+					processingCnt--
+					return &v1alpha1.ComparisonResult{
+						Status: v1alpha1.ComparisonStatusEqual,
+					}, nil
+				},
+			}
+			manager := application.NewAppManager(&gitClientMock, &repoServiceMock, &comparatorStub, refreshTimeout)
+			var wg sync.WaitGroup
+
+			wg.Add(cnt)
+			for i := 0; i < cnt; i++ {
+				go func() {
+					defer wg.Done()
+					manager.RefreshAppStatus(&app)
+				}()
+			}
+
+			for i := 1; i <= cnt; i++ {
+				time.Sleep(10 * time.Millisecond)
+				completeProcessing <- true
+			}
+
+			wg.Wait()
+		})
 	})
 }

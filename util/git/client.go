@@ -26,7 +26,7 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		needClone = true
 	} else {
 		cmd := exec.Command("git", "status")
-		cmd.Dir = repo
+		cmd.Dir = repoPath
 		_, err = cmd.Output()
 		needClone = err != nil
 	}
