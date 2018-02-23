@@ -3,8 +3,6 @@ package application
 import (
 	"context"
 
-	"io/ioutil"
-
 	"fmt"
 
 	"time"
@@ -12,6 +10,9 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util/git"
+
+	"os"
+	"path"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,10 +54,7 @@ func (m *Manager) tryRefreshAppStatus(app *v1alpha1.Application) (*v1alpha1.Appl
 		return nil, err
 	}
 
-	appRepoPath, err := ioutil.TempDir("", app.Name)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create temp repository directory for app '%s'", app.Name)
-	}
+	appRepoPath := path.Join(os.TempDir(), app.Name)
 
 	err = m.gitClient.CloneOrFetch(repo.Repo, repo.Username, repo.Password, appRepoPath)
 	if err != nil {
