@@ -62,12 +62,17 @@ server:
 
 .PHONY: server-image
 server-image:
-	docker build -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd-server --build-arg MAKE_TARGET=server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
 
 .PHONY: controller
 controller:
-	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
+	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
+
+.PHONY: controller-image
+controller-image:
+	docker build  --build-arg BINARY=argocd-application-controller --build-arg MAKE_TARGET=controller -t $(IMAGE_PREFIX)argocd-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-controller:$(IMAGE_TAG) ; fi
 
 .PHONY: lint
 lint:
