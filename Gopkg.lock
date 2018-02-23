@@ -10,14 +10,19 @@
 [[projects]]
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
-  revision = "0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4"
-  version = "v1.1.0"
+  revision = "b938d81255b5473c57635324295cb0fe398c7a58"
 
 [[projects]]
   branch = "master"
   name = "github.com/PuerkitoBio/urlesc"
   packages = ["."]
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
+
+[[projects]]
+  name = "github.com/blang/semver"
+  packages = ["."]
+  revision = "2ee87856327ba09384cabd113bc6b5d174e9ec0f"
+  version = "v3.5.1"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -126,6 +131,25 @@
   revision = "e89373fe6b4a7413d7acd6da1725b83ef713e6e4"
 
 [[projects]]
+  name = "github.com/google/go-github"
+  packages = ["github"]
+  revision = "996760c56486beb81e91bb7bdb816f8c6f29284e"
+
+[[projects]]
+  name = "github.com/google/go-jsonnet"
+  packages = [
+    "ast",
+    "parser"
+  ]
+  revision = "e8f6d25f61d163deee16a78b545f4aaa0f295c01"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+
+[[projects]]
   branch = "master"
   name = "github.com/google/gofuzz"
   packages = ["."]
@@ -212,6 +236,33 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/ksonnet/ksonnet"
+  packages = [
+    "component",
+    "generator",
+    "metadata",
+    "metadata/app",
+    "metadata/lib",
+    "metadata/params",
+    "metadata/parts",
+    "metadata/registry",
+    "prototype",
+    "strings"
+  ]
+  revision = "7b8c8d49eb8e542cc77a126e1ab174d4edc839ef"
+
+[[projects]]
+  name = "github.com/ksonnet/ksonnet-lib"
+  packages = [
+    "ksonnet-gen/jsonnet",
+    "ksonnet-gen/ksonnet",
+    "ksonnet-gen/kubespec",
+    "ksonnet-gen/kubeversion"
+  ]
+  revision = "e8077023fa84395ad7976fa750136b39d0aa5f08"
+
+[[projects]]
+  branch = "master"
   name = "github.com/mailru/easyjson"
   packages = [
     "buffer",
@@ -233,6 +284,12 @@
   version = "v2.0.1"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -241,14 +298,21 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
-  version = "v1.0.4"
+  revision = "3d4380f53a34dcdc95f0c1db702615992b38d9a4"
 
 [[projects]]
   name = "github.com/soheilhy/cmux"
   packages = ["."]
   revision = "e09e9389d85d8492d313d73d1469c029e710623f"
   version = "v0.1.4"
+
+[[projects]]
+  name = "github.com/spf13/afero"
+  packages = [
+    ".",
+    "mem"
+  ]
+  revision = "9be650865eab0c12963d8753212f4f9c66cdcf12"
 
 [[projects]]
   name = "github.com/spf13/cobra"
@@ -263,19 +327,8 @@
   version = "v1.0.0"
 
 [[projects]]
-  name = "github.com/stretchr/objx"
-  packages = ["."]
-  revision = "facf9a85c22f48d2f52f2380e4efce1768749a89"
-  version = "v0.1"
-
-[[projects]]
   name = "github.com/stretchr/testify"
-  packages = [
-    ".",
-    "assert",
-    "http",
-    "mock"
-  ]
+  packages = ["assert"]
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
 
@@ -301,7 +354,6 @@
   revision = "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb"
 
 [[projects]]
-  branch = "master"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
@@ -310,7 +362,7 @@
     "jws",
     "jwt"
   ]
-  revision = "543e37812f10c46c622c9575afd7ad22f22a12ba"
+  revision = "cce311a261e6fcf29de72ca96827bdb0b7d9c9e6"
 
 [[projects]]
   branch = "master"
@@ -606,6 +658,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1c5da7222d742c9013f8f72546a3f7c477a3628ad668ac46e5d1fd46fa22b5f4"
+  inputs-digest = "9e52980bbda2f64f9b697625cbc2d18fd56f4b2ca342127f74606ae088b69b02"
   solver-name = "gps-cdcl"
   solver-version = 1
