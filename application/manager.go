@@ -9,10 +9,13 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
 
 	"os"
 	"path"
+
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -23,6 +26,7 @@ type Manager struct {
 	repoService          repository.RepositoryServiceServer
 	statusRefreshTimeout time.Duration
 	appComparator        AppComparator
+	repoLock             *util.KeyLock
 }
 
 // NeedRefreshAppStatus answers if application status needs to be refreshed. Returns true if application never been compared, has changed or comparison result has expired.
@@ -54,7 +58,9 @@ func (m *Manager) tryRefreshAppStatus(app *v1alpha1.Application) (*v1alpha1.Appl
 		return nil, err
 	}
 
-	appRepoPath := path.Join(os.TempDir(), app.Name)
+	appRepoPath := path.Join(os.TempDir(), strings.Replace(repo.Repo, "/", "_", -1))
+	m.repoLock.Lock(appRepoPath)
+	defer m.repoLock.Unlock(appRepoPath)
 
 	err = m.gitClient.CloneOrFetch(repo.Repo, repo.Username, repo.Password, appRepoPath)
 	if err != nil {
@@ -85,5 +91,6 @@ func NewAppManager(
 		repoService:          repoService,
 		statusRefreshTimeout: statusRefreshTimeout,
 		appComparator:        appComparator,
+		repoLock:             util.NewKeyLock(),
 	}
 }
