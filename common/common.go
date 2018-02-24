@@ -13,6 +13,9 @@ const (
 )
 
 var (
+	// LabelKeyAppInstance refers to the application instance resource name
+	LabelKeyAppInstance = MetadataPrefix + "/app-instance"
+
 	// LabelKeySecretType contains the type of argocd secret (currently this is just 'repo')
 	LabelKeySecretType = MetadataPrefix + "/secret-type"
 )

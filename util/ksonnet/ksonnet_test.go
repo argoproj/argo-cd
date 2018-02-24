@@ -1,10 +1,12 @@
 package ksonnet
 
 import (
+	"encoding/json"
 	"path"
 	"runtime"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +15,9 @@ var (
 )
 
 const (
-	testAppName = "test-app"
+	testAppName   = "test-app"
+	testNamespace = "test-namespace"
+	testEnvName   = "test-env"
 )
 
 func init() {
@@ -24,7 +28,20 @@ func init() {
 func TestKsonnet(t *testing.T) {
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	defaultEnv, ok := ksApp.Spec.Environments["default"]
+	defaultEnv, ok := ksApp.AppSpec().Environments[testEnvName]
 	assert.True(t, ok)
 	assert.Equal(t, 1, len(defaultEnv.Destinations))
+}
+
+func TestShow(t *testing.T) {
+	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
+	assert.Nil(t, err)
+	objs, err := ksApp.Show(testEnvName)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(objs))
+	for _, obj := range objs {
+		jsonBytes, err := json.Marshal(obj)
+		assert.Nil(t, err)
+		log.Infof("%v", string(jsonBytes))
+	}
 }
