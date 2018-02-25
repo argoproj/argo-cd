@@ -39,7 +39,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli server
+all: cli server-image controller-image
 
 .PHONY: protogen
 protogen:
@@ -76,8 +76,7 @@ controller-image:
 
 .PHONY: lint
 lint:
-# CGO_ENABLED=0 required due to: # https://github.com/alecthomas/gometalinter/issues/149#issuecomment-351272924
-	CGO_ENABLED=0 gometalinter.v2 --config gometalinter.json ./...
+	gometalinter.v2 --config gometalinter.json ./...
 
 .PHONY: test
 test:

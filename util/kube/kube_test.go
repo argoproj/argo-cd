@@ -24,9 +24,7 @@ import (
 )
 
 const (
-	testAppName         = "test-app"
 	testNamespace       = "test-namespace"
-	testEnvName         = "test-env"
 	testAppInstanceName = "test-app-instance"
 )
 

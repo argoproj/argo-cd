@@ -13,10 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-const (
-	appYAMLFile = "app.yaml"
-)
-
 var (
 	diffSeparator = regexp.MustCompile("\\n---")
 )
@@ -36,7 +32,6 @@ type KsonnetApp interface {
 
 type ksonnetApp struct {
 	manager metadata.Manager
-	homeDir string
 	spec    app.Spec
 }
 
@@ -85,7 +80,7 @@ func (k *ksonnetApp) Show(environment string) ([]unstructured.Unstructured, erro
 	if err != nil {
 		return nil, err
 	}
-	parts := diffSeparator.Split(string(out), -1)
+	parts := diffSeparator.Split(out, -1)
 	objs := make([]unstructured.Unstructured, 0)
 	for _, part := range parts {
 		if strings.TrimSpace(part) == "" {

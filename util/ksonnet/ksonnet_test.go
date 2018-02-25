@@ -15,9 +15,8 @@ var (
 )
 
 const (
-	testAppName   = "test-app"
-	testNamespace = "test-namespace"
-	testEnvName   = "test-env"
+	testAppName = "test-app"
+	testEnvName = "test-env"
 )
 
 func init() {
