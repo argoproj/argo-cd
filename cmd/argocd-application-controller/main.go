@@ -41,16 +41,19 @@ func newCommand() *cobra.Command {
 			appClient := appclientset.NewForConfigOrDie(kubeConfig)
 
 			// TODO (amatyushentsev): Use config map to store controller configuration
-			namespace := "default"
+			config := controller.ApplicationControllerConfig{
+				Namespace:  "default",
+				InstanceID: "",
+			}
 			appResyncPeriod := time.Minute * 10
 
 			appManager := application.NewAppManager(
 				nativeGitClient,
-				repository.NewServer(namespace, kubeClient, appClient),
+				repository.NewServer(config.Namespace, kubeClient, appClient),
 				application.NewKsonnetAppComparator(),
 				appResyncPeriod)
 
-			appController := controller.NewApplicationController(kubeClient, appClient, appManager, appResyncPeriod)
+			appController := controller.NewApplicationController(kubeClient, appClient, appManager, appResyncPeriod, &config)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()

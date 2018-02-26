@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 
+	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
@@ -11,6 +12,10 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/application"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -26,6 +31,12 @@ type ApplicationController struct {
 	applicationClientset appclientset.Interface
 	appQueue             workqueue.RateLimitingInterface
 	appInformer          cache.SharedIndexInformer
+	config               *ApplicationControllerConfig
+}
+
+type ApplicationControllerConfig struct {
+	InstanceID string
+	Namespace  string
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -33,14 +44,15 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	appManager *application.Manager,
-	appResyncPeriod time.Duration) *ApplicationController {
+	appResyncPeriod time.Duration,
+	config *ApplicationControllerConfig) *ApplicationController {
 	appQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	return &ApplicationController{
 		appManager:           appManager,
 		kubeClientset:        kubeClientset,
 		applicationClientset: applicationClientset,
 		appQueue:             appQueue,
-		appInformer:          newApplicationInformer(applicationClientset, appQueue, appResyncPeriod),
+		appInformer:          newApplicationInformer(applicationClientset, appQueue, appResyncPeriod, config),
 	}
 }
 
@@ -109,10 +121,29 @@ func (ctrl *ApplicationController) persistApp(app *appv1.Application) {
 	log.Info("Application update successful")
 }
 
-func newApplicationInformer(appClientset appclientset.Interface, appQueue workqueue.RateLimitingInterface, appResyncPeriod time.Duration) cache.SharedIndexInformer {
-	appInformerFactory := appinformers.NewSharedInformerFactory(
+func newApplicationInformer(
+	appClientset appclientset.Interface, appQueue workqueue.RateLimitingInterface, appResyncPeriod time.Duration, config *ApplicationControllerConfig) cache.SharedIndexInformer {
+
+	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
 		appClientset,
 		appResyncPeriod,
+		config.Namespace,
+		func(options *metav1.ListOptions) {
+			var instanceIDReq *labels.Requirement
+			var err error
+			if config.InstanceID != "" {
+				instanceIDReq, err = labels.NewRequirement(common.LabelKeyApplicationControllerInstanceID, selection.Equals, []string{config.InstanceID})
+			} else {
+				instanceIDReq, err = labels.NewRequirement(common.LabelKeyApplicationControllerInstanceID, selection.DoesNotExist, nil)
+			}
+			if err != nil {
+				panic(err)
+			}
+
+			options.FieldSelector = fields.Everything().String()
+			labelSelector := labels.NewSelector().Add(*instanceIDReq)
+			options.LabelSelector = labelSelector.String()
+		},
 	)
 	informer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
 	informer.AddEventHandler(
