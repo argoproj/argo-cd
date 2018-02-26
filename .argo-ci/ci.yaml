@@ -1,0 +1,76 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: argo-cd-ci-
+spec:
+  entrypoint: argo-cd-ci
+  arguments:
+    parameters:
+    - name: revision
+      value: master
+    - name: repo
+      value: https://github.com/argoproj/argo-cd.git
+
+  templates:
+  - name: argo-cd-ci
+    steps:
+    - - name: build
+        template: ci-dind
+        arguments:
+          parameters:
+          - name: cmd
+            value: "{{item}}"
+        withItems:
+        - make controller-image
+        - make server-image
+      - name: test
+        template: ci-builder
+        arguments:
+          parameters:
+          - name: cmd
+            value: "{{item}}"
+        withItems:
+        - dep ensure && make lint
+        - dep ensure && make test
+
+  - name: ci-builder
+    inputs:
+      parameters:
+      - name: cmd
+      artifacts:
+      - name: code
+        path: /go/src/github.com/argoproj/argo-cd
+        git:
+          repo: "{{workflow.parameters.repo}}"
+          revision: "{{workflow.parameters.revision}}"
+    container:
+      image: argoproj/argo-cd-ci-builder:1.0
+      command: [sh, -c]
+      args: ["{{inputs.parameters.cmd}}"]
+      workingDir: /go/src/github.com/argoproj/argo-cd
+
+  - name: ci-dind
+    inputs:
+      parameters:
+      - name: cmd
+      artifacts:
+      - name: code
+        path: /go/src/github.com/argoproj/argo-cd
+        git:
+          repo: "{{workflow.parameters.repo}}"
+          revision: "{{workflow.parameters.revision}}"
+    container:
+      image: argoproj/argo-cd-ci-builder:1.0
+      command: [sh, -c]
+      args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}}"]
+      workingDir: /go/src/github.com/argoproj/argo-cd
+      env:
+      - name: DOCKER_HOST
+        value: 127.0.0.1
+    sidecars:
+    - name: dind
+      image: docker:17.10-dind
+      securityContext:
+        privileged: true
+      mirrorVolumeMounts: true
+
