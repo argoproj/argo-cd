@@ -249,7 +249,7 @@
     "prototype",
     "strings"
   ]
-  revision = "7b8c8d49eb8e542cc77a126e1ab174d4edc839ef"
+  revision = "90a2f348556abf2799ea936fc20a730b65e4237e"
 
 [[projects]]
   name = "github.com/ksonnet/ksonnet-lib"

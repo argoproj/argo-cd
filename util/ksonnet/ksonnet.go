@@ -58,7 +58,10 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 	log.Debug(cmdStr)
 	out, err := cmd.Output()
 	if err != nil {
-		exErr := err.(*exec.ExitError)
+		exErr, ok := err.(*exec.ExitError)
+		if !ok {
+			return "", err
+		}
 		errOutput := string(exErr.Stderr)
 		log.Errorf("`%s` failed: %s", cmdStr, errOutput)
 		return "", fmt.Errorf(strings.TrimSpace(errOutput))

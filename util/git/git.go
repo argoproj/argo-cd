@@ -11,9 +11,8 @@ import (
 
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
-	// TODO: implement this
-	repo = strings.TrimSpace(repo)
-	return repo
+	repoURL, _ := url.Parse(repo)
+	return repoURL.String()
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials

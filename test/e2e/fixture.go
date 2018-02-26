@@ -31,9 +31,9 @@ const (
 // Fixture represents e2e tests fixture.
 type Fixture struct {
 	AppManager       *application.Manager
-	KubeClient       *kubernetes.Clientset
-	ExtensionsClient *apiextensionsclient.Clientset
-	AppClient        *appclientset.Clientset
+	KubeClient       kubernetes.Interface
+	ExtensionsClient apiextensionsclient.Interface
+	AppClient        appclientset.Interface
 	RepoService      repository.RepositoryServiceServer
 	Namespace        string
 	InstanceID       string

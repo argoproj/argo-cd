@@ -1,8 +1,8 @@
 apiVersion: 0.0.1
 environments:
   test-env:
-    destinations:
-    - namespace: test-namespace
+    destination:
+      namespace: test-namespace
       server: https://1.2.3.4
     k8sVersion: v1.8.0
     path: test-env

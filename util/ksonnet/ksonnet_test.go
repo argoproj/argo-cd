@@ -25,16 +25,15 @@ func init() {
 }
 
 func TestKsonnet(t *testing.T) {
-	t.Skip()
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	defaultEnv, ok := ksApp.AppSpec().Environments[testEnvName]
+	spec := ksApp.AppSpec()
+	defaultEnv, ok := spec.Environments[testEnvName]
 	assert.True(t, ok)
-	assert.Equal(t, 1, len(defaultEnv.Destinations))
+	assert.Equal(t, "https://1.2.3.4", defaultEnv.Destination.Server)
 }
 
 func TestShow(t *testing.T) {
-	t.Skip()
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
 	objs, err := ksApp.Show(testEnvName)

@@ -9,3 +9,8 @@ RUN curl -O https://get.docker.com/builds/Linux/x86_64/docker-1.13.1.tgz && \
   go get -u github.com/golang/dep/cmd/dep && \
   go get -u gopkg.in/alecthomas/gometalinter.v2 && \
   gometalinter.v2 --install
+
+# Install ksonnet
+# TODO(jessesuen): pin this once we decide on a stable version
+RUN go get -v -u github.com/ksonnet/ksonnet && \
+    mv ${GOPATH}/bin/ksonnet /usr/local/bin/ks

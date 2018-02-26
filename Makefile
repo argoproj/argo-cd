@@ -74,6 +74,10 @@ controller-image:
 	docker build  --build-arg BINARY=argocd-application-controller --build-arg MAKE_TARGET=controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) ; fi
 
+.PHONY: builder-image
+builder-image:
+	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) -f Dockerfile-ci-builder .
+
 .PHONY: lint
 lint:
 	gometalinter.v2 --config gometalinter.json ./...

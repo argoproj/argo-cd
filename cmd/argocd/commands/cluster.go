@@ -79,7 +79,7 @@ func printContexts(ca clientcmd.ConfigAccess) {
 	config, err := ca.GetStartingConfig()
 	errors.CheckError(err)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	defer w.Flush()
+	defer func() { _ = w.Flush() }()
 	columnNames := []string{"CURRENT", "NAME", "CLUSTER", "AUTHINFO", "NAMESPACE"}
 	_, err = fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t"))
 	errors.CheckError(err)

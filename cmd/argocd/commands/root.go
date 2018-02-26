@@ -10,7 +10,6 @@ import (
 
 type globalFlags struct {
 	clientConfig clientcmd.ClientConfig
-	logLevel     string
 }
 
 // NewCommand returns a new instance of an argocd command

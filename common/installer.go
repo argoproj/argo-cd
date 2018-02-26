@@ -32,8 +32,8 @@ type InstallParameters struct {
 
 // Installer allows to install ArgoCD resources.
 type Installer struct {
-	extensionsClient *apiextensionsclient.Clientset
-	clientset        *kubernetes.Clientset
+	extensionsClient apiextensionsclient.Interface
+	clientset        kubernetes.Interface
 }
 
 // Install performs installation
@@ -45,7 +45,7 @@ func (installer *Installer) Install(parameters InstallParameters) {
 }
 
 // NewInstaller creates new instance of Installer
-func NewInstaller(extensionsClient *apiextensionsclient.Clientset, clientset *kubernetes.Clientset) *Installer {
+func NewInstaller(extensionsClient apiextensionsclient.Interface, clientset kubernetes.Interface) *Installer {
 	return &Installer{
 		extensionsClient: extensionsClient,
 		clientset:        clientset,

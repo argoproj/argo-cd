@@ -2,13 +2,17 @@ package e2e
 
 import (
 	"context"
-	"testing"
-
 	"fmt"
+	"testing"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	// load the gcp plugin (required to authenticate against GKE clusters).
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	// load the oidc plugin (required to authenticate with OpenID Connect).
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 func TestController(t *testing.T) {
