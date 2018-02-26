@@ -4,6 +4,7 @@ package kube
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -21,6 +23,19 @@ func GetClientConfig(kubeconfig string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags("", kubeconfig)
 	}
 	return rest.InClusterConfig()
+}
+
+// TestConfig tests to make sure the REST config is usable
+func TestConfig(config *rest.Config) error {
+	kubeclientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return fmt.Errorf("REST config invalid: %s", err)
+	}
+	_, err = kubeclientset.ServerVersion()
+	if err != nil {
+		return fmt.Errorf("REST config invalid: %s", err)
+	}
+	return nil
 }
 
 type listResult struct {

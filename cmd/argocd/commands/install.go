@@ -2,6 +2,7 @@ package commands
 
 import (
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
 	"github.com/spf13/cobra"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
@@ -27,7 +28,9 @@ func NewInstallCommand(globalArgs *globalFlags) *cobra.Command {
 		Short: "Install the argocd components",
 		Long:  "Install the argocd components",
 		Run: func(c *cobra.Command, args []string) {
-			conf := GetKubeConfig(globalArgs.kubeConfigPath, globalArgs.kubeConfigOverrides)
+			//conf := GetKubeConfig(globalArgs.kubeConfigPath, globalArgs.kubeConfigOverrides)
+			conf, err := globalArgs.clientConfig.ClientConfig()
+			errors.CheckError(err)
 			extensionsClient := apiextensionsclient.NewForConfigOrDie(conf)
 			kubeClient := kubernetes.NewForConfigOrDie(conf)
 			common.NewInstaller(extensionsClient, kubeClient).Install(installParams)
@@ -39,6 +42,6 @@ func NewInstallCommand(globalArgs *globalFlags) *cobra.Command {
 	command.Flags().StringVar(&installParams.ControllerName, "controller-name", common.DefaultControllerDeploymentName, "name of controller deployment")
 	command.Flags().StringVar(&installParams.ControllerImage, "controller-image", DefaultControllerImage, "use a specified controller image")
 	command.Flags().StringVar(&installParams.ServiceAccount, "service-account", "", "use a specified service account for the workflow-controller deployment")
-
+	addKubectlFlagsToCmd(command, globalArgs)
 	return command
 }

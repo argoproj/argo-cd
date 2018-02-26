@@ -1,19 +1,16 @@
 package commands
 
 import (
+	"os"
+
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
-	// load the gcp plugin (required to authenticate against GKE clusters).
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// load the oidc plugin (required to authenticate with OpenID Connect).
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 type globalFlags struct {
-	kubeConfigOverrides clientcmd.ConfigOverrides
-	kubeConfigPath      string
-	logLevel            string
+	clientConfig clientcmd.ClientConfig
+	logLevel     string
 }
 
 // NewCommand returns a new instance of an argocd command
@@ -21,6 +18,7 @@ func NewCommand() *cobra.Command {
 	var (
 		globalArgs globalFlags
 	)
+	pathOptions := clientcmd.NewDefaultPathOptions()
 	var command = &cobra.Command{
 		Use:   cliName,
 		Short: "argocd controls a ArgoCD server",
@@ -29,15 +27,21 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
-	command.PersistentFlags().StringVar(&globalArgs.kubeConfigPath, "kubeconfig", "", "Path to the config file to use for CLI requests.")
-	globalArgs.kubeConfigOverrides = clientcmd.ConfigOverrides{}
-	clientcmd.BindOverrideFlags(&globalArgs.kubeConfigOverrides, command.PersistentFlags(), clientcmd.RecommendedConfigOverrideFlags(""))
-	command.PersistentFlags().StringVar(&globalArgs.logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-
 	command.AddCommand(cli.NewVersionCmd(cliName))
-	command.AddCommand(NewClusterCommand())
+	command.AddCommand(NewClusterCommand(pathOptions))
 	command.AddCommand(NewApplicationCommand())
 	command.AddCommand(NewRepoCommand())
 	command.AddCommand(NewInstallCommand(&globalArgs))
 	return command
+}
+
+func addKubectlFlagsToCmd(cmd *cobra.Command, globalArgs *globalFlags) {
+	// The "usual" clientcmd/kubectl flags
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := clientcmd.ConfigOverrides{}
+	kflags := clientcmd.RecommendedConfigOverrideFlags("")
+	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
+	globalArgs.clientConfig = clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }

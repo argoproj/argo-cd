@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/util/kube"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -68,6 +69,10 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+	err := kube.TestConfig(c.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
 	secName := serverToSecretName(c.Server)
 	clusterSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -78,7 +83,7 @@ func (s *Server) Create(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 		},
 	}
 	clusterSecret.StringData = clusterToStringData(c)
-	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Create(clusterSecret)
+	clusterSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, grpc.Errorf(codes.AlreadyExists, "cluster '%s' already exists", c.Server)
@@ -100,6 +105,10 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 
 // Update updates a cluster
 func (s *Server) Update(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+	err := kube.TestConfig(c.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
 	secName := serverToSecretName(c.Server)
 	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
@@ -164,6 +173,7 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	}
 	cluster := appv1.Cluster{
 		Server: string(s.Data["server"]),
+		Name:   string(s.Data["name"]),
 		Config: config,
 	}
 	return &cluster
