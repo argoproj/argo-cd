@@ -1,5 +1,7 @@
 package common
 
+import "github.com/argoproj/argo-cd/pkg/apis/application"
+
 const (
 	// MetadataPrefix is the prefix used for our labels and annotations
 	MetadataPrefix = "argocd.argoproj.io"
@@ -23,4 +25,6 @@ var (
 
 	// LabelKeySecretType contains the type of argocd secret (either 'cluster' or 'repo')
 	LabelKeySecretType = MetadataPrefix + "/secret-type"
+	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
+	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"
 )
