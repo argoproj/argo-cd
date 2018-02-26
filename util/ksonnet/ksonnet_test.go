@@ -25,6 +25,7 @@ func init() {
 }
 
 func TestKsonnet(t *testing.T) {
+	t.Skip()
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
 	defaultEnv, ok := ksApp.AppSpec().Environments[testEnvName]
@@ -33,6 +34,7 @@ func TestKsonnet(t *testing.T) {
 }
 
 func TestShow(t *testing.T) {
+	t.Skip()
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
 	objs, err := ksApp.Show(testEnvName)
