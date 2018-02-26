@@ -1,0 +1,39 @@
+apiVersion: "0.1"
+gitVersion:
+  commitSha: 422d521c05aa905df949868143b26445f5e4eda5
+  refSpec: master
+kind: ksonnet.io/registry
+libraries:
+  apache:
+    path: apache
+    version: master
+  efk:
+    path: efk
+    version: master
+  mariadb:
+    path: mariadb
+    version: master
+  memcached:
+    path: memcached
+    version: master
+  mongodb:
+    path: mongodb
+    version: master
+  mysql:
+    path: mysql
+    version: master
+  nginx:
+    path: nginx
+    version: master
+  node:
+    path: node
+    version: master
+  postgres:
+    path: postgres
+    version: master
+  redis:
+    path: redis
+    version: master
+  tomcat:
+    path: tomcat
+    version: master

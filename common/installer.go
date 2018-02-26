@@ -27,6 +27,7 @@ type InstallParameters struct {
 	ControllerName  string
 	ControllerImage string
 	ServiceAccount  string
+	SkipController  bool
 }
 
 // Installer allows to install ArgoCD resources.
@@ -38,7 +39,9 @@ type Installer struct {
 // Install performs installation
 func (installer *Installer) Install(parameters InstallParameters) {
 	installer.installAppCRD(parameters.DryRun)
-	installer.installController(parameters)
+	if !parameters.SkipController {
+		installer.installController(parameters)
+	}
 }
 
 // NewInstaller creates new instance of Installer
