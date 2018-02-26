@@ -137,10 +137,10 @@ type RepositoryList struct {
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
 func (source ApplicationSource) Equals(other ApplicationSource) bool {
-	return (source.TargetRevision == other.TargetRevision &&
+	return source.TargetRevision == other.TargetRevision &&
 		source.RepoURL == other.RepoURL &&
 		source.Path == other.Path &&
-		source.Environment == other.Environment)
+		source.Environment == other.Environment
 }
 
 // RESTConfig returns a go-client REST config from cluster

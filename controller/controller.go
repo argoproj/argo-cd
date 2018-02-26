@@ -31,7 +31,6 @@ type ApplicationController struct {
 	applicationClientset appclientset.Interface
 	appQueue             workqueue.RateLimitingInterface
 	appInformer          cache.SharedIndexInformer
-	config               *ApplicationControllerConfig
 }
 
 type ApplicationControllerConfig struct {
