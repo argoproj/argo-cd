@@ -27,7 +27,7 @@ type KsonnetApp interface {
 	AppSpec() app.Spec
 
 	// Show returns a list of unstructured objects that would be applied to an environment
-	Show(environment string) ([]unstructured.Unstructured, error)
+	Show(environment string) ([]*unstructured.Unstructured, error)
 }
 
 type ksonnetApp struct {
@@ -75,13 +75,13 @@ func (k *ksonnetApp) AppSpec() app.Spec {
 	return k.spec
 }
 
-func (k *ksonnetApp) Show(environment string) ([]unstructured.Unstructured, error) {
+func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {
 	out, err := k.ksCmd("show", environment)
 	if err != nil {
 		return nil, err
 	}
 	parts := diffSeparator.Split(out, -1)
-	objs := make([]unstructured.Unstructured, 0)
+	objs := make([]*unstructured.Unstructured, 0)
 	for _, part := range parts {
 		if strings.TrimSpace(part) == "" {
 			continue
@@ -91,7 +91,7 @@ func (k *ksonnetApp) Show(environment string) ([]unstructured.Unstructured, erro
 		if err != nil {
 			return nil, fmt.Errorf("Failed to unmarshal manifest from `ks show`")
 		}
-		objs = append(objs, obj)
+		objs = append(objs, &obj)
 	}
 	return objs, nil
 }
