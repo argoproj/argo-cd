@@ -14,10 +14,6 @@ func (c *FakeArgoprojV1alpha1) Applications(namespace string) v1alpha1.Applicati
 	return &FakeApplications{c, namespace}
 }
 
-func (c *FakeArgoprojV1alpha1) Clusters(namespace string) v1alpha1.ClusterInterface {
-	return &FakeClusters{c, namespace}
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeArgoprojV1alpha1) RESTClient() rest.Interface {

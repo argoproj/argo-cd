@@ -2,7 +2,6 @@ package diff
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/yudai/gojsondiff"
@@ -51,7 +50,6 @@ func DiffArray(leftArray, rightArray []*unstructured.Unstructured) (*DiffResultL
 		right := rightArray[i]
 		diffRes := Diff(left, right)
 		diffResultList.Diffs[i] = *diffRes
-		log.Println(diffRes.Output)
 		if diffRes.Modified {
 			diffResultList.Modified = true
 			if !*diffRes.AdditionsOnly {
@@ -80,7 +78,6 @@ func renderOutput(left interface{}, diff gojsondiff.Diff) (string, *bool) {
 		if len(line) == 0 {
 			continue
 		}
-		log.Println(string(line[0]))
 		switch string(line[0]) {
 		case formatter.AsciiAdded, formatter.AsciiSame:
 		default:

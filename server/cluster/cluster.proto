@@ -14,10 +14,15 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 
 // ClusterQuery is a query for cluster resources
 message ClusterQuery {
-	string name = 1;
+	string server = 1;
 }
 
 message ClusterResponse {}
+
+message ClusterUpdateRequest {
+	string server = 1;
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 2;
+}
 
 // ClusterService 
 service ClusterService {
@@ -35,27 +40,31 @@ service ClusterService {
 		};
 	}
 	
-    // Get returns a cluster by name
+    // Get returns a cluster by server address
     rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
-		option (google.api.http).get = "/api/v1/clusters/{name}";
+		option (google.api.http).get = "/api/v1/clusters/{server}";
 	}
 
 	// Update updates a cluster
 	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	}
+
+	// Update updates a cluster (special handler intended to be used only by the gRPC gateway)
+	rpc UpdateREST(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
-			put: "/api/v1/clusters/{metadata.name}"
-			body: "*"
+			put: "/api/v1/clusters/{server}"
+			body: "cluster"
 		};
 	}
 
 	// Delete updates a cluster
 	rpc Delete(ClusterQuery) returns (ClusterResponse) {
-		option (google.api.http).delete = "/api/v1/clusters/{name}";
+		option (google.api.http).delete = "/api/v1/clusters/{server}";
 	}
 
 	// ListPods returns pods in a cluster
 	rpc ListPods(ClusterQuery) returns (k8s.io.api.core.v1.PodList) {
-		option (google.api.http).get = "/api/v1/clusters/{name}/pods";
+		option (google.api.http).get = "/api/v1/clusters/{server}/pods";
 	}
 
 }

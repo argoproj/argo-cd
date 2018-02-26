@@ -61,12 +61,14 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	repoURL := git.NormalizeGitURL(r.Repo)
-	err := git.TestRepo(repoURL, r.Username, r.Password)
+	shallowCopy := *r
+	r = &shallowCopy
+	r.Repo = git.NormalizeGitURL(r.Repo)
+	err := git.TestRepo(r.Repo, r.Username, r.Password)
 	if err != nil {
 		return nil, err
 	}
-	secName := repoURLToSecretName(repoURL)
+	secName := repoURLToSecretName(r.Repo)
 	repoSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
@@ -75,14 +77,11 @@ func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 			},
 		},
 	}
-	repoSecret.StringData = make(map[string]string)
-	repoSecret.StringData["repository"] = repoURL
-	repoSecret.StringData["username"] = r.Username
-	repoSecret.StringData["password"] = r.Password
+	repoSecret.StringData = repoToStringData(r)
 	repoSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(repoSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
-			return nil, grpc.Errorf(codes.AlreadyExists, "repository '%s' already exists", repoURL)
+			return nil, grpc.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 		}
 		return nil, err
 	}
@@ -101,21 +100,16 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+	err := git.TestRepo(r.Repo, r.Username, r.Password)
+	if err != nil {
+		return nil, err
+	}
 	secName := repoURLToSecretName(r.Repo)
 	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	repoSecret.StringData = make(map[string]string)
-	repoSecret.StringData["repository"] = r.Repo
-	repoSecret.StringData["username"] = r.Username
-	repoSecret.StringData["password"] = r.Password
-
-	err = git.TestRepo(r.Repo, r.Username, r.Password)
-	if err != nil {
-		return nil, err
-	}
-
+	repoSecret.StringData = repoToStringData(r)
 	repoSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Update(repoSecret)
 	if err != nil {
 		return nil, err
@@ -133,11 +127,10 @@ func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error
 	secName := repoURLToSecretName(q.Repo)
 	err := s.kubeclientset.CoreV1().Secrets(s.ns).Delete(secName, &metav1.DeleteOptions{})
 	return &RepoResponse{}, err
-
 }
 
-// repoURLToSecretName hashes repo URL to the secret name using formula
-// part of the original repo name is incorporated for debugging purposes
+// repoURLToSecretName hashes repo URL to the secret name using a formula.
+// Part of the original repo name is incorporated for debugging purposes
 func repoURLToSecretName(repo string) string {
 	repo = git.NormalizeGitURL(repo)
 	h := fnv.New32a()
@@ -146,12 +139,20 @@ func repoURLToSecretName(repo string) string {
 	return fmt.Sprintf("repo-%s-%v", parts[len(parts)-1], h.Sum32())
 }
 
+// repoToStringData converts a repository object to string data for serialization to a secret
+func repoToStringData(r *appsv1.Repository) map[string]string {
+	return map[string]string{
+		"repository": r.Repo,
+		"username":   r.Username,
+		"password":   r.Password,
+	}
+}
+
 // secretToRepo converts a secret into a repository object
 func secretToRepo(s *apiv1.Secret) *appsv1.Repository {
-	repo := appsv1.Repository{
+	return &appsv1.Repository{
 		Repo:     string(s.Data["repository"]),
 		Username: string(s.Data["username"]),
 		Password: string(s.Data["password"]),
 	}
-	return &repo
 }

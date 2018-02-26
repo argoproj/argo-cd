@@ -38,7 +38,6 @@ type Installer struct {
 // Install performs installation
 func (installer *Installer) Install(parameters InstallParameters) {
 	installer.installAppCRD(parameters.DryRun)
-	installer.installClusterCRD(parameters.DryRun)
 	installer.installController(parameters)
 }
 
@@ -71,29 +70,6 @@ func (installer *Installer) installAppCRD(dryRun bool) {
 		},
 	}
 	installer.createCRDHelper(&applicationCRD, dryRun)
-}
-
-func (installer *Installer) installClusterCRD(dryRun bool) {
-	clusterCRD := apiextensionsv1beta1.CustomResourceDefinition{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.k8s.io/v1alpha1",
-			Kind:       "CustomResourceDefinition",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: application.ClusterFullName,
-		},
-		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   application.Group,
-			Version: appv1.SchemeGroupVersion.Version,
-			Scope:   apiextensionsv1beta1.NamespaceScoped,
-			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural:     application.ClusterPlural,
-				Kind:       application.ClusterKind,
-				ShortNames: []string{application.ClusterShortName},
-			},
-		},
-	}
-	installer.createCRDHelper(&clusterCRD, dryRun)
 }
 
 func (installer *Installer) createCRDHelper(crd *apiextensionsv1beta1.CustomResourceDefinition, dryRun bool) {

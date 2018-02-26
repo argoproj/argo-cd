@@ -58,27 +58,39 @@ message ApplicationStatus {
 }
 
 // Cluster is the definition of a cluster resource
-// +genclient
-// +genclient:noStatus
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message Cluster {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  // Server is the API server URL of the Kubernetes cluster
+  optional string server = 1;
 
-  optional ClusterSpec spec = 2;
+  // Name of the cluster. If omitted, will use the server address
+  optional string name = 2;
+
+  // Config corresponds toe
+  optional ClusterConfig config = 3;
+}
+
+// ClusterConfig is the configuration attributes. This structure is subset of the go-client
+// rest.Config with annotations added for marshalling.
+message ClusterConfig {
+  // Server requires Basic authentication
+  optional string username = 1;
+
+  optional string password = 2;
+
+  // Server requires Bearer authentication. This client will not attempt to use
+  // refresh tokens for an OAuth2 flow.
+  // TODO: demonstrate an OAuth2 compatible client.
+  optional string bearerToken = 3;
+
+  // TLSClientConfig contains settings to enable transport layer security
+  optional TLSClientConfig tlsClientConfig = 4;
 }
 
 // ClusterList is a collection of Clusters.
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ClusterList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Cluster items = 2;
-}
-
-// ClusterSpec is the cluster specification
-message ClusterSpec {
-  // Server is the API server URL of the Kubernetes cluster
-  optional string server = 1;
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.
@@ -108,5 +120,28 @@ message RepositoryList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Repository items = 2;
+}
+
+// TLSClientConfig contains settings to enable transport layer security
+message TLSClientConfig {
+  // Server should be accessed without verifying the TLS certificate. For testing only.
+  optional bool insecure = 1;
+
+  // ServerName is passed to the server for SNI and is used in the client to check server
+  // ceritificates against. If ServerName is empty, the hostname used to contact the
+  // server is used.
+  optional string serverName = 2;
+
+  // CertData holds PEM-encoded bytes (typically read from a client certificate file).
+  // CertData takes precedence over CertFile
+  optional bytes certData = 3;
+
+  // KeyData holds PEM-encoded bytes (typically read from a client certificate key file).
+  // KeyData takes precedence over KeyFile
+  optional bytes keyData = 4;
+
+  // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
+  // CAData takes precedence over CAFile
+  optional bytes caData = 5;
 }
 

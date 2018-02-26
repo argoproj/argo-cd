@@ -15,9 +15,3 @@ func (a *Application) GetMetadata() *objectMeta {
 		Name: &a.Name,
 	}
 }
-
-func (c *Cluster) GetMetadata() *objectMeta {
-	return &objectMeta{
-		Name: &c.Name,
-	}
-}

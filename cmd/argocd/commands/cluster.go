@@ -58,7 +58,7 @@ func NewClusterGetCommand() *cobra.Command {
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)
 			for _, clusterName := range args {
-				clst, err := clusterIf.Get(context.Background(), &cluster.ClusterQuery{Name: clusterName})
+				clst, err := clusterIf.Get(context.Background(), &cluster.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 				yamlBytes, err := yaml.Marshal(clst)
 				errors.CheckError(err)
@@ -82,7 +82,7 @@ func NewClusterRemoveCommand() *cobra.Command {
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)
 			for _, clusterName := range args {
-				_, err := clusterIf.Delete(context.Background(), &cluster.ClusterQuery{Name: clusterName})
+				_, err := clusterIf.Delete(context.Background(), &cluster.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 			}
 		},
