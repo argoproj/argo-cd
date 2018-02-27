@@ -30,7 +30,6 @@ const config = {
                 loader: 'source-map-loader'
             }, {
                 test: /\.scss$/,
-                exclude: /node_modules/,
                 loader: 'style-loader!raw-loader!sass-loader'
             }, {
                 test: /\.css$/,
@@ -49,14 +48,17 @@ const config = {
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
         new CopyWebpackPlugin([{
-            from: 'node_modules/argo-ui/src/assets', to: 'assets'
+            from: 'node_modules/argo-ui/bundle/assets', to: 'assets'
+        }, {
+            from: 'node_modules/font-awesome/fonts', to: 'assets/fonts'
         }]),
     ],
     devServer: {
         historyApiFallback: true,
+        port: 8081,
         proxy: {
             '/api': {
-                'target': process.env.ARGO_API_URL || 'http://localhost:8001',
+                'target': process.env.ARGO_API_URL || 'http://localhost:8080',
                 'secure': false,
             }
         }

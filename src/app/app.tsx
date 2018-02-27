@@ -1,6 +1,6 @@
+import { asyncMiddleware, getRoutesReducer, Layout, RouteImplementation } from 'argo-ui';
 import * as React from 'react';
 import { Provider } from 'react-redux';
-import { Layout, asyncMiddleware, getRoutesReducer, RouteImplementation } from 'argo-ui';
 
 import createHistory from 'history/createBrowserHistory';
 import { Redirect, Route, Switch } from 'react-router';

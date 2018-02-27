@@ -1,8 +1,7 @@
-import { Applications } from './components/applications';
+import { ApplicationsContainer } from './components/applications-container';
+import reducer from './reducers';
 
 export default {
-    component: Applications,
-    reducer: (state: any, action: any) => {
-        // do nothing
-    },
+    component: ApplicationsContainer,
+    reducer,
 };
