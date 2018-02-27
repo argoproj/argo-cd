@@ -98,7 +98,7 @@ func (ctrl *ApplicationController) processNextItem() bool {
 	}
 
 	updatedApp := app.DeepCopy()
-	if ctrl.appManager.NeedRefreshAppStatus(updatedApp) {
+	if ctrl.appManager.NeedRefreshAppStatus(updatedApp) || true {
 		updatedApp.Status = *ctrl.appManager.RefreshAppStatus(updatedApp)
 		ctrl.persistApp(updatedApp)
 	}

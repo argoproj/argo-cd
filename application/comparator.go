@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/util/diff"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,12 +23,14 @@ type AppComparator interface {
 
 // KsonnetAppComparator allows to compare application using KSonnet CLI
 type KsonnetAppComparator struct {
-	clusterService cluster.Server
+	clusterService cluster.ClusterServiceServer
 }
 
 // CompareAppState compares application spec and real app state using KSonnet
 func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha1.Application) (*v1alpha1.ComparisonResult, error) {
-	ksApp, err := ksutil.NewKsonnetApp(appRepoPath)
+	log.Infof("Comparing app %s state", app.ObjectMeta.Name)
+	appPath := path.Join(appRepoPath, app.Spec.Source.Path)
+	ksApp, err := ksutil.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +87,8 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 }
 
 // NewKsonnetAppComparator creates new instance of Ksonnet app comparator
-func NewKsonnetAppComparator() AppComparator {
-	return &KsonnetAppComparator{}
+func NewKsonnetAppComparator(clusterService cluster.ClusterServiceServer) AppComparator {
+	return &KsonnetAppComparator{
+		clusterService: clusterService,
+	}
 }

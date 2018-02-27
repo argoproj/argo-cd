@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/application"
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/controller"
@@ -13,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util/git"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -52,12 +54,12 @@ func newCommand() *cobra.Command {
 				InstanceID: "",
 			}
 			appResyncPeriod := time.Minute * 10
-
+			clusterService := cluster.NewServer(config.Namespace, kubeClient, appClient)
 			appManager := application.NewAppManager(
 				nativeGitClient,
 				repository.NewServer(config.Namespace, kubeClient, appClient),
-				cluster.NewServer(config.Namespace, kubeClient, appClient),
-				application.NewKsonnetAppComparator(),
+				clusterService,
+				application.NewKsonnetAppComparator(clusterService),
 				appResyncPeriod)
 
 			appController := controller.NewApplicationController(kubeClient, appClient, appManager, appResyncPeriod, &config)
@@ -65,6 +67,7 @@ func newCommand() *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
+			log.Infof("Application Controller (version: %s) starting", argocd.GetVersion())
 			go appController.Run(ctx, 1)
 			// Wait forever
 			select {}

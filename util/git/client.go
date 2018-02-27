@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Client is a generic git client interface
@@ -36,11 +38,13 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 			return err
 		}
 		repoURL.User = url.UserPassword(username, password)
+		log.Infof("Cloning %s to %s", repoURL.String(), repoPath)
 		_, err = exec.Command("git", "clone", repoURL.String(), repoPath).Output()
 		if err != nil {
 			return fmt.Errorf("unable to clone repository %s: %v", repoURL.String(), err)
 		}
 	} else {
+		log.Infof("Fetching %s", repo)
 		cmd := exec.Command("git", "fetch")
 		cmd.Dir = repoPath
 		_, err := cmd.Output()

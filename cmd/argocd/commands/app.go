@@ -6,16 +6,19 @@ import (
 	"os"
 
 	"github.com/argoproj/argo-cd/errors"
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand() *cobra.Command {
+
 	var command = &cobra.Command{
 		Use:   "app",
 		Short: fmt.Sprintf("%s app COMMAND", cliName),
@@ -34,14 +37,41 @@ func NewApplicationCommand() *cobra.Command {
 
 // NewApplicationAddCommand returns a new instance of an `argocd app add` command
 func NewApplicationAddCommand() *cobra.Command {
+	var (
+		repoURL string
+		appPath string
+		env     string
+	)
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: fmt.Sprintf("%s app add APPNAME", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			c.HelpFunc()(c, args)
-			os.Exit(1)
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			app := argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: args[0],
+				},
+				Spec: argoappv1.ApplicationSpec{
+					Source: argoappv1.ApplicationSource{
+						RepoURL:     repoURL,
+						Path:        appPath,
+						Environment: env,
+					},
+				},
+			}
+			conn, appIf := NewApplicationClient()
+			defer util.Close(conn)
+			_, err := appIf.Create(context.Background(), &app)
+			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL")
+	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory")
+	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
+
 	return command
 }
 

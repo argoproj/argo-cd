@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,10 +38,11 @@ func (m *Manager) NeedRefreshAppStatus(app *v1alpha1.Application) bool {
 func (m *Manager) RefreshAppStatus(app *v1alpha1.Application) *v1alpha1.ApplicationStatus {
 	status, err := m.tryRefreshAppStatus(app)
 	if err != nil {
+		log.Errorf("App %s comparison failed: %+v", app.Name, err)
 		status = &v1alpha1.ApplicationStatus{
 			ComparisonResult: v1alpha1.ComparisonResult{
 				Status:                 v1alpha1.ComparisonStatusError,
-				ComparisonErrorDetails: fmt.Sprintf("Failed to get application status for application '%s': %+v", app.Name, err),
+				ComparisonErrorDetails: fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
 				ComparedTo:             app.Spec.Source,
 				ComparedAt:             metav1.Time{Time: time.Now().UTC()},
 			},

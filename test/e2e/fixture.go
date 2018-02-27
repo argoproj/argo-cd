@@ -73,11 +73,12 @@ func NewFixture() (*Fixture, error) {
 	appClient := appclientset.NewForConfigOrDie(config)
 	kubeClient := kubernetes.NewForConfigOrDie(config)
 	namespace, err := createNamespace(kubeClient)
+	clusterService := cluster.NewServer(namespace, kubeClient, appClient)
 	appManager := application.NewAppManager(
 		&FakeGitClient{},
 		repository.NewServer(namespace, kubeClient, appClient),
-		cluster.NewServer(namespace, kubeClient, appClient),
-		application.NewKsonnetAppComparator(),
+		clusterService,
+		application.NewKsonnetAppComparator(clusterService),
 		time.Second)
 	if err != nil {
 		return nil, err
