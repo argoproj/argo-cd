@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/cluster"
@@ -63,6 +64,10 @@ func NewClusterAddCommand(pathOptions *clientcmd.PathOptions) *cobra.Command {
 			clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
+
+			// Install RBAC resources for managing the cluster
+			conf.BearerToken = common.InstallClusterManagerRBAC(conf)
+
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)
 			clst := NewCluster(args[0], conf)
@@ -175,6 +180,8 @@ func NewClusterRemoveCommand() *cobra.Command {
 			conn, clusterIf := NewClusterClient()
 			defer util.Close(conn)
 			for _, clusterName := range args {
+				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
+				// common.UninstallClusterManagerRBAC(conf)
 				_, err := clusterIf.Delete(context.Background(), &cluster.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 			}
