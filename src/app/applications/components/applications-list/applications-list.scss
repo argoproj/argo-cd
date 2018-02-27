@@ -1,6 +1,7 @@
 @import 'node_modules/argo-ui/bundle/app/shared/styles/config';
 
 .applications-list {
+    padding-top: 1em;
     &__title {
         font-weight: bolder;
         font-size: 15px;
@@ -12,15 +13,19 @@
         border-left: 1px solid $argo-color-gray-4;
         margin: 1em 0;
     }
+
     .fa-check-circle {
         color: $argo-success-color;
     }
+
     .fa-times {
         color: $argo-failed-color;
     }
+
     .fa-exclamation-circle {
         color: $argo-failed-color;
     }
+
     .fa-circle-o-notch {
         color: $argo-running-color;
     }

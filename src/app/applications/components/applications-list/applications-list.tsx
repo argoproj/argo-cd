@@ -1,5 +1,6 @@
-import { AppState, MockupList, Page } from 'argo-ui';
+import { AppContext, AppState, MockupList, Page } from 'argo-ui';
 import * as classNames from 'classnames';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
 
@@ -28,7 +29,8 @@ class Component extends React.Component<ApplicationProps> {
                         <div className='argo-table-list argo-table-list--clickable'>
                             <div className='argo-table-list__row'>
                                 {this.props.applications.map((app) => (
-                                    <div key={app.metadata.name} className='row'>
+                                    <div key={app.metadata.name} className='row'
+                                            onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
                                         <div className='columns small-3'>
                                             <div className='row'>
                                                 <div className='columns small-12'>
@@ -55,7 +57,11 @@ class Component extends React.Component<ApplicationProps> {
                                             </div>
                                             <div className='row'>
                                                 <div className='columns small-3'>REPO URL:</div>
-                                                <div className='columns small-9'>{app.spec.source.repoURL}</div>
+                                                <div className='columns small-9'>
+                                                    <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
+                                                        <i className='fa fa-external-link'/> {app.spec.source.repoURL}
+                                                    </a>
+                                                </div>
                                             </div>
                                             <div className='row'>
                                                 <div className='columns small-3'>PATH:</div>
@@ -75,7 +81,15 @@ class Component extends React.Component<ApplicationProps> {
             </Page>
         );
     }
+
+    private get appContext(): AppContext {
+        return this.context as AppContext;
+    }
 }
+
+(Component as React.ComponentClass).contextTypes = {
+    router: PropTypes.object,
+};
 
 export const ApplicationsList = connect((state: AppState<State>) => {
     return {
