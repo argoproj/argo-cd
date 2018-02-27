@@ -382,7 +382,7 @@ func InstallClusterManagerRBAC(conf *rest.Config) string {
 	}
 	secret, err := clientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		log.Fatalf("Failed to retrieve secret: %v", secretName, err)
+		log.Fatalf("Failed to retrieve secret '%s': %v", secretName, err)
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
