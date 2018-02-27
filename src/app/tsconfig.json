@@ -1,0 +1,20 @@
+{
+    "compilerOptions": {
+        "outDir": "./../../dist/app",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "module": "commonjs",
+        "target": "es5",
+        "jsx": "react",
+        "experimentalDecorators": true,
+        "noUnusedLocals": true,
+        "declaration": false,
+        "lib": [
+            "es2017",
+            "dom"
+        ]
+    },
+    "include": [
+        "./**/*"
+    ]
+}
