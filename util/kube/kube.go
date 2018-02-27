@@ -7,8 +7,11 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -42,6 +45,24 @@ type listResult struct {
 	Items []*unstructured.Unstructured `json:"items"`
 }
 
+// ToUnstructured converts a concrete K8s API type to a un unstructured object
+func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uObj}, nil
+}
+
+// MustToUnstructured converts a concrete K8s API type to a un unstructured object and panics if not successful
+func MustToUnstructured(obj interface{}) *unstructured.Unstructured {
+	uObj, err := ToUnstructured(obj)
+	if err != nil {
+		panic(err)
+	}
+	return uObj
+}
+
 // ListAPIResources discovers all API resources supported by the Kube API sererver
 func ListAPIResources(disco discovery.DiscoveryInterface) ([]metav1.APIResource, error) {
 	apiResources := make([]metav1.APIResource, 0)
@@ -55,6 +76,51 @@ func ListAPIResources(disco discovery.DiscoveryInterface) ([]metav1.APIResource,
 		}
 	}
 	return apiResources, nil
+}
+
+//GetLiveResource returns the corresponding live resource from a unstructured object
+func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
+	resourceName := obj.GetName()
+	if resourceName == "" {
+		return nil, fmt.Errorf("resource was supplied without a name")
+	}
+	// TODO(jessesuen): need to set name and namespaced fields?
+	apiResource := metav1.APIResource{
+		Kind:    obj.GetKind(),
+		Version: obj.GetAPIVersion(),
+	}
+	reIf := dclient.Resource(&apiResource, namespace)
+	liveObj, err := reIf.Get(resourceName, metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, errors.WithStack(err)
+	}
+	return liveObj, nil
+}
+
+// GetLiveResources returns the corresponding live resource from a list of resources
+func GetLiveResources(config *rest.Config, objs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
+	liveObjs := make([]*unstructured.Unstructured, len(objs))
+	for i, obj := range objs {
+		dynConfig := *config
+		gvk := obj.GroupVersionKind()
+		dynConfig.GroupVersion = &schema.GroupVersion{
+			Group:   gvk.Group,
+			Version: gvk.Version,
+		}
+		dclient, err := dynamic.NewClient(&dynConfig)
+		if err != nil {
+			return nil, err
+		}
+		liveObj, err := GetLiveResource(dclient, obj, namespace)
+		if err != nil {
+			return nil, err
+		}
+		liveObjs[i] = liveObj
+	}
+	return liveObjs, nil
 }
 
 // ListResources returns a list of resources of a particular API type using the dynamic client

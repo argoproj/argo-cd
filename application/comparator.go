@@ -1,9 +1,16 @@
 package application
 
 import (
+	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/util/diff"
+	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
+	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -14,16 +21,65 @@ type AppComparator interface {
 
 // KsonnetAppComparator allows to compare application using KSonnet CLI
 type KsonnetAppComparator struct {
+	clusterService cluster.Server
 }
 
 // CompareAppState compares application spec and real app state using KSonnet
 func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha1.Application) (*v1alpha1.ComparisonResult, error) {
-	// TODO (amatyushentsev): Implement actual comparison
-	return &v1alpha1.ComparisonResult{
-		Status:     v1alpha1.ComparisonStatusEqual,
-		ComparedTo: app.Spec.Source,
-		ComparedAt: metav1.Time{Time: time.Now().UTC()},
-	}, nil
+	ksApp, err := ksutil.NewKsonnetApp(appRepoPath)
+	if err != nil {
+		return nil, err
+	}
+	appSpec := ksApp.AppSpec()
+	env, ok := appSpec.GetEnvironmentSpec(app.Spec.Source.Environment)
+	if !ok {
+		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app '%s'", app.Spec.Source.Environment, appSpec.Name)
+	}
+
+	// Generate the manifests for the environment
+	objs, err := ksApp.Show(app.Spec.Source.Environment)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the REST config for the cluster corresponding to the environment
+	clst, err := ks.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: env.Destination.Server})
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the live versions of the objects
+	liveObjs, err := kubeutil.GetLiveResources(clst.RESTConfig(), objs, env.Destination.Namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// Do the actual comparison
+	diffResults, err := diff.DiffArray(objs, liveObjs)
+	if err != nil {
+		return nil, err
+	}
+	// Join the outputs
+	outputs := make([]string, len(diffResults.Diffs))
+	for _, diffRes := range diffResults.Diffs {
+		outputs = append(outputs, diffRes.Output)
+	}
+
+	compResult := v1alpha1.ComparisonResult{
+		ComparedTo:        app.Spec.Source,
+		ComparedAt:        metav1.Time{Time: time.Now().UTC()},
+		DifferenceDetails: strings.Join(outputs, "---\n"),
+	}
+	if diffResults.Modified {
+		if *diffResults.AdditionsOnly {
+			compResult.Status = v1alpha1.ComparisonStatusEqual
+		} else {
+			compResult.Status = v1alpha1.ComparisonStatusDifferent
+		}
+	} else {
+		compResult.Status = v1alpha1.ComparisonStatusEqual
+	}
+	return &compResult, nil
 }
 
 // NewKsonnetAppComparator creates new instance of Ksonnet app comparator

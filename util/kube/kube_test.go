@@ -72,6 +72,29 @@ func TestListAPIResources(t *testing.T) {
 	assert.Equal(t, 11, len(apiRes))
 }
 
+func TestGetLiveResource(t *testing.T) {
+	demoSvc := test.DemoService()
+	kubeclientset := fake.NewSimpleClientset(demoSvc, test.DemoDeployment())
+	fakeDiscovery, ok := kubeclientset.Discovery().(*fakediscovery.FakeDiscovery)
+	assert.True(t, ok)
+	fakeDiscovery.Fake.Resources = resourceList()
+
+	fakeDynClient := fakedynamic.FakeClient{
+		Fake: &kubetesting.Fake{},
+	}
+	fakeDynClient.Fake.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		svc, err := kubeclientset.CoreV1().Services(test.TestNamespace).Get(demoSvc.Name, metav1.GetOptions{})
+		assert.Nil(t, err)
+		svc.Kind = "Service"
+		return true, MustToUnstructured(svc), nil
+	})
+
+	uObj := MustToUnstructured(test.DemoService())
+	liveObj, err := GetLiveResource(&fakeDynClient, uObj, test.TestNamespace)
+	assert.Nil(t, err)
+	assert.Equal(t, uObj.GetName(), liveObj.GetName())
+}
+
 func TestListResources(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(test.DemoService(), test.DemoDeployment())
 	fakeDynClient := fakedynamic.FakeClient{

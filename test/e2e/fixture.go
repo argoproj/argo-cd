@@ -1,24 +1,22 @@
 package e2e
 
 import (
+	"fmt"
 	"os/exec"
 	"testing"
+	"time"
 
+	"github.com/argoproj/argo-cd/application"
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/repository"
 	"k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"time"
-
-	"fmt"
-
-	"github.com/argoproj/argo-cd/application"
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/repository"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -78,6 +76,7 @@ func NewFixture() (*Fixture, error) {
 	appManager := application.NewAppManager(
 		&FakeGitClient{},
 		repository.NewServer(namespace, kubeClient, appClient),
+		cluster.NewServer(namespace, kubeClient, appClient),
 		application.NewKsonnetAppComparator(),
 		time.Second)
 	if err != nil {

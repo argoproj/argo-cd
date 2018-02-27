@@ -1,19 +1,17 @@
 package application_test
 
 import (
-	"testing"
-
-	"time"
-
 	"context"
-
 	"sync"
+	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/application"
 	appMocks "github.com/argoproj/argo-cd/application/mocks"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	clusterMocks "github.com/argoproj/argo-cd/server/cluster/mocks"
 	"github.com/argoproj/argo-cd/server/repository"
-	repoMocks "github.com/argoproj/argo-cd/server/repository/mock"
+	repoMocks "github.com/argoproj/argo-cd/server/repository/mocks"
 	gitMocks "github.com/argoproj/argo-cd/util/git/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -40,7 +38,8 @@ func TestManager(t *testing.T) {
 	gitClientMock := gitMocks.Client{}
 	appComparatorMock := appMocks.AppComparator{}
 	repoServiceMock := repoMocks.RepositoryServiceServer{}
-	manager := application.NewAppManager(&gitClientMock, &repoServiceMock, &appComparatorMock, refreshTimeout)
+	clusterServiceMock := clusterMocks.ClusterServiceServer{}
+	manager := application.NewAppManager(&gitClientMock, &repoServiceMock, &clusterServiceMock, &appComparatorMock, refreshTimeout)
 
 	t.Run("NeedRefreshAppStatus", func(t *testing.T) {
 		t.Run("TestReturnsTrueIfAppWasNotCompared", func(t *testing.T) {
@@ -140,7 +139,7 @@ func TestManager(t *testing.T) {
 					}, nil
 				},
 			}
-			manager := application.NewAppManager(&gitClientMock, &repoServiceMock, &comparatorStub, refreshTimeout)
+			manager := application.NewAppManager(&gitClientMock, &repoServiceMock, &clusterServiceMock, &comparatorStub, refreshTimeout)
 			var wg sync.WaitGroup
 
 			wg.Add(cnt)

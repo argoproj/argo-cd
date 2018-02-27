@@ -2,21 +2,17 @@ package application
 
 import (
 	"context"
-
 	"fmt"
-
+	"os"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
-
-	"os"
-	"path"
-
-	"strings"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,6 +20,7 @@ import (
 type Manager struct {
 	gitClient            git.Client
 	repoService          repository.RepositoryServiceServer
+	clusterService       cluster.ClusterServiceServer
 	statusRefreshTimeout time.Duration
 	appComparator        AppComparator
 	repoLock             *util.KeyLock
@@ -84,11 +81,14 @@ func (m *Manager) tryRefreshAppStatus(app *v1alpha1.Application) (*v1alpha1.Appl
 func NewAppManager(
 	gitClient git.Client,
 	repoService repository.RepositoryServiceServer,
+	clusterService cluster.ClusterServiceServer,
 	appComparator AppComparator,
-	statusRefreshTimeout time.Duration) *Manager {
+	statusRefreshTimeout time.Duration,
+) *Manager {
 	return &Manager{
 		gitClient:            gitClient,
 		repoService:          repoService,
+		clusterService:       clusterService,
 		statusRefreshTimeout: statusRefreshTimeout,
 		appComparator:        appComparator,
 		repoLock:             util.NewKeyLock(),

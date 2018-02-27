@@ -10,11 +10,17 @@ import (
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/controller"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	// load the gcp plugin (required to authenticate against GKE clusters).
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	// load the oidc plugin (required to authenticate with OpenID Connect).
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 const (
@@ -50,6 +56,7 @@ func newCommand() *cobra.Command {
 			appManager := application.NewAppManager(
 				nativeGitClient,
 				repository.NewServer(config.Namespace, kubeClient, appClient),
+				cluster.NewServer(config.Namespace, kubeClient, appClient),
 				application.NewKsonnetAppComparator(),
 				appResyncPeriod)
 
