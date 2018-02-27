@@ -18,8 +18,15 @@ type DiffResult struct {
 
 // Diff performs a diff on two unstructured objects
 func Diff(left, right *unstructured.Unstructured) *DiffResult {
-	gjDiff := gojsondiff.New().CompareObjects(left.Object, right.Object)
-	out, additions := renderOutput(left.Object, gjDiff)
+	var leftObj, rightObj map[string]interface{}
+	if left != nil {
+		leftObj = left.Object
+	}
+	if right != nil {
+		rightObj = right.Object
+	}
+	gjDiff := gojsondiff.New().CompareObjects(leftObj, rightObj)
+	out, additions := renderOutput(leftObj, gjDiff)
 	return &DiffResult{
 		Diff:          gjDiff,
 		Output:        out,
