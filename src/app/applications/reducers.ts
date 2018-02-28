@@ -13,9 +13,9 @@ export const ACTION_TYPES = {
 export default function(state: State = { }, action: any): State {
     switch (action.type) {
         case ACTION_TYPES.APPLICATIONS_LOAD_REQUEST:
-            return {...state, applications: null };
+            return {...state, applications: null, changesSubscription: action.changesSubscription };
         case ACTION_TYPES.APPLICATIONS_LOAD_SUCCESS:
-            return {...state, applications: action.applications};
+            return {...state, applications: action.applications, changesSubscription: action.changesSubscription};
         case ACTION_TYPES.APPLICATION_LOAD_REQUEST:
             return {...state, application: null, changesSubscription: action.changesSubscription };
         case ACTION_TYPES.APPLICATION_LOAD_SUCCESS:
