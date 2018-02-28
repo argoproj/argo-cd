@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev:ui": "webpack-dev-server --config ./src/app/webpack.config.js"
+    "dev:ui": "webpack-dev-server --config ./src/app/webpack.config.js",
+    "lint": "tslint -p ./src/app"
   },
   "dependencies": {
     "@types/classnames": "^2.2.3",
