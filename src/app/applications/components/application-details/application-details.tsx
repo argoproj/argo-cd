@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
+import { Subscription } from 'rxjs';
 
 import * as appModels from '../../../shared/models';
 import * as actions from '../../actions';
@@ -14,6 +15,7 @@ require('./application-details.scss');
 export interface ApplicationDetailsProps extends RouteComponentProps<{ name: string; namespace: string; }> {
     application: appModels.Application;
     onLoad: (namespace: string, name: string) => any;
+    changesSubscription: Subscription;
 }
 
 class Component extends React.Component<ApplicationDetailsProps, { expandedRows: number[] }> {
@@ -25,6 +27,12 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
 
     public componentDidMount() {
         this.props.onLoad(this.props.match.params.namespace, this.props.match.params.name);
+    }
+
+    public componentWillUnmount() {
+        if (this.props.changesSubscription) {
+            this.props.changesSubscription.unsubscribe();
+        }
     }
 
     public render() {
@@ -114,6 +122,7 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
 
 export const ApplicationDetails = connect((state: AppState<State>) => ({
     application: state.page.application,
+    changesSubscription: state.page.changesSubscription,
 }), (dispatch) => ({
     onLoad: (namespace: string, name: string) => dispatch(actions.loadApplication(name)),
 }))(Component);

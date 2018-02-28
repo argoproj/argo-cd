@@ -23,6 +23,13 @@ export interface Application {
     status: ApplicationStatus;
 }
 
+type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
+
+export interface ApplicationWatchEvent {
+    type: WatchType;
+    application: Application;
+}
+
 export interface ApplicationSource {
     targetRevision: string;
     /**

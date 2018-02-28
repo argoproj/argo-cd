@@ -3,6 +3,7 @@ import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
+import { Subscription } from 'rxjs';
 
 import * as models from '../../../shared/models';
 import * as actions from '../../actions';
@@ -13,12 +14,19 @@ require('./applications-list.scss');
 export interface ApplicationProps {
     onLoad: () => any;
     applications: models.Application[];
+    changesSubscription: Subscription;
 }
 
 class Component extends React.Component<ApplicationProps> {
 
     public componentDidMount() {
         this.props.onLoad();
+    }
+
+    public componentWillUnmount() {
+        if (this.props.changesSubscription) {
+            this.props.changesSubscription.unsubscribe();
+        }
     }
 
     public render() {
@@ -93,6 +101,7 @@ class Component extends React.Component<ApplicationProps> {
 export const ApplicationsList = connect((state: AppState<State>) => {
     return {
         applications: state.page.applications,
+        changesSubscription: state.page.changesSubscription,
     };
 }, (dispatch) => ({
     onLoad: () => dispatch(actions.loadAppsList()),
