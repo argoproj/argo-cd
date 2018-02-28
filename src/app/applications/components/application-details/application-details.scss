@@ -1,3 +1,24 @@
+@import 'node_modules/argo-ui/bundle/app/shared/styles/config';
+
 .application-details {
     padding: 1em;
+
+    &__manifest {
+        max-height: 0;
+        transition: max-height 0.25s;
+        overflow: hidden;
+        margin: 0 1em;
+
+        &--expanded {
+            border-top: 1px solid $argo-color-gray-4;
+            overflow: auto;
+            padding: 1em;
+            max-height: 1000px;
+        }
+    }
+
+    &__toggle-manifest {
+        float: right;
+        line-height: 60px;
+    }
 }

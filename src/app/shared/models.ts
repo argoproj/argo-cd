@@ -58,8 +58,9 @@ export interface ComparisonResult {
     comparedAt: models.Time;
     comparedTo: ApplicationSource;
     status: ComparisonStatus;
-    differenceDetails: string;
-    comparisonErrorDetails: string;
+    targetState: string[];
+    deltaDiffs: string[];
+    error: string;
 }
 
 export interface ApplicationStatus {

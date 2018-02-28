@@ -27,10 +27,9 @@ class Component extends React.Component<ApplicationProps> {
                 <div className='argo-container applications-list'>
                     {this.props.applications ? (
                         <div className='argo-table-list argo-table-list--clickable'>
-                            <div className='argo-table-list__row'>
-                                {this.props.applications.map((app) => (
-                                    <div key={app.metadata.name} className='row'
-                                            onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
+                            {this.props.applications.map((app) => (
+                                <div key={app.metadata.name} className='argo-table-list__row'>
+                                    <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
                                         <div className='columns small-3'>
                                             <div className='row'>
                                                 <div className='columns small-12'>
@@ -73,8 +72,8 @@ class Component extends React.Component<ApplicationProps> {
                                             </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
                     ) : <MockupList height={50} marginTop={30}/>}
                 </div>

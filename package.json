@@ -23,6 +23,7 @@
     "foundation-sites": "^6.4.3",
     "html-webpack-plugin": "^2.30.1",
     "jscs": "^3.0.7",
+    "jsondiffpatch": "^0.3.5",
     "node-sass": "^4.7.2",
     "prop-types": "^15.6.0",
     "raw-loader": "^0.5.1",

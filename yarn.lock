@@ -1253,6 +1253,10 @@ detect-node@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/detect-node/-/detect-node-2.0.3.tgz#a2033c09cc8e158d37748fbde7507832bd6ce127"
 
+diff-match-patch@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/diff-match-patch/-/diff-match-patch-1.0.0.tgz#1cc3c83a490d67f95d91e39f6ad1f2e086b63048"
+
 diff@^3.1.0, diff@^3.2.0:
   version "3.4.0"
   resolved "https://registry.yarnpkg.com/diff/-/diff-3.4.0.tgz#b1d85507daf3964828de54b37d0d73ba67dda56c"
@@ -2826,6 +2830,13 @@ json3@^3.3.2:
 json5@^0.5.0, json5@^0.5.1:
   version "0.5.1"
   resolved "https://registry.yarnpkg.com/json5/-/json5-0.5.1.tgz#1eade7acc012034ad84e2396767ead9fa5495821"
+
+jsondiffpatch@^0.3.5:
+  version "0.3.5"
+  resolved "https://registry.yarnpkg.com/jsondiffpatch/-/jsondiffpatch-0.3.5.tgz#875469f646fc2c9fe339639c79f736f6fe134d04"
+  dependencies:
+    chalk "^2.3.0"
+    diff-match-patch "^1.0.0"
 
 jsonify@~0.0.0:
   version "0.0.0"
