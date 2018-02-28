@@ -113,11 +113,13 @@ message ComparisonResult {
 
   optional string status = 3;
 
-  repeated string asciiDiffs = 4;
+  repeated string targetState = 4;
 
-  repeated string deltaDiffs = 5;
+  repeated string asciiDiffs = 5;
 
-  optional string error = 6;
+  repeated string deltaDiffs = 6;
+
+  optional string error = 7;
 }
 
 // Repository is a Git repository holding application configurations

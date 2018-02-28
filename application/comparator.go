@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
 	"time"
@@ -68,11 +69,20 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		asciiDiffs[i] = diffRes.ASCIIDiff
 		deltaDiffs[i] = diffRes.DeltaDiff
 	}
+	targetState := make([]string, len(objs))
+	for i, obj := range objs {
+		str, err := json.Marshal(obj.Object)
+		if err != nil {
+			return nil, err
+		}
+		targetState[i] = string(str)
+	}
 	compResult := v1alpha1.ComparisonResult{
-		ComparedTo: app.Spec.Source,
-		ComparedAt: metav1.Time{Time: time.Now().UTC()},
-		ASCIIDiffs: asciiDiffs,
-		DeltaDiffs: deltaDiffs,
+		TargetState: targetState,
+		ComparedTo:  app.Spec.Source,
+		ComparedAt:  metav1.Time{Time: time.Now().UTC()},
+		ASCIIDiffs:  asciiDiffs,
+		DeltaDiffs:  deltaDiffs,
 	}
 	if diffResults.Modified {
 		if *diffResults.AdditionsOnly {
