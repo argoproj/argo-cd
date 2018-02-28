@@ -57,6 +57,18 @@ message ApplicationStatus {
   optional ComparisonResult comparisonResult = 1;
 }
 
+// ApplicationWatchEvent contains information about application change.
+message ApplicationWatchEvent {
+  optional string type = 1;
+
+  // Application is:
+  //  * If Type is Added or Modified: the new state of the object.
+  //  * If Type is Deleted: the state of the object immediately before deletion.
+  //  * If Type is Error: *api.Status is recommended; other types may make sense
+  //    depending on context.
+  optional Application application = 2;
+}
+
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster

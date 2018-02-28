@@ -27,6 +27,12 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications";
 	}
 
+	// Watch returns stream of application change events.
+    rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
+		option (google.api.http).get = "/api/v1/stream/applications";
+	}
+
+
 	// Create creates a application
 	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {

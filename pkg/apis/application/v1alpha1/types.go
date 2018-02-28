@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 )
 
@@ -14,6 +15,18 @@ type Application struct {
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 	Status            ApplicationStatus `json:"status" protobuf:"bytes,3,opt,name=status"`
+}
+
+// ApplicationWatchEvent contains information about application change.
+type ApplicationWatchEvent struct {
+	Type watch.EventType `protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
+
+	// Application is:
+	//  * If Type is Added or Modified: the new state of the object.
+	//  * If Type is Deleted: the state of the object immediately before deletion.
+	//  * If Type is Error: *api.Status is recommended; other types may make sense
+	//    depending on context.
+	Application Application `protobuf:"bytes,2,opt,name=application"`
 }
 
 // ApplicationList is list of Application resources
