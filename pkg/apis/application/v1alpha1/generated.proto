@@ -117,9 +117,7 @@ message ComparisonResult {
 
   optional string status = 5;
 
-  repeated string targetState = 6;
-
-  repeated string deltaDiffs = 7;
+  repeated ResourceState resources = 6;
 
   optional string error = 8;
 }
@@ -138,6 +136,15 @@ message RepositoryList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Repository items = 2;
+}
+
+// ResourceState holds the target state of a resource and live state of a resource
+message ResourceState {
+  optional string targetState = 1;
+
+  optional string liveState = 2;
+
+  optional string status = 3;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

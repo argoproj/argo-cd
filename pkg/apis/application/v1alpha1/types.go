@@ -74,14 +74,20 @@ type ApplicationStatus struct {
 
 // ComparisonResult is a comparison result of application spec and deployed application.
 type ComparisonResult struct {
-	ComparedAt  metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
-	ComparedTo  ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Server      string            `json:"server" protobuf:"bytes,3,opt,name=server"`
-	Namespace   string            `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
-	Status      ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
-	TargetState []string          `json:"targetState,omitempty" protobuf:"bytes,6,opt,name=targetState"`
-	DeltaDiffs  []string          `json:"deltaDiffs,omitempty" protobuf:"bytes,7,opt,name=deltaDiffs"`
-	Error       string            `json:"error,omitempty" protobuf:"bytes,8,opt,name=error"`
+	ComparedAt metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
+	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
+	Server     string            `json:"server" protobuf:"bytes,3,opt,name=server"`
+	Namespace  string            `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
+	Resources  []ResourceState   `json:"resources" protobuf:"bytes,6,opt,name=resources"`
+	Error      string            `json:"error,omitempty" protobuf:"bytes,8,opt,name=error"`
+}
+
+// ResourceState holds the target state of a resource and live state of a resource
+type ResourceState struct {
+	TargetState string           `json:"targetState,omitempty" protobuf:"bytes,1,opt,name=targetState"`
+	LiveState   string           `json:"liveState,omitempty" protobuf:"bytes,2,opt,name=liveState"`
+	Status      ComparisonStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
 // Cluster is the definition of a cluster resource
@@ -178,10 +184,10 @@ func (c *Cluster) RESTConfig() *rest.Config {
 
 // TargetObjects deserializes the list of target states into unstructured objectss
 func (cr *ComparisonResult) TargetObjects() ([]*unstructured.Unstructured, error) {
-	objs := make([]*unstructured.Unstructured, len(cr.TargetState))
-	for i, objStr := range cr.TargetState {
+	objs := make([]*unstructured.Unstructured, len(cr.Resources))
+	for i, resState := range cr.Resources {
 		var obj unstructured.Unstructured
-		err := json.Unmarshal([]byte(objStr), &obj)
+		err := json.Unmarshal([]byte(resState.TargetState), &obj)
 		if err != nil {
 			return nil, err
 		}

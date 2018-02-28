@@ -40,48 +40,65 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app '%s'", app.Spec.Source.Environment, appSpec.Name)
 	}
 
-	// Generate the manifests for the environment
-	objs, err := ksApp.Show(app.Spec.Source.Environment)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get the REST config for the cluster corresponding to the environment
 	clst, err := ks.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: env.Destination.Server})
 	if err != nil {
 		return nil, err
 	}
 
+	// Generate the manifests for the environment
+	targetObjs, err := ksApp.Show(app.Spec.Source.Environment)
+	if err != nil {
+		return nil, err
+	}
+
 	// Retrieve the live versions of the objects
-	liveObjs, err := kubeutil.GetLiveResources(clst.RESTConfig(), objs, env.Destination.Namespace)
+	liveObjs, err := kubeutil.GetLiveResources(clst.RESTConfig(), targetObjs, env.Destination.Namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(objs, liveObjs)
+	diffResults, err := diff.DiffArray(targetObjs, liveObjs)
 	if err != nil {
 		return nil, err
 	}
-	deltaDiffs := make([]string, len(diffResults.Diffs))
-	for i, diffRes := range diffResults.Diffs {
-		deltaDiffs[i] = diffRes.DeltaDiff
-	}
-	targetState := make([]string, len(objs))
-	for i, obj := range objs {
-		str, err := json.Marshal(obj.Object)
+
+	resources := make([]v1alpha1.ResourceState, len(targetObjs))
+	for i := 0; i < len(targetObjs); i++ {
+		resState := v1alpha1.ResourceState{}
+		targetObjBytes, err := json.Marshal(targetObjs[i].Object)
 		if err != nil {
 			return nil, err
 		}
-		targetState[i] = string(str)
+		resState.TargetState = string(targetObjBytes)
+		if liveObjs[i] == nil {
+			resState.LiveState = "null"
+		} else {
+			liveObjBytes, err := json.Marshal(liveObjs[i].Object)
+			if err != nil {
+				return nil, err
+			}
+			resState.LiveState = string(liveObjBytes)
+		}
+		diffResult := diffResults.Diffs[i]
+		if diffResult.Modified {
+			if *diffResult.AdditionsOnly {
+				resState.Status = v1alpha1.ComparisonStatusEqual
+			} else {
+				resState.Status = v1alpha1.ComparisonStatusDifferent
+			}
+		} else {
+			resState.Status = v1alpha1.ComparisonStatusEqual
+		}
+		resources[i] = resState
 	}
 	compResult := v1alpha1.ComparisonResult{
-		TargetState: targetState,
-		ComparedTo:  app.Spec.Source,
-		ComparedAt:  metav1.Time{Time: time.Now().UTC()},
-		Server:      clst.Server,
-		Namespace:   env.Destination.Namespace,
-		DeltaDiffs:  deltaDiffs,
+		ComparedTo: app.Spec.Source,
+		ComparedAt: metav1.Time{Time: time.Now().UTC()},
+		Server:     clst.Server,
+		Namespace:  env.Destination.Namespace,
+		Resources:  resources,
 	}
 	if diffResults.Modified {
 		if *diffResults.AdditionsOnly {
