@@ -199,8 +199,8 @@ func (in *ComparisonResult) DeepCopyInto(out *ComparisonResult) {
 	*out = *in
 	in.ComparedAt.DeepCopyInto(&out.ComparedAt)
 	out.ComparedTo = in.ComparedTo
-	if in.ASCIIDiffs != nil {
-		in, out := &in.ASCIIDiffs, &out.ASCIIDiffs
+	if in.TargetState != nil {
+		in, out := &in.TargetState, &out.TargetState
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

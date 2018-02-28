@@ -113,7 +113,7 @@ message ComparisonResult {
 
   optional string status = 3;
 
-  repeated string asciiDiffs = 4;
+  repeated string targetState = 4;
 
   repeated string deltaDiffs = 5;
 
