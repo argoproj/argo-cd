@@ -101,6 +101,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 	var syncRes ApplicationSyncResult
 	switch app.Status.ComparisonResult.Status {
+	case appv1.ComparisonStatusEqual:
 	case appv1.ComparisonStatusDifferent:
 	default:
 		appState := app.Status.ComparisonResult.Status
@@ -156,7 +157,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		}
 		syncRes.Resources = append(syncRes.Resources, &resDetails)
 	}
-	syncRes.Message = "synced successful"
+	syncRes.Message = "successfully synced"
 	return &syncRes, nil
 }
 

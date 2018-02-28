@@ -132,9 +132,12 @@ func NewApplicationListCommand() *cobra.Command {
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
-			for _, c := range apps.Items {
-				fmt.Printf("%s\n", c.Name)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "NAME\tCLUSTER\tNAMESPACE\tSTATUS\n")
+			for _, app := range apps.Items {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", app.Name, app.Status.ComparisonResult.Server, app.Status.ComparisonResult.Namespace, app.Status.ComparisonResult.Status)
 			}
+			_ = w.Flush()
 		},
 	}
 	return command
