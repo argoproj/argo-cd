@@ -22,14 +22,14 @@ type Application struct {
 
 // ApplicationWatchEvent contains information about application change.
 type ApplicationWatchEvent struct {
-	Type watch.EventType `protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
+	Type watch.EventType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
 
 	// Application is:
 	//  * If Type is Added or Modified: the new state of the object.
 	//  * If Type is Deleted: the state of the object immediately before deletion.
 	//  * If Type is Error: *api.Status is recommended; other types may make sense
 	//    depending on context.
-	Application Application `protobuf:"bytes,2,opt,name=application"`
+	Application Application `json:"application" protobuf:"bytes,2,opt,name=application"`
 }
 
 // ApplicationList is list of Application resources
