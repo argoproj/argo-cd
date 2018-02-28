@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"text/tabwriter"
 
+	argocdclient "github.com/argoproj/argo-cd/client"
 	"github.com/argoproj/argo-cd/errors"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/repository"
@@ -16,11 +17,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
-	"google.golang.org/grpc"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
-func NewRepoCommand() *cobra.Command {
+func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "repo",
 		Short: fmt.Sprintf("%s repo COMMAND", cliName),
@@ -30,14 +30,14 @@ func NewRepoCommand() *cobra.Command {
 		},
 	}
 
-	command.AddCommand(NewRepoAddCommand())
-	command.AddCommand(NewRepoListCommand())
-	command.AddCommand(NewRepoRemoveCommand())
+	command.AddCommand(NewRepoAddCommand(clientOpts))
+	command.AddCommand(NewRepoListCommand(clientOpts))
+	command.AddCommand(NewRepoRemoveCommand(clientOpts))
 	return command
 }
 
 // NewRepoAddCommand returns a new instance of an `argocd repo add` command
-func NewRepoAddCommand() *cobra.Command {
+func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		repo appsv1.Repository
 	)
@@ -61,7 +61,7 @@ func NewRepoAddCommand() *cobra.Command {
 				err = git.TestRepo(repo.Repo, repo.Username, repo.Password)
 			}
 			errors.CheckError(err)
-			conn, repoIf := NewRepoClient()
+			conn, repoIf := argocdclient.NewClient(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			createdRepo, err := repoIf.Create(context.Background(), &repo)
 			errors.CheckError(err)
@@ -88,7 +88,7 @@ func promptCredentials(repo *appsv1.Repository) {
 }
 
 // NewRepoRemoveCommand returns a new instance of an `argocd repo list` command
-func NewRepoRemoveCommand() *cobra.Command {
+func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm",
 		Short: fmt.Sprintf("%s repo rm REPO", cliName),
@@ -97,7 +97,7 @@ func NewRepoRemoveCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := NewRepoClient()
+			conn, repoIf := argocdclient.NewClient(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
 				_, err := repoIf.Delete(context.Background(), &repository.RepoQuery{Repo: repoURL})
@@ -109,12 +109,12 @@ func NewRepoRemoveCommand() *cobra.Command {
 }
 
 // NewRepoListCommand returns a new instance of an `argocd repo rm` command
-func NewRepoListCommand() *cobra.Command {
+func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: fmt.Sprintf("%s repo list", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			conn, repoIf := NewRepoClient()
+			conn, repoIf := argocdclient.NewClient(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			repos, err := repoIf.List(context.Background(), &repository.RepoQuery{})
 			errors.CheckError(err)
@@ -127,22 +127,4 @@ func NewRepoListCommand() *cobra.Command {
 		},
 	}
 	return command
-}
-
-func NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient) {
-	// TODO: get this from a config or command line flag
-	serverAddr := "localhost:8080"
-	var dialOpts []grpc.DialOption
-	// TODO: add insecure config option and --insecure global flag
-	if true {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
-	} // else if opts.Credentials != nil {
-	//	dialOpts = append(dialOpts, grpc.WithTransportCredentials(opts.Credentials))
-	//}
-	conn, err := grpc.Dial(serverAddr, dialOpts...)
-	if err != nil {
-		log.Fatalf("Failed to establish connection to %s: %v", serverAddr, err)
-	}
-	repoIf := repository.NewRepositoryServiceClient(conn)
-	return conn, repoIf
 }

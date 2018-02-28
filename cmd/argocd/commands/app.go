@@ -6,20 +6,18 @@ import (
 	"os"
 	"text/tabwriter"
 
+	argocdclient "github.com/argoproj/argo-cd/client"
 	"github.com/argoproj/argo-cd/errors"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
-func NewApplicationCommand() *cobra.Command {
-
+func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "app",
 		Short: fmt.Sprintf("%s app COMMAND", cliName),
@@ -29,16 +27,16 @@ func NewApplicationCommand() *cobra.Command {
 		},
 	}
 
-	command.AddCommand(NewApplicationAddCommand())
-	command.AddCommand(NewApplicationGetCommand())
-	command.AddCommand(NewApplicationSyncCommand())
-	command.AddCommand(NewApplicationListCommand())
-	command.AddCommand(NewApplicationRemoveCommand())
+	command.AddCommand(NewApplicationAddCommand(clientOpts))
+	command.AddCommand(NewApplicationGetCommand(clientOpts))
+	command.AddCommand(NewApplicationSyncCommand(clientOpts))
+	command.AddCommand(NewApplicationListCommand(clientOpts))
+	command.AddCommand(NewApplicationRemoveCommand(clientOpts))
 	return command
 }
 
 // NewApplicationAddCommand returns a new instance of an `argocd app add` command
-func NewApplicationAddCommand() *cobra.Command {
+func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		repoURL string
 		appPath string
@@ -64,7 +62,7 @@ func NewApplicationAddCommand() *cobra.Command {
 					},
 				},
 			}
-			conn, appIf := NewApplicationClient()
+			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			_, err := appIf.Create(context.Background(), &app)
 			errors.CheckError(err)
@@ -78,7 +76,7 @@ func NewApplicationAddCommand() *cobra.Command {
 }
 
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
-func NewApplicationGetCommand() *cobra.Command {
+func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "get",
 		Short: fmt.Sprintf("%s app get APPNAME", cliName),
@@ -87,7 +85,7 @@ func NewApplicationGetCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := NewApplicationClient()
+			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
 				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
@@ -102,7 +100,7 @@ func NewApplicationGetCommand() *cobra.Command {
 }
 
 // NewApplicationRemoveCommand returns a new instance of an `argocd app list` command
-func NewApplicationRemoveCommand() *cobra.Command {
+func NewApplicationRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm",
 		Short: fmt.Sprintf("%s app rm APPNAME", cliName),
@@ -111,7 +109,7 @@ func NewApplicationRemoveCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := NewApplicationClient()
+			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
 				_, err := appIf.Delete(context.Background(), &application.ApplicationQuery{Name: appName})
@@ -123,12 +121,12 @@ func NewApplicationRemoveCommand() *cobra.Command {
 }
 
 // NewApplicationListCommand returns a new instance of an `argocd app rm` command
-func NewApplicationListCommand() *cobra.Command {
+func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: fmt.Sprintf("%s app list", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			conn, appIf := NewApplicationClient()
+			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
@@ -144,7 +142,7 @@ func NewApplicationListCommand() *cobra.Command {
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
-func NewApplicationSyncCommand() *cobra.Command {
+func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		dryRun bool
 	)
@@ -156,7 +154,7 @@ func NewApplicationSyncCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := NewApplicationClient()
+			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
 			syncReq := application.ApplicationSyncRequest{
@@ -176,22 +174,4 @@ func NewApplicationSyncCommand() *cobra.Command {
 	}
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	return command
-}
-
-func NewApplicationClient() (*grpc.ClientConn, application.ApplicationServiceClient) {
-	// TODO: get this from a config or command line flag
-	serverAddr := "localhost:8080"
-	var dialOpts []grpc.DialOption
-	// TODO: add insecure config option and --insecure global flag
-	if true {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
-	} // else if opts.Credentials != nil {
-	//	dialOpts = append(dialOpts, grpc.WithTransportCredentials(opts.Credentials))
-	//}
-	conn, err := grpc.Dial(serverAddr, dialOpts...)
-	if err != nil {
-		log.Fatalf("Failed to establish connection to %s: %v", serverAddr, err)
-	}
-	appIf := application.NewApplicationServiceClient(conn)
-	return conn, appIf
 }

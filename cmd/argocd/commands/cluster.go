@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	argocdclient "github.com/argoproj/argo-cd/client"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -17,13 +18,12 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
-func NewClusterCommand(pathOptions *clientcmd.PathOptions) *cobra.Command {
+func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "cluster",
 		Short: fmt.Sprintf("%s cluster COMMAND", cliName),
@@ -33,20 +33,20 @@ func NewClusterCommand(pathOptions *clientcmd.PathOptions) *cobra.Command {
 		},
 	}
 
-	command.AddCommand(NewClusterAddCommand(pathOptions))
-	command.AddCommand(NewClusterGetCommand())
-	command.AddCommand(NewClusterListCommand())
-	command.AddCommand(NewClusterRemoveCommand())
+	command.AddCommand(NewClusterAddCommand(clientOpts, pathOpts))
+	command.AddCommand(NewClusterGetCommand(clientOpts))
+	command.AddCommand(NewClusterListCommand(clientOpts))
+	command.AddCommand(NewClusterRemoveCommand(clientOpts))
 	return command
 }
 
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
-func NewClusterAddCommand(pathOptions *clientcmd.PathOptions) *cobra.Command {
+func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			var configAccess clientcmd.ConfigAccess = pathOptions
+			var configAccess clientcmd.ConfigAccess = pathOpts
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
 				printContexts(configAccess)
@@ -68,7 +68,7 @@ func NewClusterAddCommand(pathOptions *clientcmd.PathOptions) *cobra.Command {
 			// Install RBAC resources for managing the cluster
 			conf.BearerToken = common.InstallClusterManagerRBAC(conf)
 
-			conn, clusterIf := NewClusterClient()
+			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			clst := NewCluster(args[0], conf)
 			clst, err = clusterIf.Create(context.Background(), clst)
@@ -76,7 +76,7 @@ func NewClusterAddCommand(pathOptions *clientcmd.PathOptions) *cobra.Command {
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
 		},
 	}
-	command.PersistentFlags().StringVar(&pathOptions.LoadingRules.ExplicitPath, pathOptions.ExplicitFileFlag, pathOptions.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	return command
 }
 
@@ -144,7 +144,7 @@ func NewCluster(name string, conf *rest.Config) *argoappv1.Cluster {
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
-func NewClusterGetCommand() *cobra.Command {
+func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "get",
 		Short: fmt.Sprintf("%s cluster get SERVER", cliName),
@@ -153,7 +153,7 @@ func NewClusterGetCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := NewClusterClient()
+			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			for _, clusterName := range args {
 				clst, err := clusterIf.Get(context.Background(), &cluster.ClusterQuery{Server: clusterName})
@@ -168,7 +168,7 @@ func NewClusterGetCommand() *cobra.Command {
 }
 
 // NewClusterRemoveCommand returns a new instance of an `argocd cluster list` command
-func NewClusterRemoveCommand() *cobra.Command {
+func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm",
 		Short: fmt.Sprintf("%s cluster rm SERVER", cliName),
@@ -177,7 +177,7 @@ func NewClusterRemoveCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := NewClusterClient()
+			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			for _, clusterName := range args {
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
@@ -191,12 +191,12 @@ func NewClusterRemoveCommand() *cobra.Command {
 }
 
 // NewClusterListCommand returns a new instance of an `argocd cluster rm` command
-func NewClusterListCommand() *cobra.Command {
+func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: fmt.Sprintf("%s cluster list", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			conn, clusterIf := NewClusterClient()
+			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			clusters, err := clusterIf.List(context.Background(), &cluster.ClusterQuery{})
 			errors.CheckError(err)
@@ -209,22 +209,4 @@ func NewClusterListCommand() *cobra.Command {
 		},
 	}
 	return command
-}
-
-func NewClusterClient() (*grpc.ClientConn, cluster.ClusterServiceClient) {
-	// TODO: get this from a config or command line flag
-	serverAddr := "localhost:8080"
-	var dialOpts []grpc.DialOption
-	// TODO: add insecure config option and --insecure global flag
-	if true {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
-	} // else if opts.Credentials != nil {
-	//	dialOpts = append(dialOpts, grpc.WithTransportCredentials(opts.Credentials))
-	//}
-	conn, err := grpc.Dial(serverAddr, dialOpts...)
-	if err != nil {
-		log.Fatalf("Failed to establish connection to %s: %v", serverAddr, err)
-	}
-	clusterIf := cluster.NewClusterServiceClient(conn)
-	return conn, clusterIf
 }
