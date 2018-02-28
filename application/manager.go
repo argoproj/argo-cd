@@ -41,10 +41,10 @@ func (m *Manager) RefreshAppStatus(app *v1alpha1.Application) *v1alpha1.Applicat
 		log.Errorf("App %s comparison failed: %+v", app.Name, err)
 		status = &v1alpha1.ApplicationStatus{
 			ComparisonResult: v1alpha1.ComparisonResult{
-				Status:                 v1alpha1.ComparisonStatusError,
-				ComparisonErrorDetails: fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
-				ComparedTo:             app.Spec.Source,
-				ComparedAt:             metav1.Time{Time: time.Now().UTC()},
+				Status:     v1alpha1.ComparisonStatusError,
+				Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
+				ComparedTo: app.Spec.Source,
+				ComparedAt: metav1.Time{Time: time.Now().UTC()},
 			},
 		}
 	}
@@ -74,6 +74,7 @@ func (m *Manager) tryRefreshAppStatus(app *v1alpha1.Application) (*v1alpha1.Appl
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult, comparisonResult)
 	return &v1alpha1.ApplicationStatus{
 		ComparisonResult: *comparisonResult,
 	}, nil

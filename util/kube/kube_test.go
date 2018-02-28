@@ -90,7 +90,8 @@ func TestGetLiveResource(t *testing.T) {
 	})
 
 	uObj := MustToUnstructured(test.DemoService())
-	liveObj, err := GetLiveResource(&fakeDynClient, uObj, test.TestNamespace)
+	fakeAPIResource := metav1.APIResource{}
+	liveObj, err := GetLiveResource(&fakeDynClient, uObj, &fakeAPIResource, test.TestNamespace)
 	assert.Nil(t, err)
 	assert.Equal(t, uObj.GetName(), liveObj.GetName())
 }

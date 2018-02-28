@@ -101,9 +101,10 @@ message ComparisonResult {
 
   optional string status = 3;
 
-  optional string differenceDetails = 4;
+  repeated string asciiDiffs = 4;
 
-  optional string comparisonErrorDetails = 5;
+  // DeltaDiffs DeltaDiffs        `json:"deltaDiffs,omitempty" protobuf:"bytes,5,opt,name=deltaDiffs"`
+  optional string error = 6;
 }
 
 // Repository is a Git repository holding application configurations

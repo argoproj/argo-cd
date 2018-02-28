@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,21 +79,17 @@ func ListAPIResources(disco discovery.DiscoveryInterface) ([]metav1.APIResource,
 	return apiResources, nil
 }
 
-//GetLiveResource returns the corresponding live resource from a unstructured object
-func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
+// GetLiveResource returns the corresponding live resource from a unstructured object
+func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, apiResource *metav1.APIResource, namespace string) (*unstructured.Unstructured, error) {
 	resourceName := obj.GetName()
 	if resourceName == "" {
 		return nil, fmt.Errorf("resource was supplied without a name")
 	}
-	// TODO(jessesuen): need to set name and namespaced fields?
-	apiResource := metav1.APIResource{
-		Kind:    obj.GetKind(),
-		Version: obj.GetAPIVersion(),
-	}
-	reIf := dclient.Resource(&apiResource, namespace)
+	reIf := dclient.Resource(apiResource, namespace)
 	liveObj, err := reIf.Get(resourceName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
+			log.Infof("No live counterpart to %s/%s/%s/%s in namespace: '%s'", apiResource.Group, apiResource.Version, apiResource.Name, resourceName, namespace)
 			return nil, nil
 		}
 		return nil, errors.WithStack(err)
@@ -103,24 +100,43 @@ func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, 
 // GetLiveResources returns the corresponding live resource from a list of resources
 func GetLiveResources(config *rest.Config, objs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
 	liveObjs := make([]*unstructured.Unstructured, len(objs))
+	dynClientPool := dynamic.NewDynamicClientPool(config)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	for i, obj := range objs {
-		dynConfig := *config
 		gvk := obj.GroupVersionKind()
-		dynConfig.GroupVersion = &schema.GroupVersion{
-			Group:   gvk.Group,
-			Version: gvk.Version,
-		}
-		dclient, err := dynamic.NewClient(&dynConfig)
+		dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
 		if err != nil {
 			return nil, err
 		}
-		liveObj, err := GetLiveResource(dclient, obj, namespace)
+		apiResource, err := serverResourceForGroupVersionKind(disco, gvk)
+		if err != nil {
+			return nil, err
+		}
+		liveObj, err := GetLiveResource(dclient, obj, apiResource, namespace)
 		if err != nil {
 			return nil, err
 		}
 		liveObjs[i] = liveObj
 	}
 	return liveObjs, nil
+}
+
+// See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
+func serverResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
+	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resources.APIResources {
+		if r.Kind == gvk.Kind {
+			log.Debugf("Chose API '%s' for %s", r.Name, gvk)
+			return &r, nil
+		}
+	}
+	return nil, fmt.Errorf("Server is unable to handle %s", gvk)
 }
 
 // ListResources returns a list of resources of a particular API type using the dynamic client

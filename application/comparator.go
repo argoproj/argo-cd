@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -63,16 +62,21 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 	if err != nil {
 		return nil, err
 	}
-	// Join the outputs
-	outputs := make([]string, len(diffResults.Diffs))
-	for _, diffRes := range diffResults.Diffs {
-		outputs = append(outputs, diffRes.Output)
+	asciiDiffs := make([]string, len(diffResults.Diffs))
+	for i, diffRes := range diffResults.Diffs {
+		asciiDiffs[i] = diffRes.ASCIIDiff
 	}
-
+	// deltaDiffs := make([]runtime.RawExtension, len(diffResults.Diffs))
+	// for i, diffRes := range diffResults.Diffs {
+	// 	deltaDiffs[i] = runtime.RawExtension{
+	// 		Object: diffRes.DeltaDiff,
+	// 	}
+	// }
 	compResult := v1alpha1.ComparisonResult{
-		ComparedTo:        app.Spec.Source,
-		ComparedAt:        metav1.Time{Time: time.Now().UTC()},
-		DifferenceDetails: strings.Join(outputs, "---\n"),
+		ComparedTo: app.Spec.Source,
+		ComparedAt: metav1.Time{Time: time.Now().UTC()},
+		ASCIIDiffs: asciiDiffs,
+		//DeltaDiffs: deltaDiffs,
 	}
 	if diffResults.Modified {
 		if *diffResults.AdditionsOnly {

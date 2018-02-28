@@ -10,10 +10,11 @@ import (
 )
 
 type DiffResult struct {
-	Diff          gojsondiff.Diff `json:"-"`
-	Modified      bool            `json:"modified"`
-	AdditionsOnly *bool           `json:"additionsOnly,omitempty"`
-	Output        string          `json:"output,omitempty"`
+	Diff          gojsondiff.Diff        `json:"-"`
+	Modified      bool                   `json:"modified"`
+	AdditionsOnly *bool                  `json:"additionsOnly,omitempty"`
+	ASCIIDiff     string                 `json:"asciiDiff,omitempty"`
+	DeltaDiff     map[string]interface{} `json:"deltaDiff,omitempty"`
 }
 
 // Diff performs a diff on two unstructured objects
@@ -26,13 +27,12 @@ func Diff(left, right *unstructured.Unstructured) *DiffResult {
 		rightObj = right.Object
 	}
 	gjDiff := gojsondiff.New().CompareObjects(leftObj, rightObj)
-	out, additions := renderOutput(leftObj, gjDiff)
-	return &DiffResult{
-		Diff:          gjDiff,
-		Output:        out,
-		AdditionsOnly: additions,
-		Modified:      gjDiff.Modified(),
+	dr := DiffResult{
+		Diff:     gjDiff,
+		Modified: gjDiff.Modified(),
 	}
+	dr.renderOutput(leftObj)
+	return &dr
 }
 
 type DiffResultList struct {
@@ -72,16 +72,23 @@ func DiffArray(leftArray, rightArray []*unstructured.Unstructured) (*DiffResultL
 }
 
 // renderOutput is a helper to render the output and check if the modifications are only additions
-func renderOutput(left interface{}, diff gojsondiff.Diff) (string, *bool) {
-	if !diff.Modified() {
-		return "", nil
+func (d *DiffResult) renderOutput(left interface{}) {
+	if !d.Diff.Modified() {
+		return
 	}
-	diffFmt := formatter.NewAsciiFormatter(left, formatter.AsciiFormatterConfig{})
-	out, err := diffFmt.Format(diff)
+	asciiFmt := formatter.NewAsciiFormatter(left, formatter.AsciiFormatterConfig{})
+	var err error
+	d.ASCIIDiff, err = asciiFmt.Format(d.Diff)
 	if err != nil {
 		panic(err)
 	}
-	for _, line := range strings.Split(out, "\n") {
+	deltaFmt := formatter.NewDeltaFormatter()
+	d.DeltaDiff, err = deltaFmt.FormatAsJson(d.Diff)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, line := range strings.Split(d.ASCIIDiff, "\n") {
 		if len(line) == 0 {
 			continue
 		}
@@ -89,9 +96,10 @@ func renderOutput(left interface{}, diff gojsondiff.Diff) (string, *bool) {
 		case formatter.AsciiAdded, formatter.AsciiSame:
 		default:
 			f := false
-			return out, &f
+			d.AdditionsOnly = &f
+			return
 		}
 	}
 	t := true
-	return out, &t
+	d.AdditionsOnly = &t
 }
