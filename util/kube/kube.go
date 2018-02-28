@@ -42,10 +42,6 @@ func TestConfig(config *rest.Config) error {
 	return nil
 }
 
-type listResult struct {
-	Items []*unstructured.Unstructured `json:"items"`
-}
-
 // ToUnstructured converts a concrete K8s API type to a un unstructured object
 func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
@@ -139,6 +135,10 @@ func serverResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 	return nil, fmt.Errorf("Server is unable to handle %s", gvk)
 }
 
+type listResult struct {
+	Items []*unstructured.Unstructured `json:"items"`
+}
+
 // ListResources returns a list of resources of a particular API type using the dynamic client
 func ListResources(dclient dynamic.Interface, apiResource metav1.APIResource, namespace string, listOpts metav1.ListOptions) ([]*unstructured.Unstructured, error) {
 	reIf := dclient.Resource(&apiResource, namespace)
@@ -190,5 +190,34 @@ func ListAllResources(config *rest.Config, apiResources []metav1.APIResource, na
 		i++
 	}
 	return resources, nil
+}
 
+// ApplyResource performs an apply of a unstructured resource
+func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
+	dynClientPool := dynamic.NewDynamicClientPool(config)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	gvk := obj.GroupVersionKind()
+	dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
+	if err != nil {
+		return nil, err
+	}
+	apiResource, err := serverResourceForGroupVersionKind(disco, gvk)
+	if err != nil {
+		return nil, err
+	}
+	reIf := dclient.Resource(apiResource, namespace)
+	liveObj, err := reIf.Update(obj)
+	if err != nil {
+		if !apierr.IsNotFound(err) {
+			return nil, errors.WithStack(err)
+		}
+		liveObj, err = reIf.Create(obj)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+	return liveObj, nil
 }

@@ -1,8 +1,13 @@
 package application
 
 import (
+	"fmt"
+
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	apiv1 "k8s.io/api/core/v1"
@@ -10,19 +15,22 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// Server provides a Cluster service
+// Server provides a Application service
 type Server struct {
 	ns            string
 	kubeclientset kubernetes.Interface
 	appclientset  appclientset.Interface
+	// TODO(jessesuen): move common cluster code to shared libraries
+	clusterService cluster.ClusterServiceServer
 }
 
-// NewServer returns a new instance of the Cluster service
-func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *Server {
+// NewServer returns a new instance of the Application service
+func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, clusterService cluster.ClusterServiceServer) ApplicationServiceServer {
 	return &Server{
-		ns:            namespace,
-		appclientset:  appclientset,
-		kubeclientset: kubeclientset,
+		ns:             namespace,
+		appclientset:   appclientset,
+		kubeclientset:  kubeclientset,
+		clusterService: clusterService,
 	}
 }
 
@@ -82,4 +90,76 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 		w.Stop()
 	}
 	return nil
+}
+
+// Sync syncs an application to its target state
+func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ApplicationSyncResult, error) {
+	log.Infof("Syncing application %s", syncReq.Name)
+	app, err := s.Get(ctx, &ApplicationQuery{Name: syncReq.Name})
+	if err != nil {
+		return nil, err
+	}
+	var syncRes ApplicationSyncResult
+	switch app.Status.ComparisonResult.Status {
+	case appv1.ComparisonStatusDifferent:
+	default:
+		appState := app.Status.ComparisonResult.Status
+		if appState == "" {
+			appState = "Unknown"
+		}
+		return nil, fmt.Errorf("Cannot sync application '%s' while in an '%s' state", app.ObjectMeta.Name, appState)
+	}
+	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: app.Status.ComparisonResult.Server})
+	if err != nil {
+		return nil, err
+	}
+	config := clst.RESTConfig()
+	targetNamespace := app.Status.ComparisonResult.Namespace
+	targetObjs, err := app.Status.ComparisonResult.TargetObjects()
+	if err != nil {
+		return nil, err
+	}
+	liveObjs, err := kube.GetLiveResources(config, targetObjs, targetNamespace)
+	if err != nil {
+		return nil, err
+	}
+	diffResList, err := diff.DiffArray(targetObjs, liveObjs)
+	if err != nil {
+		return nil, err
+	}
+	syncRes.Resources = make([]*ResourceDetails, 0)
+	for i, diffRes := range diffResList.Diffs {
+		resDetails := ResourceDetails{
+			Name:      targetObjs[i].GetName(),
+			Kind:      targetObjs[i].GetKind(),
+			Namespace: targetNamespace,
+		}
+		needsCreate := bool(liveObjs[i] == nil)
+		if isSynced(&diffRes) {
+			resDetails.Message = fmt.Sprintf("already synced")
+		} else if syncReq.DryRun {
+			if needsCreate {
+				resDetails.Message = fmt.Sprintf("will create")
+			} else {
+				resDetails.Message = fmt.Sprintf("will update")
+			}
+		} else {
+			_, err := kube.ApplyResource(config, targetObjs[i], targetNamespace)
+			if err != nil {
+				return nil, err
+			}
+			if needsCreate {
+				resDetails.Message = fmt.Sprintf("created")
+			} else {
+				resDetails.Message = fmt.Sprintf("updated")
+			}
+		}
+		syncRes.Resources = append(syncRes.Resources, &resDetails)
+	}
+	syncRes.Message = "synced successful"
+	return &syncRes, nil
+}
+
+func isSynced(diffRes *diff.DiffResult) bool {
+	return !diffRes.Modified || *diffRes.AdditionsOnly
 }

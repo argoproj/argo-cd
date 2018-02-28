@@ -96,5 +96,6 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 		}
 		objs = append(objs, &obj)
 	}
+	// TODO(jessesuen): we need to sort objects based on their dependency order of creation
 	return objs, nil
 }

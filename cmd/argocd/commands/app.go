@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/errors"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -30,6 +31,7 @@ func NewApplicationCommand() *cobra.Command {
 
 	command.AddCommand(NewApplicationAddCommand())
 	command.AddCommand(NewApplicationGetCommand())
+	command.AddCommand(NewApplicationSyncCommand())
 	command.AddCommand(NewApplicationListCommand())
 	command.AddCommand(NewApplicationRemoveCommand())
 	return command
@@ -88,9 +90,9 @@ func NewApplicationGetCommand() *cobra.Command {
 			conn, appIf := NewApplicationClient()
 			defer util.Close(conn)
 			for _, appName := range args {
-				clst, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
+				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
 				errors.CheckError(err)
-				yamlBytes, err := yaml.Marshal(clst)
+				yamlBytes, err := yaml.Marshal(app)
 				errors.CheckError(err)
 				fmt.Printf("%v\n", string(yamlBytes))
 			}
@@ -135,6 +137,41 @@ func NewApplicationListCommand() *cobra.Command {
 			}
 		},
 	}
+	return command
+}
+
+// NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
+func NewApplicationSyncCommand() *cobra.Command {
+	var (
+		dryRun bool
+	)
+	var command = &cobra.Command{
+		Use:   "sync",
+		Short: fmt.Sprintf("%s app sync APPNAME", cliName),
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			conn, appIf := NewApplicationClient()
+			defer util.Close(conn)
+			appName := args[0]
+			syncReq := application.ApplicationSyncRequest{
+				Name:   appName,
+				DryRun: dryRun,
+			}
+			syncRes, err := appIf.Sync(context.Background(), &syncReq)
+			errors.CheckError(err)
+			fmt.Printf("%s %s\n", appName, syncRes.Message)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "NAME\tKIND\tMESSAGE\n")
+			for _, resDetails := range syncRes.Resources {
+				fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Name, resDetails.Kind, resDetails.Message)
+			}
+			_ = w.Flush()
+		},
+	}
+	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	return command
 }
 

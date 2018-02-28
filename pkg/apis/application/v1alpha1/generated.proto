@@ -33,7 +33,7 @@ message ApplicationList {
   repeated Application items = 2;
 }
 
-// ApplicationSource contains secret reference which has information about github repository, path within repository and target application environment.
+// ApplicationSource contains information about github repository, path within repository and target application environment.
 message ApplicationSource {
   optional string targetRevision = 1;
 
@@ -77,7 +77,7 @@ message Cluster {
   // Name of the cluster. If omitted, will use the server address
   optional string name = 2;
 
-  // Config corresponds toe
+  // Config holds cluster information for connecting to a cluster
   optional ClusterConfig config = 3;
 }
 
@@ -111,13 +111,17 @@ message ComparisonResult {
 
   optional ApplicationSource comparedTo = 2;
 
-  optional string status = 3;
+  optional string server = 3;
 
-  repeated string targetState = 4;
+  optional string namespace = 4;
 
-  repeated string deltaDiffs = 5;
+  optional string status = 5;
 
-  optional string error = 6;
+  repeated string targetState = 6;
+
+  repeated string deltaDiffs = 7;
+
+  optional string error = 8;
 }
 
 // Repository is a Git repository holding application configurations

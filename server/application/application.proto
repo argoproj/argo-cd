@@ -19,6 +19,25 @@ message ApplicationQuery {
 
 message ApplicationResponse {}
 
+// ApplicationSyncRequest is a request to apply the config state to live state
+message ApplicationSyncRequest {
+	string name = 1;
+	bool dryRun = 2;
+}
+
+// ApplicationSyncResult is a result of a sync requeswt
+message ApplicationSyncResult {
+	string message = 1;
+	repeated ResourceDetails resources = 2;
+}
+
+message ResourceDetails {
+	string name = 1;
+	string kind = 2;
+	string namespace = 3;
+	string message = 4;
+}
+
 // ApplicationService 
 service ApplicationService {
 
@@ -32,8 +51,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/stream/applications";
 	}
 
-
-	// Create creates a application
+	// Create creates an application
 	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications"
@@ -41,12 +59,12 @@ service ApplicationService {
 		};
 	}
 	
-    // Get returns a application by name
+    // Get returns an application by name
     rpc Get(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
-	// Update updates a application
+	// Update updates an application
 	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{metadata.name}"
@@ -54,14 +72,19 @@ service ApplicationService {
 		};
 	}
 
-	// Delete updates a application
+	// Delete deletes an application
 	rpc Delete(ApplicationQuery) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
 	}
 
-	// ListPods returns pods in a application
+	// ListPods returns pods in an application
 	rpc ListPods(ApplicationQuery) returns (k8s.io.api.core.v1.PodList) {
 		option (google.api.http).get = "/api/v1/applications/{name}/pods";
+	}
+
+	// Sync syncs an application to its target state
+	rpc Sync(ApplicationSyncRequest) returns (ApplicationSyncResult) {
+		option (google.api.http).post = "/api/v1/applications/{name}/sync";
 	}
 
 }

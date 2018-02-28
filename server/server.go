@@ -80,8 +80,9 @@ func (a *ArgoCDServer) Run() {
 		)),
 	)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
-	cluster.RegisterClusterServiceServer(grpcS, cluster.NewServer(a.ns, a.kubeclientset, a.appclientset))
-	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.ns, a.kubeclientset, a.appclientset))
+	clusterService := cluster.NewServer(a.ns, a.kubeclientset, a.appclientset)
+	cluster.RegisterClusterServiceServer(grpcS, clusterService)
+	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.ns, a.kubeclientset, a.appclientset, clusterService))
 	repository.RegisterRepositoryServiceServer(grpcS, repository.NewServer(a.ns, a.kubeclientset, a.appclientset))
 
 	// HTTP 1.1+JSON Server

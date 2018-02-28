@@ -79,6 +79,8 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		TargetState: targetState,
 		ComparedTo:  app.Spec.Source,
 		ComparedAt:  metav1.Time{Time: time.Now().UTC()},
+		Server:      clst.Server,
+		Namespace:   env.Destination.Namespace,
 		DeltaDiffs:  deltaDiffs,
 	}
 	if diffResults.Modified {

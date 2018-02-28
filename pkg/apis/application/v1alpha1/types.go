@@ -1,7 +1,10 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 )
@@ -42,7 +45,7 @@ type ApplicationSpec struct {
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
 }
 
-// ApplicationSource contains secret reference which has information about github repository, path within repository and target application environment.
+// ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	TargetRevision string `json:"targetRevision" protobuf:"bytes,1,opt,name=targetRevision"`
 	// RepoURL is repository URL which contains application project.
@@ -73,10 +76,12 @@ type ApplicationStatus struct {
 type ComparisonResult struct {
 	ComparedAt  metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
 	ComparedTo  ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Status      ComparisonStatus  `json:"status" protobuf:"bytes,3,opt,name=status,casttype=ComparisonStatus"`
-	TargetState []string          `json:"targetState,omitempty" protobuf:"bytes,4,opt,name=targetState"`
-	DeltaDiffs  []string          `json:"deltaDiffs,omitempty" protobuf:"bytes,5,opt,name=deltaDiffs"`
-	Error       string            `json:"error,omitempty" protobuf:"bytes,6,opt,name=error"`
+	Server      string            `json:"server" protobuf:"bytes,3,opt,name=server"`
+	Namespace   string            `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	Status      ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
+	TargetState []string          `json:"targetState,omitempty" protobuf:"bytes,6,opt,name=targetState"`
+	DeltaDiffs  []string          `json:"deltaDiffs,omitempty" protobuf:"bytes,7,opt,name=deltaDiffs"`
+	Error       string            `json:"error,omitempty" protobuf:"bytes,8,opt,name=error"`
 }
 
 // Cluster is the definition of a cluster resource
@@ -87,7 +92,7 @@ type Cluster struct {
 	// Name of the cluster. If omitted, will use the server address
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 
-	// Config corresponds toe
+	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
 }
 
@@ -108,9 +113,6 @@ type ClusterConfig struct {
 	// refresh tokens for an OAuth2 flow.
 	// TODO: demonstrate an OAuth2 compatible client.
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,3,opt,name=bearerToken"`
-
-	// Server requires plugin-specified authentication.
-	//AuthProvider *clientcmdapi.AuthProviderConfig
 
 	// TLSClientConfig contains settings to enable transport layer security
 	TLSClientConfig `json:"tlsClientConfig" protobuf:"bytes,4,opt,name=tlsClientConfig"`
@@ -172,4 +174,18 @@ func (c *Cluster) RESTConfig() *rest.Config {
 			CAData:     c.Config.TLSClientConfig.CAData,
 		},
 	}
+}
+
+// TargetObjects deserializes the list of target states into unstructured objectss
+func (cr *ComparisonResult) TargetObjects() ([]*unstructured.Unstructured, error) {
+	objs := make([]*unstructured.Unstructured, len(cr.TargetState))
+	for i, objStr := range cr.TargetState {
+		var obj unstructured.Unstructured
+		err := json.Unmarshal([]byte(objStr), &obj)
+		if err != nil {
+			return nil, err
+		}
+		objs[i] = &obj
+	}
+	return objs, nil
 }
