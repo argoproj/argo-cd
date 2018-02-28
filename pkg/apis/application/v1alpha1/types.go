@@ -56,19 +56,14 @@ type ApplicationStatus struct {
 	ComparisonResult ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
 }
 
-// TODO(jessesuen): need to find a way to serialize this as protobuf
-type DeltaDiff map[string]interface{}
-
-type DeltaDiffs []DeltaDiff
-
 // ComparisonResult is a comparison result of application spec and deployed application.
 type ComparisonResult struct {
 	ComparedAt metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
 	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
 	Status     ComparisonStatus  `json:"status" protobuf:"bytes,3,opt,name=status,casttype=ComparisonStatus"`
 	ASCIIDiffs []string          `json:"asciiDiffs,omitempty" protobuf:"bytes,4,opt,name=asciiDiffs"`
-	//DeltaDiffs DeltaDiffs        `json:"deltaDiffs,omitempty" protobuf:"bytes,5,opt,name=deltaDiffs"`
-	Error string `json:"error,omitempty" protobuf:"bytes,6,opt,name=error"`
+	DeltaDiffs []string          `json:"deltaDiffs,omitempty" protobuf:"bytes,5,opt,name=deltaDiffs"`
+	Error      string            `json:"error,omitempty" protobuf:"bytes,6,opt,name=error"`
 }
 
 // Cluster is the definition of a cluster resource

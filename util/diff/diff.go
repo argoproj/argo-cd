@@ -10,11 +10,11 @@ import (
 )
 
 type DiffResult struct {
-	Diff          gojsondiff.Diff        `json:"-"`
-	Modified      bool                   `json:"modified"`
-	AdditionsOnly *bool                  `json:"additionsOnly,omitempty"`
-	ASCIIDiff     string                 `json:"asciiDiff,omitempty"`
-	DeltaDiff     map[string]interface{} `json:"deltaDiff,omitempty"`
+	Diff          gojsondiff.Diff `json:"-"`
+	Modified      bool            `json:"modified"`
+	AdditionsOnly *bool           `json:"additionsOnly,omitempty"`
+	ASCIIDiff     string          `json:"asciiDiff,omitempty"`
+	DeltaDiff     string          `json:"deltaDiff,omitempty"`
 }
 
 // Diff performs a diff on two unstructured objects
@@ -83,7 +83,7 @@ func (d *DiffResult) renderOutput(left interface{}) {
 		panic(err)
 	}
 	deltaFmt := formatter.NewDeltaFormatter()
-	d.DeltaDiff, err = deltaFmt.FormatAsJson(d.Diff)
+	d.DeltaDiff, err = deltaFmt.Format(d.Diff)
 	if err != nil {
 		panic(err)
 	}

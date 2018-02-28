@@ -74,7 +74,7 @@ func (m *Manager) tryRefreshAppStatus(app *v1alpha1.Application) (*v1alpha1.Appl
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult, comparisonResult)
+	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
 	return &v1alpha1.ApplicationStatus{
 		ComparisonResult: *comparisonResult,
 	}, nil

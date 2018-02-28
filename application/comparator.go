@@ -63,20 +63,16 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		return nil, err
 	}
 	asciiDiffs := make([]string, len(diffResults.Diffs))
+	deltaDiffs := make([]string, len(diffResults.Diffs))
 	for i, diffRes := range diffResults.Diffs {
 		asciiDiffs[i] = diffRes.ASCIIDiff
+		deltaDiffs[i] = diffRes.DeltaDiff
 	}
-	// deltaDiffs := make([]runtime.RawExtension, len(diffResults.Diffs))
-	// for i, diffRes := range diffResults.Diffs {
-	// 	deltaDiffs[i] = runtime.RawExtension{
-	// 		Object: diffRes.DeltaDiff,
-	// 	}
-	// }
 	compResult := v1alpha1.ComparisonResult{
 		ComparedTo: app.Spec.Source,
 		ComparedAt: metav1.Time{Time: time.Now().UTC()},
 		ASCIIDiffs: asciiDiffs,
-		//DeltaDiffs: deltaDiffs,
+		DeltaDiffs: deltaDiffs,
 	}
 	if diffResults.Modified {
 		if *diffResults.AdditionsOnly {

@@ -28,12 +28,15 @@ import (
 const (
 	// CLIName is the name of the CLI
 	cliName = "application-controller"
+	// Default time in seconds for application resync period
+	defaultAppResyncPeriod = 600
 )
 
 func newCommand() *cobra.Command {
 	var (
 		kubeConfigOverrides clientcmd.ConfigOverrides
 		kubeConfigPath      string
+		appResyncPeriod     int64
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -53,16 +56,16 @@ func newCommand() *cobra.Command {
 				Namespace:  "default",
 				InstanceID: "",
 			}
-			appResyncPeriod := time.Minute * 10
 			clusterService := cluster.NewServer(config.Namespace, kubeClient, appClient)
+			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			appManager := application.NewAppManager(
 				nativeGitClient,
 				repository.NewServer(config.Namespace, kubeClient, appClient),
 				clusterService,
 				application.NewKsonnetAppComparator(clusterService),
-				appResyncPeriod)
-
-			appController := controller.NewApplicationController(kubeClient, appClient, appManager, appResyncPeriod, &config)
+				resyncDuration,
+			)
+			appController := controller.NewApplicationController(kubeClient, appClient, appManager, resyncDuration, &config)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -75,6 +78,7 @@ func newCommand() *cobra.Command {
 	}
 
 	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "Path to the config file to use for CLI requests.")
+	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
 	kubeConfigOverrides = clientcmd.ConfigOverrides{}
 	clientcmd.BindOverrideFlags(&kubeConfigOverrides, command.Flags(), clientcmd.RecommendedConfigOverrideFlags(""))
 

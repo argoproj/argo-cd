@@ -103,7 +103,8 @@ message ComparisonResult {
 
   repeated string asciiDiffs = 4;
 
-  // DeltaDiffs DeltaDiffs        `json:"deltaDiffs,omitempty" protobuf:"bytes,5,opt,name=deltaDiffs"`
+  repeated string deltaDiffs = 5;
+
   optional string error = 6;
 }
 
