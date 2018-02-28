@@ -115,11 +115,9 @@ message ComparisonResult {
 
   repeated string targetState = 4;
 
-  repeated string asciiDiffs = 5;
+  repeated string deltaDiffs = 5;
 
-  repeated string deltaDiffs = 6;
-
-  optional string error = 7;
+  optional string error = 6;
 }
 
 // Repository is a Git repository holding application configurations

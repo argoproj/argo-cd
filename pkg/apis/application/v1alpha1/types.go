@@ -75,9 +75,8 @@ type ComparisonResult struct {
 	ComparedTo  ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
 	Status      ComparisonStatus  `json:"status" protobuf:"bytes,3,opt,name=status,casttype=ComparisonStatus"`
 	TargetState []string          `json:"targetState,omitempty" protobuf:"bytes,4,opt,name=targetState"`
-	ASCIIDiffs  []string          `json:"asciiDiffs,omitempty" protobuf:"bytes,5,opt,name=asciiDiffs"`
-	DeltaDiffs  []string          `json:"deltaDiffs,omitempty" protobuf:"bytes,6,opt,name=deltaDiffs"`
-	Error       string            `json:"error,omitempty" protobuf:"bytes,7,opt,name=error"`
+	DeltaDiffs  []string          `json:"deltaDiffs,omitempty" protobuf:"bytes,5,opt,name=deltaDiffs"`
+	Error       string            `json:"error,omitempty" protobuf:"bytes,6,opt,name=error"`
 }
 
 // Cluster is the definition of a cluster resource

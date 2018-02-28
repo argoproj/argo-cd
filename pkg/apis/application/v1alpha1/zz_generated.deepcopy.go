@@ -204,11 +204,6 @@ func (in *ComparisonResult) DeepCopyInto(out *ComparisonResult) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.ASCIIDiffs != nil {
-		in, out := &in.ASCIIDiffs, &out.ASCIIDiffs
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.DeltaDiffs != nil {
 		in, out := &in.DeltaDiffs, &out.DeltaDiffs
 		*out = make([]string, len(*in))
