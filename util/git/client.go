@@ -45,7 +45,8 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		}
 	} else {
 		log.Infof("Fetching %s", repo)
-		cmd := exec.Command("git", "fetch")
+		// Fetch remote changes and delete all local branches
+		cmd := exec.Command("sh", "-c", "git fetch --all && git checkout --detach HEAD && git branch --merged | grep -v \\* | xargs git branch -D")
 		cmd.Dir = repoPath
 		_, err := cmd.Output()
 		if err != nil {
