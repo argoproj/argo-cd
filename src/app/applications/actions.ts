@@ -38,3 +38,7 @@ export function loadApplication(name: string): any {
         });
     };
 }
+
+export function syncApplication(name: string) {
+    services.applications.sync(name);
+}

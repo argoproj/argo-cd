@@ -1,5 +1,6 @@
-import { AppState, models, Page } from 'argo-ui';
+import { AppContext, AppState, models, Page, SlidingPanel } from 'argo-ui';
 import * as classNames from 'classnames';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
@@ -16,7 +17,9 @@ require('./application-details.scss');
 export interface ApplicationDetailsProps extends RouteComponentProps<{ name: string; namespace: string; }> {
     application: appModels.Application;
     onLoad: (namespace: string, name: string) => any;
+    sync: (namespace: string, name: string) => any;
     changesSubscription: Subscription;
+    showDeployPanel: boolean;
 }
 
 class Component extends React.Component<ApplicationDetailsProps, { expandedRows: number[] }> {
@@ -36,14 +39,42 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
         }
     }
 
+    public setDeployPanelVisible(isVisible: boolean) {
+        this.appContext.router.history.push(`${this.props.match.url}?deploy=${isVisible}`);
+    }
+
     public render() {
         return (
-            <Page title={'Workflow Details'} toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }] }}>
+            <Page
+                title={'Workflow Details'}
+                toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
+                    items: [{
+                        className: 'icon argo-icon-deploy',
+                        title: 'Deploy',
+                        action: () => this.setDeployPanelVisible(true),
+                    }],
+                } }}>
                 <div className='argo-container application-details'>
                     {this.props.application ? this.renderSummary(this.props.application) : (
                         <div>Loading...</div>
                     )}
                 </div>
+                <SlidingPanel isNarrow={true} isShown={this.props.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
+                        <div>
+                            <button className='argo-button argo-button--base' onClick={() => this.syncApplication()}>
+                                Deploy
+                            </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
+                                Cancel
+                            </button>
+                        </div>
+                    )}>
+                    { this.props.application && (
+                        <div>
+                            <h6>Deploying application manifests from <a href={this.props.application.spec.source.repoURL}>{this.props.application.spec.source.repoURL}</a></h6>
+                            <h6>Revision: {this.props.application.spec.source.targetRevision || 'HEAD'}</h6>
+                        </div>
+                    )}
+                </SlidingPanel>
             </Page>
         );
     }
@@ -120,6 +151,11 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
         );
     }
 
+    private syncApplication() {
+        this.props.sync(this.props.application.metadata.namespace, this.props.application.metadata.name);
+        this.setDeployPanelVisible(false);
+    }
+
     private toggleRow(row: number) {
         const rows = this.state.expandedRows.slice();
         const index = rows.indexOf(row);
@@ -130,11 +166,21 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
         }
         this.setState({ expandedRows: rows });
     }
+
+    private get appContext(): AppContext {
+        return this.context as AppContext;
+    }
 }
+
+(Component as React.ComponentClass).contextTypes = {
+    router: PropTypes.object,
+};
 
 export const ApplicationDetails = connect((state: AppState<State>) => ({
     application: state.page.application,
     changesSubscription: state.page.changesSubscription,
+    showDeployPanel: new URLSearchParams(state.router.location.search).get('deploy') === 'true',
 }), (dispatch) => ({
     onLoad: (namespace: string, name: string) => dispatch(actions.loadApplication(name)),
+    sync: (namespace: string, name: string) => actions.syncApplication(name),
 }))(Component);

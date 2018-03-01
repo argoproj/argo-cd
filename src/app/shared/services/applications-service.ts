@@ -19,4 +19,8 @@ export class ApplicationsService {
         }
         return requests.loadEventSource(url).repeat().retry().map((data) => JSON.parse(data).result as models.ApplicationWatchEvent);
     }
+
+    public sync(name: string): Promise<boolean> {
+        return requests.post(`/applications/${name}/sync`).send().then((res) => true);
+    }
 }
