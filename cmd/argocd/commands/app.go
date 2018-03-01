@@ -11,8 +11,10 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/ghodss/yaml"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/spf13/cobra"
+	"github.com/yudai/gojsondiff/formatter"
+	"golang.org/x/crypto/ssh/terminal"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,6 +31,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 	command.AddCommand(NewApplicationAddCommand(clientOpts))
 	command.AddCommand(NewApplicationGetCommand(clientOpts))
+	command.AddCommand(NewApplicationDiffCommand(clientOpts))
 	command.AddCommand(NewApplicationSyncCommand(clientOpts))
 	command.AddCommand(NewApplicationListCommand(clientOpts))
 	command.AddCommand(NewApplicationRemoveCommand(clientOpts))
@@ -87,12 +90,70 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			for _, appName := range args {
-				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
-				errors.CheckError(err)
-				yamlBytes, err := yaml.Marshal(app)
-				errors.CheckError(err)
-				fmt.Printf("%v\n", string(yamlBytes))
+			appName := args[0]
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
+			errors.CheckError(err)
+			format := "%-15s%s\n"
+			fmt.Printf(format, "Name:", app.Name)
+			fmt.Printf(format, "Environment:", app.Spec.Source.Environment)
+			fmt.Printf(format, "Repo:", app.Spec.Source.RepoURL)
+			fmt.Printf(format, "Path:", app.Spec.Source.Path)
+			if app.Spec.Source.TargetRevision == "" {
+				fmt.Printf(format, "Target:", "HEAD")
+			} else {
+				fmt.Printf(format, "Target:", app.Spec.Source.TargetRevision)
+			}
+			if app.Status.ComparisonResult.Status != argoappv1.ComparisonStatusUnknown {
+				fmt.Printf(format, "Server:", app.Status.ComparisonResult.Server)
+				fmt.Printf(format, "Namespace:", app.Status.ComparisonResult.Namespace)
+				fmt.Println()
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				fmt.Fprintf(w, "KIND\tNAME\tSTATUS\n")
+				for _, res := range app.Status.ComparisonResult.Resources {
+					targetObj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
+					errors.CheckError(err)
+					fmt.Fprintf(w, "%s\t%s\t%s\n", targetObj.GetKind(), targetObj.GetName(), res.Status)
+				}
+				_ = w.Flush()
+			}
+		},
+	}
+	return command
+}
+
+// NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
+func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "diff",
+		Short: fmt.Sprintf("%s app diff APPNAME", cliName),
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			appName := args[0]
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
+			errors.CheckError(err)
+			targetObjs, err := app.Status.ComparisonResult.TargetObjects()
+			errors.CheckError(err)
+			liveObjs, err := app.Status.ComparisonResult.LiveObjects()
+			errors.CheckError(err)
+			diffResults, err := diff.DiffArray(targetObjs, liveObjs)
+			errors.CheckError(err)
+			for i := 0; i < len(targetObjs); i++ {
+				targetObj := targetObjs[i]
+				diffRes := diffResults.Diffs[i]
+				fmt.Printf("===== %s %s ======\n", targetObj.GetKind(), targetObj.GetName())
+				if diffRes.Modified {
+					formatOpts := formatter.AsciiFormatterConfig{
+						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
+					}
+					out, err := diffResults.Diffs[i].ASCIIFormat(targetObj, formatOpts)
+					errors.CheckError(err)
+					fmt.Println(out)
+				}
 			}
 		},
 	}
@@ -131,9 +192,20 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tCLUSTER\tNAMESPACE\tSTATUS\n")
+			fmt.Fprintf(w, "NAME\tENVIRONMENT\tTARGET\tCLUSTER\tNAMESPACE\tSTATUS\n")
 			for _, app := range apps.Items {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", app.Name, app.Status.ComparisonResult.Server, app.Status.ComparisonResult.Namespace, app.Status.ComparisonResult.Status)
+				targetRev := app.Spec.Source.TargetRevision
+				if targetRev == "" {
+					targetRev = "HEAD"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+					app.Name,
+					app.Spec.Source.Environment,
+					targetRev,
+					app.Status.ComparisonResult.Server,
+					app.Status.ComparisonResult.Namespace,
+					app.Status.ComparisonResult.Status,
+				)
 			}
 			_ = w.Flush()
 		},

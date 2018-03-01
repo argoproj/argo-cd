@@ -15,7 +15,6 @@ func TestDiff(t *testing.T) {
 
 	diffRes := Diff(leftUn, leftUn)
 	assert.False(t, diffRes.Diff.Modified())
-	assert.Nil(t, diffRes.AdditionsOnly)
 }
 
 func TestDiffArraySame(t *testing.T) {
@@ -30,7 +29,6 @@ func TestDiffArraySame(t *testing.T) {
 	diffResList, err := DiffArray(left, right)
 	assert.Nil(t, err)
 	assert.False(t, diffResList.Modified)
-	assert.Nil(t, diffResList.AdditionsOnly)
 }
 
 func TestDiffArrayAdditions(t *testing.T) {
@@ -45,8 +43,7 @@ func TestDiffArrayAdditions(t *testing.T) {
 	right := []*unstructured.Unstructured{rightUn}
 	diffResList, err := DiffArray(left, right)
 	assert.Nil(t, err)
-	assert.True(t, diffResList.Modified)
-	assert.True(t, *diffResList.AdditionsOnly)
+	assert.False(t, diffResList.Modified)
 }
 
 func TestDiffArrayModification(t *testing.T) {
@@ -63,5 +60,4 @@ func TestDiffArrayModification(t *testing.T) {
 	diffResList, err := DiffArray(left, right)
 	assert.Nil(t, err)
 	assert.True(t, diffResList.Modified)
-	assert.False(t, *diffResList.AdditionsOnly)
 }

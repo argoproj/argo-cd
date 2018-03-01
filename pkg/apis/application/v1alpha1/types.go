@@ -182,16 +182,40 @@ func (c *Cluster) RESTConfig() *rest.Config {
 	}
 }
 
-// TargetObjects deserializes the list of target states into unstructured objectss
+// TargetObjects deserializes the list of target states into unstructured objects
 func (cr *ComparisonResult) TargetObjects() ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(cr.Resources))
 	for i, resState := range cr.Resources {
-		var obj unstructured.Unstructured
-		err := json.Unmarshal([]byte(resState.TargetState), &obj)
+		obj, err := UnmarshalToUnstructured(resState.TargetState)
 		if err != nil {
 			return nil, err
 		}
-		objs[i] = &obj
+		objs[i] = obj
 	}
 	return objs, nil
+}
+
+// LiveObjects deserializes the list of live states into unstructured objects
+func (cr *ComparisonResult) LiveObjects() ([]*unstructured.Unstructured, error) {
+	objs := make([]*unstructured.Unstructured, len(cr.Resources))
+	for i, resState := range cr.Resources {
+		obj, err := UnmarshalToUnstructured(resState.LiveState)
+		if err != nil {
+			return nil, err
+		}
+		objs[i] = obj
+	}
+	return objs, nil
+}
+
+func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error) {
+	if resource == "" || resource == "null" {
+		return nil, nil
+	}
+	var obj unstructured.Unstructured
+	err := json.Unmarshal([]byte(resource), &obj)
+	if err != nil {
+		return nil, err
+	}
+	return &obj, nil
 }

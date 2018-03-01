@@ -1,8 +1,8 @@
 package diff
 
 import (
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/yudai/gojsondiff"
 	"github.com/yudai/gojsondiff/formatter"
@@ -10,11 +10,13 @@ import (
 )
 
 type DiffResult struct {
-	Diff          gojsondiff.Diff `json:"-"`
-	Modified      bool            `json:"modified"`
-	AdditionsOnly *bool           `json:"additionsOnly,omitempty"`
-	ASCIIDiff     string          `json:"asciiDiff,omitempty"`
-	DeltaDiff     string          `json:"deltaDiff,omitempty"`
+	Diff     gojsondiff.Diff
+	Modified bool
+}
+
+type DiffResultList struct {
+	Diffs    []DiffResult
+	Modified bool
 }
 
 // Diff performs a diff on two unstructured objects
@@ -24,21 +26,14 @@ func Diff(left, right *unstructured.Unstructured) *DiffResult {
 		leftObj = left.Object
 	}
 	if right != nil {
-		rightObj = right.Object
+		rightObj = removeMapFields(leftObj, right.Object)
 	}
 	gjDiff := gojsondiff.New().CompareObjects(leftObj, rightObj)
 	dr := DiffResult{
 		Diff:     gjDiff,
 		Modified: gjDiff.Modified(),
 	}
-	dr.renderOutput(leftObj)
 	return &dr
-}
-
-type DiffResultList struct {
-	Diffs         []DiffResult `json:"diffs,omitempty"`
-	Modified      bool         `json:"modified"`
-	AdditionsOnly *bool        `json:"additionsOnly,omitempty"`
 }
 
 // DiffArray performs a diff on a list of unstructured objects. Objects are expected to match
@@ -59,47 +54,57 @@ func DiffArray(leftArray, rightArray []*unstructured.Unstructured) (*DiffResultL
 		diffResultList.Diffs[i] = *diffRes
 		if diffRes.Modified {
 			diffResultList.Modified = true
-			if !*diffRes.AdditionsOnly {
-				diffResultList.AdditionsOnly = diffRes.AdditionsOnly
-			}
 		}
-	}
-	if diffResultList.Modified && diffResultList.AdditionsOnly == nil {
-		t := true
-		diffResultList.AdditionsOnly = &t
 	}
 	return &diffResultList, nil
 }
 
-// renderOutput is a helper to render the output and check if the modifications are only additions
-func (d *DiffResult) renderOutput(left interface{}) {
+// ASCIIFormat returns the ASCII format of the diff
+func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts formatter.AsciiFormatterConfig) (string, error) {
 	if !d.Diff.Modified() {
-		return
+		return "", nil
 	}
-	asciiFmt := formatter.NewAsciiFormatter(left, formatter.AsciiFormatterConfig{})
-	var err error
-	d.ASCIIDiff, err = asciiFmt.Format(d.Diff)
-	if err != nil {
-		panic(err)
+	if left == nil {
+		return "", errors.New("Supplied nil left object")
 	}
-	deltaFmt := formatter.NewDeltaFormatter()
-	d.DeltaDiff, err = deltaFmt.Format(d.Diff)
-	if err != nil {
-		panic(err)
-	}
+	asciiFmt := formatter.NewAsciiFormatter(left.Object, formatOpts)
+	return asciiFmt.Format(d.Diff)
+}
 
-	for _, line := range strings.Split(d.ASCIIDiff, "\n") {
-		if len(line) == 0 {
+// https://github.com/ksonnet/ksonnet/blob/master/pkg/kubecfg/diff.go
+func removeFields(config, live interface{}) interface{} {
+	switch c := config.(type) {
+	case map[string]interface{}:
+		return removeMapFields(c, live.(map[string]interface{}))
+	case []interface{}:
+		return removeListFields(c, live.([]interface{}))
+	default:
+		return live
+	}
+}
+
+func removeMapFields(config, live map[string]interface{}) map[string]interface{} {
+	result := map[string]interface{}{}
+	for k, v1 := range config {
+		v2, ok := live[k]
+		if !ok {
 			continue
 		}
-		switch string(line[0]) {
-		case formatter.AsciiAdded, formatter.AsciiSame:
-		default:
-			f := false
-			d.AdditionsOnly = &f
-			return
+		result[k] = removeFields(v1, v2)
+	}
+	return result
+}
+
+func removeListFields(config, live []interface{}) []interface{} {
+	// If live is longer than config, then the extra elements at the end of the
+	// list will be returned as is so they appear in the diff.
+	result := make([]interface{}, 0, len(live))
+	for i, v2 := range live {
+		if len(config) > i {
+			result = append(result, removeFields(config[i], v2))
+		} else {
+			result = append(result, v2)
 		}
 	}
-	t := true
-	d.AdditionsOnly = &t
+	return result
 }

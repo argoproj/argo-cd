@@ -83,11 +83,7 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		}
 		diffResult := diffResults.Diffs[i]
 		if diffResult.Modified {
-			if *diffResult.AdditionsOnly {
-				resState.Status = v1alpha1.ComparisonStatusEqual
-			} else {
-				resState.Status = v1alpha1.ComparisonStatusDifferent
-			}
+			resState.Status = v1alpha1.ComparisonStatusDifferent
 		} else {
 			resState.Status = v1alpha1.ComparisonStatusEqual
 		}
@@ -101,11 +97,7 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		Resources:  resources,
 	}
 	if diffResults.Modified {
-		if *diffResults.AdditionsOnly {
-			compResult.Status = v1alpha1.ComparisonStatusEqual
-		} else {
-			compResult.Status = v1alpha1.ComparisonStatusDifferent
-		}
+		compResult.Status = v1alpha1.ComparisonStatusDifferent
 	} else {
 		compResult.Status = v1alpha1.ComparisonStatusEqual
 	}

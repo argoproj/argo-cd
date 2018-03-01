@@ -136,7 +136,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 			Namespace: targetNamespace,
 		}
 		needsCreate := bool(liveObjs[i] == nil)
-		if isSynced(&diffRes) {
+		if !diffRes.Modified {
 			resDetails.Message = fmt.Sprintf("already synced")
 		} else if syncReq.DryRun {
 			if needsCreate {
@@ -159,8 +159,4 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 	syncRes.Message = "successfully synced"
 	return &syncRes, nil
-}
-
-func isSynced(diffRes *diff.DiffResult) bool {
-	return !diffRes.Modified || *diffRes.AdditionsOnly
 }
