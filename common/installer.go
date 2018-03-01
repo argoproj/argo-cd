@@ -22,6 +22,10 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	StaticFilesVolumeName = "static-files"
+)
+
 // InstallParameters has all the required parameters for installing ArgoCD.
 type InstallParameters struct {
 	Upgrade         bool
@@ -29,8 +33,11 @@ type InstallParameters struct {
 	Namespace       string
 	ControllerName  string
 	ControllerImage string
+	ServerName      string
+	UiImage         string
+	ServerImage     string
 	ServiceAccount  string
-	SkipController  bool
+	CrdOnly         bool
 }
 
 // Installer allows to install ArgoCD resources.
@@ -42,8 +49,9 @@ type Installer struct {
 // Install performs installation
 func (installer *Installer) Install(parameters InstallParameters) {
 	installer.installAppCRD(parameters.DryRun)
-	if !parameters.SkipController {
+	if !parameters.CrdOnly {
 		installer.installController(parameters)
+		installer.installServer(parameters)
 	}
 }
 
@@ -143,9 +151,10 @@ func (installer *Installer) installController(args InstallParameters) {
 					ServiceAccountName: args.ServiceAccount,
 					Containers: []apiv1.Container{
 						{
-							Name:    args.ControllerName,
-							Image:   args.ControllerImage,
-							Command: []string{"argocd-application-controller"},
+							Name:            args.ControllerName,
+							Image:           args.ControllerImage,
+							ImagePullPolicy: apiv1.PullIfNotPresent,
+							Command:         []string{"/argocd-application-controller"},
 						},
 					},
 				},
@@ -153,6 +162,71 @@ func (installer *Installer) installController(args InstallParameters) {
 		},
 	}
 	installer.createDeploymentHelper(&controllerDeployment, args)
+}
+
+func (installer *Installer) installServer(args InstallParameters) {
+	serverDeployment := appsv1beta2.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1beta2",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      args.ServerName,
+			Namespace: args.Namespace,
+		},
+		Spec: appsv1beta2.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": args.ServerName,
+				},
+			},
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": args.ServerName,
+					},
+				},
+				Spec: apiv1.PodSpec{
+					ServiceAccountName: args.ServiceAccount,
+					Containers: []apiv1.Container{
+						{
+							Name:            args.ServerName,
+							Image:           args.ServerImage,
+							Command:         []string{"/argocd-server", "--staticassets", "/shared/app"},
+							ImagePullPolicy: apiv1.PullIfNotPresent,
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      StaticFilesVolumeName,
+									MountPath: "/shared",
+								},
+							},
+						},
+						{
+							Name:            args.ServerName + "-ui",
+							Image:           args.UiImage,
+							ImagePullPolicy: apiv1.PullIfNotPresent,
+							Command:         []string{"sh", "-c", "cp -r /app /shared && tail -f /dev/null"},
+							VolumeMounts: []apiv1.VolumeMount{
+								{
+									Name:      StaticFilesVolumeName,
+									MountPath: "/shared",
+								},
+							},
+						},
+					},
+					Volumes: []apiv1.Volume{
+						{
+							Name: StaticFilesVolumeName,
+							VolumeSource: apiv1.VolumeSource{
+								EmptyDir: &apiv1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	installer.createDeploymentHelper(&serverDeployment, args)
 }
 
 // createDeploymentHelper is helper to create or update an existing deployment (if --upgrade was supplied)
