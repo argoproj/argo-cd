@@ -52,21 +52,26 @@ export interface ApplicationSpec {
     source: ApplicationSource;
 }
 
-export type ComparisonStatus = '' | 'Error' | 'Equal' | 'Different';
+export type ComparisonStatus = '' | 'Error' | 'Synched' | 'OutOfSync';
 
 export const ComparisonStatuses = {
     Unknown: '',
     Error: 'Error' ,
-    Equal: 'Equal' ,
-    Different: 'Different',
+    Synched: 'Synched' ,
+    OutOfSync: 'OutOfSync',
 };
+
+export interface ResourceState {
+    targetState: string;
+    liveState: string;
+    status: ComparisonStatus;
+}
 
 export interface ComparisonResult {
     comparedAt: models.Time;
     comparedTo: ApplicationSource;
     status: ComparisonStatus;
-    targetState: string[];
-    deltaDiffs: string[];
+    resources: ResourceState[];
     error: string;
 }
 

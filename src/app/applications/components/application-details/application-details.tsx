@@ -8,7 +8,8 @@ import { Subscription } from 'rxjs';
 import * as appModels from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
-import { ApplicationComponentDiff } from '../application-component-diff/application-component-diff';
+import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
+import { ComparisonStatusIcon } from '../utils';
 
 require('./application-details.scss');
 
@@ -56,9 +57,18 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                 </a> )},
             {title: 'PATH', value: app.spec.source.path},
             {title: 'ENVIRONMENT', value: app.spec.source.environment},
+            {title: 'STATUS', value: (
+                <span><ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}</span>
+            )},
         ];
-        const deltas = (app.status.comparisonResult.deltaDiffs || []).map((item) => JSON.parse(item));
-        const targetComponents = (app.status.comparisonResult.targetState || []).map((item) => JSON.parse(item) as models.TypeMeta & { metadata: models.ObjectMeta });
+        if (app.status.comparisonResult.error) {
+            attributes.push({title: 'COMPARISON ERROR', value: app.status.comparisonResult.error});
+        }
+        const resources = (app.status.comparisonResult.resources || []).map((resource) => ({
+                liveState: JSON.parse(resource.liveState) as models.TypeMeta & { metadata: models.ObjectMeta },
+                targetState: JSON.parse(resource.targetState) as models.TypeMeta & { metadata: models.ObjectMeta },
+                status: resource.status,
+            }));
         return (
             <div>
                 <div className='white-box'>
@@ -74,7 +84,7 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                     </div>
                 </div>
                 <div>
-                    <h6>Components:</h6>
+                    <h6>Resources:</h6>
                     <div className='argo-table-list argo-table-list--clickable'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
@@ -84,21 +94,23 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                             <div className='columns small-3'>Status</div>
                         </div>
                     </div>
-                        {targetComponents.map((component, i) => (
+                        {resources.map((resource, i) => (
                             <div className='argo-table-list__row' key={i} onClick={() => this.toggleRow(i)}>
                                 <div className='row'>
-                                    <div className='columns small-3'>{component.kind}</div>
-                                    <div className='columns small-2'>{component.apiVersion}</div>
-                                    <div className='columns small-4'>{component.metadata.name}</div>
                                     <div className='columns small-3'>
-                                        {deltas[i] ? <span>Different</span> : <span> Equal </span>}
+                                        <i className='fa fa-gear'/> {resource.targetState.kind}
+                                    </div>
+                                    <div className='columns small-2'>{resource.targetState.apiVersion}</div>
+                                    <div className='columns small-4'>{resource.targetState.metadata.name}</div>
+                                    <div className='columns small-3'>
+                                        <ComparisonStatusIcon status={resource.status}/> {resource.status}
                                         <i className={classNames('fa application-details__toggle-manifest', {
                                             'fa-angle-down': this.state.expandedRows.indexOf(i) === -1,
                                             'fa-angle-up': this.state.expandedRows.indexOf(i) !== -1})}/>
                                     </div>
                                 </div>
                                 <div className={classNames('application-details__manifest', {'application-details__manifest--expanded': this.state.expandedRows.includes(i)})}>
-                                    <ApplicationComponentDiff key={i} delta={deltas[i]} component={component}/>
+                                    <ApplicationResourceDiff key={i} targetState={resource.targetState} liveState={resource.liveState}/>
                                 </div>
                             </div>
                         ))}

@@ -1,5 +1,4 @@
 import { AppContext, AppState, MockupList, Page } from 'argo-ui';
-import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
@@ -8,6 +7,7 @@ import { Subscription } from 'rxjs';
 import * as models from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
+import { ComparisonStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
@@ -47,13 +47,7 @@ class Component extends React.Component<ApplicationProps> {
                                             <div className='row'>
                                                 <div className='columns small-6'>STATUS:</div>
                                                 <div className='columns small-6'>
-                                                    <i className={classNames('fa', {
-                                                        'fa-check-circle': app.status.comparisonResult.status === models.ComparisonStatuses.Equal,
-                                                        'fa-times': app.status.comparisonResult.status === models.ComparisonStatuses.Different,
-                                                        'fa-exclamation-circle': app.status.comparisonResult.status === models.ComparisonStatuses.Error,
-                                                        'fa-circle-o-notch status-icon--running status-icon--spin':
-                                                            app.status.comparisonResult.status === models.ComparisonStatuses.Unknown,
-                                                    })}/> {app.status.comparisonResult.status}
+                                                    <ComparisonStatusIcon status={app.status.comparisonResult.status} /> {app.status.comparisonResult.status}
                                                 </div>
                                             </div>
                                         </div>
