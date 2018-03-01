@@ -22,10 +22,10 @@ IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 ifneq (${IMAGE_NAMESPACE},)
-LDFLAGS += -X ${PACKAGE}/cmd/argo-cd/commands.imageNamespace=${IMAGE_NAMESPACE}
+override LDFLAGS += -X ${PACKAGE}/cmd/argocd/commands.imageNamespace=${IMAGE_NAMESPACE}
 endif
 ifneq (${IMAGE_TAG},)
-LDFLAGS += -X ${PACKAGE}/cmd/argo-cd/commands.imageTag=${IMAGE_TAG}
+override LDFLAGS += -X ${PACKAGE}/cmd/argocd/commands.imageTag=${IMAGE_TAG}
 endif
 
 ifeq (${DOCKER_PUSH},true)

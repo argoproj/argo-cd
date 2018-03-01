@@ -37,16 +37,18 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		if err != nil {
 			return err
 		}
+		repoURLNoPassword := repoURL.String()
+		log.Infof("Cloning %s to %s", repoURLNoPassword, repoPath)
 		repoURL.User = url.UserPassword(username, password)
-		log.Infof("Cloning %s to %s", repoURL.String(), repoPath)
 		_, err = exec.Command("git", "clone", repoURL.String(), repoPath).Output()
 		if err != nil {
-			return fmt.Errorf("unable to clone repository %s: %v", repoURL.String(), err)
+			return fmt.Errorf("unable to clone repository %s: %v", repoURLNoPassword, err)
 		}
 	} else {
 		log.Infof("Fetching %s", repo)
 		// Fetch remote changes and delete all local branches
-		cmd := exec.Command("sh", "-c", "git fetch --all && git checkout --detach HEAD && git branch --merged | grep -v \\* | xargs git branch -D")
+		//cmd := exec.Command("sh", "-c", "git fetch --all && git checkout --detach HEAD && git branch --merged | grep -v \\* | xargs git branch -D")
+		cmd := exec.Command("sh", "-c", "git fetch --all && git checkout --detach HEAD")
 		cmd.Dir = repoPath
 		_, err := cmd.Output()
 		if err != nil {

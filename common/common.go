@@ -19,6 +19,9 @@ const (
 	// DefaultServerDeploymentName is the default deployment name of the api server
 	DefaultServerDeploymentName = "argocd-server"
 
+	// DefaultServerServiceName is the default service name of the api server
+	DefaultServerServiceName = "argocd-server"
+
 	// DefaultControllerNamespace is the default namespace where the application controller is installed
 	DefaultControllerNamespace = "kube-system"
 )
@@ -46,5 +49,48 @@ var ArgoCDManagerPolicyRules = []rbacv1.PolicyRule{
 		APIGroups: []string{"*"},
 		Resources: []string{"*"},
 		Verbs:     []string{"*"},
+	},
+}
+
+const (
+	ArgoCDServerServiceAccount     = "argocd-server"
+	ArgoCDServerClusterRole        = "argocd-server-role"
+	ArgoCDServerClusterRoleBinding = "argocd-server-role-binding"
+)
+
+var ArgoCDServerPolicyRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{""},
+		Resources: []string{"pods", "pods/exec", "pods/log"},
+		Verbs:     []string{"get", "list", "watch"},
+	},
+	{
+		APIGroups: []string{""},
+		Resources: []string{"secrets"},
+		Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+	},
+	{
+		APIGroups: []string{"argoproj.io"},
+		Resources: []string{"applications"},
+		Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
+	},
+}
+
+const (
+	ApplicationControllerServiceAccount     = "application-controller"
+	ApplicationControllerClusterRole        = "application-controller-role"
+	ApplicationControllerClusterRoleBinding = "application-controller-role-binding"
+)
+
+var ApplicationControllerPolicyRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{""},
+		Resources: []string{"secrets"},
+		Verbs:     []string{"get"},
+	},
+	{
+		APIGroups: []string{"argoproj.io"},
+		Resources: []string{"applications"},
+		Verbs:     []string{"create", "get", "list", "watch", "update", "patch", "delete"},
 	},
 }

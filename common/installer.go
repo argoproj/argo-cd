@@ -17,6 +17,7 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -31,12 +32,10 @@ type InstallParameters struct {
 	Upgrade         bool
 	DryRun          bool
 	Namespace       string
-	ControllerName  string
 	ControllerImage string
-	ServerName      string
 	UiImage         string
 	ServerImage     string
-	ServiceAccount  string
+	ImagePullPolicy string
 	CrdOnly         bool
 }
 
@@ -50,8 +49,16 @@ type Installer struct {
 func (installer *Installer) Install(parameters InstallParameters) {
 	installer.installAppCRD(parameters.DryRun)
 	if !parameters.CrdOnly {
+		CreateServiceAccount(installer.clientset, ApplicationControllerServiceAccount, DefaultControllerNamespace, parameters.DryRun)
+		CreateClusterRole(installer.clientset, ApplicationControllerClusterRole, ApplicationControllerPolicyRules, parameters.DryRun, parameters.Upgrade)
+		CreateClusterRoleBinding(installer.clientset, ApplicationControllerClusterRoleBinding, ApplicationControllerServiceAccount, ApplicationControllerClusterRole, DefaultControllerNamespace, parameters.DryRun)
 		installer.installController(parameters)
+
+		CreateServiceAccount(installer.clientset, ArgoCDServerServiceAccount, DefaultControllerNamespace, parameters.DryRun)
+		CreateClusterRole(installer.clientset, ArgoCDServerClusterRole, ArgoCDServerPolicyRules, parameters.DryRun, parameters.Upgrade)
+		CreateClusterRoleBinding(installer.clientset, ArgoCDServerClusterRoleBinding, ArgoCDServerServiceAccount, ArgoCDServerClusterRole, DefaultControllerNamespace, parameters.DryRun)
 		installer.installServer(parameters)
+		installer.installServerService(parameters)
 	}
 }
 
@@ -126,34 +133,35 @@ func (installer *Installer) createCRDHelper(crd *apiextensionsv1beta1.CustomReso
 }
 
 func (installer *Installer) installController(args InstallParameters) {
+	deploymentName := DefaultControllerDeploymentName
 	controllerDeployment := appsv1beta2.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta2",
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      args.ControllerName,
+			Name:      deploymentName,
 			Namespace: args.Namespace,
 		},
 		Spec: appsv1beta2.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": args.ControllerName,
+					"app": deploymentName,
 				},
 			},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": args.ControllerName,
+						"app": deploymentName,
 					},
 				},
 				Spec: apiv1.PodSpec{
-					ServiceAccountName: args.ServiceAccount,
+					ServiceAccountName: ApplicationControllerServiceAccount,
 					Containers: []apiv1.Container{
 						{
-							Name:            args.ControllerName,
+							Name:            deploymentName,
 							Image:           args.ControllerImage,
-							ImagePullPolicy: apiv1.PullIfNotPresent,
+							ImagePullPolicy: apiv1.PullPolicy(args.ImagePullPolicy),
 							Command:         []string{"/argocd-application-controller"},
 						},
 					},
@@ -165,35 +173,36 @@ func (installer *Installer) installController(args InstallParameters) {
 }
 
 func (installer *Installer) installServer(args InstallParameters) {
+	deploymentName := DefaultServerDeploymentName
 	serverDeployment := appsv1beta2.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1beta2",
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      args.ServerName,
+			Name:      deploymentName,
 			Namespace: args.Namespace,
 		},
 		Spec: appsv1beta2.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": args.ServerName,
+					"app": deploymentName,
 				},
 			},
 			Template: apiv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": args.ServerName,
+						"app": deploymentName,
 					},
 				},
 				Spec: apiv1.PodSpec{
-					ServiceAccountName: args.ServiceAccount,
+					ServiceAccountName: ArgoCDServerServiceAccount,
 					Containers: []apiv1.Container{
 						{
-							Name:            args.ServerName,
+							Name:            deploymentName,
 							Image:           args.ServerImage,
 							Command:         []string{"/argocd-server", "--staticassets", "/shared/app"},
-							ImagePullPolicy: apiv1.PullIfNotPresent,
+							ImagePullPolicy: apiv1.PullPolicy(args.ImagePullPolicy),
 							VolumeMounts: []apiv1.VolumeMount{
 								{
 									Name:      StaticFilesVolumeName,
@@ -202,9 +211,9 @@ func (installer *Installer) installServer(args InstallParameters) {
 							},
 						},
 						{
-							Name:            args.ServerName + "-ui",
+							Name:            deploymentName + "-ui",
 							Image:           args.UiImage,
-							ImagePullPolicy: apiv1.PullIfNotPresent,
+							ImagePullPolicy: apiv1.PullPolicy(args.ImagePullPolicy),
 							Command:         []string{"sh", "-c", "cp -r /app /shared && tail -f /dev/null"},
 							VolumeMounts: []apiv1.VolumeMount{
 								{
@@ -227,6 +236,45 @@ func (installer *Installer) installServer(args InstallParameters) {
 		},
 	}
 	installer.createDeploymentHelper(&serverDeployment, args)
+}
+
+func (installer *Installer) installServerService(args InstallParameters) {
+	svcName := DefaultServerDeploymentName
+	svcClient := installer.clientset.CoreV1().Services(args.Namespace)
+	uiSvc := apiv1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      svcName,
+			Namespace: args.Namespace,
+		},
+		Spec: apiv1.ServiceSpec{
+			Ports: []apiv1.ServicePort{
+				{
+					Port:       80,
+					TargetPort: intstr.FromInt(8080),
+				},
+			},
+			Selector: map[string]string{
+				"app": DefaultServerDeploymentName,
+			},
+		},
+	}
+	if args.DryRun {
+		printYAML(uiSvc)
+		return
+	}
+	_, err := svcClient.Create(&uiSvc)
+	if err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			log.Fatal(err)
+		}
+		fmt.Printf("Service '%s' already exists\n", svcName)
+	} else {
+		fmt.Printf("Service '%s' created\n", svcName)
+	}
 }
 
 // createDeploymentHelper is helper to create or update an existing deployment (if --upgrade was supplied)
