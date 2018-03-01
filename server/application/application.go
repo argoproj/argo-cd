@@ -71,6 +71,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	if err != nil {
 		return err
 	}
+	done := make(chan bool)
 	go func() {
 		for next := range w.ResultChan() {
 			app := *next.Object.(*appv1.Application)
@@ -84,10 +85,12 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 				}
 			}
 		}
+		done <- true
 	}()
 	select {
 	case <-ws.Context().Done():
 		w.Stop()
+	case <-done:
 	}
 	return nil
 }
