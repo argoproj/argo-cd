@@ -2,12 +2,18 @@ package client
 
 import (
 	"errors"
+	"os"
 
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+)
+
+const (
+	// EnvArgoCDServer is the environment variable to look for an ArgoCD server address
+	EnvArgoCDServer = "ARGOCD_SERVER"
 )
 
 type Client interface {
@@ -29,10 +35,25 @@ type client struct {
 	ClientOptions
 }
 
-func NewClient(opts *ClientOptions) Client {
-	return &client{
-		ClientOptions: *opts,
+func NewClient(opts *ClientOptions) (Client, error) {
+	clientOpts := *opts
+	if clientOpts.ServerAddr == "" {
+		clientOpts.ServerAddr = os.Getenv(EnvArgoCDServer)
 	}
+	if clientOpts.ServerAddr == "" {
+		return nil, errors.New("Argo CD server address not supplied")
+	}
+	return &client{
+		ClientOptions: clientOpts,
+	}, nil
+}
+
+func NewClientOrDie(opts *ClientOptions) Client {
+	client, err := NewClient(opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return client
 }
 
 func (c *client) NewConn() (*grpc.ClientConn, error) {

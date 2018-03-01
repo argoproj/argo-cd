@@ -65,7 +65,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					},
 				},
 			}
-			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			_, err := appIf.Create(context.Background(), &app)
 			errors.CheckError(err)
@@ -88,7 +88,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
@@ -131,7 +131,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
@@ -170,7 +170,7 @@ func NewApplicationRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
 				_, err := appIf.Delete(context.Background(), &application.ApplicationQuery{Name: appName})
@@ -187,7 +187,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Use:   "list",
 		Short: fmt.Sprintf("%s app list", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
@@ -226,7 +226,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := argocdclient.NewClient(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
 			syncReq := application.ApplicationSyncRequest{

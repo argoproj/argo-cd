@@ -61,7 +61,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err = git.TestRepo(repo.Repo, repo.Username, repo.Password)
 			}
 			errors.CheckError(err)
-			conn, repoIf := argocdclient.NewClient(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			createdRepo, err := repoIf.Create(context.Background(), &repo)
 			errors.CheckError(err)
@@ -97,7 +97,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := argocdclient.NewClient(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
 				_, err := repoIf.Delete(context.Background(), &repository.RepoQuery{Repo: repoURL})
@@ -114,7 +114,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "list",
 		Short: fmt.Sprintf("%s repo list", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			conn, repoIf := argocdclient.NewClient(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			repos, err := repoIf.List(context.Background(), &repository.RepoQuery{})
 			errors.CheckError(err)

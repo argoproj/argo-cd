@@ -68,7 +68,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			// Install RBAC resources for managing the cluster
 			conf.BearerToken = common.InstallClusterManagerRBAC(conf)
 
-			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
+			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			clst := NewCluster(args[0], conf)
 			clst, err = clusterIf.Create(context.Background(), clst)
@@ -153,7 +153,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
+			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			for _, clusterName := range args {
 				clst, err := clusterIf.Get(context.Background(), &cluster.ClusterQuery{Server: clusterName})
@@ -177,7 +177,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
+			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			for _, clusterName := range args {
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
@@ -196,7 +196,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:   "list",
 		Short: fmt.Sprintf("%s cluster list", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			conn, clusterIf := argocdclient.NewClient(clientOpts).NewClusterClientOrDie()
+			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			clusters, err := clusterIf.List(context.Background(), &cluster.ClusterQuery{})
 			errors.CheckError(err)
