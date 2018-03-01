@@ -27,7 +27,7 @@ const config = {
             }, {
                 enforce: 'pre',
                 test: /\.js$/,
-                loader: 'source-map-loader'
+                loaders: [ ...( isProd ? ['babel-loader?presets=babel-preset-env'] : []), 'source-map-loader']
             }, {
                 test: /\.scss$/,
                 loader: 'style-loader!raw-loader!sass-loader'
