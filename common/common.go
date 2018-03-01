@@ -16,6 +16,9 @@ const (
 	// DefaultControllerDeploymentName is the default deployment name of the application controller
 	DefaultControllerDeploymentName = "application-controller"
 
+	// DefaultServerDeploymentName is the default deployment name of the api server
+	DefaultServerDeploymentName = "argocd-server"
+
 	// DefaultControllerNamespace is the default namespace where the application controller is installed
 	DefaultControllerNamespace = "kube-system"
 )

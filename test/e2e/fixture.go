@@ -52,8 +52,8 @@ func createNamespace(kubeClient *kubernetes.Clientset) (string, error) {
 
 func (f *Fixture) setup() error {
 	common.NewInstaller(f.ExtensionsClient, f.KubeClient).Install(common.InstallParameters{
-		DryRun:         false,
-		SkipController: true,
+		DryRun:  false,
+		CrdOnly: true,
 	})
 	return nil
 }

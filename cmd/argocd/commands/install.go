@@ -19,6 +19,8 @@ var (
 
 	// These are the default image names which `argo install` uses during install
 	DefaultControllerImage = imageNamespace + "/argocd-application-controller:" + imageTag
+	DefaultUiImage         = imageNamespace + "/argocd-ui:" + imageTag
+	DefaultServerImage     = imageNamespace + "/argocd-server:" + imageTag
 )
 
 // NewInstallCommand returns a new instance of `argocd install` command
@@ -45,6 +47,9 @@ func NewInstallCommand() *cobra.Command {
 	command.Flags().StringVar(&installParams.Namespace, "install-namespace", common.DefaultControllerNamespace, "install into a specific Namespace")
 	command.Flags().StringVar(&installParams.ControllerName, "controller-name", common.DefaultControllerDeploymentName, "name of controller deployment")
 	command.Flags().StringVar(&installParams.ControllerImage, "controller-image", DefaultControllerImage, "use a specified controller image")
+	command.Flags().StringVar(&installParams.ServerName, "server-name", common.DefaultServerDeploymentName, "name of api server deployment")
+	command.Flags().StringVar(&installParams.ServerImage, "server-image", DefaultServerImage, "use a specified api server image")
+	command.Flags().StringVar(&installParams.UiImage, "ui-image", DefaultUiImage, "use a specified ui image")
 	command.Flags().StringVar(&installParams.ServiceAccount, "service-account", "", "use a specified service account for the workflow-controller deployment")
 	clientConfig = addKubectlFlagsToCmd(command)
 	return command

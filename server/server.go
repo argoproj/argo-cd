@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 
+	"strings"
+
 	argocd "github.com/argoproj/argo-cd"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/application"
@@ -33,19 +35,21 @@ var (
 
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
-	ns            string
-	kubeclientset kubernetes.Interface
-	appclientset  appclientset.Interface
-	log           *log.Entry
+	ns              string
+	staticAssetsDir string
+	kubeclientset   kubernetes.Interface
+	appclientset    appclientset.Interface
+	log             *log.Entry
 }
 
 // NewServer returns a new instance of the ArgoCD API server
-func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *ArgoCDServer {
+func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface, staticAssetsDir string) *ArgoCDServer {
 	return &ArgoCDServer{
-		ns:            "default",
-		kubeclientset: kubeclientset,
-		appclientset:  appclientset,
-		log:           log.NewEntry(log.New()),
+		ns:              "default",
+		kubeclientset:   kubeclientset,
+		appclientset:    appclientset,
+		log:             log.NewEntry(log.New()),
+		staticAssetsDir: staticAssetsDir,
 	}
 }
 
@@ -94,12 +98,33 @@ func (a *ArgoCDServer) Run() {
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
 	gwmux := runtime.NewServeMux(gwMuxOpts)
-	mux.Handle("/", gwmux)
+	mux.Handle("/api/", gwmux)
 	dOpts := []grpc.DialOption{grpc.WithInsecure()}
 	mustRegisterGWHandler(version.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(cluster.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(application.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+
+	if a.staticAssetsDir != "" {
+		mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+			acceptHtml := false
+			for _, acceptType := range strings.Split(request.Header.Get("Accept"), ",") {
+				if acceptType == "text/html" || acceptType == "html" {
+					acceptHtml = true
+					break
+				}
+			}
+			fileRequest := request.URL.Path != "/index.html" && strings.Contains(request.URL.Path, ".")
+
+			// serve index.html for non file requests to support HTML5 History API
+			if acceptHtml && !fileRequest && (request.Method == "GET" || request.Method == "HEAD") {
+				http.ServeFile(writer, request, a.staticAssetsDir+"/index.html")
+			} else {
+				http.ServeFile(writer, request, a.staticAssetsDir+request.URL.Path)
+			}
+		})
+	}
+
 	httpS := &http.Server{
 		Addr:    endpoint,
 		Handler: mux,
