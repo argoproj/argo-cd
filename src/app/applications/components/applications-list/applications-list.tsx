@@ -53,8 +53,12 @@ class Component extends React.Component<ApplicationProps> {
                                         </div>
                                         <div className='columns small-9 applications-list__info'>
                                             <div className='row'>
+                                                <div className='columns small-3'>CLUSTER:</div>
+                                                <div className='columns small-9'>{app.status.comparisonResult.server}</div>
+                                            </div>
+                                            <div className='row'>
                                                 <div className='columns small-3'>NAMESPACE:</div>
-                                                <div className='columns small-9'>{app.metadata.namespace}</div>
+                                                <div className='columns small-9'>{app.status.comparisonResult.namespace}</div>
                                             </div>
                                             <div className='row'>
                                                 <div className='columns small-3'>REPO URL:</div>

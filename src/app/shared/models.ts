@@ -73,6 +73,8 @@ export interface ComparisonResult {
     status: ComparisonStatus;
     resources: ResourceState[];
     error: string;
+    namespace: string;
+    server: string;
 }
 
 export interface ApplicationStatus {
