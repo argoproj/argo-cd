@@ -63,8 +63,8 @@ type ComparisonStatus string
 const (
 	ComparisonStatusUnknown   ComparisonStatus = ""
 	ComparisonStatusError     ComparisonStatus = "Error"
-	ComparisonStatusEqual     ComparisonStatus = "Equal"
-	ComparisonStatusDifferent ComparisonStatus = "Different"
+	ComparisonStatusSynced    ComparisonStatus = "Synced"
+	ComparisonStatusOutOfSync ComparisonStatus = "OutOfSync"
 )
 
 // ApplicationStatus contains information about application status in target environment.
@@ -80,7 +80,7 @@ type ComparisonResult struct {
 	Namespace  string            `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
 	Resources  []ResourceState   `json:"resources" protobuf:"bytes,6,opt,name=resources"`
-	Error      string            `json:"error,omitempty" protobuf:"bytes,8,opt,name=error"`
+	Error      string            `json:"error,omitempty" protobuf:"bytes,7,opt,name=error"`
 }
 
 // ResourceState holds the target state of a resource and live state of a resource

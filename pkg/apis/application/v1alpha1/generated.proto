@@ -119,7 +119,7 @@ message ComparisonResult {
 
   repeated ResourceState resources = 6;
 
-  optional string error = 8;
+  optional string error = 7;
 }
 
 // Repository is a Git repository holding application configurations

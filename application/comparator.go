@@ -83,9 +83,9 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		}
 		diffResult := diffResults.Diffs[i]
 		if diffResult.Modified {
-			resState.Status = v1alpha1.ComparisonStatusDifferent
+			resState.Status = v1alpha1.ComparisonStatusOutOfSync
 		} else {
-			resState.Status = v1alpha1.ComparisonStatusEqual
+			resState.Status = v1alpha1.ComparisonStatusSynced
 		}
 		resources[i] = resState
 	}
@@ -97,9 +97,9 @@ func (ks *KsonnetAppComparator) CompareAppState(appRepoPath string, app *v1alpha
 		Resources:  resources,
 	}
 	if diffResults.Modified {
-		compResult.Status = v1alpha1.ComparisonStatusDifferent
+		compResult.Status = v1alpha1.ComparisonStatusOutOfSync
 	} else {
-		compResult.Status = v1alpha1.ComparisonStatusEqual
+		compResult.Status = v1alpha1.ComparisonStatusSynced
 	}
 	return &compResult, nil
 }

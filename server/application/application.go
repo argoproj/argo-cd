@@ -101,8 +101,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 	var syncRes ApplicationSyncResult
 	switch app.Status.ComparisonResult.Status {
-	case appv1.ComparisonStatusEqual:
-	case appv1.ComparisonStatusDifferent:
+	case appv1.ComparisonStatusSynced:
+	case appv1.ComparisonStatusOutOfSync:
 	default:
 		appState := app.Status.ComparisonResult.Status
 		if appState == "" {

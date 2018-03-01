@@ -56,7 +56,7 @@ func TestManager(t *testing.T) {
 			needRefresh := manager.NeedRefreshAppStatus(&v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{Source: appSource},
 				Status: v1alpha1.ApplicationStatus{
-					ComparisonResult: v1alpha1.ComparisonResult{Status: v1alpha1.ComparisonStatusEqual, ComparedAt: metav1.Time{Time: time.Now()}, ComparedTo: appSource},
+					ComparisonResult: v1alpha1.ComparisonResult{Status: v1alpha1.ComparisonStatusSynced, ComparedAt: metav1.Time{Time: time.Now()}, ComparedTo: appSource},
 				},
 			})
 			assert.False(t, needRefresh)
@@ -67,7 +67,7 @@ func TestManager(t *testing.T) {
 				Spec: v1alpha1.ApplicationSpec{Source: appSource},
 				Status: v1alpha1.ApplicationStatus{
 					ComparisonResult: v1alpha1.ComparisonResult{
-						Status:     v1alpha1.ComparisonStatusEqual,
+						Status:     v1alpha1.ComparisonStatusSynced,
 						ComparedAt: metav1.Time{Time: time.Now().Add(-(refreshTimeout + time.Second))},
 						ComparedTo: appSource,
 					},
@@ -82,7 +82,7 @@ func TestManager(t *testing.T) {
 			needRefresh := manager.NeedRefreshAppStatus(&v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{Source: appSource},
 				Status: v1alpha1.ApplicationStatus{
-					ComparisonResult: v1alpha1.ComparisonResult{Status: v1alpha1.ComparisonStatusEqual, ComparedAt: metav1.Time{Time: time.Now()}, ComparedTo: updatedSource},
+					ComparisonResult: v1alpha1.ComparisonResult{Status: v1alpha1.ComparisonStatusSynced, ComparedAt: metav1.Time{Time: time.Now()}, ComparedTo: updatedSource},
 				},
 			})
 			assert.True(t, needRefresh)
@@ -116,11 +116,11 @@ func TestManager(t *testing.T) {
 			appComparatorMock.On("CompareAppState", mock.MatchedBy(func(receivedRepoPath string) bool {
 				return repoPath == receivedRepoPath
 			}), &app).Return(&v1alpha1.ComparisonResult{
-				Status: v1alpha1.ComparisonStatusEqual,
+				Status: v1alpha1.ComparisonStatusSynced,
 			}, nil)
 
 			updatedAppStatus := manager.RefreshAppStatus(&app)
-			assert.Equal(t, updatedAppStatus.ComparisonResult.Status, v1alpha1.ComparisonStatusEqual)
+			assert.Equal(t, updatedAppStatus.ComparisonResult.Status, v1alpha1.ComparisonStatusSynced)
 		})
 
 		t.Run("TestDoesNotProcessSameRepoSimultaneously", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestManager(t *testing.T) {
 					<-completeProcessing
 					processingCnt--
 					return &v1alpha1.ComparisonResult{
-						Status: v1alpha1.ComparisonStatusEqual,
+						Status: v1alpha1.ComparisonStatusSynced,
 					}, nil
 				},
 			}
