@@ -47,13 +47,20 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 	} else {
 		log.Infof("Fetching %s", repo)
 		// Fetch remote changes and delete all local branches
-		//cmd := exec.Command("sh", "-c", "git fetch --all && git checkout --detach HEAD && git branch --merged | grep -v \\* | xargs git branch -D")
 		cmd := exec.Command("sh", "-c", "git fetch --all && git checkout --detach HEAD")
 		cmd.Dir = repoPath
 		_, err := cmd.Output()
 		if err != nil {
 			return fmt.Errorf("unable to fetch repo %s: %v", repoPath, err)
 		}
+
+		cmd = exec.Command("sh", "-c", "for i in $(git branch --merged | grep -v \\*); do git branch -D $i; done")
+		cmd.Dir = repoPath
+		_, err = cmd.Output()
+		if err != nil {
+			return fmt.Errorf("unable to delete local branches for %s: %v", repoPath, err)
+		}
+
 	}
 	return nil
 }
@@ -61,7 +68,7 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 // Checkout checkout specified git sha
 func (m *NativeGitClient) Checkout(repoPath string, sha string) error {
 	if sha == "" {
-		sha = "HEAD"
+		sha = "origin/HEAD"
 	}
 	cmd := exec.Command("git", "checkout", sha)
 	cmd.Dir = repoPath
