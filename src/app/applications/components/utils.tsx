@@ -11,7 +11,7 @@ export const ComparisonStatusIcon = ({status}: { status: models.ComparisonStatus
     let color = '';
 
     switch (status) {
-        case models.ComparisonStatuses.Synched:
+        case models.ComparisonStatuses.Synced:
             className = 'fa fa-check-circle';
             color = ARGO_SUCCESS_COLOR;
             break;

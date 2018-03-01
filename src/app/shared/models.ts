@@ -52,12 +52,12 @@ export interface ApplicationSpec {
     source: ApplicationSource;
 }
 
-export type ComparisonStatus = '' | 'Error' | 'Synched' | 'OutOfSync';
+export type ComparisonStatus = '' | 'Error' | 'Synced' | 'OutOfSync';
 
 export const ComparisonStatuses = {
     Unknown: '',
     Error: 'Error' ,
-    Synched: 'Synched' ,
+    Synced: 'Synced' ,
     OutOfSync: 'OutOfSync',
 };
 
