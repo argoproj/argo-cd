@@ -46,7 +46,7 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
     public render() {
         return (
             <Page
-                title={'Workflow Details'}
+                title={'Application Details'}
                 toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
                     items: [{
                         className: 'icon argo-icon-deploy',
