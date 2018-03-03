@@ -1,0 +1,32 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  selector:
+    matchLabels:
+      app: argocd-server
+  template:
+    metadata:
+      labels:
+        app: argocd-server
+    spec:
+      serviceAccountName: argocd-server
+      initContainers:
+      - command: [cp, -r, /app, /shared]
+        image: argoproj/argocd-ui:latest
+        name: argocd-server-ui
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      containers:
+      - command: [/argocd-server, --staticassets, /shared/app]
+        image: argoproj/argocd-server:latest
+        name: argocd-server
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      volumes:
+      - emptyDir: {}
+        name: static-files

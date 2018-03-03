@@ -2,14 +2,16 @@ package e2e
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/argoproj/argo-cd/application"
-	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/install"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/cluster"
@@ -19,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -28,6 +31,7 @@ const (
 
 // Fixture represents e2e tests fixture.
 type Fixture struct {
+	Config           *rest.Config
 	AppManager       *application.Manager
 	KubeClient       kubernetes.Interface
 	ExtensionsClient apiextensionsclient.Interface
@@ -51,10 +55,11 @@ func createNamespace(kubeClient *kubernetes.Clientset) (string, error) {
 }
 
 func (f *Fixture) setup() error {
-	common.NewInstaller(f.ExtensionsClient, f.KubeClient).Install(common.InstallParameters{
-		DryRun:  false,
-		CrdOnly: true,
-	})
+	installer, err := install.NewInstaller(f.Config, install.InstallOptions{})
+	if err != nil {
+		return err
+	}
+	installer.InstallApplicationCRD()
 	return nil
 }
 
@@ -66,9 +71,23 @@ func (f *Fixture) TearDown() {
 	}
 }
 
+// GetKubeConfig creates new kubernetes client config using specified config path and config overrides variables
+func GetKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.ExplicitPath = configPath
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+
+	var err error
+	restConfig, err := clientConfig.ClientConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return restConfig
+}
+
 // NewFixture creates e2e tests fixture.
 func NewFixture() (*Fixture, error) {
-	config := commands.GetKubeConfig("", clientcmd.ConfigOverrides{})
+	config := GetKubeConfig("", clientcmd.ConfigOverrides{})
 	extensionsClient := apiextensionsclient.NewForConfigOrDie(config)
 	appClient := appclientset.NewForConfigOrDie(config)
 	kubeClient := kubernetes.NewForConfigOrDie(config)
@@ -84,6 +103,7 @@ func NewFixture() (*Fixture, error) {
 		return nil, err
 	}
 	fixture := &Fixture{
+		Config:           config,
 		ExtensionsClient: extensionsClient,
 		AppClient:        appClient,
 		KubeClient:       kubeClient,

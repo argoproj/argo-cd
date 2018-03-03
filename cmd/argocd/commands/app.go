@@ -72,8 +72,11 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL")
+	errors.CheckError(command.MarkFlagRequired("repo"))
 	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory")
+	errors.CheckError(command.MarkFlagRequired("path"))
 	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
+	errors.CheckError(command.MarkFlagRequired("env"))
 
 	return command
 }

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server"
@@ -15,11 +14,9 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		logLevel            string
-		configMap           string
-		kubeConfig          string
-		kubeConfigOverrides clientcmd.ConfigOverrides
-		staticAssetsDir     string
+		logLevel        string
+		clientConfig    clientcmd.ClientConfig
+		staticAssetsDir string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -30,20 +27,22 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			log.SetLevel(level)
 
-			config := commands.GetKubeConfig(kubeConfig, kubeConfigOverrides)
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
 
-			argocd := server.NewServer(kubeclientset, appclientset, staticAssetsDir)
+			argocd := server.NewServer(kubeclientset, appclientset, namespace, staticAssetsDir)
 			argocd.Run()
 		},
 	}
 
-	command.Flags().StringVar(&kubeConfig, "kubeconfig", "", "Kubernetes config (used when running outside of cluster)")
-	kubeConfigOverrides = clientcmd.ConfigOverrides{}
-	clientcmd.BindOverrideFlags(&kubeConfigOverrides, command.Flags(), clientcmd.RecommendedConfigOverrideFlags(""))
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
-	command.Flags().StringVar(&configMap, "configmap", defaultArgoCDConfigMap, "Name of K8s configmap to retrieve argocd configuration")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	return command

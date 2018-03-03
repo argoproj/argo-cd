@@ -22,8 +22,8 @@ const (
 	// DefaultServerServiceName is the default service name of the api server
 	DefaultServerServiceName = "argocd-server"
 
-	// DefaultControllerNamespace is the default namespace where the application controller is installed
-	DefaultControllerNamespace = "kube-system"
+	// DefaultArgoCDNamespace is the default namespace where Argo CD will be installed
+	DefaultArgoCDNamespace = "argocd"
 )
 
 var (
@@ -53,9 +53,9 @@ var ArgoCDManagerPolicyRules = []rbacv1.PolicyRule{
 }
 
 const (
-	ArgoCDServerServiceAccount     = "argocd-server"
-	ArgoCDServerClusterRole        = "argocd-server-role"
-	ArgoCDServerClusterRoleBinding = "argocd-server-role-binding"
+	ArgoCDServerServiceAccount = "argocd-server"
+	ArgoCDServerRole           = "argocd-server-role"
+	ArgoCDServerRoleBinding    = "argocd-server-role-binding"
 )
 
 var ArgoCDServerPolicyRules = []rbacv1.PolicyRule{
@@ -77,9 +77,9 @@ var ArgoCDServerPolicyRules = []rbacv1.PolicyRule{
 }
 
 const (
-	ApplicationControllerServiceAccount     = "application-controller"
-	ApplicationControllerClusterRole        = "application-controller-role"
-	ApplicationControllerClusterRoleBinding = "application-controller-role-binding"
+	ApplicationControllerServiceAccount = "application-controller"
+	ApplicationControllerRole           = "application-controller-role"
+	ApplicationControllerRoleBinding    = "application-controller-role-binding"
 )
 
 var ApplicationControllerPolicyRules = []rbacv1.PolicyRule{

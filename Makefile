@@ -52,9 +52,11 @@ clientgen:
 .PHONY: codegen
 codegen: protogen clientgen
 
+# NOTE: we use packr to do the build instead of go, since we embed .yaml files into the go binary.
+# This enables ease of maintenance of the yaml files.
 .PHONY: cli
 cli:
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd
+	CGO_ENABLED=0 go run vendor/github.com/gobuffalo/packr/packr/main.go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd
 
 .PHONY: server
 server:

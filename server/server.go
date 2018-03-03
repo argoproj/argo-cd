@@ -43,9 +43,9 @@ type ArgoCDServer struct {
 }
 
 // NewServer returns a new instance of the ArgoCD API server
-func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface, staticAssetsDir string) *ArgoCDServer {
+func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface, namespace string, staticAssetsDir string) *ArgoCDServer {
 	return &ArgoCDServer{
-		ns:              "default",
+		ns:              namespace,
 		kubeclientset:   kubeclientset,
 		appclientset:    appclientset,
 		log:             log.NewEntry(log.New()),
@@ -131,7 +131,7 @@ func (a *ArgoCDServer) Run() {
 	}
 
 	// Start the muxed listeners for our servers
-	log.Infof("argocd %s serving on port %d", argocd.GetVersion(), port)
+	log.Infof("argocd %s serving on port %d (namespace: %s)", argocd.GetVersion(), port, a.ns)
 	go func() { _ = grpcS.Serve(grpcL) }()
 	go func() { _ = httpS.Serve(httpL) }()
 	err = m.Serve()

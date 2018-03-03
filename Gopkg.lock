@@ -70,6 +70,12 @@
   revision = "84f4bee7c0a6db40e3166044c7983c1c32125429"
 
 [[projects]]
+  name = "github.com/gobuffalo/packr"
+  packages = ["."]
+  revision = "6434a292ac52e6964adebfdce3f9ce6d9f16be01"
+  version = "v1.10.4"
+
+[[projects]]
   name = "github.com/gogo/protobuf"
   packages = [
     "gogoproto",
@@ -720,6 +726,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f1094886575af967ee71cab558c6b3d8ae91bb92827da39012f6f8c04a5b27fb"
+  inputs-digest = "9ba583cf1108531ecfba2a463b3092be28cdfb5360d7c18854ab6b10965d5004"
   solver-name = "gps-cdcl"
   solver-version = 1

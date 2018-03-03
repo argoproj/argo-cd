@@ -98,7 +98,7 @@ func GetLiveResources(config *rest.Config, objs []*unstructured.Unstructured, na
 		if err != nil {
 			return nil, err
 		}
-		apiResource, err := serverResourceForGroupVersionKind(disco, gvk)
+		apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func GetLiveResources(config *rest.Config, objs []*unstructured.Unstructured, na
 }
 
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
-func serverResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
+func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
 	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
 	if err != nil {
 		return nil, err
@@ -195,7 +195,7 @@ func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespac
 	if err != nil {
 		return nil, err
 	}
-	apiResource, err := serverResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
 	if err != nil {
 		return nil, err
 	}

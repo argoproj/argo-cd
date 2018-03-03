@@ -8,11 +8,12 @@ import (
 
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/application"
-	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/git"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,54 +35,54 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		kubeConfigOverrides clientcmd.ConfigOverrides
-		kubeConfigPath      string
-		appResyncPeriod     int64
+		clientConfig    clientcmd.ClientConfig
+		appResyncPeriod int64
 	)
 	var command = cobra.Command{
 		Use:   cliName,
 		Short: "application-controller is a controller to operate on applications CRD",
 		RunE: func(c *cobra.Command, args []string) error {
-			kubeConfig := commands.GetKubeConfig(kubeConfigPath, kubeConfigOverrides)
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
 
 			nativeGitClient, err := git.NewNativeGitClient()
 			if err != nil {
 				return err
 			}
-			kubeClient := kubernetes.NewForConfigOrDie(kubeConfig)
-			appClient := appclientset.NewForConfigOrDie(kubeConfig)
+			kubeClient := kubernetes.NewForConfigOrDie(config)
+			appClient := appclientset.NewForConfigOrDie(config)
+
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
 
 			// TODO (amatyushentsev): Use config map to store controller configuration
-			config := controller.ApplicationControllerConfig{
-				Namespace:  "default",
+			controllerConfig := controller.ApplicationControllerConfig{
+				Namespace:  namespace,
 				InstanceID: "",
 			}
-			clusterService := cluster.NewServer(config.Namespace, kubeClient, appClient)
+			clusterService := cluster.NewServer(namespace, kubeClient, appClient)
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			appManager := application.NewAppManager(
 				nativeGitClient,
-				repository.NewServer(config.Namespace, kubeClient, appClient),
+				repository.NewServer(namespace, kubeClient, appClient),
 				clusterService,
 				application.NewKsonnetAppComparator(clusterService),
 				resyncDuration,
 			)
-			appController := controller.NewApplicationController(kubeClient, appClient, appManager, resyncDuration, &config)
+			appController := controller.NewApplicationController(kubeClient, appClient, appManager, resyncDuration, &controllerConfig)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			log.Infof("Application Controller (version: %s) starting", argocd.GetVersion())
+			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
 			go appController.Run(ctx, 1)
 			// Wait forever
 			select {}
 		},
 	}
 
-	command.Flags().StringVar(&kubeConfigPath, "kubeconfig", "", "Path to the config file to use for CLI requests.")
+	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
-	kubeConfigOverrides = clientcmd.ConfigOverrides{}
-	clientcmd.BindOverrideFlags(&kubeConfigOverrides, command.Flags(), clientcmd.RecommendedConfigOverrideFlags(""))
-
 	return &command
 }
 

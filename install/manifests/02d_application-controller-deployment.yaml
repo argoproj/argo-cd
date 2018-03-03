@@ -1,0 +1,20 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: application-controller
+  namespace: argocd
+spec:
+  selector:
+    matchLabels:
+      app: application-controller
+  template:
+    metadata:
+      labels:
+        app: application-controller
+    spec:
+      containers:
+      - command:
+        - /argocd-application-controller
+        image: argoproj/argocd-application-controller:latest
+        name: application-controller
+      serviceAccountName: application-controller
