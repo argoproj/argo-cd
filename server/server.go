@@ -10,6 +10,7 @@ import (
 
 	argocd "github.com/argoproj/argo-cd"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
@@ -39,15 +40,18 @@ type ArgoCDServer struct {
 	staticAssetsDir string
 	kubeclientset   kubernetes.Interface
 	appclientset    appclientset.Interface
+	repoclientset   reposerver.Clientset
 	log             *log.Entry
 }
 
 // NewServer returns a new instance of the ArgoCD API server
-func NewServer(kubeclientset kubernetes.Interface, appclientset appclientset.Interface, namespace string, staticAssetsDir string) *ArgoCDServer {
+func NewServer(
+	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace string, staticAssetsDir string) *ArgoCDServer {
 	return &ArgoCDServer{
 		ns:              namespace,
 		kubeclientset:   kubeclientset,
 		appclientset:    appclientset,
+		repoclientset:   repoclientset,
 		log:             log.NewEntry(log.New()),
 		staticAssetsDir: staticAssetsDir,
 	}
@@ -85,9 +89,10 @@ func (a *ArgoCDServer) Run() {
 	)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	clusterService := cluster.NewServer(a.ns, a.kubeclientset, a.appclientset)
+	repoService := repository.NewServer(a.ns, a.kubeclientset, a.appclientset)
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
-	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.ns, a.kubeclientset, a.appclientset, clusterService))
-	repository.RegisterRepositoryServiceServer(grpcS, repository.NewServer(a.ns, a.kubeclientset, a.appclientset))
+	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.ns, a.kubeclientset, a.appclientset, a.repoclientset, repoService, clusterService))
+	repository.RegisterRepositoryServiceServer(grpcS, repoService)
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
