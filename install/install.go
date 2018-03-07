@@ -43,6 +43,7 @@ type InstallOptions struct {
 	ControllerImage string
 	UIImage         string
 	ServerImage     string
+	RepoServerImage string
 	ImagePullPolicy string
 }
 
@@ -75,6 +76,7 @@ func (i *Installer) Install() {
 	i.InstallApplicationCRD()
 	i.InstallApplicationController()
 	i.InstallArgoCDServer()
+	i.InstallArgoCDRepoServer()
 }
 
 func (i *Installer) InstallNamespace() {
@@ -127,6 +129,17 @@ func (i *Installer) InstallArgoCDServer() {
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRoleBinding))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerDeployment))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerService))
+}
+
+func (i *Installer) InstallArgoCDRepoServer() {
+	var argoCDRepoServerControllerDeployment appsv1beta2.Deployment
+	var argoCDRepoServerService apiv1.Service
+	i.unmarshalManifest("04a_argocd-repo-server-deployment.yaml", &argoCDRepoServerControllerDeployment)
+	i.unmarshalManifest("04b_argocd-repo-server-service.yaml", &argoCDRepoServerService)
+	argoCDRepoServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.RepoServerImage
+	argoCDRepoServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
+	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerControllerDeployment))
+	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerService))
 }
 
 func (i *Installer) unmarshalManifest(fileName string, obj interface{}) {

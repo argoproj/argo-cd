@@ -45,6 +45,7 @@ func NewInstallCommand() *cobra.Command {
 	command.Flags().StringVar(&installOpts.ControllerImage, "controller-image", DefaultControllerImage, "use a specified controller image")
 	command.Flags().StringVar(&installOpts.ServerImage, "server-image", DefaultServerImage, "use a specified api server image")
 	command.Flags().StringVar(&installOpts.UIImage, "ui-image", DefaultUiImage, "use a specified ui image")
+	command.Flags().StringVar(&installOpts.RepoServerImage, "repo-server-image", DefaultServerImage, "use a specified repo server image")
 	command.Flags().StringVar(&installOpts.ImagePullPolicy, "image-pull-policy", "", "set the image pull policy of the pod specs")
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	return command
