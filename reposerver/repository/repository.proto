@@ -1,0 +1,32 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/reposerver/repository";
+
+package repository;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "k8s.io/api/core/v1/generated.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+
+// ManifestRequest is a query for manifest generation.
+message ManifestRequest {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+    string path = 3;
+    string environment = 4;
+}
+
+message ManifestResponse {
+    repeated string manifests = 1;
+    string namespace = 2;
+    string server = 3;
+}
+
+// ManifestService
+service RepositoryService {
+
+    // Generate manifest for application in specified repo name and revision
+    rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    }
+}

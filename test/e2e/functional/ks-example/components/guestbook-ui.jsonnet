@@ -1,3 +1,4 @@
+local env = std.extVar("__ksonnet/environments");
 local params = std.extVar("__ksonnet/params").components["guestbook-ui"];
 local k = import "k.libsonnet";
 local deployment = k.apps.v1beta1.deployment;

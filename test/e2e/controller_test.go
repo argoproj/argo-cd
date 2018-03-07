@@ -43,12 +43,12 @@ func TestController(t *testing.T) {
 		assert.Equal(t, app.Status.ComparisonResult.Status, v1alpha1.ComparisonStatusError)
 	})
 
-	t.Run("TestComparisonSuccessful", func(t *testing.T) {
+	t.Run("TestComparisonFailsIfClusterNotAdded", func(t *testing.T) {
 		ctrl := fixture.CreateController()
 		ctx, cancel := context.WithCancel(context.Background())
 		go ctrl.Run(ctx, 1)
 		defer cancel()
-		_, err := fixture.RepoService.Create(context.Background(), &v1alpha1.Repository{Repo: testApp.Spec.Source.RepoURL, Username: "", Password: ""})
+		_, err := fixture.ApiRepoService.Create(context.Background(), &v1alpha1.Repository{Repo: testApp.Spec.Source.RepoURL, Username: "", Password: ""})
 		if err != nil {
 			t.Fatal(fmt.Sprintf("Unable to create repo %v", err))
 		}
@@ -64,7 +64,7 @@ func TestController(t *testing.T) {
 			t.Fatal(fmt.Sprintf("Unable to get app %v", err))
 		}
 
-		assert.NotEqual(t, app.Status.ComparisonResult.Status, v1alpha1.ComparisonStatusError)
+		assert.Equal(t, app.Status.ComparisonResult.Status, v1alpha1.ComparisonStatusError)
 	})
 
 }

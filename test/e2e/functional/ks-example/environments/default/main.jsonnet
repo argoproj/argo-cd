@@ -1,4 +1,4 @@
-local base = import "../base.libsonnet";
+local base = import "base.libsonnet";
 local k = import "k.libsonnet";
 
 base + {

@@ -1,4 +1,4 @@
-package client
+package apiclient
 
 import (
 	"errors"
@@ -16,7 +16,7 @@ const (
 	EnvArgoCDServer = "ARGOCD_SERVER"
 )
 
-type Client interface {
+type ServerClient interface {
 	NewConn() (*grpc.ClientConn, error)
 	NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error)
 	NewRepoClientOrDie() (*grpc.ClientConn, repository.RepositoryServiceClient)
@@ -35,7 +35,7 @@ type client struct {
 	ClientOptions
 }
 
-func NewClient(opts *ClientOptions) (Client, error) {
+func NewClient(opts *ClientOptions) (ServerClient, error) {
 	clientOpts := *opts
 	if clientOpts.ServerAddr == "" {
 		clientOpts.ServerAddr = os.Getenv(EnvArgoCDServer)
@@ -48,7 +48,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}, nil
 }
 
-func NewClientOrDie(opts *ClientOptions) Client {
+func NewClientOrDie(opts *ClientOptions) ServerClient {
 	client, err := NewClient(opts)
 	if err != nil {
 		log.Fatal(err)

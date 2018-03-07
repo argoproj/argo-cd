@@ -48,8 +48,9 @@ go build -i -o dist/protoc-gen-gofast ./vendor/github.com/gogo/protobuf/protoc-g
 go build -i -o dist/protoc-gen-grpc-gateway ./vendor/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 
 # Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
-PROTO_FILES=$(find ${PROJECT_ROOT}/server -name "*.proto" -not -path "${PROJECT_ROOT}/vendor/*")
+PROTO_FILES=$(find $PROJECT_ROOT \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" \))
 for i in ${PROTO_FILES}; do
+
     # Path to the google API gateway annotations.proto will be different depending if we are
     # building natively (e.g. from workspace) vs. part of a docker build.
     if [ -f /.dockerenv ]; then

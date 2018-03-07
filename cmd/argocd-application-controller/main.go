@@ -7,14 +7,12 @@ import (
 	"time"
 
 	argocd "github.com/argoproj/argo-cd"
-	"github.com/argoproj/argo-cd/application"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/server/repository"
+	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/git"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -23,20 +21,22 @@ import (
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
+	"github.com/argoproj/argo-cd/reposerver"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "application-controller"
+	cliName = "argocd-application-controller"
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 600
 )
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig    clientcmd.ClientConfig
-		appResyncPeriod int64
+		clientConfig      clientcmd.ClientConfig
+		appResyncPeriod   int64
+		repoServerAddress string
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -45,10 +45,6 @@ func newCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
-			nativeGitClient, err := git.NewNativeGitClient()
-			if err != nil {
-				return err
-			}
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
 
@@ -60,16 +56,19 @@ func newCommand() *cobra.Command {
 				Namespace:  namespace,
 				InstanceID: "",
 			}
-			clusterService := cluster.NewServer(namespace, kubeClient, appClient)
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
-			appManager := application.NewAppManager(
-				nativeGitClient,
-				repository.NewServer(namespace, kubeClient, appClient),
-				clusterService,
-				application.NewKsonnetAppComparator(clusterService),
+			apiRepoServer := apirepository.NewServer(namespace, kubeClient, appClient)
+			clusterService := cluster.NewServer(namespace, kubeClient, appClient)
+			appComparator := controller.NewKsonnetAppComparator(clusterService)
+
+			appController := controller.NewApplicationController(
+				kubeClient,
+				appClient,
+				reposerver.NewRepositoryServerClientset(repoServerAddress),
+				apiRepoServer,
+				appComparator,
 				resyncDuration,
-			)
-			appController := controller.NewApplicationController(kubeClient, appClient, appManager, resyncDuration, &controllerConfig)
+				&controllerConfig)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -83,6 +82,7 @@ func newCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
+	command.Flags().StringVar(&repoServerAddress, "reposerveraddr", "localhost:8081", "Repo server address.")
 	return &command
 }
 

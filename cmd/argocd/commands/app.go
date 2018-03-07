@@ -6,8 +6,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	argocdclient "github.com/argoproj/argo-cd/client"
 	"github.com/argoproj/argo-cd/errors"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
