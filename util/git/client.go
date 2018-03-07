@@ -33,6 +33,11 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		needClone = err != nil
 	}
 	if needClone {
+		_, err := exec.Command("rm", "-rf", repoPath).Output()
+		if err != nil {
+			return fmt.Errorf("unable to clean repo cache at %s: %v", repoPath, err)
+		}
+
 		repoURL, err := url.ParseRequestURI(repo)
 		if err != nil {
 			return err

@@ -3,19 +3,21 @@ package e2e
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/application"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/install"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/server/repository"
+	apirepository "github.com/argoproj/argo-cd/server/repository"
+	"google.golang.org/grpc"
 	"k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,19 +28,22 @@ import (
 )
 
 const (
-	TestTimeout = time.Second * 3
+	TestTimeout = time.Minute * 3
 )
 
 // Fixture represents e2e tests fixture.
 type Fixture struct {
-	Config           *rest.Config
-	AppManager       *application.Manager
-	KubeClient       kubernetes.Interface
-	ExtensionsClient apiextensionsclient.Interface
-	AppClient        appclientset.Interface
-	RepoService      repository.RepositoryServiceServer
-	Namespace        string
-	InstanceID       string
+	Config             *rest.Config
+	KubeClient         kubernetes.Interface
+	ExtensionsClient   apiextensionsclient.Interface
+	AppClient          appclientset.Interface
+	ApiRepoService     apirepository.RepositoryServiceServer
+	RepoClientset      reposerver.Clientset
+	AppComparator      controller.AppComparator
+	Namespace          string
+	InstanceID         string
+	repoServerGRPC     *grpc.Server
+	repoServerListener net.Listener
 }
 
 func createNamespace(kubeClient *kubernetes.Clientset) (string, error) {
@@ -59,13 +64,24 @@ func (f *Fixture) setup() error {
 	if err != nil {
 		return err
 	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	f.repoServerListener = listener
+	go func() {
+		err = f.repoServerGRPC.Serve(listener)
+	}()
 	installer.InstallApplicationCRD()
-	return nil
+	return err
 }
 
 // TearDown deletes fixture resources.
 func (f *Fixture) TearDown() {
 	err := f.KubeClient.CoreV1().Namespaces().Delete(f.Namespace, &metav1.DeleteOptions{})
+	if err != nil {
+		f.repoServerGRPC.Stop()
+	}
 	if err != nil {
 		println("Unable to tear down fixture")
 	}
@@ -93,15 +109,11 @@ func NewFixture() (*Fixture, error) {
 	kubeClient := kubernetes.NewForConfigOrDie(config)
 	namespace, err := createNamespace(kubeClient)
 	clusterService := cluster.NewServer(namespace, kubeClient, appClient)
-	appManager := application.NewAppManager(
-		&FakeGitClient{},
-		repository.NewServer(namespace, kubeClient, appClient),
-		clusterService,
-		application.NewKsonnetAppComparator(clusterService),
-		time.Second)
+	repoServerGRPC := reposerver.NewServer(kubeClient, namespace).CreateGRPC(&FakeGitClient{})
 	if err != nil {
 		return nil, err
 	}
+	appComparator := controller.NewKsonnetAppComparator(clusterService)
 	fixture := &Fixture{
 		Config:           config,
 		ExtensionsClient: extensionsClient,
@@ -109,8 +121,9 @@ func NewFixture() (*Fixture, error) {
 		KubeClient:       kubeClient,
 		Namespace:        namespace,
 		InstanceID:       namespace,
-		RepoService:      repository.NewServer(namespace, kubeClient, appClient),
-		AppManager:       appManager,
+		ApiRepoService:   apirepository.NewServer(namespace, kubeClient, appClient),
+		AppComparator:    appComparator,
+		repoServerGRPC:   repoServerGRPC,
 	}
 	err = fixture.setup()
 	if err != nil {
@@ -137,10 +150,14 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 
 // CreateController creates new controller instance
 func (f *Fixture) CreateController() *controller.ApplicationController {
-	return controller.NewApplicationController(f.KubeClient, f.AppClient, f.AppManager, time.Second, &controller.ApplicationControllerConfig{
-		Namespace:  f.Namespace,
-		InstanceID: f.InstanceID,
-	})
+	return controller.NewApplicationController(
+		f.KubeClient,
+		f.AppClient,
+		reposerver.NewRepositoryServerClientset(f.repoServerListener.Addr().String()),
+		f.ApiRepoService,
+		f.AppComparator,
+		time.Second,
+		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
 }
 
 // PollUntil periodically executes specified condition until it returns true.
@@ -169,7 +186,11 @@ type FakeGitClient struct {
 }
 
 func (c *FakeGitClient) CloneOrFetch(repo string, username string, password string, repoPath string) error {
-	_, err := exec.Command("cp", "-r", "functional/ks-example", repoPath).Output()
+	_, err := exec.Command("rm", "-rf", repoPath).Output()
+	if err != nil {
+		return err
+	}
+	_, err = exec.Command("cp", "-r", "functional/ks-example", repoPath).Output()
 	return err
 }
 

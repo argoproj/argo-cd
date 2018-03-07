@@ -39,7 +39,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli server-image controller-image
+all: cli server-image controller-image repo-server-image
 
 .PHONY: protogen
 protogen:
@@ -65,6 +65,15 @@ server:
 .PHONY: server-image
 server-image:
 	docker build --build-arg BINARY=argocd-server --build-arg MAKE_TARGET=server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
+
+.PHONY: repo-server
+repo-server:
+	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
+
+.PHONY: repo-server-image
+repo-server-image:
+	docker build --build-arg BINARY=argocd-repo-server --build-arg MAKE_TARGET=repo-server -t $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
 
 .PHONY: controller

@@ -1,7 +1,7 @@
 package commands
 
 import (
-	argocdclient "github.com/argoproj/argo-cd/client"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"

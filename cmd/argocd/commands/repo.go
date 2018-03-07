@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"text/tabwriter"
 
-	argocdclient "github.com/argoproj/argo-cd/client"
 	"github.com/argoproj/argo-cd/errors"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"

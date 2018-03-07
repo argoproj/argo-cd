@@ -1,4 +1,4 @@
-apiVersion: "0.1"
+apiVersion: 0.1.0
 gitVersion:
   commitSha: 422d521c05aa905df949868143b26445f5e4eda5
   refSpec: master

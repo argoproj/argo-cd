@@ -1,4 +1,11 @@
 apiVersion: 0.0.1
+environments:
+  default:
+    destination:
+      namespace: default
+      server: https://localhost:6443
+    k8sVersion: v1.7.0
+    path: default
 kind: ksonnet.io/app
 name: ks-example
 registries:

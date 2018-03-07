@@ -3,6 +3,8 @@ package v1alpha1
 import (
 	"encoding/json"
 
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -155,6 +157,13 @@ type Repository struct {
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// NeedRefreshAppStatus answers if application status needs to be refreshed. Returns true if application never been compared, has changed or comparison result has expired.
+func (app *Application) NeedRefreshAppStatus(statusRefreshTimeout time.Duration) bool {
+	return app.Status.ComparisonResult.Status == ComparisonStatusUnknown ||
+		!app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) ||
+		app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now())
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
