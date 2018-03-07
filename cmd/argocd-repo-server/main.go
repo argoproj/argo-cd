@@ -52,7 +52,7 @@ func newCommand() *cobra.Command {
 			nativeGitClient, err := git.NewNativeGitClient()
 			errors.CheckError(err)
 			grpc := server.CreateGRPC(nativeGitClient)
-			listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 			errors.CheckError(err)
 
 			log.Infof("argocd-repo-server %s serving on %s (namespace: %s)", argocd.GetVersion(), listener.Addr(), namespace)
