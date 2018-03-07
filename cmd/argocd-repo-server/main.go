@@ -23,7 +23,7 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argocd-manifest-server"
+	cliName = "argocd-repo-server"
 	port    = 8081
 )
 
@@ -52,10 +52,10 @@ func newCommand() *cobra.Command {
 			nativeGitClient, err := git.NewNativeGitClient()
 			errors.CheckError(err)
 			grpc := server.CreateGRPC(nativeGitClient)
-			listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+			listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 			errors.CheckError(err)
 
-			log.Infof("argocd-repo-server %s serving on port %d (namespace: %s)", argocd.GetVersion(), port, namespace)
+			log.Infof("argocd-repo-server %s serving on %s (namespace: %s)", argocd.GetVersion(), listener.Addr(), namespace)
 			err = grpc.Serve(listener)
 			errors.CheckError(err)
 			return nil

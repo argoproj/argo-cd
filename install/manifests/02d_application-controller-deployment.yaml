@@ -13,8 +13,7 @@ spec:
         app: application-controller
     spec:
       containers:
-      - command:
-        - /argocd-application-controller
+      - command: [/argocd-application-controller, --repo-server, 'argocd-repo-server:8081']
         image: argoproj/argocd-application-controller:latest
         name: application-controller
       serviceAccountName: application-controller

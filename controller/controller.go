@@ -151,6 +151,7 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 		Environment: app.Spec.Source.Environment,
 	})
 	if err != nil {
+		log.Errorf("Failed to load application manifest %v", err)
 		return nil, err
 	}
 	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))

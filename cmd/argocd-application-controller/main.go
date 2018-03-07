@@ -82,7 +82,7 @@ func newCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
-	command.Flags().StringVar(&repoServerAddress, "reposerveraddr", "localhost:8081", "Repo server address.")
+	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
 	return &command
 }
 
