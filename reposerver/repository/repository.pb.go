@@ -126,7 +126,7 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for RepositoryService service
 
 type RepositoryServiceClient interface {
-	// Generate manifest for specified repo name and sha
+	// Generate manifest for application in specified repo name and revision
 	GenerateManifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*ManifestResponse, error)
 }
 
@@ -150,7 +150,7 @@ func (c *repositoryServiceClient) GenerateManifest(ctx context.Context, in *Mani
 // Server API for RepositoryService service
 
 type RepositoryServiceServer interface {
-	// Generate manifest for specified repo name and sha
+	// Generate manifest for application in specified repo name and revision
 	GenerateManifest(context.Context, *ManifestRequest) (*ManifestResponse, error)
 }
 

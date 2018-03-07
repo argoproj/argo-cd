@@ -5,13 +5,18 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/cluster"
+	apirepository "github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -20,17 +25,28 @@ type Server struct {
 	ns            string
 	kubeclientset kubernetes.Interface
 	appclientset  appclientset.Interface
+	repoClientset reposerver.Clientset
 	// TODO(jessesuen): move common cluster code to shared libraries
 	clusterService cluster.ClusterServiceServer
+	repoService    apirepository.RepositoryServiceServer
 }
 
 // NewServer returns a new instance of the Application service
-func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, clusterService cluster.ClusterServiceServer) ApplicationServiceServer {
+func NewServer(
+	namespace string,
+	kubeclientset kubernetes.Interface,
+	appclientset appclientset.Interface,
+	repoClientset reposerver.Clientset,
+	repoService apirepository.RepositoryServiceServer,
+	clusterService cluster.ClusterServiceServer) ApplicationServiceServer {
+
 	return &Server{
 		ns:             namespace,
 		appclientset:   appclientset,
 		kubeclientset:  kubeclientset,
 		clusterService: clusterService,
+		repoClientset:  repoClientset,
+		repoService:    repoService,
 	}
 }
 
@@ -102,27 +118,48 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if err != nil {
 		return nil, err
 	}
-	var syncRes ApplicationSyncResult
-	switch app.Status.ComparisonResult.Status {
-	case appv1.ComparisonStatusSynced:
-	case appv1.ComparisonStatusOutOfSync:
-	default:
-		appState := app.Status.ComparisonResult.Status
-		if appState == "" {
-			appState = "Unknown"
-		}
-		return nil, fmt.Errorf("Cannot sync application '%s' while in an '%s' state", app.ObjectMeta.Name, appState)
+
+	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: app.Spec.Source.RepoURL})
+	if err != nil {
+		return nil, err
 	}
-	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: app.Status.ComparisonResult.Server})
+
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(conn)
+	revision := syncReq.Revision
+	if revision == "" {
+		revision = app.Spec.Source.TargetRevision
+	}
+
+	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
+		Repo:        repo,
+		Environment: app.Spec.Source.Environment,
+		Path:        app.Spec.Source.Path,
+		Revision:    revision,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: manifestInfo.Server})
 	if err != nil {
 		return nil, err
 	}
 	config := clst.RESTConfig()
-	targetNamespace := app.Status.ComparisonResult.Namespace
-	targetObjs, err := app.Status.ComparisonResult.TargetObjects()
-	if err != nil {
-		return nil, err
+	targetNamespace := manifestInfo.Namespace
+
+	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
+	for i, manifest := range manifestInfo.Manifests {
+		obj, err := appv1.UnmarshalToUnstructured(manifest)
+		if err != nil {
+			return nil, err
+		}
+		targetObjs[i] = obj
 	}
+
 	liveObjs, err := kube.GetLiveResources(config, targetObjs, targetNamespace)
 	if err != nil {
 		return nil, err
@@ -131,6 +168,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if err != nil {
 		return nil, err
 	}
+	var syncRes ApplicationSyncResult
 	syncRes.Resources = make([]*ResourceDetails, 0)
 	for i, diffRes := range diffResList.Diffs {
 		resDetails := ResourceDetails{

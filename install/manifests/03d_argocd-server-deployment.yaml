@@ -21,7 +21,7 @@ spec:
         - mountPath: /shared
           name: static-files
       containers:
-      - command: [/argocd-server, --staticassets, /shared/app]
+      - command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
         image: argoproj/argocd-server:latest
         name: argocd-server
         volumeMounts:

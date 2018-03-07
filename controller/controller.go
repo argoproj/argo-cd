@@ -156,13 +156,13 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	}
 	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
 	for i, manifestStr := range manifestInfo.Manifests {
-		var obj map[string]interface{}
+		var obj unstructured.Unstructured
 		if err := json.Unmarshal([]byte(manifestStr), &obj); err != nil {
 			if err != nil {
 				return nil, err
 			}
 		}
-		targetObjs[i] = &unstructured.Unstructured{Object: obj}
+		targetObjs[i] = &obj
 	}
 	comparisonResult, err := ctrl.appComparator.CompareAppState(manifestInfo.Server, manifestInfo.Namespace, targetObjs, app)
 	if err != nil {

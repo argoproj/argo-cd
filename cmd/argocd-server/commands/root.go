@@ -3,6 +3,7 @@ package commands
 import (
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/util/cli"
 	log "github.com/sirupsen/logrus"
@@ -14,9 +15,10 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		logLevel        string
-		clientConfig    clientcmd.ClientConfig
-		staticAssetsDir string
+		logLevel          string
+		clientConfig      clientcmd.ClientConfig
+		staticAssetsDir   string
+		repoServerAddress string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -35,8 +37,9 @@ func NewCommand() *cobra.Command {
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
+			repoclientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
 
-			argocd := server.NewServer(kubeclientset, appclientset, namespace, staticAssetsDir)
+			argocd := server.NewServer(kubeclientset, appclientset, repoclientset, namespace, staticAssetsDir)
 			argocd.Run()
 		},
 	}
@@ -44,6 +47,7 @@ func NewCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	return command
 }
