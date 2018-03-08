@@ -85,7 +85,10 @@ service ApplicationService {
 
 	// Sync syncs an application to its target state
 	rpc Sync(ApplicationSyncRequest) returns (ApplicationSyncResult) {
-		option (google.api.http).post = "/api/v1/applications/{name}/sync";
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/sync"
+			body: "*"
+		};
 	}
 
 }
