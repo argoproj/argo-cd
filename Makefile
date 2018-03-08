@@ -7,6 +7,7 @@ BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
+PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -22,10 +23,10 @@ IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
 ifneq (${IMAGE_NAMESPACE},)
-override LDFLAGS += -X ${PACKAGE}/cmd/argocd/commands.imageNamespace=${IMAGE_NAMESPACE}
+override LDFLAGS += -X ${PACKAGE}/install.imageNamespace=${IMAGE_NAMESPACE}
 endif
 ifneq (${IMAGE_TAG},)
-override LDFLAGS += -X ${PACKAGE}/cmd/argocd/commands.imageTag=${IMAGE_TAG}
+override LDFLAGS += -X ${PACKAGE}/install.imageTag=${IMAGE_TAG}
 endif
 
 ifeq (${DOCKER_PUSH},true)
@@ -56,7 +57,7 @@ codegen: protogen clientgen
 # This enables ease of maintenance of the yaml files.
 .PHONY: cli
 cli:
-	CGO_ENABLED=0 go run vendor/github.com/gobuffalo/packr/packr/main.go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd
 
 .PHONY: server
 server:

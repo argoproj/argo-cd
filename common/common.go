@@ -1,7 +1,9 @@
 package common
 
-import "github.com/argoproj/argo-cd/pkg/apis/application"
-import rbacv1 "k8s.io/api/rbac/v1"
+import (
+	"github.com/argoproj/argo-cd/pkg/apis/application"
+	rbacv1 "k8s.io/api/rbac/v1"
+)
 
 const (
 	// MetadataPrefix is the prefix used for our labels and annotations
@@ -12,18 +14,6 @@ const (
 
 	// SecretTypeCluster indicates a secret type of cluster
 	SecretTypeCluster = "cluster"
-
-	// DefaultControllerDeploymentName is the default deployment name of the application controller
-	DefaultControllerDeploymentName = "application-controller"
-
-	// DefaultServerDeploymentName is the default deployment name of the api server
-	DefaultServerDeploymentName = "argocd-server"
-
-	// DefaultServerServiceName is the default service name of the api server
-	DefaultServerServiceName = "argocd-server"
-
-	// DefaultArgoCDNamespace is the default namespace where Argo CD will be installed
-	DefaultArgoCDNamespace = "argocd"
 )
 
 var (
@@ -32,6 +22,7 @@ var (
 
 	// LabelKeySecretType contains the type of argocd secret (either 'cluster' or 'repo')
 	LabelKeySecretType = MetadataPrefix + "/secret-type"
+
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"
 )

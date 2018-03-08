@@ -27,6 +27,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewApplicationCommand(&clientOpts))
 	command.AddCommand(NewRepoCommand(&clientOpts))
 	command.AddCommand(NewInstallCommand())
+	command.AddCommand(NewUninstallCommand())
 
 	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
 	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", true, "Disable transport security for the client connection")

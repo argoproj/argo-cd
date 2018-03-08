@@ -3,14 +3,14 @@ package install
 import (
 	"fmt"
 	"log"
-
-	"github.com/yudai/gojsondiff/formatter"
+	"strings"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr"
+	"github.com/yudai/gojsondiff/formatter"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -34,6 +34,7 @@ var (
 	DefaultControllerImage  = imageNamespace + "/argocd-application-controller:" + imageTag
 	DefaultUIImage          = imageNamespace + "/argocd-ui:" + imageTag
 	DefaultServerImage      = imageNamespace + "/argocd-server:" + imageTag
+	DefaultRepoServerImage  = imageNamespace + "/argocd-repo-server:" + imageTag
 )
 
 type InstallOptions struct {
@@ -79,7 +80,32 @@ func (i *Installer) Install() {
 	i.InstallArgoCDRepoServer()
 }
 
+func (i *Installer) Uninstall() {
+	manifests := i.box.List()
+	for _, manifestPath := range manifests {
+		if strings.HasSuffix(manifestPath, ".yaml") || strings.HasSuffix(manifestPath, ".yml") {
+			var obj unstructured.Unstructured
+			i.unmarshalManifest(manifestPath, &obj)
+			if obj.GetKind() == "Namespace" {
+				// Don't delete namespaces
+				continue
+			}
+			i.MustUninstallResource(&obj)
+		}
+	}
+
+	// i.InstallNamespace()
+	// i.InstallApplicationCRD()
+	// i.InstallApplicationController()
+	// i.InstallArgoCDServer()
+	// i.InstallArgoCDRepoServer()
+}
+
 func (i *Installer) InstallNamespace() {
+	if i.Namespace != DefaultInstallNamespace {
+		// don't create namespace if a different one was supplied
+		return
+	}
 	var namespace apiv1.Namespace
 	i.unmarshalManifest("00_namespace.yaml", &namespace)
 	namespace.ObjectMeta.Name = i.Namespace
@@ -212,6 +238,39 @@ func (i *Installer) InstallResource(obj *unstructured.Unstructured) (*unstructur
 	}
 	fmt.Printf("%s '%s' updated\n", liveObj.GetKind(), liveObj.GetName())
 	return liveObj, nil
+}
+
+func (i *Installer) MustUninstallResource(obj *unstructured.Unstructured) {
+	err := i.UninstallResource(obj)
+	errors.CheckError(err)
+}
+
+// UninstallResource deletes a resource from the cluster
+func (i *Installer) UninstallResource(obj *unstructured.Unstructured) error {
+	if isNamespaced(obj) {
+		obj.SetNamespace(i.Namespace)
+	}
+	gvk := obj.GroupVersionKind()
+	dclient, err := i.dynClientPool.ClientForGroupVersionKind(gvk)
+	if err != nil {
+		return err
+	}
+	apiResource, err := kube.ServerResourceForGroupVersionKind(i.disco, gvk)
+	if err != nil {
+		return err
+	}
+	reIf := dclient.Resource(apiResource, i.Namespace)
+	deletePolicy := metav1.DeletePropagationForeground
+	err = reIf.Delete(obj.GetName(), &metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			fmt.Printf("%s '%s' not found\n", obj.GetKind(), obj.GetName())
+			return nil
+		}
+		return err
+	}
+	fmt.Printf("%s '%s' deleted\n", obj.GetKind(), obj.GetName())
+	return nil
 }
 
 func printYAML(obj interface{}) {
