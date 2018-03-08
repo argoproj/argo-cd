@@ -55,7 +55,7 @@ const config = {
     ],
     devServer: {
         historyApiFallback: true,
-        port: 8081,
+        port: 4000,
         proxy: {
             '/api': {
                 'target': process.env.ARGO_API_URL || 'http://localhost:8080',

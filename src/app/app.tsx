@@ -1,4 +1,4 @@
-import { asyncMiddleware, getRoutesReducer, Layout, RouteImplementation } from 'argo-ui';
+import { asyncMiddleware, getReducer, Layout, NotificationsContainer, RouteImplementation } from 'argo-ui';
 import * as React from 'react';
 import { Provider } from 'react-redux';
 
@@ -21,7 +21,7 @@ const navItems = [{
     iconClassName: 'argo-icon-application',
 }];
 
-const reducer = getRoutesReducer(routes);
+const reducer = getReducer(routes);
 export const store = createStore(reducer, applyMiddleware(asyncMiddleware, reduxRouterMiddleware));
 
 export const App = (props: {store: Store<any>}) => (
@@ -30,6 +30,7 @@ export const App = (props: {store: Store<any>}) => (
             <Switch>
                 <Redirect exact={true} path='/' to='/applications'/>
                 <Layout navItems={navItems}>
+                    <NotificationsContainer />
                     {Object.keys(routes).map((path) => {
                         const route = routes[path];
                         return <Route key={path} path={path} component={route.component}/>;

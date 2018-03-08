@@ -1,4 +1,4 @@
-import { AppState } from 'argo-ui';
+import { AppState, commonActions, NotificationType } from 'argo-ui';
 import { Dispatch } from 'redux';
 import { Observable } from 'rxjs';
 
@@ -39,6 +39,15 @@ export function loadApplication(name: string): any {
     };
 }
 
-export function syncApplication(name: string) {
-    services.applications.sync(name);
+export function syncApplication(name: string, revision: string): any {
+    return async (dispatch: Dispatch<any>, getState: () => AppState<State>) => {
+        try {
+            await services.applications.sync(name, revision);
+        } catch (e) {
+            dispatch(commonActions.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
+            }));
+        }
+    };
 }

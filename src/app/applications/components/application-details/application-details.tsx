@@ -17,16 +17,24 @@ require('./application-details.scss');
 export interface ApplicationDetailsProps extends RouteComponentProps<{ name: string; namespace: string; }> {
     application: appModels.Application;
     onLoad: (namespace: string, name: string) => any;
-    sync: (namespace: string, name: string) => any;
+    sync: (namespace: string, name: string, revision: string) => any;
     changesSubscription: Subscription;
     showDeployPanel: boolean;
 }
 
-class Component extends React.Component<ApplicationDetailsProps, { expandedRows: number[] }> {
+class Component extends React.Component<ApplicationDetailsProps, { expandedRows: number[], deployRevision: string }> {
+
+    public static contextTypes = {
+        router: PropTypes.object,
+    };
 
     constructor(props: ApplicationDetailsProps) {
         super(props);
-        this.state = { expandedRows: [] };
+        this.state = { expandedRows: [], deployRevision: props.application && props.application.spec.source.targetRevision };
+    }
+
+    public componentWillReceiveProps(props: ApplicationDetailsProps) {
+        this.setState({deployRevision: props.application && props.application.spec.source.targetRevision});
     }
 
     public componentDidMount() {
@@ -69,10 +77,13 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                         </div>
                     )}>
                     { this.props.application && (
-                        <div>
+                        <form>
                             <h6>Deploying application manifests from <a href={this.props.application.spec.source.repoURL}>{this.props.application.spec.source.repoURL}</a></h6>
-                            <h6>Revision: {this.props.application.spec.source.targetRevision || 'HEAD'}</h6>
-                        </div>
+                            <h6>Revision:
+                                <input className='argo-field' placeholder='latest' value={this.state.deployRevision}
+                                    onChange={(event) => this.setState({ deployRevision: event.target.value })}/>
+                            </h6>
+                        </form>
                     )}
                 </SlidingPanel>
             </Page>
@@ -153,7 +164,7 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
     }
 
     private syncApplication() {
-        this.props.sync(this.props.application.metadata.namespace, this.props.application.metadata.name);
+        this.props.sync(this.props.application.metadata.namespace, this.props.application.metadata.name, this.state.deployRevision);
         this.setDeployPanelVisible(false);
     }
 
@@ -173,15 +184,11 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
     }
 }
 
-(Component as React.ComponentClass).contextTypes = {
-    router: PropTypes.object,
-};
-
 export const ApplicationDetails = connect((state: AppState<State>) => ({
     application: state.page.application,
     changesSubscription: state.page.changesSubscription,
     showDeployPanel: new URLSearchParams(state.router.location.search).get('deploy') === 'true',
 }), (dispatch) => ({
     onLoad: (namespace: string, name: string) => dispatch(actions.loadApplication(name)),
-    sync: (namespace: string, name: string) => actions.syncApplication(name),
+    sync: (namespace: string, name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),
 }))(Component);
