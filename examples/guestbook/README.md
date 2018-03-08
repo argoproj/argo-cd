@@ -60,6 +60,8 @@ The application status is `OutOfSync` and not Kubernetes resouces have been crea
 $ argocd app sync guestbook
 ```
 
+[![asciicast](https://asciinema.org/a/uYnbFMy5WI2rc9S49oEAyGLb0.png)](https://asciinema.org/a/uYnbFMy5WI2rc9S49oEAyGLb0)
+
 Argo CD allows to view and manager applications using web UI. Get the web UI URL using following command:
 
 ```
