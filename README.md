@@ -12,16 +12,22 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 ## How it works
 
-Argo CD uses git repositories as the source of truth for defining the desired application state as well as the target
-deployment environments. Kubernetes manifests are specified as [ksonnet](https://ksonnet.io) applications and
-implements automated services to deploy and maintain the desired application states in the specified target environments.
+Argo CD uses git repositories as the source of truth for defining the desired application state as
+well as the target deployment environments. Kubernetes manifests are specified as
+[ksonnet](https://ksonnet.io) applications and implements automated services to deploy and maintain
+the desired application states in the specified target environments.
 
 Argo CD is implemented as a kubernetes controller which continuously monitors running applications
-and compares the current live state against the desired target state specified in the git repo.
+and compares the current, live state against the desired target state (as specified in the git repo).
 A deployed application whose live state deviates from the target state is considered out-of-sync.
-Argo CD reports & visualizes the differences as well as providing facilities to automatically or manually sync the live
-state back to the desired target state. Any modifications made to the desired target state in the git repo is
-automatically applied and reflected in the specified target environments.
+Argo CD reports & visualizes the differences as well as providing facilities to automatically or
+manually sync the live state back to the desired target state. Any modifications made to the desired
+target state in the git repo can be automatically applied and reflected in the specified target
+environments.
+
+![Argo CD Architecture](docs/argocd_architecture.png)
+
+For additional details, see [architecture overview](docs/ARCHITECTURE.md).
 
 ## Features
 
@@ -33,12 +39,12 @@ automatically applied and reflected in the specified target environments.
 
 ## What is ksonnet?
 
-* [Jsonnet](http://jsonnet.org), the basis for ksonnet, is a domain specific
-configuration language, which provides extreme flexibility for composing and manipulating JSON/YAML specifications. 
-* [Ksonnet](http://ksonnet.io), goes one step further by applying Jsonnet principles to Kubernetes
-manifests. It also provides an opinionated file & directory structure to organize applications into
+* [Jsonnet](http://jsonnet.org), the basis for ksonnet, is a domain specific configuration language,
+which provides extreme flexibility for composing and manipulating JSON/YAML specifications.
+* [Ksonnet](http://ksonnet.io) goes one step further by applying Jsonnet principles to Kubernetes
+manifests. It provides an opinionated file & directory structure to organize applications into
 reusable components, parameters, and environments. Environments can be hierarchical, which promotes
-re-use of application and environment specifications. 
+both re-use and granular customization of application and environment specifications.
 
 ## Why ksonnet?
 
@@ -60,16 +66,18 @@ Imagine we have a single guestbook application deployed in following environment
 | prod-us-east-1     | 1.9.0       | app/guestbook:abc1234  | sql://prod/db         | BAR_FEATURE=true | istio,dnsmasq |
 
 Ksonnet:
-* Enables composition and re-use of YAML specifications
-* Allows overrides, additions, and subtractions of YAML sub-components which are specific to each environment
+* Enables composition and re-use of common YAML specifications
+* Allows overrides, additions, and subtractions of YAML sub-components specific to each environment
 * Guarantees proper generation of K8s manifests suitable for the corresponding Kubernetes API version
-* Provides kubernetes-specific jsonnet libraries to enable concise definition of kubernetes manifests
+* Provides [kubernetes-specific jsonnet libraries](https://github.com/ksonnet/ksonnet-lib) to enable
+concise definition of kubernetes manifests
 
 ## Development Status
 * Argo CD is in early development
 
 ## Roadmap
 * PreSync, PostSync, OutOfSync hooks
+* Customized application actions as Argo workflows
 * Blue/Green & canary upgrades
 * SSO Integration
 * GitHub & Docker webhooks
