@@ -1,4 +1,4 @@
-apiVersion: 0.0.1
+apiVersion: 0.1.0
 environments:
   test-env:
     destination:

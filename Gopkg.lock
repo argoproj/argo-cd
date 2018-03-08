@@ -40,6 +40,11 @@
   version = "v2.6.0"
 
 [[projects]]
+  name = "github.com/fatih/color"
+  packages = ["."]
+  revision = "5df930a27be2502f99b292b7cc09ebad4d0891f4"
+
+[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
@@ -241,10 +246,10 @@
   version = "1.0.1"
 
 [[projects]]
-  branch = "master"
   name = "github.com/ksonnet/ksonnet"
   packages = [
     "component",
+    "env",
     "generator",
     "metadata",
     "metadata/app",
@@ -255,17 +260,21 @@
     "prototype",
     "strings"
   ]
-  revision = "90a2f348556abf2799ea936fc20a730b65e4237e"
+  revision = "e3806408e605eff0259aaba23bdf7aa13dbc6b5c"
+  version = "v0.9.1"
 
 [[projects]]
   name = "github.com/ksonnet/ksonnet-lib"
   packages = [
+    "ksonnet-gen/astext",
     "ksonnet-gen/jsonnet",
     "ksonnet-gen/ksonnet",
     "ksonnet-gen/kubespec",
-    "ksonnet-gen/kubeversion"
+    "ksonnet-gen/kubeversion",
+    "ksonnet-gen/nodemaker",
+    "ksonnet-gen/printer"
   ]
-  revision = "e8077023fa84395ad7976fa750136b39d0aa5f08"
+  revision = "9f27c242ff65da0620f8324cc0cd50c8ef00bf5b"
 
 [[projects]]
   branch = "master"
@@ -276,6 +285,18 @@
     "jwriter"
   ]
   revision = "32fa128f234d041f196a9f3e0fea5ac9772c08e1"
+
+[[projects]]
+  name = "github.com/mattn/go-colorable"
+  packages = ["."]
+  revision = "167de6bfdfba052fa6b2d3664c8f5272e23c9072"
+  version = "v0.0.9"
+
+[[projects]]
+  name = "github.com/mattn/go-isatty"
+  packages = ["."]
+  revision = "0360b2af4f38e8d38c7fce2a9f4e702702d73a39"
+  version = "v0.0.3"
 
 [[projects]]
   branch = "master"

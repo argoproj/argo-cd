@@ -23,8 +23,8 @@ type KsonnetApp interface {
 	// Root is the root path ksonnet application directory
 	Root() string
 
-	// Spec is the Ksonnet application spec (app.yaml)
-	AppSpec() app.Spec
+	// App is the Ksonnet application
+	App() app.App
 
 	// Show returns a list of unstructured objects that would be applied to an environment
 	Show(environment string) ([]*unstructured.Unstructured, error)
@@ -32,7 +32,7 @@ type KsonnetApp interface {
 
 type ksonnetApp struct {
 	manager metadata.Manager
-	spec    app.Spec
+	app     app.App
 }
 
 func NewKsonnetApp(path string) (KsonnetApp, error) {
@@ -42,11 +42,11 @@ func NewKsonnetApp(path string) (KsonnetApp, error) {
 		return nil, err
 	}
 	ksApp.manager = mgr
-	spec, err := ksApp.manager.AppSpec()
+	app, err := ksApp.manager.App()
 	if err != nil {
 		return nil, err
 	}
-	ksApp.spec = *spec
+	ksApp.app = app
 	return &ksApp, nil
 }
 
@@ -74,8 +74,8 @@ func (k *ksonnetApp) Root() string {
 }
 
 // Spec is the Ksonnet application spec (app.yaml)
-func (k *ksonnetApp) AppSpec() app.Spec {
-	return k.spec
+func (k *ksonnetApp) App() app.App {
+	return k.app
 }
 
 func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {

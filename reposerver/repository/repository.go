@@ -53,8 +53,12 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	appSpec := ksApp.AppSpec()
-	env, ok := appSpec.GetEnvironmentSpec(q.Environment)
+	appSpec := ksApp.App()
+	env, err := appSpec.Environment(q.Environment)
+	if err != nil {
+		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", q.Environment)
+	}
+
 	targetObjs, err := ksApp.Show(q.Environment)
 	if err != nil {
 		return nil, err
@@ -66,9 +70,6 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 			return nil, err
 		}
 		manifests[i] = string(manifestStr)
-	}
-	if !ok {
-		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app '%s'", q.Environment, appSpec.Name)
 	}
 	return &ManifestResponse{
 		Manifests: manifests,
