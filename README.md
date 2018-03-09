@@ -10,12 +10,18 @@ Argo CD is a declarative, continuous delivery service based on ksonnet for Kuber
 Application definitions, configurations, and environments should be declarative and version controlled.
 Application deployment and lifecycle management should be automated, auditable, and easy to understand.
 
+## Getting Started
+
+Follow our [getting started guide](docs/GETTING_STARTED.md).
+
 ## How it works
 
 Argo CD uses git repositories as the source of truth for defining the desired application state as
 well as the target deployment environments. Kubernetes manifests are specified as
-[ksonnet](https://ksonnet.io) applications and implements automated services to deploy and maintain
-the desired application states in the specified target environments.
+[ksonnet](https://ksonnet.io) applications. Argo CD automates the deployment of the desired
+application states in the specified target environments.
+
+![Argo CD Architecture](docs/argocd_architecture.png)
 
 Argo CD is implemented as a kubernetes controller which continuously monitors running applications
 and compares the current, live state against the desired target state (as specified in the git repo).
@@ -24,8 +30,6 @@ Argo CD reports & visualizes the differences as well as providing facilities to 
 manually sync the live state back to the desired target state. Any modifications made to the desired
 target state in the git repo can be automatically applied and reflected in the specified target
 environments.
-
-![Argo CD Architecture](docs/argocd_architecture.png)
 
 For additional details, see [architecture overview](docs/ARCHITECTURE.md).
 
@@ -51,19 +55,19 @@ both re-use and granular customization of application and environment specificat
 Application configuration management is a hard problem and grows rapidly in complexity as you deploy
 more applications, against more and more environments. Current templating systems, such as Jinja,
 and Golang templating, are unnatural ways to maintain kubernetes manifests, and are not well suited to
-capture subtle configuration differences between environments. The ability to compose and re-use
-application and environment configurations is also limited.
+capture subtle configuration differences between environments. Its ability to compose and re-use
+application and environment configurations is also very limited.
 
 Imagine we have a single guestbook application deployed in following environments:
 
-| Environment        | K8s Version | Application Image      | DB Connection String  | Environment Vars | Sidecars      |
-|--------------------|-------------|------------------------|-----------------------|------------------|---------------|
-| minikube           | 1.10.0      | jesse/guestbook:latest | sql://locahost/db     | DEBUG=true       |               |
-| dev                | 1.9.0       | app/guestbook:latest   | sql://dev-test/db     | DEBUG=true       |               |
-| staging            | 1.8.0       | app/guestbook:e3c0263  | sql://staging/db      |                  | istio,dnsmasq |
-| prod-us-west-1     | 1.8.0       | app/guestbook:abc1234  | sql://prod/db         | FOO_FEATURE=true | istio,dnsmasq |
-| prod-us-west-2     | 1.8.0       | app/guestbook:abc1234  | sql://prod/db         |                  | istio,dnsmasq |
-| prod-us-east-1     | 1.9.0       | app/guestbook:abc1234  | sql://prod/db         | BAR_FEATURE=true | istio,dnsmasq |
+| Environment   | K8s Version | Application Image      | DB Connection String  | Environment Vars | Sidecars      |
+|---------------|-------------|------------------------|-----------------------|------------------|---------------|
+| minikube      | 1.10.0      | jesse/guestbook:latest | sql://locahost/db     | DEBUG=true       |               |
+| dev           | 1.9.0       | app/guestbook:latest   | sql://dev-test/db     | DEBUG=true       |               |
+| staging       | 1.8.0       | app/guestbook:e3c0263  | sql://staging/db      |                  | istio,dnsmasq |
+| us-west-1     | 1.8.0       | app/guestbook:abc1234  | sql://prod/db         | FOO_FEATURE=true | istio,dnsmasq |
+| us-west-2     | 1.8.0       | app/guestbook:abc1234  | sql://prod/db         |                  | istio,dnsmasq |
+| us-east-1     | 1.9.0       | app/guestbook:abc1234  | sql://prod/db         | BAR_FEATURE=true | istio,dnsmasq |
 
 Ksonnet:
 * Enables composition and re-use of common YAML specifications
