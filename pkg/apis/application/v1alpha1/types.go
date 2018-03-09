@@ -44,18 +44,32 @@ type ApplicationList struct {
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
+	// Source is a reference to the location ksonnet application definition
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
+	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
+	// This field is optional. If omitted, uses the server and namespace defined in the environment
+	Destination *ApplicationDestination `json:"destination,omitempty" protobuf:"bytes,2,opt,name=destination"`
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
-	TargetRevision string `json:"targetRevision" protobuf:"bytes,1,opt,name=targetRevision"`
-	// RepoURL is repository URL which contains application project.
-	RepoURL string `json:"repoURL" protobuf:"bytes,2,opt,name=repoURL"`
-	// Path is a directory path within repository which contains ksonnet project.
-	Path string `json:"path" protobuf:"bytes,3,opt,name=path"`
-	// Environment is a ksonnet project environment name.
-	Environment string `json:"environment" protobuf:"bytes,4,opt,name=environment"`
+	// RepoURL is the repository URL containing the ksonnet application.
+	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
+	// Path is a directory path within repository which contains ksonnet application.
+	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
+	// Environment is a ksonnet application environment name.
+	Environment string `json:"environment" protobuf:"bytes,3,opt,name=environment"`
+	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
+	// If omitted, will sync to HEAD
+	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
+}
+
+// ApplicationDestination contains deployment destination information
+type ApplicationDestination struct {
+	// Server overrides the environment server value in the ksonnet app.yaml
+	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
+	// Namespace overrides the environment namespace value in the ksonnet app.yaml
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }
 
 // ComparisonStatus is a type which represents possible comparison results

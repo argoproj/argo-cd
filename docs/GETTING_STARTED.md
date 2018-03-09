@@ -50,7 +50,7 @@ token to perform its required management tasks (i.e. deploy/monitoring).
 
 ```
 $ argocd repo add https://github.com/argoproj/argo-cd.git
-$ argocd app add guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube
+$ argocd app add guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube --dest-server https://$(minikube ip):8443
 ```
 
 Once the application is added, you can now see its status:

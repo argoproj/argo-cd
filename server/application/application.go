@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
+	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
@@ -143,13 +144,13 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if err != nil {
 		return nil, err
 	}
+	server, namespace := argoutil.ResolveServerNamespace(app, manifestInfo)
 
-	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: manifestInfo.Server})
+	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
 	if err != nil {
 		return nil, err
 	}
 	config := clst.RESTConfig()
-	targetNamespace := manifestInfo.Namespace
 
 	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
 	for i, manifest := range manifestInfo.Manifests {
@@ -160,7 +161,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		targetObjs[i] = obj
 	}
 
-	liveObjs, err := kube.GetLiveResources(config, targetObjs, targetNamespace)
+	liveObjs, err := kube.GetLiveResources(config, targetObjs, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +175,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		resDetails := ResourceDetails{
 			Name:      targetObjs[i].GetName(),
 			Kind:      targetObjs[i].GetKind(),
-			Namespace: targetNamespace,
+			Namespace: namespace,
 		}
 		needsCreate := bool(liveObjs[i] == nil)
 		if !diffRes.Modified {
@@ -186,7 +187,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 				resDetails.Message = fmt.Sprintf("will update")
 			}
 		} else {
-			_, err := kube.ApplyResource(config, targetObjs[i], targetNamespace)
+			_, err := kube.ApplyResource(config, targetObjs[i], namespace)
 			if err != nil {
 				return nil, err
 			}

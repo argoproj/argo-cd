@@ -41,9 +41,11 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationAddCommand returns a new instance of an `argocd app add` command
 func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repoURL string
-		appPath string
-		env     string
+		repoURL       string
+		appPath       string
+		env           string
+		destServer    string
+		destNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -65,6 +67,12 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					},
 				},
 			}
+			if destServer != "" || destNamespace != "" {
+				app.Spec.Destination = &argoappv1.ApplicationDestination{
+					Server:    destServer,
+					Namespace: destNamespace,
+				}
+			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			_, err := appIf.Create(context.Background(), &app)
@@ -76,8 +84,8 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory")
 	errors.CheckError(command.MarkFlagRequired("path"))
 	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
-	errors.CheckError(command.MarkFlagRequired("env"))
-
+	command.Flags().StringVar(&destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
+	command.Flags().StringVar(&destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	return command
 }
 
@@ -106,9 +114,16 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			} else {
 				fmt.Printf(format, "Target:", app.Spec.Source.TargetRevision)
 			}
-			if app.Status.ComparisonResult.Status != argoappv1.ComparisonStatusUnknown {
+			if app.Status.ComparisonResult.Error != "" {
+				fmt.Printf(format, "Error:", app.Status.ComparisonResult.Error)
+			}
+			if app.Status.ComparisonResult.Server != "" {
 				fmt.Printf(format, "Server:", app.Status.ComparisonResult.Server)
+			}
+			if app.Status.ComparisonResult.Namespace != "" {
 				fmt.Printf(format, "Namespace:", app.Status.ComparisonResult.Namespace)
+			}
+			if len(app.Status.ComparisonResult.Resources) > 0 {
 				fmt.Println()
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				fmt.Fprintf(w, "KIND\tNAME\tSTATUS\n")

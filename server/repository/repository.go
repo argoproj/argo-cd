@@ -88,10 +88,21 @@ func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 	return secretToRepo(repoSecret), nil
 }
 
+func (s *Server) getRepoSecret(repo string) (*apiv1.Secret, error) {
+	secName := repoURLToSecretName(repo)
+	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, grpc.Errorf(codes.NotFound, "repo '%s' not found", repo)
+		}
+		return nil, err
+	}
+	return repoSecret, nil
+}
+
 // Get returns a repository by URL
 func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, error) {
-	secName := repoURLToSecretName(q.Repo)
-	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
+	repoSecret, err := s.getRepoSecret(q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -104,8 +115,7 @@ func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 	if err != nil {
 		return nil, err
 	}
-	secName := repoURLToSecretName(r.Repo)
-	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
+	repoSecret, err := s.getRepoSecret(r.Repo)
 	if err != nil {
 		return nil, err
 	}

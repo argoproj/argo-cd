@@ -31,7 +31,7 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	targetObjs []*unstructured.Unstructured,
 	app *v1alpha1.Application) (*v1alpha1.ComparisonResult, error) {
 
-	log.Infof("Comparing app %s state", app.ObjectMeta.Name)
+	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, server, namespace)
 	// Get the REST config for the cluster corresponding to the environment
 	clst, err := ks.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
 	if err != nil {

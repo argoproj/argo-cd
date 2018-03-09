@@ -2,23 +2,20 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/util"
-	log "github.com/sirupsen/logrus"
-
-	"time"
-
-	"fmt"
-
-	"encoding/json"
-
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	apireposerver "github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util"
+	argoutil "github.com/argoproj/argo-cd/util/argo"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -164,7 +161,9 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 		}
 		targetObjs[i] = &obj
 	}
-	comparisonResult, err := ctrl.appComparator.CompareAppState(manifestInfo.Server, manifestInfo.Namespace, targetObjs, app)
+
+	server, namespace := argoutil.ResolveServerNamespace(app, manifestInfo)
+	comparisonResult, err := ctrl.appComparator.CompareAppState(server, namespace, targetObjs, app)
 	if err != nil {
 		return nil, err
 	}

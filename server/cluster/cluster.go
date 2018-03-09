@@ -93,10 +93,21 @@ func (s *Server) Create(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 	return secretToCluster(clusterSecret), nil
 }
 
+func (s *Server) getClusterSecret(server string) (*apiv1.Secret, error) {
+	secName := serverToSecretName(server)
+	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, grpc.Errorf(codes.NotFound, "cluster '%s' not found", server)
+		}
+		return nil, err
+	}
+	return clusterSecret, nil
+}
+
 // Get returns a cluster from a query
 func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, error) {
-	secName := serverToSecretName(q.Server)
-	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
+	clusterSecret, err := s.getClusterSecret(q.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +120,7 @@ func (s *Server) Update(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 	if err != nil {
 		return nil, err
 	}
-	secName := serverToSecretName(c.Server)
-	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
+	clusterSecret, err := s.getClusterSecret(c.Server)
 	if err != nil {
 		return nil, err
 	}
