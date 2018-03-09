@@ -190,7 +190,7 @@ func (c *FakeGitClient) CloneOrFetch(repo string, username string, password stri
 	if err != nil {
 		return err
 	}
-	_, err = exec.Command("cp", "-r", "functional/ks-example", repoPath).Output()
+	_, err = exec.Command("cp", "-r", "../../examples/guestbook", repoPath).Output()
 	return err
 }
 
