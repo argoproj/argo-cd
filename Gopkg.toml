@@ -1,5 +1,6 @@
 required = [
   "github.com/gogo/protobuf/protoc-gen-gofast",
+  "golang.org/x/sync/errgroup",
   "k8s.io/code-generator/cmd/go-to-protobuf",
 ]
 

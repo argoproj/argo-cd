@@ -12,13 +12,6 @@ Nice to have [gometalinter](https://github.com/alecthomas/gometalinter) and [gor
 $ go get -u gopkg.in/alecthomas/gometalinter.v2 github.com/mattn/goreman && gometalinter.v2 --install
 ```
 
-You'll also need [errgroup](https://godoc.org/golang.org/x/sync/errgroup) to run `make`:
-
-```
-go get -u golang.org/x/sync/errgroup
-```
-
-
 ## Building
 
 ```
