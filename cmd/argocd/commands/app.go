@@ -55,6 +55,10 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Use:   "add",
 		Short: fmt.Sprintf("%s app add", cliName),
 		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
 			var app argoappv1.Application
 			if fileURL != "" {
 				fileContents := readLocalFile(fileURL)
