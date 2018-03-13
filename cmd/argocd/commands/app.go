@@ -46,18 +46,15 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		fileURL       string
 		repoURL       string
 		appPath       string
+		appName       string
 		env           string
 		destServer    string
 		destNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
-		Short: fmt.Sprintf("%s app add APPNAME", cliName),
+		Short: fmt.Sprintf("%s app add", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
 			var app argoappv1.Application
 			if fileURL != "" {
 				fileContents := readLocalFile(fileURL)
@@ -67,9 +64,14 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					os.Exit(1)
 				}
 			} else {
+				// all these params are required if we're here
+				if repoURL == "" || appPath == "" || appName == "" {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
 				app = argoappv1.Application{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: args[0],
+						Name: appName,
 					},
 					Spec: argoappv1.ApplicationSpec{
 						Source: argoappv1.ApplicationSource{
@@ -93,10 +95,9 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename, directory, or URL to Kubernetes manifests for the app")
-	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL")
-	errors.CheckError(command.MarkFlagRequired("repo"))
-	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory")
-	errors.CheckError(command.MarkFlagRequired("path"))
+	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set")
+	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL, ignored if a file is set")
+	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory, ignored if a file is set")
 	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
 	command.Flags().StringVar(&destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
