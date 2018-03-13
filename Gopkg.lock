@@ -152,7 +152,7 @@
     "ast",
     "parser"
   ]
-  revision = "e8f6d25f61d163deee16a78b545f4aaa0f295c01"
+  revision = "405726fae23ace72b22c410a77b7bd825608f2c8"
 
 [[projects]]
   branch = "master"
@@ -246,6 +246,7 @@
   version = "1.0.1"
 
 [[projects]]
+  branch = "master"
   name = "github.com/ksonnet/ksonnet"
   packages = [
     "component",
@@ -260,8 +261,7 @@
     "prototype",
     "strings"
   ]
-  revision = "e3806408e605eff0259aaba23bdf7aa13dbc6b5c"
-  version = "v0.9.1"
+  revision = "e570bff822d88b12f1841aa6e0069713d7e066c5"
 
 [[projects]]
   name = "github.com/ksonnet/ksonnet-lib"
@@ -420,6 +420,12 @@
     "jwt"
   ]
   revision = "cce311a261e6fcf29de72ca96827bdb0b7d9c9e6"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sync"
+  packages = ["errgroup"]
+  revision = "fd80eb99c8f653c847d294a001bdf2a3a6f768f5"
 
 [[projects]]
   branch = "master"
@@ -747,6 +753,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9ba583cf1108531ecfba2a463b3092be28cdfb5360d7c18854ab6b10965d5004"
+  inputs-digest = "f1502665746a2148c56270e7a28dfbd393d56047b20dcee363c9e0202f651001"
   solver-name = "gps-cdcl"
   solver-version = 1

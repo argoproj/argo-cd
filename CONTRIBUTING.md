@@ -6,7 +6,7 @@ Make sure you have following tools installed [golang](https://golang.org/), [dep
 $  brew install go dep protobuf kubectl
 ```
 
-Nice to have [gometaliter](https://github.com/alecthomas/gometalinter) and [goreman](https://github.com/mattn/goreman):
+Nice to have [gometalinter](https://github.com/alecthomas/gometalinter) and [goreman](https://github.com/mattn/goreman):
 
 ```
 $ go get -u gopkg.in/alecthomas/gometalinter.v2 github.com/mattn/goreman && gometalinter.v2 --install
