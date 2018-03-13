@@ -20,14 +20,13 @@ func readRemoteFile(url string) (data []byte, err error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
-	} else {
-		defer func() {
-			_ = resp.Body.Close()
-		}()
-		data, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	data, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
 	}
 	return
 }
