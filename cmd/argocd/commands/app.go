@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
+	"github.com/ghodss/yaml"
 	"log"
 	"os"
 	"strings"
@@ -78,13 +78,17 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 
 				// first, try unmarshaling as JSON
+				// Based on technique from Kubectl, which supports both YAML and JSON:
+				//   https://mlafeldt.github.io/blog/teaching-go-programs-to-love-json-and-yaml/
+				// Short version: JSON unmarshaling won't zero out null fields; YAML unmarshaling will.
+				// This may have unintended effects or hard-to-catch issues when populating our application object.
+				fileContents, err = yaml.YAMLToJSON(fileContents)
+				if err != nil {
+					log.Fatalf("Could not decode valid JSON or YAML from Kubernetes manifest: %s", fileURL)
+				}
 				err = json.Unmarshal(fileContents, &app)
 				if err != nil {
-					// next, try unmarshaling as YAML
-					err = yaml.Unmarshal(fileContents, &app)
-					if err != nil {
-						log.Fatalf("Could not decode valid JSON or YAML from Kubernetes manifest: %s", fileURL)
-					}
+					log.Fatalf("Could not unmarshal Kubrnetes manifest: %s", fileURL)
 				}
 			} else {
 				// all these params are required if we're here
