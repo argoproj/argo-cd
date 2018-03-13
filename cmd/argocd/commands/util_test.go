@@ -21,7 +21,7 @@ func TestReadLocalFile(t *testing.T) {
 	_ = file.Sync()
 
 	data := readLocalFile(file.Name())
-	if data != sentinel {
-		t.Errorf("Test data did not match! Expected \"%s\" and received \"%s\"", sentinel, data)
+	if string(data) != sentinel {
+		t.Errorf("Test data did not match! Expected \"%s\" and received \"%s\"", sentinel, string(data))
 	}
 }

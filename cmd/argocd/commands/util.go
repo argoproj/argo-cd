@@ -6,10 +6,10 @@ import (
 )
 
 // readLocalFile reads a file from disk and returns its contents as a string.
-func readLocalFile(path string) string {
+func readLocalFile(path string) []byte {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return string(data)
+	return data
 }
