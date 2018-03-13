@@ -3,6 +3,8 @@ package commands
 import (
 	"context"
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"log"
 	"os"
 	"text/tabwriter"
 
@@ -56,17 +58,27 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			app := argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: args[0],
-				},
-				Spec: argoappv1.ApplicationSpec{
-					Source: argoappv1.ApplicationSource{
-						RepoURL:     repoURL,
-						Path:        appPath,
-						Environment: env,
+			var app argoappv1.Application
+			if fileURL != "" {
+				fileContents := readLocalFile(fileURL)
+				err := yaml.Unmarshal(fileContents, &app)
+				if err != nil {
+					log.Fatal(err)
+					os.Exit(1)
+				}
+			} else {
+				app = argoappv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: args[0],
 					},
-				},
+					Spec: argoappv1.ApplicationSpec{
+						Source: argoappv1.ApplicationSource{
+							RepoURL:     repoURL,
+							Path:        appPath,
+							Environment: env,
+						},
+					},
+				}
 			}
 			if destServer != "" || destNamespace != "" {
 				app.Spec.Destination = &argoappv1.ApplicationDestination{
