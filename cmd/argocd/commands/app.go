@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"log"
@@ -75,10 +76,15 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					log.Fatal(err)
 					os.Exit(1)
 				}
-				err = yaml.Unmarshal(fileContents, &app)
+
+				// first, try unmarshaling as JSON
+				err = json.Unmarshal(fileContents, &app)
 				if err != nil {
-					log.Fatal(err)
-					os.Exit(1)
+					// next, try unmarshaling as YAML
+					err = yaml.Unmarshal(fileContents, &app)
+					if err != nil {
+						log.Fatalf("Could not decode valid JSON or YAML from Kubernetes manifest: %s", fileURL)
+					}
 				}
 			} else {
 				// all these params are required if we're here
