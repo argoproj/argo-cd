@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -61,8 +62,20 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			var app argoappv1.Application
 			if fileURL != "" {
-				fileContents := readLocalFile(fileURL)
-				err := yaml.Unmarshal(fileContents, &app)
+				var (
+					fileContents []byte
+					err          error
+				)
+				if strings.HasPrefix(fileURL, "https://") || strings.HasPrefix(fileURL, "http://") {
+					fileContents, err = readRemoteFile(fileURL)
+				} else {
+					fileContents, err = readLocalFile(fileURL)
+				}
+				if err != nil {
+					log.Fatal(err)
+					os.Exit(1)
+				}
+				err = yaml.Unmarshal(fileContents, &app)
 				if err != nil {
 					log.Fatal(err)
 					os.Exit(1)
