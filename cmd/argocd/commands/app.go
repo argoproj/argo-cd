@@ -41,6 +41,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationAddCommand returns a new instance of an `argocd app add` command
 func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
+		fileURL       string
 		repoURL       string
 		appPath       string
 		env           string
@@ -79,6 +80,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename, directory, or URL to Kubernetes manifests for the app")
 	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL")
 	errors.CheckError(command.MarkFlagRequired("repo"))
 	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory")
