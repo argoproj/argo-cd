@@ -87,7 +87,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 				err = json.Unmarshal(fileContents, &app)
 				if err != nil {
-					log.Fatalf("Could not unmarshal Kubrnetes manifest: %s", fileURL)
+					log.Fatalf("Could not unmarshal Kubernetes manifest: %s", fileURL)
 				}
 			} else {
 				// all these params are required if we're here
