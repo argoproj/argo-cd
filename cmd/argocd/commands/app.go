@@ -73,7 +73,6 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 				if err != nil {
 					log.Fatal(err)
-					os.Exit(1)
 				}
 				unmarshalApplication(fileContents, &app)
 
