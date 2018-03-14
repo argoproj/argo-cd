@@ -32,7 +32,7 @@ func TestReadLocalFile(t *testing.T) {
 func TestReadRemoteFile(t *testing.T) {
 	sentinel := "Hello, world!"
 
-	server := func(c chan<- string) {
+	serve := func(c chan<- string) {
 		listener, err := net.Listen("tcp", ":0")
 		if err != nil {
 			panic(err)
@@ -50,7 +50,7 @@ func TestReadRemoteFile(t *testing.T) {
 	c := make(chan string, 1)
 
 	// run a local webserver to test data retrieval
-	go server(c)
+	go serve(c)
 
 	address := <-c
 	data, err := readRemoteFile("http://" + address)
