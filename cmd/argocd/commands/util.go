@@ -2,11 +2,12 @@ package commands
 
 import (
 	"encoding/json"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/ghodss/yaml"
 )
 
 // unmarshalApplication tries to convert a YAML or JSON byte array into an Application struct.
