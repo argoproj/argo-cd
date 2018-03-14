@@ -31,7 +31,7 @@ func unmarshalApplication(data []byte, app *argoappv1.Application) {
 // isSupportedURL checks if a URL is of a supported type for loading manifests.
 func hasSupportedManifestURLScheme(url string) bool {
 	for _, scheme := range []string{"https://", "http://"} {
-		if lowercaseUrl := strings.ToLower(url); strings.HasPrefix(lowercaseUrl, scheme) {
+		if lowercaseURL := strings.ToLower(url); strings.HasPrefix(lowercaseURL, scheme) {
 			return true
 		}
 	}
