@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 )
 
 // unmarshalApplication tries to convert a YAML or JSON byte array into an Application struct.
