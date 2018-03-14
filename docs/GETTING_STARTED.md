@@ -49,8 +49,7 @@ token to perform its required management tasks (i.e. deploy/monitoring).
 2. Add the guestbook application and github repository containing the Guestbook application
 
 ```
-$ argocd repo add https://github.com/argoproj/argo-cd.git
-$ argocd app add guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube --dest-server https://$(minikube ip):8443
+$ argocd app add --name guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube --dest-server https://$(minikube ip):8443
 ```
 
 Once the application is added, you can now see its status:

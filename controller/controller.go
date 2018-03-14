@@ -138,7 +138,12 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	defer util.Close(conn)
 	repo, err := ctrl.apiRepoService.Get(context.Background(), &apireposerver.RepoQuery{Repo: app.Spec.Source.RepoURL})
 	if err != nil {
-		return nil, err
+		// If we couldn't retrieve from the repo service, assume public repositories
+		repo = &appv1.Repository{
+			Repo:     app.Spec.Source.RepoURL,
+			Username: "",
+			Password: "",
+		}
 	}
 	revision := app.Spec.Source.TargetRevision
 	manifestInfo, err := client.GenerateManifest(context.Background(), &repository.ManifestRequest{
