@@ -2,9 +2,7 @@ package commands
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/ghodss/yaml"
 	"log"
 	"os"
 	"text/tabwriter"
@@ -75,20 +73,8 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					log.Fatal(err)
 					os.Exit(1)
 				}
+				unmarshalApplication(fileContents, &app)
 
-				// first, try unmarshaling as JSON
-				// Based on technique from Kubectl, which supports both YAML and JSON:
-				//   https://mlafeldt.github.io/blog/teaching-go-programs-to-love-json-and-yaml/
-				// Short version: JSON unmarshaling won't zero out null fields; YAML unmarshaling will.
-				// This may have unintended effects or hard-to-catch issues when populating our application object.
-				fileContents, err = yaml.YAMLToJSON(fileContents)
-				if err != nil {
-					log.Fatalf("Could not decode valid JSON or YAML from Kubernetes manifest: %s", fileURL)
-				}
-				err = json.Unmarshal(fileContents, &app)
-				if err != nil {
-					log.Fatalf("Could not unmarshal Kubernetes manifest: %s", fileURL)
-				}
 			} else {
 				// all these params are required if we're here
 				if repoURL == "" || appPath == "" || appName == "" {
@@ -120,7 +106,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename, directory, or URL to Kubernetes manifests for the app")
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set")
 	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL, ignored if a file is set")
 	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory, ignored if a file is set")
