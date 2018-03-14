@@ -9,26 +9,6 @@ import (
 	"testing"
 )
 
-func TestHasSupportedManifestURLScheme(t *testing.T) {
-	data := []struct {
-		input    string
-		expected bool
-	}{
-		{"http://www.example.com", true},
-		{"HTTP://www.EXAMPLE.com", true},
-		{"HTTPS://localhost:8443", true},
-		{"http://www.example.org", true},
-		{"ftp://www.example.com", false},
-		{"gopher://gopher.something/", false},
-		{"file:///etc/passwd", false},
-	}
-	for _, datum := range data {
-		if output := hasSupportedManifestURLScheme(datum.input); output != datum.expected {
-			t.Errorf("Invalid output for URL \"%s\"; was expecting %v and received %v", datum.input, datum.expected, output)
-		}
-	}
-}
-
 func TestReadLocalFile(t *testing.T) {
 	sentinel := "Hello, world!"
 

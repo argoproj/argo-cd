@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"text/tabwriter"
 
@@ -64,10 +65,11 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					fileContents []byte
 					err          error
 				)
-				if hasSupportedManifestURLScheme(fileURL) {
-					fileContents, err = readRemoteFile(fileURL)
-				} else {
+				_, err = url.ParseRequestURI(fileURL)
+				if err != nil {
 					fileContents, err = readLocalFile(fileURL)
+				} else {
+					fileContents, err = readRemoteFile(fileURL)
 				}
 				if err != nil {
 					log.Fatal(err)
