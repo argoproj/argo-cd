@@ -3,6 +3,8 @@ package commands
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/url"
 	"os"
 	"text/tabwriter"
 
@@ -41,31 +43,57 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationAddCommand returns a new instance of an `argocd app add` command
 func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
+		fileURL       string
 		repoURL       string
 		appPath       string
+		appName       string
 		env           string
 		destServer    string
 		destNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
-		Short: fmt.Sprintf("%s app add APPNAME", cliName),
+		Short: fmt.Sprintf("%s app add", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 {
+			if len(args) != 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			app := argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: args[0],
-				},
-				Spec: argoappv1.ApplicationSpec{
-					Source: argoappv1.ApplicationSource{
-						RepoURL:     repoURL,
-						Path:        appPath,
-						Environment: env,
+			var app argoappv1.Application
+			if fileURL != "" {
+				var (
+					fileContents []byte
+					err          error
+				)
+				_, err = url.ParseRequestURI(fileURL)
+				if err != nil {
+					fileContents, err = readLocalFile(fileURL)
+				} else {
+					fileContents, err = readRemoteFile(fileURL)
+				}
+				if err != nil {
+					log.Fatal(err)
+				}
+				unmarshalApplication(fileContents, &app)
+
+			} else {
+				// all these params are required if we're here
+				if repoURL == "" || appPath == "" || appName == "" {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
+				app = argoappv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: appName,
 					},
-				},
+					Spec: argoappv1.ApplicationSpec{
+						Source: argoappv1.ApplicationSource{
+							RepoURL:     repoURL,
+							Path:        appPath,
+							Environment: env,
+						},
+					},
+				}
 			}
 			if destServer != "" || destNamespace != "" {
 				app.Spec.Destination = &argoappv1.ApplicationDestination{
@@ -79,10 +107,10 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL")
-	errors.CheckError(command.MarkFlagRequired("repo"))
-	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory")
-	errors.CheckError(command.MarkFlagRequired("path"))
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
+	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set")
+	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL, ignored if a file is set")
+	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory, ignored if a file is set")
 	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
 	command.Flags().StringVar(&destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
