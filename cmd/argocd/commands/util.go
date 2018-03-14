@@ -4,7 +4,18 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
+
+// isSupportedURL checks if a URL is of a supported type for loading manifests.
+func hasSupportedManifestURLScheme(url string) bool {
+	for _, scheme := range []string{"https://", "http://"} {
+		if lowercaseUrl := strings.ToLower(url); strings.HasPrefix(lowercaseUrl, scheme) {
+			return true
+		}
+	}
+	return false
+}
 
 // readLocalFile reads a file from disk and returns its contents as a byte array.
 func readLocalFile(path string) (data []byte, err error) {

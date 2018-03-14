@@ -7,7 +7,6 @@ import (
 	"github.com/ghodss/yaml"
 	"log"
 	"os"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -67,7 +66,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					fileContents []byte
 					err          error
 				)
-				if strings.HasPrefix(fileURL, "https://") || strings.HasPrefix(fileURL, "http://") {
+				if hasSupportedManifestURLScheme(fileURL) {
 					fileContents, err = readRemoteFile(fileURL)
 				} else {
 					fileContents, err = readLocalFile(fileURL)
