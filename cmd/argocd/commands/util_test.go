@@ -33,14 +33,17 @@ func TestReadRemoteFile(t *testing.T) {
 	sentinel := "Hello, world!"
 
 	serve := func(c chan<- string) {
+		// listen on first available dynamic (unprivileged) port
 		listener, err := net.Listen("tcp", ":0")
 		if err != nil {
 			panic(err)
 		}
 
+		// send back the address so that it can be used
 		c <- listener.Addr().String()
 
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// return the sentinel text at root URL
 			fmt.Fprint(w, sentinel)
 		})
 
