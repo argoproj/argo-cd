@@ -122,10 +122,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 
 	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: app.Spec.Source.RepoURL})
 	if err != nil {
-		// Handle public repos here...
-		// repo, err := ....
+		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &appv1.Repository{
-			Repo: app.Spec.Source.RepoURL,
+			Repo:     app.Spec.Source.RepoURL,
 			Username: "",
 			Password: "",
 		}
