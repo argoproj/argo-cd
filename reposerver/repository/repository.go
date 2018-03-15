@@ -39,7 +39,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	s.repoLock.Lock(appRepoPath)
 	defer s.repoLock.Unlock(appRepoPath)
 
-	err := s.gitClient.CloneOrFetch(q.Repo.Repo, q.Repo.Username, q.Repo.Password, appRepoPath)
+	err := s.gitClient.CloneOrFetch(q.Repo.Repo, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey, appRepoPath)
 	if err != nil {
 		return nil, err
 	}

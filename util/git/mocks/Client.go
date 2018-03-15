@@ -22,13 +22,13 @@ func (_m *Client) Checkout(repoPath string, sha string) error {
 	return r0
 }
 
-// CloneOrFetch provides a mock function with given fields: url, username, password, repoPath
-func (_m *Client) CloneOrFetch(url string, username string, password string, repoPath string) error {
-	ret := _m.Called(url, username, password, repoPath)
+// CloneOrFetch provides a mock function with given fields: url, username, password, sshPrivateKey, repoPath
+func (_m *Client) CloneOrFetch(url string, username string, password string, sshPrivateKey string, repoPath string) error {
+	ret := _m.Called(url, username, password, sshPrivateKey, repoPath)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string) error); ok {
-		r0 = rf(url, username, password, repoPath)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, string) error); ok {
+		r0 = rf(url, username, password, sshPrivateKey, repoPath)
 	} else {
 		r0 = ret.Error(0)
 	}

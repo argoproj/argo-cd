@@ -64,7 +64,7 @@ func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 	shallowCopy := *r
 	r = &shallowCopy
 	r.Repo = git.NormalizeGitURL(r.Repo)
-	err := git.TestRepo(r.Repo, r.Username, r.Password)
+	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	err := git.TestRepo(r.Repo, r.Username, r.Password)
+	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -152,17 +152,19 @@ func repoURLToSecretName(repo string) string {
 // repoToStringData converts a repository object to string data for serialization to a secret
 func repoToStringData(r *appsv1.Repository) map[string]string {
 	return map[string]string{
-		"repository": r.Repo,
-		"username":   r.Username,
-		"password":   r.Password,
+		"repository":    r.Repo,
+		"username":      r.Username,
+		"password":      r.Password,
+		"sshPrivateKey": r.SSHPrivateKey,
 	}
 }
 
 // secretToRepo converts a secret into a repository object
 func secretToRepo(s *apiv1.Secret) *appsv1.Repository {
 	return &appsv1.Repository{
-		Repo:     string(s.Data["repository"]),
-		Username: string(s.Data["username"]),
-		Password: string(s.Data["password"]),
+		Repo:          string(s.Data["repository"]),
+		Username:      string(s.Data["username"]),
+		Password:      string(s.Data["password"]),
+		SSHPrivateKey: string(s.Data["sshPrivateKey"]),
 	}
 }
