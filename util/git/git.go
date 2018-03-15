@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -11,20 +12,59 @@ import (
 
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
-	repoURL, _ := url.Parse(repo)
+	repoURL, err := url.Parse(repo)
+	if err != nil {
+		return strings.ToLower(repo)
+	}
 	return repoURL.String()
 }
 
+// IsSshURL returns true is supplied URL is SSH URL
+func IsSshURL(url string) bool {
+	return strings.Index(url, "git@") == 0
+}
+
+// GetGitCommandOptions returns URL and env options for git operation
+func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey string) (string, []string, error) {
+	cmdURL := repo
+	env := os.Environ()
+	if IsSshURL(repo) {
+		if sshPrivateKey != "" {
+			sshFile, err := ioutil.TempFile("", "")
+			if err != nil {
+				return "", nil, err
+			}
+			_, err = sshFile.WriteString(sshPrivateKey)
+			if err != nil {
+				return "", nil, err
+			}
+			err = sshFile.Close()
+			if err != nil {
+				return "", nil, err
+			}
+			env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s", sshFile.Name()))
+		}
+	} else {
+		env = append(env, "GIT_ASKPASS=")
+		repoURL, err := url.ParseRequestURI(repo)
+		if err != nil {
+			return "", nil, err
+		}
+
+		repoURL.User = url.UserPassword(username, password)
+		cmdURL = repoURL.String()
+	}
+	return cmdURL, env, nil
+}
+
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo, username, password string) error {
-	repoURL, err := url.ParseRequestURI(repo)
+func TestRepo(repo, username, password string, sshPrivateKey string) error {
+	repo, env, err := GetGitCommandEnvAndURL(repo, username, password, sshPrivateKey)
 	if err != nil {
 		return err
 	}
-	repoURL.User = url.UserPassword(username, password)
-	cmd := exec.Command("git", "ls-remote", repoURL.String(), "HEAD")
-	env := os.Environ()
-	env = append(env, "GIT_ASKPASS=")
+	cmd := exec.Command("git", "ls-remote", repo, "HEAD")
+
 	cmd.Env = env
 	_, err = cmd.Output()
 	if err != nil {

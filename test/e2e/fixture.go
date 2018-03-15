@@ -185,7 +185,7 @@ func PollUntil(t *testing.T, condition wait.ConditionFunc) {
 type FakeGitClient struct {
 }
 
-func (c *FakeGitClient) CloneOrFetch(repo string, username string, password string, repoPath string) error {
+func (c *FakeGitClient) CloneOrFetch(repo string, username string, password string, sshPrivateKey string, repoPath string) error {
 	_, err := exec.Command("rm", "-rf", repoPath).Output()
 	if err != nil {
 		return err

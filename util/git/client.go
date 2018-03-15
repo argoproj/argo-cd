@@ -3,7 +3,6 @@ package git
 import (
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
 
@@ -12,7 +11,7 @@ import (
 
 // Client is a generic git client interface
 type Client interface {
-	CloneOrFetch(url string, username string, password string, repoPath string) error
+	CloneOrFetch(url string, username string, password string, sshPrivateKey string, repoPath string) error
 	Checkout(repoPath string, sha string) error
 }
 
@@ -22,7 +21,7 @@ type NativeGitClient struct {
 }
 
 // CloneOrFetch either clone or fetch repository into specified directory path.
-func (m *NativeGitClient) CloneOrFetch(repo string, username string, password string, repoPath string) error {
+func (m *NativeGitClient) CloneOrFetch(repo string, username string, password string, sshPrivateKey string, repoPath string) error {
 	var needClone bool
 	if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 		needClone = true
@@ -32,22 +31,24 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		_, err = cmd.Output()
 		needClone = err != nil
 	}
+
 	if needClone {
 		_, err := exec.Command("rm", "-rf", repoPath).Output()
 		if err != nil {
 			return fmt.Errorf("unable to clean repo cache at %s: %v", repoPath, err)
 		}
 
-		repoURL, err := url.ParseRequestURI(repo)
+		repoURL, env, err := GetGitCommandEnvAndURL(repo, username, password, sshPrivateKey)
 		if err != nil {
 			return err
 		}
-		repoURLNoPassword := repoURL.String()
-		log.Infof("Cloning %s to %s", repoURLNoPassword, repoPath)
-		repoURL.User = url.UserPassword(username, password)
-		_, err = exec.Command("git", "clone", repoURL.String(), repoPath).Output()
+
+		log.Infof("Cloning %s to %s", repo, repoPath)
+		cmd := exec.Command("git", "clone", repoURL, repoPath)
+		cmd.Env = env
+		_, err = cmd.Output()
 		if err != nil {
-			return fmt.Errorf("unable to clone repository %s: %v", repoURLNoPassword, err)
+			return fmt.Errorf("unable to clone repository %s: %v", repo, err)
 		}
 	} else {
 		log.Infof("Fetching %s", repo)

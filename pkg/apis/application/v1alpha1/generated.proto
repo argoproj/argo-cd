@@ -145,6 +145,8 @@ message Repository {
   optional string username = 2;
 
   optional string password = 3;
+
+  optional string sshPrivateKey = 4;
 }
 
 // RepositoryList is a collection of Repositories.

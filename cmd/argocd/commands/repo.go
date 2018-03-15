@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"syscall"
 	"text/tabwriter"
@@ -39,7 +40,8 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewRepoAddCommand returns a new instance of an `argocd repo add` command
 func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repo appsv1.Repository
+		repo              appsv1.Repository
+		sshPrivateKeyPath string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -50,15 +52,22 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				os.Exit(1)
 			}
 			repo.Repo = args[0]
-			err := git.TestRepo(repo.Repo, repo.Username, repo.Password)
+			if sshPrivateKeyPath != "" {
+				keyData, err := ioutil.ReadFile(sshPrivateKeyPath)
+				if err != nil {
+					log.Fatal(err)
+				}
+				repo.SSHPrivateKey = string(keyData)
+			}
+			err := git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
 			if err != nil {
-				if repo.Username != "" && repo.Password != "" {
-					// if everything was supplied, one of the inputs was definitely bad
+				if repo.Username != "" && repo.Password != "" || git.IsSshURL(repo.Repo) {
+					// if everything was supplied or repo URL is SSH url, one of the inputs was definitely bad
 					log.Fatal(err)
 				}
 				// If we can't test the repo, it's probably private. Prompt for credentials and try again.
 				promptCredentials(&repo)
-				err = git.TestRepo(repo.Repo, repo.Username, repo.Password)
+				err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
 			}
 			errors.CheckError(err)
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
@@ -70,6 +79,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
+	command.Flags().StringVar(&sshPrivateKeyPath, "sshPrivateKeyPath", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	return command
 }
 
