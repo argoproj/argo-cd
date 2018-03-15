@@ -120,6 +120,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		return nil, err
 	}
 
+	app.Status.RecentDeployment = DeploymentInfo{}
+
 	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: app.Spec.Source.RepoURL})
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
