@@ -160,8 +160,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 
 	// Persist app deployment info
-	appClient := s.appclientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-	_, err = appClient.Update(app)
+	app, err = s.Update(ctx, app)
 	if err != nil {
 		return nil, err
 	}
