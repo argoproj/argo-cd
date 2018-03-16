@@ -80,7 +80,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 }
 
 // GetEnvParams retrieves Ksonnet environment params in specified repo name and revision
-func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvParamsResponse, error) {
+/*func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvParamsResponse, error) {
 	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
 	s.repoLock.Lock(appRepoPath)
 	defer s.repoLock.Unlock(appRepoPath)
@@ -117,9 +117,10 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 		}
 		manifests[i] = string(manifestStr)
 	}
-	return &ManifestResponse{
+	return &EnvParamsResponse{
 		Manifests: manifests,
 		Namespace: env.Destination.Namespace,
 		Server:    env.Destination.Server,
 	}, nil
 }
+*/
