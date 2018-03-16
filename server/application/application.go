@@ -225,7 +225,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 
 	// Persist app deployment info
-	app, err = s.Update(ctx, app)
+	_, err = s.Update(ctx, app)
 	if err != nil {
 		return nil, err
 	}
