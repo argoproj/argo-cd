@@ -1,6 +1,7 @@
 package application
 
 import (
+	"encoding/json"
 	"fmt"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -141,19 +142,23 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 
 	// set fields in v1alpha/types.go
-	/*deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.GetEnvParamsRequest{
+	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
+		Repo:        repo,
 		Environment: app.Spec.Source.Environment,
-	}) //  environment.app.(ksonnetApp)
+		Path:        app.Spec.Source.Path,
+		Revision:    revision,
+	})
 	if err != nil {
-		app.Status.RecentDeployment = deploymentInfo
-
-		// Persist app deployment info
-		appClient := s.appclientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-		_, err = appClient.Update(app)
+		err = json.Unmarshal([]byte(deploymentInfo.Params), &app.Status.RecentDeployment.Params)
 		if err != nil {
-			return nil, err
+			// Persist app deployment info
+			appClient := s.appclientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+			_, err = appClient.Update(app)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}*/
+	}
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:        repo,

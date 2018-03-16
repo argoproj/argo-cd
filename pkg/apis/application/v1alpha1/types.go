@@ -11,12 +11,9 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// DeploymentInfo contains information relevant to an application deployment
 type DeploymentInfo struct {
-	ContainerPort int
-	ServicePort   int
-	Replicas      int
-	Image         string
-	Type          string
+	Params map[string]interface{} `json:"params" protobuf:"bytes,1,name=params"`
 }
 
 // Application is a definition of Application resource.
