@@ -150,6 +150,7 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 		Revision:    revision,
 		Path:        app.Spec.Source.Path,
 		Environment: app.Spec.Source.Environment,
+		AppLabel:    app.Name,
 	})
 	if err != nil {
 		log.Errorf("Failed to load application manifest %v", err)
@@ -166,7 +167,7 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 		targetObjs[i] = &obj
 	}
 
-	server, namespace := argoutil.ResolveServerNamespace(app, manifestInfo)
+	server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
 	comparisonResult, err := ctrl.appComparator.CompareAppState(server, namespace, targetObjs, app)
 	if err != nil {
 		return nil, err

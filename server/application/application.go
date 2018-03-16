@@ -1,8 +1,11 @@
 package application
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -13,9 +16,11 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/pborman/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	apiv1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
@@ -71,10 +76,25 @@ func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Appli
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 }
 
-// Delete updates a application
-func (s *Server) Delete(ctx context.Context, q *ApplicationQuery) (*ApplicationResponse, error) {
+// Delete removes an application and all associated resources
+func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*ApplicationResponse, error) {
 	err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
-	return &ApplicationResponse{}, err
+	if err != nil && !apierr.IsNotFound(err) {
+		return nil, err
+	}
+	if q.Server != "" && q.Namespace != "" {
+		clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: q.Server})
+		if err != nil {
+			return nil, err
+		}
+		config := clst.RESTConfig()
+		err = kube.DeleteResourceWithLabel(config, q.Namespace, fmt.Sprintf("%s=%s", common.LabelApplicationName, q.Name))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ApplicationResponse{}, nil
 }
 
 // ListPods returns pods in a application
@@ -112,6 +132,27 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	return nil
 }
 
+func (s *Server) DeployEphemeral(ctx context.Context, req *DeployEphemeralRequest) (*DeployEphemeralResponse, error) {
+	appName := "app-" + strings.ToLower(uuid.NewRandom().String())
+	if req.InputFiles == nil {
+		req.InputFiles = make(map[string]string)
+	}
+	envFileData, err := json.Marshal(map[string]string{"id": appName})
+	if err != nil {
+		return nil, err
+	}
+	req.InputFiles["env.libsonnet"] = string(envFileData)
+	deployResult, err := s.deploy(ctx, *req.Source, req.Destination, appName, req.InputFiles, req.DryRun)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeployEphemeralResponse{
+		AppName:      appName,
+		DeployResult: deployResult,
+	}, nil
+}
+
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ApplicationSyncResult, error) {
 	log.Infof("Syncing application %s", syncReq.Name)
@@ -119,27 +160,17 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if err != nil {
 		return nil, err
 	}
-
-	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: app.Spec.Source.RepoURL})
-	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &appv1.Repository{
-			Repo:     app.Spec.Source.RepoURL,
-			Username: "",
-			Password: "",
-		}
+	revision := syncReq.Revision
+	if revision == "" {
+		app.Spec.Source.TargetRevision = revision
 	}
 
+	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(conn)
-	revision := syncReq.Revision
-	if revision == "" {
-		revision = app.Spec.Source.TargetRevision
-	}
-
 	// set fields in v1alpha/types.go
 	log.Infof("Retrieving deployment params for application %s", syncReq.Name)
 	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
@@ -148,26 +179,60 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		Path:        app.Spec.Source.Path,
 		Revision:    revision,
 	})
+
 	if err != nil {
 		return nil, err
 	}
 	log.Infof("Received deployment params: %s", deploymentInfo.Params)
-	app.Status.RecentDeployment.Params = deploymentInfo.Params
 
+	res, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, nil, syncReq.DryRun)
+	if err == nil {
+		// Persist app deployment info
+		app.Status.RecentDeployment.Params = deploymentInfo.Params
+		_, err = s.Update(ctx, app)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, err
+}
+
+func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository {
+	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: repoURL})
+	if err != nil {
+		// If we couldn't retrieve from the repo service, assume public repositories
+		repo = &appv1.Repository{Repo: repoURL}
+	}
+	return repo
+}
+
+func (s *Server) deploy(
+	ctx context.Context,
+	source appv1.ApplicationSource,
+	destination *appv1.ApplicationDestination,
+	appLabel string,
+	inputFiles map[string]string,
+	dryRun bool) (*ApplicationSyncResult, error) {
+
+	repo := s.getRepo(ctx, source.RepoURL)
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, err
 	}
+	defer util.Close(conn)
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:        repo,
-		Environment: app.Spec.Source.Environment,
-		Path:        app.Spec.Source.Path,
-		Revision:    revision,
+		Environment: source.Environment,
+		Path:        source.Path,
+		Revision:    source.TargetRevision,
+		InputFiles:  inputFiles,
+		AppLabel:    appLabel,
 	})
 	if err != nil {
 		return nil, err
 	}
-	server, namespace := argoutil.ResolveServerNamespace(app, manifestInfo)
+	server, namespace := argoutil.ResolveServerNamespace(destination, manifestInfo)
 
 	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
 	if err != nil {
@@ -203,7 +268,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		needsCreate := bool(liveObjs[i] == nil)
 		if !diffRes.Modified {
 			resDetails.Message = fmt.Sprintf("already synced")
-		} else if syncReq.DryRun {
+		} else if dryRun {
 			if needsCreate {
 				resDetails.Message = fmt.Sprintf("will create")
 			} else {
@@ -222,13 +287,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		}
 		syncRes.Resources = append(syncRes.Resources, &resDetails)
 	}
-
-	// Persist app deployment info
-	_, err = s.Update(ctx, app)
-	if err != nil {
-		return nil, err
-	}
-
 	syncRes.Message = "successfully synced"
 	return &syncRes, nil
 }

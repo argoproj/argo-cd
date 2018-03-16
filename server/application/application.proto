@@ -19,6 +19,12 @@ message ApplicationQuery {
 
 message ApplicationResponse {}
 
+message DeleteApplicationRequest {
+	string name = 1;
+	string namespace = 2;
+	string server = 3;
+}
+
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	string name = 1;
@@ -39,7 +45,19 @@ message ResourceDetails {
 	string message = 4;
 }
 
-// ApplicationService 
+message DeployEphemeralRequest {
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationDestination destination = 2;
+	bool dryRun = 3;
+	map<string, string> inputFiles  = 4;
+}
+
+message DeployEphemeralResponse {
+	string appName = 1;
+	ApplicationSyncResult deployResult = 2;
+}
+
+// ApplicationService
 service ApplicationService {
 
 	// List returns list of applications
@@ -48,7 +66,7 @@ service ApplicationService {
 	}
 
 	// Watch returns stream of application change events.
-    rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
+	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applications";
 	}
 
@@ -59,9 +77,17 @@ service ApplicationService {
 			body: "*"
 		};
 	}
-	
-    // Get returns an application by name
-    rpc Get(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+
+	// DeployEphemeral deployes short living application
+	rpc DeployEphemeral(DeployEphemeralRequest) returns (DeployEphemeralResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/ephemeral"
+			body: "*"
+		};
+	}
+
+	// Get returns an application by name
+	rpc Get(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
@@ -74,7 +100,7 @@ service ApplicationService {
 	}
 
 	// Delete deletes an application
-	rpc Delete(ApplicationQuery) returns (ApplicationResponse) {
+	rpc Delete(DeleteApplicationRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
 	}
 

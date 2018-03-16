@@ -25,6 +25,8 @@ var (
 
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"
+	// LabelApplicationName is the label which indicates that resource belongs to application with the specified name
+	LabelApplicationName = application.ApplicationFullName + "/app-name"
 )
 
 // ArgoCDManagerServiceAccount is the name of the service account for managing a cluster
