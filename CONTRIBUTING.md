@@ -3,7 +3,8 @@ Make sure you have following tools installed [golang](https://golang.org/), [dep
 [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
 
 ```
-$  brew install go dep protobuf kubectl
+$ brew install go dep protobuf kubectl
+$ go get -u github.com/golang/protobuf/protoc-gen-go
 ```
 
 Nice to have [gometalinter](https://github.com/alecthomas/gometalinter) and [goreman](https://github.com/mattn/goreman):
