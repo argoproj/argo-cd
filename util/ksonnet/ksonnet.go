@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -14,7 +15,8 @@ import (
 )
 
 var (
-	diffSeparator = regexp.MustCompile("\\n---")
+	diffSeparator = regexp.MustCompile(`\n---`)
+	lineSeparator = regexp.MustCompile(`\n`)
 )
 
 // KsonnetApp represents a ksonnet application directory and provides wrapper functionality around
@@ -28,6 +30,7 @@ type KsonnetApp interface {
 
 	// Show returns a list of unstructured objects that would be applied to an environment
 	Show(environment string) ([]*unstructured.Unstructured, error)
+	ListEnvParams(environment string) (map[string]string, error)
 }
 
 type ksonnetApp struct {
@@ -35,6 +38,7 @@ type ksonnetApp struct {
 	app     app.App
 }
 
+// NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
 func NewKsonnetApp(path string) (KsonnetApp, error) {
 	ksApp := ksonnetApp{}
 	mgr, err := metadata.Find(path)
@@ -78,6 +82,7 @@ func (k *ksonnetApp) App() app.App {
 	return k.app
 }
 
+// Show generates a concatenated list of Kubernetes manifests in the given environment.
 func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {
 	out, err := k.ksCmd("show", environment)
 	if err != nil {
@@ -98,4 +103,29 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	}
 	// TODO(jessesuen): we need to sort objects based on their dependency order of creation
 	return objs, nil
+}
+
+// Show generates a concatenated list of Kubernetes manifests in the given environment.
+func (k *ksonnetApp) ListEnvParams(environment string) (params map[string]string, err error) {
+	// count of rows to skip in command-line output
+	const skipRows = 2
+	out, err := k.ksCmd("param", "list", "--env", environment)
+	if err != nil {
+		return
+	}
+	params = make(map[string]string)
+	rows := lineSeparator.Split(out, -1)
+	for _, row := range rows[skipRows:] {
+		if strings.TrimSpace(row) == "" {
+			continue
+		}
+		fields := strings.Fields(row)
+		param, rawValue := fields[1], fields[2]
+		value, err := strconv.Unquote(rawValue)
+		if err != nil {
+			value = rawValue
+		}
+		params[param] = value
+	}
+	return
 }

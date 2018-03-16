@@ -11,6 +11,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// DeploymentInfo contains information relevant to an application deployment
+type DeploymentInfo struct {
+	Params map[string]string `json:"params" protobuf:"bytes,1,name=params"`
+}
+
 // Application is a definition of Application resource.
 // +genclient
 // +genclient:noStatus
@@ -86,6 +91,7 @@ const (
 // ApplicationStatus contains information about application status in target environment.
 type ApplicationStatus struct {
 	ComparisonResult ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
+	RecentDeployment DeploymentInfo   `json:"deploymentInfo" protobuf:"bytes,2,opt,name=deploymentInfo"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.

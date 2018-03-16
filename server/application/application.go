@@ -140,6 +140,24 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		revision = app.Spec.Source.TargetRevision
 	}
 
+	// set fields in v1alpha/types.go
+	log.Infof("Retrieving deployment params for application %s", syncReq.Name)
+	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
+		Repo:        repo,
+		Environment: app.Spec.Source.Environment,
+		Path:        app.Spec.Source.Path,
+		Revision:    revision,
+	})
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Received deployment params: %s", deploymentInfo.Params)
+	app.Status.RecentDeployment.Params = deploymentInfo.Params
+
+	if err != nil {
+		return nil, err
+	}
+
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:        repo,
 		Environment: app.Spec.Source.Environment,
@@ -204,6 +222,13 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		}
 		syncRes.Resources = append(syncRes.Resources, &resDetails)
 	}
+
+	// Persist app deployment info
+	_, err = s.Update(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+
 	syncRes.Message = "successfully synced"
 	return &syncRes, nil
 }

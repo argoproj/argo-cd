@@ -23,10 +23,25 @@ message ManifestResponse {
     string server = 3;
 }
 
+message EnvParamsRequest {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+    string path = 3;
+    string environment = 4;
+}
+
+message EnvParamsResponse {
+  map<string, string> params = 1;
+}
+
 // ManifestService
 service RepositoryService {
 
     // Generate manifest for application in specified repo name and revision
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    }
+
+    // Retrieve Ksonnet environment params in specified repo name and revision
+    rpc GetEnvParams(EnvParamsRequest) returns (EnvParamsResponse) {
     }
 }

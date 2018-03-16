@@ -34,6 +34,7 @@ func NewService(namespace string, kubeClient kubernetes.Interface, gitClient git
 	}
 }
 
+// GenerateManifest generate a manifest for application in specified repo name and revision
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
 	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
 	s.repoLock.Lock(appRepoPath)
@@ -75,5 +76,36 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		Manifests: manifests,
 		Namespace: env.Destination.Namespace,
 		Server:    env.Destination.Server,
+	}, nil
+}
+
+// GetEnvParams retrieves Ksonnet environment params in specified repo name and revision
+func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvParamsResponse, error) {
+	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
+	s.repoLock.Lock(appRepoPath)
+	defer s.repoLock.Unlock(appRepoPath)
+
+	err := s.gitClient.CloneOrFetch(q.Repo.Repo, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey, appRepoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.gitClient.Checkout(appRepoPath, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+	appPath := path.Join(appRepoPath, q.Path)
+	ksApp, err := ksutil.NewKsonnetApp(appPath)
+	if err != nil {
+		return nil, err
+	}
+
+	target, err := ksApp.ListEnvParams(q.Environment)
+	if err != nil {
+		return nil, err
+	}
+
+	return &EnvParamsResponse{
+		Params: target,
 	}, nil
 }

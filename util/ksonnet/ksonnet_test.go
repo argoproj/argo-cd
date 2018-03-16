@@ -3,6 +3,7 @@ package ksonnet
 import (
 	"encoding/json"
 	"path"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -43,5 +44,25 @@ func TestShow(t *testing.T) {
 		jsonBytes, err := json.Marshal(obj)
 		assert.Nil(t, err)
 		log.Infof("%v", string(jsonBytes))
+	}
+}
+
+func TestListEnvParams(t *testing.T) {
+	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
+	assert.Nil(t, err)
+	params, err := ksApp.ListEnvParams(testEnvName)
+	assert.Nil(t, err)
+
+	expected := map[string]string{
+		"containerPort": "80",
+		"image":         "gcr.io/kuar-demo/kuard-amd64:1",
+		"name":          "demo",
+		"replicas":      "2",
+		"servicePort":   "80",
+		"type":          "ClusterIP",
+	}
+
+	if !reflect.DeepEqual(expected, params) {
+		t.Errorf("Env param maps were not equal!  Expected (%s), got (%s).", expected, params)
 	}
 }
