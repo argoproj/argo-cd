@@ -1,7 +1,6 @@
 package application
 
 import (
-	"encoding/json"
 	"fmt"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -149,7 +148,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		Path:        app.Spec.Source.Path,
 		Revision:    revision,
 	})
+	if err != nil {
+		return nil, err
+	}
 	log.Infof("Received deployment params: %s", deploymentInfo)
+	app.Status.RecentDeployment.Params = deploymentInfo.Params
 
 	if err != nil {
 		return nil, err
@@ -218,11 +221,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 			}
 		}
 		syncRes.Resources = append(syncRes.Resources, &resDetails)
-	}
-
-	err = json.Unmarshal([]byte(deploymentInfo.Params), &app.Status.RecentDeployment.Params)
-	if err != nil {
-		return nil, err
 	}
 
 	// Persist app deployment info

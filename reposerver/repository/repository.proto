@@ -31,7 +31,7 @@ message EnvParamsRequest {
 }
 
 message EnvParamsResponse {
-  string params = 1;
+  map<string, string> params = 1;
 }
 
 // ManifestService
