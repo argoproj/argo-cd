@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -117,7 +118,11 @@ func (k *ksonnetApp) ListEnvParams(environment string) (map[string]interface{}, 
 			continue
 		}
 		fields := strings.Fields(row)
-		param, value := fields[1], fields[2]
+		param, rawValue := fields[1], fields[2]
+		value, err := strconv.Unquote(rawValue)
+		if err != nil {
+			value = rawValue
+		}
 		params[param] = value
 	}
 	return params, nil
