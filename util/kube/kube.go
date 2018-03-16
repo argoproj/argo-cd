@@ -84,6 +84,40 @@ func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, 
 	return liveObj, nil
 }
 
+// DeleteResourceWithLabel delete all resources which match to specified label selector
+func DeleteResourceWithLabel(config *rest.Config, namespace string, labelSelector string) error {
+	dynClientPool := dynamic.NewDynamicClientPool(config)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return err
+	}
+	resources, err := disco.ServerResources()
+	if err != nil {
+		return err
+	}
+	for _, apiResourcesList := range resources {
+		for _, apiResource := range apiResourcesList.APIResources {
+			deleteSupported := false
+			for _, verb := range apiResource.Verbs {
+				if verb == "deletecollection" {
+					deleteSupported = true
+				}
+			}
+			if deleteSupported {
+				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
+				if err != nil {
+					return err
+				}
+				err = dclient.Resource(&apiResource, namespace).DeleteCollection(&metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: labelSelector})
+				if err != nil && !apierr.IsNotFound(err) {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // GetLiveResources returns the corresponding live resource from a list of resources
 func GetLiveResources(config *rest.Config, objs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
 	liveObjs := make([]*unstructured.Unstructured, len(objs))

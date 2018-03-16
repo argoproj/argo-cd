@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -19,6 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	apiv1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
@@ -75,9 +77,24 @@ func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Appli
 }
 
 // Delete removes an application and all associated resources
-func (s *Server) Delete(ctx context.Context, q *ApplicationQuery) (*ApplicationResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*ApplicationResponse, error) {
 	err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
-	return &ApplicationResponse{}, err
+	if err != nil && !apierr.IsNotFound(err) {
+		return nil, err
+	}
+	if q.Server != "" && q.Namespace != "" {
+		cluster, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: q.Server})
+		if err != nil {
+			return nil, err
+		}
+		config := cluster.RESTConfig()
+		err = kube.DeleteResourceWithLabel(config, q.Namespace, fmt.Sprintf("%s=%s", common.LabelApplicationName, q.Name))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ApplicationResponse{}, nil
 }
 
 // ListPods returns pods in a application

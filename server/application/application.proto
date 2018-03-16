@@ -19,6 +19,12 @@ message ApplicationQuery {
 
 message ApplicationResponse {}
 
+message DeleteApplicationRequest {
+	string name = 1;
+	string namespace = 2;
+	string server = 3;
+}
+
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	string name = 1;
@@ -94,7 +100,7 @@ service ApplicationService {
 	}
 
 	// Delete deletes an application
-	rpc Delete(ApplicationQuery) returns (ApplicationResponse) {
+	rpc Delete(DeleteApplicationRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
 	}
 

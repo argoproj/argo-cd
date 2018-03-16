@@ -219,7 +219,7 @@ func NewApplicationRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
-				_, err := appIf.Delete(context.Background(), &application.ApplicationQuery{Name: appName})
+				_, err := appIf.Delete(context.Background(), &application.DeleteApplicationRequest{Name: appName})
 				errors.CheckError(err)
 			}
 		},
