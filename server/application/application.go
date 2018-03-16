@@ -141,7 +141,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 
 	// set fields in v1alpha/types.go
-	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.GetEnvParamsRequest{
+	/*deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.GetEnvParamsRequest{
 		Environment: app.Spec.Source.Environment,
 	}) //  environment.app.(ksonnetApp)
 	if err != nil {
@@ -153,7 +153,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		if err != nil {
 			return nil, err
 		}
-	}
+	}*/
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:        repo,

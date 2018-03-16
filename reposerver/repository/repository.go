@@ -34,6 +34,7 @@ func NewService(namespace string, kubeClient kubernetes.Interface, gitClient git
 	}
 }
 
+// GenerateManifest generate a manifest for application in specified repo name and revision
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
 	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
 	s.repoLock.Lock(appRepoPath)
