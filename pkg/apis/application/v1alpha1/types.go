@@ -12,6 +12,11 @@ import (
 )
 
 type DeploymentInfo struct {
+	ContainerPort int
+	ServicePort   int
+	Replicas      int
+	Image         string
+	Type          string
 }
 
 // Application is a definition of Application resource.
