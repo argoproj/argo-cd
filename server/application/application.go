@@ -154,11 +154,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		return nil, err
 	}
 
-	err = json.Unmarshal([]byte(deploymentInfo.Params), &app.Status.RecentDeployment.Params)
-	if err != nil {
-		return nil, err
-	}
-
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:        repo,
 		Environment: app.Spec.Source.Environment,
@@ -222,6 +217,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 			}
 		}
 		syncRes.Resources = append(syncRes.Resources, &resDetails)
+	}
+
+	err = json.Unmarshal([]byte(deploymentInfo.Params), &app.Status.RecentDeployment.Params)
+	if err != nil {
+		return nil, err
 	}
 
 	// Persist app deployment info
