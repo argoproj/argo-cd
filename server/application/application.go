@@ -120,8 +120,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		return nil, err
 	}
 
-	app.Status.RecentDeployment = DeploymentInfo{}
-
 	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: app.Spec.Source.RepoURL})
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
@@ -140,6 +138,21 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	revision := syncReq.Revision
 	if revision == "" {
 		revision = app.Spec.Source.TargetRevision
+	}
+
+	// set fields in v1alpha/types.go
+	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.GetEnvParamsRequest{
+		Environment: app.Spec.Source.Environment,
+	}) //  environment.app.(ksonnetApp)
+	if err != nil {
+		app.Status.RecentDeployment = deploymentInfo
+
+		// Persist app deployment info
+		appClient := s.appclientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+		_, err = appClient.Update(app)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
