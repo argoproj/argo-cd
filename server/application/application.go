@@ -83,11 +83,11 @@ func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*Appl
 		return nil, err
 	}
 	if q.Server != "" && q.Namespace != "" {
-		cluster, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: q.Server})
+		clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: q.Server})
 		if err != nil {
 			return nil, err
 		}
-		config := cluster.RESTConfig()
+		config := clst.RESTConfig()
 		err = kube.DeleteResourceWithLabel(config, q.Namespace, fmt.Sprintf("%s=%s", common.LabelApplicationName, q.Name))
 		if err != nil {
 			return nil, err
@@ -164,7 +164,46 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if revision == "" {
 		app.Spec.Source.TargetRevision = revision
 	}
-	return s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, nil, syncReq.DryRun)
+
+	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(conn)
+	// set fields in v1alpha/types.go
+	log.Infof("Retrieving deployment params for application %s", syncReq.Name)
+	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
+		Repo:        repo,
+		Environment: app.Spec.Source.Environment,
+		Path:        app.Spec.Source.Path,
+		Revision:    revision,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Received deployment params: %s", deploymentInfo.Params)
+
+	res, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, nil, syncReq.DryRun)
+	if err == nil {
+		// Persist app deployment info
+		app.Status.RecentDeployment.Params = deploymentInfo.Params
+		_, err = s.Update(ctx, app)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, err
+}
+
+func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository {
+	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: repoURL})
+	if err != nil {
+		// If we couldn't retrieve from the repo service, assume public repositories
+		repo = &appv1.Repository{Repo: repoURL}
+	}
+	return repo
 }
 
 func (s *Server) deploy(
@@ -175,35 +214,12 @@ func (s *Server) deploy(
 	inputFiles map[string]string,
 	dryRun bool) (*ApplicationSyncResult, error) {
 
-	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: source.RepoURL})
-	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &appv1.Repository{Repo: source.RepoURL}
-	}
-
+	repo := s.getRepo(ctx, source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(conn)
-
-	// set fields in v1alpha/types.go
-	log.Infof("Retrieving deployment params for application %s", syncReq.Name)
-	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
-		Repo:        repo,
-		Environment: app.Spec.Source.Environment,
-		Path:        app.Spec.Source.Path,
-		Revision:    revision,
-	})
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Received deployment params: %s", deploymentInfo.Params)
-	app.Status.RecentDeployment.Params = deploymentInfo.Params
-
-	if err != nil {
-		return nil, err
-	}
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:        repo,
@@ -271,13 +287,6 @@ func (s *Server) deploy(
 		}
 		syncRes.Resources = append(syncRes.Resources, &resDetails)
 	}
-
-	// Persist app deployment info
-	_, err = s.Update(ctx, app)
-	if err != nil {
-		return nil, err
-	}
-
 	syncRes.Message = "successfully synced"
 	return &syncRes, nil
 }
