@@ -41,6 +41,8 @@ service RepositoryService {
     // Generate manifest for application in specified repo name and revision
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
     }
+
+    // Retrieve Ksonnet environment params in specified repo name and revision
     rpc GetEnvParams(GetEnvParamsRequest) returns (GetEnvParamsResponse) {
     }
 }
