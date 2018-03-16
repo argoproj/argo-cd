@@ -60,7 +60,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", q.Environment)
 	}
 
-	targetObjs, err := ksApp.ListParams(q.Environment)
+	targetObjs, err := ksApp.Show(q.Environment)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", q.Environment)
 	}
 
-	targetObj, err := ksApp.ListEnvParams(q.Environment)
+	/*targetObj, err := ksApp.ListEnvParams(q.Environment)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,8 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 	paramsJSON, err := json.Marshal(targetObj.Object)
 	if err != nil {
 		return nil, err
-	}
+	}*/
+	paramsJSON := []byte(fmt.Sprintf("%v", env))
 
 	return &EnvParamsResponse{
 		Params: string(paramsJSON),

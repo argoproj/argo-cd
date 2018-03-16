@@ -45,3 +45,16 @@ func TestShow(t *testing.T) {
 		log.Infof("%v", string(jsonBytes))
 	}
 }
+
+func TestListEnvParams(t *testing.T) {
+	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
+	assert.Nil(t, err)
+	objs, err := ksApp.ListEnvParams(testEnvName)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(objs))
+	for _, obj := range objs {
+		jsonBytes, err := json.Marshal(obj)
+		assert.Nil(t, err)
+		log.Infof("%v", string(jsonBytes))
+	}
+}
