@@ -71,6 +71,8 @@ message ApplicationSpec {
 // ApplicationStatus contains information about application status in target environment.
 message ApplicationStatus {
   optional ComparisonResult comparisonResult = 1;
+
+  optional DeploymentInfo deploymentInfo = 2;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -136,6 +138,11 @@ message ComparisonResult {
   repeated ResourceState resources = 6;
 
   optional string error = 7;
+}
+
+// DeploymentInfo contains information relevant to an application deployment
+message DeploymentInfo {
+  map<string, string> params = 1;
 }
 
 // Repository is a Git repository holding application configurations
