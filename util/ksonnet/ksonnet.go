@@ -106,14 +106,16 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 }
 
 // Show generates a concatenated list of Kubernetes manifests in the given environment.
-func (k *ksonnetApp) ListEnvParams(environment string) (map[string]string, error) {
+func (k *ksonnetApp) ListEnvParams(environment string) (params map[string]string, err error) {
+	// count of rows to skip in command-line output
+	const skipRows = 2
 	out, err := k.ksCmd("param", "list", "--env", environment)
 	if err != nil {
-		return nil, err
+		return
 	}
-	rows := lineSeparator.Split(out, -1)[2:]
-	params := make(map[string]string)
-	for _, row := range rows[2:] {
+	params = make(map[string]string)
+	rows := lineSeparator.Split(out, -1)
+	for _, row := range rows[skipRows:] {
 		if strings.TrimSpace(row) == "" {
 			continue
 		}
@@ -125,5 +127,5 @@ func (k *ksonnetApp) ListEnvParams(environment string) (map[string]string, error
 		}
 		params[param] = value
 	}
-	return params, nil
+	return
 }
