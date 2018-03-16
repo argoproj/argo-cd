@@ -29,6 +29,7 @@ type KsonnetApp interface {
 
 	// Show returns a list of unstructured objects that would be applied to an environment
 	Show(environment string) ([]*unstructured.Unstructured, error)
+	ListEnvParams(environment string) (*unstructured.Unstructured, error)
 }
 
 type ksonnetApp struct {
@@ -36,6 +37,7 @@ type ksonnetApp struct {
 	app     app.App
 }
 
+// NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
 func NewKsonnetApp(path string) (KsonnetApp, error) {
 	ksApp := ksonnetApp{}
 	mgr, err := metadata.Find(path)
