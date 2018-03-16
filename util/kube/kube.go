@@ -101,6 +101,7 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelSelecto
 			for _, verb := range apiResource.Verbs {
 				if verb == "deletecollection" {
 					deleteSupported = true
+					break
 				}
 			}
 			if deleteSupported {
