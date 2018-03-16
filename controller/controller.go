@@ -114,16 +114,15 @@ func (ctrl *ApplicationController) processNextItem() bool {
 		updatedApp := app.DeepCopy()
 		status, err := ctrl.tryRefreshAppStatus(updatedApp)
 		if err != nil {
-			status = &appv1.ApplicationStatus{
-				ComparisonResult: appv1.ComparisonResult{
-					Status:     appv1.ComparisonStatusError,
-					Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
-					ComparedTo: app.Spec.Source,
-					ComparedAt: metav1.Time{Time: time.Now().UTC()},
-				},
+			updatedApp.Status.ComparisonResult = appv1.ComparisonResult{
+				Status:     appv1.ComparisonStatusError,
+				Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
+				ComparedTo: app.Spec.Source,
+				ComparedAt: metav1.Time{Time: time.Now().UTC()},
 			}
+		} else {
+			updatedApp.Status = *status
 		}
-		updatedApp.Status = *status
 		ctrl.persistApp(updatedApp)
 	}
 
