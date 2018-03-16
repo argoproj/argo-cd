@@ -99,22 +99,16 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 	if err != nil {
 		return nil, err
 	}
-	appSpec := ksApp.App()
-	env, err := appSpec.Environment(q.Environment)
-	if err != nil {
-		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", q.Environment)
-	}
 
-	/*targetObj, err := ksApp.ListEnvParams(q.Environment)
+	target, err := ksApp.ListEnvParams(q.Environment)
 	if err != nil {
 		return nil, err
 	}
 
-	paramsJSON, err := json.Marshal(targetObj.Object)
+	paramsJSON, err := json.Marshal(target.Object)
 	if err != nil {
 		return nil, err
-	}*/
-	paramsJSON := []byte(fmt.Sprintf("%v", env))
+	}
 
 	return &EnvParamsResponse{
 		Params: string(paramsJSON),
