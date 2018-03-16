@@ -142,22 +142,28 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 
 	// set fields in v1alpha/types.go
+	log.Infof("Retrieving deployment params for application %s", syncReq.Name)
 	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
 		Repo:        repo,
 		Environment: app.Spec.Source.Environment,
 		Path:        app.Spec.Source.Path,
 		Revision:    revision,
 	})
+
 	if err != nil {
-		err = json.Unmarshal([]byte(deploymentInfo.Params), &app.Status.RecentDeployment.Params)
-		if err != nil {
-			// Persist app deployment info
-			appClient := s.appclientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-			_, err = appClient.Update(app)
-			if err != nil {
-				return nil, err
-			}
-		}
+		return nil, err
+	}
+
+	err = json.Unmarshal([]byte(deploymentInfo.Params), &app.Status.RecentDeployment.Params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Persist app deployment info
+	appClient := s.appclientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+	_, err = appClient.Update(app)
+	if err != nil {
+		return nil, err
 	}
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
