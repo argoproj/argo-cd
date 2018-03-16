@@ -151,7 +151,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Received deployment params: %s", deploymentInfo)
+	log.Infof("Received deployment params: %s", deploymentInfo.Params)
 	app.Status.RecentDeployment.Params = deploymentInfo.Params
 
 	if err != nil {
