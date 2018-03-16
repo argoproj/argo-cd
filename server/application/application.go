@@ -149,6 +149,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		Path:        app.Spec.Source.Path,
 		Revision:    revision,
 	})
+	log.Infof("Received deployment params: %s", deploymentInfo)
 
 	if err != nil {
 		return nil, err
