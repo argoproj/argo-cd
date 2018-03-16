@@ -53,14 +53,16 @@ func TestListEnvParams(t *testing.T) {
 	params, err := ksApp.ListEnvParams(testEnvName)
 	assert.Nil(t, err)
 
-	expected := map[string]interface{}{
-		"name":        "demo",
-		"replicas":    int64(2),
-		"servicePort": int64(80),
-		"type":        "ClusterIP",
+	expected := map[string]string{
+		"containerPort": "80",
+		"image":         "gcr.io/kuar-demo/kuard-amd64:1",
+		"name":          "demo",
+		"replicas":      "2",
+		"servicePort":   "80",
+		"type":          "ClusterIP",
 	}
 
 	if !reflect.DeepEqual(expected, params) {
-		t.Errorf("Env param maps were not equal!  Expected (%v), got (%v).", expected, params)
+		t.Errorf("Env param maps were not equal!  Expected (%s), got (%s).", expected, params)
 	}
 }
