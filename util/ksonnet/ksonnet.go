@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -118,18 +117,7 @@ func (k *ksonnetApp) ListEnvParams(environment string) (map[string]interface{}, 
 			continue
 		}
 		fields := strings.Fields(row)
-		param, valueStr := fields[1], fields[2]
-		var value interface{}
-		// try 64-bit int, 64-bit float, bool, then default to string
-		if i, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
-			value = (interface{})(i)
-		} else if f, err := strconv.ParseFloat(valueStr, 64); err == nil {
-			value = interface{}(f)
-		} else if b, err := strconv.ParseBool(valueStr); err == nil {
-			value = interface{}(b)
-		} else if v, err := strconv.Unquote(valueStr); err == nil {
-			value = interface{}(v)
-		}
+		param, value := fields[1], fields[2]
 		params[param] = value
 	}
 	return params, nil

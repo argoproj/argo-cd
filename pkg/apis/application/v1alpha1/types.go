@@ -13,7 +13,7 @@ import (
 
 // DeploymentInfo contains information relevant to an application deployment
 type DeploymentInfo struct {
-	Params map[string]interface{} `json:"params" protobuf:"bytes,1,name=params"`
+	Params map[string]string `json:"params" protobuf:"bytes,1,name=params"`
 }
 
 // Application is a definition of Application resource.
