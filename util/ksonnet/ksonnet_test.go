@@ -3,6 +3,7 @@ package ksonnet
 import (
 	"encoding/json"
 	"path"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -49,12 +50,17 @@ func TestShow(t *testing.T) {
 func TestListEnvParams(t *testing.T) {
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	objs, err := ksApp.ListEnvParams(testEnvName)
+	obj, err := ksApp.ListEnvParams(testEnvName)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(objs))
-	for _, obj := range objs {
-		jsonBytes, err := json.Marshal(obj)
-		assert.Nil(t, err)
-		log.Infof("%v", string(jsonBytes))
+
+	expected := map[string]interface{}{
+		"name":        "demo",
+		"replicas":    int64(2),
+		"servicePort": int64(80),
+		"type":        "ClusterIP",
+	}
+
+	if !reflect.DeepEqual(expected, obj.Object) {
+		t.Errorf("Env param maps were not equal!  Expected (%v), got (%v).", expected, obj.Object)
 	}
 }
