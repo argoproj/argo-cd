@@ -299,6 +299,12 @@
   version = "v0.0.3"
 
 [[projects]]
+  name = "github.com/pborman/uuid"
+  packages = ["."]
+  revision = "e790cca94e6cc75c7064b1332e63811d4aae1a53"
+  version = "v1.1"
+
+[[projects]]
   branch = "master"
   name = "github.com/petar/GoLLRB"
   packages = ["llrb"]
@@ -618,6 +624,7 @@
     "pkg/util/net",
     "pkg/util/runtime",
     "pkg/util/sets",
+    "pkg/util/uuid",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
@@ -753,6 +760,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f1502665746a2148c56270e7a28dfbd393d56047b20dcee363c9e0202f651001"
+  inputs-digest = "683981f86c65c4c2871048e1305c2468fb7dea01ec6de3dbff52c932d8c2f803"
   solver-name = "gps-cdcl"
   solver-version = 1

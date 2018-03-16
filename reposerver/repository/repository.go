@@ -1,17 +1,19 @@
 package repository
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 
-	"fmt"
-
-	"encoding/json"
-
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"k8s.io/client-go/kubernetes"
 )
@@ -34,7 +36,24 @@ func NewService(namespace string, kubeClient kubernetes.Interface, gitClient git
 	}
 }
 
-// GenerateManifest generate a manifest for application in specified repo name and revision
+func (s *Service) createTempRepo(appRepoPath string, appPath string, sourceEnv string, files map[string]string) (string, error) {
+	tmpRepoPath, err := ioutil.TempDir("", "")
+	if err != nil {
+		return "", err
+	}
+	_, err = exec.Command("cp", "-r", appRepoPath+"/", tmpRepoPath).Output()
+	if err != nil {
+		return "", err
+	}
+	for file, content := range files {
+		err = ioutil.WriteFile(path.Join(tmpRepoPath, appPath, "environments", sourceEnv, file), []byte(content), 0644)
+		if err != nil {
+			return "", err
+		}
+	}
+	return tmpRepoPath, nil
+}
+
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
 	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
 	s.repoLock.Lock(appRepoPath)
@@ -50,6 +69,19 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, err
 	}
 	appPath := path.Join(appRepoPath, q.Path)
+	if q.InputFiles != nil && len(q.InputFiles) > 0 {
+		tempRepoPath, err := s.createTempRepo(appRepoPath, q.Path, q.Environment, q.InputFiles)
+		if err != nil {
+			return nil, err
+		}
+		appPath = path.Join(tempRepoPath, q.Path)
+		defer func() {
+			err := os.RemoveAll(tempRepoPath)
+			if err != nil {
+				log.Warningf("Unable to cleanup temp directory: %v", err)
+			}
+		}()
+	}
 	ksApp, err := ksutil.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, err
@@ -66,6 +98,14 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	manifests := make([]string, len(targetObjs))
 	for i, target := range targetObjs {
+		if q.AppLabel != "" {
+			labels := target.GetLabels()
+			if labels == nil {
+				labels = make(map[string]string)
+			}
+			labels[common.LabelApplicationName] = q.AppLabel
+			target.SetLabels(labels)
+		}
 		manifestStr, err := json.Marshal(target.Object)
 		if err != nil {
 			return nil, err
