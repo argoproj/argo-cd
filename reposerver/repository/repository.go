@@ -105,7 +105,7 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 		return nil, err
 	}
 
-	paramsJSON, err := json.Marshal(target.Object)
+	paramsJSON, err := json.Marshal(target)
 	if err != nil {
 		return nil, err
 	}

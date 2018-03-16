@@ -30,7 +30,7 @@ type KsonnetApp interface {
 
 	// Show returns a list of unstructured objects that would be applied to an environment
 	Show(environment string) ([]*unstructured.Unstructured, error)
-	ListEnvParams(environment string) (*unstructured.Unstructured, error)
+	ListEnvParams(environment string) (map[string]interface{}, error)
 }
 
 type ksonnetApp struct {
@@ -106,14 +106,13 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 }
 
 // Show generates a concatenated list of Kubernetes manifests in the given environment.
-func (k *ksonnetApp) ListEnvParams(environment string) (*unstructured.Unstructured, error) {
+func (k *ksonnetApp) ListEnvParams(environment string) (map[string]interface{}, error) {
 	out, err := k.ksCmd("param", "list", "--env", environment)
 	if err != nil {
 		return nil, err
 	}
 	rows := lineSeparator.Split(out, -1)[2:]
-	obj := new(unstructured.Unstructured)
-	obj.Object = make(map[string](interface{}))
+	params := make(map[string](interface{}))
 	for _, row := range rows[2:] {
 		if strings.TrimSpace(row) == "" {
 			continue
@@ -131,7 +130,7 @@ func (k *ksonnetApp) ListEnvParams(environment string) (*unstructured.Unstructur
 		} else if v, err := strconv.Unquote(valueStr); err == nil {
 			value = interface{}(v)
 		}
-		obj.Object[param] = value
+		params[param] = value
 	}
-	return obj, nil
+	return params, nil
 }

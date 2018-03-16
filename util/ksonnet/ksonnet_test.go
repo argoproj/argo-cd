@@ -50,7 +50,7 @@ func TestShow(t *testing.T) {
 func TestListEnvParams(t *testing.T) {
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	obj, err := ksApp.ListEnvParams(testEnvName)
+	params, err := ksApp.ListEnvParams(testEnvName)
 	assert.Nil(t, err)
 
 	expected := map[string]interface{}{
@@ -60,7 +60,7 @@ func TestListEnvParams(t *testing.T) {
 		"type":        "ClusterIP",
 	}
 
-	if !reflect.DeepEqual(expected, obj.Object) {
-		t.Errorf("Env param maps were not equal!  Expected (%v), got (%v).", expected, obj.Object)
+	if !reflect.DeepEqual(expected, params) {
+		t.Errorf("Env param maps were not equal!  Expected (%v), got (%v).", expected, params)
 	}
 }
