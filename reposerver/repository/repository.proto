@@ -23,14 +23,14 @@ message ManifestResponse {
     string server = 3;
 }
 
-message GetEnvParamsRequest {
+message EnvParamsRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
     string path = 3;
     string environment = 4;
 }
 
-message GetEnvParamsResponse {
+message EnvParamsResponse {
   repeated string params = 1;
   repeated string values = 2;
 }
@@ -43,6 +43,6 @@ service RepositoryService {
     }
 
     // Retrieve Ksonnet environment params in specified repo name and revision
-    rpc GetEnvParams(GetEnvParamsRequest) returns (GetEnvParamsResponse) {
+    rpc GetEnvParams(EnvParamsRequest) returns (EnvParamsResponse) {
     }
 }
