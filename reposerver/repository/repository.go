@@ -60,7 +60,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", q.Environment)
 	}
 
-	targetObjs, err := ksApp.Show(q.Environment)
+	targetObjs, err := ksApp.ListParams(q.Environment)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 
 // GetEnvParams retrieves Ksonnet environment params in specified repo name and revision
 func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvParamsResponse, error) {
-	/*appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
+	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
 	s.repoLock.Lock(appRepoPath)
 	defer s.repoLock.Unlock(appRepoPath)
 
@@ -105,20 +105,17 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", q.Environment)
 	}
 
-	targetObjs, err := ksApp.Show(q.Environment)
+	targetObj, err := ksApp.ListEnvParams(q.Environment)
 	if err != nil {
 		return nil, err
 	}
-	manifests := make([]string, len(targetObjs))
-	for i, target := range targetObjs {
-		manifestStr, err := json.Marshal(target.Object)
-		if err != nil {
-			return nil, err
-		}
-		manifests[i] = string(manifestStr)
-	}*/
+
+	paramsJSON, err := json.Marshal(targetObj.Object)
+	if err != nil {
+		return nil, err
+	}
+
 	return &EnvParamsResponse{
-		Params: []string{"hello", "world"},
-		Values: []string{"argo", "cd"},
+		Params: string(paramsJSON),
 	}, nil
 }

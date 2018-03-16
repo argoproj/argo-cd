@@ -31,8 +31,7 @@ message EnvParamsRequest {
 }
 
 message EnvParamsResponse {
-  repeated string params = 1;
-  repeated string values = 2;
+  string params = 1;
 }
 
 // ManifestService
