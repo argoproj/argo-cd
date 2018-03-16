@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	diffSeparator = regexp.MustCompile("\\n---")
-	lineSeparator = regexp.MustCompile("\\n")
+	diffSeparator = regexp.MustCompile(`\n---`)
+	lineSeparator = regexp.MustCompile(`\n`)
 )
 
 // KsonnetApp represents a ksonnet application directory and provides wrapper functionality around
