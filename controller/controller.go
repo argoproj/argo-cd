@@ -173,9 +173,9 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 		return nil, err
 	}
 	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
-	return &appv1.ApplicationStatus{
-		ComparisonResult: *comparisonResult,
-	}, nil
+	newStatus := app.Status
+	newStatus.ComparisonResult = *comparisonResult
+	return &newStatus, nil
 }
 
 func (ctrl *ApplicationController) runWorker() {
