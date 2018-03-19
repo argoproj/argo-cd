@@ -50,8 +50,8 @@ func (s *Server) List(ctx context.Context, q *ConfigMapQuery) (*appsv1.ConfigMap
 	if err != nil {
 		return nil, err
 	}
-	repoList := appsv1.RepositoryList{
-		Items: make([]appsv1.Repository, len(repoSecrets.Items)),
+	repoList := appsv1.ConfigMapList{
+		Items: make([]appsv1.ConfigMap, len(repoSecrets.Items)),
 	}
 	for i, repoSec := range repoSecrets.Items {
 		repoList.Items[i] = *secretToRepo(&repoSec)
@@ -101,7 +101,7 @@ func (s *Server) getRepoSecret(repo string) (*apiv1.Secret, error) {
 }
 
 // Get returns a repository by URL
-func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, error) {
+func (s *Server) Get(ctx context.Context, q *ConfigMapQuery) (*appsv1.Repository, error) {
 	repoSecret, err := s.getRepoSecret(q.Repo)
 	if err != nil {
 		return nil, err
@@ -133,10 +133,10 @@ func (s *Server) UpdateREST(ctx context.Context, r *RepoUpdateRequest) (*appsv1.
 }
 
 // Delete updates a repository
-func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *ConfigMapQuery) (*ConfigMapResponse, error) {
 	secName := repoURLToSecretName(q.Repo)
 	err := s.kubeclientset.CoreV1().Secrets(s.ns).Delete(secName, &metav1.DeleteOptions{})
-	return &RepoResponse{}, err
+	return &ConfigMapResponse{}, err
 }
 
 // repoURLToSecretName hashes repo URL to the secret name using a formula.
