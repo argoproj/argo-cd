@@ -1,9 +1,9 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/server/repository";
+option go_package = "github.com/argoproj/argo-cd/server/configmap";
 
-// Repository Service
+// ConfigMap Service
 //
-// Repository Service API performs CRUD actions against repository resources 
+// ConfigMap Service API performs CRUD actions against ConfigMap resources 
 package configmap;
 
 import "gogoproto/gogo.proto";
@@ -34,7 +34,7 @@ service ConfigMapService {
   }
 
   // Create creates a ConfigMap
-  rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigMap) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+  rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigMap) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigMap) {
     option (google.api.http) = {
       post: "/api/v1/configmaps"
       body: "*"
