@@ -65,8 +65,10 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
-			// Install RBAC resources for managing the cluster
-			conf.BearerToken = common.InstallClusterManagerRBAC(conf)
+			if conf.Username == "" || conf.Password == "" {
+				// Install RBAC resources for managing the cluster if username and password are not specified
+				conf.BearerToken = common.InstallClusterManagerRBAC(conf)
+			}
 
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
