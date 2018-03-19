@@ -14,6 +14,9 @@ const (
 
 	// SecretTypeCluster indicates a secret type of cluster
 	SecretTypeCluster = "cluster"
+
+	// SecretTypePassword indicates a password
+	SecretTypePassword = "password"
 )
 
 var (
