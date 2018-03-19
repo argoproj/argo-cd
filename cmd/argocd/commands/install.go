@@ -28,6 +28,7 @@ func NewInstallCommand() *cobra.Command {
 	}
 	command.Flags().BoolVar(&installOpts.Upgrade, "upgrade", false, "upgrade controller/ui deployments and configmap if already installed")
 	command.Flags().BoolVar(&installOpts.DryRun, "dry-run", false, "print the kubernetes manifests to stdout instead of installing")
+	command.Flags().StringVar(&installOpts.configMap, "config-map", "", "apply settings from a Kubernetes config map")
 	command.Flags().StringVar(&installOpts.Namespace, "install-namespace", install.DefaultInstallNamespace, "install into a specific namespace")
 	command.Flags().StringVar(&installOpts.ControllerImage, "controller-image", install.DefaultControllerImage, "use a specified controller image")
 	command.Flags().StringVar(&installOpts.ServerImage, "server-image", install.DefaultServerImage, "use a specified api server image")
