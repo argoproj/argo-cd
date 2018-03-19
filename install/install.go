@@ -37,9 +37,11 @@ var (
 	DefaultRepoServerImage  = imageNamespace + "/argocd-repo-server:" + imageTag
 )
 
+// InstallOptions stores a collection of installation settings.
 type InstallOptions struct {
 	DryRun          bool
 	Upgrade         bool
+	ConfigMap       string
 	Namespace       string
 	ControllerImage string
 	UIImage         string
@@ -74,6 +76,7 @@ func NewInstaller(config *rest.Config, opts InstallOptions) (*Installer, error) 
 
 func (i *Installer) Install() {
 	i.InstallNamespace()
+	i.InstallConfigMap()
 	i.InstallApplicationCRD()
 	i.InstallApplicationController()
 	i.InstallArgoCDServer()
@@ -166,6 +169,10 @@ func (i *Installer) InstallArgoCDRepoServer() {
 	argoCDRepoServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerControllerDeployment))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerService))
+}
+
+func (i *Installer) InstallConfigMap() {
+	// install configuration here
 }
 
 func (i *Installer) unmarshalManifest(fileName string, obj interface{}) {
