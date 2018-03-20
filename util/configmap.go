@@ -10,8 +10,8 @@ import (
 
 // ConfigMapManager holds config info for a new server with which to access Kubernetes ConfigMaps.
 type ConfigMapManager struct {
-	namespace     string
-	kubeclientset kubernetes.Interface
+	Namespace string
+	Clientset kubernetes.Interface
 }
 
 // NewConfigMapManager generates a new ConfigMapManager pointer and returns it
@@ -24,35 +24,35 @@ func NewConfigMapManager(namespace string, config *rest.Config) (server *ConfigM
 }
 
 // CreateConfigMap stores a new config map in Kubernetes.
-func (server *ConfigMapManager) CreateConfigMap(name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
+func (server *ConfigMapManager) Create(name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
 	newConfigMap := &apiv1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 		Data: value,
 	}
-	configMap, err = server.kubeclientset.CoreV1().ConfigMaps(server.namespace).Create(newConfigMap)
+	configMap, err = server.Clientset.CoreV1().ConfigMaps(server.Namespace).Create(newConfigMap)
 	return
 }
 
 // ReadConfigMap retrieves a config map from Kubernetes.
-func (server *ConfigMapManager) ReadConfigMap(name string) (configMap *apiv1.ConfigMap, err error) {
-	configMap, err = server.kubeclientset.CoreV1().ConfigMaps(server.namespace).Get(name, metav1.GetOptions{})
+func (server *ConfigMapManager) Read(name string) (configMap *apiv1.ConfigMap, err error) {
+	configMap, err = server.Clientset.CoreV1().ConfigMaps(server.Namespace).Get(name, metav1.GetOptions{})
 	return
 }
 
 // UpdateConfigMap overwrite-updates an existing config map in Kubernetes.  This overwrite is in contrast to the merge-update done for secrets.
-func (server *ConfigMapManager) UpdateConfigMap(name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
-	existingConfigMap, err := server.ReadConfigMap(name)
+func (server *ConfigMapManager) Update(name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
+	existingConfigMap, err := server.Read(name)
 	if err == nil {
 		existingConfigMap.Data = value
-		configMap, err = server.kubeclientset.CoreV1().ConfigMaps(server.namespace).Update(existingConfigMap)
+		configMap, err = server.Clientset.CoreV1().ConfigMaps(server.Namespace).Update(existingConfigMap)
 	}
 	return
 }
 
 // DeleteConfigMap removes a config map from Kubernetes.
-func (server *ConfigMapManager) DeleteConfigMap(name string) (err error) {
-	err = server.kubeclientset.CoreV1().ConfigMaps(server.namespace).Delete(name, &metav1.DeleteOptions{})
+func (server *ConfigMapManager) Delete(name string) (err error) {
+	err = server.Clientset.CoreV1().ConfigMaps(server.Namespace).Delete(name, &metav1.DeleteOptions{})
 	return
 }

@@ -65,12 +65,12 @@ func TestSecretManager(t *testing.T) {
 		t.Errorf("Could not create secret manager: %v", err)
 	}
 
-	secret, err = mgr.CreateSecret(secretName, secretData1, label)
+	secret, err = mgr.Create(secretName, secretData1, label)
 	if secretDataRetrieved := testConvertSecretStringData(secret); !reflect.DeepEqual(secretDataRetrieved, secretData1) {
 		t.Errorf("Err = %v; Created data did not match: had %v, wanted %v", err, secretDataRetrieved, secretData1)
 	}
 
-	secret, err = mgr.ReadSecret(secretName)
+	secret, err = mgr.Read(secretName)
 	if err != nil {
 		t.Errorf("Could not read secret: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestSecretManager(t *testing.T) {
 		t.Errorf("Read data did not match: had %v, wanted %v", secretDataRetrieved, secretData1)
 	}
 
-	secret, err = mgr.UpdateSecret(secretName, secretData2)
+	secret, err = mgr.Update(secretName, secretData2)
 	if err != nil {
 		t.Errorf("Could not update secret: %v", err)
 	}
@@ -87,15 +87,15 @@ func TestSecretManager(t *testing.T) {
 		t.Errorf("Updated data did not match: had %v, wanted %v", secretDataRetrieved, secretData1)
 	}
 
-	err = mgr.DeleteSecret(secretName)
+	err = mgr.Delete(secretName)
 	if err != nil {
 		t.Errorf("Could not delete secret: %v", err)
 	}
 
-	secret, err = mgr.ReadSecret(secretName)
+	secret, err = mgr.Read(secretName)
 	if err == nil {
 		secretDataRetrieved := testConvertSecretStringData(secret)
 		t.Errorf("Read data did not match: had %v, wanted nil for name %s and label %s; trying again, but it may need to be deleted manually", secretDataRetrieved, secretName, label)
-		_ = mgr.DeleteSecret(secretName)
+		_ = mgr.Delete(secretName)
 	}
 }
