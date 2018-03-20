@@ -42,7 +42,7 @@ func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey strin
 			if err != nil {
 				return "", nil, err
 			}
-			env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s", sshFile.Name()))
+			env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i %s", sshFile.Name()))
 		}
 	} else {
 		env = append(env, "GIT_ASKPASS=")
