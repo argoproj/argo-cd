@@ -24,7 +24,7 @@ func NewSecretManager(namespace string, config *rest.Config) (server *SecretMana
 	return
 }
 
-// CreateSecret stores a new secret in Kubernetes.  Set secretType to "" for no label.
+// Create stores a new secret in Kubernetes.  Set secretType to "" for no label.
 func (server *SecretManager) Create(name string, value map[string]string, secretType string) (secret *apiv1.Secret, err error) {
 	labels := make(map[string]string)
 	if secretType != "" {
@@ -41,13 +41,13 @@ func (server *SecretManager) Create(name string, value map[string]string, secret
 	return
 }
 
-// ReadSecret retrieves a secret from Kubernetes.
+// Read retrieves a secret from Kubernetes.
 func (server *SecretManager) Read(name string) (secret *apiv1.Secret, err error) {
 	secret, err = server.Clientset.CoreV1().Secrets(server.Namespace).Get(name, metav1.GetOptions{})
 	return
 }
 
-// UpdateSecret merge-updates an existing secret in Kubernetes.  This merge-update is in contrast to the overwrite-update done for config maps.
+// Update merge-updates an existing secret in Kubernetes.  This merge-update is in contrast to the overwrite-update done for config maps.
 func (server *SecretManager) Update(name string, value map[string]string) (secret *apiv1.Secret, err error) {
 	existingSecret, err := server.Read(name)
 	if err == nil {
@@ -57,7 +57,7 @@ func (server *SecretManager) Update(name string, value map[string]string) (secre
 	return
 }
 
-// DeleteSecret removes a secret from Kubernetes.
+// Delete removes a secret from Kubernetes.
 func (server *SecretManager) Delete(name string) (err error) {
 	err = server.Clientset.CoreV1().Secrets(server.Namespace).Delete(name, &metav1.DeleteOptions{})
 	return

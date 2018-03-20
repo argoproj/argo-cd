@@ -23,7 +23,7 @@ func NewConfigMapManager(namespace string, config *rest.Config) (server *ConfigM
 	return
 }
 
-// CreateConfigMap stores a new config map in Kubernetes.
+// Create stores a new config map in Kubernetes.
 func (server *ConfigMapManager) Create(name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
 	newConfigMap := &apiv1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -35,13 +35,13 @@ func (server *ConfigMapManager) Create(name string, value map[string]string) (co
 	return
 }
 
-// ReadConfigMap retrieves a config map from Kubernetes.
+// Read retrieves a config map from Kubernetes.
 func (server *ConfigMapManager) Read(name string) (configMap *apiv1.ConfigMap, err error) {
 	configMap, err = server.Clientset.CoreV1().ConfigMaps(server.Namespace).Get(name, metav1.GetOptions{})
 	return
 }
 
-// UpdateConfigMap overwrite-updates an existing config map in Kubernetes.  This overwrite is in contrast to the merge-update done for secrets.
+// Update overwrite-updates an existing config map in Kubernetes.  This overwrite is in contrast to the merge-update done for secrets.
 func (server *ConfigMapManager) Update(name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
 	existingConfigMap, err := server.Read(name)
 	if err == nil {
@@ -51,7 +51,7 @@ func (server *ConfigMapManager) Update(name string, value map[string]string) (co
 	return
 }
 
-// DeleteConfigMap removes a config map from Kubernetes.
+// Delete removes a config map from Kubernetes.
 func (server *ConfigMapManager) Delete(name string) (err error) {
 	err = server.Clientset.CoreV1().ConfigMaps(server.Namespace).Delete(name, &metav1.DeleteOptions{})
 	return
