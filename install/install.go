@@ -147,14 +147,18 @@ func (i *Installer) InstallArgoCDServer() {
 	i.unmarshalManifest("03b_argocd-server-role.yaml", &argoCDServerControllerRole)
 	i.unmarshalManifest("03c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
 	i.unmarshalManifest("03d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
-	// Use a Kubernetes ConfigMap, if provided.
-	argoCDServerControllerDeployment.Spec.ConfigMap = i.InstallOptions.ConfigMap
 
 	i.unmarshalManifest("03e_argocd-server-service.yaml", &argoCDServerService)
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.UIImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
+	// Use a Kubernetes ConfigMap, if provided.
+	if i.InstallOptions.ConfigMap != "" {
+		container := &argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0]
+
+		container.Command = append(container.Command, "--config-map", i.InstallOptions.ConfigMap)
+	}
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRoleBinding))
