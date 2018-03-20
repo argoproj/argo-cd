@@ -18,10 +18,9 @@ type SecretManager struct {
 // NewSecretManager generates a new SecretManager pointer and returns it
 func NewSecretManager(namespace string, config *rest.Config) (server *SecretManager, err error) {
 	kubeclientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return
+	if err == nil {
+		server = &SecretManager{namespace, kubeclientset}
 	}
-	server = &SecretManager{namespace, kubeclientset}
 	return
 }
 

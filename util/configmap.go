@@ -17,10 +17,9 @@ type ConfigMapManager struct {
 // NewConfigMapManager generates a new ConfigMapManager pointer and returns it
 func NewConfigMapManager(namespace string, config *rest.Config) (server *ConfigMapManager, err error) {
 	kubeclientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return
+	if err == nil {
+		server = &ConfigMapManager{namespace, kubeclientset}
 	}
-	server = &ConfigMapManager{namespace, kubeclientset}
 	return
 }
 
