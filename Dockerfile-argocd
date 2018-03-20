@@ -45,8 +45,7 @@ ARG MAKE_TARGET
 WORKDIR /root/go/src/github.com/argoproj/argo-cd
 COPY . .
 RUN make ${MAKE_TARGET}
-RUN rm -rf /root/go/src/github.com/ksonnet/ksonnet && \
-    go get -u github.com/ksonnet/ksonnet
+RUN wget https://github.com/ksonnet/ksonnet/releases/download/v0.9.1/ks_0.9.1_linux_amd64.tar.gz && tar -C /tmp/ -xf ks_0.9.1_linux_amd64.tar.gz
 
 FROM debian:9.3
 RUN apt-get update && apt-get install -y git && \
@@ -54,7 +53,7 @@ RUN apt-get update && apt-get install -y git && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 ARG BINARY
 COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/${BINARY} /${BINARY}
-COPY --from=builder /root/go/bin/ksonnet /usr/local/bin/ks
+COPY --from=builder /tmp/ks_0.9.1_linux_amd64/ks /usr/local/bin/ks
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=root
 ENV BINARY=$BINARY

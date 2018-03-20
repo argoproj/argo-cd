@@ -41,10 +41,11 @@ func (s *Service) createTempRepo(appRepoPath string, appPath string, sourceEnv s
 	if err != nil {
 		return "", err
 	}
-	_, err = exec.Command("cp", "-r", appRepoPath+"/", tmpRepoPath).Output()
+	_, err = exec.Command("cp", "-r", appRepoPath, tmpRepoPath).Output()
 	if err != nil {
 		return "", err
 	}
+	tmpRepoPath = path.Join(tmpRepoPath, path.Base(appRepoPath))
 	for file, content := range files {
 		err = ioutil.WriteFile(path.Join(tmpRepoPath, appPath, "environments", sourceEnv, file), []byte(content), 0644)
 		if err != nil {
@@ -84,7 +85,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	ksApp, err := ksutil.NewKsonnetApp(appPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load application from %s: %v", appPath, err)
 	}
 	appSpec := ksApp.App()
 	env, err := appSpec.Environment(q.Environment)
