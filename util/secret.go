@@ -9,24 +9,24 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// secretManager holds config info for a new server with which to access secrets
-type secretManager struct {
+// SecretManager holds config info for a new server with which to access Kubernetes Secrets.
+type SecretManager struct {
 	namespace     string
 	kubeclientset kubernetes.Interface
 }
 
-// NewSecretManager generates a new secretManager pointer and returns it
-func NewSecretManager(namespace string, config *rest.Config) (server *secretManager, err error) {
+// NewSecretManager generates a new SecretManager pointer and returns it
+func NewSecretManager(namespace string, config *rest.Config) (server *SecretManager, err error) {
 	kubeclientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return
 	}
-	server = &secretManager{namespace, kubeclientset}
+	server = &SecretManager{namespace, kubeclientset}
 	return
 }
 
 // CreateSecret stores a new secret in Kubernetes.  Set secretType to "" for no label.
-func (server *secretManager) CreateSecret(name string, value map[string]string, secretType string) (secret *apiv1.Secret, err error) {
+func (server *SecretManager) CreateSecret(name string, value map[string]string, secretType string) (secret *apiv1.Secret, err error) {
 	labels := make(map[string]string)
 	if secretType != "" {
 		labels[common.LabelKeySecretType] = secretType
@@ -43,13 +43,13 @@ func (server *secretManager) CreateSecret(name string, value map[string]string, 
 }
 
 // ReadSecret retrieves a secret from Kubernetes.
-func (server *secretManager) ReadSecret(name string) (secret *apiv1.Secret, err error) {
+func (server *SecretManager) ReadSecret(name string) (secret *apiv1.Secret, err error) {
 	secret, err = server.kubeclientset.CoreV1().Secrets(server.namespace).Get(name, metav1.GetOptions{})
 	return
 }
 
 // UpdateSecret updates an existing secret in Kubernetes.
-func (server *secretManager) UpdateSecret(name string, value map[string]string) (secret *apiv1.Secret, err error) {
+func (server *SecretManager) UpdateSecret(name string, value map[string]string) (secret *apiv1.Secret, err error) {
 	existingSecret, err := server.ReadSecret(name)
 	if err == nil {
 		existingSecret.StringData = value
@@ -59,7 +59,7 @@ func (server *secretManager) UpdateSecret(name string, value map[string]string) 
 }
 
 // DeleteSecret removes a secret from Kubernetes.
-func (server *secretManager) DeleteSecret(name string) (err error) {
+func (server *SecretManager) DeleteSecret(name string) (err error) {
 	err = server.kubeclientset.CoreV1().Secrets(server.namespace).Delete(name, &metav1.DeleteOptions{})
 	return
 }
