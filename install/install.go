@@ -3,6 +3,7 @@ package install
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -155,8 +156,9 @@ func (i *Installer) InstallArgoCDServer() {
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	// Use a Kubernetes ConfigMap, if provided.
 	if i.InstallOptions.ConfigMap != "" {
+		configMap := strconv.Quote(i.InstallOptions.ConfigMap)
 		container := &argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0]
-		container.Command = append(container.Command, "--config-map", i.InstallOptions.ConfigMap)
+		container.Command = append(container.Command, "--config-map", configMap)
 	}
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
