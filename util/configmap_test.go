@@ -42,19 +42,19 @@ func TestConfigMapManager(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create config map manager: %v", err)
 	}
-	configmap, err := mgr.CreateConfigMap(configMapName, configMapData1)
-	if err != nil || !reflect.DeepEqual(configmap.Data, configMapData1) {
-		t.Errorf("Err = %v; Created data did not match: had %v, wanted %v", err, configmap, configMapData1)
+	configMap, err := mgr.CreateConfigMap(configMapName, configMapData1)
+	if err != nil || !reflect.DeepEqual(configMap.Data, configMapData1) {
+		t.Errorf("Err = %v; Created data did not match: had %v, wanted %v", err, configMap.Data, configMapData1)
 	}
 
-	configmap, err = mgr.ReadConfigMap(configMapName)
-	if err != nil || !reflect.DeepEqual(configmap.Data, configMapData1) {
-		t.Errorf("Err = %v; Read data did not match: had %v, wanted %v", err, configmap, configMapData1)
+	configMap, err = mgr.ReadConfigMap(configMapName)
+	if err != nil || !reflect.DeepEqual(configMap.Data, configMapData1) {
+		t.Errorf("Err = %v; Read data did not match: had %v, wanted %v", err, configMap.Data, configMapData1)
 	}
 
-	configmap, err = mgr.UpdateConfigMap(configMapName, configMapData2)
-	if err != nil || !reflect.DeepEqual(configmap.Data, configMapData2) {
-		t.Errorf("Err = %v; Read data did not match: had %v, wanted %v", err, configmap, configMapData1)
+	configMap, err = mgr.UpdateConfigMap(configMapName, configMapData2)
+	if err != nil || !reflect.DeepEqual(configMap.Data, configMapData2) {
+		t.Errorf("Err = %v; Updated data did not match: had %v, wanted %v", err, configMap.Data, configMapData1)
 	}
 
 	err = mgr.DeleteConfigMap(configMapName)
@@ -62,9 +62,9 @@ func TestConfigMapManager(t *testing.T) {
 		t.Errorf("Err = %v", err)
 	}
 
-	configmap, err = mgr.ReadConfigMap(configMapName)
+	configMap, err = mgr.ReadConfigMap(configMapName)
 	if err == nil {
-		t.Errorf("Err = %v; Read data did not match: had %v, wanted nil; trying again, but it may need to be deleted manually", err, configmap)
+		t.Errorf("Err = %v; Read data did not match: had %v, wanted nil; trying again, but it may need to be deleted manually", err, configMap.Data)
 		_ = mgr.DeleteConfigMap(configMapName)
 	}
 }

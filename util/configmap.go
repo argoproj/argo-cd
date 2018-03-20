@@ -41,7 +41,7 @@ func (server *ConfigMapManager) ReadConfigMap(name string) (configMap *apiv1.Con
 	return
 }
 
-// UpdateConfigMap updates an existing config map in Kubernetes.
+// UpdateConfigMap overwrite-updates an existing config map in Kubernetes.  This overwrite is in contrast to the merge-update done for secrets.
 func (server *ConfigMapManager) UpdateConfigMap(name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
 	existingConfigMap, err := server.ReadConfigMap(name)
 	if err == nil {

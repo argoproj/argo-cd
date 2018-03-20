@@ -35,8 +35,8 @@ func (server *SecretManager) CreateSecret(name string, value map[string]string, 
 			Name:   name,
 			Labels: labels,
 		},
-		StringData: value,
 	}
+	newSecret.StringData = value
 	secret, err = server.kubeclientset.CoreV1().Secrets(server.namespace).Create(newSecret)
 	return
 }
@@ -47,7 +47,7 @@ func (server *SecretManager) ReadSecret(name string) (secret *apiv1.Secret, err 
 	return
 }
 
-// UpdateSecret updates an existing secret in Kubernetes.
+// UpdateSecret merge-updates an existing secret in Kubernetes.  This merge-update is in contrast to the overwrite-update done for config maps.
 func (server *SecretManager) UpdateSecret(name string, value map[string]string) (secret *apiv1.Secret, err error) {
 	existingSecret, err := server.ReadSecret(name)
 	if err == nil {
