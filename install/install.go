@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
@@ -77,7 +76,6 @@ func NewInstaller(config *rest.Config, opts InstallOptions) (*Installer, error) 
 
 func (i *Installer) Install() {
 	i.InstallNamespace()
-	i.InstallConfigMap()
 	i.InstallApplicationCRD()
 	i.InstallApplicationController()
 	i.InstallArgoCDServer()
@@ -149,6 +147,9 @@ func (i *Installer) InstallArgoCDServer() {
 	i.unmarshalManifest("03b_argocd-server-role.yaml", &argoCDServerControllerRole)
 	i.unmarshalManifest("03c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
 	i.unmarshalManifest("03d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
+	// Use a Kubernetes ConfigMap, if provided.
+	argoCDServerControllerDeployment.ConfigMap = i.InstallOptions.ConfigMap
+
 	i.unmarshalManifest("03e_argocd-server-service.yaml", &argoCDServerService)
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.UIImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
@@ -170,13 +171,6 @@ func (i *Installer) InstallArgoCDRepoServer() {
 	argoCDRepoServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerControllerDeployment))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerService))
-}
-
-func (i *Installer) InstallConfigMap() (err error) {
-	// install configuration here
-	config := i.config
-	server, err := util.NewSecretServer("namespace", config)
-	fmt.Println("HELLO, WORLD!")
 }
 
 func (i *Installer) unmarshalManifest(fileName string, obj interface{}) {
