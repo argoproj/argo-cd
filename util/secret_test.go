@@ -95,7 +95,7 @@ func TestSecretManager(t *testing.T) {
 	secret, err = mgr.ReadSecret(secretName)
 	if err == nil {
 		secretDataRetrieved := testConvertSecretStringData(secret)
-		t.Errorf("Read data did not match: had %v, wanted nil; trying again, but it may need to be deleted manually", secretDataRetrieved)
+		t.Errorf("Read data did not match: had %v, wanted nil for name %s and label %s; trying again, but it may need to be deleted manually", secretDataRetrieved, secretName, label)
 		_ = mgr.DeleteSecret(secretName)
 	}
 }

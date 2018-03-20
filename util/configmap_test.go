@@ -64,7 +64,7 @@ func TestConfigMapManager(t *testing.T) {
 
 	configMap, err = mgr.ReadConfigMap(configMapName)
 	if err == nil {
-		t.Errorf("Err = %v; Read data did not match: had %v, wanted nil; trying again, but it may need to be deleted manually", err, configMap.Data)
+		t.Errorf("Read data did not match: had %v, wanted nil for name %s; trying again, but it may need to be deleted manually", configMap.Data, configMapName)
 		_ = mgr.DeleteConfigMap(configMapName)
 	}
 }
