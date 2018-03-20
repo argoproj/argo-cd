@@ -148,7 +148,7 @@ func (i *Installer) InstallArgoCDServer() {
 	i.unmarshalManifest("03c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
 	i.unmarshalManifest("03d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
 	// Use a Kubernetes ConfigMap, if provided.
-	argoCDServerControllerDeployment.ConfigMap = i.InstallOptions.ConfigMap
+	argoCDServerControllerDeployment.Spec.ConfigMap = i.InstallOptions.ConfigMap
 
 	i.unmarshalManifest("03e_argocd-server-service.yaml", &argoCDServerService)
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.UIImage
