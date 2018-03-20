@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
@@ -171,8 +172,11 @@ func (i *Installer) InstallArgoCDRepoServer() {
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerService))
 }
 
-func (i *Installer) InstallConfigMap() {
+func (i *Installer) InstallConfigMap() (err error) {
 	// install configuration here
+	config := i.config
+	server, err := util.NewSecretServer("namespace", config)
+	fmt.Println("HELLO, WORLD!")
 }
 
 func (i *Installer) unmarshalManifest(fileName string, obj interface{}) {
