@@ -32,15 +32,15 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		needClone = err != nil
 	}
 
+	repoURL, env, err := GetGitCommandEnvAndURL(repo, username, password, sshPrivateKey)
+	if err != nil {
+		return err
+	}
+
 	if needClone {
 		_, err := exec.Command("rm", "-rf", repoPath).Output()
 		if err != nil {
 			return fmt.Errorf("unable to clean repo cache at %s: %v", repoPath, err)
-		}
-
-		repoURL, env, err := GetGitCommandEnvAndURL(repo, username, password, sshPrivateKey)
-		if err != nil {
-			return err
 		}
 
 		log.Infof("Cloning %s to %s", repo, repoPath)
@@ -54,6 +54,7 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		log.Infof("Fetching %s", repo)
 		// Fetch remote changes and delete all local branches
 		cmd := exec.Command("sh", "-c", "git fetch --all && git checkout --detach HEAD")
+		cmd.Env = env
 		cmd.Dir = repoPath
 		_, err := cmd.Output()
 		if err != nil {
