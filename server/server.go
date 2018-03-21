@@ -37,8 +37,18 @@ var (
 )
 
 // ArgoCDServerConfig holds in-memory runtime configuration options.
-type ArgoCDServerConfig struct {
+type ArgoCDServerSettings struct {
 	AdminPasswordSecretName string
+}
+
+func makeSettingsFromConfigMap(configMap *apiv1.ConfigMap) (settings ArgoCDServerSettings) {
+	if configMap != nil {
+		adminPasswordSecretName, ok := configMap.Data["adminPasswordSecretName"]
+		if ok {
+			settings.AdminPasswordSecretName = adminPasswordSecretName
+		}
+	}
+	return
 }
 
 // ArgoCDServer is the API server for ArgoCD
@@ -48,17 +58,20 @@ type ArgoCDServer struct {
 	kubeclientset   kubernetes.Interface
 	appclientset    appclientset.Interface
 	repoclientset   reposerver.Clientset
-	configuration   ArgoCDServerConfig
+	settings        ArgoCDServerSettings
 	log             *log.Entry
 }
 
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(
 	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace, staticAssetsDir, configMapName string) *ArgoCDServer {
-	var configMap apiv1.ConfigMap
+	var configMap *apiv1.ConfigMap
 	if configMapName != "" {
 		configManager := util.NewConfigManager(kubeclientset)
-		configMap := configManager.Get(namespace, configMapName)
+		configMap, err := configManager.ReadConfigMap(namespace, configMapName)
+		if err != nil {
+			log.Warnf("Could not read config map with name \"%s\"; proceeding with default settings.  Error: %v", configMap, err)
+		}
 	}
 	return &ArgoCDServer{
 		ns:              namespace,
@@ -67,7 +80,7 @@ func NewServer(
 		repoclientset:   repoclientset,
 		log:             log.NewEntry(log.New()),
 		staticAssetsDir: staticAssetsDir,
-		configMap:       configMap,
+		settings:        makeSettingsFromConfigMap(configMap),
 	}
 }
 
