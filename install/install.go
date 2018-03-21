@@ -148,7 +148,6 @@ func (i *Installer) InstallArgoCDServer() {
 	i.unmarshalManifest("03b_argocd-server-role.yaml", &argoCDServerControllerRole)
 	i.unmarshalManifest("03c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
 	i.unmarshalManifest("03d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
-
 	i.unmarshalManifest("03e_argocd-server-service.yaml", &argoCDServerService)
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.UIImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
