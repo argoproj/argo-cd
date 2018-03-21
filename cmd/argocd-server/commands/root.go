@@ -19,6 +19,7 @@ func NewCommand() *cobra.Command {
 		clientConfig      clientcmd.ClientConfig
 		staticAssetsDir   string
 		repoServerAddress string
+		configMapName     string
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -48,6 +49,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
+	command.Flags().StringVar(&configMapName, "config-map", "", "Name of a Kubernetes config map to use.")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	return command
 }
