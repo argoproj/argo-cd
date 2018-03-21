@@ -40,7 +40,7 @@ func NewCommand() *cobra.Command {
 			appclientset := appclientset.NewForConfigOrDie(config)
 			repoclientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
 
-			argocd := server.NewServer(kubeclientset, appclientset, repoclientset, namespace, staticAssetsDir)
+			argocd := server.NewServer(kubeclientset, appclientset, repoclientset, namespace, staticAssetsDir, configMapName)
 			argocd.Run()
 		},
 	}
