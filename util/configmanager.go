@@ -10,7 +10,7 @@ import (
 
 // ConfigManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type ConfigManager struct {
-	Clientset kubernetes.Interface
+	clientset kubernetes.Interface
 }
 
 // NewConfigManager generates a new ConfigManager pointer and returns it
@@ -30,13 +30,13 @@ func (mgr *ConfigManager) CreateConfigMap(namespace, name string, value map[stri
 		},
 		Data: value,
 	}
-	configMap, err = mgr.Clientset.CoreV1().ConfigMaps(namespace).Create(newConfigMap)
+	configMap, err = mgr.clientset.CoreV1().ConfigMaps(namespace).Create(newConfigMap)
 	return
 }
 
 // ReadConfigMap retrieves a config map from Kubernetes.
 func (mgr *ConfigManager) ReadConfigMap(namespace, name string) (configMap *apiv1.ConfigMap, err error) {
-	configMap, err = mgr.Clientset.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	configMap, err = mgr.clientset.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
 	return
 }
 
@@ -45,13 +45,13 @@ func (mgr *ConfigManager) UpdateConfigMap(namespace, name string, value map[stri
 	existingConfigMap, err := mgr.ReadConfigMap(namespace, name)
 	if err == nil {
 		existingConfigMap.Data = value
-		configMap, err = mgr.Clientset.CoreV1().ConfigMaps(namespace).Update(existingConfigMap)
+		configMap, err = mgr.clientset.CoreV1().ConfigMaps(namespace).Update(existingConfigMap)
 	}
 	return
 }
 
 // DeleteConfigMap removes a config map from Kubernetes.
 func (mgr *ConfigManager) DeleteConfigMap(namespace, name string) (err error) {
-	err = mgr.Clientset.CoreV1().ConfigMaps(namespace).Delete(name, &metav1.DeleteOptions{})
+	err = mgr.clientset.CoreV1().ConfigMaps(namespace).Delete(name, &metav1.DeleteOptions{})
 	return
 }
