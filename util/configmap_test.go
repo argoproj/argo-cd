@@ -20,7 +20,7 @@ func makeTestConfigMapClientConfig() (config *rest.Config, err error) {
 	return
 }
 
-func TestConfigMapClientsetWrapper(t *testing.T) {
+func TestConfigManager(t *testing.T) {
 	const namespace = "default"
 	configMapName := uuid.New()
 	configMapData1 := map[string]string{
@@ -37,33 +37,33 @@ func TestConfigMapClientsetWrapper(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create test client config: %v", err)
 	}
-	mgr, err := NewConfigMapClientsetWrapper(config)
+	mgr, err := NewConfigManager(config)
 	if err != nil {
 		t.Errorf("Could not create config map manager: %v", err)
 	}
-	configMap, err := mgr.Create(namespace, configMapName, configMapData1)
+	configMap, err := mgr.CreateConfigMap(namespace, configMapName, configMapData1)
 	if err != nil || !reflect.DeepEqual(configMap.Data, configMapData1) {
 		t.Errorf("Err = %v; Created data did not match: had %v, wanted %v", err, configMap.Data, configMapData1)
 	}
 
-	configMap, err = mgr.Read(namespace, configMapName)
+	configMap, err = mgr.ReadConfigMap(namespace, configMapName)
 	if err != nil || !reflect.DeepEqual(configMap.Data, configMapData1) {
 		t.Errorf("Err = %v; Read data did not match: had %v, wanted %v", err, configMap.Data, configMapData1)
 	}
 
-	configMap, err = mgr.Update(namespace, configMapName, configMapData2)
+	configMap, err = mgr.UpdateConfigMap(namespace, configMapName, configMapData2)
 	if err != nil || !reflect.DeepEqual(configMap.Data, configMapData2) {
 		t.Errorf("Err = %v; Updated data did not match: had %v, wanted %v", err, configMap.Data, configMapData1)
 	}
 
-	err = mgr.Delete(namespace, configMapName)
+	err = mgr.DeleteConfigMap(namespace, configMapName)
 	if err != nil {
 		t.Errorf("Err = %v", err)
 	}
 
-	configMap, err = mgr.Read(namespace, configMapName)
+	configMap, err = mgr.ReadConfigMap(namespace, configMapName)
 	if err == nil {
 		t.Errorf("Read data did not match: had %v, wanted nil for name %s; trying again, but it may need to be deleted manually", configMap.Data, configMapName)
-		_ = mgr.Delete(namespace, configMapName)
+		_ = mgr.DeleteConfigMap(namespace, configMapName)
 	}
 }
