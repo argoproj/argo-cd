@@ -1,6 +1,7 @@
 package util
 
 import (
+	"github.com/argoproj/argo-cd/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -55,5 +56,50 @@ func (mgr *ConfigManager) UpdateConfigMap(namespace, name string, value map[stri
 // DeleteConfigMap removes a config map from Kubernetes.
 func (mgr *ConfigManager) DeleteConfigMap(namespace, name string) (err error) {
 	err = mgr.clientset.CoreV1().ConfigMaps(namespace).Delete(name, &metav1.DeleteOptions{})
+	return
+}
+
+// ListSecrets returns a list of existing config maps.
+func (mgr *ConfigManager) ListSecrets(namespace string) (secrets *apiv1.SecretList, err error) {
+	secrets, err = mgr.clientset.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
+	return
+}
+
+// CreateSecret stores a new secret in Kubernetes.  Set secretType to "" for no label.
+func (mgr *ConfigManager) CreateSecret(namespace, name string, value map[string]string, secretType string) (secret *apiv1.Secret, err error) {
+	labels := make(map[string]string)
+	if secretType != "" {
+		labels[common.LabelKeySecretType] = secretType
+	}
+	newSecret := &apiv1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
+		},
+	}
+	newSecret.StringData = value
+	secret, err = mgr.clientset.CoreV1().Secrets(namespace).Create(newSecret)
+	return
+}
+
+// Read retrieves a secret from Kubernetes.
+func (mgr *ConfigManager) ReadSecret(namespace, name string) (secret *apiv1.Secret, err error) {
+	secret, err = mgr.clientset.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+	return
+}
+
+// UpdateSecret merge-updates an existing secret in Kubernetes.  This merge-update is in contrast to the overwrite-update done for config maps.
+func (mgr *ConfigManager) UpdateSecret(namespace, name string, value map[string]string) (secret *apiv1.Secret, err error) {
+	existingSecret, err := mgr.ReadSecret(namespace, name)
+	if err == nil {
+		existingSecret.StringData = value
+		secret, err = mgr.clientset.CoreV1().Secrets(namespace).Update(existingSecret)
+	}
+	return
+}
+
+// DeleteSecret removes a secret from Kubernetes.
+func (mgr *ConfigManager) DeleteSecret(namespace, name string) (err error) {
+	err = mgr.clientset.CoreV1().Secrets(namespace).Delete(name, &metav1.DeleteOptions{})
 	return
 }
