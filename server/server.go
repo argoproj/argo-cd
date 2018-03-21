@@ -36,6 +36,11 @@ var (
 	endpoint = fmt.Sprintf("localhost:%d", port)
 )
 
+// ArgoCDServerConfig holds in-memory runtime configuration options.
+type ArgoCDServerConfig struct {
+	AdminPasswordSecretName string
+}
+
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
 	ns              string
@@ -43,7 +48,7 @@ type ArgoCDServer struct {
 	kubeclientset   kubernetes.Interface
 	appclientset    appclientset.Interface
 	repoclientset   reposerver.Clientset
-	configMap       apiv1.ConfigMap
+	configuration   ArgoCDServerConfig
 	log             *log.Entry
 }
 
@@ -52,7 +57,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace, staticAssetsDir, configMapName string) *ArgoCDServer {
 	var configMap apiv1.ConfigMap
 	if configMapName != "" {
-		configManager := util.ConfigManager{kubeclientset}
+		configManager := util.NewConfigManager(kubeclientset)
 		configMap := configManager.Get(namespace, configMapName)
 	}
 	return &ArgoCDServer{

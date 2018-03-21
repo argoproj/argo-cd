@@ -7,18 +7,21 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 
 	"github.com/pborman/uuid"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 // makeTestConfigMapClientConfig creates an empty client config to use for K8s API calls
 // TODO (@merenbach): make this more general for use in other tests
-func makeTestConfigMapClientConfig() (config *rest.Config, err error) {
+func makeTestConfigManagerClientset() (clientset kubernetes.Interface, err error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
 	configRaw := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &overrides)
-	config, err = configRaw.ClientConfig()
+	config, err := configRaw.ClientConfig()
+	if err == nil {
+		clientset, err = kubernetes.NewForConfig(config)
+	}
 	return
 }
 
@@ -40,14 +43,11 @@ func TestConfigManager(t *testing.T) {
 		configMaps *apiv1.ConfigMapList
 	)
 
-	config, err := makeTestConfigMapClientConfig()
+	clientset, err := makeTestConfigManagerClientset()
 	if err != nil {
 		t.Errorf("Could not create test client config: %v", err)
 	}
-	mgr, err := NewConfigManager(config)
-	if err != nil {
-		t.Errorf("Could not create config map manager: %v", err)
-	}
+	mgr := NewConfigManager(clientset)
 	configMap, err = mgr.CreateConfigMap(namespace, configMapName, configMapData1)
 	if err != nil || !reflect.DeepEqual(configMap.Data, configMapData1) {
 		t.Errorf("Err = %v; Created data did not match: had %v, wanted %v", err, configMap.Data, configMapData1)

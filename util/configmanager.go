@@ -5,7 +5,6 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 // ConfigManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -14,11 +13,8 @@ type ConfigManager struct {
 }
 
 // NewConfigManager generates a new ConfigManager pointer and returns it
-func NewConfigManager(config *rest.Config) (mgr *ConfigManager, err error) {
-	kubeclientset, err := kubernetes.NewForConfig(config)
-	if err == nil {
-		mgr = &ConfigManager{kubeclientset}
-	}
+func NewConfigManager(clientset kubernetes.Interface) (mgr *ConfigManager) {
+	mgr = &ConfigManager{clientset}
 	return
 }
 
