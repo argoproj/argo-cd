@@ -156,7 +156,7 @@ func (i *Installer) InstallArgoCDServer() {
 	// Use a Kubernetes ConfigMap, if provided.
 	if i.InstallOptions.ConfigMap != "" {
 		configMap := strconv.Quote(i.InstallOptions.ConfigMap)
-		container := &argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0]
+		container := &argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0]
 		container.Command = append(container.Command, "--config-map", configMap)
 	}
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
