@@ -22,6 +22,12 @@ func NewConfigManager(config *rest.Config) (mgr *ConfigManager, err error) {
 	return
 }
 
+// ListConfigMaps returns a list of existing config maps.
+func (mgr *ConfigManager) ListConfigMaps(namespace string) (configMaps *apiv1.ConfigMapList, err error) {
+	configMaps, err = mgr.clientset.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
+	return
+}
+
 // CreateConfigMap stores a new config map in Kubernetes.
 func (mgr *ConfigManager) CreateConfigMap(namespace, name string, value map[string]string) (configMap *apiv1.ConfigMap, err error) {
 	newConfigMap := &apiv1.ConfigMap{
