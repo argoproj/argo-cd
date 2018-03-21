@@ -52,7 +52,8 @@ func NewServer(
 	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace, staticAssetsDir, configMapName string) *ArgoCDServer {
 	var configMap apiv1.ConfigMap
 	if configMapName != "" {
-		configMap := (&util.ConfigMapClientsetWrapper{kubeclientset}).Get(namespace, configMapName)
+		configManager := util.ConfigManager{kubeclientset}
+		configMap := configManager.Get(namespace, configMapName)
 	}
 	return &ArgoCDServer{
 		ns:              namespace,
