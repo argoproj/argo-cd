@@ -24,7 +24,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
-	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,20 +35,6 @@ var (
 	endpoint = fmt.Sprintf("localhost:%d", port)
 )
 
-// ArgoCDServerSettings holds in-memory runtime configuration options.
-type ArgoCDServerSettings struct {
-	AdminPasswordSecretName string
-}
-
-func makeSettingsFromConfigMap(configMap *apiv1.ConfigMap) (settings ArgoCDServerSettings) {
-	const adminPasswordKeyName = "adminPasswordSecretName"
-	adminPasswordSecretName, ok := configMap.Data[adminPasswordKeyName]
-	if ok {
-		settings.AdminPasswordSecretName = adminPasswordSecretName
-	}
-	return
-}
-
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
 	ns              string
@@ -57,23 +42,14 @@ type ArgoCDServer struct {
 	kubeclientset   kubernetes.Interface
 	appclientset    appclientset.Interface
 	repoclientset   reposerver.Clientset
-	settings        ArgoCDServerSettings
+	settings        util.ArgoCDSettings
 	log             *log.Entry
 }
 
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(
 	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace, staticAssetsDir, configMapName string) *ArgoCDServer {
-	var settings ArgoCDServerSettings
-	if configMapName != "" {
-		configManager := util.NewConfigManager(kubeclientset)
-		configMap, err := configManager.ReadConfigMap("default", configMapName)
-		if err != nil {
-			log.Warnf("Could not read config map with name \"%s\"; proceeding with default settings.  Error: %v", configMapName, err)
-		} else {
-			settings = makeSettingsFromConfigMap(configMap)
-		}
-	}
+	configManager := util.NewConfigManager(kubeclientset, namespace, configMapName)
 	return &ArgoCDServer{
 		ns:              namespace,
 		kubeclientset:   kubeclientset,
@@ -81,7 +57,7 @@ func NewServer(
 		repoclientset:   repoclientset,
 		log:             log.NewEntry(log.New()),
 		staticAssetsDir: staticAssetsDir,
-		settings:        settings,
+		settings:        configManager.GetSettings(),
 	}
 }
 
