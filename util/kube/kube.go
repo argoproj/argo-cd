@@ -109,7 +109,10 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelSelecto
 				if err != nil {
 					return err
 				}
-				err = dclient.Resource(&apiResource, namespace).DeleteCollection(&metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: labelSelector})
+				propagationPolicy := metav1.DeletePropagationForeground
+				err = dclient.Resource(&apiResource, namespace).DeleteCollection(&metav1.DeleteOptions{
+					PropagationPolicy: &propagationPolicy,
+				}, metav1.ListOptions{LabelSelector: labelSelector})
 				if err != nil && !apierr.IsNotFound(err) {
 					return err
 				}
