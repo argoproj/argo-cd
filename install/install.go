@@ -3,6 +3,7 @@ package install
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -37,9 +38,11 @@ var (
 	DefaultRepoServerImage  = imageNamespace + "/argocd-repo-server:" + imageTag
 )
 
+// InstallOptions stores a collection of installation settings.
 type InstallOptions struct {
 	DryRun          bool
 	Upgrade         bool
+	ConfigMap       string
 	Namespace       string
 	ControllerImage string
 	UIImage         string
@@ -150,6 +153,12 @@ func (i *Installer) InstallArgoCDServer() {
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
+	// Use a Kubernetes ConfigMap, if provided.
+	if i.InstallOptions.ConfigMap != "" {
+		configMap := strconv.Quote(i.InstallOptions.ConfigMap)
+		container := &argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0]
+		container.Command = append(container.Command, "--config-map", configMap)
+	}
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRoleBinding))

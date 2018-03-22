@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/version"
+	"github.com/argoproj/argo-cd/util"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -41,12 +42,14 @@ type ArgoCDServer struct {
 	kubeclientset   kubernetes.Interface
 	appclientset    appclientset.Interface
 	repoclientset   reposerver.Clientset
+	settings        util.ArgoCDSettings
 	log             *log.Entry
 }
 
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(
-	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace string, staticAssetsDir string) *ArgoCDServer {
+	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace, staticAssetsDir, configMapName string) *ArgoCDServer {
+	configManager := util.NewConfigManager(kubeclientset, namespace, configMapName)
 	return &ArgoCDServer{
 		ns:              namespace,
 		kubeclientset:   kubeclientset,
@@ -54,6 +57,7 @@ func NewServer(
 		repoclientset:   repoclientset,
 		log:             log.NewEntry(log.New()),
 		staticAssetsDir: staticAssetsDir,
+		settings:        configManager.GetSettings(),
 	}
 }
 
