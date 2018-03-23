@@ -171,15 +171,15 @@ func (i *Installer) InstallArgoCDServer() {
 		}
 		secretName = strings.Trim(secretName, "\n")
 
-		// Namespace this input inside a self-executing anonymous function to ensure that the raw password isn't accidentally used elsewhere
-		rootUsername, rootHashedPassword := func() (username, hashedPassword string) {
-			fmt.Print("*** Please enter a superuser username: ")
-			username, err := inputReader.ReadString('\n')
-			if err != nil {
-				log.Fatal(err)
-			}
-			username = strings.Trim(username, "\n")
+		fmt.Print("*** Please enter a superuser username: ")
+		rootUsername, err := inputReader.ReadString('\n')
+		if err != nil {
+			log.Fatal(err)
+		}
+		rootUsername = strings.Trim(rootUsername, "\n")
 
+		// Namespace this input inside a self-executing anonymous function to ensure that the raw password isn't accidentally used elsewhere
+		rootHashedPassword := func() (hashedPassword string) {
 			fmt.Print("*** Please enter a superuser password: ")
 			rawPassword, err := terminal.ReadPassword(syscall.Stdin)
 			if err != nil {
