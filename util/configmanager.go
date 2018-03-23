@@ -9,8 +9,21 @@ import (
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
-	AdminPassword string
+
+	// LocalUsers holds users local to (stored on) the server.  This is to be distinguished from any potential alternative future login providers (LDAP, SAML, etc.) that might ever be added.
+	LocalUsers map[string]string
 }
+
+const (
+	// rootCredentialsSecretNameKey designates the name of the config map field holding the name of a Kubernetes secret.
+	rootCredentialsSecretNameKey = "rootCredentialsSecretName"
+
+	// ConfigManagerRootUsernameKey designates the root username inside a Kubernetes secret.
+	ConfigManagerRootUsernameKey = "root.username"
+
+	// ConfigManagerRootPasswordKey designates the root password inside a Kubernetes secret.
+	ConfigManagerRootPasswordKey = "root.password"
+)
 
 // ConfigManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type ConfigManager struct {
@@ -21,17 +34,23 @@ type ConfigManager struct {
 
 // GetSettings retrieves settings from the ConfigManager.
 func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings) {
-	const (
-		adminPasswordKeyName   = "adminPasswordSecretName"
-		adminPasswordValueName = "admin.password"
-	)
+	settings.LocalUsers = make(map[string]string)
+
 	configMap, err := mgr.readConfigMap(mgr.configMapName)
 	if err == nil {
-		adminPasswordSecretName, ok := configMap.Data[adminPasswordKeyName]
+		// Try to retrieve the name of a Kubernetes secret holding root credentials
+		rootCredentialsSecretName, ok := configMap.Data[rootCredentialsSecretNameKey]
 		if ok {
-			adminPassword, err := mgr.readSecret(adminPasswordSecretName)
+			// Try to retrieve the secret
+			rootCredentials, err := mgr.readSecret(rootCredentialsSecretName)
 			if err == nil {
-				settings.AdminPassword = string(adminPassword.Data[adminPasswordValueName])
+				// Retrieve credential info from the secret
+				rootUsername, okUsername := rootCredentials.Data[ConfigManagerRootUsernameKey]
+				rootPassword, okPassword := rootCredentials.Data[ConfigManagerRootPasswordKey]
+				if okUsername && okPassword {
+					// Store credential info inside LocalUsers
+					settings.LocalUsers[string(rootUsername)] = string(rootPassword)
+				}
 			}
 		}
 	}

@@ -1,19 +1,25 @@
 package install
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr"
 	"github.com/yudai/gojsondiff/formatter"
+	"golang.org/x/crypto/ssh/terminal"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	apiv1 "k8s.io/api/core/v1"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
@@ -42,6 +49,7 @@ var (
 type InstallOptions struct {
 	DryRun          bool
 	Upgrade         bool
+	CreateSuperuser bool
 	ConfigMap       string
 	Namespace       string
 	ControllerImage string
@@ -153,6 +161,62 @@ func (i *Installer) InstallArgoCDServer() {
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
+	if i.InstallOptions.CreateSuperuser {
+		inputReader := bufio.NewReader(os.Stdin)
+
+		fmt.Print("*** Please enter the name of a Kubernetes secret to store the user data: ")
+		secretName, err := inputReader.ReadString('\n')
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Print("*** Please enter a superuser username: ")
+		username, err := inputReader.ReadString('\n')
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Print("*** Please enter a superuser password: ")
+		adminPassword, err := terminal.ReadPassword(syscall.Stdin)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		hashedPassword, err := util.HashPassword(string(adminPassword))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		kubeclientset, err := kubernetes.NewForConfig(i.config)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		superuserCredentials := map[string]string{
+			util.ConfigManagerRootUsernameKey: username,
+			util.ConfigManagerRootPasswordKey: hashedPassword,
+		}
+		secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(secretName, metav1.GetOptions{})
+		if err != nil {
+			newSecret := &apiv1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: secretName,
+				},
+			}
+			newSecret.StringData = superuserCredentials
+			_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Create(newSecret)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+		} else {
+			secret.StringData = superuserCredentials
+			_, err := kubeclientset.CoreV1().Secrets(i.Namespace).Update(secret)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 	// Use a Kubernetes ConfigMap, if provided.
 	if i.InstallOptions.ConfigMap != "" {
 		configMap := strconv.Quote(i.InstallOptions.ConfigMap)
