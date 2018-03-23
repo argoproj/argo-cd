@@ -33,26 +33,36 @@ type ConfigManager struct {
 }
 
 // GetSettings retrieves settings from the ConfigManager.
-func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings) {
+func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings, err error) {
+	configMap, err := mgr.readConfigMap(mgr.configMapName)
+	if err != nil {
+		return
+	}
+
+	// Try to retrieve the name of a Kubernetes secret holding root credentials
+	rootCredentialsSecretName, ok := configMap.Data[rootCredentialsSecretNameKey]
+
+	if !ok {
+		return
+	}
+
+	// Try to retrieve the secret
+	rootCredentials, err := mgr.readSecret(rootCredentialsSecretName)
+
+	if err != nil {
+		return
+	}
+
+	// No more errors, so let's populate the struct
 	settings.LocalUsers = make(map[string]string)
 
-	configMap, err := mgr.readConfigMap(mgr.configMapName)
-	if err == nil {
-		// Try to retrieve the name of a Kubernetes secret holding root credentials
-		rootCredentialsSecretName, ok := configMap.Data[rootCredentialsSecretNameKey]
-		if ok {
-			// Try to retrieve the secret
-			rootCredentials, err := mgr.readSecret(rootCredentialsSecretName)
-			if err == nil {
-				// Retrieve credential info from the secret
-				rootUsername, okUsername := rootCredentials.Data[ConfigManagerRootUsernameKey]
-				rootPassword, okPassword := rootCredentials.Data[ConfigManagerRootPasswordKey]
-				if okUsername && okPassword {
-					// Store credential info inside LocalUsers
-					settings.LocalUsers[string(rootUsername)] = string(rootPassword)
-				}
-			}
-		}
+	// Retrieve credential info from the secret
+	rootUsername, okUsername := rootCredentials.Data[ConfigManagerRootUsernameKey]
+	rootPassword, okPassword := rootCredentials.Data[ConfigManagerRootPasswordKey]
+
+	if okUsername && okPassword {
+		// Store credential info inside LocalUsers
+		settings.LocalUsers[string(rootUsername)] = string(rootPassword)
 	}
 	return
 }

@@ -50,6 +50,10 @@ type ArgoCDServer struct {
 func NewServer(
 	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace, staticAssetsDir, configMapName string) *ArgoCDServer {
 	configManager := util.NewConfigManager(kubeclientset, namespace, configMapName)
+	settings, err := configManager.GetSettings()
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &ArgoCDServer{
 		ns:              namespace,
 		kubeclientset:   kubeclientset,
@@ -57,7 +61,7 @@ func NewServer(
 		repoclientset:   repoclientset,
 		log:             log.NewEntry(log.New()),
 		staticAssetsDir: staticAssetsDir,
-		settings:        configManager.GetSettings(),
+		settings:        settings,
 	}
 }
 
