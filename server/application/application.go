@@ -1,9 +1,7 @@
 package application
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -16,7 +14,6 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/pborman/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	apiv1 "k8s.io/api/core/v1"
@@ -132,27 +129,6 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	return nil
 }
 
-func (s *Server) DeployEphemeral(ctx context.Context, req *DeployEphemeralRequest) (*DeployEphemeralResponse, error) {
-	appName := "app-" + strings.ToLower(uuid.NewRandom().String())
-	if req.InputFiles == nil {
-		req.InputFiles = make(map[string]string)
-	}
-	envFileData, err := json.Marshal(map[string]string{"id": appName})
-	if err != nil {
-		return nil, err
-	}
-	req.InputFiles["env.libsonnet"] = string(envFileData)
-	deployResult, err := s.deploy(ctx, *req.Source, req.Destination, appName, req.InputFiles, req.DryRun)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DeployEphemeralResponse{
-		AppName:      appName,
-		DeployResult: deployResult,
-	}, nil
-}
-
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ApplicationSyncResult, error) {
 	log.Infof("Syncing application %s", syncReq.Name)
@@ -185,7 +161,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	}
 	log.Infof("Received deployment params: %s", deploymentInfo.Params)
 
-	res, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, nil, syncReq.DryRun)
+	res, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, syncReq.DryRun)
 	if err == nil {
 		// Persist app deployment info
 		app.Status.RecentDeployment.Params = deploymentInfo.Params
@@ -211,7 +187,6 @@ func (s *Server) deploy(
 	source appv1.ApplicationSource,
 	destination *appv1.ApplicationDestination,
 	appLabel string,
-	inputFiles map[string]string,
 	dryRun bool) (*ApplicationSyncResult, error) {
 
 	repo := s.getRepo(ctx, source.RepoURL)
@@ -220,14 +195,21 @@ func (s *Server) deploy(
 		return nil, err
 	}
 	defer util.Close(conn)
+	overrides := make([]*appv1.ComponentParameterOverride, len(source.ComponentParameterOverrides))
+	if source.ComponentParameterOverrides != nil {
+		for i := range source.ComponentParameterOverrides {
+			item := source.ComponentParameterOverrides[i]
+			overrides[i] = &item
+		}
+	}
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
-		Repo:        repo,
-		Environment: source.Environment,
-		Path:        source.Path,
-		Revision:    source.TargetRevision,
-		InputFiles:  inputFiles,
-		AppLabel:    appLabel,
+		Repo:                        repo,
+		Environment:                 source.Environment,
+		Path:                        source.Path,
+		Revision:                    source.TargetRevision,
+		ComponentParameterOverrides: overrides,
+		AppLabel:                    appLabel,
 	})
 	if err != nil {
 		return nil, err
