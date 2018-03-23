@@ -169,12 +169,14 @@ func (i *Installer) InstallArgoCDServer() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		secretName = strings.Trim(secretName, "\n")
 
 		fmt.Print("*** Please enter a superuser username: ")
-		username, err := inputReader.ReadString('\n')
+		adminUsername, err := inputReader.ReadString('\n')
 		if err != nil {
 			log.Fatal(err)
 		}
+		adminUsername = strings.Trim(adminUsername, "\n")
 
 		fmt.Print("*** Please enter a superuser password: ")
 		adminPassword, err := terminal.ReadPassword(syscall.Stdin)
@@ -192,8 +194,8 @@ func (i *Installer) InstallArgoCDServer() {
 			log.Fatal(err)
 		}
 
-		superuserCredentials := map[string]string{
-			util.ConfigManagerRootUsernameKey: username,
+		adminCredentials := map[string]string{
+			util.ConfigManagerRootUsernameKey: adminUsername,
 			util.ConfigManagerRootPasswordKey: hashedPassword,
 		}
 		secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(secretName, metav1.GetOptions{})
@@ -203,14 +205,14 @@ func (i *Installer) InstallArgoCDServer() {
 					Name: secretName,
 				},
 			}
-			newSecret.StringData = superuserCredentials
+			newSecret.StringData = adminCredentials
 			_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Create(newSecret)
 			if err != nil {
 				log.Fatal(err)
 			}
 
 		} else {
-			secret.StringData = superuserCredentials
+			secret.StringData = adminCredentials
 			_, err := kubeclientset.CoreV1().Secrets(i.Namespace).Update(secret)
 			if err != nil {
 				log.Fatal(err)
