@@ -28,7 +28,7 @@ func NewInstallCommand() *cobra.Command {
 	}
 	command.Flags().BoolVar(&installOpts.Upgrade, "upgrade", false, "upgrade controller/ui deployments and configmap if already installed")
 	command.Flags().BoolVar(&installOpts.DryRun, "dry-run", false, "print the kubernetes manifests to stdout instead of installing")
-	command.Flags().BoolVar(&installOpts.CreateSuperuser, "create-superuser", false, "create or update a superuser username and password")
+	command.Flags().BoolVar(&installOpts.ConfigSuperuser, "config-superuser", false, "create or update a superuser username and password")
 	command.Flags().StringVar(&installOpts.ConfigMap, "config-map", "", "apply settings from a Kubernetes config map")
 	command.Flags().StringVar(&installOpts.Namespace, "install-namespace", install.DefaultInstallNamespace, "install into a specific namespace")
 	command.Flags().StringVar(&installOpts.ControllerImage, "controller-image", install.DefaultControllerImage, "use a specified controller image")

@@ -49,7 +49,7 @@ var (
 type InstallOptions struct {
 	DryRun          bool
 	Upgrade         bool
-	CreateSuperuser bool
+	ConfigSuperuser bool
 	ConfigMap       string
 	Namespace       string
 	ControllerImage string
@@ -161,7 +161,7 @@ func (i *Installer) InstallArgoCDServer() {
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
-	if i.InstallOptions.CreateSuperuser {
+	if i.InstallOptions.ConfigSuperuser {
 		inputReader := bufio.NewReader(os.Stdin)
 
 		fmt.Print("*** Please enter the name of a Kubernetes secret to store the user data: ")
