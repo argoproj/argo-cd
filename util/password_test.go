@@ -44,6 +44,9 @@ func TestPasswordHashing(t *testing.T) {
 	if !valid {
 		t.Errorf("Password \"%s\" should have validated against hash \"%s\"", defaultPassword, hashedPassword)
 	}
+	if stale {
+		t.Errorf("Password \"%s\" should not have been marked stale against hash \"%s\"", defaultPassword, hashedPassword)
+	}
 	valid, stale = verifyPasswordWithHashers(defaultPassword, defaultPassword, hashers)
 	if !valid {
 		t.Errorf("Password \"%s\" should have validated against itself with dummy hasher", defaultPassword)
