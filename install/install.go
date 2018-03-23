@@ -171,33 +171,40 @@ func (i *Installer) InstallArgoCDServer() {
 		}
 		secretName = strings.Trim(secretName, "\n")
 
-		fmt.Print("*** Please enter a superuser username: ")
-		adminUsername, err := inputReader.ReadString('\n')
-		if err != nil {
-			log.Fatal(err)
-		}
-		adminUsername = strings.Trim(adminUsername, "\n")
+		// Namespace this input inside a self-executing anonymous function to ensure that the raw password isn't accidentally used elsewhere
+		rootUsername, rootHashedPassword := func() (username, hashedPassword string) {
+			fmt.Print("*** Please enter a superuser username: ")
+			username, err := inputReader.ReadString('\n')
+			if err != nil {
+				log.Fatal(err)
+			}
+			username = strings.Trim(username, "\n")
 
-		fmt.Print("*** Please enter a superuser password: ")
-		adminPassword, err := terminal.ReadPassword(syscall.Stdin)
-		if err != nil {
-			log.Fatal(err)
-		}
+			fmt.Print("*** Please enter a superuser password: ")
+			rawPassword, err := terminal.ReadPassword(syscall.Stdin)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		hashedPassword, err := util.HashPassword(string(adminPassword))
-		if err != nil {
-			log.Fatal(err)
-		}
+			hashedPassword, err = util.HashPassword(string(rawPassword))
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			return
+		}()
 
 		kubeclientset, err := kubernetes.NewForConfig(i.config)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		adminCredentials := map[string]string{
-			util.ConfigManagerRootUsernameKey: adminUsername,
-			util.ConfigManagerRootPasswordKey: hashedPassword,
+		rootCredentials := map[string]string{
+			util.ConfigManagerRootUsernameKey: rootUsername,
+			util.ConfigManagerRootPasswordKey: rootHashedPassword,
 		}
+
+		// See if we've already written this secret
 		secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(secretName, metav1.GetOptions{})
 		if err != nil {
 			newSecret := &apiv1.Secret{
@@ -205,14 +212,14 @@ func (i *Installer) InstallArgoCDServer() {
 					Name: secretName,
 				},
 			}
-			newSecret.StringData = adminCredentials
+			newSecret.StringData = rootCredentials
 			_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Create(newSecret)
 			if err != nil {
 				log.Fatal(err)
 			}
 
 		} else {
-			secret.StringData = adminCredentials
+			secret.StringData = rootCredentials
 			_, err := kubeclientset.CoreV1().Secrets(i.Namespace).Update(secret)
 			if err != nil {
 				log.Fatal(err)
