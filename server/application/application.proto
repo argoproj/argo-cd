@@ -45,18 +45,6 @@ message ResourceDetails {
 	string message = 4;
 }
 
-message DeployEphemeralRequest {
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationDestination destination = 2;
-	bool dryRun = 3;
-	map<string, string> inputFiles  = 4;
-}
-
-message DeployEphemeralResponse {
-	string appName = 1;
-	ApplicationSyncResult deployResult = 2;
-}
-
 // ApplicationService
 service ApplicationService {
 
@@ -74,14 +62,6 @@ service ApplicationService {
 	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications"
-			body: "*"
-		};
-	}
-
-	// DeployEphemeral deployes short living application
-	rpc DeployEphemeral(DeployEphemeralRequest) returns (DeployEphemeralResponse) {
-		option (google.api.http) = {
-			post: "/api/v1/applications/ephemeral"
 			body: "*"
 		};
 	}

@@ -198,3 +198,8 @@ func (c *FakeGitClient) Checkout(repoPath string, sha string) error {
 	// do nothing
 	return nil
 }
+
+func (c *FakeGitClient) Reset(repoPath string) error {
+	// do nothing
+	return nil
+}

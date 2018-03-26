@@ -144,13 +144,21 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 			Password: "",
 		}
 	}
+	overrides := make([]*appv1.ComponentParameterOverride, len(app.Spec.Source.ComponentParameterOverrides))
+	if app.Spec.Source.ComponentParameterOverrides != nil {
+		for i := range app.Spec.Source.ComponentParameterOverrides {
+			item := app.Spec.Source.ComponentParameterOverrides[i]
+			overrides[i] = &item
+		}
+	}
 	revision := app.Spec.Source.TargetRevision
 	manifestInfo, err := client.GenerateManifest(context.Background(), &repository.ManifestRequest{
-		Repo:        repo,
-		Revision:    revision,
-		Path:        app.Spec.Source.Path,
-		Environment: app.Spec.Source.Environment,
-		AppLabel:    app.Name,
+		Repo:                        repo,
+		Revision:                    revision,
+		Path:                        app.Spec.Source.Path,
+		Environment:                 app.Spec.Source.Environment,
+		AppLabel:                    app.Name,
+		ComponentParameterOverrides: overrides,
 	})
 	if err != nil {
 		log.Errorf("Failed to load application manifest %v", err)

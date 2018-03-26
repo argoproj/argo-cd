@@ -56,6 +56,13 @@ type ApplicationSpec struct {
 	Destination *ApplicationDestination `json:"destination,omitempty" protobuf:"bytes,2,opt,name=destination"`
 }
 
+// ComponentParameterOverride defines overriding value for component parameter
+type ComponentParameterOverride struct {
+	Component string `json:"component" protobuf:"bytes,1,opt,name=component"`
+	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
+}
+
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
 	// RepoURL is the repository URL containing the ksonnet application.
@@ -67,6 +74,8 @@ type ApplicationSource struct {
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
+	// Environment parameter override values
+	ComponentParameterOverrides []ComponentParameterOverride `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
 }
 
 // ApplicationDestination contains deployment destination information

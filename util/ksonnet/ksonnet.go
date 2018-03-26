@@ -31,6 +31,9 @@ type KsonnetApp interface {
 	// Show returns a list of unstructured objects that would be applied to an environment
 	Show(environment string) ([]*unstructured.Unstructured, error)
 	ListEnvParams(environment string) (map[string]string, error)
+
+	// SetComponentParams updates component parameter in specified environment.
+	SetComponentParams(environment string, component string, param string, value string) error
 }
 
 type ksonnetApp struct {
@@ -128,4 +131,10 @@ func (k *ksonnetApp) ListEnvParams(environment string) (params map[string]string
 		params[param] = value
 	}
 	return
+}
+
+// SetComponentParams updates component parameter in specified environment.
+func (k *ksonnetApp) SetComponentParams(environment string, component string, param string, value string) error {
+	_, err := k.ksCmd("param", "set", component, param, value, "--env", environment)
+	return err
 }

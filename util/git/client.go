@@ -13,6 +13,7 @@ import (
 type Client interface {
 	CloneOrFetch(url string, username string, password string, sshPrivateKey string, repoPath string) error
 	Checkout(repoPath string, sha string) error
+	Reset(repoPath string) error
 }
 
 // NativeGitClient implements Client interface using git CLI
@@ -69,6 +70,18 @@ func (m *NativeGitClient) CloneOrFetch(repo string, username string, password st
 		}
 
 	}
+	return nil
+}
+
+// Reset resets local changes
+func (m *NativeGitClient) Reset(repoPath string) error {
+	cmd := exec.Command("sh", "-c", "git reset --hard HEAD && git clean -f")
+	cmd.Dir = repoPath
+	_, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("unable to reset repository %s: %v", repoPath, err)
+	}
+
 	return nil
 }
 

@@ -56,6 +56,9 @@ message ApplicationSource {
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
   // If omitted, will sync to HEAD
   optional string targetRevision = 4;
+
+  // Environment parameter override values
+  repeated ComponentParameterOverride componentParameterOverrides = 5;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -138,6 +141,15 @@ message ComparisonResult {
   repeated ResourceState resources = 6;
 
   optional string error = 7;
+}
+
+// ComponentParameterOverride defines overriding value for component parameter
+message ComponentParameterOverride {
+  optional string component = 1;
+
+  optional string name = 2;
+
+  optional string value = 3;
 }
 
 // DeploymentInfo contains information relevant to an application deployment
