@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,19 +51,41 @@ func TestShow(t *testing.T) {
 func TestListEnvParams(t *testing.T) {
 	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	params, err := ksApp.ListEnvParams(testEnvName)
+	paramPointers, err := ksApp.ListEnvParams(testEnvName)
 	assert.Nil(t, err)
-
-	expected := map[string]string{
-		"containerPort": "80",
-		"image":         "gcr.io/kuar-demo/kuard-amd64:1",
-		"name":          "demo",
-		"replicas":      "2",
-		"servicePort":   "80",
-		"type":          "ClusterIP",
+	params := make([]v1alpha1.ComponentParameter, len(paramPointers))
+	for i, paramPointer := range paramPointers {
+		param := *paramPointer
+		params[i] = param
 	}
 
+	expected := []v1alpha1.ComponentParameter{{
+		Component: "demo",
+		Name:      "containerPort",
+		Value:     "80",
+	}, {
+		Component: "demo",
+		Name:      "image",
+		Value:     "gcr.io/kuar-demo/kuard-amd64:1",
+	}, {
+		Component: "demo",
+		Name:      "name",
+		Value:     "demo",
+	}, {
+		Component: "demo",
+		Name:      "replicas",
+		Value:     "2",
+	}, {
+		Component: "demo",
+		Name:      "servicePort",
+		Value:     "80",
+	}, {
+		Component: "demo",
+		Name:      "type",
+		Value:     "ClusterIP",
+	}}
+
 	if !reflect.DeepEqual(expected, params) {
-		t.Errorf("Env param maps were not equal!  Expected (%s), got (%s).", expected, params)
+		t.Errorf("Env params were not equal!  Expected (%s), got (%s).", expected, params)
 	}
 }
