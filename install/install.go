@@ -146,6 +146,37 @@ func (i *Installer) InstallApplicationController() {
 	i.MustInstallResource(kube.MustToUnstructured(&applicationControllerDeployment))
 }
 
+// CreateOrUpdateRootCredentials ensures that the named secret contains a given username and password hash.
+func (i *Installer) createOrUpdateLocalCredentials(secretName, username, passwordHash string) (err error) {
+	// Used for reading config maps and secrets here
+	kubeclientset, err := kubernetes.NewForConfig(i.config)
+	if err != nil {
+		return
+	}
+
+	credentials := map[string]string{
+		util.ConfigManagerRootUsernameKey: username,
+		util.ConfigManagerRootPasswordKey: passwordHash,
+	}
+
+	// See if we've already written this secret
+	secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(secretName, metav1.GetOptions{})
+	if err != nil {
+		newSecret := &apiv1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+			},
+		}
+		newSecret.StringData = credentials
+		_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Create(newSecret)
+
+	} else {
+		secret.StringData = credentials
+		_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Update(secret)
+	}
+	return
+}
+
 func (i *Installer) InstallArgoCDServer() {
 	var argoCDServerServiceAccount apiv1.ServiceAccount
 	var argoCDServerControllerRole rbacv1.Role
@@ -211,32 +242,11 @@ func (i *Installer) InstallArgoCDServer() {
 			return
 		}()
 
-		rootCredentials := map[string]string{
-			util.ConfigManagerRootUsernameKey: rootUsername,
-			util.ConfigManagerRootPasswordKey: rootHashedPassword,
-		}
-
-		// See if we've already written this secret
-		secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(rootCredentialsSecretName, metav1.GetOptions{})
+		err = i.createOrUpdateLocalCredentials(rootCredentialsSecretName, rootUsername, rootHashedPassword)
 		if err != nil {
-			newSecret := &apiv1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: rootCredentialsSecretName,
-				},
-			}
-			newSecret.StringData = rootCredentials
-			_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Create(newSecret)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-		} else {
-			secret.StringData = rootCredentials
-			_, err := kubeclientset.CoreV1().Secrets(i.Namespace).Update(secret)
-			if err != nil {
-				log.Fatal(err)
-			}
+			log.Fatal(err)
 		}
+
 	}
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
@@ -319,6 +329,7 @@ func (i *Installer) InstallResource(obj *unstructured.Unstructured) (*unstructur
 	if !i.Upgrade {
 		log.Println(diffRes.ASCIIFormat(obj, formatter.AsciiFormatterConfig{}))
 		return nil, fmt.Errorf("%s '%s' already exists. Rerun with --upgrade to update", obj.GetKind(), obj.GetName())
+
 	}
 	liveObj, err = reIf.Update(obj)
 	if err != nil {
