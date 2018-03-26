@@ -21,4 +21,10 @@
         float: right;
         line-height: 60px;
     }
+
+    &__param {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 }

@@ -30,6 +30,23 @@ export interface ApplicationWatchEvent {
     application: Application;
 }
 
+export interface ComponentParameter {
+    component: string;
+    name: string;
+    value: string;
+}
+
+export interface ApplicationDestination {
+    /**
+     * Server overrides the environment server value in the ksonnet app.yaml
+     */
+    server: string;
+    /**
+     * Namespace overrides the environment namespace value in the ksonnet app.yaml
+     */
+    namespace: string;
+}
+
 export interface ApplicationSource {
     targetRevision: string;
     /**
@@ -46,10 +63,24 @@ export interface ApplicationSource {
      * Environment is a ksonnet project environment name.
      */
     environment: string;
+
+    /**
+     * Overriden component parameters.
+     */
+    componentParameterOverrides: ComponentParameter[];
 }
 
 export interface ApplicationSpec {
     source: ApplicationSource;
+    destination?: ApplicationDestination;
+}
+
+/**
+ * DeploymentInfo contains information relevant to an application deployment
+ */
+export interface DeploymentInfo {
+    params: ComponentParameter[];
+    appSource: ApplicationSource;
 }
 
 export type ComparisonStatus = '' | 'Error' | 'Synced' | 'OutOfSync';
@@ -79,4 +110,5 @@ export interface ComparisonResult {
 
 export interface ApplicationStatus {
     comparisonResult: ComparisonResult;
+    recentDeployment: DeploymentInfo;
 }
