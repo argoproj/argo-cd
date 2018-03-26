@@ -13,7 +13,8 @@ import (
 
 // DeploymentInfo contains information relevant to an application deployment
 type DeploymentInfo struct {
-	Params map[string]string `json:"params" protobuf:"bytes,1,name=params"`
+	Params    []ComponentParameter `json:"params" protobuf:"bytes,1,name=params"`
+	AppSource ApplicationSource    `json:"appSource" protobuf:"bytes,2,opt,name=appSource"`
 }
 
 // Application is a definition of Application resource.
@@ -56,8 +57,8 @@ type ApplicationSpec struct {
 	Destination *ApplicationDestination `json:"destination,omitempty" protobuf:"bytes,2,opt,name=destination"`
 }
 
-// ComponentParameterOverride defines overriding value for component parameter
-type ComponentParameterOverride struct {
+// ComponentParameter contains information about component parameter value
+type ComponentParameter struct {
 	Component string `json:"component" protobuf:"bytes,1,opt,name=component"`
 	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
@@ -75,7 +76,7 @@ type ApplicationSource struct {
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
 	// Environment parameter override values
-	ComponentParameterOverrides []ComponentParameterOverride `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
+	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
 }
 
 // ApplicationDestination contains deployment destination information
@@ -100,7 +101,7 @@ const (
 // ApplicationStatus contains information about application status in target environment.
 type ApplicationStatus struct {
 	ComparisonResult ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
-	RecentDeployment DeploymentInfo   `json:"deploymentInfo" protobuf:"bytes,2,opt,name=deploymentInfo"`
+	RecentDeployment DeploymentInfo   `json:"recentDeployment" protobuf:"bytes,2,opt,name=recentDeployment"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.

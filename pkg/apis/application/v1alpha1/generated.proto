@@ -58,7 +58,7 @@ message ApplicationSource {
   optional string targetRevision = 4;
 
   // Environment parameter override values
-  repeated ComponentParameterOverride componentParameterOverrides = 5;
+  repeated ComponentParameter componentParameterOverrides = 5;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -75,7 +75,7 @@ message ApplicationSpec {
 message ApplicationStatus {
   optional ComparisonResult comparisonResult = 1;
 
-  optional DeploymentInfo deploymentInfo = 2;
+  optional DeploymentInfo recentDeployment = 2;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -143,8 +143,8 @@ message ComparisonResult {
   optional string error = 7;
 }
 
-// ComponentParameterOverride defines overriding value for component parameter
-message ComponentParameterOverride {
+// ComponentParameter contains information about component parameter value
+message ComponentParameter {
   optional string component = 1;
 
   optional string name = 2;
@@ -154,7 +154,9 @@ message ComponentParameterOverride {
 
 // DeploymentInfo contains information relevant to an application deployment
 message DeploymentInfo {
-  map<string, string> params = 1;
+  repeated ComponentParameter params = 1;
+
+  optional ApplicationSource appSource = 2;
 }
 
 // Repository is a Git repository holding application configurations

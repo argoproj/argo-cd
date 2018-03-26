@@ -15,7 +15,7 @@ message ManifestRequest {
     string path = 3;
     string environment = 4;
     string appLabel = 5;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameterOverride componentParameterOverrides = 6;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 6;
 }
 
 message ManifestResponse {
@@ -32,7 +32,7 @@ message EnvParamsRequest {
 }
 
 message EnvParamsResponse {
-  map<string, string> params = 1;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 1;
 }
 
 // ManifestService
