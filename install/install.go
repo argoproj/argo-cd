@@ -236,6 +236,7 @@ func (i *Installer) InstallArgoCDServer() {
 		fmt.Print("*** Please enter a superuser password: ")
 		rawPassword, err := terminal.ReadPassword(syscall.Stdin)
 		errors.CheckError(err)
+		fmt.Print("\n")
 
 		err = i.createOrUpdateLocalCredentials(rootCredentialsSecretName, rootUsername, string(rawPassword))
 		errors.CheckError(err)
