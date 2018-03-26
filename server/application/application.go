@@ -164,7 +164,19 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	res, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, syncReq.DryRun)
 	if err == nil {
 		// Persist app deployment info
-		app.Status.RecentDeployment.Params = deploymentInfo.Params
+		params := make([]appv1.ComponentParameter, len(deploymentInfo.Params))
+		for i := range deploymentInfo.Params {
+			param := *deploymentInfo.Params[i]
+			params[i] = param
+		}
+		app, err = s.Get(ctx, &ApplicationQuery{Name: syncReq.Name})
+		if err != nil {
+			return nil, err
+		}
+		app.Status.RecentDeployment = appv1.DeploymentInfo{
+			AppSource: app.Spec.Source,
+			Params:    params,
+		}
 		_, err = s.Update(ctx, app)
 		if err != nil {
 			return nil, err
@@ -195,7 +207,7 @@ func (s *Server) deploy(
 		return nil, err
 	}
 	defer util.Close(conn)
-	overrides := make([]*appv1.ComponentParameterOverride, len(source.ComponentParameterOverrides))
+	overrides := make([]*appv1.ComponentParameter, len(source.ComponentParameterOverrides))
 	if source.ComponentParameterOverrides != nil {
 		for i := range source.ComponentParameterOverrides {
 			item := source.ComponentParameterOverrides[i]

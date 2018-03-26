@@ -144,7 +144,7 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 			Password: "",
 		}
 	}
-	overrides := make([]*appv1.ComponentParameterOverride, len(app.Spec.Source.ComponentParameterOverrides))
+	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
 	if app.Spec.Source.ComponentParameterOverrides != nil {
 		for i := range app.Spec.Source.ComponentParameterOverrides {
 			item := app.Spec.Source.ComponentParameterOverrides[i]
