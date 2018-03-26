@@ -199,22 +199,19 @@ func (i *Installer) InstallArgoCDServer() {
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 
-	// Used for reading config maps and secrets here
-	kubeclientset, err := kubernetes.NewForConfig(i.config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	rootCredentialsSecretName := util.ConfigManagerDefaultRootCredentialsSecretName
 	// Use a Kubernetes ConfigMap, if provided.
 	if i.InstallOptions.ConfigMap != "" {
+
+		// Used for reading config maps and secrets here
+		kubeclientset, err := kubernetes.NewForConfig(i.config)
+		errors.CheckError(err)
+
 		quotedConfigMapName := strconv.Quote(i.InstallOptions.ConfigMap)
 		container := &argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0]
 		container.Command = append(container.Command, "--config-map", quotedConfigMapName)
 		configMap, err := kubeclientset.CoreV1().ConfigMaps(i.Namespace).Get(i.InstallOptions.ConfigMap, metav1.GetOptions{})
-		if err != nil {
-			log.Fatal(err)
-		}
+		errors.CheckError(err)
 
 		secretNameOverride, ok := configMap.Data[util.RootCredentialsSecretNameKey]
 		if ok {
@@ -222,33 +219,27 @@ func (i *Installer) InstallArgoCDServer() {
 		}
 	}
 
-	if i.InstallOptions.ConfigSuperuser {
-		inputReader := bufio.NewReader(os.Stdin)
-
-		fmt.Print("*** Please enter a superuser username: ")
-		rootUsername, err := inputReader.ReadString('\n')
-		if err != nil {
-			log.Fatal(err)
-		}
-		rootUsername = strings.Trim(rootUsername, "\n")
-
-		fmt.Print("*** Please enter a superuser password: ")
-		rawPassword, err := terminal.ReadPassword(syscall.Stdin)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = i.createOrUpdateLocalCredentials(rootCredentialsSecretName, rootUsername, string(rawPassword))
-		if err != nil {
-			log.Fatal(err)
-		}
-
-	}
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRoleBinding))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerDeployment))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerService))
+
+	if i.InstallOptions.ConfigSuperuser {
+		inputReader := bufio.NewReader(os.Stdin)
+
+		fmt.Print("*** Please enter a superuser username: ")
+		rootUsername, err := inputReader.ReadString('\n')
+		errors.CheckError(err)
+		rootUsername = strings.Trim(rootUsername, "\n")
+
+		fmt.Print("*** Please enter a superuser password: ")
+		rawPassword, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+
+		err = i.createOrUpdateLocalCredentials(rootCredentialsSecretName, rootUsername, string(rawPassword))
+		errors.CheckError(err)
+	}
 }
 
 func (i *Installer) InstallArgoCDRepoServer() {
