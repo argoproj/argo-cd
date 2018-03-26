@@ -18,6 +18,9 @@ const (
 	// rootCredentialsSecretNameKey designates the name of the config map field holding the name of a Kubernetes secret.
 	rootCredentialsSecretNameKey = "rootCredentialsSecretName"
 
+	// ConfigManagerDefaultRootCredentialsSecretName holds the default secret name for root credentials.
+	ConfigManagerDefaultRootCredentialsSecretName = "argocd-root-credentials-secret"
+
 	// ConfigManagerRootUsernameKey designates the root username inside a Kubernetes secret.
 	ConfigManagerRootUsernameKey = "root.username"
 
