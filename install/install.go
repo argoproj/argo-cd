@@ -147,9 +147,15 @@ func (i *Installer) InstallApplicationController() {
 }
 
 // CreateOrUpdateRootCredentials ensures that the named secret contains a given username and password hash.
-func (i *Installer) createOrUpdateLocalCredentials(secretName, username, passwordHash string) (err error) {
+func (i *Installer) createOrUpdateLocalCredentials(secretName, username, password string) (err error) {
 	// Used for reading config maps and secrets here
 	kubeclientset, err := kubernetes.NewForConfig(i.config)
+	if err != nil {
+		return
+	}
+
+	// Don't commit plaintext passwords
+	passwordHash, err := util.HashPassword(password)
 	if err != nil {
 		return
 	}
@@ -226,23 +232,13 @@ func (i *Installer) InstallArgoCDServer() {
 		}
 		rootUsername = strings.Trim(rootUsername, "\n")
 
-		// Namespace this input inside a self-executing anonymous function to ensure that the raw password isn't accidentally used elsewhere
-		rootHashedPassword := func() (hashedPassword string) {
-			fmt.Print("*** Please enter a superuser password: ")
-			rawPassword, err := terminal.ReadPassword(syscall.Stdin)
-			if err != nil {
-				log.Fatal(err)
-			}
+		fmt.Print("*** Please enter a superuser password: ")
+		rawPassword, err := terminal.ReadPassword(syscall.Stdin)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-			hashedPassword, err = util.HashPassword(string(rawPassword))
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			return
-		}()
-
-		err = i.createOrUpdateLocalCredentials(rootCredentialsSecretName, rootUsername, rootHashedPassword)
+		err = i.createOrUpdateLocalCredentials(rootCredentialsSecretName, rootUsername, string(rawPassword))
 		if err != nil {
 			log.Fatal(err)
 		}
