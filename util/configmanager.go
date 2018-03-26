@@ -15,8 +15,8 @@ type ArgoCDSettings struct {
 }
 
 const (
-	// rootCredentialsSecretNameKey designates the name of the config map field holding the name of a Kubernetes secret.
-	rootCredentialsSecretNameKey = "rootCredentialsSecretName"
+	// RootCredentialsSecretNameKey designates the name of the config map field holding the name of a Kubernetes secret.
+	RootCredentialsSecretNameKey = "rootCredentialsSecretName"
 
 	// ConfigManagerDefaultRootCredentialsSecretName holds the default secret name for root credentials.
 	ConfigManagerDefaultRootCredentialsSecretName = "argocd-root-credentials-secret"
@@ -43,7 +43,7 @@ func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings, err error) {
 	}
 
 	// Try to retrieve the name of a Kubernetes secret holding root credentials
-	rootCredentialsSecretName, ok := configMap.Data[rootCredentialsSecretNameKey]
+	rootCredentialsSecretName, ok := configMap.Data[RootCredentialsSecretNameKey]
 
 	if !ok {
 		return
