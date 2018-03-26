@@ -161,15 +161,32 @@ func (i *Installer) InstallArgoCDServer() {
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
-	if i.InstallOptions.ConfigSuperuser {
-		inputReader := bufio.NewReader(os.Stdin)
 
-		fmt.Print("*** Please enter the name of a Kubernetes secret to store the user data: ")
-		secretName, err := inputReader.ReadString('\n')
+	// Used for reading config maps and secrets here
+	kubeclientset, err := kubernetes.NewForConfig(i.config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rootCredentialsSecretName := util.ConfigManagerDefaultRootCredentialsSecretName
+	// Use a Kubernetes ConfigMap, if provided.
+	if i.InstallOptions.ConfigMap != "" {
+		quotedConfigMapName := strconv.Quote(i.InstallOptions.ConfigMap)
+		container := &argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0]
+		container.Command = append(container.Command, "--config-map", quotedConfigMapName)
+		configMap, err := kubeclientset.CoreV1().ConfigMaps(i.Namespace).Get(i.InstallOptions.ConfigMap, metav1.GetOptions{})
 		if err != nil {
 			log.Fatal(err)
 		}
-		secretName = strings.Trim(secretName, "\n")
+
+		secretNameOverride, ok := configMap.Data[util.RootCredentialsSecretNameKey]
+		if ok {
+			rootCredentialsSecretName = secretNameOverride
+		}
+	}
+
+	if i.InstallOptions.ConfigSuperuser {
+		inputReader := bufio.NewReader(os.Stdin)
 
 		fmt.Print("*** Please enter a superuser username: ")
 		rootUsername, err := inputReader.ReadString('\n')
@@ -194,22 +211,17 @@ func (i *Installer) InstallArgoCDServer() {
 			return
 		}()
 
-		kubeclientset, err := kubernetes.NewForConfig(i.config)
-		if err != nil {
-			log.Fatal(err)
-		}
-
 		rootCredentials := map[string]string{
 			util.ConfigManagerRootUsernameKey: rootUsername,
 			util.ConfigManagerRootPasswordKey: rootHashedPassword,
 		}
 
 		// See if we've already written this secret
-		secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(secretName, metav1.GetOptions{})
+		secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(rootCredentialsSecretName, metav1.GetOptions{})
 		if err != nil {
 			newSecret := &apiv1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: secretName,
+					Name: rootCredentialsSecretName,
 				},
 			}
 			newSecret.StringData = rootCredentials
@@ -225,12 +237,6 @@ func (i *Installer) InstallArgoCDServer() {
 				log.Fatal(err)
 			}
 		}
-	}
-	// Use a Kubernetes ConfigMap, if provided.
-	if i.InstallOptions.ConfigMap != "" {
-		configMap := strconv.Quote(i.InstallOptions.ConfigMap)
-		container := &argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0]
-		container.Command = append(container.Command, "--config-map", configMap)
 	}
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
