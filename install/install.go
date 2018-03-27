@@ -1,19 +1,25 @@
 package install
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr"
 	"github.com/yudai/gojsondiff/formatter"
+	"golang.org/x/crypto/ssh/terminal"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	apiv1 "k8s.io/api/core/v1"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
@@ -42,6 +49,7 @@ var (
 type InstallOptions struct {
 	DryRun          bool
 	Upgrade         bool
+	ConfigSuperuser bool
 	ConfigMap       string
 	Namespace       string
 	ControllerImage string
@@ -138,6 +146,43 @@ func (i *Installer) InstallApplicationController() {
 	i.MustInstallResource(kube.MustToUnstructured(&applicationControllerDeployment))
 }
 
+// CreateOrUpdateRootCredentials ensures that the named secret contains a given username and password hash.
+func (i *Installer) createOrUpdateLocalCredentials(secretName, username, password string) (err error) {
+	// Used for reading config maps and secrets here
+	kubeclientset, err := kubernetes.NewForConfig(i.config)
+	if err != nil {
+		return
+	}
+
+	// Don't commit plaintext passwords
+	passwordHash, err := util.HashPassword(password)
+	if err != nil {
+		return
+	}
+
+	credentials := map[string]string{
+		util.ConfigManagerRootUsernameKey: username,
+		util.ConfigManagerRootPasswordKey: passwordHash,
+	}
+
+	// See if we've already written this secret
+	secret, err := kubeclientset.CoreV1().Secrets(i.Namespace).Get(secretName, metav1.GetOptions{})
+	if err != nil {
+		newSecret := &apiv1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+			},
+		}
+		newSecret.StringData = credentials
+		_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Create(newSecret)
+
+	} else {
+		secret.StringData = credentials
+		_, err = kubeclientset.CoreV1().Secrets(i.Namespace).Update(secret)
+	}
+	return
+}
+
 func (i *Installer) InstallArgoCDServer() {
 	var argoCDServerServiceAccount apiv1.ServiceAccount
 	var argoCDServerControllerRole rbacv1.Role
@@ -153,17 +198,49 @@ func (i *Installer) InstallArgoCDServer() {
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
+
+	rootCredentialsSecretName := util.ConfigManagerDefaultRootCredentialsSecretName
 	// Use a Kubernetes ConfigMap, if provided.
 	if i.InstallOptions.ConfigMap != "" {
-		configMap := strconv.Quote(i.InstallOptions.ConfigMap)
+
+		// Used for reading config maps and secrets here
+		kubeclientset, err := kubernetes.NewForConfig(i.config)
+		errors.CheckError(err)
+
+		quotedConfigMapName := strconv.Quote(i.InstallOptions.ConfigMap)
 		container := &argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0]
-		container.Command = append(container.Command, "--config-map", configMap)
+		container.Command = append(container.Command, "--config-map", quotedConfigMapName)
+		configMap, err := kubeclientset.CoreV1().ConfigMaps(i.Namespace).Get(i.InstallOptions.ConfigMap, metav1.GetOptions{})
+		errors.CheckError(err)
+
+		secretNameOverride, ok := configMap.Data[util.RootCredentialsSecretNameKey]
+		if ok {
+			rootCredentialsSecretName = secretNameOverride
+		}
 	}
+
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRoleBinding))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerDeployment))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerService))
+
+	if i.InstallOptions.ConfigSuperuser {
+		inputReader := bufio.NewReader(os.Stdin)
+
+		fmt.Print("*** Please enter a superuser username: ")
+		rootUsername, err := inputReader.ReadString('\n')
+		errors.CheckError(err)
+		rootUsername = strings.Trim(rootUsername, "\n")
+
+		fmt.Print("*** Please enter a superuser password: ")
+		rawPassword, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		fmt.Print("\n")
+
+		err = i.createOrUpdateLocalCredentials(rootCredentialsSecretName, rootUsername, string(rawPassword))
+		errors.CheckError(err)
+	}
 }
 
 func (i *Installer) InstallArgoCDRepoServer() {
@@ -240,6 +317,7 @@ func (i *Installer) InstallResource(obj *unstructured.Unstructured) (*unstructur
 	if !i.Upgrade {
 		log.Println(diffRes.ASCIIFormat(obj, formatter.AsciiFormatterConfig{}))
 		return nil, fmt.Errorf("%s '%s' already exists. Rerun with --upgrade to update", obj.GetKind(), obj.GetName())
+
 	}
 	liveObj, err = reIf.Update(obj)
 	if err != nil {

@@ -9,8 +9,24 @@ import (
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
-	AdminPassword string
+
+	// LocalUsers holds users local to (stored on) the server.  This is to be distinguished from any potential alternative future login providers (LDAP, SAML, etc.) that might ever be added.
+	LocalUsers map[string]string
 }
+
+const (
+	// RootCredentialsSecretNameKey designates the name of the config map field holding the name of a Kubernetes secret.
+	RootCredentialsSecretNameKey = "rootCredentialsSecretName"
+
+	// ConfigManagerDefaultRootCredentialsSecretName holds the default secret name for root credentials.
+	ConfigManagerDefaultRootCredentialsSecretName = "argocd-root-credentials-secret"
+
+	// ConfigManagerRootUsernameKey designates the root username inside a Kubernetes secret.
+	ConfigManagerRootUsernameKey = "root.username"
+
+	// ConfigManagerRootPasswordKey designates the root password inside a Kubernetes secret.
+	ConfigManagerRootPasswordKey = "root.password"
+)
 
 // ConfigManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type ConfigManager struct {
@@ -20,20 +36,36 @@ type ConfigManager struct {
 }
 
 // GetSettings retrieves settings from the ConfigManager.
-func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings) {
-	const (
-		adminPasswordKeyName   = "adminPasswordSecretName"
-		adminPasswordValueName = "admin.password"
-	)
+func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings, err error) {
 	configMap, err := mgr.readConfigMap(mgr.configMapName)
-	if err == nil {
-		adminPasswordSecretName, ok := configMap.Data[adminPasswordKeyName]
-		if ok {
-			adminPassword, err := mgr.readSecret(adminPasswordSecretName)
-			if err == nil {
-				settings.AdminPassword = string(adminPassword.Data[adminPasswordValueName])
-			}
-		}
+	if err != nil {
+		return
+	}
+
+	// Try to retrieve the name of a Kubernetes secret holding root credentials
+	rootCredentialsSecretName, ok := configMap.Data[RootCredentialsSecretNameKey]
+
+	if !ok {
+		return
+	}
+
+	// Try to retrieve the secret
+	rootCredentials, err := mgr.readSecret(rootCredentialsSecretName)
+
+	if err != nil {
+		return
+	}
+
+	// No more errors, so let's populate the struct
+	settings.LocalUsers = make(map[string]string)
+
+	// Retrieve credential info from the secret
+	rootUsername, okUsername := rootCredentials.Data[ConfigManagerRootUsernameKey]
+	rootPassword, okPassword := rootCredentials.Data[ConfigManagerRootPasswordKey]
+
+	if okUsername && okPassword {
+		// Store credential info inside LocalUsers
+		settings.LocalUsers[string(rootUsername)] = string(rootPassword)
 	}
 	return
 }
