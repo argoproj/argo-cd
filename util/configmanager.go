@@ -4,6 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,29 +37,31 @@ type ConfigManager struct {
 }
 
 // GetSettings retrieves settings from the ConfigManager.
-func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings, err error) {
+func (mgr *ConfigManager) GetSettings() (ArgoCDSettings, error) {
+	settings := ArgoCDSettings{}
+	settings.LocalUsers = make(map[string]string)
 	configMap, err := mgr.readConfigMap(mgr.configMapName)
 	if err != nil {
-		return
+		if errors.IsNotFound(err) {
+			return settings, nil
+		} else {
+			return settings, err
+		}
 	}
 
 	// Try to retrieve the name of a Kubernetes secret holding root credentials
 	rootCredentialsSecretName, ok := configMap.Data[RootCredentialsSecretNameKey]
 
 	if !ok {
-		return
+		return settings, nil
 	}
 
 	// Try to retrieve the secret
 	rootCredentials, err := mgr.readSecret(rootCredentialsSecretName)
 
 	if err != nil {
-		return
+		return settings, err
 	}
-
-	// No more errors, so let's populate the struct
-	settings.LocalUsers = make(map[string]string)
-
 	// Retrieve credential info from the secret
 	rootUsername, okUsername := rootCredentials.Data[ConfigManagerRootUsernameKey]
 	rootPassword, okPassword := rootCredentials.Data[ConfigManagerRootPasswordKey]
@@ -67,7 +70,7 @@ func (mgr *ConfigManager) GetSettings() (settings ArgoCDSettings, err error) {
 		// Store credential info inside LocalUsers
 		settings.LocalUsers[string(rootUsername)] = string(rootPassword)
 	}
-	return
+	return settings, nil
 }
 
 // NewConfigManager generates a new ConfigManager pointer and returns it
