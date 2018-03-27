@@ -97,24 +97,39 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelSelecto
 	}
 	for _, apiResourcesList := range resources {
 		for _, apiResource := range apiResourcesList.APIResources {
+			deleteCollectionSupported := false
 			deleteSupported := false
 			for _, verb := range apiResource.Verbs {
 				if verb == "deletecollection" {
+					deleteCollectionSupported = true
+				} else if verb == "delete" {
 					deleteSupported = true
-					break
 				}
 			}
-			if deleteSupported {
-				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
-				if err != nil {
-					return err
-				}
-				propagationPolicy := metav1.DeletePropagationForeground
+			dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
+			if err != nil {
+				return err
+			}
+			propagationPolicy := metav1.DeletePropagationForeground
+			if deleteCollectionSupported {
 				err = dclient.Resource(&apiResource, namespace).DeleteCollection(&metav1.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
 				}, metav1.ListOptions{LabelSelector: labelSelector})
 				if err != nil && !apierr.IsNotFound(err) {
 					return err
+				}
+			} else if deleteSupported {
+				items, err := dclient.Resource(&apiResource, namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+				if err != nil {
+					return err
+				}
+				for _, item := range items.(*unstructured.UnstructuredList).Items {
+					err = dclient.Resource(&apiResource, namespace).Delete(item.GetName(), &metav1.DeleteOptions{
+						PropagationPolicy: &propagationPolicy,
+					})
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
