@@ -21,7 +21,7 @@ func TestSessionManager(t *testing.T) {
 		t.Errorf("Could not parse token: %v", err)
 	}
 
-	subject := claims.(*SessionManagerTokenClaims).Subject
+	subject := claims.Subject
 	if subject != "argo" {
 		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, defaultSubject)
 	}

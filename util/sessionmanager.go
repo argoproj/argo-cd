@@ -52,7 +52,7 @@ func (mgr SessionManager) Create(subject string) (string, error) {
 }
 
 // Parse tries to parse the provided string and returns the token claims.
-func (mgr SessionManager) Parse(tokenString string) (jwt.Claims, error) {
+func (mgr SessionManager) Parse(tokenString string) (*SessionManagerTokenClaims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
