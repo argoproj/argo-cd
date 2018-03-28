@@ -27,6 +27,18 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
   - argoproj.io
   resources:
   - applications
