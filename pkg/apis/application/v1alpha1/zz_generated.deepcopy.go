@@ -136,7 +136,13 @@ func (in *ApplicationSpec) DeepCopy() *ApplicationSpec {
 func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 	*out = *in
 	in.ComparisonResult.DeepCopyInto(&out.ComparisonResult)
-	in.RecentDeployment.DeepCopyInto(&out.RecentDeployment)
+	if in.RecentDeployments != nil {
+		in, out := &in.RecentDeployments, &out.RecentDeployments
+		*out = make([]DeploymentInfo, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 
@@ -272,7 +278,12 @@ func (in *DeploymentInfo) DeepCopyInto(out *DeploymentInfo) {
 		*out = make([]ComponentParameter, len(*in))
 		copy(*out, *in)
 	}
-	in.AppSource.DeepCopyInto(&out.AppSource)
+	if in.ComponentParameterOverrides != nil {
+		in, out := &in.ComponentParameterOverrides, &out.ComponentParameterOverrides
+		*out = make([]ComponentParameter, len(*in))
+		copy(*out, *in)
+	}
+	in.DeployedAt.DeepCopyInto(&out.DeployedAt)
 	return
 }
 

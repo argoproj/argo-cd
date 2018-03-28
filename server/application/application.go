@@ -3,6 +3,8 @@ package application
 import (
 	"fmt"
 
+	"time"
+
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -21,6 +23,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	maxRecentDeploymentsCnt = 5
 )
 
 // Server provides a Application service
@@ -149,7 +155,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	defer util.Close(conn)
 	// set fields in v1alpha/types.go
 	log.Infof("Retrieving deployment params for application %s", syncReq.Name)
-	deploymentInfo, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
+	envParams, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
 		Repo:        repo,
 		Environment: app.Spec.Source.Environment,
 		Path:        app.Spec.Source.Path,
@@ -159,23 +165,28 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Received deployment params: %s", deploymentInfo.Params)
+	log.Infof("Received deployment params: %s", envParams.Params)
 
-	res, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, syncReq.DryRun)
+	res, manifest, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, syncReq.DryRun)
 	if err == nil {
 		// Persist app deployment info
-		params := make([]appv1.ComponentParameter, len(deploymentInfo.Params))
-		for i := range deploymentInfo.Params {
-			param := *deploymentInfo.Params[i]
+		params := make([]appv1.ComponentParameter, len(envParams.Params))
+		for i := range envParams.Params {
+			param := *envParams.Params[i]
 			params[i] = param
 		}
 		app, err = s.Get(ctx, &ApplicationQuery{Name: syncReq.Name})
 		if err != nil {
 			return nil, err
 		}
-		app.Status.RecentDeployment = appv1.DeploymentInfo{
-			AppSource: app.Spec.Source,
-			Params:    params,
+		app.Status.RecentDeployments = append(app.Status.RecentDeployments, appv1.DeploymentInfo{
+			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+			Revision:                    manifest.Revision,
+			Params:                      params,
+			DeployedAt:                  metav1.NewTime(time.Now()),
+		})
+		if len(app.Status.RecentDeployments) > maxRecentDeploymentsCnt {
+			app.Status.RecentDeployments = app.Status.RecentDeployments[:maxRecentDeploymentsCnt]
 		}
 		_, err = s.Update(ctx, app)
 		if err != nil {
@@ -199,12 +210,12 @@ func (s *Server) deploy(
 	source appv1.ApplicationSource,
 	destination *appv1.ApplicationDestination,
 	appLabel string,
-	dryRun bool) (*ApplicationSyncResult, error) {
+	dryRun bool) (*ApplicationSyncResult, *repository.ManifestResponse, error) {
 
 	repo := s.getRepo(ctx, source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer util.Close(conn)
 	overrides := make([]*appv1.ComponentParameter, len(source.ComponentParameterOverrides))
@@ -224,13 +235,13 @@ func (s *Server) deploy(
 		AppLabel:                    appLabel,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	server, namespace := argoutil.ResolveServerNamespace(destination, manifestInfo)
 
 	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	config := clst.RESTConfig()
 
@@ -238,18 +249,18 @@ func (s *Server) deploy(
 	for i, manifest := range manifestInfo.Manifests {
 		obj, err := appv1.UnmarshalToUnstructured(manifest)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		targetObjs[i] = obj
 	}
 
 	liveObjs, err := kube.GetLiveResources(config, targetObjs, namespace)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	diffResList, err := diff.DiffArray(targetObjs, liveObjs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var syncRes ApplicationSyncResult
 	syncRes.Resources = make([]*ResourceDetails, 0)
@@ -271,7 +282,7 @@ func (s *Server) deploy(
 		} else {
 			_, err := kube.ApplyResource(config, targetObjs[i], namespace)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			if needsCreate {
 				resDetails.Message = fmt.Sprintf("created")
@@ -282,5 +293,5 @@ func (s *Server) deploy(
 		syncRes.Resources = append(syncRes.Resources, &resDetails)
 	}
 	syncRes.Message = "successfully synced"
-	return &syncRes, nil
+	return &syncRes, manifestInfo, nil
 }

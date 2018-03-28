@@ -50,7 +50,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, err
 	}
 
-	err = s.gitClient.Checkout(appRepoPath, q.Revision)
+	revision, err := s.gitClient.Checkout(appRepoPath, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -96,6 +96,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		manifests[i] = string(manifestStr)
 	}
 	return &ManifestResponse{
+		Revision:  revision,
 		Manifests: manifests,
 		Namespace: env.Destination.Namespace,
 		Server:    env.Destination.Server,
@@ -113,7 +114,7 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 		return nil, err
 	}
 
-	err = s.gitClient.Checkout(appRepoPath, q.Revision)
+	_, err = s.gitClient.Checkout(appRepoPath, q.Revision)
 	if err != nil {
 		return nil, err
 	}
