@@ -9,7 +9,7 @@ func TestSessionManager(t *testing.T) {
 		defaultSecretKey = "Hello, world!"
 		defaultSubject   = "argo"
 	)
-	mgr := MakeSessionManager(defaultSecretKey)
+	mgr := SessionManager{[]byte(defaultSecretKey)}
 
 	token, err := mgr.Create(defaultSubject)
 	if err != nil {
@@ -29,9 +29,10 @@ func TestSessionManager(t *testing.T) {
 
 func TestMakeSignature(t *testing.T) {
 	for size := 1; size <= 64; size++ {
-		_, err := makeSignature(size)
+		s, err := makeSignature(size)
 		if err != nil {
 			t.Errorf("Could not generate signature of size %d: %v", size, err)
 		}
+		t.Logf("Generated token: %v", s)
 	}
 }

@@ -95,7 +95,7 @@ func (mgr *ConfigManager) GenerateServerSignature() error {
 		return err
 	}
 
-	signatureMap := map[string]string{
+	signatureMap := map[string][]byte{
 		configManagerServerSignatureKey: signature,
 	}
 
@@ -105,12 +105,12 @@ func (mgr *ConfigManager) GenerateServerSignature() error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: data.serverSignatureSecretName,
 			},
+			Data: signatureMap,
 		}
-		newSecret.StringData = signatureMap
 		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(newSecret)
 
 	} else {
-		secret.StringData = signatureMap
+		secret.Data = signatureMap
 		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(secret)
 	}
 	return err

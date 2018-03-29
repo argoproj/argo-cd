@@ -2,7 +2,6 @@ package util
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -12,13 +11,6 @@ import (
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
 	serverSecretKey []byte
-}
-
-// MakeSessionManager creates a new session manager with the given secret.
-func MakeSessionManager(secret string) SessionManager {
-	return SessionManager{
-		serverSecretKey: []byte(secret),
-	}
 }
 
 const (
@@ -74,12 +66,12 @@ func (mgr SessionManager) Parse(tokenString string) (*SessionManagerTokenClaims,
 	return nil, err
 }
 
-// MakeSignature generates a cryptographically-secure pseudo-random token, based on a given number of random bytes, for signing purposes.  These bytes are converted to Base64 for convenience.
-func makeSignature(size int) (string, error) {
+// MakeSignature generates a cryptographically-secure pseudo-random token, based on a given number of random bytes, for signing purposes.
+func makeSignature(size int) ([]byte, error) {
 	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {
-		return "", err
+		b = nil
 	}
-	return base64.StdEncoding.EncodeToString(b), err
+	return b, err
 }
