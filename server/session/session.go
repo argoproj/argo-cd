@@ -26,11 +26,20 @@ func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientse
 }
 
 // invalidLoginMessage, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
-const invalidLoginMessage = "Invalid username or password"
+const (
+	invalidLoginError  = "Invalid username or password"
+	blankPasswordError = "Blank passwords are not allowed"
+)
 
 // Create a a JWT for authentication.
 func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionResponse, error) {
 	configMapName := "hello"
+
+	if q.Password == "" {
+		err := fmt.Errorf(blankPasswordError)
+		return nil, err
+	}
+
 	config := util.NewConfigManager(s.kubeclientset, s.ns, configMapName)
 	settings, err := config.GetSettings()
 
@@ -49,7 +58,7 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 
 	valid, _ := util.VerifyPassword(q.Password, passwordHash)
 	if !valid {
-		err = fmt.Errorf(invalidLoginMessage)
+		err = fmt.Errorf(invalidLoginError)
 		return nil, err
 	}
 
