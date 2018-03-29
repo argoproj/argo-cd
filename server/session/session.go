@@ -48,9 +48,6 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 		return nil, err
 	}
 
-	// TODO: where do we get this
-	serverSecretKey := "this should be retrieved from server config map"
-
 	passwordHash, ok := settings.LocalUsers[q.Username]
 	if !ok {
 		// Username was not found in local user store.
@@ -66,8 +63,8 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 		return nil, err
 	}
 
-	mgr := util.MakeSessionManager(serverSecretKey)
-	token, err := mgr.Create(q.Username)
+	sessionManager := util.MakeSessionManager(settings.ServerSignature)
+	token, err := sessionManager.Create(q.Username)
 	if err != nil {
 		token = ""
 	}

@@ -1,6 +1,8 @@
 package util
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -70,4 +72,14 @@ func (mgr SessionManager) Parse(tokenString string) (*SessionManagerTokenClaims,
 		return claims, nil
 	}
 	return nil, err
+}
+
+// MakeSignature generates a cryptographically-secure pseudo-random token, based on a given number of random bytes, for signing purposes.  These bytes are converted to Base64 for convenience.
+func makeSignature(size int) (string, error) {
+	b := make([]byte, size)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(b), err
 }

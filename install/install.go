@@ -196,6 +196,11 @@ func (i *Installer) InstallArgoCDServer() {
 		err = configManager.SetRootUserCredentials(rootUsername, string(rawPassword))
 		errors.CheckError(err)
 	}
+
+	// Every time we run `argocd install`, generate a new secret key.
+	// This has the side effect of invalidating all current login sessions.
+	err = configManager.GenerateServerSignature()
+	errors.CheckError(err)
 }
 
 func (i *Installer) InstallArgoCDRepoServer() {

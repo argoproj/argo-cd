@@ -12,10 +12,14 @@ import (
 type ArgoCDSettings struct {
 	// LocalUsers holds users local to (stored on) the server.  This is to be distinguished from any potential alternative future login providers (LDAP, SAML, etc.) that might ever be added.
 	LocalUsers map[string]string
+
+	// ServerSignature holds the key used to generate JWT tokens.
+	ServerSignature string
 }
 
 type configMapData struct {
 	rootCredentialsSecretName string
+	serverSignatureSecretName string
 }
 
 const (
@@ -25,11 +29,17 @@ const (
 	// defaultRootCredentialsSecretName contains default name of secret with root user credentials
 	defaultRootCredentialsSecretName = "argo-cd-root-credentials"
 
-	// configManagerRootUsernameKey designates the root username inside a Kubernetes secret.
+	// defaultServerSignatureSecretName contains the default name of a secret to hold the key used to generate JWT tokens.
+	defaultServerSignatureSecretName = "argo-cd-server-secret-key"
+
+	// configManagerRootUsernameKey designates the key for a root username inside a Kubernetes secret.
 	configManagerRootUsernameKey = "root.username"
 
-	// configManagerRootPasswordKey designates the root password inside a Kubernetes secret.
+	// configManagerRootPasswordKey designates the key for a root password inside a Kubernetes secret.
 	configManagerRootPasswordKey = "root.password"
+
+	// configManagerServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
+	configManagerServerSignatureKey = "server.secretkey"
 )
 
 // ConfigManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -48,14 +58,10 @@ func (mgr *ConfigManager) GetSettings() (ArgoCDSettings, error) {
 		return settings, err
 	}
 
-	// Try to retrieve the secret
+	// Try to retrieve the root credentials from a K8s secret
 	rootCredentials, err := mgr.readSecret(data.rootCredentialsSecretName)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return settings, nil
-		} else {
-			return settings, err
-		}
+		return settings, err
 	}
 	// Retrieve credential info from the secret
 	rootUsername, okUsername := rootCredentials.Data[configManagerRootUsernameKey]
@@ -65,9 +71,52 @@ func (mgr *ConfigManager) GetSettings() (ArgoCDSettings, error) {
 		// Store credential info inside LocalUsers
 		settings.LocalUsers[string(rootUsername)] = string(rootPassword)
 	}
+
+	// Try to retrieve the server secret key from a K8s secret
+	secretKey, err := mgr.readSecret(data.serverSignatureSecretName)
+	if err != nil {
+		return settings, err
+	}
+	secretKeyData := secretKey.Data[configManagerServerSignatureKey]
+	settings.ServerSignature = string(secretKeyData)
+
 	return settings, nil
 }
 
+// GenerateServerSignature makes a new pseudorandom secret key for signing JWT tokens.
+func (mgr *ConfigManager) GenerateServerSignature() error {
+	data, err := mgr.getConfigMapData()
+	if err != nil {
+		return err
+	}
+
+	signature, err := makeSignature(32)
+	if err != nil {
+		return err
+	}
+
+	signatureMap := map[string]string{
+		configManagerServerSignatureKey: signature,
+	}
+
+	secret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(data.serverSignatureSecretName, metav1.GetOptions{})
+	if err != nil {
+		newSecret := &apiv1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: data.serverSignatureSecretName,
+			},
+		}
+		newSecret.StringData = signatureMap
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(newSecret)
+
+	} else {
+		secret.StringData = signatureMap
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(secret)
+	}
+	return err
+}
+
+// SetRootUserCredentials sets the admin username and password for Web login.
 func (mgr *ConfigManager) SetRootUserCredentials(username string, password string) error {
 	data, err := mgr.getConfigMapData()
 	if err != nil {
@@ -122,6 +171,7 @@ func (mgr *ConfigManager) getConfigMapData() (configMapData, error) {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			data.rootCredentialsSecretName = defaultRootCredentialsSecretName
+			data.serverSignatureSecretName = defaultServerSignatureSecretName
 			return data, nil
 		} else {
 			return data, err
@@ -132,6 +182,13 @@ func (mgr *ConfigManager) getConfigMapData() (configMapData, error) {
 		rootCredentialsSecretName = defaultRootCredentialsSecretName
 	}
 	data.rootCredentialsSecretName = rootCredentialsSecretName
+
+	serverSignatureSecretName, ok := configMap.Data[defaultServerSignatureSecretName]
+	if !ok {
+		serverSignatureSecretName = defaultServerSignatureSecretName
+	}
+	data.serverSignatureSecretName = serverSignatureSecretName
+
 	return data, nil
 }
 
