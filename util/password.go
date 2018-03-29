@@ -1,6 +1,8 @@
 package util
 
 import (
+	"crypto/subtle"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -66,7 +68,7 @@ func (h DummyPasswordHasher) HashPassword(password string) (string, error) {
 
 // VerifyPassword validates whether a one-way digest ("hash") of a password was created from a given plaintext password.
 func (h DummyPasswordHasher) VerifyPassword(password, hashedPassword string) bool {
-	return password == hashedPassword
+	return 1 == subtle.ConstantTimeCompare([]byte(password), []byte(hashedPassword))
 }
 
 // HashPassword creates a one-way digest ("hash") of a password.  In the case of Bcrypt, a pseudorandom salt is included automatically by the underlying library.  For security reasons, the work factor is always at _least_ bcrypt.DefaultCost.
