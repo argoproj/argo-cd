@@ -33,12 +33,13 @@ const (
 
 // Create a a JWT for authentication.
 func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionResponse, error) {
-	configMapName := "hello"
-
 	if q.Password == "" {
 		err := fmt.Errorf(blankPasswordError)
 		return nil, err
 	}
+
+	// TODO: where do we get this?
+	configMapName := "hello"
 
 	config := util.NewConfigManager(s.kubeclientset, s.ns, configMapName)
 	settings, err := config.GetSettings()
@@ -47,11 +48,14 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 		return nil, err
 	}
 
+	// TODO: where do we get this
+	serverSecretKey := "this should be retrieved from server config map"
+
 	passwordHash, ok := settings.LocalUsers[q.Username]
 	if !ok {
 		// Username was not found in local user store.
 		// Ensure we still send password to hashing algorithm for comparison.
-		// This mitigates potential for timing attacks that depend on short-circuiting,
+		// This mitigates potential for timing attacks that benefit from short-circuiting,
 		// provided the hashing library/algorithm in use doesn't itself short-circuit.
 		passwordHash = ""
 	}
@@ -62,7 +66,7 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 		return nil, err
 	}
 
-	mgr := util.MakeSessionManager("this should not be here")
+	mgr := util.MakeSessionManager(serverSecretKey)
 	token, err := mgr.Create(q.Username)
 	if err != nil {
 		token = ""
