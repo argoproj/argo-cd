@@ -194,9 +194,9 @@ func (c *FakeGitClient) CloneOrFetch(repo string, username string, password stri
 	return err
 }
 
-func (c *FakeGitClient) Checkout(repoPath string, sha string) error {
+func (c *FakeGitClient) Checkout(repoPath string, sha string) (string, error) {
 	// do nothing
-	return nil
+	return "latest", nil
 }
 
 func (c *FakeGitClient) Reset(repoPath string) error {

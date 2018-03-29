@@ -12,7 +12,7 @@ import (
 // Client is a generic git client interface
 type Client interface {
 	CloneOrFetch(url string, username string, password string, sshPrivateKey string, repoPath string) error
-	Checkout(repoPath string, sha string) error
+	Checkout(repoPath string, sha string) (string, error)
 	Reset(repoPath string) error
 }
 
@@ -86,18 +86,24 @@ func (m *NativeGitClient) Reset(repoPath string) error {
 }
 
 // Checkout checkout specified git sha
-func (m *NativeGitClient) Checkout(repoPath string, sha string) error {
+func (m *NativeGitClient) Checkout(repoPath string, sha string) (string, error) {
 	if sha == "" {
 		sha = "origin/HEAD"
 	}
-	cmd := exec.Command("git", "checkout", sha)
-	cmd.Dir = repoPath
-	_, err := cmd.Output()
+	checkoutCmd := exec.Command("git", "checkout", sha)
+	checkoutCmd.Dir = repoPath
+	_, err := checkoutCmd.Output()
 	if err != nil {
-		return fmt.Errorf("unable to checkout revision %s: %v", sha, err)
+		return "", fmt.Errorf("unable to checkout revision %s: %v", sha, err)
+	}
+	revisionCmd := exec.Command("git", "rev-parse", "HEAD")
+	revisionCmd.Dir = repoPath
+	output, err := revisionCmd.Output()
+	if err != nil {
+		return "", err
 	}
 
-	return nil
+	return string(output), nil
 
 }
 

@@ -13,8 +13,10 @@ import (
 
 // DeploymentInfo contains information relevant to an application deployment
 type DeploymentInfo struct {
-	Params    []ComponentParameter `json:"params" protobuf:"bytes,1,name=params"`
-	AppSource ApplicationSource    `json:"appSource" protobuf:"bytes,2,opt,name=appSource"`
+	Params                      []ComponentParameter `json:"params" protobuf:"bytes,1,name=params"`
+	Revision                    string               `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,3,opt,name=componentParameterOverrides"`
+	DeployedAt                  metav1.Time          `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
 }
 
 // Application is a definition of Application resource.
@@ -100,8 +102,8 @@ const (
 
 // ApplicationStatus contains information about application status in target environment.
 type ApplicationStatus struct {
-	ComparisonResult ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
-	RecentDeployment DeploymentInfo   `json:"recentDeployment" protobuf:"bytes,2,opt,name=recentDeployment"`
+	ComparisonResult  ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
+	RecentDeployments []DeploymentInfo `json:"recentDeployments" protobuf:"bytes,2,opt,name=recentDeployment"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.

@@ -75,7 +75,7 @@ message ApplicationSpec {
 message ApplicationStatus {
   optional ComparisonResult comparisonResult = 1;
 
-  optional DeploymentInfo recentDeployment = 2;
+  repeated DeploymentInfo recentDeployment = 2;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -156,7 +156,11 @@ message ComponentParameter {
 message DeploymentInfo {
   repeated ComponentParameter params = 1;
 
-  optional ApplicationSource appSource = 2;
+  optional string revision = 2;
+
+  repeated ComponentParameter componentParameterOverrides = 3;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
 }
 
 // Repository is a Git repository holding application configurations

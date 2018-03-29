@@ -22,6 +22,7 @@ message ManifestResponse {
     repeated string manifests = 1;
     string namespace = 2;
     string server = 3;
+    string revision = 4;
 }
 
 message EnvParamsRequest {
