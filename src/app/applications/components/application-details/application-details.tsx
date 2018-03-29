@@ -20,6 +20,7 @@ export interface ApplicationDetailsProps extends RouteComponentProps<{ name: str
     sync: (namespace: string, name: string, revision: string) => any;
     changesSubscription: Subscription;
     showDeployPanel: boolean;
+    selectedRollbackDeploymentIndex: number;
 }
 
 class Component extends React.Component<ApplicationDetailsProps, { expandedRows: number[], deployRevision: string }> {
@@ -50,8 +51,12 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
     public setDeployPanelVisible(isVisible: boolean) {
         this.appContext.router.history.push(`${this.props.match.url}?deploy=${isVisible}`);
     }
+    public setRollbackPanelVisible(selectedDeploymentIndex = 0) {
+        this.appContext.router.history.push(`${this.props.match.url}?rollback=${selectedDeploymentIndex}`);
+    }
 
     public render() {
+        const recentDeployments = this.props.application && this.props.application.status.recentDeployments || [];
         return (
             <Page
                 title={'Application Details'}
@@ -60,14 +65,18 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                         className: 'icon argo-icon-deploy',
                         title: 'Deploy',
                         action: () => this.setDeployPanelVisible(true),
-                    }],
+                    }, ...(recentDeployments.length > 1 ? [{
+                        className: 'icon fa fa-undo',
+                        title: 'Rollback',
+                        action: () => this.setRollbackPanelVisible(0),
+                    }] : [])],
                 } }}>
                 <div className='argo-container application-details'>
                     {this.props.application ? (
                         <div>
                             {this.renderSummary(this.props.application)}
                             {this.renderAppResouces(this.props.application)}
-                            {this.props.application.status.recentDeployment && this.renderDeploymentStatus(this.props.application.status.recentDeployment)}
+                            {recentDeployments.length > 0 && this.renderDeploymentInfo(recentDeployments[0])}
                         </div>
                     ) : (
                         <div>Loading...</div>
@@ -92,14 +101,42 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                         </form>
                     )}
                 </SlidingPanel>
+                <SlidingPanel isShown={this.props.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
+                    <div className='row'>
+                        <div className='columns small-3'>
+                            {recentDeployments.slice(1).map((info, i) => (
+                                <p key={i}>
+                                    {this.props.selectedRollbackDeploymentIndex === i ? <span>{info.revision}</span> : (
+                                        <a onClick={() => this.setRollbackPanelVisible(i)}>{info.revision}</a>
+                                    )}
+                                </p>
+                            ))}
+                        </div>
+                        <div className='columns small-9'>
+                            {recentDeployments[this.props.selectedRollbackDeploymentIndex] && (
+                                <div className='white-box'>
+                                    <div className='white-box__details'>
+                                        {this.renderDeploymentParams(recentDeployments[this.props.selectedRollbackDeploymentIndex])}
+                                    </div>
+                                </div>
+                            )}
+                            <br/>
+                            <button className='argo-button argo-button--base' onClick={() => this.syncApplication()}>
+                                Rollback
+                            </button> <button onClick={() => this.setRollbackPanelVisible(-1)} className='argo-button argo-button--base-o'>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </SlidingPanel>
             </Page>
         );
     }
 
-    private renderDeploymentStatus(info: appModels.DeploymentInfo) {
+    private renderDeploymentParams(info: appModels.DeploymentInfo) {
         const componentParams = new Map<string, (appModels.ComponentParameter & {original: string})[]>();
         (info.params || []).map((param) => {
-            const override = (info.appSource.componentParameterOverrides || []).find((item) => item.component === param.component && item.name === param.name);
+            const override = (info.componentParameterOverrides || []).find((item) => item.component === param.component && item.name === param.name);
             const res = {...param, original: ''};
             if (override) {
                 res.original = res.value;
@@ -111,29 +148,41 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
             params.push(param);
             componentParams.set(param.component, params);
         });
+        return Array.from(componentParams.keys()).map((component) => (
+            componentParams.get(component).map((param, i) => (
+                <div className='row white-box__details-row' key={component + param.name}>
+                    <div className='columns small-2'>
+                        {i === 0 && component.toUpperCase()}
+                    </div>
+                    <div className='columns small-2'>
+                        {param.name}:
+                    </div>
+                    <div className='columns small-8 application-details__param'>
+                        <span title={param.value}>
+                            {param.original && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>}
+                            {param.value}
+                        </span>
+                    </div>
+                </div>
+            ))
+        ));
+    }
+
+    private renderDeploymentInfo(info: appModels.DeploymentInfo) {
         return (
             <div>
-                <h6>Deployment parameters:</h6>
+                <h6>Deployment:</h6>
                 <div className='white-box'>
                     <div className='white-box__details'>
-                    {Array.from(componentParams.keys()).map((component) => (
-                        componentParams.get(component).map((param, i) => (
-                            <div className='row white-box__details-row' key={component + param.name}>
-                                <div className='columns small-2'>
-                                    {i === 0 && component.toUpperCase()}
-                                </div>
-                                <div className='columns small-2'>
-                                    {param.name}:
-                                </div>
-                                <div className='columns small-8 application-details__param'>
-                                    <span title={param.value}>
-                                        {param.original && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>}
-                                        {param.value}
-                                    </span>
-                                </div>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-2'>
+                                REVISION:
                             </div>
-                        ))
-                    ))}
+                            <div className='columns small-10'>
+                                {info.revision}
+                            </div>
+                        </div>
+                    {this.renderDeploymentParams(info)}
                     </div>
                 </div>
             </div>
@@ -216,8 +265,8 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
         );
     }
 
-    private syncApplication() {
-        this.props.sync(this.props.application.metadata.namespace, this.props.application.metadata.name, this.state.deployRevision);
+    private syncApplication(revision: string = null) {
+        this.props.sync(this.props.application.metadata.namespace, this.props.application.metadata.name, revision || this.state.deployRevision);
         this.setDeployPanelVisible(false);
     }
 
@@ -241,6 +290,7 @@ export const ApplicationDetails = connect((state: AppState<State>) => ({
     application: state.page.application,
     changesSubscription: state.page.changesSubscription,
     showDeployPanel: new URLSearchParams(state.router.location.search).get('deploy') === 'true',
+    selectedRollbackDeploymentIndex: parseInt(new URLSearchParams(state.router.location.search).get('rollback'), 10),
 }), (dispatch) => ({
     onLoad: (namespace: string, name: string) => dispatch(actions.loadApplication(name)),
     sync: (namespace: string, name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),

@@ -79,8 +79,10 @@ export interface ApplicationSpec {
  * DeploymentInfo contains information relevant to an application deployment
  */
 export interface DeploymentInfo {
+    revision: string;
     params: ComponentParameter[];
-    appSource: ApplicationSource;
+    componentParameterOverrides: ComponentParameter[];
+    deployedAt: models.Time;
 }
 
 export type ComparisonStatus = '' | 'Error' | 'Synced' | 'OutOfSync';
@@ -110,5 +112,5 @@ export interface ComparisonResult {
 
 export interface ApplicationStatus {
     comparisonResult: ComparisonResult;
-    recentDeployment: DeploymentInfo;
+    recentDeployments: DeploymentInfo[];
 }
