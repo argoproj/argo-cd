@@ -50,6 +50,7 @@ type InstallOptions struct {
 	DryRun          bool
 	Upgrade         bool
 	ConfigSuperuser bool
+	CreateSignature bool
 	ConfigMap       string
 	Namespace       string
 	ControllerImage string
@@ -180,7 +181,11 @@ func (i *Installer) InstallArgoCDServer() {
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerDeployment))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerService))
 
-	if i.InstallOptions.ConfigSuperuser {
+	// Ignore errors because settings aren't fully formed
+	settings, _ := configManager.GetSettings()
+
+	// Generate a new superuser on command or if there are no superusers.
+	if i.InstallOptions.ConfigSuperuser || len(settings.LocalUsers) == 0 {
 		inputReader := bufio.NewReader(os.Stdin)
 
 		fmt.Print("*** Please enter a superuser username: ")
@@ -194,6 +199,13 @@ func (i *Installer) InstallArgoCDServer() {
 		fmt.Print("\n")
 
 		err = configManager.SetRootUserCredentials(rootUsername, string(rawPassword))
+		errors.CheckError(err)
+	}
+
+	// Generate a new secret key on command or if the server signature isn't set.
+	// This has the side effect of invalidating all current login sessions.
+	if i.InstallOptions.CreateSignature || len(settings.ServerSignature) == 0 {
+		err = configManager.GenerateServerSignature()
 		errors.CheckError(err)
 	}
 }
