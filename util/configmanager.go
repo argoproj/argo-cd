@@ -16,7 +16,7 @@ type ArgoCDSettings struct {
 	LocalUsers map[string]string
 
 	// ServerSignature holds the key used to generate JWT tokens.
-	ServerSignature string
+	ServerSignature []byte
 }
 
 type configMapData struct {
@@ -80,7 +80,7 @@ func (mgr *ConfigManager) GetSettings() (ArgoCDSettings, error) {
 		return settings, err
 	}
 	secretKeyData := secretKey.Data[configManagerServerSignatureKey]
-	settings.ServerSignature = string(secretKeyData)
+	settings.ServerSignature = secretKeyData
 
 	return settings, nil
 }

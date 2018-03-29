@@ -204,7 +204,7 @@ func (i *Installer) InstallArgoCDServer() {
 
 	// Generate a new secret key on command or if the server signature isn't set.
 	// This has the side effect of invalidating all current login sessions.
-	if i.InstallOptions.CreateSignature || settings.ServerSignature == "" {
+	if i.InstallOptions.CreateSignature || len(settings.ServerSignature) == 0 {
 		err = configManager.GenerateServerSignature()
 		errors.CheckError(err)
 	}
