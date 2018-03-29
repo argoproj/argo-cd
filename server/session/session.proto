@@ -13,58 +13,23 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 
 
 // SessionQuery is a query for session resources
-message SessionQuery {
-	string server = 1;
+message SessionRequest {
+  string username = 1;
+  string password = 2;
 }
 
-message SessionResponse {}
-
-message SessionUpdateRequest {
-	string server = 1;
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Session session = 2;
+message SessionResponse {
+  string token = 1;
 }
 
 // SessionService 
 service SessionService {
 
-	// List returns list of sessions
-	rpc List(SessionQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SessionList) {
-		option (google.api.http).get = "/api/v1/sessions";
-	}
-
-	// Create creates a session
-	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Session) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Session) {
-		option (google.api.http) = {
-			post: "/api/v1/sessions"
-			body: "*"
-		};
-	}
-	
-    // Get returns a session by server address
-    rpc Get(SessionQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Session) {
-		option (google.api.http).get = "/api/v1/sessions/{server}";
-	}
-
-	// Update updates a session
-	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Session) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Session) {
-	}
-
-	// Update updates a session (special handler intended to be used only by the gRPC gateway)
-	rpc UpdateREST(SessionUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Session) {
-		option (google.api.http) = {
-			put: "/api/v1/sessions/{server}"
-			body: "session"
-		};
-	}
-
-	// Delete updates a session
-	rpc Delete(SessionQuery) returns (SessionResponse) {
-		option (google.api.http).delete = "/api/v1/sessions/{server}";
-	}
-
-	// ListPods returns pods in a session
-	rpc ListPods(SessionQuery) returns (k8s.io.api.core.v1.PodList) {
-		option (google.api.http).get = "/api/v1/sessions/{server}/pods";
-	}
-
+  // Create a new JWT for authentication.
+  rpc Create(SessionRequest) returns (SessionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/sessions/create"
+      body: "*"
+    };
+  }
 }
