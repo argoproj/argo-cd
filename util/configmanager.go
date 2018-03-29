@@ -1,6 +1,8 @@
 package util
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -60,7 +62,7 @@ func (mgr *ConfigManager) GetSettings() (ArgoCDSettings, error) {
 
 	// Try to retrieve the root credentials from a K8s secret
 	rootCredentials, err := mgr.readSecret(data.rootCredentialsSecretName)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		return settings, err
 	}
 	// Retrieve credential info from the secret
@@ -74,7 +76,7 @@ func (mgr *ConfigManager) GetSettings() (ArgoCDSettings, error) {
 
 	// Try to retrieve the server secret key from a K8s secret
 	secretKey, err := mgr.readSecret(data.serverSignatureSecretName)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		return settings, err
 	}
 	secretKeyData := secretKey.Data[configManagerServerSignatureKey]
@@ -118,6 +120,10 @@ func (mgr *ConfigManager) GenerateServerSignature() error {
 
 // SetRootUserCredentials sets the admin username and password for Web login.
 func (mgr *ConfigManager) SetRootUserCredentials(username string, password string) error {
+	if username == password {
+		return fmt.Errorf("Username and password cannot be the same")
+	}
+
 	data, err := mgr.getConfigMapData()
 	if err != nil {
 		return err
