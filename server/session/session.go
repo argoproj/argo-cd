@@ -11,17 +11,19 @@ import (
 
 // Server provides a Session service
 type Server struct {
-	ns            string
-	kubeclientset kubernetes.Interface
-	appclientset  appclientset.Interface
+	ns             string
+	kubeclientset  kubernetes.Interface
+	appclientset   appclientset.Interface
+	serversettings util.ArgoCDSettings
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *Server {
+func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, serversettings util.ArgoCDSettings) *Server {
 	return &Server{
-		ns:            namespace,
-		appclientset:  appclientset,
-		kubeclientset: kubeclientset,
+		ns:             namespace,
+		appclientset:   appclientset,
+		kubeclientset:  kubeclientset,
+		serversettings: serversettings,
 	}
 }
 
@@ -38,17 +40,7 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 		return nil, err
 	}
 
-	// TODO: where do we get this?
-	configMapName := "hello"
-
-	config := util.NewConfigManager(s.kubeclientset, s.ns, configMapName)
-	settings, err := config.GetSettings()
-
-	if err != nil {
-		return nil, err
-	}
-
-	passwordHash, ok := settings.LocalUsers[q.Username]
+	passwordHash, ok := s.serversettings.LocalUsers[q.Username]
 	if !ok {
 		// Username was not found in local user store.
 		// Ensure we still send password to hashing algorithm for comparison.
@@ -59,11 +51,11 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 
 	valid, _ := util.VerifyPassword(q.Password, passwordHash)
 	if !valid {
-		err = fmt.Errorf(invalidLoginError)
+		err := fmt.Errorf(invalidLoginError)
 		return nil, err
 	}
 
-	sessionManager := util.MakeSessionManager(settings.ServerSignature)
+	sessionManager := util.MakeSessionManager(s.serversettings.ServerSignature)
 	token, err := sessionManager.Create(q.Username)
 	if err != nil {
 		token = ""

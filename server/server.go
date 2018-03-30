@@ -99,7 +99,7 @@ func (a *ArgoCDServer) Run() {
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	clusterService := cluster.NewServer(a.ns, a.kubeclientset, a.appclientset)
 	repoService := repository.NewServer(a.ns, a.kubeclientset, a.appclientset)
-	sessionService := session.NewServer(a.ns, a.kubeclientset, a.appclientset)
+	sessionService := session.NewServer(a.ns, a.kubeclientset, a.appclientset, a.settings)
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
 	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.ns, a.kubeclientset, a.appclientset, a.repoclientset, repoService, clusterService))
 	repository.RegisterRepositoryServiceServer(grpcS, repoService)
