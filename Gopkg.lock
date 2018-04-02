@@ -192,7 +192,7 @@
   revision = "2bcd89a1743fd4b373f7370ce8ddc14dfbd18229"
 
 [[projects]]
-  branch = "bugfix/37-panic-on-err"
+  branch = "master"
   name = "github.com/grpc-ecosystem/go-grpc-middleware"
   packages = [
     ".",
@@ -200,7 +200,7 @@
     "logging/logrus",
     "tags"
   ]
-  revision = "b9814e2370c8552db05c796c139b76a6ca45b34f"
+  revision = "bc372cc64f55abd91995ba3f219b380ffbc59e9d"
 
 [[projects]]
   name = "github.com/grpc-ecosystem/grpc-gateway"
