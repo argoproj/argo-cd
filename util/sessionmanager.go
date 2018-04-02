@@ -24,6 +24,13 @@ type SessionManagerTokenClaims struct {
 	jwt.StandardClaims
 }
 
+// MakeSessionManager creates a new session manager with the given secret key.
+func MakeSessionManager(secretKey []byte) SessionManager {
+	return SessionManager{
+		serverSecretKey: secretKey,
+	}
+}
+
 // Create creates a new token for a given subject (user) and returns it as a string.
 func (mgr SessionManager) Create(subject string) (string, error) {
 	// Create a new token object, specifying signing method and the claims

@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
@@ -98,9 +99,11 @@ func (a *ArgoCDServer) Run() {
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	clusterService := cluster.NewServer(a.ns, a.kubeclientset, a.appclientset)
 	repoService := repository.NewServer(a.ns, a.kubeclientset, a.appclientset)
+	sessionService := session.NewServer(a.ns, a.kubeclientset, a.appclientset, a.settings)
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
 	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.ns, a.kubeclientset, a.appclientset, a.repoclientset, repoService, clusterService))
 	repository.RegisterRepositoryServiceServer(grpcS, repoService)
+	session.RegisterSessionServiceServer(grpcS, sessionService)
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
@@ -117,6 +120,7 @@ func (a *ArgoCDServer) Run() {
 	mustRegisterGWHandler(cluster.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(application.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	if a.staticAssetsDir != "" {
 		mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
