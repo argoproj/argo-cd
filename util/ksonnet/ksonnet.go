@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
+	"github.com/ksonnet/ksonnet/component"
 	"github.com/ksonnet/ksonnet/metadata"
 	"github.com/ksonnet/ksonnet/metadata/app"
 	log "github.com/sirupsen/logrus"
@@ -17,7 +18,6 @@ import (
 
 var (
 	diffSeparator = regexp.MustCompile(`\n---`)
-	lineSeparator = regexp.MustCompile(`\n`)
 )
 
 // KsonnetApp represents a ksonnet application directory and provides wrapper functionality around
@@ -113,27 +113,23 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 
 // ListEnvParams returns list of environment parameters
 func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error) {
-	// count of rows to skip in command-line output
-	const skipRows = 2
-	out, err := k.ksCmd("param", "list", "--env", environment)
+	mod, err := component.DefaultManager.Module(k.app, "")
+	if err != nil {
+		return nil, err
+	}
+	ksParams, err := mod.Params(environment)
 	if err != nil {
 		return nil, err
 	}
 	var params []*v1alpha1.ComponentParameter
-	rows := lineSeparator.Split(out, -1)
-	for _, row := range rows[skipRows:] {
-		if strings.TrimSpace(row) == "" {
-			continue
-		}
-		fields := strings.Fields(row)
-		component, param, rawValue := fields[0], fields[1], fields[2]
-		value, err := strconv.Unquote(rawValue)
+	for _, ksParam := range ksParams {
+		value, err := strconv.Unquote(ksParam.Value)
 		if err != nil {
-			value = rawValue
+			value = ksParam.Value
 		}
 		componentParam := v1alpha1.ComponentParameter{
-			Component: component,
-			Name:      param,
+			Component: ksParam.Component,
+			Name:      ksParam.Key,
 			Value:     value,
 		}
 		params = append(params, &componentParam)

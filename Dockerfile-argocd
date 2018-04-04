@@ -39,22 +39,29 @@ RUN cd ${GOPATH}/src/dummy && \
     mv vendor/* ${GOPATH}/src/ && \
     rmdir vendor
 
-ARG MAKE_TARGET
-
 # Perform the build
+ARG MAKE_TARGET
 WORKDIR /root/go/src/github.com/argoproj/argo-cd
 COPY . .
 RUN make ${MAKE_TARGET}
-RUN wget https://github.com/ksonnet/ksonnet/releases/download/v0.9.1/ks_0.9.1_linux_amd64.tar.gz && tar -C /tmp/ -xf ks_0.9.1_linux_amd64.tar.gz
 
+
+##############################################################
+FROM golang:1.10 as ksonnet-builder
+
+# Install ksonnet
+# TODO(jessesuen): remove this docker build stage this once we have an official prebuilt 1.10+ release
+RUN go get -v -u github.com/ksonnet/ksonnet
+
+
+##############################################################
 FROM debian:9.3
 RUN apt-get update && apt-get install -y git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 ARG BINARY
 COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/${BINARY} /${BINARY}
-COPY --from=builder /tmp/ks_0.9.1_linux_amd64/ks /usr/local/bin/ks
-# workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
-ENV USER=root
+COPY --from=ksonnet-builder /go/bin/ksonnet /usr/local/bin/ks
+
 ENV BINARY=$BINARY
 CMD /$BINARY
