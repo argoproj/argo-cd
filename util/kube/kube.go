@@ -84,6 +84,54 @@ func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, 
 	return liveObj, nil
 }
 
+// GetResourcesWithLabel returns all kubernetes resources with specified label
+func GetResourcesWithLabel(config *rest.Config, namespace string, labelName string, labelValue string) ([]*unstructured.Unstructured, error) {
+	dynClientPool := dynamic.NewDynamicClientPool(config)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	resources, err := disco.ServerResources()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*unstructured.Unstructured
+	for _, apiResourcesList := range resources {
+		for _, apiResource := range apiResourcesList.APIResources {
+			listSupported := false
+			for _, verb := range apiResource.Verbs {
+				if verb == "list" {
+					listSupported = true
+					break
+				}
+			}
+			if listSupported {
+				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
+				if err != nil {
+					return nil, err
+				}
+				list, err := dclient.Resource(&apiResource, namespace).List(metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
+				})
+				if err != nil {
+					return nil, err
+				}
+				// apply client side filtering since not every kubernetes API supports label filtering
+				for _, item := range list.(*unstructured.UnstructuredList).Items {
+					labels := item.GetLabels()
+					if labels != nil {
+						if value, ok := labels[labelName]; ok && value == labelValue {
+							result = append(result, &item)
+						}
+					}
+				}
+			}
+		}
+	}
+	return result, nil
+}
+
 // DeleteResourceWithLabel delete all resources which match to specified label selector
 func DeleteResourceWithLabel(config *rest.Config, namespace string, labelSelector string) error {
 	dynClientPool := dynamic.NewDynamicClientPool(config)

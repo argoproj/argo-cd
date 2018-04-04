@@ -117,11 +117,18 @@ type ComparisonResult struct {
 	Error      string            `json:"error,omitempty" protobuf:"bytes,7,opt,name=error"`
 }
 
+// ResourceNode contains information about live resource and its children
+type ResourceNode struct {
+	State    string         `json:"state,omitempty" protobuf:"bytes,1,opt,name=state"`
+	Children []ResourceNode `json:"children,omitempty" protobuf:"bytes,2,opt,name=children"`
+}
+
 // ResourceState holds the target state of a resource and live state of a resource
 type ResourceState struct {
-	TargetState string           `json:"targetState,omitempty" protobuf:"bytes,1,opt,name=targetState"`
-	LiveState   string           `json:"liveState,omitempty" protobuf:"bytes,2,opt,name=liveState"`
-	Status      ComparisonStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	TargetState        string           `json:"targetState,omitempty" protobuf:"bytes,1,opt,name=targetState"`
+	LiveState          string           `json:"liveState,omitempty" protobuf:"bytes,2,opt,name=liveState"`
+	Status             ComparisonStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	ChildLiveResources []ResourceNode   `json:"childLiveResources,omitempty" protobuf:"bytes,4,opt,name=childLiveResources"`
 }
 
 // Cluster is the definition of a cluster resource

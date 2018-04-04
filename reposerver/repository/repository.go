@@ -13,6 +13,7 @@ import (
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -82,12 +83,10 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	manifests := make([]string, len(targetObjs))
 	for i, target := range targetObjs {
 		if q.AppLabel != "" {
-			labels := target.GetLabels()
-			if labels == nil {
-				labels = make(map[string]string)
+			err = s.setAppLabels(target, q.AppLabel)
+			if err != nil {
+				return nil, err
 			}
-			labels[common.LabelApplicationName] = q.AppLabel
-			target.SetLabels(labels)
 		}
 		manifestStr, err := json.Marshal(target.Object)
 		if err != nil {
@@ -101,6 +100,27 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		Namespace: env.Destination.Namespace,
 		Server:    env.Destination.Server,
 	}, nil
+}
+
+func (s *Service) setAppLabels(target *unstructured.Unstructured, appName string) error {
+	labels := target.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[common.LabelApplicationName] = appName
+	target.SetLabels(labels)
+	// special case for deployment: make sure that derived replicaset and pod has application label
+	if target.GetKind() == "Deployment" {
+		labels, ok := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
+		if ok {
+			if labels == nil {
+				labels = make(map[string]interface{})
+			}
+			labels[common.LabelApplicationName] = appName
+		}
+		unstructured.SetNestedMap(target.UnstructuredContent(), labels, "spec", "template", "metadata", "labels")
+	}
+	return nil
 }
 
 // GetEnvParams retrieves Ksonnet environment params in specified repo name and revision
