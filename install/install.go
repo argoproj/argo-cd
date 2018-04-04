@@ -1,25 +1,24 @@
 package install
 
 import (
-	"bufio"
 	"fmt"
-	"log"
-	"os"
-	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/util/session"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr"
+	log "github.com/sirupsen/logrus"
 	"github.com/yudai/gojsondiff/formatter"
 	"golang.org/x/crypto/ssh/terminal"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	apiv1 "k8s.io/api/core/v1"
-
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -75,6 +74,9 @@ func NewInstaller(config *rest.Config, opts InstallOptions) (*Installer, error) 
 		box:            packr.NewBox("./manifests"),
 		config:         &shallowCopy,
 	}
+	if opts.Namespace == "" {
+		inst.Namespace = DefaultInstallNamespace
+	}
 	var err error
 	inst.dynClientPool = dynamic.NewDynamicClientPool(inst.config)
 	inst.disco, err = discovery.NewDiscoveryClientForConfig(inst.config)
@@ -87,6 +89,7 @@ func NewInstaller(config *rest.Config, opts InstallOptions) (*Installer, error) 
 func (i *Installer) Install() {
 	i.InstallNamespace()
 	i.InstallApplicationCRD()
+	i.InstallSettings()
 	i.InstallApplicationController()
 	i.InstallArgoCDServer()
 	i.InstallArgoCDRepoServer()
@@ -105,12 +108,6 @@ func (i *Installer) Uninstall() {
 			i.MustUninstallResource(&obj)
 		}
 	}
-
-	// i.InstallNamespace()
-	// i.InstallApplicationCRD()
-	// i.InstallApplicationController()
-	// i.InstallArgoCDServer()
-	// i.InstallArgoCDRepoServer()
 }
 
 func (i *Installer) InstallNamespace() {
@@ -130,15 +127,61 @@ func (i *Installer) InstallApplicationCRD() {
 	i.MustInstallResource(kube.MustToUnstructured(&applicationCRD))
 }
 
+func (i *Installer) InstallSettings() {
+	kubeclientset, err := kubernetes.NewForConfig(i.config)
+	errors.CheckError(err)
+	configManager := config.NewConfigManager(kubeclientset, i.Namespace)
+	_, err = configManager.GetSettings()
+	if err != nil {
+		if !apierr.IsNotFound(err) {
+			log.Fatal(err)
+		}
+		// configmap/secret not yet created
+		signature, err := session.MakeSignature(32)
+		errors.CheckError(err)
+		passwordRaw := readAndConfirmPassword()
+		hashedPassword, err := password.HashPassword(passwordRaw)
+		errors.CheckError(err)
+		newSettings := config.ArgoCDSettings{
+			ServerSignature: signature,
+			LocalUsers: map[string]string{
+				common.ArgoCDAdminUsername: hashedPassword,
+			},
+		}
+		err = configManager.SaveSettings(&newSettings)
+		errors.CheckError(err)
+	} else {
+		log.Infof("Settings already exists. Skipping creation")
+	}
+}
+
+func readAndConfirmPassword() string {
+	for {
+		fmt.Print("*** Enter an admin password: ")
+		password, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		fmt.Print("\n")
+		fmt.Print("*** Confirm the admin password: ")
+		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		fmt.Print("\n")
+		if string(password) == string(confirmPassword) {
+			return string(password)
+		}
+		log.Error("Passwords do not match")
+	}
+}
+
 func (i *Installer) InstallApplicationController() {
 	var applicationControllerServiceAccount apiv1.ServiceAccount
 	var applicationControllerRole rbacv1.Role
 	var applicationControllerRoleBinding rbacv1.RoleBinding
 	var applicationControllerDeployment appsv1beta2.Deployment
-	i.unmarshalManifest("02a_application-controller-sa.yaml", &applicationControllerServiceAccount)
-	i.unmarshalManifest("02b_application-controller-role.yaml", &applicationControllerRole)
-	i.unmarshalManifest("02c_application-controller-rolebinding.yaml", &applicationControllerRoleBinding)
-	i.unmarshalManifest("02d_application-controller-deployment.yaml", &applicationControllerDeployment)
+	i.unmarshalManifest("03a_application-controller-sa.yaml", &applicationControllerServiceAccount)
+	i.unmarshalManifest("03b_application-controller-role.yaml", &applicationControllerRole)
+	i.unmarshalManifest("03c_application-controller-rolebinding.yaml", &applicationControllerRoleBinding)
+	i.unmarshalManifest("03d_application-controller-deployment.yaml", &applicationControllerDeployment)
+	applicationControllerRoleBinding.Subjects[0].Namespace = i.Namespace
 	applicationControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ControllerImage
 	applicationControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	i.MustInstallResource(kube.MustToUnstructured(&applicationControllerServiceAccount))
@@ -153,68 +196,29 @@ func (i *Installer) InstallArgoCDServer() {
 	var argoCDServerControllerRoleBinding rbacv1.RoleBinding
 	var argoCDServerControllerDeployment appsv1beta2.Deployment
 	var argoCDServerService apiv1.Service
-	i.unmarshalManifest("03a_argocd-server-sa.yaml", &argoCDServerServiceAccount)
-	i.unmarshalManifest("03b_argocd-server-role.yaml", &argoCDServerControllerRole)
-	i.unmarshalManifest("03c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
-	i.unmarshalManifest("03d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
-	i.unmarshalManifest("03e_argocd-server-service.yaml", &argoCDServerService)
+	i.unmarshalManifest("04a_argocd-server-sa.yaml", &argoCDServerServiceAccount)
+	i.unmarshalManifest("04b_argocd-server-role.yaml", &argoCDServerControllerRole)
+	i.unmarshalManifest("04c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
+	i.unmarshalManifest("04d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
+	i.unmarshalManifest("04e_argocd-server-service.yaml", &argoCDServerService)
+	argoCDServerControllerRoleBinding.Subjects[0].Namespace = i.Namespace
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.UIImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
-
-	kubeclientset, err := kubernetes.NewForConfig(i.config)
-	errors.CheckError(err)
-
-	configManager := util.NewConfigManager(kubeclientset, i.Namespace, i.ConfigMap)
-	errors.CheckError(err)
-
-	if i.InstallOptions.ConfigMap != "" {
-		quotedConfigMapName := strconv.Quote(i.InstallOptions.ConfigMap)
-		container := &argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0]
-		container.Command = append(container.Command, "--config-map", quotedConfigMapName)
-	}
-
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRole))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerRoleBinding))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerControllerDeployment))
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerService))
 
-	// Ignore errors because settings aren't fully formed
-	settings, _ := configManager.GetSettings()
-
-	// Generate a new superuser on command or if there are no superusers.
-	if i.InstallOptions.ConfigSuperuser || len(settings.LocalUsers) == 0 {
-		inputReader := bufio.NewReader(os.Stdin)
-
-		fmt.Print("*** Please enter a superuser username: ")
-		rootUsername, err := inputReader.ReadString('\n')
-		errors.CheckError(err)
-		rootUsername = strings.Trim(rootUsername, "\n")
-
-		fmt.Print("*** Please enter a superuser password: ")
-		rawPassword, err := terminal.ReadPassword(syscall.Stdin)
-		errors.CheckError(err)
-		fmt.Print("\n")
-
-		err = configManager.SetRootUserCredentials(rootUsername, string(rawPassword))
-		errors.CheckError(err)
-	}
-
-	// Generate a new secret key on command or if the server signature isn't set.
-	// This has the side effect of invalidating all current login sessions.
-	if i.InstallOptions.CreateSignature || len(settings.ServerSignature) == 0 {
-		err = configManager.GenerateServerSignature()
-		errors.CheckError(err)
-	}
 }
 
 func (i *Installer) InstallArgoCDRepoServer() {
 	var argoCDRepoServerControllerDeployment appsv1beta2.Deployment
 	var argoCDRepoServerService apiv1.Service
-	i.unmarshalManifest("04a_argocd-repo-server-deployment.yaml", &argoCDRepoServerControllerDeployment)
-	i.unmarshalManifest("04b_argocd-repo-server-service.yaml", &argoCDRepoServerService)
+	i.unmarshalManifest("05a_argocd-repo-server-deployment.yaml", &argoCDRepoServerControllerDeployment)
+	i.unmarshalManifest("05b_argocd-repo-server-service.yaml", &argoCDRepoServerService)
 	argoCDRepoServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.RepoServerImage
 	argoCDRepoServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDRepoServerControllerDeployment))

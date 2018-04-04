@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/util/session"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -14,11 +16,11 @@ type Server struct {
 	ns             string
 	kubeclientset  kubernetes.Interface
 	appclientset   appclientset.Interface
-	serversettings util.ArgoCDSettings
+	serversettings config.ArgoCDSettings
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, serversettings util.ArgoCDSettings) *Server {
+func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, serversettings config.ArgoCDSettings) *Server {
 	return &Server{
 		ns:             namespace,
 		appclientset:   appclientset,
@@ -49,13 +51,13 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 		passwordHash = ""
 	}
 
-	valid, _ := util.VerifyPassword(q.Password, passwordHash)
+	valid, _ := password.VerifyPassword(q.Password, passwordHash)
 	if !valid {
 		err := fmt.Errorf(invalidLoginError)
 		return nil, err
 	}
 
-	sessionManager := util.MakeSessionManager(s.serversettings.ServerSignature)
+	sessionManager := session.MakeSessionManager(s.serversettings.ServerSignature)
 	token, err := sessionManager.Create(q.Username)
 	if err != nil {
 		token = ""
