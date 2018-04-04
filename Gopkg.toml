@@ -12,7 +12,8 @@ required = [
   name = "github.com/grpc-ecosystem/grpc-gateway"
   version = "v1.3.1"
 
-[[constraint]]
+# override ksonnet's release-1.8 dependency
+[[override]]
   branch = "release-1.9"
   name = "k8s.io/apimachinery"
 
@@ -39,3 +40,8 @@ required = [
 [[constraint]]
   name = "github.com/ksonnet/ksonnet"
   branch = "master"
+
+# override ksonnet's logrus dependency
+[[override]]
+  name = "github.com/sirupsen/logrus"
+  version = "v1.0.3"

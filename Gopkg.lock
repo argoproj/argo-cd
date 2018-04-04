@@ -126,6 +126,7 @@
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[projects]]
+  branch = "master"
   name = "github.com/golang/protobuf"
   packages = [
     "jsonpb",
@@ -138,8 +139,7 @@
     "ptypes/struct",
     "ptypes/timestamp"
   ]
-  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
-  version = "v1.0.0"
+  revision = "e09c5db296004fbe3f74490e84dcd62c3c5ddb1b"
 
 [[projects]]
   branch = "master"
@@ -155,10 +155,11 @@
 [[projects]]
   name = "github.com/google/go-jsonnet"
   packages = [
+    ".",
     "ast",
     "parser"
   ]
-  revision = "405726fae23ace72b22c410a77b7bd825608f2c8"
+  revision = "dfddf2b4e3aec377b0dcdf247ff92e7d078b8179"
 
 [[projects]]
   branch = "master"
@@ -198,7 +199,9 @@
     ".",
     "logging",
     "logging/logrus",
-    "tags"
+    "logging/logrus/ctxlogrus",
+    "tags",
+    "tags/logrus"
   ]
   revision = "bc372cc64f55abd91995ba3f219b380ffbc59e9d"
 
@@ -256,18 +259,26 @@
   name = "github.com/ksonnet/ksonnet"
   packages = [
     "component",
-    "env",
     "generator",
     "metadata",
     "metadata/app",
     "metadata/lib",
     "metadata/params",
-    "metadata/parts",
-    "metadata/registry",
+    "pkg/docparser",
+    "pkg/env",
+    "pkg/node",
+    "pkg/params",
+    "pkg/parts",
+    "pkg/pkg",
+    "pkg/registry",
+    "pkg/util/github",
+    "pkg/util/jsonnet",
+    "pkg/util/k8s",
+    "pkg/util/yaml",
     "prototype",
     "strings"
   ]
-  revision = "e570bff822d88b12f1841aa6e0069713d7e066c5"
+  revision = "74e03a648428a6f3025c47ace519f44976364ebe"
 
 [[projects]]
   name = "github.com/ksonnet/ksonnet-lib"
@@ -280,7 +291,7 @@
     "ksonnet-gen/nodemaker",
     "ksonnet-gen/printer"
   ]
-  revision = "9f27c242ff65da0620f8324cc0cd50c8ef00bf5b"
+  revision = "f1aa55533283d55b2967f1e2cfb47048cf6661c8"
 
 [[projects]]
   branch = "master"
@@ -337,7 +348,8 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "3d4380f53a34dcdc95f0c1db702615992b38d9a4"
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
 
 [[projects]]
   name = "github.com/soheilhy/cmux"
@@ -540,10 +552,9 @@
   version = "v0.9.0"
 
 [[projects]]
-  branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+  revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
 
 [[projects]]
   branch = "release-1.9"
@@ -763,6 +774,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bc7f285fbcb2eddbbcc58347b5a8040349923412877b912d8677a6174725c01f"
+  inputs-digest = "3461ff475afad22dcf9bfffb3725556ad151bbe475c4be285319e2727bfe2add"
   solver-name = "gps-cdcl"
   solver-version = 1

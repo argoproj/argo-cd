@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-
 	"strings"
 
 	argocd "github.com/argoproj/argo-cd"
