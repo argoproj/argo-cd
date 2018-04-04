@@ -21,12 +21,16 @@ func NewUninstallCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
+			namespace, wasSpecified, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			if wasSpecified {
+				installOpts.Namespace = namespace
+			}
 			installer, err := install.NewInstaller(conf, installOpts)
 			errors.CheckError(err)
 			installer.Uninstall()
 		},
 	}
-	command.Flags().StringVar(&installOpts.Namespace, "install-namespace", install.DefaultInstallNamespace, "uninstall from a specific namespace")
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	return command
 }

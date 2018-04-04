@@ -21,6 +21,11 @@ func NewInstallCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
+			namespace, wasSpecified, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			if wasSpecified {
+				installOpts.Namespace = namespace
+			}
 			installer, err := install.NewInstaller(conf, installOpts)
 			errors.CheckError(err)
 			installer.Install()
@@ -31,7 +36,6 @@ func NewInstallCommand() *cobra.Command {
 	command.Flags().BoolVar(&installOpts.ConfigSuperuser, "config-superuser", false, "create or update a superuser username and password")
 	command.Flags().BoolVar(&installOpts.CreateSignature, "create-signature", false, "create or update the server-side token signing signature")
 	command.Flags().StringVar(&installOpts.ConfigMap, "config-map", "", "apply settings from a Kubernetes config map")
-	command.Flags().StringVar(&installOpts.Namespace, "install-namespace", install.DefaultInstallNamespace, "install into a specific namespace")
 	command.Flags().StringVar(&installOpts.ControllerImage, "controller-image", install.DefaultControllerImage, "use a specified controller image")
 	command.Flags().StringVar(&installOpts.ServerImage, "server-image", install.DefaultServerImage, "use a specified api server image")
 	command.Flags().StringVar(&installOpts.UIImage, "ui-image", install.DefaultUIImage, "use a specified ui image")

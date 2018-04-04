@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+# TODO: future argocd tuning keys go here (e.g. resync period)
+data: {}

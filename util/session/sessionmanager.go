@@ -1,4 +1,4 @@
-package util
+package session
 
 import (
 	"crypto/rand"
@@ -74,7 +74,7 @@ func (mgr SessionManager) Parse(tokenString string) (*SessionManagerTokenClaims,
 }
 
 // MakeSignature generates a cryptographically-secure pseudo-random token, based on a given number of random bytes, for signing purposes.
-func makeSignature(size int) ([]byte, error) {
+func MakeSignature(size int) ([]byte, error) {
 	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {

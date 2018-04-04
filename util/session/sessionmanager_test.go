@@ -1,4 +1,4 @@
-package util
+package session
 
 import (
 	"testing"
@@ -29,7 +29,7 @@ func TestSessionManager(t *testing.T) {
 
 func TestMakeSignature(t *testing.T) {
 	for size := 1; size <= 64; size++ {
-		s, err := makeSignature(size)
+		s, err := MakeSignature(size)
 		if err != nil {
 			t.Errorf("Could not generate signature of size %d: %v", size, err)
 		}
