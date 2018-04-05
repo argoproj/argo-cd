@@ -102,8 +102,9 @@ const (
 
 // ApplicationStatus contains information about application status in target environment.
 type ApplicationStatus struct {
-	ComparisonResult  ComparisonResult `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
-	RecentDeployments []DeploymentInfo `json:"recentDeployments" protobuf:"bytes,2,opt,name=recentDeployment"`
+	ComparisonResult  ComparisonResult     `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
+	RecentDeployments []DeploymentInfo     `json:"recentDeployments" protobuf:"bytes,2,opt,name=recentDeployment"`
+	Parameters        []ComponentParameter `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.

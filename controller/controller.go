@@ -183,6 +183,20 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
 	newStatus := app.Status
 	newStatus.ComparisonResult = *comparisonResult
+	paramsReq := repository.EnvParamsRequest{
+		Repo:        repo,
+		Revision:    revision,
+		Path:        app.Spec.Source.Path,
+		Environment: app.Spec.Source.Environment,
+	}
+	params, err := client.GetEnvParams(context.Background(), &paramsReq)
+	if err != nil {
+		return nil, err
+	}
+	newStatus.Parameters = make([]appv1.ComponentParameter, len(params.Params))
+	for i := range params.Params {
+		newStatus.Parameters[i] = *params.Params[i]
+	}
 	return &newStatus, nil
 }
 

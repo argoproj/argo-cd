@@ -76,6 +76,8 @@ message ApplicationStatus {
   optional ComparisonResult comparisonResult = 1;
 
   repeated DeploymentInfo recentDeployment = 2;
+
+  repeated ComponentParameter parameters = 3;
 }
 
 // ApplicationWatchEvent contains information about application change.
