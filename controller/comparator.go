@@ -3,8 +3,10 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -39,29 +41,41 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	}
 
 	// Retrieve the live versions of the objects
-	liveObjs, err := kubeutil.GetLiveResources(clst.RESTConfig(), targetObjs, namespace)
+	liveObjs, err := kubeutil.GetResourcesWithLabel(clst.RESTConfig(), namespace, common.LabelApplicationName, app.Name)
+
 	if err != nil {
 		return nil, err
 	}
+	objByFullName := make(map[string]*unstructured.Unstructured)
+	for _, obj := range liveObjs {
+		objByFullName[getResourceFullName(obj)] = obj
+	}
+
+	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
+	for i, targetObj := range targetObjs {
+		controlledLiveObj[i] = objByFullName[getResourceFullName(targetObj)]
+	}
 
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(targetObjs, liveObjs)
+	diffResults, err := diff.DiffArray(targetObjs, controlledLiveObj)
 	if err != nil {
 		return nil, err
 	}
 
 	resources := make([]v1alpha1.ResourceState, len(targetObjs))
 	for i := 0; i < len(targetObjs); i++ {
-		resState := v1alpha1.ResourceState{}
+		resState := v1alpha1.ResourceState{
+			ChildLiveResources: make([]v1alpha1.ResourceNode, 0),
+		}
 		targetObjBytes, err := json.Marshal(targetObjs[i].Object)
 		if err != nil {
 			return nil, err
 		}
 		resState.TargetState = string(targetObjBytes)
-		if liveObjs[i] == nil {
+		if controlledLiveObj[i] == nil {
 			resState.LiveState = "null"
 		} else {
-			liveObjBytes, err := json.Marshal(liveObjs[i].Object)
+			liveObjBytes, err := json.Marshal(controlledLiveObj[i].Object)
 			if err != nil {
 				return nil, err
 			}
@@ -74,6 +88,15 @@ func (ks *KsonnetAppComparator) CompareAppState(
 			resState.Status = v1alpha1.ComparisonStatusSynced
 		}
 		resources[i] = resState
+	}
+
+	for i, resource := range resources {
+		childResources, err := getChildren(controlledLiveObj[i], objByFullName)
+		if err != nil {
+			return nil, err
+		}
+		resource.ChildLiveResources = childResources
+		resources[i] = resource
 	}
 	compResult := v1alpha1.ComparisonResult{
 		ComparedTo: app.Spec.Source,
@@ -88,6 +111,31 @@ func (ks *KsonnetAppComparator) CompareAppState(
 		compResult.Status = v1alpha1.ComparisonStatusSynced
 	}
 	return &compResult, nil
+}
+
+func getChildren(parent *unstructured.Unstructured, objByFullName map[string]*unstructured.Unstructured) ([]v1alpha1.ResourceNode, error) {
+	children := make([]v1alpha1.ResourceNode, 0)
+	for _, obj := range objByFullName {
+		if metav1.IsControlledBy(obj, parent) {
+			childResource := v1alpha1.ResourceNode{}
+			json, err := json.Marshal(obj)
+			if err != nil {
+				return nil, err
+			}
+			childResource.State = string(json)
+			childResourceChildren, err := getChildren(obj, objByFullName)
+			if err != nil {
+				return nil, err
+			}
+			childResource.Children = childResourceChildren
+			children = append(children, childResource)
+		}
+	}
+	return children, nil
+}
+
+func getResourceFullName(obj *unstructured.Unstructured) string {
+	return fmt.Sprintf("%s:%s", obj.GetKind(), obj.GetName())
 }
 
 // NewKsonnetAppComparator creates new instance of Ksonnet app comparator
