@@ -5,6 +5,9 @@ import (
 
 	"time"
 
+	"bufio"
+	"strings"
+
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -18,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -134,6 +138,84 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	select {
 	case <-ws.Context().Done():
 		w.Stop()
+	case <-done:
+	}
+	return nil
+}
+
+func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) error {
+	server, namespace, err := s.getApplicationDestination(context.Background(), q.ApplicationName)
+	if err != nil {
+		return err
+	}
+	clst, err := s.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
+	if err != nil {
+		return err
+	}
+	config := clst.RESTConfig()
+	kubeClientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(q.PodName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	wrongPodError := fmt.Errorf("pod %s does not belong to application %s", q.PodName, q.ApplicationName)
+	if pod.Labels == nil {
+		return wrongPodError
+	}
+	if value, ok := pod.Labels[common.LabelApplicationName]; !ok || value != q.ApplicationName {
+		return wrongPodError
+	}
+
+	var sinceSeconds, tailLines *int64
+	if q.SinceSeconds > 0 {
+		sinceSeconds = &q.SinceSeconds
+	}
+	if q.TailLines > 0 {
+		tailLines = &q.TailLines
+	}
+	stream, err := kubeClientset.CoreV1().Pods(namespace).GetLogs(q.PodName, &v1.PodLogOptions{
+		Container:    q.Container,
+		Follow:       q.Follow,
+		Timestamps:   true,
+		SinceSeconds: sinceSeconds,
+		SinceTime:    q.SinceTime,
+		TailLines:    tailLines,
+	}).Stream()
+	if err != nil {
+		return err
+	}
+	done := make(chan bool)
+	go func() {
+		scanner := bufio.NewScanner(stream)
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.Split(line, " ")
+			logTime, err := time.Parse(time.RFC3339, parts[0])
+			metaLogTime := metav1.NewTime(logTime)
+			if err == nil {
+				lines := strings.Join(parts[1:], " ")
+				for _, line := range strings.Split(lines, "\r") {
+					if line != "" {
+						err = ws.Send(&LogEntry{
+							Content:   line,
+							TimeStamp: &metaLogTime,
+						})
+						if err != nil {
+							log.Warnf("Unable to send stream message: %v", err)
+						}
+					}
+				}
+			}
+		}
+
+		done <- true
+	}()
+	select {
+	case <-ws.Context().Done():
+		stream.Close()
 	case <-done:
 	}
 	return nil

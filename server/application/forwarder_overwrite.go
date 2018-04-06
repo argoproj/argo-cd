@@ -45,7 +45,7 @@ var (
 )
 
 func init() {
-	forward_ApplicationService_Watch_0 = func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, recv func() (proto.Message, error), opts ...func(context.Context, http.ResponseWriter, proto.Message) error) {
+	sseOverrider := func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, req *http.Request, recv func() (proto.Message, error), opts ...func(context.Context, http.ResponseWriter, proto.Message) error) {
 		if req.Header.Get("Accept") == "text/event-stream" {
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Transfer-Encoding", "chunked")
@@ -55,4 +55,6 @@ func init() {
 			runtime.ForwardResponseStream(ctx, mux, marshaler, w, req, recv, opts...)
 		}
 	}
+	forward_ApplicationService_Watch_0 = sseOverrider
+	forward_ApplicationService_PodLogs_0 = sseOverrider
 }
