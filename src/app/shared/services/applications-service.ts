@@ -5,11 +5,13 @@ import requests from './requests';
 
 export class ApplicationsService {
     public list(): Promise<models.Application[]> {
-        return requests.get('/applications').then((res) => res.body as models.ApplicationList).then((list) => list.items || []);
+        return requests.get('/applications').then((res) => res.body as models.ApplicationList).then((list) => {
+            return (list.items || []).map((app) => this.parseAppFields(app));
+        });
     }
 
     public get(name: string): Promise<models.Application> {
-        return requests.get(`/applications/${name}`).then((res) => res.body as models.Application);
+        return requests.get(`/applications/${name}`).then((res) => this.parseAppFields(res.body));
     }
 
     public watch(query?: {name: string}): Observable<models.ApplicationWatchEvent> {
@@ -17,10 +19,30 @@ export class ApplicationsService {
         if (query) {
             url = `${url}?name=${query.name}`;
         }
-        return requests.loadEventSource(url).repeat().retry().map((data) => JSON.parse(data).result as models.ApplicationWatchEvent);
+        return requests.loadEventSource(url).repeat().retry().map((data) => JSON.parse(data).result as models.ApplicationWatchEvent).map((watchEvent) => {
+            watchEvent.application = this.parseAppFields(watchEvent.application);
+            return watchEvent;
+        });
     }
 
     public sync(name: string, revision: string): Promise<boolean> {
         return requests.post(`/applications/${name}/sync`).send({ revision }).then((res) => true);
+    }
+
+    private parseAppFields(data: any): models.Application {
+        const app = data as models.Application;
+        (app.status.comparisonResult.resources || []).forEach((resource) => {
+            resource.liveState = JSON.parse(resource.liveState as any);
+            resource.targetState = JSON.parse(resource.targetState as any);
+            function parseResourceNodes(node: models.ResourceNode) {
+                node.state = JSON.parse(node.state as any);
+                (node.children || []).forEach(parseResourceNodes);
+            }
+            (resource.childLiveResources || []).forEach((node) => {
+                parseResourceNodes(node);
+            });
+        });
+        app.kind = app.kind || 'Application';
+        return app;
     }
 }

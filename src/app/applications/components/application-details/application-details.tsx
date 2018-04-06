@@ -1,5 +1,4 @@
-import { AppContext, AppState, models, Page, SlidingPanel } from 'argo-ui';
-import * as classNames from 'classnames';
+import { AppContext, AppState, Page, SlidingPanel, Tabs } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
@@ -9,8 +8,11 @@ import { Subscription } from 'rxjs';
 import * as appModels from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
-import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
-import { ComparisonStatusIcon } from '../utils';
+
+import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
+import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
+import { ApplicationSummary } from '../application-summary/application-summary';
+import { ParametersPanel } from '../parameters-panel/parameters-panel';
 
 require('./application-details.scss');
 
@@ -21,9 +23,10 @@ export interface ApplicationDetailsProps extends RouteComponentProps<{ name: str
     changesSubscription: Subscription;
     showDeployPanel: boolean;
     selectedRollbackDeploymentIndex: number;
+    selectedNodeFullName: string;
 }
 
-class Component extends React.Component<ApplicationDetailsProps, { expandedRows: number[], deployRevision: string }> {
+class Component extends React.Component<ApplicationDetailsProps, { deployRevision: string }> {
 
     public static contextTypes = {
         router: PropTypes.object,
@@ -31,7 +34,7 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
 
     constructor(props: ApplicationDetailsProps) {
         super(props);
-        this.state = { expandedRows: [], deployRevision: props.application && props.application.spec.source.targetRevision };
+        this.state = { deployRevision: props.application && props.application.spec.source.targetRevision };
     }
 
     public componentWillReceiveProps(props: ApplicationDetailsProps) {
@@ -51,12 +54,21 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
     public setDeployPanelVisible(isVisible: boolean) {
         this.appContext.router.history.push(`${this.props.match.url}?deploy=${isVisible}`);
     }
+
     public setRollbackPanelVisible(selectedDeploymentIndex = 0) {
         this.appContext.router.history.push(`${this.props.match.url}?rollback=${selectedDeploymentIndex}`);
     }
 
+    public selectNode(fullName: string) {
+        this.appContext.router.history.push(`${this.props.match.url}?node=${fullName}`);
+    }
+
     public render() {
         const recentDeployments = this.props.application && this.props.application.status.recentDeployments || [];
+        const appNodesByName = this.groupAppNodesByName();
+        const selectedItem = this.props.selectedNodeFullName && appNodesByName.get(this.props.selectedNodeFullName) || null;
+        const isAppSelected = this.props.application != null && selectedItem === this.props.application;
+        const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
         return (
             <Page
                 title={'Application Details'}
@@ -73,15 +85,31 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                 } }}>
                 <div className='argo-container application-details'>
                     {this.props.application ? (
-                        <div>
-                            {this.renderSummary(this.props.application)}
-                            {this.renderAppResouces(this.props.application)}
-                            {recentDeployments.length > 0 && this.renderDeploymentInfo(recentDeployments[0])}
-                        </div>
+                        <ApplicationResourcesTree
+                            selectedNodeFullName={this.props.selectedNodeFullName}
+                            onNodeClick={(fullName) => this.selectNode(fullName)}
+                            app={this.props.application}/>
                     ) : (
                         <div>Loading...</div>
                     )}
                 </div>
+                <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
+                    <div>
+                    {selectedNode && <Tabs
+                        navTransparent={true}
+                        tabs={[{ title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}]} />
+                    }
+                    {isAppSelected && (
+                        <Tabs navTransparent={true} tabs={[{
+                            title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={this.props.application}/>,
+                        }, {
+                            title: 'PARAMETERS', key: 'parameters', content: <ParametersPanel
+                                params={this.props.application.status.parameters || []}
+                                overrides={this.props.application.spec.source.componentParameterOverrides}/>,
+                        }]}/>
+                    )}
+                    </div>
+                </SlidingPanel>
                 <SlidingPanel isNarrow={true} isShown={this.props.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.syncApplication()}>
@@ -91,7 +119,7 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                             </button>
                         </div>
                     )}>
-                    { this.props.application && (
+                    {this.props.application && (
                         <form>
                             <h6>Deploying application manifests from <a href={this.props.application.spec.source.repoURL}>{this.props.application.spec.source.repoURL}</a></h6>
                             <h6>Revision:
@@ -114,11 +142,9 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
                         </div>
                         <div className='columns small-9'>
                             {recentDeployments[this.props.selectedRollbackDeploymentIndex] && (
-                                <div className='white-box'>
-                                    <div className='white-box__details'>
-                                        {this.renderDeploymentParams(recentDeployments[this.props.selectedRollbackDeploymentIndex])}
-                                    </div>
-                                </div>
+                                <ParametersPanel
+                                    params={recentDeployments[this.props.selectedRollbackDeploymentIndex].params}
+                                    overrides={recentDeployments[this.props.selectedRollbackDeploymentIndex].componentParameterOverrides}/>
                             )}
                             <br/>
                             <button className='argo-button argo-button--base' onClick={() => this.syncApplication()}>
@@ -133,152 +159,28 @@ class Component extends React.Component<ApplicationDetailsProps, { expandedRows:
         );
     }
 
-    private renderDeploymentParams(info: appModels.DeploymentInfo) {
-        const componentParams = new Map<string, (appModels.ComponentParameter & {original: string})[]>();
-        (info.params || []).map((param) => {
-            const override = (info.componentParameterOverrides || []).find((item) => item.component === param.component && item.name === param.name);
-            const res = {...param, original: ''};
-            if (override) {
-                res.original = res.value;
-                res.value = override.value;
+    public groupAppNodesByName() {
+        const nodeByFullName = new Map<string, appModels.ResourceState | appModels.ResourceNode | appModels.Application>();
+        function addChildren<T extends (appModels.ResourceNode | appModels.ResourceState) & { fullName: string, children: appModels.ResourceNode[] }>(node: T) {
+            nodeByFullName.set(node.fullName, node);
+            for (const child of (node.children || [])) {
+                addChildren({...child, fullName: `${child.state.kind}:${child.state.metadata.name}`});
             }
-            return res;
-        }).forEach((param) => {
-            const params = componentParams.get(param.component) || [];
-            params.push(param);
-            componentParams.set(param.component, params);
-        });
-        return Array.from(componentParams.keys()).map((component) => (
-            componentParams.get(component).map((param, i) => (
-                <div className='row white-box__details-row' key={component + param.name}>
-                    <div className='columns small-2'>
-                        {i === 0 && component.toUpperCase()}
-                    </div>
-                    <div className='columns small-2'>
-                        {param.name}:
-                    </div>
-                    <div className='columns small-8 application-details__param'>
-                        <span title={param.value}>
-                            {param.original && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>}
-                            {param.value}
-                        </span>
-                    </div>
-                </div>
-            ))
-        ));
-    }
-
-    private renderDeploymentInfo(info: appModels.DeploymentInfo) {
-        return (
-            <div>
-                <h6>Deployment:</h6>
-                <div className='white-box'>
-                    <div className='white-box__details'>
-                        <div className='row white-box__details-row'>
-                            <div className='columns small-2'>
-                                REVISION:
-                            </div>
-                            <div className='columns small-10'>
-                                {info.revision}
-                            </div>
-                        </div>
-                    {this.renderDeploymentParams(info)}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    private renderAppResouces(app: appModels.Application) {
-        const resources = (app.status.comparisonResult.resources || []).map((resource) => ({
-            liveState: JSON.parse(resource.liveState) as models.TypeMeta & { metadata: models.ObjectMeta },
-            targetState: JSON.parse(resource.targetState) as models.TypeMeta & { metadata: models.ObjectMeta },
-            status: resource.status,
-        }));
-        return (
-            <div>
-                <h6>Resources:</h6>
-                <div className='argo-table-list argo-table-list--clickable'>
-                <div className='argo-table-list__head'>
-                    <div className='row'>
-                        <div className='columns small-3'>Kind</div>
-                        <div className='columns small-2'>API Version</div>
-                        <div className='columns small-4'>Name</div>
-                        <div className='columns small-3'>Status</div>
-                    </div>
-                </div>
-                    {resources.map((resource, i) => (
-                        <div className='argo-table-list__row' key={i} onClick={() => this.toggleRow(i)}>
-                            <div className='row'>
-                                <div className='columns small-3'>
-                                    <i className='fa fa-gear'/> {resource.targetState.kind}
-                                </div>
-                                <div className='columns small-2'>{resource.targetState.apiVersion}</div>
-                                <div className='columns small-4'>{resource.targetState.metadata.name}</div>
-                                <div className='columns small-3'>
-                                    <ComparisonStatusIcon status={resource.status}/> {resource.status}
-                                    <i className={classNames('fa application-details__toggle-manifest', {
-                                        'fa-angle-down': this.state.expandedRows.indexOf(i) === -1,
-                                        'fa-angle-up': this.state.expandedRows.indexOf(i) !== -1})}/>
-                                </div>
-                            </div>
-                            <div className={classNames('application-details__manifest', {'application-details__manifest--expanded': this.state.expandedRows.includes(i)})}>
-                                <ApplicationResourceDiff key={i} targetState={resource.targetState} liveState={resource.liveState}/>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
-    private renderSummary(app: appModels.Application) {
-        const attributes = [
-            {title: 'CLUSTER', value: app.status.comparisonResult.server},
-            {title: 'NAMESPACE', value: app.status.comparisonResult.namespace},
-            {title: 'REPO URL', value: (
-                <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                    <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-                </a> )},
-            {title: 'PATH', value: app.spec.source.path},
-            {title: 'ENVIRONMENT', value: app.spec.source.environment},
-            {title: 'STATUS', value: (
-                <span><ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}</span>
-            )},
-        ];
-        if (app.status.comparisonResult.error) {
-            attributes.push({title: 'COMPARISON ERROR', value: app.status.comparisonResult.error});
         }
-        return (
-            <div className='white-box'>
-                <div className='white-box__details'>
-                    {attributes.map((attr) => (
-                        <div className='row white-box__details-row' key={attr.title}>
-                            <div className='columns small-3'>
-                                {attr.title}
-                            </div>
-                            <div className='columns small-9'>{attr.value}</div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+
+        if (this.props.application) {
+            nodeByFullName.set(`${this.props.application.kind}:${this.props.application.metadata.name}`, this.props.application);
+            for (const node of (this.props.application.status.comparisonResult.resources || [])) {
+                const state = node.liveState || node.targetState;
+                addChildren({...node, children: node.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
+            }
+        }
+        return nodeByFullName;
     }
 
     private syncApplication(revision: string = null) {
         this.props.sync(this.props.application.metadata.namespace, this.props.application.metadata.name, revision || this.state.deployRevision);
         this.setDeployPanelVisible(false);
-    }
-
-    private toggleRow(row: number) {
-        const rows = this.state.expandedRows.slice();
-        const index = rows.indexOf(row);
-        if (index > -1) {
-            rows.splice(index, 1);
-        } else {
-            rows.push(row);
-        }
-        this.setState({ expandedRows: rows });
     }
 
     private get appContext(): AppContext {
@@ -291,6 +193,7 @@ export const ApplicationDetails = connect((state: AppState<State>) => ({
     changesSubscription: state.page.changesSubscription,
     showDeployPanel: new URLSearchParams(state.router.location.search).get('deploy') === 'true',
     selectedRollbackDeploymentIndex: parseInt(new URLSearchParams(state.router.location.search).get('rollback'), 10),
+    selectedNodeFullName: new URLSearchParams(state.router.location.search).get('node'),
 }), (dispatch) => ({
     onLoad: (namespace: string, name: string) => dispatch(actions.loadApplication(name)),
     sync: (namespace: string, name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),

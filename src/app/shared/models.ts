@@ -94,10 +94,18 @@ export const ComparisonStatuses = {
     OutOfSync: 'OutOfSync',
 };
 
+export type State = models.TypeMeta & { metadata: models.ObjectMeta };
+
+export interface ResourceNode {
+    state: State;
+    children: ResourceNode[];
+}
+
 export interface ResourceState {
-    targetState: string;
-    liveState: string;
+    targetState: State;
+    liveState: State;
     status: ComparisonStatus;
+    childLiveResources: ResourceNode[];
 }
 
 export interface ComparisonResult {
@@ -113,4 +121,5 @@ export interface ComparisonResult {
 export interface ApplicationStatus {
     comparisonResult: ComparisonResult;
     recentDeployments: DeploymentInfo[];
+    parameters: ComponentParameter[];
 }
