@@ -81,20 +81,31 @@ func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Appli
 
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*ApplicationResponse, error) {
-	err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
-		return nil, err
+	var err error
+	server := q.Server
+	namespace := q.Namespace
+	if server == "" || namespace == "" {
+		server, namespace, err = s.getApplicationDestination(ctx, q.Name)
+		if err != nil && !apierr.IsNotFound(err) {
+			return nil, err
+		}
 	}
-	if q.Server != "" && q.Namespace != "" {
-		clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: q.Server})
+
+	if server != "" && namespace != "" {
+		clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
 		if err != nil {
 			return nil, err
 		}
 		config := clst.RESTConfig()
-		err = kube.DeleteResourceWithLabel(config, q.Namespace, fmt.Sprintf("%s=%s", common.LabelApplicationName, q.Name))
+		err = kube.DeleteResourceWithLabel(config, namespace, fmt.Sprintf("%s=%s", common.LabelApplicationName, q.Name))
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
+	if err != nil && !apierr.IsNotFound(err) {
+		return nil, err
 	}
 
 	return &ApplicationResponse{}, nil
@@ -194,6 +205,35 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 		}
 	}
 	return res, err
+}
+
+func (s *Server) getApplicationDestination(ctx context.Context, name string) (string, string, error) {
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", "", err
+	} else {
+		if app.Spec.Destination != nil {
+			return app.Spec.Destination.Server, app.Spec.Destination.Namespace, nil
+		} else {
+			repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
+			conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+			if err != nil {
+				return "", "", err
+			}
+			defer util.Close(conn)
+			manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
+				Repo:        repo,
+				Environment: app.Spec.Source.Environment,
+				Path:        app.Spec.Source.Path,
+				Revision:    app.Spec.Source.TargetRevision,
+				AppLabel:    app.Name,
+			})
+			if err != nil {
+				return "", "", err
+			}
+			return manifestInfo.Server, manifestInfo.Namespace, nil
+		}
+	}
 }
 
 func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository {
