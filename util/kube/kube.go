@@ -133,7 +133,7 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 }
 
 // DeleteResourceWithLabel delete all resources which match to specified label selector
-func DeleteResourceWithLabel(config *rest.Config, namespace string, labelSelector string) error {
+func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName string, labelValue string) error {
 	dynClientPool := dynamic.NewDynamicClientPool(config)
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
@@ -162,21 +162,27 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelSelecto
 			if deleteCollectionSupported {
 				err = dclient.Resource(&apiResource, namespace).DeleteCollection(&metav1.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
-				}, metav1.ListOptions{LabelSelector: labelSelector})
+				}, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
 				if err != nil && !apierr.IsNotFound(err) {
 					return err
 				}
 			} else if deleteSupported {
-				items, err := dclient.Resource(&apiResource, namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+				items, err := dclient.Resource(&apiResource, namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
 				if err != nil {
 					return err
 				}
 				for _, item := range items.(*unstructured.UnstructuredList).Items {
-					err = dclient.Resource(&apiResource, namespace).Delete(item.GetName(), &metav1.DeleteOptions{
-						PropagationPolicy: &propagationPolicy,
-					})
-					if err != nil {
-						return err
+					// apply client side filtering since not every kubernetes API supports label filtering
+					labels := item.GetLabels()
+					if labels != nil {
+						if value, ok := labels[labelName]; ok && value == labelValue {
+							err = dclient.Resource(&apiResource, namespace).Delete(item.GetName(), &metav1.DeleteOptions{
+								PropagationPolicy: &propagationPolicy,
+							})
+							if err != nil && !apierr.IsNotFound(err) {
+								return err
+							}
+						}
 					}
 				}
 			}

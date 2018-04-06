@@ -97,7 +97,7 @@ func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*Appl
 			return nil, err
 		}
 		config := clst.RESTConfig()
-		err = kube.DeleteResourceWithLabel(config, namespace, fmt.Sprintf("%s=%s", common.LabelApplicationName, q.Name))
+		err = kube.DeleteResourceWithLabel(config, namespace, common.LabelApplicationName, q.Name)
 		if err != nil {
 			return nil, err
 		}
