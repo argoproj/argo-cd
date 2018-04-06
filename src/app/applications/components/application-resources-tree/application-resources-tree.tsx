@@ -65,45 +65,52 @@ export const ApplicationResourcesTree = (props: {app: models.Application, select
     });
     const size = getGraphSize(graph.nodes().map((id) => graph.node(id)));
     return (
-        <div className='application-resources-tree' style={{width: size.width + 10, height: size.height + 10}}>
+        <div className='application-resources-tree' style={{width: size.width + 50, height: size.height + 50}}>
             {graph.nodes().map((fullName) => {
-                    const node = graph.node(fullName) as (models.ResourceNode | models.ResourceState) & dagre.Node;
-                    let kubeState: models.State;
-                    let comparisonStatus: models.ComparisonStatus = null;
-                    if (node.liveState || node.targetState) {
-                        const resourceState = node as models.ResourceState;
-                        kubeState = resourceState.targetState || resourceState.liveState;
-                        comparisonStatus = resourceState.status;
-                    } else {
-                        const resourceNode = node as models.ResourceNode;
-                        kubeState = resourceNode.state;
-                    }
-                    const kindIcon = ICONCLASS_BY_KIND[kubeState.kind.toLocaleLowerCase()] || 'fa fa-gears';
-                    return (
-                        <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resources-tree__node', {
-                            active: fullName === props.selectedNodeFullName,
-                        })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
-                            <span title={kubeState.kind} className={`application-resources-tree__node-kind-icon icon ${kindIcon}`}/>
+                const node = graph.node(fullName) as (models.ResourceNode | models.ResourceState) & dagre.Node;
+                let kubeState: models.State;
+                let comparisonStatus: models.ComparisonStatus = null;
+                if (node.liveState || node.targetState) {
+                    const resourceState = node as models.ResourceState;
+                    kubeState = resourceState.targetState || resourceState.liveState;
+                    comparisonStatus = resourceState.status;
+                } else {
+                    const resourceNode = node as models.ResourceNode;
+                    kubeState = resourceNode.state;
+                }
+                const kindIcon = ICONCLASS_BY_KIND[kubeState.kind.toLocaleLowerCase()] || 'fa fa-gears';
+                return (
+                    <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resources-tree__node', {
+                        active: fullName === props.selectedNodeFullName,
+                    })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+                        <div className={classNames('application-resources-tree__node-kind-icon', {
+                            'application-resources-tree__node-kind-icon--big': kubeState.kind === 'Application',
+                        })}>
+                            <i title={kubeState.kind} className={`icon ${kindIcon}`}/>
+                        </div>
+                        <div className='application-resources-tree__node-content'>
                             <span className='application-resources-tree__node-title' title={kubeState.metadata.name}>{kubeState.metadata.name}</span>
                             <div className='application-resources-tree__node-status-icon'>
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
                             </div>
                         </div>
+                        <span className='application-resources-tree__node-kind-label'>{kubeState.kind.toLocaleLowerCase()}</span>
+                    </div>
+                );
+            })}
+            {edges.map((edge) => (
+                <div key={`${edge.from}-${edge.to}`} className='application-resources-tree__edge'>
+                {edge.lines.map((line, i) => {
+                    const distance = Math.sqrt(Math.pow(line.x1 - line.x2, 2) + Math.pow(line.y1 - line.y2, 2));
+                    const xMid = (line.x1 + line.x2) / 2;
+                    const yMid = (line.y1 + line.y2) / 2;
+                    const angle = Math.atan2(line.y1 - line.y2, line.x1 - line.x2) * 180 / Math.PI;
+                    return (
+                        <div className='application-resources-tree__line' key={i}
+                            style={{ width: distance, left: xMid - (distance / 2), top: yMid, transform: `translate(100px, 35px) rotate(${angle}deg)`}} />
                     );
-                })}
-                {edges.map((edge) => (
-                    <div key={`${edge.from}-${edge.to}`} className='application-resources-tree__edge'>
-                    {edge.lines.map((line, i) => {
-                        const distance = Math.sqrt(Math.pow(line.x1 - line.x2, 2) + Math.pow(line.y1 - line.y2, 2));
-                        const xMid = (line.x1 + line.x2) / 2;
-                        const yMid = (line.y1 + line.y2) / 2;
-                        const angle = Math.atan2(line.y1 - line.y2, line.x1 - line.x2) * 180 / Math.PI;
-                        return (
-                            <div className='application-resources-tree__line' key={i}
-                                style={{ width: distance, left: xMid - (distance / 2), top: yMid, transform: `translate(100px, 35px) rotate(${angle}deg)`}} />
-                        );
-                    })}</div>
-                ))}
+                })}</div>
+            ))}
         </div>
     );
 };

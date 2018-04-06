@@ -28,5 +28,5 @@ export const ComparisonStatusIcon = ({status}: { status: models.ComparisonStatus
             color = ARGO_RUNNING_COLOR;
             break;
     }
-    return <i className={className} style={{ color }} />;
+    return <i title={status} className={className} style={{ color }} />;
 };
