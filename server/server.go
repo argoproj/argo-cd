@@ -2,12 +2,15 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 
 	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/application"
@@ -18,12 +21,14 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -37,31 +42,32 @@ var (
 
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
-	ns              string
-	staticAssetsDir string
-	kubeclientset   kubernetes.Interface
-	appclientset    appclientset.Interface
-	repoclientset   reposerver.Clientset
-	settings        config.ArgoCDSettings
-	log             *log.Entry
+	ArgoCDServerOpts
+
+	settings config.ArgoCDSettings
+	log      *log.Entry
+}
+
+type ArgoCDServerOpts struct {
+	Insecure        bool
+	Namespace       string
+	StaticAssetsDir string
+	KubeClientset   kubernetes.Interface
+	AppClientset    appclientset.Interface
+	RepoClientset   reposerver.Clientset
 }
 
 // NewServer returns a new instance of the ArgoCD API server
-func NewServer(
-	kubeclientset kubernetes.Interface, appclientset appclientset.Interface, repoclientset reposerver.Clientset, namespace, staticAssetsDir string) *ArgoCDServer {
-	configManager := config.NewConfigManager(kubeclientset, namespace)
+func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
+	configManager := config.NewConfigManager(opts.KubeClientset, opts.Namespace)
 	settings, err := configManager.GetSettings()
 	if err != nil {
 		log.Fatal(err)
 	}
 	return &ArgoCDServer{
-		ns:              namespace,
-		kubeclientset:   kubeclientset,
-		appclientset:    appclientset,
-		repoclientset:   repoclientset,
-		log:             log.NewEntry(log.New()),
-		staticAssetsDir: staticAssetsDir,
-		settings:        *settings,
+		ArgoCDServerOpts: opts,
+		log:              log.NewEntry(log.New()),
+		settings:         *settings,
 	}
 }
 
@@ -74,39 +80,121 @@ func (a *ArgoCDServer) Run() {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	conn, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		panic(err)
+	grpcS := a.newGRPCServer()
+	var httpS *http.Server
+	var httpsS *http.Server
+	if a.useTLS() {
+		httpS = newRedirectServer()
+		httpsS = a.newHTTPServer(ctx)
+	} else {
+		httpS = a.newHTTPServer(ctx)
 	}
 
 	// Cmux is used to support servicing gRPC and HTTP1.1+JSON on the same port
-	m := cmux.New(conn)
-	grpcL := m.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
-	httpL := m.Match(cmux.HTTP1Fast())
+	conn, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	errors.CheckError(err)
 
-	// gRPC Server
-	grpcS := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_logrus.StreamServerInterceptor(a.log),
-			grpc_util.PanicLoggerStreamServerInterceptor(a.log),
-		)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_logrus.UnaryServerInterceptor(a.log),
-			grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
-		)),
-	)
+	tcpm := cmux.New(conn)
+	var tlsm cmux.CMux
+	var grpcL net.Listener
+	var httpL net.Listener
+	var httpsL net.Listener
+	if !a.useTLS() {
+		httpL = tcpm.Match(cmux.HTTP1Fast())
+		grpcL = tcpm.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	} else {
+		// We first match on HTTP 1.1 methods.
+		httpL = tcpm.Match(cmux.HTTP1Fast())
+
+		// If not matched, we assume that its TLS.
+		tlsl := tcpm.Match(cmux.Any())
+		tlsConfig := tls.Config{
+			Certificates: []tls.Certificate{*a.settings.Certificate},
+		}
+		tlsl = tls.NewListener(tlsl, &tlsConfig)
+
+		// Now, we build another mux recursively to match HTTPS and GoRPC.
+		tlsm = cmux.New(tlsl)
+		httpsL = tlsm.Match(cmux.HTTP1Fast())
+		grpcL = tlsm.Match(cmux.Any())
+	}
+
+	// Start the muxed listeners for our servers
+	log.Infof("argocd %s serving on port %d (tls: %v, namespace: %s)", argocd.GetVersion(), port, a.useTLS(), a.Namespace)
+	go func() { errors.CheckError(grpcS.Serve(grpcL)) }()
+	go func() { errors.CheckError(httpS.Serve(httpL)) }()
+	if a.useTLS() {
+		go func() { errors.CheckError(httpsS.Serve(httpsL)) }()
+		go func() { errors.CheckError(tlsm.Serve()) }()
+	}
+	err = tcpm.Serve()
+	errors.CheckError(err)
+}
+
+func (a *ArgoCDServer) useTLS() bool {
+	if a.Insecure || a.settings.Certificate == nil {
+		return false
+	}
+	return true
+}
+
+func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
+	var sOpts []grpc.ServerOption
+	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
+	// This is because TLS handshaking occurs in cmux handling
+	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+		grpc_logrus.StreamServerInterceptor(a.log),
+		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
+	)))
+	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+		grpc_logrus.UnaryServerInterceptor(a.log),
+		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
+	)))
+
+	grpcS := grpc.NewServer(sOpts...)
+	clusterService := cluster.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
+	repoService := repository.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
+	sessionService := session.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.settings)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, repoService, clusterService)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
-	clusterService := cluster.NewServer(a.ns, a.kubeclientset, a.appclientset)
-	repoService := repository.NewServer(a.ns, a.kubeclientset, a.appclientset)
-	sessionService := session.NewServer(a.ns, a.kubeclientset, a.appclientset, a.settings)
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
-	application.RegisterApplicationServiceServer(grpcS, application.NewServer(a.ns, a.kubeclientset, a.appclientset, a.repoclientset, repoService, clusterService))
+	application.RegisterApplicationServiceServer(grpcS, applicationService)
 	repository.RegisterRepositoryServiceServer(grpcS, repoService)
 	session.RegisterSessionServiceServer(grpcS, sessionService)
+	return grpcS
+}
+
+// newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
+// using grpc-gateway as a proxy to the gRPC server.
+func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
+	mux := http.NewServeMux()
+	httpS := http.Server{
+		Addr:    endpoint,
+		Handler: mux,
+	}
+	var dOpts []grpc.DialOption
+	if a.useTLS() {
+		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
+		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
+		// so we need to supply the same certificates to establish the connections that a normal,
+		// external gRPC client would need.
+		certPool := x509.NewCertPool()
+		pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.settings.Certificate)
+		ok := certPool.AppendCertsFromPEM(pemCertBytes)
+		if !ok {
+			panic("bad certs")
+		}
+		dCreds := credentials.NewTLS(&tls.Config{
+			RootCAs:            certPool,
+			InsecureSkipVerify: true,
+		})
+		dOpts = append(dOpts, grpc.WithTransportCredentials(dCreds))
+	} else {
+		dOpts = append(dOpts, grpc.WithInsecure())
+	}
 
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
-	mux := http.NewServeMux()
 	// NOTE: if a marshaller option is not supplied, grpc-gateway will default to the jsonpb from
 	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
@@ -114,45 +202,46 @@ func (a *ArgoCDServer) Run() {
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
 	gwmux := runtime.NewServeMux(gwMuxOpts)
 	mux.Handle("/api/", gwmux)
-	dOpts := []grpc.DialOption{grpc.WithInsecure()}
 	mustRegisterGWHandler(version.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(cluster.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(application.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
-	if a.staticAssetsDir != "" {
+	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-			acceptHtml := false
+			acceptHTML := false
 			for _, acceptType := range strings.Split(request.Header.Get("Accept"), ",") {
 				if acceptType == "text/html" || acceptType == "html" {
-					acceptHtml = true
+					acceptHTML = true
 					break
 				}
 			}
 			fileRequest := request.URL.Path != "/index.html" && strings.Contains(request.URL.Path, ".")
 
 			// serve index.html for non file requests to support HTML5 History API
-			if acceptHtml && !fileRequest && (request.Method == "GET" || request.Method == "HEAD") {
-				http.ServeFile(writer, request, a.staticAssetsDir+"/index.html")
+			if acceptHTML && !fileRequest && (request.Method == "GET" || request.Method == "HEAD") {
+				http.ServeFile(writer, request, a.StaticAssetsDir+"/index.html")
 			} else {
-				http.ServeFile(writer, request, a.staticAssetsDir+request.URL.Path)
+				http.ServeFile(writer, request, a.StaticAssetsDir+request.URL.Path)
 			}
 		})
 	}
+	return &httpS
+}
 
-	httpS := &http.Server{
-		Addr:    endpoint,
-		Handler: mux,
-	}
-
-	// Start the muxed listeners for our servers
-	log.Infof("argocd %s serving on port %d (namespace: %s)", argocd.GetVersion(), port, a.ns)
-	go func() { _ = grpcS.Serve(grpcL) }()
-	go func() { _ = httpS.Serve(httpL) }()
-	err = m.Serve()
-	if err != nil {
-		panic(err)
+// newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
+func newRedirectServer() *http.Server {
+	return &http.Server{
+		Addr: endpoint,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			target := "https://" + req.Host + req.URL.Path
+			if len(req.URL.RawQuery) > 0 {
+				target += "?" + req.URL.RawQuery
+			}
+			log.Printf("redirect to: %s", target)
+			http.Redirect(w, req, target, http.StatusTemporaryRedirect)
+		}),
 	}
 }
 

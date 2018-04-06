@@ -15,6 +15,7 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
+		insecure          bool
 		logLevel          string
 		clientConfig      clientcmd.ClientConfig
 		staticAssetsDir   string
@@ -39,12 +40,21 @@ func NewCommand() *cobra.Command {
 			appclientset := appclientset.NewForConfigOrDie(config)
 			repoclientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
 
-			argocd := server.NewServer(kubeclientset, appclientset, repoclientset, namespace, staticAssetsDir)
+			argoCDOpts := server.ArgoCDServerOpts{
+				Insecure:        insecure,
+				Namespace:       namespace,
+				StaticAssetsDir: staticAssetsDir,
+				KubeClientset:   kubeclientset,
+				AppClientset:    appclientset,
+				RepoClientset:   repoclientset,
+			}
+			argocd := server.NewServer(argoCDOpts)
 			argocd.Run()
 		},
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	command.Flags().BoolVar(&insecure, "insecure", false, "Run server without TLS")
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
