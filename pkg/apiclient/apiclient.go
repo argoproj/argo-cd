@@ -1,14 +1,21 @@
 package apiclient
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
+	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -29,6 +36,7 @@ type ServerClient interface {
 type ClientOptions struct {
 	ServerAddr string
 	Insecure   bool
+	CertFile   string
 }
 
 type client struct {
@@ -57,15 +65,32 @@ func NewClientOrDie(opts *ClientOptions) ServerClient {
 }
 
 func (c *client) NewConn() (*grpc.ClientConn, error) {
-	var dialOpts []grpc.DialOption
-	if c.Insecure {
-		dialOpts = append(dialOpts, grpc.WithInsecure())
+	var creds credentials.TransportCredentials
+	if c.CertFile != "" {
+		b, err := ioutil.ReadFile(c.CertFile)
+		if err != nil {
+			return nil, err
+		}
+		cp := x509.NewCertPool()
+		if !cp.AppendCertsFromPEM(b) {
+			return nil, fmt.Errorf("credentials: failed to append certificates")
+		}
+		tlsConfig := tls.Config{
+			RootCAs: cp,
+		}
+		if c.Insecure {
+			tlsConfig.InsecureSkipVerify = true
+		}
+		creds = credentials.NewTLS(&tlsConfig)
 	} else {
-		return nil, errors.New("secure authentication unsupported")
-	} // else if opts.Credentials != nil {
-	//	dialOpts = append(dialOpts, grpc.WithTransportCredentials(opts.Credentials))
-	//}
-	return grpc.Dial(c.ServerAddr, dialOpts...)
+		if c.Insecure {
+			tlsConfig := tls.Config{
+				InsecureSkipVerify: true,
+			}
+			creds = credentials.NewTLS(&tlsConfig)
+		}
+	}
+	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds)
 }
 
 func (c *client) NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error) {

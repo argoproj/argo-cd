@@ -30,7 +30,8 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewUninstallCommand())
 
 	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
-	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", true, "Disable transport security for the client connection")
+	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Disable transport security for the client connection, including host verification")
+	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
 
 	return command
 }

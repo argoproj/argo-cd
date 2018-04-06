@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/session"
+	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
@@ -132,27 +133,40 @@ func (i *Installer) InstallSettings() {
 	errors.CheckError(err)
 	configManager := config.NewConfigManager(kubeclientset, i.Namespace)
 	_, err = configManager.GetSettings()
-	if err != nil {
-		if !apierr.IsNotFound(err) {
-			log.Fatal(err)
-		}
-		// configmap/secret not yet created
-		signature, err := session.MakeSignature(32)
-		errors.CheckError(err)
-		passwordRaw := readAndConfirmPassword()
-		hashedPassword, err := password.HashPassword(passwordRaw)
-		errors.CheckError(err)
-		newSettings := config.ArgoCDSettings{
-			ServerSignature: signature,
-			LocalUsers: map[string]string{
-				common.ArgoCDAdminUsername: hashedPassword,
-			},
-		}
-		err = configManager.SaveSettings(&newSettings)
-		errors.CheckError(err)
-	} else {
+	if err == nil {
 		log.Infof("Settings already exists. Skipping creation")
+		return
 	}
+	if !apierr.IsNotFound(err) {
+		log.Fatal(err)
+	}
+	// configmap/secret not yet created
+	var newSettings config.ArgoCDSettings
+
+	// set JWT signature
+	signature, err := session.MakeSignature(32)
+	errors.CheckError(err)
+	newSettings.ServerSignature = signature
+
+	// generate admin password
+	passwordRaw := readAndConfirmPassword()
+	hashedPassword, err := password.HashPassword(passwordRaw)
+	errors.CheckError(err)
+	newSettings.LocalUsers = map[string]string{
+		common.ArgoCDAdminUsername: hashedPassword,
+	}
+
+	// generate TLS cert
+	certOpts := tlsutil.CertOptions{
+		Host:         "argocd",
+		Organization: "Argo CD",
+	}
+	cert, err := tlsutil.GenerateX509KeyPair(certOpts)
+	errors.CheckError(err)
+	newSettings.Certificate = cert
+
+	err = configManager.SaveSettings(&newSettings)
+	errors.CheckError(err)
 }
 
 func readAndConfirmPassword() string {
