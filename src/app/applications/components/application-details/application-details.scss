@@ -2,4 +2,8 @@
 
 .application-details {
     padding: 1em;
+
+    &__tab-content-full-height {
+        height: calc(100vh - 2 * 50px);
+    }
 }

@@ -123,3 +123,8 @@ export interface ApplicationStatus {
     recentDeployments: DeploymentInfo[];
     parameters: ComponentParameter[];
 }
+
+export interface LogEntry {
+    content: string;
+    timeStamp: models.Time;
+}

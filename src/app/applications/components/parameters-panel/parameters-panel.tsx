@@ -22,8 +22,8 @@ export const ParametersPanel = (props: { params: models.ComponentParameter[], ov
             <div className='white-box__details'>
             {Array.from(componentParams.keys()).map((component) => (
                 componentParams.get(component).map((param, i) => (
-                    [<p key={component + param.name + 'header'}>
-                        {i === 0 && component.toUpperCase()}
+                    [i === 0 && <p key={component + param.name + 'header'}>
+                        {component.toUpperCase()}
                     </p>,
                     <div className='row white-box__details-row' key={component + param.name}>
                         <div className='columns small-2'>

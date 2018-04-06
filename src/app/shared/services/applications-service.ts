@@ -29,6 +29,11 @@ export class ApplicationsService {
         return requests.post(`/applications/${name}/sync`).send({ revision }).then((res) => true);
     }
 
+    public getContainerLogs(applicationName: string, podName: string, containerName: string): Observable<models.LogEntry> {
+        return requests.loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true`).repeat().retry().map(
+            (data) => JSON.parse(data).result as models.LogEntry);
+    }
+
     private parseAppFields(data: any): models.Application {
         const app = data as models.Application;
         (app.status.comparisonResult.resources || []).forEach((resource) => {

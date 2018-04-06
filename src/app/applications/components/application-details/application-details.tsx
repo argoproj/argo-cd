@@ -1,4 +1,4 @@
-import { AppContext, AppState, Page, SlidingPanel, Tabs } from 'argo-ui';
+import { AppContext, AppState, Page, SlidingPanel, Tab, Tabs } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
@@ -13,6 +13,7 @@ import { ApplicationNodeInfo } from '../application-node-info/application-node-i
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
 import { ApplicationSummary } from '../application-summary/application-summary';
 import { ParametersPanel } from '../parameters-panel/parameters-panel';
+import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
 
 require('./application-details.scss');
 
@@ -97,7 +98,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                     <div>
                     {selectedNode && <Tabs
                         navTransparent={true}
-                        tabs={[{ title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}]} />
+                        tabs={this.getResourceTabs(selectedNode, [{ title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}])} />
                     }
                     {isAppSelected && (
                         <Tabs navTransparent={true} tabs={[{
@@ -185,6 +186,29 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
 
     private get appContext(): AppContext {
         return this.context as AppContext;
+    }
+
+    private getResourceTabs(resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {
+        let resourceNode: appModels.ResourceNode;
+        let resourceState = resource as appModels.ResourceState;
+        if (resourceState.liveState || resourceState.targetState) {
+            resourceNode = { state: resourceState.liveState || resourceState.targetState, children: resourceState.childLiveResources };
+        } else {
+            resourceState = null;
+            resourceNode = resource as appModels.ResourceNode;
+        }
+        if (resourceNode.state.kind === 'Pod') {
+            tabs = tabs.concat([{
+                key: 'logs',
+                title: 'LOGS',
+                content: (
+                    <div className='application-details__tab-content-full-height'>
+                        <PodsLogsViewer pod={resourceNode.state} applicationName={this.props.application.metadata.name} />
+                    </div>
+                ),
+            }]);
+        }
+        return tabs;
     }
 }
 
