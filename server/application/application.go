@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -109,12 +108,6 @@ func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*Appl
 	}
 
 	return &ApplicationResponse{}, nil
-}
-
-// ListPods returns pods in a application
-func (s *Server) ListPods(ctx context.Context, q *ApplicationQuery) (*apiv1.PodList, error) {
-	// TODO: filter by the app label
-	return s.kubeclientset.CoreV1().Pods(s.ns).List(metav1.ListOptions{})
 }
 
 func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) error {
