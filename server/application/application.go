@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -143,30 +144,63 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	return nil
 }
 
-func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) error {
-	server, namespace, err := s.getApplicationDestination(context.Background(), q.ApplicationName)
+func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Config, string, error) {
+	server, namespace, err := s.getApplicationDestination(context.Background(), applicationName)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	clst, err := s.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	config := clst.RESTConfig()
+	return config, namespace, err
+}
+
+func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespace string, kubeClientset *kubernetes.Clientset) error {
+	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	wrongPodError := fmt.Errorf("pod %s does not belong to application %s", podName, applicationName)
+	if pod.Labels == nil {
+		return wrongPodError
+	}
+	if value, ok := pod.Labels[common.LabelApplicationName]; !ok || value != applicationName {
+		return wrongPodError
+	}
+	return nil
+}
+
+func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*ApplicationResponse, error) {
+	config, namespace, err := s.getApplicationClusterConfig(q.ApplicationName)
+	if err != nil {
+		return nil, err
+	}
+	kubeClientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	err = s.ensurePodBelongsToApp(q.ApplicationName, q.PodName, namespace, kubeClientset)
+	if err != nil {
+		return nil, err
+	}
+	kubeClientset.CoreV1().Pods(namespace).Delete(q.PodName, &metav1.DeleteOptions{})
+	return &ApplicationResponse{}, nil
+}
+
+func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) error {
+	config, namespace, err := s.getApplicationClusterConfig(q.ApplicationName)
+	if err != nil {
+		return err
+	}
 	kubeClientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err
 	}
-	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(q.PodName, metav1.GetOptions{})
+	err = s.ensurePodBelongsToApp(q.ApplicationName, q.PodName, namespace, kubeClientset)
 	if err != nil {
 		return err
-	}
-	wrongPodError := fmt.Errorf("pod %s does not belong to application %s", q.PodName, q.ApplicationName)
-	if pod.Labels == nil {
-		return wrongPodError
-	}
-	if value, ok := pod.Labels[common.LabelApplicationName]; !ok || value != q.ApplicationName {
-		return wrongPodError
 	}
 
 	var sinceSeconds, tailLines *int64

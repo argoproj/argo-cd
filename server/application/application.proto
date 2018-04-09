@@ -46,6 +46,11 @@ message ResourceDetails {
 	string message = 4;
 }
 
+message DeletePodQuery {
+	string applicationName = 1;
+	string podName = 2;
+}
+
 message PodLogsQuery {
 	string applicationName = 1;
 	string podName = 2;
@@ -106,6 +111,11 @@ service ApplicationService {
 			post: "/api/v1/applications/{name}/sync"
 			body: "*"
 		};
+	}
+
+	// PodLogs returns stream of log entries for the specified pod. Pod
+	rpc DeletePod(DeletePodQuery) returns (ApplicationResponse) {
+		option (google.api.http).delete = "/api/v1/applications/{applicationName}/pods/{podName}";
 	}
 
 	// PodLogs returns stream of log entries for the specified pod. Pod
