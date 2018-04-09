@@ -30,3 +30,15 @@ export const ComparisonStatusIcon = ({status}: { status: models.ComparisonStatus
     }
     return <i title={status} className={className} style={{ color }} />;
 };
+
+export function getStateAndNode(resource: models.ResourceNode | models.ResourceState) {
+    let resourceNode: models.ResourceNode;
+    let resourceState = resource as models.ResourceState;
+    if (resourceState.liveState || resourceState.targetState) {
+        resourceNode = { state: resourceState.liveState || resourceState.targetState, children: resourceState.childLiveResources };
+    } else {
+        resourceState = null;
+        resourceNode = resource as models.ResourceNode;
+    }
+    return {resourceState, resourceNode};
+}

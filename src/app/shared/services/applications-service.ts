@@ -34,6 +34,10 @@ export class ApplicationsService {
             (data) => JSON.parse(data).result as models.LogEntry);
     }
 
+    public deletePod(applicationName: string, podName: string): Promise<any> {
+        return requests.delete(`/applications/${applicationName}/pods/${podName}`).send().then((res) => true);
+    }
+
     private parseAppFields(data: any): models.Application {
         const app = data as models.Application;
         (app.status.comparisonResult.resources || []).forEach((resource) => {

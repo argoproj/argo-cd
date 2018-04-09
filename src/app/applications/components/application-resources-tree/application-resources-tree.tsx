@@ -1,3 +1,4 @@
+import { DropDownMenu, MenuItem } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -12,7 +13,7 @@ interface Line { x1: number; y1: number; x2: number; y2: number; }
 const NODE_WIDTH = 182;
 const NODE_HEIGHT = 52;
 
-const ICONCLASS_BY_KIND = {
+const ICON_CLASS_BY_KIND = {
     application: 'argo-icon-application',
     deployment: 'argo-icon-deployment',
     pod: 'argo-icon-docker',
@@ -29,7 +30,14 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     return {width, height};
 }
 
-export const ApplicationResourcesTree = (props: {app: models.Application, selectedNodeFullName?: string, onNodeClick?: (fullName: string) => any}) => {
+export const ApplicationResourcesTree = (props: {
+    app: models.Application,
+    selectedNodeFullName?:
+    string,
+    onNodeClick?: (fullName: string) => any,
+    nodeMenuItems?: (node: models.ResourceNode | models.ResourceState) => MenuItem[],
+}) => {
+
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR' });
     graph.setDefaultEdgeLabel(() => ({}));
@@ -65,7 +73,7 @@ export const ApplicationResourcesTree = (props: {app: models.Application, select
     });
     const size = getGraphSize(graph.nodes().map((id) => graph.node(id)));
     return (
-        <div className='application-resources-tree' style={{width: size.width + 50, height: size.height + 50}}>
+        <div className='application-resources-tree' style={{width: size.width + 150, height: size.height + 150}}>
             {graph.nodes().map((fullName) => {
                 const node = graph.node(fullName) as (models.ResourceNode | models.ResourceState) & dagre.Node;
                 let kubeState: models.State;
@@ -78,7 +86,7 @@ export const ApplicationResourcesTree = (props: {app: models.Application, select
                     const resourceNode = node as models.ResourceNode;
                     kubeState = resourceNode.state;
                 }
-                const kindIcon = ICONCLASS_BY_KIND[kubeState.kind.toLocaleLowerCase()] || 'fa fa-gears';
+                const kindIcon = ICON_CLASS_BY_KIND[kubeState.kind.toLocaleLowerCase()] || 'fa fa-gears';
                 return (
                     <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resources-tree__node', {
                         active: fullName === props.selectedNodeFullName,
@@ -95,6 +103,13 @@ export const ApplicationResourcesTree = (props: {app: models.Application, select
                             </div>
                         </div>
                         <span className='application-resources-tree__node-kind-label'>{kubeState.kind.toLocaleLowerCase()}</span>
+                        {props.nodeMenuItems && (
+                            <div className='application-resources-tree__node-menu'>
+                                <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                    <i className='fa fa-ellipsis-v'/>
+                                </button>} items={props.nodeMenuItems(node)}/>
+                            </div>
+                        )}
                     </div>
                 );
             })}

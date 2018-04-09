@@ -33,6 +33,10 @@ export default {
         return superagent.post(`${API_ROOT}${url}`);
     },
 
+    delete(url: string) {
+        return superagent.del(`${API_ROOT}${url}`);
+    },
+
     loadEventSource(url: string, allowAutoRetry = false): Observable<string> {
         return Observable.create((observer: Observer<any>) => {
             const eventSource = new EventSource(`${API_ROOT}${url}`);

@@ -51,3 +51,16 @@ export function syncApplication(name: string, revision: string): any {
         }
     };
 }
+
+export function deletePod(appName: string, podName: string): any {
+    return async (dispatch: Dispatch<any>, getState: () => AppState<State>) => {
+        try {
+            await services.applications.deletePod(appName, podName);
+        } catch (e) {
+            dispatch(commonActions.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to delete pod: ${e.response && e.response.text || 'Internal error'}`,
+            }));
+        }
+    };
+}

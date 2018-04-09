@@ -1,4 +1,4 @@
-import { AppContext, AppState, Page, SlidingPanel, Tab, Tabs } from 'argo-ui';
+import { AppContext, AppState, MenuItem, Page, SlidingPanel, Tab, Tabs} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
@@ -14,6 +14,7 @@ import { ApplicationResourcesTree } from '../application-resources-tree/applicat
 import { ApplicationSummary } from '../application-summary/application-summary';
 import { ParametersPanel } from '../parameters-panel/parameters-panel';
 import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
+import * as AppUtils from '../utils';
 
 require('./application-details.scss');
 
@@ -21,6 +22,7 @@ export interface ApplicationDetailsProps extends RouteComponentProps<{ name: str
     application: appModels.Application;
     onLoad: (namespace: string, name: string) => any;
     sync: (namespace: string, name: string, revision: string) => any;
+    deletePod: (namespace: string, appName: string, podName: string) => any;
     changesSubscription: Subscription;
     showDeployPanel: boolean;
     selectedRollbackDeploymentIndex: number;
@@ -89,6 +91,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                         <ApplicationResourcesTree
                             selectedNodeFullName={this.props.selectedNodeFullName}
                             onNodeClick={(fullName) => this.selectNode(fullName)}
+                            nodeMenuItems={(node) => this.getResourceMenuItems(node)}
                             app={this.props.application}/>
                     ) : (
                         <div>Loading...</div>
@@ -188,15 +191,24 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
         return this.context as AppContext;
     }
 
-    private getResourceTabs(resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {
-        let resourceNode: appModels.ResourceNode;
-        let resourceState = resource as appModels.ResourceState;
-        if (resourceState.liveState || resourceState.targetState) {
-            resourceNode = { state: resourceState.liveState || resourceState.targetState, children: resourceState.childLiveResources };
-        } else {
-            resourceState = null;
-            resourceNode = resource as appModels.ResourceNode;
+    private getResourceMenuItems(resource: appModels.ResourceNode | appModels.ResourceState): MenuItem[] {
+        const {resourceNode} = AppUtils.getStateAndNode(resource);
+        const menuItems: {title: string, action: () => any}[] = [{
+            title: 'Details',
+            action: () => this.selectNode(`${resourceNode.state.kind}:${resourceNode.state.metadata.name}`),
+        }];
+
+        if (resourceNode.state.kind === 'Pod') {
+            menuItems.push({
+                title: 'Delete',
+                action: () => this.props.deletePod(this.props.match.params.namespace, this.props.match.params.name, resourceNode.state.metadata.name),
+            });
         }
+        return menuItems;
+    }
+
+    private getResourceTabs(resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {
+        const {resourceNode} = AppUtils.getStateAndNode(resource);
         if (resourceNode.state.kind === 'Pod') {
             tabs = tabs.concat([{
                 key: 'logs',
@@ -221,4 +233,5 @@ export const ApplicationDetails = connect((state: AppState<State>) => ({
 }), (dispatch) => ({
     onLoad: (namespace: string, name: string) => dispatch(actions.loadApplication(name)),
     sync: (namespace: string, name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),
+    deletePod: (namespace: string, appName: string, podName: string) => dispatch(actions.deletePod(appName, podName)),
 }))(Component);

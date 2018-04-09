@@ -27,6 +27,7 @@
     &__node {
         position: absolute;
         padding-left: 3.5em;
+        padding-right: 1em;
         margin: 10px;
         box-shadow: 1px 1px 1px $argo-color-gray-4;
         background-color: white;
@@ -37,6 +38,12 @@
         &.active {
             border-color: $argo-color-teal-6;
         }
+    }
+
+    &__node-menu {
+        position: absolute;
+        right: 0px;
+        top: 7px;
     }
 
     &__node-content {
@@ -87,7 +94,7 @@
 
     &__node-status-icon {
         position: absolute;
-        right: 5px;
-        bottom: 0;
+        left: 0;
+        bottom: -5px;
     }
 }
