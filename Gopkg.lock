@@ -197,11 +197,13 @@
   name = "github.com/grpc-ecosystem/go-grpc-middleware"
   packages = [
     ".",
+    "auth",
     "logging",
     "logging/logrus",
     "logging/logrus/ctxlogrus",
     "tags",
-    "tags/logrus"
+    "tags/logrus",
+    "util/metautils"
   ]
   revision = "bc372cc64f55abd91995ba3f219b380ffbc59e9d"
 
@@ -774,6 +776,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "322a07c0669a9e0865463bd2976ab0cc3828cf63e43ada0b14ea65933d011529"
+  inputs-digest = "04546dfcb4a6b5756f85134841cba8a155e5dbdc5036f870b3d963f27c97059c"
   solver-name = "gps-cdcl"
   solver-version = 1

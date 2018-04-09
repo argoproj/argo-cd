@@ -21,14 +21,17 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	util_session "github.com/argoproj/argo-cd/util/session"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -144,10 +147,12 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		grpc_logrus.StreamServerInterceptor(a.log),
+		grpc_auth.StreamServerInterceptor(a.authenticate),
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		grpc_logrus.UnaryServerInterceptor(a.log),
+		grpc_auth.UnaryServerInterceptor(a.authenticate),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
 
@@ -253,4 +258,21 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 	if err != nil {
 		panic(err)
 	}
+}
+
+// Authenticate checks for the presence of a token when accessing server-side resources.
+func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
+		tokens := md["tokens"]
+		for _, token := range tokens {
+			_, err := mgr.Parse(token)
+			if err == nil {
+				return ctx, nil
+			}
+		}
+		return ctx, fmt.Errorf("user is not allowed access")
+	}
+
+	return ctx, fmt.Errorf("empty metadata")
 }

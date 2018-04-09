@@ -64,3 +64,8 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 	}
 	return &SessionResponse{token}, err
 }
+
+// AuthFuncOverride overrides the authentication function and let us not require auth to receive auth.
+func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	return ctx, nil
+}
