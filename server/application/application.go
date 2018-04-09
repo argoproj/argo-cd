@@ -185,7 +185,10 @@ func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*Application
 	if err != nil {
 		return nil, err
 	}
-	kubeClientset.CoreV1().Pods(namespace).Delete(q.PodName, &metav1.DeleteOptions{})
+	err = kubeClientset.CoreV1().Pods(namespace).Delete(q.PodName, &metav1.DeleteOptions{})
+	if err != nil {
+		return nil, err
+	}
 	return &ApplicationResponse{}, nil
 }
 
@@ -249,7 +252,7 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 	}()
 	select {
 	case <-ws.Context().Done():
-		stream.Close()
+		util.Close(stream)
 	case <-done:
 	}
 	return nil
