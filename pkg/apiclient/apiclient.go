@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/server/session"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -31,6 +32,8 @@ type ServerClient interface {
 	NewClusterClientOrDie() (*grpc.ClientConn, cluster.ClusterServiceClient)
 	NewApplicationClient() (*grpc.ClientConn, application.ApplicationServiceClient, error)
 	NewApplicationClientOrDie() (*grpc.ClientConn, application.ApplicationServiceClient)
+	NewSessionClient() (*grpc.ClientConn, session.SessionServiceClient, error)
+	NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServiceClient)
 }
 
 type ClientOptions struct {
@@ -142,4 +145,21 @@ func (c *client) NewApplicationClientOrDie() (*grpc.ClientConn, application.Appl
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, repoIf
+}
+
+func (c *client) NewSessionClient() (*grpc.ClientConn, session.SessionServiceClient, error) {
+	conn, err := c.NewConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	sessionIf := session.NewSessionServiceClient(conn)
+	return conn, sessionIf, nil
+}
+
+func (c *client) NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServiceClient) {
+	conn, sessionIf, err := c.NewSessionClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, sessionIf
 }
