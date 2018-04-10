@@ -87,7 +87,7 @@ func printContexts(ca clientcmd.ConfigAccess) {
 	errors.CheckError(err)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer func() { _ = w.Flush() }()
-	columnNames := []string{"CURRENT", "NAME", "CLUSTER", "AUTHINFO", "NAMESPACE"}
+	columnNames := []string{"CURRENT", "NAME", "CLUSTER", "SERVER"}
 	_, err = fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t"))
 	errors.CheckError(err)
 
@@ -100,11 +100,12 @@ func printContexts(ca clientcmd.ConfigAccess) {
 
 	for _, name := range contextNames {
 		context := config.Contexts[name]
+		cluster := config.Clusters[context.Cluster]
 		prefix := " "
 		if config.CurrentContext == name {
 			prefix = "*"
 		}
-		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", prefix, name, context.Cluster, context.AuthInfo, context.Namespace)
+		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", prefix, name, context.Cluster, cluster.Server)
 		errors.CheckError(err)
 	}
 }
