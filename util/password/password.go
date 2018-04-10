@@ -44,11 +44,6 @@ func verifyPasswordWithHashers(password, hashedPassword string, hashers []Passwo
 	valid = false
 	stale = false
 
-	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
-	if password == "" {
-		return
-	}
-
 	for idx, hasher := range hashers {
 		if hasher.VerifyPassword(password, hashedPassword) {
 			valid = true
@@ -58,6 +53,13 @@ func verifyPasswordWithHashers(password, hashedPassword string, hashers []Passwo
 			break
 		}
 	}
+
+	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
+	// This goes AFTER verification to mitigate potential for timing attacks.
+	if password == "" {
+		valid = false
+	}
+
 	return
 }
 
