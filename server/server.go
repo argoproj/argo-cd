@@ -266,13 +266,12 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 		mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
 		tokens := md["tokens"]
 		for _, token := range tokens {
-			_, err := mgr.Parse(token)
+			claims, err := mgr.Parse(token)
 			if err == nil {
+				log.Printf("validated token with claims: %s", claims)
 				return ctx, nil
 			}
 		}
-		return ctx, fmt.Errorf("user is not allowed access")
 	}
-
-	return ctx, fmt.Errorf("empty metadata")
+	return ctx, fmt.Errorf("invalid or expired token")
 }
