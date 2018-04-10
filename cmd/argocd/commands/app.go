@@ -61,20 +61,15 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			var app argoappv1.Application
 			if fileURL != "" {
-				var (
-					fileContents []byte
-					err          error
-				)
-				_, err = url.ParseRequestURI(fileURL)
+				_, err := url.ParseRequestURI(fileURL)
 				if err != nil {
-					fileContents, err = readLocalFile(fileURL)
+					err = UnmarshalLocalFile(fileURL, &app)
 				} else {
-					fileContents, err = readRemoteFile(fileURL)
+					err = UnmarshalRemoteFile(fileURL, &app)
 				}
 				if err != nil {
 					log.Fatal(err)
 				}
-				unmarshalApplication(fileContents, &app)
 
 			} else {
 				// all these params are required if we're here

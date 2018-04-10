@@ -3,41 +3,56 @@ package commands
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
 )
 
-// unmarshalApplication tries to convert a YAML or JSON byte array into an Application struct.
-func unmarshalApplication(data []byte, app *argoappv1.Application) {
+// unmarshalObject tries to convert a YAML or JSON byte array into the provided type.
+func unmarshalObject(data []byte, obj interface{}) error {
 	// first, try unmarshaling as JSON
 	// Based on technique from Kubectl, which supports both YAML and JSON:
 	//   https://mlafeldt.github.io/blog/teaching-go-programs-to-love-json-and-yaml/
 	//   http://ghodss.com/2014/the-right-way-to-handle-yaml-in-golang/
 	// Short version: JSON unmarshaling won't zero out null fields; YAML unmarshaling will.
 	// This may have unintended effects or hard-to-catch issues when populating our application object.
-	data, err := yaml.YAMLToJSON(data)
+	jsonData, err := yaml.YAMLToJSON(data)
 	if err != nil {
-		log.Fatal("Could not decode valid JSON or YAML Kubernetes manifest")
+		return err
 	}
-	err = json.Unmarshal(data, &app)
+
+	err = json.Unmarshal(jsonData, &obj)
 	if err != nil {
-		log.Fatalf("Could not unmarshal Kubernetes manifest: %s", string(data))
+		return err
 	}
+
+	return err
 }
 
-// readLocalFile reads a file from disk and returns its contents as a byte array.
+// UnmarshalLocalFile retrieves JSON or YAML from a file on disk.
 // The caller is responsible for checking error return values.
-func readLocalFile(path string) (data []byte, err error) {
-	data, err = ioutil.ReadFile(path)
-	return
+func UnmarshalLocalFile(path string, obj interface{}) error {
+	data, err := ioutil.ReadFile(path)
+	if err == nil {
+		err = unmarshalObject(data, obj)
+	}
+	return err
 }
 
-// readRemoteFile issues a GET request to retrieve the contents of the specified URL as a byte array.
+// UnmarshalRemoteFile retrieves JSON or YAML through a GET request.
 // The caller is responsible for checking error return values.
-func readRemoteFile(url string) (data []byte, err error) {
+func UnmarshalRemoteFile(url string, obj interface{}) error {
+	data, err := readRemoteFile(url)
+	if err == nil {
+		err = unmarshalObject(data, obj)
+	}
+	return err
+}
+
+// ReadRemoteFile issues a GET request to retrieve the contents of the specified URL as a byte array.
+// The caller is responsible for checking error return values.
+func readRemoteFile(url string) ([]byte, error) {
+	var data []byte
 	resp, err := http.Get(url)
 	if err == nil {
 		defer func() {
@@ -45,5 +60,5 @@ func readRemoteFile(url string) (data []byte, err error) {
 		}()
 		data, err = ioutil.ReadAll(resp.Body)
 	}
-	return
+	return data, err
 }
