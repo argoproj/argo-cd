@@ -2,6 +2,7 @@ package password
 
 import (
 	"crypto/subtle"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,6 +31,10 @@ var preferredHashers = []PasswordHasher{
 
 // HashPasswordWithHashers hashes an entered password using the first hasher in the provided list of hashers.
 func hashPasswordWithHashers(password string, hashers []PasswordHasher) (string, error) {
+	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
+	if password == "" {
+		return "", fmt.Errorf("blank passwords are not allowed")
+	}
 	return hashers[0].HashPassword(password)
 }
 
@@ -38,6 +43,12 @@ func verifyPasswordWithHashers(password, hashedPassword string, hashers []Passwo
 	// Be explicit here for security, even though zero values can be assumed.
 	valid = false
 	stale = false
+
+	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
+	if password == "" {
+		return
+	}
+
 	for idx, hasher := range hashers {
 		if hasher.VerifyPassword(password, hashedPassword) {
 			valid = true

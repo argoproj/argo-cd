@@ -12,10 +12,10 @@ func testPasswordHasher(t *testing.T, h PasswordHasher) {
 	)
 	hashedPassword, _ := h.HashPassword(defaultPassword)
 	if !h.VerifyPassword(defaultPassword, hashedPassword) {
-		t.Errorf("Password \"%s\" should have validated against hash \"%s\"", defaultPassword, hashedPassword)
+		t.Errorf("Password %q should have validated against hash %q", defaultPassword, hashedPassword)
 	}
 	if h.VerifyPassword(defaultPassword, pollution+hashedPassword) {
-		t.Errorf("Password \"%s\" should NOT have validated against hash \"%s\"", defaultPassword, pollution+hashedPassword)
+		t.Errorf("Password %q should NOT have validated against hash %q", defaultPassword, pollution+hashedPassword)
 	}
 }
 
@@ -33,6 +33,7 @@ func TestDummyPasswordHasher(t *testing.T) {
 func TestPasswordHashing(t *testing.T) {
 	const (
 		defaultPassword = "Hello, world!"
+		blankPassword   = ""
 	)
 	hashers := []PasswordHasher{
 		BcryptPasswordHasher{0},
@@ -42,17 +43,26 @@ func TestPasswordHashing(t *testing.T) {
 	hashedPassword, _ := hashPasswordWithHashers(defaultPassword, hashers)
 	valid, stale := verifyPasswordWithHashers(defaultPassword, hashedPassword, hashers)
 	if !valid {
-		t.Errorf("Password \"%s\" should have validated against hash \"%s\"", defaultPassword, hashedPassword)
+		t.Errorf("Password %q should have validated against hash %q", defaultPassword, hashedPassword)
 	}
 	if stale {
-		t.Errorf("Password \"%s\" should not have been marked stale against hash \"%s\"", defaultPassword, hashedPassword)
+		t.Errorf("Password %q should not have been marked stale against hash %q", defaultPassword, hashedPassword)
 	}
 	valid, stale = verifyPasswordWithHashers(defaultPassword, defaultPassword, hashers)
 	if !valid {
-		t.Errorf("Password \"%s\" should have validated against itself with dummy hasher", defaultPassword)
+		t.Errorf("Password %q should have validated against itself with dummy hasher", defaultPassword)
 	}
 	if !stale {
-		t.Errorf("Password \"%s\" should have been acknowledged stale against itself with dummy hasher", defaultPassword)
+		t.Errorf("Password %q should have been acknowledged stale against itself with dummy hasher", defaultPassword)
 	}
 
+	hashedPassword, err := hashPasswordWithHashers(blankPassword, hashers)
+	if err == nil {
+		t.Errorf("Blank password should have produced error, rather than hash %q", hashedPassword)
+	}
+
+	valid, _ = verifyPasswordWithHashers(blankPassword, "", hashers)
+	if valid != false {
+		t.Errorf("Blank password should have failed verification")
+	}
 }
