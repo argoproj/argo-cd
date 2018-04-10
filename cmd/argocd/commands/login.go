@@ -1,8 +1,12 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"strings"
 	"syscall"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -16,20 +20,35 @@ import (
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		// clientConfig clientcmd.ClientConfig
 		username string
+		password string
 	)
 	var command = &cobra.Command{
 		Use:   "login",
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
 		Run: func(c *cobra.Command, args []string) {
-			password, err := terminal.ReadPassword(syscall.Stdin)
-			errors.CheckError(err)
+			for username == "" {
+				reader := bufio.NewReader(os.Stdin)
+				fmt.Print("Username: ")
+				usernameRaw, err := reader.ReadString('\n')
+				if err != nil {
+					log.Fatal(err)
+				}
+				username = strings.TrimSpace(usernameRaw)
+			}
+			for password == "" {
+				fmt.Print("Password: ")
+				passwordRaw, err := terminal.ReadPassword(syscall.Stdin)
+				if err != nil {
+					log.Fatal(err)
+				}
+				password = string(passwordRaw)
+				if password == "" {
+					fmt.Print("\n")
+				}
+			}
 
-			//conf, err := clientConfig.ClientConfig()
-
-			//errors.CheckError(err)
 			conn, sessionIf := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
 			defer util.Close(conn)
 
@@ -39,35 +58,9 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
 			errors.CheckError(err)
-			fmt.Printf("user %q logged in with token %q\n", createdSession.Token)
-
-			// reach out to backend for /api/v1/sessions/create
-
-			// namespace, wasSpecified, err := clientConfig.Namespace()
-			// errors.CheckError(err)
-			// // authenticate here
-			// namespace := "default"
-			// kubeclientset, err := kubernetes.NewForConfig(clientConfig)
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			// configManager, err := util.NewConfigManager(clientset, namespace)
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			// settings, err := configManager.GetSettings()
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			// sessionManager := SessionManager{settings.ServerSignature}
-
-			// // valid, _ := settings.LoginLocalUser....
-
-			// // token := sessionManager.Create(username)
-			// // fmt.Println("token = ", token)
+			fmt.Printf("user %q logged in successfully\n", username)
 		},
 	}
 	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
-	// clientConfig = cli.AddKubectlFlagsToCmd(command)
 	return command
 }
