@@ -32,7 +32,7 @@ func localConfigPath() (string, error) {
 
 // ReadLocalConfig loads up the local configuration file.
 func ReadLocalConfig() (LocalConfig, error) {
-	var config LocalConfig = LocalConfig{
+	config := LocalConfig{
 		Sessions: make(map[string]string),
 	}
 
