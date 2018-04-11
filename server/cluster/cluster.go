@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -30,7 +31,7 @@ type Server struct {
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface) ClusterServiceServer {
+func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface) *Server {
 	return &Server{
 		ns:            namespace,
 		appclientset:  appclientset,
@@ -91,6 +92,41 @@ func (s *Server) Create(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 		return nil, err
 	}
 	return secretToCluster(clusterSecret), nil
+}
+
+// ClusterEvent contains information about cluster event
+type ClusterEvent struct {
+	Type    watch.EventType
+	Cluster *appv1.Cluster
+}
+
+// WatchClusters allow watching for cluster events
+func (s *Server) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) error {
+	listOpts := metav1.ListOptions{}
+	labelSelector := labels.NewSelector()
+	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.SecretTypeCluster})
+	if err != nil {
+		return err
+	}
+	labelSelector = labelSelector.Add(*req)
+	listOpts.LabelSelector = labelSelector.String()
+	w, err := s.kubeclientset.CoreV1().Secrets(s.ns).Watch(listOpts)
+	if err != nil {
+		return err
+	}
+	go func() {
+		<-ctx.Done()
+		w.Stop()
+	}()
+	for next := range w.ResultChan() {
+		secret := next.Object.(*apiv1.Secret)
+		cluster := secretToCluster(secret)
+		callback(&ClusterEvent{
+			Type:    next.Type,
+			Cluster: cluster,
+		})
+	}
+	return nil
 }
 
 func (s *Server) getClusterSecret(server string) (*apiv1.Secret, error) {
