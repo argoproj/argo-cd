@@ -2,32 +2,46 @@ package cli
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 )
 
-// func TestReadLocalFile(t *testing.T) {
-// 	sentinel := "Hello, world!"
+func TestUnmarshalLocalFile(t *testing.T) {
+	const (
+		field1 = "Hello, world!"
+		field2 = 42
+	)
+	sentinel := fmt.Sprintf("---\nfield1: %q\nfield2: %d", field1, field2)
 
-// 	file, err := ioutil.TempFile(os.TempDir(), "")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer func() {
-// 		_ = os.Remove(file.Name())
-// 	}()
+	file, err := ioutil.TempFile(os.TempDir(), "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = os.Remove(file.Name())
+	}()
 
-// 	_, _ = file.WriteString(sentinel)
-// 	_ = file.Sync()
+	_, _ = file.WriteString(sentinel)
+	_ = file.Sync()
 
-// 	data, err := UnmarshalLocalFile(file.Name())
-// 	if string(data) != sentinel {
-// 		t.Errorf("Test data did not match (err = %v)! Expected \"%s\" and received \"%s\"", err, sentinel, string(data))
-// 	}
-// }
+	var testStruct struct {
+		Field1 string
+		Field2 int
+	}
+	err = UnmarshalLocalFile(file.Name(), &testStruct)
+	if err != nil {
+		t.Errorf("Could not unmarshal test data: %s", err)
+	}
 
-func TestReadRemoteFile(t *testing.T) {
+	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {
+		t.Errorf("Test data did not match! Expected {%s %d} but got: %v", field1, field2, testStruct)
+	}
+}
+
+func TestUnmarshalRemoteFile(t *testing.T) {
 	const (
 		field1 = "Hello, world!"
 		field2 = 42
