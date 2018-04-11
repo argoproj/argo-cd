@@ -13,6 +13,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/spf13/cobra"
 	"github.com/yudai/gojsondiff/formatter"
@@ -63,9 +64,9 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			if fileURL != "" {
 				_, err := url.ParseRequestURI(fileURL)
 				if err != nil {
-					err = UnmarshalLocalFile(fileURL, &app)
+					err = cli.UnmarshalLocalFile(fileURL, &app)
 				} else {
-					err = UnmarshalRemoteFile(fileURL, &app)
+					err = cli.UnmarshalRemoteFile(fileURL, &app)
 				}
 				if err != nil {
 					log.Fatal(err)
