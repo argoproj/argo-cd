@@ -37,7 +37,7 @@ func MakeSessionManager(secretKey []byte) SessionManager {
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
-func (mgr SessionManager) create(subject string) (string, error) {
+func (mgr SessionManager) Create(subject string) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().Unix()
@@ -106,7 +106,7 @@ func (mgr SessionManager) LoginLocalUser(username, password string, users map[st
 	}
 
 	if valid, _ := util_password.VerifyPassword(password, passwordHash); valid {
-		token, err := mgr.create(username)
+		token, err := mgr.Create(username)
 		if err == nil {
 			return token, nil
 		}
