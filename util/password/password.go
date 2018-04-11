@@ -39,10 +39,13 @@ func hashPasswordWithHashers(password string, hashers []PasswordHasher) (string,
 }
 
 // VerifyPasswordWithHashers verifies an entered password against a hashed password using one or more algorithms.  It returns whether the hash is "stale" (i.e., was verified using something other than the FIRST hasher specified).
-func verifyPasswordWithHashers(password, hashedPassword string, hashers []PasswordHasher) (valid, stale bool) {
-	// Be explicit here for security, even though zero values can be assumed.
-	valid = false
-	stale = false
+func verifyPasswordWithHashers(password, hashedPassword string, hashers []PasswordHasher) (bool, bool) {
+	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
+	if password == "" {
+		return false, false
+	}
+
+	valid, stale := false, false
 
 	for idx, hasher := range hashers {
 		if hasher.VerifyPassword(password, hashedPassword) {
@@ -54,13 +57,7 @@ func verifyPasswordWithHashers(password, hashedPassword string, hashers []Passwo
 		}
 	}
 
-	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
-	// This goes AFTER verification to mitigate potential for timing attacks.
-	if password == "" {
-		valid = false
-	}
-
-	return
+	return valid, stale
 }
 
 // HashPassword hashes against the current preferred hasher.
