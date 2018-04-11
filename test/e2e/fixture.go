@@ -151,10 +151,12 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 // CreateController creates new controller instance
 func (f *Fixture) CreateController() *controller.ApplicationController {
 	return controller.NewApplicationController(
+		f.Namespace,
 		f.KubeClient,
 		f.AppClient,
 		reposerver.NewRepositoryServerClientset(f.repoServerListener.Addr().String()),
 		f.ApiRepoService,
+		cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient),
 		f.AppComparator,
 		time.Second,
 		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})

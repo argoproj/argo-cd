@@ -193,17 +193,18 @@ func (ctrl *ApplicationController) processNextItem() bool {
 	isForceRefreshed := ctrl.isRefreshForced(app.Name)
 	if isForceRefreshed || app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
 		log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
-		updatedApp := app.DeepCopy()
-		status, err := ctrl.tryRefreshAppStatus(updatedApp)
+
+		status, err := ctrl.tryRefreshAppStatus(app.DeepCopy())
 		if err != nil {
-			updatedApp.Status.ComparisonResult = appv1.ComparisonResult{
+			status = app.Status.DeepCopy()
+			status.ComparisonResult = appv1.ComparisonResult{
 				Status:     appv1.ComparisonStatusError,
 				Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
 				ComparedTo: app.Spec.Source,
 				ComparedAt: metav1.Time{Time: time.Now().UTC()},
 			}
 		}
-		ctrl.updateAppStatus(updatedApp.Name, updatedApp.Namespace, status)
+		ctrl.updateAppStatus(app.Name, app.Namespace, status)
 	}
 
 	return true
