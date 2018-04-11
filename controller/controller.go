@@ -142,7 +142,7 @@ func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, it
 				ctrl.appQueue.Add(ctrl.namespace + "/" + appName)
 			}
 		}
-		return nil
+		return fmt.Errorf("resource updates channel has closed")
 	}, fmt.Sprintf("watch app resources on %s", config.Host), ctx, watchResourcesRetryTimeout)
 
 }
