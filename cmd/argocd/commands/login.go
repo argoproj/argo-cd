@@ -13,6 +13,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/util"
+	util_config "github.com/argoproj/argo-cd/util/config"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -59,6 +60,12 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
 			errors.CheckError(err)
 			fmt.Printf("user %q logged in successfully\n", username)
+
+			// now persist the new token
+			localConfig, _ := util_config.ReadLocalConfig()
+			localConfig.Sessions[clientOpts.ServerAddr] = createdSession.Token
+			util_config.WriteLocalConfig(localConfig)
+
 		},
 	}
 	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")

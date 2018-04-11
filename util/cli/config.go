@@ -29,6 +29,16 @@ func unmarshalObject(data []byte, obj interface{}) error {
 	return err
 }
 
+// MarshalLocalFile writes JSON or YAML to a file on disk.
+// The caller is responsible for checking error return values.
+func MarshalLocalYAMLFile(path string, obj interface{}) error {
+	yamlData, err := yaml.Marshal(obj)
+	if err == nil {
+		err = ioutil.WriteFile(path, yamlData, 0600)
+	}
+	return err
+}
+
 // UnmarshalLocalFile retrieves JSON or YAML from a file on disk.
 // The caller is responsible for checking error return values.
 func UnmarshalLocalFile(path string, obj interface{}) error {
