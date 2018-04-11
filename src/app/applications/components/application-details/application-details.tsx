@@ -92,6 +92,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                             selectedNodeFullName={this.props.selectedNodeFullName}
                             onNodeClick={(fullName) => this.selectNode(fullName)}
                             nodeMenuItems={(node) => this.getResourceMenuItems(node)}
+                            nodeLabels={(node) => this.getResourceLabels(node)}
                             app={this.props.application}/>
                     ) : (
                         <div>Loading...</div>
@@ -205,6 +206,18 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
             });
         }
         return menuItems;
+    }
+
+    private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
+        const labels: string[] = [];
+        const {resourceNode} = AppUtils.getStateAndNode(resource);
+        if (resourceNode.state.kind === 'Pod') {
+            const phase = AppUtils.getPodPhase(resourceNode.state);
+            if (phase) {
+                labels.push(phase);
+            }
+        }
+        return labels;
     }
 
     private getResourceTabs(resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {

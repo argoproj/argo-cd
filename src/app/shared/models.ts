@@ -94,7 +94,7 @@ export const ComparisonStatuses = {
     OutOfSync: 'OutOfSync',
 };
 
-export type State = models.TypeMeta & { metadata: models.ObjectMeta };
+export type State = models.TypeMeta & { metadata: models.ObjectMeta } & { status: any, spec: any };
 
 export interface ResourceNode {
     state: State;

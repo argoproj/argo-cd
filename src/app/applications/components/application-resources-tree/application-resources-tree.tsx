@@ -36,6 +36,7 @@ export const ApplicationResourcesTree = (props: {
     string,
     onNodeClick?: (fullName: string) => any,
     nodeMenuItems?: (node: models.ResourceNode | models.ResourceState) => MenuItem[],
+    nodeLabels?: (node: models.ResourceNode | models.ResourceState) => string[];
 }) => {
 
     const graph = new dagre.graphlib.Graph();
@@ -102,7 +103,10 @@ export const ApplicationResourcesTree = (props: {
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
                             </div>
                         </div>
-                        <span className='application-resources-tree__node-kind-label'>{kubeState.kind.toLocaleLowerCase()}</span>
+                        <div className='application-resources-tree__node-labels'>
+                            {props.nodeLabels && props.nodeLabels(node).map((label) => <span key={label}>{label}</span>)}
+                            <span>{kubeState.kind}</span>
+                        </div>
                         {props.nodeMenuItems && (
                             <div className='application-resources-tree__node-menu'>
                                 <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
