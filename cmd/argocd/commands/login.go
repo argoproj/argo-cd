@@ -62,9 +62,15 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			fmt.Printf("user %q logged in successfully\n", username)
 
 			// now persist the new token
-			localConfig, _ := util_config.ReadLocalConfig()
+			localConfig, err := util_config.ReadLocalConfig()
+			if err != nil {
+				log.Fatal(err)
+			}
 			localConfig.Sessions[clientOpts.ServerAddr] = createdSession.Token
-			util_config.WriteLocalConfig(localConfig)
+			err = util_config.WriteLocalConfig(localConfig)
+			if err != nil {
+				log.Fatal(err)
+			}
 
 		},
 	}
