@@ -6,6 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"sync"
+
+	"context"
+
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -14,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -84,6 +89,67 @@ func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, 
 	return liveObj, nil
 }
 
+func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace string, labelName string) (chan watch.Event, error) {
+	log.Infof("Start watching for resources changes with label %s in cluster %s", labelName, config.Host)
+	dynClientPool := dynamic.NewDynamicClientPool(config)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	serverResources, err := disco.ServerResources()
+	if err != nil {
+		return nil, err
+	}
+
+	resources := make([]dynamic.ResourceInterface, 0)
+	for _, apiResourcesList := range serverResources {
+		for i := range apiResourcesList.APIResources {
+			apiResource := apiResourcesList.APIResources[i]
+			watchSupported := false
+			for _, verb := range apiResource.Verbs {
+				if verb == "watch" {
+					watchSupported = true
+					break
+				}
+			}
+			if watchSupported {
+				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
+				if err != nil {
+					return nil, err
+				}
+				resources = append(resources, dclient.Resource(&apiResource, namespace))
+			}
+		}
+	}
+	ch := make(chan watch.Event)
+	go func() {
+		var wg sync.WaitGroup
+		wg.Add(len(resources))
+		for i := 0; i < len(resources); i++ {
+			resource := resources[i]
+			go func() {
+				defer wg.Done()
+				watch, err := resource.Watch(metav1.ListOptions{LabelSelector: labelName})
+				go func() {
+					select {
+					case <-ctx.Done():
+						watch.Stop()
+					}
+				}()
+				if err == nil {
+					for event := range watch.ResultChan() {
+						ch <- event
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		close(ch)
+		log.Infof("Stop watching for resources changes with label %s in cluster %s", labelName, config.ServerName)
+	}()
+	return ch, nil
+}
+
 // GetResourcesWithLabel returns all kubernetes resources with specified label
 func GetResourcesWithLabel(config *rest.Config, namespace string, labelName string, labelValue string) ([]*unstructured.Unstructured, error) {
 	dynClientPool := dynamic.NewDynamicClientPool(config)
@@ -118,7 +184,8 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 					return nil, err
 				}
 				// apply client side filtering since not every kubernetes API supports label filtering
-				for _, item := range list.(*unstructured.UnstructuredList).Items {
+				for i := range list.(*unstructured.UnstructuredList).Items {
+					item := list.(*unstructured.UnstructuredList).Items[i]
 					labels := item.GetLabels()
 					if labels != nil {
 						if value, ok := labels[labelName]; ok && value == labelValue {

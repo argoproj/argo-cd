@@ -6,15 +6,19 @@ import (
 	"fmt"
 	"time"
 
+	"sync"
+
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/server/cluster"
 	apireposerver "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -30,14 +35,18 @@ import (
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	repoClientset        reposerver.Clientset
-	kubeClientset        kubernetes.Interface
-	applicationClientset appclientset.Interface
-	appQueue             workqueue.RateLimitingInterface
-	appInformer          cache.SharedIndexInformer
-	appComparator        AppComparator
-	statusRefreshTimeout time.Duration
-	apiRepoService       apireposerver.RepositoryServiceServer
+	namespace             string
+	repoClientset         reposerver.Clientset
+	kubeClientset         kubernetes.Interface
+	applicationClientset  appclientset.Interface
+	appQueue              workqueue.RateLimitingInterface
+	appInformer           cache.SharedIndexInformer
+	appComparator         AppComparator
+	statusRefreshTimeout  time.Duration
+	apiRepoService        apireposerver.RepositoryServiceServer
+	apiClusterService     *cluster.Server
+	forceRefreshApps      map[string]bool
+	forceRefreshAppsMutex *sync.Mutex
 }
 
 type ApplicationControllerConfig struct {
@@ -47,24 +56,30 @@ type ApplicationControllerConfig struct {
 
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
+	namespace string,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
 	apiRepoService apireposerver.RepositoryServiceServer,
+	apiClusterService *cluster.Server,
 	appComparator AppComparator,
 	appResyncPeriod time.Duration,
 	config *ApplicationControllerConfig,
 ) *ApplicationController {
 	appQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	return &ApplicationController{
-		kubeClientset:        kubeClientset,
-		applicationClientset: applicationClientset,
-		repoClientset:        repoClientset,
-		appQueue:             appQueue,
-		apiRepoService:       apiRepoService,
-		appComparator:        appComparator,
-		appInformer:          newApplicationInformer(applicationClientset, appQueue, appResyncPeriod, config),
-		statusRefreshTimeout: appResyncPeriod,
+		namespace:             namespace,
+		kubeClientset:         kubeClientset,
+		applicationClientset:  applicationClientset,
+		repoClientset:         repoClientset,
+		appQueue:              appQueue,
+		apiRepoService:        apiRepoService,
+		apiClusterService:     apiClusterService,
+		appComparator:         appComparator,
+		appInformer:           newApplicationInformer(applicationClientset, appQueue, appResyncPeriod, config),
+		statusRefreshTimeout:  appResyncPeriod,
+		forceRefreshApps:      make(map[string]bool),
+		forceRefreshAppsMutex: &sync.Mutex{},
 	}
 }
 
@@ -74,6 +89,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, appWorkers int) {
 	defer ctrl.appQueue.ShutDown()
 
 	go ctrl.appInformer.Run(ctx.Done())
+	go ctrl.watchAppResources()
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced) {
 		log.Error("Timed out waiting for caches to sync")
@@ -85,6 +101,70 @@ func (ctrl *ApplicationController) Run(ctx context.Context, appWorkers int) {
 	}
 
 	<-ctx.Done()
+}
+
+func (ctrl *ApplicationController) forceAppRefresh(appName string) {
+	ctrl.forceRefreshAppsMutex.Lock()
+	defer ctrl.forceRefreshAppsMutex.Unlock()
+	ctrl.forceRefreshApps[appName] = true
+}
+
+func (ctrl *ApplicationController) isRefreshForced(appName string) bool {
+	ctrl.forceRefreshAppsMutex.Lock()
+	defer ctrl.forceRefreshAppsMutex.Unlock()
+	_, ok := ctrl.forceRefreshApps[appName]
+	if ok {
+		delete(ctrl.forceRefreshApps, appName)
+	}
+	return ok
+}
+
+func (ctrl *ApplicationController) watchAppResources() error {
+	watchingClusters := make(map[string]context.CancelFunc)
+	clusters, err := ctrl.apiClusterService.List(context.Background(), &cluster.ClusterQuery{})
+	if err != nil {
+		return err
+	}
+
+	watchClusterResources := func(item appv1.Cluster) {
+		config := item.RESTConfig()
+		ctx, cancel := context.WithCancel(context.Background())
+		watchingClusters[item.Server] = cancel
+		ch, err := kube.WatchResourcesWithLabel(ctx, config, "", common.LabelApplicationName)
+		if err == nil {
+			for event := range ch {
+				eventObj := event.Object.(*unstructured.Unstructured)
+				objLabels := eventObj.GetLabels()
+				if objLabels == nil {
+					objLabels = make(map[string]string)
+				}
+				if appName, ok := objLabels[common.LabelApplicationName]; ok {
+					ctrl.forceAppRefresh(appName)
+					ctrl.appQueue.Add(ctrl.namespace + "/" + appName)
+				}
+			}
+		}
+	}
+
+	for i := range clusters.Items {
+		go watchClusterResources(clusters.Items[i])
+	}
+
+	err = ctrl.apiClusterService.WatchClusters(context.Background(), func(event *cluster.ClusterEvent) {
+		cancel, ok := watchingClusters[event.Cluster.Server]
+		if event.Type == watch.Deleted && ok {
+			cancel()
+			delete(watchingClusters, event.Cluster.Server)
+		} else if event.Type != watch.Deleted && !ok {
+			watchClusterResources(*event.Cluster)
+		}
+	})
+	if err != nil {
+		return err
+	}
+
+	<-context.Background().Done()
+	return nil
 }
 
 func (ctrl *ApplicationController) processNextItem() bool {
@@ -110,7 +190,9 @@ func (ctrl *ApplicationController) processNextItem() bool {
 		return true
 	}
 
-	if app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
+	isForceRefreshed := ctrl.isRefreshForced(app.Name)
+	if isForceRefreshed || app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
+		log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
 		updatedApp := app.DeepCopy()
 		status, err := ctrl.tryRefreshAppStatus(updatedApp)
 		if err != nil {
@@ -120,10 +202,8 @@ func (ctrl *ApplicationController) processNextItem() bool {
 				ComparedTo: app.Spec.Source,
 				ComparedAt: metav1.Time{Time: time.Now().UTC()},
 			}
-		} else {
-			updatedApp.Status = *status
 		}
-		ctrl.persistApp(updatedApp)
+		ctrl.updateAppStatus(updatedApp.Name, updatedApp.Namespace, status)
 	}
 
 	return true
@@ -205,13 +285,24 @@ func (ctrl *ApplicationController) runWorker() {
 	}
 }
 
-func (ctrl *ApplicationController) persistApp(app *appv1.Application) {
-	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-	_, err := appClient.Update(app)
+func (ctrl *ApplicationController) updateAppStatus(appName string, namespace string, status *appv1.ApplicationStatus) {
+	appKey := fmt.Sprintf("%s/%s", namespace, appName)
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
-		log.Warnf("Error updating application: %v", err)
+		log.Warnf("Failed to get application '%s' from informer index: %+v", appKey, err)
+	} else {
+		if exists {
+			app := obj.(*appv1.Application).DeepCopy()
+			app.Status = *status
+			appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(namespace)
+			_, err := appClient.Update(app)
+			if err != nil {
+				log.Warnf("Error updating application: %v", err)
+			} else {
+				log.Info("Application update successful")
+			}
+		}
 	}
-	log.Info("Application update successful")
 }
 
 func newApplicationInformer(

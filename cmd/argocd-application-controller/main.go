@@ -58,14 +58,17 @@ func newCommand() *cobra.Command {
 			}
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			apiRepoServer := apirepository.NewServer(namespace, kubeClient, appClient)
+			apiClusterServer := cluster.NewServer(namespace, kubeClient, appClient)
 			clusterService := cluster.NewServer(namespace, kubeClient, appClient)
 			appComparator := controller.NewKsonnetAppComparator(clusterService)
 
 			appController := controller.NewApplicationController(
+				namespace,
 				kubeClient,
 				appClient,
 				reposerver.NewRepositoryServerClientset(repoServerAddress),
 				apiRepoServer,
+				apiClusterServer,
 				appComparator,
 				resyncDuration,
 				&controllerConfig)
