@@ -33,6 +33,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+const (
+	watchResourcesRetryTimeout = 10 * time.Second
+)
+
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
 	namespace             string
@@ -89,7 +93,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, appWorkers int) {
 	defer ctrl.appQueue.ShutDown()
 
 	go ctrl.appInformer.Run(ctx.Done())
-	go ctrl.watchAppResources()
+	go ctrl.watchAppsResources()
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced) {
 		log.Error("Timed out waiting for caches to sync")
@@ -119,52 +123,76 @@ func (ctrl *ApplicationController) isRefreshForced(appName string) bool {
 	return ok
 }
 
-func (ctrl *ApplicationController) watchAppResources() error {
-	watchingClusters := make(map[string]context.CancelFunc)
-	clusters, err := ctrl.apiClusterService.List(context.Background(), &cluster.ClusterQuery{})
-	if err != nil {
-		return err
-	}
-
-	watchClusterResources := func(item appv1.Cluster) {
-		config := item.RESTConfig()
-		ctx, cancel := context.WithCancel(context.Background())
-		watchingClusters[item.Server] = cancel
+// watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
+func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, item appv1.Cluster) {
+	config := item.RESTConfig()
+	retryUntilSucceed(func() error {
 		ch, err := kube.WatchResourcesWithLabel(ctx, config, "", common.LabelApplicationName)
-		if err == nil {
-			for event := range ch {
-				eventObj := event.Object.(*unstructured.Unstructured)
-				objLabels := eventObj.GetLabels()
-				if objLabels == nil {
-					objLabels = make(map[string]string)
-				}
-				if appName, ok := objLabels[common.LabelApplicationName]; ok {
-					ctrl.forceAppRefresh(appName)
-					ctrl.appQueue.Add(ctrl.namespace + "/" + appName)
-				}
+		if err != nil {
+			return err
+		}
+		for event := range ch {
+			eventObj := event.Object.(*unstructured.Unstructured)
+			objLabels := eventObj.GetLabels()
+			if objLabels == nil {
+				objLabels = make(map[string]string)
+			}
+			if appName, ok := objLabels[common.LabelApplicationName]; ok {
+				ctrl.forceAppRefresh(appName)
+				ctrl.appQueue.Add(ctrl.namespace + "/" + appName)
 			}
 		}
-	}
+		return nil
+	}, fmt.Sprintf("watch app resources on %s", config.Host), ctx, watchResourcesRetryTimeout)
 
-	for i := range clusters.Items {
-		go watchClusterResources(clusters.Items[i])
-	}
+}
 
-	err = ctrl.apiClusterService.WatchClusters(context.Background(), func(event *cluster.ClusterEvent) {
-		cancel, ok := watchingClusters[event.Cluster.Server]
-		if event.Type == watch.Deleted && ok {
-			cancel()
-			delete(watchingClusters, event.Cluster.Server)
-		} else if event.Type != watch.Deleted && !ok {
-			watchClusterResources(*event.Cluster)
-		}
-	})
-	if err != nil {
-		return err
-	}
+// watchAppsResources watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
+func (ctrl *ApplicationController) watchAppsResources() {
+	watchingClusters := make(map[string]context.CancelFunc)
+
+	retryUntilSucceed(func() error {
+		return ctrl.apiClusterService.WatchClusters(context.Background(), func(event *cluster.ClusterEvent) {
+			cancel, ok := watchingClusters[event.Cluster.Server]
+			if event.Type == watch.Deleted && ok {
+				cancel()
+				delete(watchingClusters, event.Cluster.Server)
+			} else if event.Type != watch.Deleted && !ok {
+				ctx, cancel := context.WithCancel(context.Background())
+				watchingClusters[event.Cluster.Server] = cancel
+				go ctrl.watchClusterResources(ctx, *event.Cluster)
+			}
+		})
+	}, "watch clusters", context.Background(), watchResourcesRetryTimeout)
 
 	<-context.Background().Done()
-	return nil
+}
+
+// retryUntilSucceed keep retrying given action with specified timeout until action succeed or specified context is done.
+func retryUntilSucceed(action func() error, desc string, ctx context.Context, timeout time.Duration) {
+	ctxCompleted := false
+	go func() {
+		select {
+		case <-ctx.Done():
+			ctxCompleted = true
+		}
+	}()
+	for {
+		err := action()
+		if err == nil {
+			return
+		}
+		if err != nil {
+			if ctxCompleted {
+				log.Infof("Stop retrying %s", desc)
+				return
+			} else {
+				log.Warnf("Failed to %s: %v, retrying in %v", desc, err, timeout)
+				time.Sleep(timeout)
+			}
+		}
+
+	}
 }
 
 func (ctrl *ApplicationController) processNextItem() bool {
