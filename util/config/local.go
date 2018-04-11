@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"os/user"
 	"path"
 
@@ -39,6 +40,9 @@ func ReadLocalConfig() (LocalConfig, error) {
 	path, err := localConfigPath()
 	if err == nil {
 		err = cli.UnmarshalLocalFile(path, &config)
+		if os.IsNotExist(err) {
+			err = nil
+		}
 	}
 
 	return config, err
