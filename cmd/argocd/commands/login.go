@@ -55,7 +55,7 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			sessionRequest := session.SessionRequest{
 				Username: username,
-				Password: string(password),
+				Password: password,
 			}
 			createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
 			errors.CheckError(err)
