@@ -72,8 +72,10 @@ func (mgr SessionManager) Parse(tokenString string) (*SessionManagerTokenClaims,
 		return mgr.serverSecretKey, nil
 	})
 
-	if claims, ok := token.Claims.(*SessionManagerTokenClaims); ok && token.Valid {
-		return claims, nil
+	if token != nil {
+		if claims, ok := token.Claims.(*SessionManagerTokenClaims); ok && token.Valid {
+			return claims, nil
+		}
 	}
 	return nil, err
 }

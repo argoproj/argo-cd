@@ -24,6 +24,7 @@ const (
 	EnvArgoCDServer = "ARGOCD_SERVER"
 )
 
+// ServerClient defines an interface for interaction with an Argo CD server.
 type ServerClient interface {
 	NewConn() (*grpc.ClientConn, error)
 	NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error)
@@ -36,6 +37,7 @@ type ServerClient interface {
 	NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServiceClient)
 }
 
+// ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
 	ServerAddr string
 	Insecure   bool
@@ -46,6 +48,7 @@ type client struct {
 	ClientOptions
 }
 
+// NewClient creates a new API client from a set of config options.
 func NewClient(opts *ClientOptions) (ServerClient, error) {
 	clientOpts := *opts
 	if clientOpts.ServerAddr == "" {
@@ -59,6 +62,7 @@ func NewClient(opts *ClientOptions) (ServerClient, error) {
 	}, nil
 }
 
+// NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
 func NewClientOrDie(opts *ClientOptions) ServerClient {
 	client, err := NewClient(opts)
 	if err != nil {
