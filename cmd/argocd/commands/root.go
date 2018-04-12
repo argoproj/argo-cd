@@ -25,6 +25,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.AddCommand(NewClusterCommand(&clientOpts, pathOpts))
 	command.AddCommand(NewApplicationCommand(&clientOpts))
+	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewRepoCommand(&clientOpts))
 	command.AddCommand(NewInstallCommand())
 	command.AddCommand(NewUninstallCommand())

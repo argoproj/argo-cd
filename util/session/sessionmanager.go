@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	util_password "github.com/argoproj/argo-cd/util/password"
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
@@ -16,6 +17,10 @@ type SessionManager struct {
 const (
 	// sessionManagerClaimsIssuer fills the "iss" field of the token.
 	sessionManagerClaimsIssuer = "argocd"
+
+	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
+	invalidLoginError  = "Invalid username or password"
+	blankPasswordError = "Blank passwords are not allowed"
 )
 
 // SessionManagerTokenClaims holds claim metadata for a token.
@@ -81,4 +86,31 @@ func MakeSignature(size int) ([]byte, error) {
 		b = nil
 	}
 	return b, err
+}
+
+// LoginLocalUser checks if a username/password combo is correct and creates a new token if so.
+// [TODO] This may belong elsewhere.
+func (mgr SessionManager) LoginLocalUser(username, password string, users map[string]string) (string, error) {
+	if password == "" {
+		err := fmt.Errorf(blankPasswordError)
+		return "", err
+	}
+
+	passwordHash, ok := users[username]
+	if !ok {
+		// Username was not found in local user store.
+		// Ensure we still send password to hashing algorithm for comparison.
+		// This mitigates potential for timing attacks that benefit from short-circuiting,
+		// provided the hashing library/algorithm in use doesn't itself short-circuit.
+		passwordHash = ""
+	}
+
+	if valid, _ := util_password.VerifyPassword(password, passwordHash); valid {
+		token, err := mgr.Create(username)
+		if err == nil {
+			return token, nil
+		}
+	}
+
+	return "", fmt.Errorf(invalidLoginError)
 }
