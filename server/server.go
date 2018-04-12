@@ -30,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"k8s.io/client-go/kubernetes"
@@ -271,8 +272,8 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 				return ctx, nil
 			}
 		}
-		return ctx, fmt.Errorf("user is not allowed access")
+		return ctx, grpc.Errorf(codes.Unauthenticated, "user is not allowed access")
 	}
 
-	return ctx, fmt.Errorf("empty metadata")
+	return ctx, grpc.Errorf(codes.Unauthenticated, "empty metadata")
 }
