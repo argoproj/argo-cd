@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -72,7 +73,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			clst := NewCluster(args[0], conf)
-			clst, err = clusterIf.Create(DefaultClientContext(clientOpts), clst)
+			clst, err = clusterIf.Create(context.Background(), clst)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
 		},
@@ -158,7 +159,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			for _, clusterName := range args {
-				clst, err := clusterIf.Get(DefaultClientContext(clientOpts), &cluster.ClusterQuery{Server: clusterName})
+				clst, err := clusterIf.Get(context.Background(), &cluster.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 				yamlBytes, err := yaml.Marshal(clst)
 				errors.CheckError(err)
@@ -184,7 +185,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			for _, clusterName := range args {
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
 				// common.UninstallClusterManagerRBAC(conf)
-				_, err := clusterIf.Delete(DefaultClientContext(clientOpts), &cluster.ClusterQuery{Server: clusterName})
+				_, err := clusterIf.Delete(context.Background(), &cluster.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 			}
 		},
@@ -200,8 +201,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, args []string) {
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-
-			clusters, err := clusterIf.List(DefaultClientContext(clientOpts), &cluster.ClusterQuery{})
+			clusters, err := clusterIf.List(context.Background(), &cluster.ClusterQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "SERVER\tNAME\n")

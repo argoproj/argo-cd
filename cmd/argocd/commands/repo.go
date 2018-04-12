@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -71,7 +72,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			errors.CheckError(err)
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
-			createdRepo, err := repoIf.Create(DefaultClientContext(clientOpts), &repo)
+			createdRepo, err := repoIf.Create(context.Background(), &repo)
 			errors.CheckError(err)
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
@@ -109,7 +110,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.Delete(DefaultClientContext(clientOpts), &repository.RepoQuery{Repo: repoURL})
+				_, err := repoIf.Delete(context.Background(), &repository.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 			}
 		},
@@ -125,7 +126,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
-			repos, err := repoIf.List(DefaultClientContext(clientOpts), &repository.RepoQuery{})
+			repos, err := repoIf.List(context.Background(), &repository.RepoQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "REPO\tUSER\n")

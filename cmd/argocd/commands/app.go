@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/url"
@@ -98,7 +99,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			_, err := appIf.Create(DefaultClientContext(clientOpts), &app)
+			_, err := appIf.Create(context.Background(), &app)
 			errors.CheckError(err)
 		},
 	}
@@ -125,7 +126,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(DefaultClientContext(clientOpts), &application.ApplicationQuery{Name: appName})
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
 			errors.CheckError(err)
 			format := "%-15s%s\n"
 			fmt.Printf(format, "Name:", app.Name)
@@ -175,7 +176,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(DefaultClientContext(clientOpts), &application.ApplicationQuery{Name: appName})
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
 			errors.CheckError(err)
 			targetObjs, err := app.Status.ComparisonResult.TargetObjects()
 			errors.CheckError(err)
@@ -214,7 +215,7 @@ func NewApplicationRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
-				_, err := appIf.Delete(DefaultClientContext(clientOpts), &application.DeleteApplicationRequest{Name: appName})
+				_, err := appIf.Delete(context.Background(), &application.DeleteApplicationRequest{Name: appName})
 				errors.CheckError(err)
 			}
 		},
@@ -230,7 +231,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Run: func(c *cobra.Command, args []string) {
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			apps, err := appIf.List(DefaultClientContext(clientOpts), &application.ApplicationQuery{})
+			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "NAME\tENVIRONMENT\tTARGET\tCLUSTER\tNAMESPACE\tSTATUS\n")
@@ -274,7 +275,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Name:   appName,
 				DryRun: dryRun,
 			}
-			syncRes, err := appIf.Sync(DefaultClientContext(clientOpts), &syncReq)
+			syncRes, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
 			fmt.Printf("%s %s\n", appName, syncRes.Message)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)

@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
+	config_util "github.com/argoproj/argo-cd/util/config"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -71,6 +72,42 @@ func NewClientOrDie(opts *ClientOptions) ServerClient {
 	return client
 }
 
+// JwtCredentials holds a token for authentication.
+type jwtCredentials struct {
+	Token string
+}
+
+func (c jwtCredentials) RequireTransportSecurity() bool {
+	return false
+}
+
+func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
+	return map[string]string{
+		"tokens": c.Token,
+	}, nil
+}
+
+// endpointCredentials retrieves from configuration the login token for a given endpoint.
+func endpointCredentials(endpoint string) jwtCredentials {
+	credentials := jwtCredentials{}
+
+	localConfig, err := config_util.ReadLocalConfig()
+	if err != nil {
+		return credentials
+	}
+
+	token, ok := localConfig.Sessions[endpoint]
+	if !ok {
+		// Use blank-key token, if it exists, as a fallback
+		token, ok = localConfig.Sessions[""]
+	}
+
+	if ok {
+		credentials.Token = token
+	}
+	return credentials
+}
+
 func (c *client) NewConn() (*grpc.ClientConn, error) {
 	var creds credentials.TransportCredentials
 	if c.CertFile != "" {
@@ -97,7 +134,7 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 			creds = credentials.NewTLS(&tlsConfig)
 		}
 	}
-	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds)
+	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials(c.ServerAddr)))
 }
 
 func (c *client) NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error) {
