@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 
 	argocd "github.com/argoproj/argo-cd"
@@ -263,6 +264,10 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 
 // Authenticate checks for the presence of a token when accessing server-side resources.
 func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
+	if os.Getenv("REQUIREAUTH") != "1" {
+		return ctx, nil
+	}
+
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
 		tokens := md["tokens"]
