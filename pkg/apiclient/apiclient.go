@@ -43,6 +43,7 @@ type ClientOptions struct {
 	ServerAddr string
 	Insecure   bool
 	CertFile   string
+	AuthToken  string
 }
 
 type client struct {
@@ -87,25 +88,20 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-// endpointCredentials retrieves from configuration the login token for a given endpoint.
-func endpointCredentials(endpoint string) jwtCredentials {
-	credentials := jwtCredentials{}
+// endpointCredentials tries to retrieve a login token for the given endpoint.
+func endpointCredentials(endpoint string) string {
+	if localConfig, err := config_util.ReadLocalConfig(); err == nil {
+		if token, ok := localConfig.Sessions[endpoint]; ok {
+			return token
+		}
 
-	localConfig, err := config_util.ReadLocalConfig()
-	if err != nil {
-		return credentials
-	}
-
-	token, ok := localConfig.Sessions[endpoint]
-	if !ok {
 		// Use blank-key token, if it exists, as a fallback
-		token, ok = localConfig.Sessions[""]
+		if token, ok := localConfig.Sessions[""]; ok {
+			return token
+		}
 	}
 
-	if ok {
-		credentials.Token = token
-	}
-	return credentials
+	return ""
 }
 
 func (c *client) NewConn() (*grpc.ClientConn, error) {
@@ -134,7 +130,14 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 			creds = credentials.NewTLS(&tlsConfig)
 		}
 	}
-	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials(c.ServerAddr)))
+
+	var credentials jwtCredentials = jwtCredentials{
+		Token: c.ClientOptions.AuthToken,
+	}
+	if credentials.Token == "" {
+		credentials.Token = endpointCredentials(c.ServerAddr)
+	}
+	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(credentials))
 }
 
 func (c *client) NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error) {
