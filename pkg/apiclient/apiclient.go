@@ -43,6 +43,7 @@ type ClientOptions struct {
 	ServerAddr string
 	Insecure   bool
 	CertFile   string
+	AuthToken  string
 }
 
 type client struct {
@@ -87,25 +88,23 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-// endpointCredentials retrieves from configuration the login token for a given endpoint.
-func endpointCredentials(endpoint string) jwtCredentials {
-	credentials := jwtCredentials{}
-
-	localConfig, err := config_util.ReadLocalConfig()
-	if err != nil {
-		return credentials
+// firstEndpointTokenFrom iterates through given endpoint names and returns the first non-blank token, if any, that it finds.
+// This function will always return a manually-specified auth token, if it is provided on the command-line.
+func (c *client) firstEndpointTokenFrom(endpoints ...string) string {
+	if token := c.ClientOptions.AuthToken; token != "" {
+		return token
 	}
 
-	token, ok := localConfig.Sessions[endpoint]
-	if !ok {
-		// Use blank-key token, if it exists, as a fallback
-		token, ok = localConfig.Sessions[""]
+	// Only look up credentials if the auth token isn't overridden
+	if localConfig, err := config_util.ReadLocalConfig(); err == nil {
+		for _, endpoint := range endpoints {
+			if token, ok := localConfig.Sessions[endpoint]; ok {
+				return token
+			}
+		}
 	}
 
-	if ok {
-		credentials.Token = token
-	}
-	return credentials
+	return ""
 }
 
 func (c *client) NewConn() (*grpc.ClientConn, error) {
@@ -134,7 +133,11 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 			creds = credentials.NewTLS(&tlsConfig)
 		}
 	}
-	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials(c.ServerAddr)))
+
+	endpointCredentials := jwtCredentials{
+		Token: c.firstEndpointTokenFrom(c.ServerAddr, ""),
+	}
+	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials))
 }
 
 func (c *client) NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error) {
