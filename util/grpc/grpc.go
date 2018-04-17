@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 // PanicLoggerUnaryServerInterceptor returns a new unary server interceptor for recovering from panics and returning error
@@ -18,7 +19,7 @@ func PanicLoggerUnaryServerInterceptor(log *logrus.Entry) grpc.UnaryServerInterc
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-				err = grpc.Errorf(codes.Internal, "%s", r)
+				err = status.Errorf(codes.Internal, "%s", r)
 			}
 		}()
 		return handler(ctx, req)
@@ -31,7 +32,7 @@ func PanicLoggerStreamServerInterceptor(log *logrus.Entry) grpc.StreamServerInte
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-				err = grpc.Errorf(codes.Internal, "%s", r)
+				err = status.Errorf(codes.Internal, "%s", r)
 			}
 		}()
 		return handler(srv, stream)
