@@ -88,16 +88,20 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-// endpointCredentials tries to retrieve a login token for the given endpoint.
-func endpointCredentials(endpoint string) string {
-	if localConfig, err := config_util.ReadLocalConfig(); err == nil {
-		if token, ok := localConfig.Sessions[endpoint]; ok {
-			return token
-		}
+// firstEndpointTokenFrom iterates through given endpoint names and returns the first non-blank token, if any, that it finds.
+// This function will always return a manually-specified auth token, if it is provided on the command-line.
+func (c *client) firstEndpointTokenFrom(endpoints ...string) string {
+	token := c.ClientOptions.AuthToken
+	if token != "" {
+		return token
+	}
 
-		// Use blank-key token, if it exists, as a fallback
-		if token, ok := localConfig.Sessions[""]; ok {
-			return token
+	// Only look up credentials if the auth token isn't overridden
+	if localConfig, err := config_util.ReadLocalConfig(); err == nil {
+		for _, endpoint := range endpoints {
+			if token, ok := localConfig.Sessions[endpoint]; ok {
+				return token
+			}
 		}
 	}
 
@@ -131,13 +135,10 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 		}
 	}
 
-	var credentials jwtCredentials = jwtCredentials{
-		Token: c.ClientOptions.AuthToken,
+	endpointCredentials := jwtCredentials{
+		Token: c.firstEndpointTokenFrom(c.ServerAddr, ""),
 	}
-	if credentials.Token == "" {
-		credentials.Token = endpointCredentials(c.ServerAddr)
-	}
-	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(credentials))
+	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials))
 }
 
 func (c *client) NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error) {
