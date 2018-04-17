@@ -91,8 +91,7 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 // firstEndpointTokenFrom iterates through given endpoint names and returns the first non-blank token, if any, that it finds.
 // This function will always return a manually-specified auth token, if it is provided on the command-line.
 func (c *client) firstEndpointTokenFrom(endpoints ...string) string {
-	token := c.ClientOptions.AuthToken
-	if token != "" {
+	if token := c.ClientOptions.AuthToken; token != "" {
 		return token
 	}
 
