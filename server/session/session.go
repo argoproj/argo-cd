@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/config"
@@ -37,8 +38,17 @@ const (
 	blankPasswordError = "Blank passwords are not allowed"
 )
 
-// Create a a JWT for authentication.
-func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionResponse, error) {
+func (s *Server) makeCookie(ctx context.Context, key, value, flags ...string) {
+	components := []string{fmt.Sprintf("%s=%s; Secure; HttpOnly", key, value)}
+	for _, flag := range flags {
+		components = append(components, flag)
+	}
+	cookie := strings.Join(components, "; ")
+	return metadata.Pairs("Set-Cookie", cookie)
+}
+
+// Create an authentication cookie for the client.
+func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionResponse, error) {
 	if q.Password == "" {
 		err := fmt.Errorf(blankPasswordError)
 		return nil, err
@@ -65,22 +75,24 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 		token = ""
 	}
 
-	cookie := fmt.Sprintf("my-cookie-name=%s; Secure; HttpOnly", token)
-	md := metadata.Pairs("Set-Cookie", cookie)
+	md := s.makeCookie("my-cookie-name", token)
 	grpc.SendHeader(ctx, md)
 
-	return &SessionResponse{token}, err
+	return &SessionResponse{}, err
 }
 
-// func (s *Server) Delete(ctx context.Context, q *SessionRequest) (*SessionResponse, error) {
-// 	grpc.SendHeader(ctx, md)
-// 	return &SessionResponse{token}, err
-// }
+// Delete an authentication cookie from the client.
+func (s *Server) Delete(ctx context.Context, q *SessionDeleteRequest) (*SessionResponse, error) {
+	md := s.makeCookie("my-cookie-name", "", "Max-Age=0")
+	grpc.SendHeader(ctx, md)
+
+	return &SessionResponse{}, nil
+}
 
 // AuthFuncOverride overrides the authentication function and let us not require auth to receive auth.
 // Without this function here, ArgoCDServer.authenticate would be invoked and credentials checked.
 // Since this service is generally invoked when the user has _no_ credentials, that would create a
 // chicken-and-egg situation if we didn't place this here to allow traffic to pass through.
-func (s *Server) AuthFuncverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	return ctx, nil
 }
