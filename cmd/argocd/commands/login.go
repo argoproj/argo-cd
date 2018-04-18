@@ -53,7 +53,7 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			conn, sessionIf := argocdclient.NewClientOrDie(clientOpts).NewSessionClientOrDie()
 			defer util.Close(conn)
 
-			sessionRequest := session.SessionRequest{
+			sessionRequest := session.SessionCreateRequest{
 				Username: username,
 				Password: password,
 			}

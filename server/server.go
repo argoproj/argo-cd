@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -264,6 +265,18 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 	}
 }
 
+// parseTokens tests a slice of strings and returns `true` only if any of them are valid.
+func (a *ArgoCDServer) parseTokens(tokens []string) bool {
+	mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
+	for _, token := range tokens {
+		_, err := mgr.Parse(token)
+		if err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // Authenticate checks for the presence of a token when accessing server-side resources.
 func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
 	if os.Getenv("REQUIREAUTH") != "1" {
@@ -271,16 +284,22 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	}
 
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
 		tokens := md["tokens"]
-		for _, token := range tokens {
-			_, err := mgr.Parse(token)
-			if err == nil {
-				return ctx, nil
+
+		// Extract only the value portion of cookie-stored tokens
+		for _, cookieToken := range md["grpcgateway-cookie"] {
+			tokenPair := strings.SplitN(cookieToken, "=", 2)
+			if len(tokenPair) == 2 {
+				tokens = append(tokens, tokenPair[1])
 			}
 		}
-		return ctx, grpc.Errorf(codes.Unauthenticated, "user is not allowed access")
+
+		// Check both gRPC-provided tokens and Web-provided (cookie-based) ones
+		if a.parseTokens(tokens) {
+			return ctx, nil
+		}
+		return ctx, status.Errorf(codes.Unauthenticated, "user is not allowed access")
 	}
 
-	return ctx, grpc.Errorf(codes.Unauthenticated, "empty metadata")
+	return ctx, status.Errorf(codes.Unauthenticated, "empty metadata")
 }
