@@ -177,22 +177,22 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 }
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
-func makeCookieMetadata(key, value string, flags ...string) string {
+func (a *ArgoCDServer) makeCookieMetadata(key, value string, flags ...string) string {
 	components := []string{
 		fmt.Sprintf("%s=%s", key, value),
-		"Secure",
-		"HttpOnly",
+	}
+	if a.ArgoCDServerOpts.Insecure == false {
+		components = append(components, "Secure")
 	}
 	components = append(components, flags...)
 	return strings.Join(components, "; ")
 }
 
 // TranslateGrpcCookieHeader conditionally sets a cookie on the response.
-func translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
+func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*session.SessionResponse); ok {
-		cookie := makeCookieMetadata(authCookieName, sessionResp.Token, "path=/")
+		cookie := a.makeCookieMetadata(authCookieName, sessionResp.Token, "path=/")
 		w.Header().Set("Set-Cookie", cookie)
-		sessionResp.Token = ""
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(jsonutil.JSONMarshaler))
-	gwCookieOpts := runtime.WithForwardResponseOption(translateGrpcCookieHeader)
+	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
 	mux.Handle("/api/", gwmux)
 	mustRegisterGWHandler(version.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
