@@ -14,6 +14,17 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).then((res) => this.parseAppFields(res.body));
     }
 
+    public create(name: string, source: models.ApplicationSource): Promise<models.Application> {
+        return requests.post(`/applications`).send({
+            metadata: { name },
+            spec: { source },
+        }).then((res) => this.parseAppFields(res.body));
+    }
+
+    public delete(name: string, force: boolean): Promise<boolean> {
+        return requests.delete(`/applications/${name}?force=${force}`).send({}).then(() => true);
+    }
+
     public watch(query?: {name: string}): Observable<models.ApplicationWatchEvent> {
         let url = '/stream/applications';
         if (query) {

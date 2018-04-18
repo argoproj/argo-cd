@@ -1,7 +1,9 @@
 import { AppState, commonActions, NotificationType } from 'argo-ui';
+import { push } from 'react-router-redux';
 import { Dispatch } from 'redux';
 import { Observable } from 'rxjs';
 
+import * as models from '../shared/models';
 import { services } from '../shared/services';
 import { ACTION_TYPES } from './reducers';
 import { State } from './state';
@@ -60,6 +62,33 @@ export function deletePod(appName: string, podName: string): any {
             dispatch(commonActions.showNotification({
                 type: NotificationType.Error,
                 content: `Unable to delete pod: ${e.response && e.response.text || 'Internal error'}`,
+            }));
+        }
+    };
+}
+
+export function createApplication(appName: string, source: models.ApplicationSource): any {
+    return async (dispatch: Dispatch<any>, getState: () => AppState<State>) => {
+        try {
+            await services.applications.create(appName, source);
+        } catch (e) {
+            dispatch(commonActions.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to create application: ${e.response && e.response.text || 'Internal error'}`,
+            }));
+        }
+    };
+}
+
+export function deleteApplication(appName: string, force: boolean): any {
+    return async (dispatch: Dispatch<any>, getState: () => AppState<State>) => {
+        try {
+            await services.applications.delete(appName, force);
+            dispatch(push('/applications'));
+        } catch (e) {
+            dispatch(commonActions.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
             }));
         }
     };

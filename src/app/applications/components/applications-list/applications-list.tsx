@@ -1,7 +1,8 @@
-import { AppContext, AppState, MockupList, Page } from 'argo-ui';
+import { AppContext, AppState, MockupList, Page, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
+import { RouteComponentProps } from 'react-router';
 import { Subscription } from 'rxjs';
 
 import * as models from '../../../shared/models';
@@ -11,13 +12,26 @@ import { ComparisonStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
-export interface ApplicationProps {
+export interface ApplicationProps extends RouteComponentProps<{}> {
     onLoad: () => any;
     applications: models.Application[];
     changesSubscription: Subscription;
+    showNewAppPanel: boolean;
+    createApp: (appName: string, source: models.ApplicationSource) => any;
 }
 
-class Component extends React.Component<ApplicationProps> {
+const DEFAULT_NEW_APP = { applicationName: '', targetRevision: 'master', componentParameterOverrides: [] as any[], path: '', repoURL: '', environment: '' };
+
+class Component extends React.Component<ApplicationProps, models.ApplicationSource & { applicationName: string }> {
+
+    public static contextTypes = {
+        router: PropTypes.object,
+    };
+
+    constructor(props: ApplicationProps) {
+        super(props);
+        this.state = DEFAULT_NEW_APP;
+    }
 
     public componentDidMount() {
         this.props.onLoad();
@@ -31,7 +45,16 @@ class Component extends React.Component<ApplicationProps> {
 
     public render() {
         return (
-            <Page title='Applications' toolbar={{breadcrumbs: [{ title: 'Applications', path: '/applications' }]}}>
+        <Page title='Applications' toolbar={{
+                breadcrumbs: [{ title: 'Applications', path: '/applications' }],
+                actionMenu: {
+                    className: 'fa fa-plus',
+                    items: [{
+                        title: 'New Application',
+                        action: () => this.setNewAppPanelVisible(true),
+                    }],
+                },
+            }} >
                 <div className='argo-container applications-list'>
                     {this.props.applications ? (
                         <div className='argo-table-list argo-table-list--clickable'>
@@ -83,6 +106,34 @@ class Component extends React.Component<ApplicationProps> {
                         </div>
                     ) : <MockupList height={50} marginTop={30}/>}
                 </div>
+                <SlidingPanel isShown={this.props.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} isMiddle={true} header={(
+                        <div>
+                            <button className='argo-button argo-button--base' onClick={() => this.createApplication()}>
+                                Create
+                            </button> <button onClick={() => this.setNewAppPanelVisible(false)} className='argo-button argo-button--base-o'>
+                                Cancel
+                            </button>
+                        </div>
+                    )}>
+                    <form>
+                        <h6>Name:
+                            <input className='argo-field' required={true} value={this.state.applicationName}
+                                onChange={(event) => this.setState({ applicationName: event.target.value })}/>
+                        </h6>
+                        <h6>Repository URL:
+                            <input className='argo-field' required={true} value={this.state.repoURL}
+                                onChange={(event) => this.setState({ repoURL: event.target.value })}/>
+                        </h6>
+                        <h6>Path:
+                            <input className='argo-field' required={true} value={this.state.path}
+                                onChange={(event) => this.setState({ path: event.target.value })}/>
+                        </h6>
+                        <h6>Environment:
+                            <input className='argo-field' required={true} value={this.state.environment}
+                                onChange={(event) => this.setState({ environment: event.target.value })}/>
+                        </h6>
+                    </form>
+                </SlidingPanel>
             </Page>
         );
     }
@@ -90,17 +141,35 @@ class Component extends React.Component<ApplicationProps> {
     private get appContext(): AppContext {
         return this.context as AppContext;
     }
-}
 
-(Component as React.ComponentClass).contextTypes = {
-    router: PropTypes.object,
-};
+    private setNewAppPanelVisible(isVisible: boolean) {
+        if (isVisible) {
+            this.setState(DEFAULT_NEW_APP);
+        }
+        this.appContext.router.history.push(`${this.props.match.url}?new=${isVisible}`);
+    }
+
+    private createApplication() {
+        if (this.state.applicationName && this.state.environment && this.state.repoURL && this.state.path) {
+            this.setNewAppPanelVisible(false);
+            this.props.createApp(this.state.applicationName, {
+                environment: this.state.environment,
+                path: this.state.path,
+                repoURL: this.state.repoURL,
+                targetRevision: null,
+                componentParameterOverrides: null,
+            });
+        }
+    }
+}
 
 export const ApplicationsList = connect((state: AppState<State>) => {
     return {
         applications: state.page.applications,
         changesSubscription: state.page.changesSubscription,
+        showNewAppPanel: new URLSearchParams(state.router.location.search).get('new') === 'true',
     };
 }, (dispatch) => ({
     onLoad: () => dispatch(actions.loadAppsList()),
+    createApp: (appName: string, source: models.ApplicationSource) => dispatch(actions.createApplication(appName, source)),
 }))(Component);

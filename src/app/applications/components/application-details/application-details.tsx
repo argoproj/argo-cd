@@ -20,9 +20,10 @@ require('./application-details.scss');
 
 export interface ApplicationDetailsProps extends RouteComponentProps<{ name: string; namespace: string; }> {
     application: appModels.Application;
-    onLoad: (namespace: string, name: string) => any;
-    sync: (namespace: string, name: string, revision: string) => any;
-    deletePod: (namespace: string, appName: string, podName: string) => any;
+    onLoad: (name: string) => any;
+    sync: (name: string, revision: string) => any;
+    deletePod: (appName: string, podName: string) => any;
+    deleteApp: (appName: string) => any;
     changesSubscription: Subscription;
     showDeployPanel: boolean;
     selectedRollbackDeploymentIndex: number;
@@ -45,7 +46,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
     }
 
     public componentDidMount() {
-        this.props.onLoad(this.props.match.params.namespace, this.props.match.params.name);
+        this.props.onLoad(this.props.match.params.name);
     }
 
     public componentWillUnmount() {
@@ -80,6 +81,10 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                         className: 'icon argo-icon-deploy',
                         title: 'Deploy',
                         action: () => this.setDeployPanelVisible(true),
+                    }, {
+                        className: 'icon fa fa-times-circle',
+                        title: 'Delete',
+                        action: () => this.props.deleteApp(this.props.match.params.name),
                     }, ...(recentDeployments.length > 1 ? [{
                         className: 'icon fa fa-undo',
                         title: 'Rollback',
@@ -184,7 +189,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
     }
 
     private syncApplication(revision: string = null) {
-        this.props.sync(this.props.application.metadata.namespace, this.props.application.metadata.name, revision || this.state.deployRevision);
+        this.props.sync(this.props.application.metadata.name, revision || this.state.deployRevision);
         this.setDeployPanelVisible(false);
     }
 
@@ -202,7 +207,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
         if (resourceNode.state.kind === 'Pod') {
             menuItems.push({
                 title: 'Delete',
-                action: () => this.props.deletePod(this.props.match.params.namespace, this.props.match.params.name, resourceNode.state.metadata.name),
+                action: () => this.props.deletePod(this.props.match.params.name, resourceNode.state.metadata.name),
             });
         }
         return menuItems;
@@ -244,7 +249,8 @@ export const ApplicationDetails = connect((state: AppState<State>) => ({
     selectedRollbackDeploymentIndex: parseInt(new URLSearchParams(state.router.location.search).get('rollback'), 10),
     selectedNodeFullName: new URLSearchParams(state.router.location.search).get('node'),
 }), (dispatch) => ({
-    onLoad: (namespace: string, name: string) => dispatch(actions.loadApplication(name)),
-    sync: (namespace: string, name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),
-    deletePod: (namespace: string, appName: string, podName: string) => dispatch(actions.deletePod(appName, podName)),
+    onLoad: (name: string) => dispatch(actions.loadApplication(name)),
+    sync: (name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),
+    deletePod: (appName: string, podName: string) => dispatch(actions.deletePod(appName, podName)),
+    deleteApp: (appName: string) => dispatch(actions.deleteApplication(appName, true)),
 }))(Component);
