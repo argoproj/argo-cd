@@ -40,7 +40,7 @@ const (
 )
 
 // MakeCookieMetadata generates an MD object containing secure, HttpOnly cookie info.
-func (s *Server) makeCookieMetadata(ctx context.Context, key, value, flags ...string) metadata.MD {
+func (s *Server) makeCookieMetadata(ctx context.Context, key, value string, flags ...string) metadata.MD {
 	components := []string{
 		fmt.Sprintf("%s=%s", key, value),
 		"Secure",
