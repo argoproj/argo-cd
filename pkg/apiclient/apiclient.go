@@ -4,17 +4,20 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
-	config_util "github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/localconfig"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -23,6 +26,8 @@ import (
 const (
 	// EnvArgoCDServer is the environment variable to look for an ArgoCD server address
 	EnvArgoCDServer = "ARGOCD_SERVER"
+	// EnvArgoCDAuthToken is the environment variable to look for an ArgoCD auth token
+	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
 )
 
 // ServerClient defines an interface for interaction with an Argo CD server.
@@ -36,32 +41,93 @@ type ServerClient interface {
 	NewApplicationClientOrDie() (*grpc.ClientConn, application.ApplicationServiceClient)
 	NewSessionClient() (*grpc.ClientConn, session.SessionServiceClient, error)
 	NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServiceClient)
+	NewVersionClient() (*grpc.ClientConn, version.VersionServiceClient, error)
+	NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServiceClient)
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
 	ServerAddr string
+	PlainText  bool
 	Insecure   bool
 	CertFile   string
 	AuthToken  string
+	ConfigPath string
+	Context    string
 }
 
 type client struct {
-	ClientOptions
+	ServerAddr  string
+	PlainText   bool
+	Insecure    bool
+	CertPEMData []byte
+	AuthToken   string
 }
 
 // NewClient creates a new API client from a set of config options.
 func NewClient(opts *ClientOptions) (ServerClient, error) {
-	clientOpts := *opts
-	if clientOpts.ServerAddr == "" {
-		clientOpts.ServerAddr = os.Getenv(EnvArgoCDServer)
+	var c client
+	localCfg, err := localconfig.ReadLocalConfig(opts.ConfigPath)
+	if err != nil {
+		return nil, err
 	}
-	if clientOpts.ServerAddr == "" {
-		return nil, errors.New("Argo CD server address not supplied")
+	if localCfg != nil {
+		configCtx, err := localCfg.ResolveContext(opts.Context)
+		if err != nil {
+			return nil, err
+		}
+		if configCtx != nil {
+			c.ServerAddr = configCtx.Server.Server
+			if configCtx.Server.CACertificateAuthorityData != "" {
+				c.CertPEMData, err = base64.StdEncoding.DecodeString(configCtx.Server.CACertificateAuthorityData)
+				if err != nil {
+					return nil, err
+				}
+			}
+			c.PlainText = configCtx.Server.PlainText
+			c.Insecure = configCtx.Server.Insecure
+			c.AuthToken = configCtx.User.AuthToken
+		}
 	}
-	return &client{
-		ClientOptions: clientOpts,
-	}, nil
+	// Override server address if specified in env or CLI flag
+	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
+		c.ServerAddr = serverFromEnv
+	}
+	if opts.ServerAddr != "" {
+		c.ServerAddr = opts.ServerAddr
+	}
+	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
+		// If port is unspecified, assume the most likely port
+		c.ServerAddr += ":443"
+	}
+	// Override auth-token if specified in env variable or CLI flag
+	if authFromEnv := os.Getenv(EnvArgoCDAuthToken); authFromEnv != "" {
+		c.AuthToken = authFromEnv
+	}
+	if opts.AuthToken != "" {
+		c.AuthToken = opts.AuthToken
+	}
+	// Override certificate data if specified from CLI flag
+	if opts.CertFile != "" {
+		b, err := ioutil.ReadFile(opts.CertFile)
+		if err != nil {
+			return nil, err
+		}
+		c.CertPEMData = b
+	}
+	// Override insecure/plaintext options if specified from CLI
+	if opts.PlainText {
+		c.PlainText = true
+	}
+	if opts.Insecure {
+		c.Insecure = true
+	}
+
+	// Make sure we got the server address and auth token from somewhere
+	if c.ServerAddr == "" {
+		return nil, errors.New("Argo CD server address unspecified")
+	}
+	return &c, nil
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
@@ -88,54 +154,24 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-// firstEndpointTokenFrom iterates through given endpoint names and returns the first non-blank token, if any, that it finds.
-// This function will always return a manually-specified auth token, if it is provided on the command-line.
-func (c *client) firstEndpointTokenFrom(endpoints ...string) string {
-	if token := c.ClientOptions.AuthToken; token != "" {
-		return token
-	}
-
-	// Only look up credentials if the auth token isn't overridden
-	if localConfig, err := config_util.ReadLocalConfig(); err == nil {
-		for _, endpoint := range endpoints {
-			if token, ok := localConfig.Sessions[endpoint]; ok {
-				return token
-			}
-		}
-	}
-
-	return ""
-}
-
 func (c *client) NewConn() (*grpc.ClientConn, error) {
 	var creds credentials.TransportCredentials
-	if c.CertFile != "" {
-		b, err := ioutil.ReadFile(c.CertFile)
-		if err != nil {
-			return nil, err
-		}
-		cp := x509.NewCertPool()
-		if !cp.AppendCertsFromPEM(b) {
-			return nil, fmt.Errorf("credentials: failed to append certificates")
-		}
-		tlsConfig := tls.Config{
-			RootCAs: cp,
+	if !c.PlainText {
+		var tlsConfig tls.Config
+		if len(c.CertPEMData) > 0 {
+			cp := x509.NewCertPool()
+			if !cp.AppendCertsFromPEM(c.CertPEMData) {
+				return nil, fmt.Errorf("credentials: failed to append certificates")
+			}
+			tlsConfig.RootCAs = cp
 		}
 		if c.Insecure {
 			tlsConfig.InsecureSkipVerify = true
 		}
 		creds = credentials.NewTLS(&tlsConfig)
-	} else {
-		if c.Insecure {
-			tlsConfig := tls.Config{
-				InsecureSkipVerify: true,
-			}
-			creds = credentials.NewTLS(&tlsConfig)
-		}
 	}
-
 	endpointCredentials := jwtCredentials{
-		Token: c.firstEndpointTokenFrom(c.ServerAddr, ""),
+		Token: c.AuthToken,
 	}
 	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials))
 }
@@ -206,4 +242,21 @@ func (c *client) NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServi
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, sessionIf
+}
+
+func (c *client) NewVersionClient() (*grpc.ClientConn, version.VersionServiceClient, error) {
+	conn, err := c.NewConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	versionIf := version.NewVersionServiceClient(conn)
+	return conn, versionIf, nil
+}
+
+func (c *client) NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServiceClient) {
+	conn, versionIf, err := c.NewVersionClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, versionIf
 }

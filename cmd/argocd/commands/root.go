@@ -2,7 +2,6 @@ package commands
 
 import (
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -22,7 +21,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 
-	command.AddCommand(cli.NewVersionCmd(cliName))
+	command.AddCommand(NewVersionCmd(&clientOpts))
 	command.AddCommand(NewClusterCommand(&clientOpts, pathOpts))
 	command.AddCommand(NewApplicationCommand(&clientOpts))
 	command.AddCommand(NewLoginCommand(&clientOpts))
@@ -30,8 +29,10 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewInstallCommand())
 	command.AddCommand(NewUninstallCommand())
 
+	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", "", "Path to ArgoCD config")
 	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
-	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Disable transport security for the client connection, including host verification")
+	command.PersistentFlags().BoolVar(&clientOpts.PlainText, "plaintext", false, "Disable TLS")
+	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
 	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
 	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", "", "Authentication token")
 

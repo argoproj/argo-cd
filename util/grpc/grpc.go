@@ -1,8 +1,10 @@
 package grpc
 
 import (
+	"crypto/tls"
 	"net"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -48,7 +50,6 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	// TLS handshake failures). So in order to provide good error messages, we need a
 	// custom dialer that can provide that info. That means we manage the TLS handshake.
 	result := make(chan interface{}, 1)
-
 	writeResult := func(res interface{}) {
 		// non-blocking write: we only need the first result
 		select {
@@ -106,4 +107,45 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+type TLSTestResult struct {
+	TLS         bool
+	InsecureErr error
+}
+
+func TestTLS(address string) (*TLSTestResult, error) {
+	if parts := strings.Split(address, ":"); len(parts) == 1 {
+		// If port is unspecified, assume the most likely port
+		address += ":443"
+	}
+	var testResult TLSTestResult
+	var tlsConfig tls.Config
+	tlsConfig.InsecureSkipVerify = true
+	creds := credentials.NewTLS(&tlsConfig)
+	conn, err := BlockingDial(context.Background(), "tcp", address, creds)
+	if err == nil {
+		_ = conn.Close()
+		testResult.TLS = true
+		creds := credentials.NewTLS(&tls.Config{})
+		conn, err := BlockingDial(context.Background(), "tcp", address, creds)
+		if err == nil {
+			_ = conn.Close()
+		} else {
+			// if connection was successful with InsecureSkipVerify true, but unsuccessful with
+			// InsecureSkipVerify false, it means server is not configured securely
+			testResult.InsecureErr = err
+		}
+		return &testResult, nil
+	}
+	// If we get here, we were unable to connect via TLS (even with InsecureSkipVerify: true)
+	// It may be because server is running without TLS, or because of real issues (e.g. connection
+	// refused). Test if server accepts plain-text connections
+	conn, err = BlockingDial(context.Background(), "tcp", address, nil)
+	if err == nil {
+		_ = conn.Close()
+		testResult.TLS = false
+		return &testResult, nil
+	}
+	return nil, err
 }

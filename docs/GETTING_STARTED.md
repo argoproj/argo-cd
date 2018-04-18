@@ -26,16 +26,15 @@ change service type to `LoadBalancer`:
 $ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 ```
 
-Export API server URL into `ARGOCD_SERVER` environment variable, which the CLI looks to for 
-connection information:
+# 4. Login to the server from the CLI
 
 ```
-$ export ARGOCD_SERVER=$(minikube service argocd-server -n argocd --url | cut -d'/' -f 3)
+$ argocd login $(minikube service argocd-server -n argocd --url | cut -d'/' -f 3)
 ```
 
 Now, Argo CD is able to talk to API server and you can deploy your first application.
 
-## 4. Connect and deploy the Guestbook application
+## 5. Connect and deploy the Guestbook application
 
 1. Register the minikube cluster to Argo CD:
 
