@@ -47,11 +47,20 @@ RUN make ${MAKE_TARGET}
 
 
 ##############################################################
+# NOTE: this build stage is really only necessary when we need to build ksonnet ourselves.
+# We frequently switch between tip of master ksonnet vs. official builds. Comment/uncomment the
+# corresponding section to switch between the two options:
+
 FROM golang:1.10 as ksonnet-builder
 
-# Install ksonnet
-# TODO(jessesuen): remove this docker build stage this once we have an official prebuilt 1.10+ release
-RUN go get -v -u github.com/ksonnet/ksonnet
+# Option 1: build ksonnet ourselves
+#RUN go get -v -u github.com/ksonnet/ksonnet && mv ${GOPATH}/bin/ksonnet /ks
+
+# Option 2: use official tagged ksonnet release
+env KSONNET_VERSION=0.10.0-alpha.2
+RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
+    tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
+    mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /ks
 
 
 ##############################################################
@@ -61,7 +70,7 @@ RUN apt-get update && apt-get install -y git && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 ARG BINARY
 COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/${BINARY} /${BINARY}
-COPY --from=ksonnet-builder /go/bin/ksonnet /usr/local/bin/ks
+COPY --from=ksonnet-builder /ks /usr/local/bin/ks
 
 ENV BINARY=$BINARY
 CMD /$BINARY

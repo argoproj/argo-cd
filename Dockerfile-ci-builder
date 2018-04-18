@@ -11,6 +11,8 @@ RUN curl -O https://get.docker.com/builds/Linux/x86_64/docker-1.13.1.tgz && \
   gometalinter.v2 --install
 
 # Install ksonnet
-# TODO(jessesuen): pin this once we decide on a stable version
-RUN go get -v -u github.com/ksonnet/ksonnet && \
-    mv ${GOPATH}/bin/ksonnet /usr/local/bin/ks
+env KSONNET_VERSION=0.10.0-alpha.2
+RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
+    tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
+    mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks && \
+    rm -rf /tmp/ks_${KSONNET_VERSION}

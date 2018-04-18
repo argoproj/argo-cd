@@ -8,6 +8,14 @@
   version = "v0.18.0"
 
 [[projects]]
+  name = "github.com/GeertJohan/go.rice"
+  packages = [
+    ".",
+    "embedded"
+  ]
+  revision = "c02ca9a983da5807ddf7d796784928f5be4afd09"
+
+[[projects]]
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
   revision = "b938d81255b5473c57635324295cb0fe398c7a58"
@@ -23,6 +31,12 @@
   packages = ["."]
   revision = "2ee87856327ba09384cabd113bc6b5d174e9ec0f"
   version = "v3.5.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/daaku/go.zipexe"
+  packages = ["."]
+  revision = "a5fe2436ffcb3236e175e5149162b41cd28bd27d"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -258,6 +272,11 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
+
+[[projects]]
   name = "github.com/ksonnet/ksonnet"
   packages = [
     "component",
@@ -273,14 +292,15 @@
     "pkg/parts",
     "pkg/pkg",
     "pkg/registry",
+    "pkg/schema",
     "pkg/util/github",
     "pkg/util/jsonnet",
-    "pkg/util/k8s",
     "pkg/util/yaml",
     "prototype",
     "strings"
   ]
-  revision = "74e03a648428a6f3025c47ace519f44976364ebe"
+  revision = "a77a1a24a40e799ed4d70513d24b70c60ac23360"
+  version = "v0.10.0-alpha.2"
 
 [[projects]]
   name = "github.com/ksonnet/ksonnet-lib"
@@ -293,7 +313,7 @@
     "ksonnet-gen/nodemaker",
     "ksonnet-gen/printer"
   ]
-  revision = "f1aa55533283d55b2967f1e2cfb47048cf6661c8"
+  revision = "53ecc7e4b3a753ec7756a331be2426f615700771"
 
 [[projects]]
   branch = "master"
@@ -776,6 +796,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "aa54676131ffb95f3083378fb031dcb29d714d82994b250c813cbd56022cfced"
+  inputs-digest = "9ac15f0f9fba2f9b4f3b7ba9715ac91e73073deadcc08c514acf6b53effb227d"
   solver-name = "gps-cdcl"
   solver-version = 1

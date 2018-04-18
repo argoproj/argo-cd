@@ -39,7 +39,7 @@ required = [
 
 [[constraint]]
   name = "github.com/ksonnet/ksonnet"
-  branch = "master"
+  version = "v0.10.0-alpha.2"
 
 # override ksonnet's logrus dependency
 [[override]]

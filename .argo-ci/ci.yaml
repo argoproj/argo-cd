@@ -32,7 +32,7 @@ spec:
             value: "{{item}}"
         withItems:
         - dep ensure && make lint
-        - dep ensure && make test
+        - dep ensure && make test test-e2e
 
   - name: ci-builder
     inputs:
