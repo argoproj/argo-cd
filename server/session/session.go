@@ -2,15 +2,13 @@ package session
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/session"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,25 +34,12 @@ func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientse
 const (
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
-	authCookieName     = "argocd.argoproj.io/auth-token"
 )
-
-// MakeCookieMetadata generates an MD object containing secure, HttpOnly cookie info.
-func (s *Server) makeCookieMetadata(ctx context.Context, key, value string, flags ...string) metadata.MD {
-	components := []string{
-		fmt.Sprintf("%s=%s", key, value),
-		"Secure",
-		"HttpOnly",
-	}
-	components = append(components, flags...)
-	cookie := strings.Join(components, "; ")
-	return metadata.Pairs("Set-Cookie", cookie)
-}
 
 // Create an authentication cookie for the client.
 func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionResponse, error) {
 	if q.Password == "" {
-		err := fmt.Errorf(blankPasswordError)
+		err := status.Errorf(codes.Unauthenticated, blankPasswordError)
 		return nil, err
 	}
 
@@ -69,7 +54,7 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 
 	valid, _ := password.VerifyPassword(q.Password, passwordHash)
 	if !valid {
-		err := fmt.Errorf(invalidLoginError)
+		err := status.Errorf(codes.Unauthenticated, invalidLoginError)
 		return nil, err
 	}
 
@@ -79,16 +64,12 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 		token = ""
 	}
 
-	md := s.makeCookieMetadata(ctx, authCookieName, token, "path=/")
-	err = grpc.SendHeader(ctx, md)
 	return &SessionResponse{token}, err
 }
 
 // Delete an authentication cookie from the client.  This makes sense only for the Web client.
 func (s *Server) Delete(ctx context.Context, q *SessionDeleteRequest) (*SessionResponse, error) {
-	md := s.makeCookieMetadata(ctx, authCookieName, "", "path=/", "Max-Age=0")
-	err := grpc.SendHeader(ctx, md)
-	return &SessionResponse{""}, err
+	return &SessionResponse{""}, nil
 }
 
 // AuthFuncOverride overrides the authentication function and let us not require auth to receive auth.
