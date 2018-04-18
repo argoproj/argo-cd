@@ -189,7 +189,7 @@ func serverToSecretName(server string) string {
 	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(server))
-	host := strings.Split(serverURL.Host, ":")[0]
+	host := strings.ToLower(strings.Split(serverURL.Host, ":")[0])
 	return fmt.Sprintf("cluster-%s-%v", host, h.Sum32())
 }
 
