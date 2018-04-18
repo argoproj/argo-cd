@@ -157,9 +157,17 @@ func (i *Installer) InstallSettings() {
 	}
 
 	// generate TLS cert
+	hosts := []string{
+		"localhost",
+		"argocd-server",
+		fmt.Sprintf("argocd-server.%s", i.Namespace),
+		fmt.Sprintf("argocd-server.%s.svc", i.Namespace),
+		fmt.Sprintf("argocd-server.%s.svc.cluster.local", i.Namespace),
+	}
 	certOpts := tlsutil.CertOptions{
-		Host:         "argocd",
+		Hosts:        hosts,
 		Organization: "Argo CD",
+		IsCA:         true,
 	}
 	cert, err := tlsutil.GenerateX509KeyPair(certOpts)
 	errors.CheckError(err)

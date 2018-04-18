@@ -14,7 +14,6 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -23,8 +22,8 @@ const (
 )
 
 type CertOptions struct {
-	// Comma-separated hostnames and IPs to generate a certificate for
-	Host string
+	// Hostnames and IPs to generate a certificate for
+	Hosts []string
 	// Name of organization in certificate
 	Organization string
 	// Creation date
@@ -67,8 +66,8 @@ func pemBlockForKey(priv interface{}) *pem.Block {
 }
 
 func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
-	if opts.Host == "" {
-		return nil, nil, fmt.Errorf("host not supplied")
+	if len(opts.Hosts) == 0 {
+		return nil, nil, fmt.Errorf("hosts not supplied")
 	}
 
 	var privateKey crypto.PrivateKey
@@ -129,8 +128,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 		BasicConstraintsValid: true,
 	}
 
-	hosts := strings.Split(opts.Host, ",")
-	for _, h := range hosts {
+	for _, h := range opts.Hosts {
 		if ip := net.ParseIP(h); ip != nil {
 			template.IPAddresses = append(template.IPAddresses, ip)
 		} else {

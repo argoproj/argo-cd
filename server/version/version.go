@@ -22,3 +22,8 @@ func (s *Server) Version(context.Context, *empty.Empty) (*VersionMessage, error)
 		Platform:     vers.Platform,
 	}, nil
 }
+
+// AuthFuncOverride allows the version to be returned without auth
+func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	return ctx, nil
+}
