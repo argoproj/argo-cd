@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -297,8 +298,8 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 		if a.parseTokens(tokens) {
 			return ctx, nil
 		}
-		return ctx, grpc.Errorf(codes.Unauthenticated, "user is not allowed access")
+		return ctx, status.Errorf(codes.Unauthenticated, "user is not allowed access")
 	}
 
-	return ctx, grpc.Errorf(codes.Unauthenticated, "empty metadata")
+	return ctx, status.Errorf(codes.Unauthenticated, "empty metadata")
 }
