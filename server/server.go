@@ -283,7 +283,17 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	}
 
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		tokens := append(md["tokens"], md["grpcgateway-cookie"]...)
+		tokens := md["tokens"]
+
+		// Extract only the value portion of cookie-stored tokens
+		for _, cookieToken := range md["grpcgateway-cookie"] {
+			tokenPair := strings.SplitN(cookieToken, "=", 2)
+			if len(tokenPair) == 2 {
+				tokens = append(tokens, tokenPair[1])
+			}
+		}
+
+		// Check both gRPC-provided tokens and Web-provided (cookie-based) ones
 		if a.parseTokens(tokens) {
 			return ctx, nil
 		}
