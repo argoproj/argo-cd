@@ -36,7 +36,7 @@ func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientse
 const (
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
-	authCookieName     = "com.intuit.argocd.auth"
+	authCookieName     = "com.intuit.argocd.auth.token"
 )
 
 // MakeCookieMetadata generates an MD object containing secure, HttpOnly cookie info.
