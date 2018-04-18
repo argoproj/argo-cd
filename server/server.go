@@ -265,7 +265,8 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 }
 
 // parseTokens tests a slice of strings and returns `true` only if any of them are valid.
-func parseTokens(tokens []string) bool {
+func (a *ArgoCDServer) parseTokens(tokens []string) bool {
+	mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
 	for _, token := range tokens {
 		_, err := mgr.Parse(token)
 		if err == nil {
@@ -282,8 +283,8 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	}
 
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
-		if parseTokens(md["grpcgateway-cookie"]) || parseTokens(md["tokens"]) {
+		tokens := append(md["tokens"], md["grpcgateway-cookie"]...)
+		if a.parseTokens(tokens) {
 			return ctx, nil
 		}
 		return ctx, grpc.Errorf(codes.Unauthenticated, "user is not allowed access")
