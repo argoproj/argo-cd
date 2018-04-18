@@ -8,6 +8,8 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/session"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -62,13 +64,23 @@ func (s *Server) Create(ctx context.Context, q *SessionRequest) (*SessionRespons
 	if err != nil {
 		token = ""
 	}
+
+	cookie := fmt.Sprintf("my-cookie-name=%s; Secure; HttpOnly", token)
+	md := metadata.Pairs("Set-Cookie", cookie)
+	grpc.SendHeader(ctx, md)
+
 	return &SessionResponse{token}, err
 }
+
+// func (s *Server) Delete(ctx context.Context, q *SessionRequest) (*SessionResponse, error) {
+// 	grpc.SendHeader(ctx, md)
+// 	return &SessionResponse{token}, err
+// }
 
 // AuthFuncOverride overrides the authentication function and let us not require auth to receive auth.
 // Without this function here, ArgoCDServer.authenticate would be invoked and credentials checked.
 // Since this service is generally invoked when the user has _no_ credentials, that would create a
 // chicken-and-egg situation if we didn't place this here to allow traffic to pass through.
-func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+func (s *Server) AuthFuncverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	return ctx, nil
 }
