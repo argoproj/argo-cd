@@ -12,7 +12,7 @@ type SessionServiceClient struct {
 }
 
 // Create provides a mock function with given fields: ctx, in, opts
-func (_m *SessionServiceClient) Create(ctx context.Context, in *session.SessionRequest, opts ...grpc.CallOption) (*session.SessionResponse, error) {
+func (_m *SessionServiceClient) Create(ctx context.Context, in *session.SessionCreateRequest, opts ...grpc.CallOption) (*session.SessionResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -23,7 +23,7 @@ func (_m *SessionServiceClient) Create(ctx context.Context, in *session.SessionR
 	ret := _m.Called(_ca...)
 
 	var r0 *session.SessionResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *session.SessionRequest, ...grpc.CallOption) *session.SessionResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *session.SessionCreateRequest, ...grpc.CallOption) *session.SessionResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
@@ -32,7 +32,37 @@ func (_m *SessionServiceClient) Create(ctx context.Context, in *session.SessionR
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *session.SessionRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *session.SessionCreateRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Delete provides a mock function with given fields: ctx, in, opts
+func (_m *SessionServiceClient) Delete(ctx context.Context, in *session.SessionDeleteRequest, opts ...grpc.CallOption) (*session.SessionResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *session.SessionResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *session.SessionDeleteRequest, ...grpc.CallOption) *session.SessionResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*session.SessionResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *session.SessionDeleteRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)

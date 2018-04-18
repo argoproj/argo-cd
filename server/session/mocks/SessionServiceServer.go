@@ -11,11 +11,11 @@ type SessionServiceServer struct {
 }
 
 // Create provides a mock function with given fields: _a0, _a1
-func (_m *SessionServiceServer) Create(_a0 context.Context, _a1 *session.SessionRequest) (*session.SessionResponse, error) {
+func (_m *SessionServiceServer) Create(_a0 context.Context, _a1 *session.SessionCreateRequest) (*session.SessionResponse, error) {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 *session.SessionResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *session.SessionRequest) *session.SessionResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *session.SessionCreateRequest) *session.SessionResponse); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
@@ -24,7 +24,30 @@ func (_m *SessionServiceServer) Create(_a0 context.Context, _a1 *session.Session
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *session.SessionRequest) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *session.SessionCreateRequest) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Delete provides a mock function with given fields: _a0, _a1
+func (_m *SessionServiceServer) Delete(_a0 context.Context, _a1 *session.SessionDeleteRequest) (*session.SessionResponse, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 *session.SessionResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *session.SessionDeleteRequest) *session.SessionResponse); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*session.SessionResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *session.SessionDeleteRequest) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
