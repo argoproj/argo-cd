@@ -36,13 +36,17 @@ func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientse
 const (
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
+	authCookieName     = "com.intuit.argocd.auth"
 )
 
-func (s *Server) makeCookie(ctx context.Context, key, value, flags ...string) {
-	components := []string{fmt.Sprintf("%s=%s; Secure; HttpOnly", key, value)}
-	for _, flag := range flags {
-		components = append(components, flag)
+// MakeCookieMetadata generates an MD object containing secure, HttpOnly cookie info.
+func (s *Server) makeCookieMetadata(ctx context.Context, key, value, flags ...string) metadata.MD {
+	components := []string{
+		fmt.Sprintf("%s=%s", key, value),
+		"Secure",
+		"HttpOnly",
 	}
+	components = append(components, flags...)
 	cookie := strings.Join(components, "; ")
 	return metadata.Pairs("Set-Cookie", cookie)
 }
@@ -75,18 +79,16 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 		token = ""
 	}
 
-	md := s.makeCookie("my-cookie-name", token)
-	grpc.SendHeader(ctx, md)
-
-	return &SessionResponse{}, err
+	md := s.makeCookieMetadata(ctx, authCookieName, token, "path=/")
+	err = grpc.SendHeader(ctx, md)
+	return &SessionResponse{token}, err
 }
 
-// Delete an authentication cookie from the client.
+// Delete an authentication cookie from the client.  This makes sense only for the Web client.
 func (s *Server) Delete(ctx context.Context, q *SessionDeleteRequest) (*SessionResponse, error) {
-	md := s.makeCookie("my-cookie-name", "", "Max-Age=0")
-	grpc.SendHeader(ctx, md)
-
-	return &SessionResponse{}, nil
+	md := s.makeCookieMetadata(ctx, authCookieName, "", "path=/", "Max-Age=0")
+	err := grpc.SendHeader(ctx, md)
+	return &SessionResponse{""}, err
 }
 
 // AuthFuncOverride overrides the authentication function and let us not require auth to receive auth.
