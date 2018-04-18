@@ -90,19 +90,19 @@ func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*Appl
 	namespace := q.Namespace
 	if server == "" || namespace == "" {
 		server, namespace, err = s.getApplicationDestination(ctx, q.Name)
-		if err != nil && !apierr.IsNotFound(err) && !q.IgnoreResourceDeletionError {
+		if err != nil && !apierr.IsNotFound(err) && !q.Force {
 			return nil, err
 		}
 	}
 
 	if server != "" && namespace != "" {
 		clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
-		if err != nil && !q.IgnoreResourceDeletionError {
+		if err != nil && !q.Force {
 			return nil, err
 		}
 		config := clst.RESTConfig()
 		err = kube.DeleteResourceWithLabel(config, namespace, common.LabelApplicationName, q.Name)
-		if err != nil && !q.IgnoreResourceDeletionError {
+		if err != nil && !q.Force {
 			return nil, err
 		}
 	}

@@ -24,7 +24,7 @@ message DeleteApplicationRequest {
 	string name = 1;
 	string namespace = 2;
 	string server = 3;
-	bool ignoreResourceDeletionError = 4;
+	bool force = 4;
 }
 
 // ApplicationSyncRequest is a request to apply the config state to live state
