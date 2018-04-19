@@ -1,6 +1,6 @@
-import * as _superagent from 'superagent';
+import * as superagent from 'superagent';
 const superagentPromise = require('superagent-promise');
-import { Observable, Observer } from 'rxjs';
+import { BehaviorSubject, Observable, Observer } from 'rxjs';
 
 type Callback = (data: any) => void;
 
@@ -20,21 +20,29 @@ enum ReadyState {
   DONE = 4,
 }
 
-const superagent: _superagent.SuperAgentStatic = superagentPromise(_superagent, global.Promise);
+const agent: superagent.SuperAgentStatic = superagentPromise(superagent, global.Promise);
 
 const API_ROOT = '/api/v1';
 
+const onError = new BehaviorSubject<superagent.ResponseError>(null);
+
+function initHandlers(req: superagent.Request) {
+    req.on('error', (err) => onError.next(err));
+    return req;
+}
+
 export default {
+    onError: onError.asObservable().filter((err) => err != null),
     get(url: string) {
-        return superagent.get(`${API_ROOT}${url}`);
+        return initHandlers(agent.get(`${API_ROOT}${url}`));
     },
 
     post(url: string) {
-        return superagent.post(`${API_ROOT}${url}`);
+        return initHandlers(agent.post(`${API_ROOT}${url}`));
     },
 
     delete(url: string) {
-        return superagent.del(`${API_ROOT}${url}`);
+        return initHandlers(agent.del(`${API_ROOT}${url}`));
     },
 
     loadEventSource(url: string, allowAutoRetry = false): Observable<string> {
@@ -55,6 +63,7 @@ export default {
                     observer.complete();
                 } else {
                     observer.error(e);
+                    onError.next(e);
                 }
             };
             return () => {

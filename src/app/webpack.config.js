@@ -48,6 +48,8 @@ const config = {
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
         new CopyWebpackPlugin([{
+            from: 'src/assets', to: 'assets'
+        }, {
             from: 'node_modules/argo-ui/bundle/assets', to: 'assets'
         }, {
             from: 'node_modules/font-awesome/fonts', to: 'assets/fonts'

@@ -1,4 +1,4 @@
-import { AppContext, AppState, MenuItem, Page, SlidingPanel, Tab, Tabs} from 'argo-ui';
+import { AppContext, AppState, MenuItem, SlidingPanel, Tab, Tabs} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
@@ -9,6 +9,7 @@ import * as appModels from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
 
+import { Page } from '../../../shared/components';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
 import { ApplicationSummary } from '../application-summary/application-summary';

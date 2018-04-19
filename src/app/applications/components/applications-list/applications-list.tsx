@@ -1,10 +1,11 @@
-import { AppContext, AppState, MockupList, Page, SlidingPanel } from 'argo-ui';
+import { AppContext, AppState, MockupList, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
 import { Subscription } from 'rxjs';
 
+import { Page } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
