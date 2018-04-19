@@ -91,12 +91,15 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	}
 
 	for i, resource := range resources {
-		childResources, err := getChildren(controlledLiveObj[i], objByFullName)
-		if err != nil {
-			return nil, err
+		liveResource := controlledLiveObj[i]
+		if liveResource != nil {
+			childResources, err := getChildren(liveResource, objByFullName)
+			if err != nil {
+				return nil, err
+			}
+			resource.ChildLiveResources = childResources
+			resources[i] = resource
 		}
-		resource.ChildLiveResources = childResources
-		resources[i] = resource
 	}
 	compResult := v1alpha1.ComparisonResult{
 		ComparedTo: app.Spec.Source,
