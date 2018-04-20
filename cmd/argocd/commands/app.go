@@ -51,6 +51,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		env           string
 		destServer    string
 		destNamespace string
+		syncPolicy    string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -73,6 +74,10 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 
 			} else {
+				if syncPolicy != "" && syncPolicy != "Always" {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
 				// all these params are required if we're here
 				if repoURL == "" || appPath == "" || appName == "" {
 					c.HelpFunc()(c, args)
@@ -88,6 +93,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 							Path:        appPath,
 							Environment: env,
 						},
+						SyncPolicy: syncPolicy,
 					},
 				}
 			}
@@ -110,6 +116,7 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
 	command.Flags().StringVar(&destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
+	command.Flags().StringVar(&syncPolicy, "sync-policy", "", "Synchronization policy for application (e.g., Always)")
 	return command
 }
 
