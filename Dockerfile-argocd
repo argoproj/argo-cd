@@ -72,5 +72,8 @@ ARG BINARY
 COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/${BINARY} /${BINARY}
 COPY --from=ksonnet-builder /ks /usr/local/bin/ks
 
+# workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
+ENV USER=root
+
 ENV BINARY=$BINARY
 CMD /$BINARY
