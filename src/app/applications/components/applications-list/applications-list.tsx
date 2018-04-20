@@ -3,9 +3,10 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
+import { Field, InjectedFormProps, reduxForm, submit } from 'redux-form';
 import { Subscription } from 'rxjs';
 
-import { Page } from '../../../shared/components';
+import { FormField, Page } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
@@ -15,24 +16,65 @@ require('./applications-list.scss');
 
 export interface ApplicationProps extends RouteComponentProps<{}> {
     onLoad: () => any;
+    createApp: () => any;
     applications: models.Application[];
     changesSubscription: Subscription;
     showNewAppPanel: boolean;
-    createApp: (appName: string, source: models.ApplicationSource) => any;
 }
 
-const DEFAULT_NEW_APP = { applicationName: '', targetRevision: 'master', componentParameterOverrides: [] as any[], path: '', repoURL: '', environment: '' };
+interface NewAppParams {
+    applicationName: string;
+    path: string;
+    repoURL: string;
+    environment: string;
+    clusterURL: string;
+    namespace: string;
+}
 
-class Component extends React.Component<ApplicationProps, models.ApplicationSource & { applicationName: string }> {
+const required = (value: any) => (value ? undefined : 'Required');
+
+const NewAppForm = reduxForm<NewAppParams>({
+    form: 'newAppForm',
+    onSubmit: (params, dispatch) => {
+        dispatch(actions.createApplication(params.applicationName, {
+            environment: params.environment,
+            path: params.path,
+            repoURL: params.repoURL,
+            targetRevision: null,
+            componentParameterOverrides: null,
+        }, {
+            server: params.clusterURL,
+            namespace: params.namespace,
+        }));
+    },
+})((props: InjectedFormProps<NewAppParams, {}>) => (
+    <form role='form' className='width-control'>
+        <div className='argo-form-row'>
+            <Field validate={required} name='applicationName' component={FormField} type='text' label='Application Name'/>
+        </div>
+        <div className='argo-form-row'>
+            <Field validate={required} name='repoURL' component={FormField} type='text' label='Repository URL'/>
+        </div>
+        <div className='argo-form-row'>
+            <Field validate={required} name='path' component={FormField} type='text' label='Path'/>
+        </div>
+        <div className='argo-form-row'>
+            <Field validate={required} name='environment' component={FormField} type='text' label='Environment'/>
+        </div>
+        <div className='argo-form-row'>
+            <Field name='clusterURL' component={FormField} type='text' label='Cluster URL'/>
+        </div>
+        <div className='argo-form-row'>
+            <Field name='namespace' component={FormField} type='text' label='Namespace'/>
+        </div>
+    </form>
+));
+
+class Component extends React.Component<ApplicationProps> {
 
     public static contextTypes = {
         router: PropTypes.object,
     };
-
-    constructor(props: ApplicationProps) {
-        super(props);
-        this.state = DEFAULT_NEW_APP;
-    }
 
     public componentDidMount() {
         this.props.onLoad();
@@ -109,31 +151,14 @@ class Component extends React.Component<ApplicationProps, models.ApplicationSour
                 </div>
                 <SlidingPanel isShown={this.props.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} isMiddle={true} header={(
                         <div>
-                            <button className='argo-button argo-button--base' onClick={() => this.createApplication()}>
+                            <button className='argo-button argo-button--base' onClick={() => this.props.createApp()}>
                                 Create
                             </button> <button onClick={() => this.setNewAppPanelVisible(false)} className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>
                     )}>
-                    <form>
-                        <h6>Name:
-                            <input className='argo-field' required={true} value={this.state.applicationName}
-                                onChange={(event) => this.setState({ applicationName: event.target.value })}/>
-                        </h6>
-                        <h6>Repository URL:
-                            <input className='argo-field' required={true} value={this.state.repoURL}
-                                onChange={(event) => this.setState({ repoURL: event.target.value })}/>
-                        </h6>
-                        <h6>Path:
-                            <input className='argo-field' required={true} value={this.state.path}
-                                onChange={(event) => this.setState({ path: event.target.value })}/>
-                        </h6>
-                        <h6>Environment:
-                            <input className='argo-field' required={true} value={this.state.environment}
-                                onChange={(event) => this.setState({ environment: event.target.value })}/>
-                        </h6>
-                    </form>
+                    <NewAppForm/>
                 </SlidingPanel>
             </Page>
         );
@@ -144,23 +169,7 @@ class Component extends React.Component<ApplicationProps, models.ApplicationSour
     }
 
     private setNewAppPanelVisible(isVisible: boolean) {
-        if (isVisible) {
-            this.setState(DEFAULT_NEW_APP);
-        }
         this.appContext.router.history.push(`${this.props.match.url}?new=${isVisible}`);
-    }
-
-    private createApplication() {
-        if (this.state.applicationName && this.state.environment && this.state.repoURL && this.state.path) {
-            this.setNewAppPanelVisible(false);
-            this.props.createApp(this.state.applicationName, {
-                environment: this.state.environment,
-                path: this.state.path,
-                repoURL: this.state.repoURL,
-                targetRevision: null,
-                componentParameterOverrides: null,
-            });
-        }
     }
 }
 
@@ -172,5 +181,5 @@ export const ApplicationsList = connect((state: AppState<State>) => {
     };
 }, (dispatch) => ({
     onLoad: () => dispatch(actions.loadAppsList()),
-    createApp: (appName: string, source: models.ApplicationSource) => dispatch(actions.createApplication(appName, source)),
+    createApp: () => dispatch(submit('newAppForm')),
 }))(Component);

@@ -67,10 +67,11 @@ export function deletePod(appName: string, podName: string): any {
     };
 }
 
-export function createApplication(appName: string, source: models.ApplicationSource): any {
+export function createApplication(appName: string, source: models.ApplicationSource, destination?: models.ApplicationDestination): any {
     return async (dispatch: Dispatch<any>, getState: () => AppState<State>) => {
         try {
-            await services.applications.create(appName, source);
+            await services.applications.create(appName, source, destination);
+            dispatch(push('/applications'));
         } catch (e) {
             dispatch(commonActions.showNotification({
                 type: NotificationType.Error,
