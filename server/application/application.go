@@ -1,12 +1,10 @@
 package application
 
 import (
-	"fmt"
-
-	"time"
-
 	"bufio"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -18,9 +16,12 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,18 +69,26 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
 }
 
-// Create creates a application
+// Create creates an application
 func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
+	err := s.validateApp(ctx, a)
+	if err != nil {
+		return nil, err
+	}
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
 }
 
-// Get returns a application by name
+// Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.Name, metav1.GetOptions{})
 }
 
-// Update updates a application
+// Update updates an application
 func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
+	err := s.validateApp(ctx, a)
+	if err != nil {
+		return nil, err
+	}
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 }
 
@@ -140,6 +149,69 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	case <-ws.Context().Done():
 		w.Stop()
 	case <-done:
+	}
+	return nil
+}
+
+// validateApp will ensure:
+// * the git repository is accessible
+// * the git path contains a valid app.yaml
+// * the specified environment exists
+// * the referenced cluster has been added to ArgoCD
+func (s *Server) validateApp(ctx context.Context, a *appv1.Application) error {
+	// Test the repo
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	if err != nil {
+		return err
+	}
+	defer util.Close(conn)
+	repoRes, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: a.Spec.Source.RepoURL})
+	if err != nil {
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+			// The repo has not been added to ArgoCD so we do not have credentials to access it.
+			// We support the mode where apps can be created from public repositories. Test the
+			// repo to make sure it is publically accessible
+			err = git.TestRepo(a.Spec.Source.RepoURL, "", "", "")
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	// Verify app.yaml is functional
+	req := repository.KsonnetAppRequest{
+		Repo: &appv1.Repository{
+			Repo: a.Spec.Source.RepoURL,
+		},
+		Revision: a.Spec.Source.TargetRevision,
+		Path:     a.Spec.Source.Path,
+	}
+	if repoRes != nil {
+		req.Repo.Username = repoRes.Username
+		req.Repo.Password = repoRes.Password
+		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+	}
+	ksAppRes, err := repoClient.GetKsonnetApp(ctx, &req)
+	if err != nil {
+		return err
+	}
+
+	// Verify the specified environment is defined in it
+	envSpec, ok := ksAppRes.Environments[a.Spec.Source.Environment]
+	if !ok {
+		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in app", a.Spec.Source.Environment)
+	}
+	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
+	// NOTE: need to check if it was overridden in the destination spec
+	clusterURL := envSpec.Destination.Server
+	if a.Spec.Destination != nil && a.Spec.Destination.Server != "" {
+		clusterURL = a.Spec.Destination.Server
+	}
+	_, err = s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: clusterURL})
+	if err != nil {
+		return err
 	}
 	return nil
 }

@@ -13,6 +13,7 @@ import (
 type Client interface {
 	CloneOrFetch(url string, username string, password string, sshPrivateKey string, repoPath string) error
 	Checkout(repoPath string, sha string) (string, error)
+	CommitSHA(repoPath string) (string, error)
 	Reset(repoPath string) error
 }
 
@@ -96,15 +97,18 @@ func (m *NativeGitClient) Checkout(repoPath string, sha string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("unable to checkout revision %s: %v", sha, err)
 	}
+	return m.CommitSHA(repoPath)
+}
+
+// CommitSHA returns current commit sha from `git rev-parse HEAD`
+func (m *NativeGitClient) CommitSHA(repoPath string) (string, error) {
 	revisionCmd := exec.Command("git", "rev-parse", "HEAD")
 	revisionCmd.Dir = repoPath
 	output, err := revisionCmd.Output()
 	if err != nil {
 		return "", err
 	}
-
 	return string(output), nil
-
 }
 
 // NewNativeGitClient creates new instance of NativeGitClient

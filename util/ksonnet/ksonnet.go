@@ -3,11 +3,13 @@ package ksonnet
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/component"
 	"github.com/ksonnet/ksonnet/metadata"
@@ -29,6 +31,9 @@ type KsonnetApp interface {
 	// App is the Ksonnet application
 	App() app.App
 
+	// Spec is the Ksonnet application spec
+	Spec() *app.Spec
+
 	// Show returns a list of unstructured objects that would be applied to an environment
 	Show(environment string) ([]*unstructured.Unstructured, error)
 
@@ -42,6 +47,7 @@ type KsonnetApp interface {
 type ksonnetApp struct {
 	manager metadata.Manager
 	app     app.App
+	spec    app.Spec
 }
 
 // NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
@@ -52,11 +58,18 @@ func NewKsonnetApp(path string) (KsonnetApp, error) {
 		return nil, err
 	}
 	ksApp.manager = mgr
-	app, err := ksApp.manager.App()
+	a, err := ksApp.manager.App()
 	if err != nil {
 		return nil, err
 	}
-	ksApp.app = app
+	ksApp.app = a
+
+	var spec app.Spec
+	err = cli.UnmarshalLocalFile(filepath.Join(ksApp.manager.Root(), "app.yaml"), &spec)
+	if err != nil {
+		return nil, err
+	}
+	ksApp.spec = spec
 	return &ksApp, nil
 }
 
@@ -83,9 +96,14 @@ func (k *ksonnetApp) Root() string {
 	return k.manager.Root()
 }
 
-// Spec is the Ksonnet application spec (app.yaml)
+// App is the Ksonnet application
 func (k *ksonnetApp) App() app.App {
 	return k.app
+}
+
+// Spec is the Ksonnet application spec
+func (k *ksonnetApp) Spec() *app.Spec {
+	return &k.spec
 }
 
 // Show generates a concatenated list of Kubernetes manifests in the given environment.

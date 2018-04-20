@@ -205,3 +205,7 @@ func (c *FakeGitClient) Reset(repoPath string) error {
 	// do nothing
 	return nil
 }
+
+func (c *FakeGitClient) CommitSHA(repoPath string) (string, error) {
+	return "abcdef123456890", nil
+}

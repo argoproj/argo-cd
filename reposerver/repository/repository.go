@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
@@ -33,6 +34,45 @@ func NewService(namespace string, kubeClient kubernetes.Interface, gitClient git
 		gitClient:  gitClient,
 		repoLock:   util.NewKeyLock(),
 	}
+}
+
+func (s *Service) GetKsonnetApp(ctx context.Context, in *KsonnetAppRequest) (*KsonnetAppResponse, error) {
+	appRepoPath := path.Join(os.TempDir(), strings.Replace(in.Repo.Repo, "/", "_", -1))
+	s.repoLock.Lock(appRepoPath)
+	defer func() {
+		err := s.gitClient.Reset(appRepoPath)
+		if err != nil {
+			log.Warn(err)
+		}
+		s.repoLock.Unlock(appRepoPath)
+	}()
+	ksApp, err := s.getAppSpec(*in.Repo, appRepoPath, in.Revision, in.Path)
+	if err != nil {
+		return nil, err
+	}
+	return ksAppToResponse(ksApp)
+}
+
+// ksAppToResponse converts a Ksonnet app instance to a API response object
+func ksAppToResponse(ksApp ksutil.KsonnetApp) (*KsonnetAppResponse, error) {
+	var appRes KsonnetAppResponse
+	appRes.Environments = make(map[string]*KsonnetEnvironment)
+	for envName, env := range ksApp.Spec().Environments {
+		if env.Destination == nil {
+			return nil, fmt.Errorf("Environment '%s' has no destination defined", envName)
+		}
+		envRes := KsonnetEnvironment{
+			Name:       envName,
+			K8SVersion: env.KubernetesVersion,
+			Path:       env.Path,
+			Destination: &KsonnetEnvironmentDestination{
+				Server:    env.Destination.Server,
+				Namespace: env.Destination.Namespace,
+			},
+		}
+		appRes.Environments[envName] = &envRes
+	}
+	return &appRes, nil
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
@@ -100,6 +140,24 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		Namespace: env.Destination.Namespace,
 		Server:    env.Destination.Server,
 	}, nil
+}
+
+func (s *Service) getAppSpec(repo v1alpha1.Repository, appRepoPath, revision, subPath string) (ksutil.KsonnetApp, error) {
+	err := s.gitClient.CloneOrFetch(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, appRepoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.gitClient.Checkout(appRepoPath, revision)
+	if err != nil {
+		return nil, err
+	}
+	appPath := path.Join(appRepoPath, subPath)
+	ksApp, err := ksutil.NewKsonnetApp(appPath)
+	if err != nil {
+		return nil, err
+	}
+	return ksApp, nil
 }
 
 func (s *Service) setAppLabels(target *unstructured.Unstructured, appName string) error {
