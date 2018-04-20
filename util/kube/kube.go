@@ -25,6 +25,12 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	listVerb             = "list"
+	deleteVerb           = "delete"
+	deleteCollectionVerb = "deletecollection"
+)
+
 // TestConfig tests to make sure the REST config is usable
 func TestConfig(config *rest.Config) error {
 	kubeclientset, err := kubernetes.NewForConfig(config)
@@ -162,12 +168,14 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 		return nil, err
 	}
 
-	var result []*unstructured.Unstructured
+	var resourceInterfaces []dynamic.ResourceInterface
+
 	for _, apiResourcesList := range resources {
-		for _, apiResource := range apiResourcesList.APIResources {
+		for i := range apiResourcesList.APIResources {
+			apiResource := apiResourcesList.APIResources[i]
 			listSupported := false
 			for _, verb := range apiResource.Verbs {
-				if verb == "list" {
+				if verb == listVerb {
 					listSupported = true
 					break
 				}
@@ -177,26 +185,41 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 				if err != nil {
 					return nil, err
 				}
-				list, err := dclient.Resource(&apiResource, namespace).List(metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
-				})
-				if err != nil {
-					return nil, err
-				}
-				// apply client side filtering since not every kubernetes API supports label filtering
-				for i := range list.(*unstructured.UnstructuredList).Items {
-					item := list.(*unstructured.UnstructuredList).Items[i]
-					labels := item.GetLabels()
-					if labels != nil {
-						if value, ok := labels[labelName]; ok && value == labelValue {
-							result = append(result, &item)
-						}
-					}
-				}
+				resourceInterfaces = append(resourceInterfaces, dclient.Resource(&apiResource, namespace))
 			}
 		}
 	}
-	return result, nil
+
+	var asyncErr error
+	var result []*unstructured.Unstructured
+
+	var wg sync.WaitGroup
+	wg.Add(len(resourceInterfaces))
+	for i := range resourceInterfaces {
+		client := resourceInterfaces[i]
+		go func() {
+			defer wg.Done()
+			list, err := client.List(metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
+			})
+			if err != nil {
+				asyncErr = err
+				return
+			}
+			// apply client side filtering since not every kubernetes API supports label filtering
+			for i := range list.(*unstructured.UnstructuredList).Items {
+				item := list.(*unstructured.UnstructuredList).Items[i]
+				labels := item.GetLabels()
+				if labels != nil {
+					if value, ok := labels[labelName]; ok && value == labelValue {
+						result = append(result, &item)
+					}
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	return result, asyncErr
 }
 
 // DeleteResourceWithLabel delete all resources which match to specified label selector
@@ -210,14 +233,21 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 	if err != nil {
 		return err
 	}
+
+	var resourceInterfaces []struct {
+		dynamic.ResourceInterface
+		bool
+	}
+
 	for _, apiResourcesList := range resources {
-		for _, apiResource := range apiResourcesList.APIResources {
+		for i := range apiResourcesList.APIResources {
+			apiResource := apiResourcesList.APIResources[i]
 			deleteCollectionSupported := false
 			deleteSupported := false
 			for _, verb := range apiResource.Verbs {
-				if verb == "deletecollection" {
+				if verb == deleteCollectionVerb {
 					deleteCollectionSupported = true
-				} else if verb == "delete" {
+				} else if verb == deleteVerb {
 					deleteSupported = true
 				}
 			}
@@ -225,37 +255,61 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 			if err != nil {
 				return err
 			}
-			propagationPolicy := metav1.DeletePropagationForeground
+
+			if deleteCollectionSupported || deleteSupported {
+				resourceInterfaces = append(resourceInterfaces, struct {
+					dynamic.ResourceInterface
+					bool
+				}{dclient.Resource(&apiResource, namespace), deleteCollectionSupported})
+			}
+		}
+	}
+
+	var asyncErr error
+	propagationPolicy := metav1.DeletePropagationForeground
+
+	var wg sync.WaitGroup
+	wg.Add(len(resourceInterfaces))
+
+	for i := range resourceInterfaces {
+		client := resourceInterfaces[i].ResourceInterface
+		deleteCollectionSupported := resourceInterfaces[i].bool
+
+		go func() {
+			defer wg.Done()
 			if deleteCollectionSupported {
-				err = dclient.Resource(&apiResource, namespace).DeleteCollection(&metav1.DeleteOptions{
+				err = client.DeleteCollection(&metav1.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
 				}, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
 				if err != nil && !apierr.IsNotFound(err) {
-					return err
+					asyncErr = err
 				}
-			} else if deleteSupported {
-				items, err := dclient.Resource(&apiResource, namespace).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
+			} else {
+				items, err := client.List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
 				if err != nil {
-					return err
+					asyncErr = err
+					return
 				}
 				for _, item := range items.(*unstructured.UnstructuredList).Items {
 					// apply client side filtering since not every kubernetes API supports label filtering
 					labels := item.GetLabels()
 					if labels != nil {
 						if value, ok := labels[labelName]; ok && value == labelValue {
-							err = dclient.Resource(&apiResource, namespace).Delete(item.GetName(), &metav1.DeleteOptions{
+							err = client.Delete(item.GetName(), &metav1.DeleteOptions{
 								PropagationPolicy: &propagationPolicy,
 							})
 							if err != nil && !apierr.IsNotFound(err) {
-								return err
+								asyncErr = err
+								return
 							}
 						}
 					}
 				}
 			}
-		}
+		}()
 	}
-	return nil
+	wg.Wait()
+	return asyncErr
 }
 
 // GetLiveResources returns the corresponding live resource from a list of resources

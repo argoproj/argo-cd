@@ -26,6 +26,46 @@ type KsonnetAppComparator struct {
 	clusterService cluster.ClusterServiceServer
 }
 
+// groupLiveObjects deduplicate list of kubernetes resources and choose correct version of resource: if resource has corresponding expected application resource then method pick
+// kubernetes resource with matching version, otherwise chooses single kubernetes resource with any version
+func (ks *KsonnetAppComparator) groupLiveObjects(liveObjs []*unstructured.Unstructured, targetObjs []*unstructured.Unstructured) map[string]*unstructured.Unstructured {
+	targetByFullName := make(map[string]*unstructured.Unstructured)
+	for _, obj := range targetObjs {
+		targetByFullName[getResourceFullName(obj)] = obj
+	}
+
+	liveListByFullName := make(map[string][]*unstructured.Unstructured)
+	for _, obj := range liveObjs {
+		list := liveListByFullName[getResourceFullName(obj)]
+		if list == nil {
+			list = make([]*unstructured.Unstructured, 0)
+		}
+		list = append(list, obj)
+		liveListByFullName[getResourceFullName(obj)] = list
+	}
+
+	liveByFullName := make(map[string]*unstructured.Unstructured)
+
+	for fullName, list := range liveListByFullName {
+		targetObj := targetByFullName[fullName]
+		var liveObj *unstructured.Unstructured
+		if targetObj != nil {
+			for i := range list {
+				if list[i].GetAPIVersion() == targetObj.GetAPIVersion() {
+					liveObj = list[i]
+					break
+				}
+			}
+		} else {
+			liveObj = list[0]
+		}
+		if liveObj != nil {
+			liveByFullName[getResourceFullName(liveObj)] = liveObj
+		}
+	}
+	return liveByFullName
+}
+
 // CompareAppState compares application spec and real app state using KSonnet
 func (ks *KsonnetAppComparator) CompareAppState(
 	server string,
@@ -46,12 +86,10 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	if err != nil {
 		return nil, err
 	}
-	objByFullName := make(map[string]*unstructured.Unstructured)
-	for _, obj := range liveObjs {
-		objByFullName[getResourceFullName(obj)] = obj
-	}
+	objByFullName := ks.groupLiveObjects(liveObjs, targetObjs)
 
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
+
 	for i, targetObj := range targetObjs {
 		controlledLiveObj[i] = objByFullName[getResourceFullName(targetObj)]
 	}
