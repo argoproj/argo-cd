@@ -10,5 +10,4 @@ spec:
     shortNames:
     - app
   scope: Namespaced
-  syncPolicy: Always
   version: v1alpha1
