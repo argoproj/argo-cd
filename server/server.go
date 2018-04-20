@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 )
@@ -173,6 +174,9 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	application.RegisterApplicationServiceServer(grpcS, applicationService)
 	repository.RegisterRepositoryServiceServer(grpcS, repoService)
 	session.RegisterSessionServiceServer(grpcS, sessionService)
+
+	// Register reflection service on gRPC server.
+	reflection.Register(grpcS)
 	return grpcS
 }
 
@@ -273,7 +277,6 @@ func newRedirectServer() *http.Server {
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}
-			log.Printf("redirect to: %s", target)
 			http.Redirect(w, req, target, http.StatusTemporaryRedirect)
 		}),
 	}

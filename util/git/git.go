@@ -71,7 +71,7 @@ func TestRepo(repo, username, password string, sshPrivateKey string) error {
 		exErr := err.(*exec.ExitError)
 		errOutput := strings.Split(string(exErr.Stderr), "\n")[0]
 		errOutput = redactPassword(errOutput, password)
-		return fmt.Errorf("failed to test %s: %s", repo, errOutput)
+		return fmt.Errorf("%s: %s", repo, errOutput)
 	}
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -43,6 +44,9 @@ func (a *ArgoCDRepoServer) CreateGRPC(gitClient git.Client) *grpc.Server {
 	version.RegisterVersionServiceServer(server, &version.Server{})
 	manifestService := repository.NewService(a.ns, a.kubeclientset, gitClient)
 	repository.RegisterRepositoryServiceServer(server, manifestService)
+
+	// Register reflection service on gRPC server.
+	reflection.Register(server)
 
 	return server
 }
