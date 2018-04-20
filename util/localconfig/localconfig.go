@@ -53,12 +53,6 @@ type User struct {
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
-	if path == "" {
-		path, err = localConfigPath()
-		if err != nil {
-			return nil, err
-		}
-	}
 	var config LocalConfig
 	err = cli.UnmarshalLocalFile(path, &config)
 	if os.IsNotExist(err) {
@@ -83,13 +77,6 @@ func ValidateLocalConfig(config LocalConfig) error {
 
 // WriteLocalConfig writes a new local configuration file.
 func WriteLocalConfig(config LocalConfig, path string) error {
-	var err error
-	if path == "" {
-		path, err = localConfigPath()
-	}
-	if err != nil {
-		return err
-	}
 	return cli.MarshalLocalYAMLFile(path, config)
 }
 
@@ -175,8 +162,8 @@ func localConfigDir() (string, error) {
 	return path.Join(usr.HomeDir, ".argocd"), nil
 }
 
-// LocalConfigPath returns the local configuration path for settings such as cached authentication tokens.
-func localConfigPath() (string, error) {
+// DefaultLocalConfigPath returns the local configuration path for settings such as cached authentication tokens.
+func DefaultLocalConfigPath() (string, error) {
 	dir, err := localConfigDir()
 	if err != nil {
 		return "", err

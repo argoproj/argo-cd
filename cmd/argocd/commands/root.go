@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -29,7 +31,9 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewInstallCommand())
 	command.AddCommand(NewUninstallCommand())
 
-	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", "", "Path to ArgoCD config")
+	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
+	errors.CheckError(err)
+	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", defaultLocalConfigPath, "Path to ArgoCD config")
 	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
 	command.PersistentFlags().BoolVar(&clientOpts.PlainText, "plaintext", false, "Disable TLS")
 	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")

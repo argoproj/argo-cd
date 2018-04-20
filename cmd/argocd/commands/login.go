@@ -66,6 +66,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			}
 
 			clientOpts := argocdclient.ClientOptions{
+				ConfigPath: "",
 				ServerAddr: server,
 				Insecure:   globalClientOpts.Insecure,
 				PlainText:  globalClientOpts.PlainText,
