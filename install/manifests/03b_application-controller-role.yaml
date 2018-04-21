@@ -10,6 +10,7 @@ rules:
   - secrets
   verbs:
   - get
+  - watch
 - apiGroups:
   - argoproj.io
   resources:
