@@ -32,17 +32,17 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		},
 	}
 
-	command.AddCommand(NewApplicationAddCommand(clientOpts))
+	command.AddCommand(NewApplicationCreateCommand(clientOpts))
 	command.AddCommand(NewApplicationGetCommand(clientOpts))
 	command.AddCommand(NewApplicationDiffCommand(clientOpts))
 	command.AddCommand(NewApplicationSyncCommand(clientOpts))
 	command.AddCommand(NewApplicationListCommand(clientOpts))
-	command.AddCommand(NewApplicationRemoveCommand(clientOpts))
+	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
 	return command
 }
 
-// NewApplicationAddCommand returns a new instance of an `argocd app add` command
-func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+// NewApplicationCreateCommand returns a new instance of an `argocd app create` command
+func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		fileURL       string
 		repoURL       string
@@ -54,8 +54,8 @@ func NewApplicationAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		syncPolicy    string
 	)
 	var command = &cobra.Command{
-		Use:   "add",
-		Short: fmt.Sprintf("%s app add", cliName),
+		Use:   "create",
+		Short: fmt.Sprintf("%s app create", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
@@ -209,11 +209,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-// NewApplicationRemoveCommand returns a new instance of an `argocd app list` command
-func NewApplicationRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+// NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
+func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "rm",
-		Short: fmt.Sprintf("%s app rm APPNAME", cliName),
+		Use:   "delete",
+		Short: fmt.Sprintf("%s app delete APPNAME", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -230,7 +230,7 @@ func NewApplicationRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
-// NewApplicationListCommand returns a new instance of an `argocd app rm` command
+// NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",

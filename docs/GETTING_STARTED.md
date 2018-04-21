@@ -32,7 +32,7 @@ $ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"
 $ argocd login $(minikube service argocd-server -n argocd --url | cut -d'/' -f 3)
 ```
 
-Now, Argo CD is able to talk to API server and you can deploy your first application.
+Now, the Argo CD cli is configured to talk to API server and you can deploy your first application.
 
 ## 5. Connect and deploy the Guestbook application
 
@@ -48,7 +48,7 @@ token to perform its required management tasks (i.e. deploy/monitoring).
 2. Add the guestbook application and github repository containing the Guestbook application
 
 ```
-$ argocd app add --name guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube --dest-server https://$(minikube ip):8443
+$ argocd app create --name guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube --dest-server https://$(minikube ip):8443
 ```
 
 Once the application is added, you can now see its status:

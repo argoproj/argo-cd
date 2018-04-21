@@ -96,7 +96,7 @@ lint:
 
 .PHONY: test
 test:
-	go test $(go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e")
+	go test `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 
 .PHONY: test-e2e
 test-e2e:
