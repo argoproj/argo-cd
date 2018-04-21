@@ -11,9 +11,9 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/ghodss/yaml"
-	"github.com/ksonnet/ksonnet/component"
 	"github.com/ksonnet/ksonnet/metadata"
-	"github.com/ksonnet/ksonnet/metadata/app"
+	"github.com/ksonnet/ksonnet/pkg/app"
+	"github.com/ksonnet/ksonnet/pkg/component"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
