@@ -49,6 +49,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		appPath       string
 		appName       string
 		env           string
+		revision      string
 		destServer    string
 		destNamespace string
 		syncPolicy    string
@@ -89,9 +90,10 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					},
 					Spec: argoappv1.ApplicationSpec{
 						Source: argoappv1.ApplicationSource{
-							RepoURL:     repoURL,
-							Path:        appPath,
-							Environment: env,
+							RepoURL:        repoURL,
+							Path:           appPath,
+							Environment:    env,
+							TargetRevision: revision,
 						},
 						SyncPolicy: syncPolicy,
 					},
@@ -114,9 +116,10 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL, ignored if a file is set")
 	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory, ignored if a file is set")
 	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
+	command.Flags().StringVar(&revision, "revision", "HEAD", "The tracking source branch, tag, or commit the application will sync to")
 	command.Flags().StringVar(&destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
 	command.Flags().StringVar(&destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
-	command.Flags().StringVar(&syncPolicy, "sync-policy", "", "Synchronization policy for application (e.g., Always)")
+	//command.Flags().StringVar(&syncPolicy, "sync-policy", "", "Synchronization policy for application (e.g., Always)")
 	return command
 }
 
