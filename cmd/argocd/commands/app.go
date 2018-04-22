@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"text/tabwriter"
@@ -15,7 +14,9 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/diff"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/yudai/gojsondiff/formatter"
 	"golang.org/x/crypto/ssh/terminal"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,10 +32,10 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			os.Exit(1)
 		},
 	}
-
 	command.AddCommand(NewApplicationCreateCommand(clientOpts))
 	command.AddCommand(NewApplicationGetCommand(clientOpts))
 	command.AddCommand(NewApplicationDiffCommand(clientOpts))
+	command.AddCommand(NewApplicationSetCommand(clientOpts))
 	command.AddCommand(NewApplicationSyncCommand(clientOpts))
 	command.AddCommand(NewApplicationListCommand(clientOpts))
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
@@ -44,15 +45,10 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		fileURL       string
-		repoURL       string
-		appPath       string
-		appName       string
-		env           string
-		revision      string
-		destServer    string
-		destNamespace string
-		syncPolicy    string
+		appOpts    appOptions
+		fileURL    string
+		appName    string
+		syncPolicy string
 	)
 	var command = &cobra.Command{
 		Use:   "create",
@@ -79,9 +75,8 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					c.HelpFunc()(c, args)
 					os.Exit(1)
 				}
-				// all these params are required if we're here
-				if repoURL == "" || appPath == "" || appName == "" {
-					c.HelpFunc()(c, args)
+				if appOpts.repoURL == "" || appOpts.appPath == "" || appOpts.env == "" || appName == "" {
+					log.Fatal("name, repo, path, env are required")
 					os.Exit(1)
 				}
 				app = argoappv1.Application{
@@ -90,35 +85,31 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					},
 					Spec: argoappv1.ApplicationSpec{
 						Source: argoappv1.ApplicationSource{
-							RepoURL:        repoURL,
-							Path:           appPath,
-							Environment:    env,
-							TargetRevision: revision,
+							RepoURL:        appOpts.repoURL,
+							Path:           appOpts.appPath,
+							Environment:    appOpts.env,
+							TargetRevision: appOpts.revision,
 						},
 						SyncPolicy: syncPolicy,
 					},
 				}
 			}
-			if destServer != "" || destNamespace != "" {
+			if appOpts.destServer != "" || appOpts.destNamespace != "" {
 				app.Spec.Destination = &argoappv1.ApplicationDestination{
-					Server:    destServer,
-					Namespace: destNamespace,
+					Server:    appOpts.destServer,
+					Namespace: appOpts.destNamespace,
 				}
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			_, err := appIf.Create(context.Background(), &app)
+			created, err := appIf.Create(context.Background(), &app)
 			errors.CheckError(err)
+			fmt.Printf("application '%s' created", created.ObjectMeta.Name)
 		},
 	}
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set")
-	command.Flags().StringVar(&repoURL, "repo", "", "Repository URL, ignored if a file is set")
-	command.Flags().StringVar(&appPath, "path", "", "Path in repository to the ksonnet app directory, ignored if a file is set")
-	command.Flags().StringVar(&env, "env", "", "Application environment to monitor")
-	command.Flags().StringVar(&revision, "revision", "HEAD", "The tracking source branch, tag, or commit the application will sync to")
-	command.Flags().StringVar(&destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
-	command.Flags().StringVar(&destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
+	addAppFlags(command, &appOpts)
 	//command.Flags().StringVar(&syncPolicy, "sync-policy", "", "Synchronization policy for application (e.g., Always)")
 	return command
 }
@@ -171,6 +162,79 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	return command
+}
+
+// NewApplicationSetCommand returns a new instance of an `argocd app set` command
+func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		appOpts appOptions
+	)
+	var command = &cobra.Command{
+		Use:   "set",
+		Short: fmt.Sprintf("%s app set APPNAME", cliName),
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
+			errors.CheckError(err)
+			visited := 0
+			c.Flags().Visit(func(f *pflag.Flag) {
+				visited++
+				switch f.Name {
+				case "repo":
+					app.Spec.Source.RepoURL = appOpts.repoURL
+				case "path":
+					app.Spec.Source.Path = appOpts.appPath
+				case "env":
+					app.Spec.Source.Environment = appOpts.env
+				case "revision":
+					app.Spec.Source.TargetRevision = appOpts.revision
+				case "dest-server":
+					if app.Spec.Destination == nil {
+						app.Spec.Destination = &argoappv1.ApplicationDestination{}
+					}
+					app.Spec.Destination.Server = appOpts.destServer
+				case "dest-namespace":
+					if app.Spec.Destination == nil {
+						app.Spec.Destination = &argoappv1.ApplicationDestination{}
+					}
+					app.Spec.Destination.Namespace = appOpts.destNamespace
+				}
+			})
+			if visited == 0 {
+				log.Error("Please set at least one option to update")
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			_, err = appIf.Update(context.Background(), app)
+			errors.CheckError(err)
+		},
+	}
+	addAppFlags(command, &appOpts)
+	return command
+}
+
+type appOptions struct {
+	repoURL       string
+	appPath       string
+	env           string
+	revision      string
+	destServer    string
+	destNamespace string
+}
+
+func addAppFlags(command *cobra.Command, opts *appOptions) {
+	command.Flags().StringVar(&opts.repoURL, "repo", "", "Repository URL, ignored if a file is set")
+	command.Flags().StringVar(&opts.appPath, "path", "", "Path in repository to the ksonnet app directory, ignored if a file is set")
+	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
+	command.Flags().StringVar(&opts.revision, "revision", "HEAD", "The tracking source branch, tag, or commit the application will sync to")
+	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
+	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 }
 
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
