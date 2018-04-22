@@ -211,6 +211,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		force bool
+	)
 	var command = &cobra.Command{
 		Use:   "delete",
 		Short: fmt.Sprintf("%s app delete APPNAME", cliName),
@@ -222,11 +225,16 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
-				_, err := appIf.Delete(context.Background(), &application.DeleteApplicationRequest{Name: appName})
+				appDeleteReq := application.DeleteApplicationRequest{
+					Name:  appName,
+					Force: force,
+				}
+				_, err := appIf.Delete(context.Background(), &appDeleteReq)
 				errors.CheckError(err)
 			}
 		},
 	}
+	command.Flags().BoolVar(&force, "force", false, "Force delete application even if cascaded deletion unsuccessful")
 	return command
 }
 

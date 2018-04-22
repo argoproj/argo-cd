@@ -47,11 +47,12 @@ RUN make ${MAKE_TARGET}
 
 
 ##############################################################
-# NOTE: this build stage is really only necessary when we need to build ksonnet ourselves.
-# We frequently switch between tip of master ksonnet vs. official builds. Comment/uncomment the
-# corresponding section to switch between the two options:
+# This stage will pull in or build any CLI tooling we need for our final image
 
-FROM golang:1.10 as ksonnet-builder
+FROM golang:1.10 as cli-tooling
+
+# NOTE: we frequently switch between tip of master ksonnet vs. official builds. Comment/uncomment
+# the corresponding section to switch between the two options:
 
 # Option 1: build ksonnet ourselves
 #RUN go get -v -u github.com/ksonnet/ksonnet && mv ${GOPATH}/bin/ksonnet /ks
@@ -62,6 +63,9 @@ RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION
     tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /ks
 
+RUN curl -o /kubectl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
+    chmod +x /kubectl
+
 
 ##############################################################
 FROM debian:9.3
@@ -70,7 +74,8 @@ RUN apt-get update && apt-get install -y git && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 ARG BINARY
 COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/${BINARY} /${BINARY}
-COPY --from=ksonnet-builder /ks /usr/local/bin/ks
+COPY --from=cli-tooling /ks /usr/local/bin/ks
+COPY --from=cli-tooling /kubectl /usr/local/bin/kubectl
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=root

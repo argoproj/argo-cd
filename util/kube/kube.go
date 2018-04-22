@@ -3,12 +3,15 @@
 package kube
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-
+	"io/ioutil"
+	"net/url"
+	"os"
+	"os/exec"
 	"sync"
-
-	"context"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -30,6 +33,18 @@ const (
 	deleteVerb           = "delete"
 	deleteCollectionVerb = "deletecollection"
 )
+
+var (
+	// location to use for generating temporary files, such as the ca.crt needed by kubectl
+	kubectlTempDir string
+)
+
+func init() {
+	fileInfo, err := os.Stat("/dev/shm")
+	if err == nil && fileInfo.IsDir() {
+		kubectlTempDir = "/dev/shm"
+	}
+}
 
 // TestConfig tests to make sure the REST config is usable
 func TestConfig(config *rest.Config) error {
@@ -413,30 +428,144 @@ func ListAllResources(config *rest.Config, apiResources []metav1.APIResource, na
 
 // ApplyResource performs an apply of a unstructured resource
 func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
-	dynClientPool := dynamic.NewDynamicClientPool(config)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
+	cmdArgs, err := formulateKubectlOptions(config)
 	if err != nil {
 		return nil, err
 	}
-	gvk := obj.GroupVersionKind()
-	dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
+	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	cmdArgs = append(cmdArgs, "-n", namespace, "apply", "-o", "json", "-f", "-")
+	cmd := exec.Command("kubectl", cmdArgs...)
+	cmd.Stdin = bytes.NewReader(manifestBytes)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		exErr := err.(*exec.ExitError)
+		return nil, fmt.Errorf("failed to apply '%s': %s", obj.GetName(), exErr.Stderr)
 	}
-	reIf := dclient.Resource(apiResource, namespace)
-	liveObj, err := reIf.Update(obj)
+	var liveObj unstructured.Unstructured
+	err = json.Unmarshal(out, &liveObj)
 	if err != nil {
-		if !apierr.IsNotFound(err) {
-			return nil, errors.WithStack(err)
-		}
-		liveObj, err = reIf.Create(obj)
+		return nil, fmt.Errorf("failed to apply '%s': %s", obj.GetName(), err)
+	}
+	return &liveObj, nil
+}
+
+func writeTempFile(prefix string, data []byte) (string, error) {
+	f, err := ioutil.TempFile(kubectlTempDir, prefix)
+	if err != nil {
+		return "", err
+	}
+	_, err = f.Write(data)
+	if err != nil {
+		return "", err
+	}
+	err = f.Close()
+	if err != nil {
+		return "", err
+	}
+	return f.Name(), nil
+}
+
+// formulateKubectlOptions returns a list of equivalent kubectl flags given a k8s rest.Config
+func formulateKubectlOptions(config *rest.Config) ([]string, error) {
+	opts := []string{
+		"--server", config.Host,
+	}
+	if config.TLSClientConfig.Insecure {
+		opts = append(opts, "--insecure-skip-tls-verify=true")
+	}
+	if config.TLSClientConfig.CAFile != "" {
+		opts = append(opts, "--certificate-authority", config.TLSClientConfig.CAFile)
+	} else if len(config.TLSClientConfig.CAData) > 0 {
+		return nil, fmt.Errorf("Cannot generate kubectl options with cert-data")
+	}
+	if config.TLSClientConfig.CertFile != "" {
+		opts = append(opts, "--client-certificate", config.TLSClientConfig.CertFile)
+	} else if len(config.TLSClientConfig.CertData) > 0 {
+		return nil, fmt.Errorf("Cannot generate kubectl options with cert-data")
+	}
+	if config.TLSClientConfig.KeyFile != "" {
+		opts = append(opts, "--client-key", config.TLSClientConfig.KeyFile)
+	} else if len(config.TLSClientConfig.KeyData) > 0 {
+		return nil, fmt.Errorf("Cannot generate kubectl options with cert-data")
+	}
+	if config.Username != "" {
+		opts = append(opts, "--username", config.Username)
+	}
+	if config.Password != "" {
+		opts = append(opts, "--password", config.Password)
+	}
+	if config.BearerToken != "" {
+		opts = append(opts, "--token", config.BearerToken)
+	}
+	return opts, nil
+}
+
+// GenerateTLSFiles examines the TLS settings of a rest.Config to see if it uses any TLS data
+// (i.e. CAData, CertData, KeyData). It then creates them as temporary local files (which can
+// later be used as arguments to a kubectl command), and updates the config with paths.
+func GenerateTLSFiles(config *rest.Config) error {
+	var host string
+	if serverURL, err := url.Parse(config.Host); err != nil {
+		host = serverURL.Host
+	}
+	if len(config.TLSClientConfig.CAData) > 0 && config.TLSClientConfig.CAFile == "" {
+		fileName, err := writeTempFile(fmt.Sprintf("%s-ca.crt-", host), config.TLSClientConfig.CAData)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return err
 		}
+		config.TLSClientConfig.CAFile = fileName
 	}
-	return liveObj, nil
+	if len(config.TLSClientConfig.CertData) > 0 && config.TLSClientConfig.CertFile == "" {
+		fileName, err := writeTempFile(fmt.Sprintf("%s-client.crt-", host), config.TLSClientConfig.CertData)
+		if err != nil {
+			return err
+		}
+		config.TLSClientConfig.CertFile = fileName
+	}
+	if len(config.TLSClientConfig.KeyData) > 0 && config.TLSClientConfig.KeyFile == "" {
+		fileName, err := writeTempFile(fmt.Sprintf("%s-client.key-", host), config.TLSClientConfig.KeyData)
+		if err != nil {
+			return err
+		}
+		config.TLSClientConfig.KeyFile = fileName
+	}
+	return nil
+}
+
+func deleteFile(path string) error {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+	return os.Remove(path)
+}
+
+// DeleteTLSFiles deletes any local TLS related files referenced by a rest Config.
+func DeleteTLSFiles(config *rest.Config) error {
+	var err error
+	if config.TLSClientConfig.CAFile != "" {
+		err = deleteFile(config.TLSClientConfig.CAFile)
+		if err != nil {
+			return err
+		}
+		config.TLSClientConfig.CAFile = ""
+	}
+	if config.TLSClientConfig.CertFile != "" {
+		err = deleteFile(config.TLSClientConfig.CertFile)
+		if err != nil {
+			return err
+		}
+		config.TLSClientConfig.CertFile = ""
+	}
+	if config.TLSClientConfig.KeyFile != "" {
+		err = deleteFile(config.TLSClientConfig.KeyFile)
+		if err != nil {
+			return err
+		}
+		config.TLSClientConfig.KeyFile = ""
+	}
+	return nil
 }

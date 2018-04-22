@@ -109,10 +109,12 @@ func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*Appl
 		if err != nil && !q.Force {
 			return nil, err
 		}
-		config := clst.RESTConfig()
-		err = kube.DeleteResourceWithLabel(config, namespace, common.LabelApplicationName, q.Name)
-		if err != nil && !q.Force {
-			return nil, err
+		if clst != nil {
+			config := clst.RESTConfig()
+			err = kube.DeleteResourceWithLabel(config, namespace, common.LabelApplicationName, q.Name)
+			if err != nil && !q.Force {
+				return nil, err
+			}
 		}
 	}
 
@@ -486,6 +488,12 @@ func (s *Server) deploy(
 	if err != nil {
 		return nil, nil, err
 	}
+	err = kube.GenerateTLSFiles(config)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = kube.DeleteTLSFiles(config) }()
+
 	var syncRes ApplicationSyncResult
 	syncRes.Resources = make([]*ResourceDetails, 0)
 	for i, diffRes := range diffResList.Diffs {
