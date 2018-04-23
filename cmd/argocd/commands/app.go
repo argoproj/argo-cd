@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -100,6 +101,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					Namespace: appOpts.destNamespace,
 				}
 			}
+			setParameterOverrides(&app, appOpts.parameters)
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			created, err := appIf.Create(context.Background(), &app)
@@ -211,6 +213,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			setParameterOverrides(app, appOpts.parameters)
 			_, err = appIf.Update(context.Background(), app)
 			errors.CheckError(err)
 		},
@@ -226,6 +229,7 @@ type appOptions struct {
 	revision      string
 	destServer    string
 	destNamespace string
+	parameters    []string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -235,6 +239,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.revision, "revision", "HEAD", "The tracking source branch, tag, or commit the application will sync to")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
+	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 }
 
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
@@ -370,4 +375,41 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	return command
+}
+
+// setParameterOverrides updates an existing or appends a new parameter override in the application
+func setParameterOverrides(app *argoappv1.Application, parameters []string) {
+	if len(parameters) == 0 {
+		return
+	}
+	var newParams []argoappv1.ComponentParameter
+	if len(app.Spec.Source.ComponentParameterOverrides) > 0 {
+		newParams = app.Spec.Source.ComponentParameterOverrides
+	} else {
+		newParams = make([]argoappv1.ComponentParameter, 0)
+	}
+	for _, paramStr := range parameters {
+		parts := strings.SplitN(paramStr, "=", 3)
+		if len(parts) != 3 {
+			log.Fatalf("Expected parameter of the form: component=param=value. Received: %s", paramStr)
+		}
+		newParam := argoappv1.ComponentParameter{
+			Component: parts[0],
+			Name:      parts[1],
+			Value:     parts[2],
+		}
+		index := -1
+		for i, cp := range newParams {
+			if cp.Component == newParam.Component && cp.Name == newParam.Name {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			newParams = append(newParams, newParam)
+		} else {
+			newParams[index] = newParam
+		}
+	}
+	app.Spec.Source.ComponentParameterOverrides = newParams
 }

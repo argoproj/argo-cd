@@ -1,6 +1,6 @@
 # Tracking and Deployment Strategies
 
-An ArgoCD application spec provides several different means to track kubernetes resource manifests in git. This document describes the different techniques which can be used and the means of deploying those manifests to the target environment.
+An ArgoCD application spec provides several different ways of track kubernetes resource manifests in git. This document describes the different techniques and the means of deploying those manifests to the target environment.
 
 ## Auto-Sync
 
@@ -10,7 +10,7 @@ In all tracking strategies described below, the application has the option to sy
 
 If a branch name is specified, ArgoCD will continually compare live state against the resource manifests defined at the tip of the specified branch.
 
-To redeploy an application, a user makes changes to the manifests, and commit/push those the changes to the tracked branch, which will then be detected by ArgoCD controller. 
+To redeploy an application, a user makes changes to the manifests, and commit/pushes those the changes to the tracked branch, which will then be detected by ArgoCD controller. 
 
 ## Tag Tracking
 
@@ -28,11 +28,11 @@ Since commit SHAs cannot change meaning, the only way to change the live state o
 
 ArgoCD provides means to override the parameters of a ksonnet app. This gives some extra flexibility in having *some* parts of the k8s manifests determined dynamically. It also serves as an alternative way of redeploying an application by changing application parameters via ArgoCD, instead of making the changes to the manifests in git.
 
-The following is an example of where this would be useful: A team maintains a "dev" environment, which needs to be continually updated with the latest version of their guestbook application after every build in the tip of master. To solve this, the ksonnet application would expose an parameter named `guestbookImage`, whose value used in the `dev` environment contains a placeholder value (e.g. `example/guestbook:replaceme`) intended to be set externally (outside of git) such as build systems. As part of the build pipeline, the parameter value of the `guestbookImage` would be continually updated to the freshly built image (e.g. `example/guestbook:abcd123`). A sync operation would result in application being redeployed with the new image.
+The following is an example of where this would be useful: A team maintains a "dev" environment, which needs to be continually updated with the latest version of their guestbook application after every build in the tip of master. To solve this, the ksonnet application would expose an parameter named `image`, whose value used in the `dev` environment contains a placeholder value (e.g. `example/guestbook:replaceme`) intended to be set externally (outside of git) such as by build systems. As part of the build pipeline, the parameter value of the `image` would be continually updated to the freshly built image (e.g. `example/guestbook:abcd123`). A sync operation would result in the application being redeployed with the new image.
 
-The ArgoCD provides these operations conveniently via the CLI, or alternatively via the gRPC/REST API.
+ArgoCD provides these operations conveniently via the CLI, or alternatively via the gRPC/REST API.
 ```
-$ argocd app set guestbook -p guestbookImage:example/guestbook:abcd123
+$ argocd app set guestbook -p guestbook=image=example/guestbook:abcd123
 $ argocd app sync guestbook
 ```
 
