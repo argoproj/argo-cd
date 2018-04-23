@@ -343,6 +343,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	if revision == "" {
 		app.Spec.Source.TargetRevision = revision
 	}
+	if syncReq.ForceParameterOverrides {
+		app.Spec.Source.ComponentParameterOverrides = make([]appv1.ComponentParameter, len(syncReq.ComponentParameterOverrides))
+		for i := 0; i < len(syncReq.ComponentParameterOverrides); i++ {
+			app.Spec.Source.ComponentParameterOverrides[i] = *syncReq.ComponentParameterOverrides[i]
+		}
+	}
 
 	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
@@ -383,7 +389,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 			DeployedAt:                  metav1.NewTime(time.Now()),
 		})
 		if len(app.Status.RecentDeployments) > maxRecentDeploymentsCnt {
-			app.Status.RecentDeployments = app.Status.RecentDeployments[:maxRecentDeploymentsCnt]
+			app.Status.RecentDeployments = app.Status.RecentDeployments[1 : maxRecentDeploymentsCnt+1]
 		}
 		_, err = s.Update(ctx, app)
 		if err != nil {

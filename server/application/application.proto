@@ -32,6 +32,8 @@ message ApplicationSyncRequest {
 	string name = 1;
 	string revision = 2;
 	bool dryRun = 3;
+    bool forceParameterOverrides = 4;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 5;
 }
 
 // ApplicationSyncResult is a result of a sync requeswt
