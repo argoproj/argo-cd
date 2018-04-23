@@ -12,7 +12,7 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 ## Getting Started
 
-Follow our [getting started guide](docs/GETTING_STARTED.md).
+Follow our [getting started guide](docs/getting_started.md).
 
 ## How it works
 
@@ -23,6 +23,10 @@ application states in the specified target environments.
 
 ![Argo CD Architecture](docs/argocd_architecture.png)
 
+Application deployments can track updates to branches, tags, or pinned to a specific version of 
+manifests at a git commit. See [tracking strategies](docs/tracking_strategies.md) for additional
+details about the different tracking strategies available.
+
 Argo CD is implemented as a kubernetes controller which continuously monitors running applications
 and compares the current, live state against the desired target state (as specified in the git repo).
 A deployed application whose live state deviates from the target state is considered out-of-sync.
@@ -31,7 +35,7 @@ manually sync the live state back to the desired target state. Any modifications
 target state in the git repo can be automatically applied and reflected in the specified target
 environments.
 
-For additional details, see [architecture overview](docs/ARCHITECTURE.md).
+For additional details, see [architecture overview](docs/architecture.md).
 
 ## Features
 
