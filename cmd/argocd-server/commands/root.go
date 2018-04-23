@@ -20,6 +20,7 @@ func NewCommand() *cobra.Command {
 		clientConfig      clientcmd.ClientConfig
 		staticAssetsDir   string
 		repoServerAddress string
+		disableAuth       bool
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -47,6 +48,7 @@ func NewCommand() *cobra.Command {
 				KubeClientset:   kubeclientset,
 				AppClientset:    appclientset,
 				RepoClientset:   repoclientset,
+				DisableAuth:     disableAuth,
 			}
 			argocd := server.NewServer(argoCDOpts)
 			argocd.Run()
@@ -58,6 +60,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
+	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	return command
 }

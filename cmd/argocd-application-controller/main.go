@@ -29,7 +29,7 @@ const (
 	// CLIName is the name of the CLI
 	cliName = "argocd-application-controller"
 	// Default time in seconds for application resync period
-	defaultAppResyncPeriod = 600
+	defaultAppResyncPeriod = 180
 )
 
 func newCommand() *cobra.Command {

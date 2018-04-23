@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 
 	argocd "github.com/argoproj/argo-cd"
@@ -58,6 +57,7 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
+	DisableAuth     bool
 	Insecure        bool
 	Namespace       string
 	StaticAssetsDir string
@@ -306,7 +306,7 @@ func (a *ArgoCDServer) parseTokens(tokens []string) bool {
 
 // Authenticate checks for the presence of a token when accessing server-side resources.
 func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
-	if os.Getenv("REQUIREAUTH") != "1" {
+	if a.DisableAuth {
 		return ctx, nil
 	}
 
