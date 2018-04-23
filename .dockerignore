@@ -1,5 +1,4 @@
 # Prevent vendor directory from being copied to ensure we are not not pulling unexpected cruft from 
 # a user's workspace, and are only building off of what is locked by dep.
 vendor
-Dockerfile-argocd
 dist

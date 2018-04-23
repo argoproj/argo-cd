@@ -1,6 +1,7 @@
 PACKAGE=github.com/argoproj/argo-cd
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
+CLI_NAME=argocd
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -57,7 +58,21 @@ codegen: protogen clientgen
 # This enables ease of maintenance of the yaml files.
 .PHONY: cli
 cli:
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd ./cmd/argocd
+	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+
+.PHONY: cli-linux
+cli-linux:
+	docker build --iidfile /tmp/argocd-linux-id --target builder --build-arg MAKE_TARGET="cli IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-linux-amd64" -f Dockerfile-argocd .
+	docker create --name tmp-argocd-linux `cat /tmp/argocd-linux-id`
+	docker cp tmp-argocd-linux:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-linux-amd64 dist/
+	docker rm tmp-argocd-linux
+
+.PHONY: cli-darwin
+cli-darwin:
+	docker build --iidfile /tmp/argocd-darwin-id --target builder --build-arg MAKE_TARGET="cli GOOS=darwin IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-darwin-amd64" -f Dockerfile-argocd .
+	docker create --name tmp-argocd-darwin `cat /tmp/argocd-darwin-id`
+	docker cp tmp-argocd-darwin:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
+	docker rm tmp-argocd-darwin
 
 .PHONY: server
 server:
@@ -109,3 +124,10 @@ clean:
 .PHONY: precheckin
 precheckin: test lint
 
+.PHONY: release-precheck
+release-precheck:
+	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
+	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
+
+.PHONY: release
+release: release-precheck precheckin cli-darwin cli-linux server-image controller-image repo-server-image
