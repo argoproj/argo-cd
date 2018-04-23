@@ -106,7 +106,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			defer util.Close(conn)
 			created, err := appIf.Create(context.Background(), &app)
 			errors.CheckError(err)
-			fmt.Printf("application '%s' created", created.ObjectMeta.Name)
+			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
 	}
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")

@@ -9,11 +9,16 @@ An example Ksonnet guestbook application is provided to demonstrates how Argo CD
 
 ## 1. Download Argo CD
 
-Download the latest Argo CD version from the [releases](https://github.com/argoproj/argo-cd/releases) page.
-
-## 2. Install the Argo CD components
+Download the latest Argo CD version
 ```
-$ argocd install
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.3.0/argocd-darwin-amd64
+chmod +x /usr/local/bin/argocd
+```
+
+
+## 2. Install Argo CD
+```
+argocd install
 ```
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
@@ -23,13 +28,13 @@ By default, the Argo CD API server is not exposed with an external IP. To expose
 change service type to `LoadBalancer`:
 
 ```
-$ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 ```
 
 # 4. Login to the server from the CLI
 
 ```
-$ argocd login $(minikube service argocd-server -n argocd --url | cut -d'/' -f 3)
+argocd login $(minikube service argocd-server -n argocd --url | cut -d'/' -f 3)
 ```
 
 Now, the Argo CD cli is configured to talk to API server and you can deploy your first application.
@@ -39,7 +44,7 @@ Now, the Argo CD cli is configured to talk to API server and you can deploy your
 1. Register the minikube cluster to Argo CD:
 
 ```
-$ argocd cluster add minikube
+argocd cluster add minikube
 ```
 The `argocd cluster add CONTEXT` command installs an `argocd-manager` ServiceAccount and ClusterRole into
 the cluster associated with the supplied kubectl context. Argo CD then uses the associated service account
@@ -48,21 +53,21 @@ token to perform its required management tasks (i.e. deploy/monitoring).
 2. Add the guestbook application and github repository containing the Guestbook application
 
 ```
-$ argocd app create --name guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube --dest-server https://$(minikube ip):8443
+argocd app create --name guestbook --repo https://github.com/argoproj/argo-cd.git --path examples/guestbook --env minikube --dest-server https://$(minikube ip):8443
 ```
 
 Once the application is added, you can now see its status:
 
 ```
-$ argocd app list
-$ argocd app sync guestbook
+argocd app list
+argocd app get guestbook
 ```
 
 The application status is initially in an `OutOfSync` state, since the application has yet to be
-deployed, and no Kubernetes resouces have been created. To sync (deploy) the application, run:
+deployed, and no Kubernetes resources have been created. To sync (deploy) the application, run:
 
 ```
-$ argocd app sync guestbook
+argocd app sync guestbook
 ```
 
 [![asciicast](https://asciinema.org/a/uYnbFMy5WI2rc9S49oEAyGLb0.png)](https://asciinema.org/a/uYnbFMy5WI2rc9S49oEAyGLb0)
@@ -70,7 +75,7 @@ $ argocd app sync guestbook
 Argo CD also allows to view and manager applications using web UI. Get the web UI URL by running:
 
 ```
-$ minikube service argocd-server -n argocd --url
+minikube service argocd-server -n argocd --url
 ```
 
 ![argo cd ui](argocd-ui.png)
