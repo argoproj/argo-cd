@@ -1,7 +1,57 @@
+# NOTE: the values here are just a example and are not the values used during an install.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cm
   namespace: argocd
-# TODO: future argocd tuning keys go here (e.g. resync period)
-data: {}
+data:
+  # url is the externally facing base URL of ArgoCD.
+  # This field is required when configuring SSO, which ArgoCD uses as part the redirectURI for the
+  # dex connectors. When configuring the application in the SSO provider (e.g. github, okta), the
+  # authorization callback URL will be url + /api/dex/callback. For example, if ArgoCD's url is
+  # https://example.com, then the auth callback to set in the SSO provider should be:
+  # https://example.com/api/dex/callback
+  url: http://localhost:8080
+
+  # dex.config holds the contents of the configuration yaml for the dex OIDC/Oauth2 provider sidecar.
+  # Only a subset of a full dex config is required, namely the connectors list. ArgoCD will generate
+  # the complete dex config based on the configured URL, and the known callback endpoint which the
+  # ArgoCD API server exposes (i.e. /api/dex/callback).
+  dex.config: |
+    # connectors is a list of dex connector configurations. For details on available connectors and
+    # how to configure them, see: https://github.com/coreos/dex/tree/master/Documentation/connectors
+    # NOTE:
+    # * Any values which start with '$' will look to a key in argocd-secret of the same name, to
+    #   obtain the actual value.
+    # * ArgoCD will automatically set the 'redirectURI' field in any OAuth2 connectors, to match the
+    #   external callback URL (e.g. https://example.com/api/dex/callback)
+    connectors:
+    # GitHub example
+    - type: github
+      id: github
+      name: GitHub
+      config:
+        clientID: $github.clientID
+        clientSecret: $github.clientSecret
+        orgs:
+        - name: your-github-org
+
+    # GitHub enterprise example
+    - type: github
+      id: acme-github
+      name: Acme GitHub
+      config:
+        hostName: github.acme.com
+        clientID: $acme.clientID
+        clientSecret: $acme.clientSecret
+        orgs:
+        - name: your-github-org
+
+    # OIDC example (e.g. Okta)
+    - type: oidc
+      id: okta
+      name: Okta
+      config:
+        issuer: https://dev-123456.oktapreview.com
+        clientID: $okta.clientID
+        clientSecret: $okta.clientSecret

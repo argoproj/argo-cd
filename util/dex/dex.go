@@ -1,0 +1,329 @@
+package dex
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"math/rand"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/coreos/dex/api"
+	oidc "github.com/coreos/go-oidc"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+)
+
+const (
+	// DexAddr is the address of the Dex OCIP API server, which we will run a reverse proxy against
+	DexAddr = "http://localhost:5556"
+	// DexAPIAddr is the address to the Dex API server for managing dex. This is assumed to run
+	// locally (as a sidecar)
+	DexAPIAddr = "localhost:5557"
+	// DexClientAppName is name of the Oauth client app used when registering our app to dex
+	DexClientAppName = "ArgoCD"
+	// DexClientAppID is the Oauth client ID we will use when registering our app to dex
+	DexClientAppID = "argo-cd"
+)
+
+type DexAPIClient struct {
+	api.DexClient
+}
+
+// NewDexHTTPReverseProxy returns a reverse proxy to the DEX server. Dex is assumed to be configured
+// with the external issuer URL muxed to the same path configured in server.go. In other words, if
+// ArgoCD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
+// also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
+func NewDexHTTPReverseProxy() func(writer http.ResponseWriter, request *http.Request) {
+	target, err := url.Parse(DexAddr)
+	errors.CheckError(err)
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	return func(w http.ResponseWriter, r *http.Request) {
+		proxy.ServeHTTP(w, r)
+	}
+}
+
+func NewDexClient() (*DexAPIClient, error) {
+	conn, err := grpc.Dial(DexAPIAddr, grpc.WithInsecure())
+	if err != nil {
+		return nil, fmt.Errorf("failed to dial %s: %v", DexAPIAddr, err)
+	}
+	apiClient := DexAPIClient{
+		api.NewDexClient(conn),
+	}
+	return &apiClient, nil
+}
+
+// WaitUntilReady waits until the dex gRPC server is responding
+func (d *DexAPIClient) WaitUntilReady() {
+	log.Info("Waiting for dex to become ready")
+	ctx := context.Background()
+	for {
+		vers, err := d.GetVersion(ctx, &api.VersionReq{})
+		if err == nil {
+			log.Infof("Dex %s (API: %d) up and running", vers.Server, vers.Api)
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
+const exampleAppState = "I wish to wash my irish wristwatch"
+
+type ClientApp struct {
+	// OAuth2 client ID of this application (e.g. argo-cd)
+	clientID string
+	// OAuth2 client secret of this application
+	clientSecret string
+	// Callback URL for OAuth2 responses (e.g. https://argocd.example.com/auth/callback)
+	redirectURI string
+	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
+	issuerURL string
+
+	Path string
+
+	verifier *oidc.IDTokenVerifier
+	provider *oidc.Provider
+
+	// Does the provider use "offline_access" scope to request a refresh token
+	// or does it use "access_type=offline" (e.g. Google)?
+	offlineAsScope bool
+
+	client *http.Client
+}
+
+// NewClientApp will register the ArgoCD client app in Dex and return an object which has HTTP
+// handlers for handling the HTTP responses for login and callback
+func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, tlsConfig *tls.Config) (*ClientApp, error) {
+	ctx := context.Background()
+	log.Infof("Creating client app (redirectURI: %s, issuerURL: %s)", redirectURI, issuerURL)
+	// The client secret is arbitrary since we are going to reconfigure dex as part of startup.
+	// Generate a random string as our client secret.
+	clientSecret := randString(20)
+	_, err := d.CreateClient(ctx, &api.CreateClientReq{
+		Client: &api.Client{
+			Name:         DexClientAppName,
+			Id:           DexClientAppID,
+			Secret:       clientSecret,
+			RedirectUris: []string{redirectURI},
+		},
+	})
+	//log.Println(res)
+	errors.CheckError(err)
+
+	a := ClientApp{
+		clientID:     DexClientAppID,
+		clientSecret: clientSecret,
+		redirectURI:  redirectURI,
+		issuerURL:    issuerURL,
+	}
+	u, err := url.Parse(redirectURI)
+	if err != nil {
+		return nil, fmt.Errorf("parse redirect-uri: %v", err)
+	}
+	a.Path = u.Path
+
+	tlsConfig = tlsConfig.Clone()
+	tlsConfig.InsecureSkipVerify = true
+	a.client = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	if os.Getenv("ARGOCD_SSO_DEBUG") == "1" {
+		a.client.Transport = debugTransport{a.client.Transport}
+	}
+	return &a, nil
+}
+
+func randString(n int) string {
+	var letter = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letter[rand.Intn(len(letter))]
+	}
+	return string(b)
+}
+
+type debugTransport struct {
+	t http.RoundTripper
+}
+
+func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	reqDump, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("%s", reqDump)
+
+	resp, err := d.t.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	respDump, err := httputil.DumpResponse(resp, true)
+	if err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
+	log.Printf("%s", respDump)
+	return resp, nil
+}
+
+func (a *ClientApp) Initialize() error {
+	log.Info("Initializing client app")
+	ctx := oidc.ClientContext(context.Background(), a.client)
+	provider, err := oidc.NewProvider(ctx, a.issuerURL)
+	if err != nil {
+		return fmt.Errorf("Failed to query provider %q: %v", a.issuerURL, err)
+	}
+	var s struct {
+		// What scopes does a provider support?
+		// See: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+		ScopesSupported []string `json:"scopes_supported"`
+	}
+	if err := provider.Claims(&s); err != nil {
+		return fmt.Errorf("Failed to parse provider scopes_supported: %v", err)
+	}
+	log.Infof("OpenID supported scopes: %v", s.ScopesSupported)
+
+	a.provider = provider
+	a.verifier = provider.Verifier(&oidc.Config{ClientID: a.clientID})
+	if len(s.ScopesSupported) == 0 {
+		// scopes_supported is a "RECOMMENDED" discovery claim, not a required
+		// one. If missing, assume that the provider follows the spec and has
+		// an "offline_access" scope.
+		a.offlineAsScope = true
+	} else {
+		// See if scopes_supported has the "offline_access" scope.
+		a.offlineAsScope = func() bool {
+			for _, scope := range s.ScopesSupported {
+				if scope == oidc.ScopeOfflineAccess {
+					return true
+				}
+			}
+			return false
+		}()
+	}
+	return nil
+}
+
+func (a *ClientApp) oauth2Config(scopes []string) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     a.clientID,
+		ClientSecret: a.clientSecret,
+		Endpoint:     a.provider.Endpoint(),
+		Scopes:       scopes,
+		RedirectURL:  a.redirectURI,
+	}
+}
+
+func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	var scopes []string
+	if extraScopes := r.FormValue("extra_scopes"); extraScopes != "" {
+		scopes = strings.Split(extraScopes, " ")
+	}
+	var clients []string
+	if crossClients := r.FormValue("cross_client"); crossClients != "" {
+		clients = strings.Split(crossClients, " ")
+	}
+	for _, client := range clients {
+		scopes = append(scopes, "audience:server:client_id:"+client)
+	}
+
+	authCodeURL := ""
+	scopes = append(scopes, "openid", "profile", "email", "groups")
+	if r.FormValue("offline_access") != "yes" {
+		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState)
+	} else if a.offlineAsScope {
+		scopes = append(scopes, "offline_access")
+		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState)
+	} else {
+		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState, oauth2.AccessTypeOffline)
+	}
+
+	http.Redirect(w, r, authCodeURL, http.StatusSeeOther)
+}
+
+func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
+	var (
+		err   error
+		token *oauth2.Token
+	)
+
+	ctx := oidc.ClientContext(r.Context(), a.client)
+	oauth2Config := a.oauth2Config(nil)
+	switch r.Method {
+	case "GET":
+		// Authorization redirect callback from OAuth2 auth flow.
+		if errMsg := r.FormValue("error"); errMsg != "" {
+			http.Error(w, errMsg+": "+r.FormValue("error_description"), http.StatusBadRequest)
+			return
+		}
+		code := r.FormValue("code")
+		if code == "" {
+			http.Error(w, fmt.Sprintf("no code in request: %q", r.Form), http.StatusBadRequest)
+			return
+		}
+		if state := r.FormValue("state"); state != exampleAppState {
+			http.Error(w, fmt.Sprintf("expected state %q got %q", exampleAppState, state), http.StatusBadRequest)
+			return
+		}
+		token, err = oauth2Config.Exchange(ctx, code)
+	case "POST":
+		// Form request from frontend to refresh a token.
+		refresh := r.FormValue("refresh_token")
+		if refresh == "" {
+			http.Error(w, fmt.Sprintf("no refresh_token in request: %q", r.Form), http.StatusBadRequest)
+			return
+		}
+		t := &oauth2.Token{
+			RefreshToken: refresh,
+			Expiry:       time.Now().Add(-time.Hour),
+		}
+		token, err = oauth2Config.TokenSource(ctx, t).Token()
+	default:
+		http.Error(w, fmt.Sprintf("method not implemented: %s", r.Method), http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
+		return
+	}
+
+	idToken, err := a.verifier.Verify(r.Context(), rawIDToken)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to verify ID token: %v", err), http.StatusInternalServerError)
+		return
+	}
+	var claims json.RawMessage
+	_ = idToken.Claims(&claims)
+
+	buff := new(bytes.Buffer)
+	_ = json.Indent(buff, []byte(claims), "", "  ")
+
+	renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, buff.Bytes())
+}

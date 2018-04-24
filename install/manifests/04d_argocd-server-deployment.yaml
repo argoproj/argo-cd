@@ -14,16 +14,29 @@ spec:
     spec:
       serviceAccountName: argocd-server
       initContainers:
-      - command: [cp, -r, /app, /shared]
+      - name: gendex
+        image: argoproj/argocd-server:latest
+        # Generate a dex.yaml. If SSO is not configured, this is a noop
+        command: [/argocd-util, gendexcfg, -o, /shared/dex.yaml]
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      - name: ui
         image: argoproj/argocd-ui:latest
-        name: argocd-server-ui
+        command: [cp, -r, /app, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files
       containers:
-      - command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
+      - name: argocd-server
         image: argoproj/argocd-server:latest
-        name: argocd-server
+        command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      - name: dex
+        image: quay.io/coreos/dex:v2.10.0
+        command: [sh, -c, "while true; do if [ -f /shared/dex.yaml ]; then dex serve /shared/dex.yaml; fi; sleep 10; done"]
         volumeMounts:
         - mountPath: /shared
           name: static-files

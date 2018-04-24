@@ -40,9 +40,9 @@ RUN cd ${GOPATH}/src/dummy && \
     rmdir vendor
 
 # Perform the build
-ARG MAKE_TARGET
 WORKDIR /root/go/src/github.com/argoproj/argo-cd
 COPY . .
+ARG MAKE_TARGET="cli server controller repo-server argocd-util"
 RUN make ${MAKE_TARGET}
 
 
@@ -72,13 +72,12 @@ FROM debian:9.3
 RUN apt-get update && apt-get install -y git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-ARG BINARY
-COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/${BINARY} /${BINARY}
+
 COPY --from=cli-tooling /ks /usr/local/bin/ks
 COPY --from=cli-tooling /kubectl /usr/local/bin/kubectl
-
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=root
 
-ENV BINARY=$BINARY
-CMD /$BINARY
+COPY --from=builder /root/go/src/github.com/argoproj/argo-cd/dist/* /
+ARG BINARY
+CMD /${BINARY}

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/errors"
@@ -19,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util/config"
+	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -52,8 +54,9 @@ var (
 type ArgoCDServer struct {
 	ArgoCDServerOpts
 
-	settings config.ArgoCDSettings
-	log      *log.Entry
+	ssoClientApp *dexutil.ClientApp
+	settings     config.ArgoCDSettings
+	log          *log.Entry
 }
 
 type ArgoCDServerOpts struct {
@@ -117,10 +120,7 @@ func (a *ArgoCDServer) Run() {
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
-		tlsConfig := tls.Config{
-			Certificates: []tls.Certificate{*a.settings.Certificate},
-		}
-		tlsl = tls.NewListener(tlsl, &tlsConfig)
+		tlsl = tls.NewListener(tlsl, a.selfTLSConfig())
 
 		// Now, we build another mux recursively to match HTTPS and GoRPC.
 		tlsm = cmux.New(tlsl)
@@ -129,12 +129,20 @@ func (a *ArgoCDServer) Run() {
 	}
 
 	// Start the muxed listeners for our servers
-	log.Infof("argocd %s serving on port %d (tls: %v, namespace: %s)", argocd.GetVersion(), port, a.useTLS(), a.Namespace)
+	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
+		argocd.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
 	go func() { errors.CheckError(grpcS.Serve(grpcL)) }()
 	go func() { errors.CheckError(httpS.Serve(httpL)) }()
 	if a.useTLS() {
 		go func() { errors.CheckError(httpsS.Serve(httpsL)) }()
 		go func() { errors.CheckError(tlsm.Serve()) }()
+	}
+	if a.settings.IsSSOConfigured() {
+		go func() {
+			time.Sleep(2 * time.Second)
+			err = a.ssoClientApp.Initialize()
+			errors.CheckError(err)
+		}()
 	}
 	err = tcpm.Serve()
 	errors.CheckError(err)
@@ -215,16 +223,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
 		// so we need to supply the same certificates to establish the connections that a normal,
 		// external gRPC client would need.
-		certPool := x509.NewCertPool()
-		pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.settings.Certificate)
-		ok := certPool.AppendCertsFromPEM(pemCertBytes)
-		if !ok {
-			panic("bad certs")
-		}
-		dCreds := credentials.NewTLS(&tls.Config{
-			RootCAs:            certPool,
-			InsecureSkipVerify: true,
-		})
+		tlsConfig := a.selfTLSConfig()
+		tlsConfig.InsecureSkipVerify = true
+		dCreds := credentials.NewTLS(tlsConfig)
 		dOpts = append(dOpts, grpc.WithTransportCredentials(dCreds))
 	} else {
 		dOpts = append(dOpts, grpc.WithInsecure())
@@ -246,6 +247,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
+	a.registerDexHandlers(mux)
+
 	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 			acceptHTML := false
@@ -266,6 +269,43 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 		})
 	}
 	return &httpS
+}
+
+// selfTLSConfig returns a tls.Config with the configured certificates
+func (a *ArgoCDServer) selfTLSConfig() *tls.Config {
+	certPool := x509.NewCertPool()
+	pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.settings.Certificate)
+	ok := certPool.AppendCertsFromPEM(pemCertBytes)
+	if !ok {
+		panic("bad certs")
+	}
+	return &tls.Config{
+		RootCAs: certPool,
+	}
+}
+
+const (
+	DexAPIEndpoint   = "/api/dex"
+	LoginEndpoint    = "/auth/login"
+	CallbackEndpoint = "/auth/callback"
+)
+
+// registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
+func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
+	if !a.settings.IsSSOConfigured() {
+		return
+	}
+	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
+	mux.HandleFunc(DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
+	dexClient, err := dexutil.NewDexClient()
+	errors.CheckError(err)
+	dexClient.WaitUntilReady()
+	tlsConfig := a.selfTLSConfig()
+	tlsConfig.InsecureSkipVerify = true
+	a.ssoClientApp, err = dexClient.NewClientApp(a.settings.URL+CallbackEndpoint, a.settings.URL+DexAPIEndpoint, tlsConfig)
+	errors.CheckError(err)
+	mux.HandleFunc(LoginEndpoint, a.ssoClientApp.HandleLogin)
+	mux.HandleFunc(CallbackEndpoint, a.ssoClientApp.HandleCallback)
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server

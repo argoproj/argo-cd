@@ -41,7 +41,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli server-image controller-image repo-server-image
+all: cli server-image controller-image repo-server-image argocd-util
 
 .PHONY: protogen
 protogen:
@@ -74,13 +74,17 @@ cli-darwin:
 	docker cp tmp-argocd-darwin:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
 	docker rm tmp-argocd-darwin
 
+.PHONY: argocd-util
+argocd-util:
+	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
+
 .PHONY: server
 server:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
 
 .PHONY: server-image
 server-image:
-	docker build --build-arg BINARY=argocd-server --build-arg MAKE_TARGET=server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd-server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
 
 .PHONY: repo-server
@@ -89,7 +93,7 @@ repo-server:
 
 .PHONY: repo-server-image
 repo-server-image:
-	docker build --build-arg BINARY=argocd-repo-server --build-arg MAKE_TARGET=repo-server -t $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd-repo-server -t $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) ; fi
 
 .PHONY: controller
@@ -98,12 +102,12 @@ controller:
 
 .PHONY: controller-image
 controller-image:
-	docker build --build-arg BINARY=argocd-application-controller --build-arg MAKE_TARGET=controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd-application-controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) ; fi
 
 .PHONY: cli-image
 cli-image:
-	docker build --build-arg BINARY=argocd --build-arg MAKE_TARGET=cli -t $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd -t $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) ; fi
 
 .PHONY: builder-image

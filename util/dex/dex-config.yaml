@@ -1,0 +1,103 @@
+# The base path of dex and the external name of the OpenID Connect service.
+# This is the canonical URL that all clients MUST use to refer to dex. If a
+# path is provided, dex's HTTP service will listen at a non-root URL.
+# ArgoCD runs dex behind a reverse proxy, so this URL should match the external
+# ArgoCD URL.
+issuer: https://localhost:8080/api/dex
+
+# The storage configuration determines where dex stores its state. Supported
+# options include SQL flavors and Kubernetes third party resources.
+#
+# See the storage document at Documentation/storage.md for further information.
+storage:
+  type: sqlite3
+  config:
+    file: examples/dex.db
+
+# Configuration for the HTTP endpoints.
+# This port is never exposed and is only accessed internally by Argo CD
+web:
+  http: 0.0.0.0:5556
+  # Uncomment for HTTPS options.
+  # https: 127.0.0.1:5554
+  # tlsCert: /etc/dex/tls.crt
+  # tlsKey: /etc/dex/tls.key
+
+# Configuration for telemetry
+#telemetry:
+#  http: 0.0.0.0:5558
+
+# Uncomment this block to enable the gRPC API. This values MUST be different
+# from the HTTP endpoints.
+# grpc:
+#  addr: 0.0.0.0:5557
+#  tlsCert: examples/grpc-client/server.crt
+#  tlsKey: examples/grpc-client/server.key
+#  tlsClientCA: /etc/dex/client.crt
+
+# Uncomment this block to enable configuration for the expiration time durations.
+# expiry:
+#   signingKeys: "6h"
+#   idTokens: "24h"
+
+# Options for controlling the logger.
+# logger:
+#   level: "debug"
+#   format: "text" # can also be "json"
+
+# Uncomment this block to control which response types dex supports. For example
+# the following response types enable the implicit flow for web-only clients.
+# Defaults to ["code"], the code flow.
+# oauth2:
+#   responseTypes: ["code", "token", "id_token"]
+
+# Instead of reading from an external storage, use this list of clients.
+#
+# If this option isn't chosen clients may be added through the gRPC API.
+staticClients:
+- id: example-app
+  redirectURIs:
+  - 'https://localhost:8080/auth/callback'
+  name: 'Example App'
+  secret: ZXhhbXBsZS1hcHAtc2VjcmV0
+
+connectors:
+- type: oidc
+  id: okta
+  name: Okta
+  config:
+    issuer: https://dev-321395.oktapreview.com
+    # Connector config values starting with a "$" will read from the environment.
+    clientID: 0oaemxe37eqrlyk7j0h7
+    clientSecret: opKbqCC70Fk_CbnmV0qxtIJoKLENv8KAKZzzgoJj
+    redirectURI: https://localhost:8080/api/dex/callback
+    #hostedDomains:
+    #- $GOOGLE_HOSTED_DOMAIN
+# - type: mockCallback
+#   id: mock
+#   name: Example
+# - type: oidc
+#   id: google
+#   name: Google
+#   config:
+#     issuer: https://accounts.google.com
+#     # Connector config values starting with a "$" will read from the environment.
+#     clientID: $GOOGLE_CLIENT_ID
+#     clientSecret: $GOOGLE_CLIENT_SECRET
+#     redirectURI: http://127.0.0.1:5556/dex/callback
+#     hostedDomains:
+#     - $GOOGLE_HOSTED_DOMAIN
+
+# Let dex keep a list of passwords which can be used to login to dex.
+enablePasswordDB: true
+
+# A static list of passwords to login the end user. By identifying here, dex
+# won't look in its underlying storage for passwords.
+#
+# If this option isn't chosen users may be added through the gRPC API.
+staticPasswords:
+- email: "admin"
+  # bcrypt hash of the string "password"
+  hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+  username: "admin"
+  userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"

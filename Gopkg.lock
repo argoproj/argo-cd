@@ -33,6 +33,18 @@
   version = "v3.5.1"
 
 [[projects]]
+  name = "github.com/coreos/dex"
+  packages = ["api"]
+  revision = "218d671a96865df2a4cf7f310efb99b8bfc5a5e2"
+  version = "v2.10.0"
+
+[[projects]]
+  branch = "v2"
+  name = "github.com/coreos/go-oidc"
+  packages = ["."]
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
+
+[[projects]]
   branch = "master"
   name = "github.com/daaku/go.zipexe"
   packages = ["."]
@@ -329,6 +341,15 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/pquerna/cachecontrol"
+  packages = [
+    ".",
+    "cacheobject"
+  ]
+  revision = "525d0eb5f91d30e3b1548de401b7ef9ea6898520"
+
+[[projects]]
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
   revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
@@ -402,6 +423,8 @@
   packages = [
     "bcrypt",
     "blowfish",
+    "ed25519",
+    "ed25519/internal/edwards25519",
     "ssh/terminal"
   ]
   revision = "432090b8f568c018896cd8a0fb0345872bbac6ce"
@@ -541,6 +564,16 @@
   packages = ["."]
   revision = "3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4"
   version = "v0.9.0"
+
+[[projects]]
+  name = "gopkg.in/square/go-jose.v2"
+  packages = [
+    ".",
+    "cipher",
+    "json"
+  ]
+  revision = "76dd09796242edb5b897103a75df2645c028c960"
+  version = "v2.1.6"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -765,6 +798,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8e7142f84554c6f1665ef18e0fb906f82de8cd802b0211c4a46ec1ad228b8b7e"
+  inputs-digest = "562f3dc64b35c3db83ab1e05f0aba9bbe52d5dfda905394b88ca22b8746a2cc5"
   solver-name = "gps-cdcl"
   solver-version = 1

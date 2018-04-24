@@ -6,6 +6,8 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +16,13 @@ import (
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
+	// URL is the externally facing URL users will visit to reach ArgoCD.
+	// The value here is used when configuring SSO. Omitting this value will disable SSO.
+	URL string
+
+	// DexConfig is contains portions of a dex config yaml
+	DexConfig string
+
 	// LocalUsers holds users local to (stored on) the server.  This is to be distinguished from any potential alternative future login providers (LDAP, SAML, etc.) that might ever be added.
 	LocalUsers map[string]string
 
@@ -37,6 +46,12 @@ const (
 
 	// configManagerServerPrivateKey designates the key for the private key used in TLS
 	configManagerServerPrivateKey = "server.key"
+
+	// configManagerURL designates the key where ArgoCDs external URL is set
+	configManagerURLKey = "url"
+
+	// configManagerDexConfig designates the key for the dex config
+	configManagerDexConfigKey = "dex.config"
 )
 
 // ConfigManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -47,9 +62,7 @@ type ConfigManager struct {
 
 // GetSettings retrieves settings from the ConfigManager.
 func (mgr *ConfigManager) GetSettings() (*ArgoCDSettings, error) {
-	// TODO: we currently do not store anything in configmaps, yet. We eventually will (e.g.
-	// tuning parameters). Future settings/tunables should be stored here
-	_, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	argoCDCM, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +72,9 @@ func (mgr *ConfigManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 
 	var settings ArgoCDSettings
+	settings.DexConfig = argoCDCM.Data[configManagerDexConfigKey]
+	settings.URL = argoCDCM.Data[configManagerURLKey]
+
 	adminPasswordHash, ok := argoCDSecret.Data[configManagerAdminPasswordKey]
 	if !ok {
 		return nil, fmt.Errorf("admin user not found")
@@ -86,57 +102,65 @@ func (mgr *ConfigManager) GetSettings() (*ArgoCDSettings, error) {
 
 // SaveSettings serializes ArgoCD settings and upserts it into K8s secret/configmap
 func (mgr *ConfigManager) SaveSettings(settings *ArgoCDSettings) error {
-	configMapData := make(map[string]string)
-	_, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	// Upsert the config data
+	argoCDCM, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
+	createCM := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
 		}
-		newConfigMap := &apiv1.ConfigMap{
+		argoCDCM = &apiv1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDConfigMapName,
 			},
-			Data: configMapData,
+			Data: make(map[string]string),
 		}
-		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(newConfigMap)
-		if err != nil {
-			return err
-		}
+		createCM = true
+	}
+	argoCDCM.Data[configManagerURLKey] = settings.URL
+	argoCDCM.Data[configManagerDexConfigKey] = settings.DexConfig
+	if createCM {
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
 	} else {
-		// mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update()
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(argoCDCM)
+	}
+	if err != nil {
+		return err
 	}
 
-	secretStringData := map[string]string{
-		configManagerServerSignatureKey: string(settings.ServerSignature),
-		configManagerAdminPasswordKey:   settings.LocalUsers[common.ArgoCDAdminUsername],
-	}
-	if settings.Certificate != nil {
-		certBytes, keyBytes := tlsutil.EncodeX509KeyPair(*settings.Certificate)
-		secretStringData[configManagerServerCertificate] = string(certBytes)
-		secretStringData[configManagerServerPrivateKey] = string(keyBytes)
-	}
+	// Upsert the secret data. Ensure we do not delete any extra keys which user may have added
 	argoCDSecret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(common.ArgoCDSecretName, metav1.GetOptions{})
+	createSecret := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
 		}
-		newSecret := &apiv1.Secret{
+		argoCDSecret = &apiv1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDSecretName,
 			},
-			StringData: secretStringData,
+			Data: make(map[string][]byte),
 		}
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(newSecret)
-		if err != nil {
-			return err
-		}
+		createSecret = true
+	}
+	argoCDSecret.StringData = make(map[string]string)
+	argoCDSecret.StringData[configManagerServerSignatureKey] = string(settings.ServerSignature)
+	argoCDSecret.StringData[configManagerAdminPasswordKey] = settings.LocalUsers[common.ArgoCDAdminUsername]
+	if settings.Certificate != nil {
+		certBytes, keyBytes := tlsutil.EncodeX509KeyPair(*settings.Certificate)
+		argoCDSecret.StringData[configManagerServerCertificate] = string(certBytes)
+		argoCDSecret.StringData[configManagerServerPrivateKey] = string(keyBytes)
 	} else {
-		argoCDSecret.Data = nil
-		argoCDSecret.StringData = secretStringData
+		delete(argoCDSecret.Data, configManagerServerCertificate)
+		delete(argoCDSecret.Data, configManagerServerPrivateKey)
+	}
+	if createSecret {
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(argoCDSecret)
+	} else {
 		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(argoCDSecret)
-		if err != nil {
-			return err
-		}
+	}
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -147,4 +171,17 @@ func NewConfigManager(clientset kubernetes.Interface, namespace string) *ConfigM
 		clientset: clientset,
 		namespace: namespace,
 	}
+}
+
+func (a *ArgoCDSettings) IsSSOConfigured() bool {
+	if a.URL == "" {
+		return false
+	}
+	var dexCfg map[string]interface{}
+	err := yaml.Unmarshal([]byte(a.DexConfig), &dexCfg)
+	if err != nil {
+		log.Warn("invalid dex yaml config")
+		return false
+	}
+	return len(dexCfg) > 0
 }
