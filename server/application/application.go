@@ -334,30 +334,69 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ApplicationSyncResult, error) {
-	log.Infof("Syncing application %s", syncReq.Name)
-	app, err := s.Get(ctx, &ApplicationQuery{Name: syncReq.Name})
+	return s.deployAndPersistDeploymentInfo(ctx, syncReq.Name, syncReq.Revision, nil, syncReq.DryRun)
+}
+
+func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*ApplicationSyncResult, error) {
+	app, err := s.Get(ctx, &ApplicationQuery{Name: rollbackReq.Name})
 	if err != nil {
 		return nil, err
 	}
-	revision := syncReq.Revision
-	if revision == "" {
+	var deploymentInfo *appv1.DeploymentInfo
+	for _, info := range app.Status.RecentDeployments {
+		if info.Id == rollbackReq.Id {
+			deploymentInfo = &info
+			break
+		}
+	}
+	if deploymentInfo == nil {
+		return nil, fmt.Errorf("application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.Id)
+	}
+	return s.deployAndPersistDeploymentInfo(ctx, rollbackReq.Name, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, rollbackReq.DryRun)
+}
+
+func (s *Server) deployAndPersistDeploymentInfo(
+	ctx context.Context, appName string, revision string, overrides *[]appv1.ComponentParameter, dryRun bool) (*ApplicationSyncResult, error) {
+
+	log.Infof("Syncing application %s", appName)
+	app, err := s.Get(ctx, &ApplicationQuery{Name: appName})
+	if err != nil {
+		return nil, err
+	}
+
+	if revision != "" {
 		app.Spec.Source.TargetRevision = revision
 	}
-	if syncReq.ForceParameterOverrides {
-		app.Spec.Source.ComponentParameterOverrides = make([]appv1.ComponentParameter, len(syncReq.ComponentParameterOverrides))
-		for i := 0; i < len(syncReq.ComponentParameterOverrides); i++ {
-			app.Spec.Source.ComponentParameterOverrides[i] = *syncReq.ComponentParameterOverrides[i]
-		}
+
+	if overrides != nil {
+		app.Spec.Source.ComponentParameterOverrides = *overrides
+	}
+
+	res, manifest, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, dryRun)
+	if err != nil {
+		return nil, err
+	}
+	err = s.persistDeploymentInfo(ctx, appName, manifest.Revision, nil)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
+}
+
+func (s *Server) persistDeploymentInfo(ctx context.Context, appName string, revision string, overrides *[]appv1.ComponentParameter) error {
+	app, err := s.Get(ctx, &ApplicationQuery{Name: appName})
+	if err != nil {
+		return err
 	}
 
 	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer util.Close(conn)
-	// set fields in v1alpha/types.go
-	log.Infof("Retrieving deployment params for application %s", syncReq.Name)
+
+	log.Infof("Retrieving deployment params for application %s", appName)
 	envParams, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
 		Repo:        repo,
 		Environment: app.Spec.Source.Environment,
@@ -366,37 +405,30 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*Ap
 	})
 
 	if err != nil {
-		return nil, err
+		return err
 	}
-	log.Infof("Received deployment params: %s", envParams.Params)
 
-	res, manifest, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, syncReq.DryRun)
-	if err == nil {
-		// Persist app deployment info
-		params := make([]appv1.ComponentParameter, len(envParams.Params))
-		for i := range envParams.Params {
-			param := *envParams.Params[i]
-			params[i] = param
-		}
-		app, err = s.Get(ctx, &ApplicationQuery{Name: syncReq.Name})
-		if err != nil {
-			return nil, err
-		}
-		app.Status.RecentDeployments = append(app.Status.RecentDeployments, appv1.DeploymentInfo{
-			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
-			Revision:                    manifest.Revision,
-			Params:                      params,
-			DeployedAt:                  metav1.NewTime(time.Now()),
-		})
-		if len(app.Status.RecentDeployments) > maxRecentDeploymentsCnt {
-			app.Status.RecentDeployments = app.Status.RecentDeployments[1 : maxRecentDeploymentsCnt+1]
-		}
-		_, err = s.Update(ctx, app)
-		if err != nil {
-			return nil, err
-		}
+	params := make([]appv1.ComponentParameter, len(envParams.Params))
+	for i := range envParams.Params {
+		param := *envParams.Params[i]
+		params[i] = param
 	}
-	return res, err
+	var nextId int64 = 0
+	if len(app.Status.RecentDeployments) > 0 {
+		nextId = app.Status.RecentDeployments[len(app.Status.RecentDeployments)-1].Id + 1
+	}
+	app.Status.RecentDeployments = append(app.Status.RecentDeployments, appv1.DeploymentInfo{
+		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+		Revision:                    revision,
+		Params:                      params,
+		DeployedAt:                  metav1.NewTime(time.Now()),
+		Id:                          nextId,
+	})
+	if len(app.Status.RecentDeployments) > maxRecentDeploymentsCnt {
+		app.Status.RecentDeployments = app.Status.RecentDeployments[1 : maxRecentDeploymentsCnt+1]
+	}
+	_, err = s.Update(ctx, app)
+	return err
 }
 
 func (s *Server) getApplicationDestination(ctx context.Context, name string) (string, string, error) {

@@ -32,14 +32,18 @@ message ApplicationSyncRequest {
 	string name = 1;
 	string revision = 2;
 	bool dryRun = 3;
-    bool forceParameterOverrides = 4;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 5;
 }
 
 // ApplicationSyncResult is a result of a sync requeswt
 message ApplicationSyncResult {
 	string message = 1;
 	repeated ResourceDetails resources = 2;
+}
+
+message ApplicationRollbackRequest {
+	string name = 1;
+	int64 id = 2;
+	bool dryRun = 3;
 }
 
 message ResourceDetails {
@@ -112,6 +116,14 @@ service ApplicationService {
 	rpc Sync(ApplicationSyncRequest) returns (ApplicationSyncResult) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/sync"
+			body: "*"
+		};
+	}
+
+	// Sync syncs an application to its target state
+	rpc Rollback(ApplicationRollbackRequest) returns (ApplicationSyncResult) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/rollback"
 			body: "*"
 		};
 	}
