@@ -76,8 +76,12 @@ func ValidateLocalConfig(config LocalConfig) error {
 }
 
 // WriteLocalConfig writes a new local configuration file.
-func WriteLocalConfig(config LocalConfig, path string) error {
-	return cli.MarshalLocalYAMLFile(path, config)
+func WriteLocalConfig(config LocalConfig, configPath string) error {
+	err := os.MkdirAll(path.Dir(configPath), os.ModePerm)
+	if err != nil {
+		return err
+	}
+	return cli.MarshalLocalYAMLFile(configPath, config)
 }
 
 // ResolveContext resolves the specified context. If unspecified, resolves the current context
