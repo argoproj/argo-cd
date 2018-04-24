@@ -350,7 +350,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 		}
 	}
 	if deploymentInfo == nil {
-		return nil, fmt.Errorf("application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.Id)
+		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.Id)
 	}
 	return s.deployAndPersistDeploymentInfo(ctx, rollbackReq.Name, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, rollbackReq.DryRun)
 }
