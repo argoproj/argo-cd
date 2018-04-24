@@ -42,6 +42,7 @@ const config = {
     },
     plugins: [
         new webpack.DefinePlugin({
+            'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             SYSTEM_INFO: JSON.stringify({
                 version: process.env.ARGO_VERSION || 'latest',
             }),
