@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -38,6 +39,8 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationDiffCommand(clientOpts))
 	command.AddCommand(NewApplicationSetCommand(clientOpts))
 	command.AddCommand(NewApplicationSyncCommand(clientOpts))
+	command.AddCommand(NewApplicationHistoryCommand(clientOpts))
+	command.AddCommand(NewApplicationRollbackCommand(clientOpts))
 	command.AddCommand(NewApplicationListCommand(clientOpts))
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
 	return command
@@ -352,7 +355,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Use:   "sync",
 		Short: fmt.Sprintf("%s app sync APPNAME", cliName),
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -415,4 +418,87 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 		}
 	}
 	app.Spec.Source.ComponentParameterOverrides = newParams
+}
+
+// NewApplicationHistoryCommand returns a new instance of an `argocd app history` command
+func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "history",
+		Short: fmt.Sprintf("%s app history APPNAME", cliName),
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			appName := args[0]
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
+			errors.CheckError(err)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "ID\tDATE\tCOMMIT\tPARAMETERS\n")
+			for _, depInfo := range app.Status.RecentDeployments {
+				paramStr := paramString(depInfo.Params)
+				fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision, paramStr)
+			}
+			_ = w.Flush()
+		},
+	}
+	return command
+}
+
+func paramString(params []argoappv1.ComponentParameter) string {
+	if len(params) == 0 {
+		return ""
+	}
+	paramNames := []string{}
+	for _, param := range params {
+		paramNames = append(paramNames, fmt.Sprintf("%s=%s=%s", param.Component, param.Name, param.Value))
+	}
+	return strings.Join(paramNames, ",")
+}
+
+// NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
+func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "rollback",
+		Short: fmt.Sprintf("%s app rollback APPNAME ID", cliName),
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			depID, err := strconv.Atoi(args[1])
+			errors.CheckError(err)
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			ctx := context.Background()
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: appName})
+			errors.CheckError(err)
+			var depInfo *argoappv1.DeploymentInfo
+			for _, di := range app.Status.RecentDeployments {
+				if di.ID == int64(depID) {
+					depInfo = &di
+					break
+				}
+			}
+			if depInfo == nil {
+				log.Fatalf("Application '%s' does not have deployment id '%s' in history\n", depID)
+			}
+			syncRes, err := appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
+				Name: appName,
+				ID:   int64(depID),
+			})
+			errors.CheckError(err)
+			fmt.Printf("%s %s\n", appName, syncRes.Message)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "NAME\tKIND\tMESSAGE\n")
+			for _, resDetails := range syncRes.Resources {
+				fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Name, resDetails.Kind, resDetails.Message)
+			}
+			_ = w.Flush()
+		},
+	}
+	return command
 }
