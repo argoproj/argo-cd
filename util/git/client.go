@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 
+	"strings"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -108,7 +110,7 @@ func (m *NativeGitClient) CommitSHA(repoPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(output), nil
+	return strings.TrimSpace(string(output)), nil
 }
 
 // NewNativeGitClient creates new instance of NativeGitClient

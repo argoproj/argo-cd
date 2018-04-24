@@ -166,6 +166,8 @@ message DeploymentInfo {
   repeated ComponentParameter componentParameterOverrides = 3;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
+
+  optional int64 id = 5;
 }
 
 // Repository is a Git repository holding application configurations

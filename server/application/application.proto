@@ -40,6 +40,12 @@ message ApplicationSyncResult {
 	repeated ResourceDetails resources = 2;
 }
 
+message ApplicationRollbackRequest {
+	string name = 1;
+	int64 id = 2;
+	bool dryRun = 3;
+}
+
 message ResourceDetails {
 	string name = 1;
 	string kind = 2;
@@ -110,6 +116,14 @@ service ApplicationService {
 	rpc Sync(ApplicationSyncRequest) returns (ApplicationSyncResult) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/sync"
+			body: "*"
+		};
+	}
+
+	// Sync syncs an application to its target state
+	rpc Rollback(ApplicationRollbackRequest) returns (ApplicationSyncResult) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/rollback"
 			body: "*"
 		};
 	}
