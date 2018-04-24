@@ -484,7 +484,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				}
 			}
 			if depInfo == nil {
-				log.Fatalf("Application '%s' does not have deployment id '%s' in history\n", depID)
+				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
 			}
 			syncRes, err := appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
 				Name: appName,
