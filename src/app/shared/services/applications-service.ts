@@ -37,7 +37,11 @@ export class ApplicationsService {
     }
 
     public sync(name: string, revision: string): Promise<boolean> {
-        return requests.post(`/applications/${name}/sync`).send({ revision }).then((res) => true);
+        return requests.post(`/applications/${name}/sync`).send({revision}).then((res) => true);
+    }
+
+    public rollback(name: string, id: number): Promise<boolean> {
+        return requests.post(`/applications/${name}/rollback`).send({id}).then((res) => true);
     }
 
     public getContainerLogs(applicationName: string, podName: string, containerName: string): Observable<models.LogEntry> {

@@ -54,6 +54,19 @@ export function syncApplication(name: string, revision: string): any {
     };
 }
 
+export function rollbackApplication(name: string, id: number): any {
+    return async (dispatch: Dispatch<any>, getState: () => AppState<State>) => {
+        try {
+            await services.applications.rollback(name, id);
+        } catch (e) {
+            dispatch(commonActions.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to rollback application: ${e.response && e.response.text || 'Internal error'}`,
+            }));
+        }
+    };
+}
+
 export function deletePod(appName: string, podName: string): any {
     return async (dispatch: Dispatch<any>, getState: () => AppState<State>) => {
         try {

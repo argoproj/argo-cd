@@ -10,6 +10,7 @@ import * as actions from '../../actions';
 import { State } from '../../state';
 
 import { Page } from '../../../shared/components';
+import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
 import { ApplicationSummary } from '../application-summary/application-summary';
@@ -21,10 +22,11 @@ require('./application-details.scss');
 
 export interface ApplicationDetailsProps extends RouteComponentProps<{ name: string; namespace: string; }> {
     application: appModels.Application;
-    onLoad: (name: string) => any;
-    sync: (name: string, revision: string) => any;
-    deletePod: (appName: string, podName: string) => any;
-    deleteApp: (appName: string) => any;
+    onLoad: typeof actions.loadApplication;
+    syncApp: typeof actions.syncApplication;
+    rollbackApp: typeof actions.rollbackApplication;
+    deletePod: typeof actions.deletePod;
+    deleteApp: typeof actions.deleteApplication;
     changesSubscription: Subscription;
     showDeployPanel: boolean;
     selectedRollbackDeploymentIndex: number;
@@ -39,11 +41,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
 
     constructor(props: ApplicationDetailsProps) {
         super(props);
-        this.state = { deployRevision: props.application && props.application.spec.source.targetRevision };
-    }
-
-    public componentWillReceiveProps(props: ApplicationDetailsProps) {
-        this.setState({deployRevision: props.application && props.application.spec.source.targetRevision});
+        this.state = { deployRevision: ''};
     }
 
     public componentDidMount() {
@@ -69,7 +67,6 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
     }
 
     public render() {
-        const recentDeployments = this.props.application && this.props.application.status.recentDeployments || [];
         const appNodesByName = this.groupAppNodesByName();
         const selectedItem = this.props.selectedNodeFullName && appNodesByName.get(this.props.selectedNodeFullName) || null;
         const isAppSelected = this.props.application != null && selectedItem === this.props.application;
@@ -85,12 +82,12 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                     }, {
                         className: 'icon fa fa-times-circle',
                         title: 'Delete',
-                        action: () => this.props.deleteApp(this.props.match.params.name),
-                    }, ...(recentDeployments.length > 1 ? [{
+                        action: () => this.props.deleteApp(this.props.match.params.name, true),
+                    }, {
                         className: 'icon fa fa-undo',
                         title: 'Rollback',
                         action: () => this.setRollbackPanelVisible(0),
-                    }] : [])],
+                    }],
                 } }}>
                 <div className='argo-container application-details'>
                     {this.props.application ? (
@@ -123,7 +120,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                 </SlidingPanel>
                 <SlidingPanel isNarrow={true} isShown={this.props.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
                         <div>
-                            <button className='argo-button argo-button--base' onClick={() => this.syncApplication()}>
+                            <button className='argo-button argo-button--base' onClick={() => this.syncApplication(this.state.deployRevision)}>
                                 Deploy
                             </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
                                 Cancel
@@ -141,30 +138,12 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                     )}
                 </SlidingPanel>
                 <SlidingPanel isShown={this.props.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
-                    <div className='row'>
-                        <div className='columns small-3'>
-                            {recentDeployments.slice(1).map((info, i) => (
-                                <p key={i}>
-                                    {this.props.selectedRollbackDeploymentIndex === i ? <span>{info.revision}</span> : (
-                                        <a onClick={() => this.setRollbackPanelVisible(i)}>{info.revision}</a>
-                                    )}
-                                </p>
-                            ))}
-                        </div>
-                        <div className='columns small-9'>
-                            {recentDeployments[this.props.selectedRollbackDeploymentIndex] && (
-                                <ParametersPanel
-                                    params={recentDeployments[this.props.selectedRollbackDeploymentIndex].params}
-                                    overrides={recentDeployments[this.props.selectedRollbackDeploymentIndex].componentParameterOverrides}/>
-                            )}
-                            <br/>
-                            <button className='argo-button argo-button--base' onClick={() => this.syncApplication()}>
-                                Rollback
-                            </button> <button onClick={() => this.setRollbackPanelVisible(-1)} className='argo-button argo-button--base-o'>
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
+                    {this.props.application && <ApplicationDeploymentHistory
+                        app={this.props.application}
+                        selectedRollbackDeploymentIndex={this.props.selectedRollbackDeploymentIndex}
+                        rollbackApp={(info) => this.rollbackApplication(info)}
+                        selectDeployment={(i) => this.setRollbackPanelVisible(i)}
+                        />}
                 </SlidingPanel>
             </Page>
         );
@@ -189,9 +168,14 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
         return nodeByFullName;
     }
 
-    private syncApplication(revision: string = null) {
-        this.props.sync(this.props.application.metadata.name, revision || this.state.deployRevision);
+    private syncApplication(revision: string) {
+        this.props.syncApp(this.props.application.metadata.name, revision);
         this.setDeployPanelVisible(false);
+    }
+
+    private rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
+        this.props.rollbackApp(this.props.application.metadata.name, deploymentInfo.id);
+        this.setRollbackPanelVisible(-1);
     }
 
     private get appContext(): AppContext {
@@ -251,7 +235,8 @@ export const ApplicationDetails = connect((state: AppState<State>) => ({
     selectedNodeFullName: new URLSearchParams(state.router.location.search).get('node'),
 }), (dispatch) => ({
     onLoad: (name: string) => dispatch(actions.loadApplication(name)),
-    sync: (name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),
+    syncApp: (name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),
     deletePod: (appName: string, podName: string) => dispatch(actions.deletePod(appName, podName)),
-    deleteApp: (appName: string) => dispatch(actions.deleteApplication(appName, true)),
+    deleteApp: (appName: string, force: boolean) => dispatch(actions.deleteApplication(appName, force)),
+    rollbackApp: (appName: string, id: number) => dispatch(actions.rollbackApplication(appName, id)),
 }))(Component);

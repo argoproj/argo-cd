@@ -79,6 +79,7 @@ export interface ApplicationSpec {
  * DeploymentInfo contains information relevant to an application deployment
  */
 export interface DeploymentInfo {
+    id: number;
     revision: string;
     params: ComponentParameter[];
     componentParameterOverrides: ComponentParameter[];
