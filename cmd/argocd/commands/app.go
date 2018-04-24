@@ -345,7 +345,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		dryRun bool
+		revision string
+		dryRun   bool
 	)
 	var command = &cobra.Command{
 		Use:   "sync",
@@ -359,8 +360,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 			appName := args[0]
 			syncReq := application.ApplicationSyncRequest{
-				Name:   appName,
-				DryRun: dryRun,
+				Name:     appName,
+				DryRun:   dryRun,
+				Revision: revision,
 			}
 			syncRes, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
@@ -374,6 +376,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
+	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	return command
 }
 

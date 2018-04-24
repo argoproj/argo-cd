@@ -344,13 +344,13 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	}
 	var deploymentInfo *appv1.DeploymentInfo
 	for _, info := range app.Status.RecentDeployments {
-		if info.Id == rollbackReq.Id {
+		if info.ID == rollbackReq.ID {
 			deploymentInfo = &info
 			break
 		}
 	}
 	if deploymentInfo == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.Id)
+		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.ID)
 	}
 	return s.deployAndPersistDeploymentInfo(ctx, rollbackReq.Name, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, rollbackReq.DryRun)
 }
@@ -415,14 +415,14 @@ func (s *Server) persistDeploymentInfo(ctx context.Context, appName string, revi
 	}
 	var nextId int64 = 0
 	if len(app.Status.RecentDeployments) > 0 {
-		nextId = app.Status.RecentDeployments[len(app.Status.RecentDeployments)-1].Id + 1
+		nextId = app.Status.RecentDeployments[len(app.Status.RecentDeployments)-1].ID + 1
 	}
 	app.Status.RecentDeployments = append(app.Status.RecentDeployments, appv1.DeploymentInfo{
 		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		Revision:                    revision,
 		Params:                      params,
 		DeployedAt:                  metav1.NewTime(time.Now()),
-		Id:                          nextId,
+		ID:                          nextId,
 	})
 	if len(app.Status.RecentDeployments) > maxRecentDeploymentsCnt {
 		app.Status.RecentDeployments = app.Status.RecentDeployments[1 : maxRecentDeploymentsCnt+1]

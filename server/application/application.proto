@@ -42,7 +42,7 @@ message ApplicationSyncResult {
 
 message ApplicationRollbackRequest {
 	string name = 1;
-	int64 id = 2;
+	int64 id = 2 [(gogoproto.customname) = "ID"];
 	bool dryRun = 3;
 }
 

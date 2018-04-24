@@ -43,7 +43,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			defer util.Close(conn)
 			serverVers, err := versionIf.Version(context.Background(), &empty.Empty{})
 			errors.CheckError(err)
-			fmt.Printf("%s: %s\n", "argocd-server", version)
+			fmt.Printf("%s: %s\n", "argocd-server", serverVers.Version)
 			if !short {
 				fmt.Printf("  BuildDate: %s\n", serverVers.BuildDate)
 				fmt.Printf("  GitCommit: %s\n", serverVers.GitCommit)

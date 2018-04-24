@@ -17,7 +17,7 @@ type DeploymentInfo struct {
 	Revision                    string               `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,3,opt,name=componentParameterOverrides"`
 	DeployedAt                  metav1.Time          `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	Id                          int64                `json:"id" protobuf:"bytes,5,opt,name=id"`
+	ID                          int64                `json:"id" protobuf:"bytes,5,opt,name=id"`
 }
 
 // Application is a definition of Application resource.
