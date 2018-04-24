@@ -398,27 +398,24 @@ func (s *Server) getApplicationDestination(ctx context.Context, name string) (st
 	if err != nil {
 		return "", "", err
 	} else {
-		if app.Spec.Destination != nil {
-			return app.Spec.Destination.Server, app.Spec.Destination.Namespace, nil
-		} else {
-			repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
-			conn, repoClient, err := s.repoClientset.NewRepositoryClient()
-			if err != nil {
-				return "", "", err
-			}
-			defer util.Close(conn)
-			manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
-				Repo:        repo,
-				Environment: app.Spec.Source.Environment,
-				Path:        app.Spec.Source.Path,
-				Revision:    app.Spec.Source.TargetRevision,
-				AppLabel:    app.Name,
-			})
-			if err != nil {
-				return "", "", err
-			}
-			return manifestInfo.Server, manifestInfo.Namespace, nil
+		repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
+		conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+		if err != nil {
+			return "", "", err
 		}
+		defer util.Close(conn)
+		manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
+			Repo:        repo,
+			Environment: app.Spec.Source.Environment,
+			Path:        app.Spec.Source.Path,
+			Revision:    app.Spec.Source.TargetRevision,
+			AppLabel:    app.Name,
+		})
+		if err != nil {
+			return "", "", err
+		}
+		server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
+		return server, namespace, nil
 	}
 }
 
