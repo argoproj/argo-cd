@@ -525,11 +525,6 @@ func (s *Server) deploy(
 	if err != nil {
 		return nil, nil, err
 	}
-	err = kube.GenerateTLSFiles(config)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() { _ = kube.DeleteTLSFiles(config) }()
 
 	var syncRes ApplicationSyncResult
 	syncRes.Resources = make([]*ResourceDetails, 0)

@@ -1,5 +1,4 @@
 // Package kube provides helper utilities common for kubernetes
-
 package kube
 
 import (
@@ -8,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
 	"sync"
@@ -26,6 +24,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 const (
@@ -426,19 +426,34 @@ func ListAllResources(config *rest.Config, apiResources []metav1.APIResource, na
 	return resources, nil
 }
 
+// deleteFile is best effort deletion of a file
+func deleteFile(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return
+	}
+	_ = os.Remove(path)
+}
+
 // ApplyResource performs an apply of a unstructured resource
 func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
-	cmdArgs, err := formulateKubectlOptions(config)
+	f, err := ioutil.TempFile(kubectlTempDir, "")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
 	}
+	_ = f.Close()
+	err = WriteKubeConfig(config, namespace, f.Name())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to write kubeconfig: %v", err)
+	}
+	defer deleteFile(f.Name())
+
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
 	}
-	cmdArgs = append(cmdArgs, "-n", namespace, "apply", "-o", "json", "-f", "-")
-	cmd := exec.Command("kubectl", cmdArgs...)
+	cmd := exec.Command("kubectl", "--kubeconfig", f.Name(), "-n", namespace, "apply", "-o", "json", "-f", "-")
+	log.Info(cmd.Args)
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
 	if err != nil {
@@ -453,119 +468,57 @@ func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespac
 	return &liveObj, nil
 }
 
-func writeTempFile(prefix string, data []byte) (string, error) {
-	f, err := ioutil.TempFile(kubectlTempDir, prefix)
-	if err != nil {
-		return "", err
+// WriteKubeConfig takes a rest.Config and writes it as a kubeconfig at the specified path
+func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error {
+	var kubeConfig = clientcmdapi.Config{
+		CurrentContext: restConfig.Host,
+		Contexts: map[string]*clientcmdapi.Context{
+			restConfig.Host: {
+				Cluster:   restConfig.Host,
+				AuthInfo:  restConfig.Host,
+				Namespace: namespace,
+			},
+		},
+		Clusters: map[string]*clientcmdapi.Cluster{
+			restConfig.Host: {
+				Server: restConfig.Host,
+			},
+		},
+		AuthInfos: map[string]*clientcmdapi.AuthInfo{
+			restConfig.Host: {},
+		},
 	}
-	_, err = f.Write(data)
-	if err != nil {
-		return "", err
+	// Set Cluster info
+	if restConfig.TLSClientConfig.Insecure {
+		kubeConfig.Clusters[restConfig.Host].InsecureSkipTLSVerify = true
 	}
-	err = f.Close()
-	if err != nil {
-		return "", err
+	if restConfig.TLSClientConfig.CAFile != "" {
+		kubeConfig.Clusters[restConfig.Host].CertificateAuthority = restConfig.TLSClientConfig.CAFile
 	}
-	return f.Name(), nil
-}
-
-// formulateKubectlOptions returns a list of equivalent kubectl flags given a k8s rest.Config
-func formulateKubectlOptions(config *rest.Config) ([]string, error) {
-	opts := []string{
-		"--server", config.Host,
+	// Set AuthInfo
+	if len(restConfig.TLSClientConfig.CAData) > 0 {
+		kubeConfig.Clusters[restConfig.Host].CertificateAuthorityData = restConfig.TLSClientConfig.CAData
 	}
-	if config.TLSClientConfig.Insecure {
-		opts = append(opts, "--insecure-skip-tls-verify=true")
+	if restConfig.TLSClientConfig.CertFile != "" {
+		kubeConfig.AuthInfos[restConfig.Host].ClientCertificate = restConfig.TLSClientConfig.CertFile
 	}
-	if config.TLSClientConfig.CAFile != "" {
-		opts = append(opts, "--certificate-authority", config.TLSClientConfig.CAFile)
-	} else if len(config.TLSClientConfig.CAData) > 0 {
-		return nil, fmt.Errorf("Cannot generate kubectl options with cert-data")
+	if len(restConfig.TLSClientConfig.CertData) > 0 {
+		kubeConfig.AuthInfos[restConfig.Host].ClientCertificateData = restConfig.TLSClientConfig.CertData
 	}
-	if config.TLSClientConfig.CertFile != "" {
-		opts = append(opts, "--client-certificate", config.TLSClientConfig.CertFile)
-	} else if len(config.TLSClientConfig.CertData) > 0 {
-		return nil, fmt.Errorf("Cannot generate kubectl options with cert-data")
+	if restConfig.TLSClientConfig.KeyFile != "" {
+		kubeConfig.AuthInfos[restConfig.Host].ClientKey = restConfig.TLSClientConfig.KeyFile
 	}
-	if config.TLSClientConfig.KeyFile != "" {
-		opts = append(opts, "--client-key", config.TLSClientConfig.KeyFile)
-	} else if len(config.TLSClientConfig.KeyData) > 0 {
-		return nil, fmt.Errorf("Cannot generate kubectl options with cert-data")
+	if len(restConfig.TLSClientConfig.KeyData) > 0 {
+		kubeConfig.AuthInfos[restConfig.Host].ClientKeyData = restConfig.TLSClientConfig.KeyData
 	}
-	if config.Username != "" {
-		opts = append(opts, "--username", config.Username)
+	if restConfig.Username != "" {
+		kubeConfig.AuthInfos[restConfig.Host].Username = restConfig.Username
 	}
-	if config.Password != "" {
-		opts = append(opts, "--password", config.Password)
+	if restConfig.Password != "" {
+		kubeConfig.AuthInfos[restConfig.Host].Password = restConfig.Password
 	}
-	if config.BearerToken != "" {
-		opts = append(opts, "--token", config.BearerToken)
+	if restConfig.BearerToken != "" {
+		kubeConfig.AuthInfos[restConfig.Host].Token = restConfig.BearerToken
 	}
-	return opts, nil
-}
-
-// GenerateTLSFiles examines the TLS settings of a rest.Config to see if it uses any TLS data
-// (i.e. CAData, CertData, KeyData). It then creates them as temporary local files (which can
-// later be used as arguments to a kubectl command), and updates the config with paths.
-func GenerateTLSFiles(config *rest.Config) error {
-	var host string
-	if serverURL, err := url.Parse(config.Host); err != nil {
-		host = serverURL.Host
-	}
-	if len(config.TLSClientConfig.CAData) > 0 && config.TLSClientConfig.CAFile == "" {
-		fileName, err := writeTempFile(fmt.Sprintf("%s-ca.crt-", host), config.TLSClientConfig.CAData)
-		if err != nil {
-			return err
-		}
-		config.TLSClientConfig.CAFile = fileName
-	}
-	if len(config.TLSClientConfig.CertData) > 0 && config.TLSClientConfig.CertFile == "" {
-		fileName, err := writeTempFile(fmt.Sprintf("%s-client.crt-", host), config.TLSClientConfig.CertData)
-		if err != nil {
-			return err
-		}
-		config.TLSClientConfig.CertFile = fileName
-	}
-	if len(config.TLSClientConfig.KeyData) > 0 && config.TLSClientConfig.KeyFile == "" {
-		fileName, err := writeTempFile(fmt.Sprintf("%s-client.key-", host), config.TLSClientConfig.KeyData)
-		if err != nil {
-			return err
-		}
-		config.TLSClientConfig.KeyFile = fileName
-	}
-	return nil
-}
-
-func deleteFile(path string) error {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil
-	}
-	return os.Remove(path)
-}
-
-// DeleteTLSFiles deletes any local TLS related files referenced by a rest Config.
-func DeleteTLSFiles(config *rest.Config) error {
-	var err error
-	if config.TLSClientConfig.CAFile != "" {
-		err = deleteFile(config.TLSClientConfig.CAFile)
-		if err != nil {
-			return err
-		}
-		config.TLSClientConfig.CAFile = ""
-	}
-	if config.TLSClientConfig.CertFile != "" {
-		err = deleteFile(config.TLSClientConfig.CertFile)
-		if err != nil {
-			return err
-		}
-		config.TLSClientConfig.CertFile = ""
-	}
-	if config.TLSClientConfig.KeyFile != "" {
-		err = deleteFile(config.TLSClientConfig.KeyFile)
-		if err != nil {
-			return err
-		}
-		config.TLSClientConfig.KeyFile = ""
-	}
-	return nil
+	return clientcmd.WriteToFile(kubeConfig, filename)
 }

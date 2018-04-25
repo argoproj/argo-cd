@@ -11,7 +11,7 @@ An example Ksonnet guestbook application is provided to demonstrates how Argo CD
 
 Download the latest Argo CD version
 ```
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.3.0/argocd-darwin-amd64
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.3.1/argocd-darwin-amd64
 chmod +x /usr/local/bin/argocd
 ```
 
