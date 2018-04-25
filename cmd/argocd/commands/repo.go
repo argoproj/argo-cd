@@ -64,7 +64,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					log.Fatal(err)
 				}
 				// If we can't test the repo, it's probably private. Prompt for credentials and try again.
-				repo.Username, repo.Password = cli.PromptCredentials()
+				repo.Username, repo.Password = cli.PromptCredentials(repo.Username, repo.Password)
 				err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
 			}
 			errors.CheckError(err)

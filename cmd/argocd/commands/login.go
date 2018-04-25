@@ -48,9 +48,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				}
 			}
 
-			if username == "" || password == "" {
-				username, password = cli.PromptCredentials()
-			}
+			username, password = cli.PromptCredentials(username, password)
 
 			clientOpts := argocdclient.ClientOptions{
 				ConfigPath: "",
