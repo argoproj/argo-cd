@@ -3,11 +3,16 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
+	"syscall"
 
 	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -48,4 +53,30 @@ func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
 	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+}
+
+// PromptCredentials is a helper to prompt the user for a username and password
+func PromptCredentials() (string, string) {
+	var (
+		username string
+		password string
+	)
+	for username == "" {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Username: ")
+		usernameRaw, err := reader.ReadString('\n')
+		errors.CheckError(err)
+		username = strings.TrimSpace(usernameRaw)
+	}
+	for password == "" {
+		fmt.Print("Password: ")
+		passwordRaw, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		password = string(passwordRaw)
+		if password == "" {
+			fmt.Print("\n")
+		}
+	}
+	fmt.Print("\n")
+	return username, password
 }

@@ -1,12 +1,10 @@
 package commands
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"syscall"
 	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -14,10 +12,10 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/git"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -66,7 +64,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					log.Fatal(err)
 				}
 				// If we can't test the repo, it's probably private. Prompt for credentials and try again.
-				promptCredentials(&repo)
+				repo.Username, repo.Password = cli.PromptCredentials()
 				err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
 			}
 			errors.CheckError(err)
@@ -81,20 +79,6 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "sshPrivateKeyPath", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	return command
-}
-
-func promptCredentials(repo *appsv1.Repository) {
-	reader := bufio.NewReader(os.Stdin)
-	if repo.Username == "" {
-		fmt.Print("Username: ")
-		username, _ := reader.ReadString('\n')
-		repo.Username = username
-	}
-	if repo.Password == "" {
-		fmt.Print("Password: ")
-		bytePassword, _ := terminal.ReadPassword(syscall.Stdin)
-		repo.Password = string(bytePassword)
-	}
 }
 
 // NewRepoRemoveCommand returns a new instance of an `argocd repo list` command

@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cli"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -48,22 +47,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				}
 			}
 
-			for username == "" {
-				reader := bufio.NewReader(os.Stdin)
-				fmt.Print("Username: ")
-				usernameRaw, err := reader.ReadString('\n')
-				errors.CheckError(err)
-				username = strings.TrimSpace(usernameRaw)
-			}
-			for password == "" {
-				fmt.Print("Password: ")
-				passwordRaw, err := terminal.ReadPassword(syscall.Stdin)
-				errors.CheckError(err)
-				password = string(passwordRaw)
-				if password == "" {
-					fmt.Print("\n")
-				}
-			}
+			username, password = cli.PromptCredentials()
 
 			clientOpts := argocdclient.ClientOptions{
 				ConfigPath: "",
