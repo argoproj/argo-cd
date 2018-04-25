@@ -26,7 +26,7 @@ import (
 func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "cluster",
-		Short: fmt.Sprintf("%s cluster COMMAND", cliName),
+		Short: "Manage cluster credentials",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -49,7 +49,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			var configAccess clientcmd.ConfigAccess = pathOpts
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
-				printContexts(configAccess)
+				printKubeContexts(configAccess)
 				os.Exit(1)
 			}
 			config, err := configAccess.GetStartingConfig()
@@ -82,7 +82,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	return command
 }
 
-func printContexts(ca clientcmd.ConfigAccess) {
+func printKubeContexts(ca clientcmd.ConfigAccess) {
 	config, err := ca.GetStartingConfig()
 	errors.CheckError(err)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -150,7 +150,7 @@ func NewCluster(name string, conf *rest.Config) *argoappv1.Cluster {
 func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "get",
-		Short: fmt.Sprintf("%s cluster get SERVER", cliName),
+		Short: "Get cluster information",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -174,7 +174,7 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm",
-		Short: fmt.Sprintf("%s cluster rm SERVER", cliName),
+		Short: "Remove cluster credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -197,7 +197,7 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
-		Short: fmt.Sprintf("%s cluster list", cliName),
+		Short: "List configured clusters",
 		Run: func(c *cobra.Command, args []string) {
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)

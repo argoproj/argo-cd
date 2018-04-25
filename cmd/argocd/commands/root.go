@@ -30,6 +30,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewRepoCommand(&clientOpts))
 	command.AddCommand(NewInstallCommand())
 	command.AddCommand(NewUninstallCommand())
+	command.AddCommand(NewContextCommand(&clientOpts))
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
 	errors.CheckError(err)

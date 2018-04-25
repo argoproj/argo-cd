@@ -20,6 +20,7 @@ import (
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
+		name     string
 		username string
 		password string
 	)
@@ -72,7 +73,6 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			if localCfg == nil {
 				localCfg = &localconfig.LocalConfig{}
 			}
-			localCfg.CurrentContext = server
 			localCfg.UpsertServer(localconfig.Server{
 				Server:    server,
 				PlainText: globalClientOpts.PlainText,
@@ -82,8 +82,12 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				Name:      server,
 				AuthToken: createdSession.Token,
 			})
+			if name == "" {
+				name = server
+			}
+			localCfg.CurrentContext = name
 			localCfg.UpsertContext(localconfig.ContextRef{
-				Name:   server,
+				Name:   name,
 				User:   server,
 				Server: server,
 			})
@@ -93,6 +97,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 		},
 	}
+	command.Flags().StringVar(&name, "name", "", "name to use for the context")
 	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
 	return command

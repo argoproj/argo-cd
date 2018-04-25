@@ -157,8 +157,8 @@ func (l *LocalConfig) UpsertContext(context ContextRef) {
 	l.Contexts = append(l.Contexts, context)
 }
 
-// LocalConfigDir returns the local configuration path for settings such as cached authentication tokens.
-func localConfigDir() (string, error) {
+// DefaultConfigDir returns the local configuration path for settings such as cached authentication tokens.
+func DefaultConfigDir() (string, error) {
 	usr, err := user.Current()
 	if err != nil {
 		return "", err
@@ -168,7 +168,7 @@ func localConfigDir() (string, error) {
 
 // DefaultLocalConfigPath returns the local configuration path for settings such as cached authentication tokens.
 func DefaultLocalConfigPath() (string, error) {
-	dir, err := localConfigDir()
+	dir, err := DefaultConfigDir()
 	if err != nil {
 		return "", err
 	}
