@@ -376,9 +376,11 @@ func (s *Server) deployAndPersistDeploymentInfo(
 	if err != nil {
 		return nil, err
 	}
-	err = s.persistDeploymentInfo(ctx, appName, manifest.Revision, nil)
-	if err != nil {
-		return nil, err
+	if !dryRun {
+		err = s.persistDeploymentInfo(ctx, appName, manifest.Revision, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return res, err
 }
