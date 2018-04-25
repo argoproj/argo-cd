@@ -101,6 +101,11 @@ controller-image:
 	docker build --build-arg BINARY=argocd-application-controller --build-arg MAKE_TARGET=controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) ; fi
 
+.PHONY: cli-image
+cli-image:
+	docker build --build-arg BINARY=argocd --build-arg MAKE_TARGET=cli -t $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) -f Dockerfile-argocd .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) ; fi
+
 .PHONY: builder-image
 builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) -f Dockerfile-ci-builder .
@@ -130,4 +135,4 @@ release-precheck:
 	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
 
 .PHONY: release
-release: release-precheck precheckin cli-darwin cli-linux server-image controller-image repo-server-image
+release: release-precheck precheckin cli-darwin cli-linux server-image controller-image repo-server-image cli-image

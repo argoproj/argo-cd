@@ -56,11 +56,7 @@ func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 }
 
 // PromptCredentials is a helper to prompt the user for a username and password
-func PromptCredentials() (string, string) {
-	var (
-		username string
-		password string
-	)
+func PromptCredentials(username, password string) (string, string) {
 	for username == "" {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("Username: ")
