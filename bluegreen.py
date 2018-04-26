@@ -1,8 +1,9 @@
 #! /usr/bin/env python3
 
-import kubernetes
 import base64
+import kubernetes
 import os
+import sys
 
 from kubernetes import client, config
 
@@ -204,9 +205,8 @@ def clone_deployment(namespace: str, name: str):
 
     Returns
     -------
-    out : (str, str)
-        A tuple containing the name of the newly-created deployment
-        and a randomized name for the app it contains.
+    out : object
+        An object representing the newly-created deployment.
 
     """
     dep = read_deployment(namespace, name)
@@ -215,78 +215,51 @@ def clone_deployment(namespace: str, name: str):
     dep.metadata.name = None
 
     # now create a randomized app name for this deployment
-    temp_app_name = base64.b16encode(os.urandom(32))
+    temp_app_name = base64.b16encode(os.urandom(31)).decode()
     dep.metadata.labels['app'] = temp_app_name
     dep.spec.selector.match_labels['app'] = temp_app_name
     dep.spec.template.metadata.labels['app'] = temp_app_name
 
-    deployment = create_deployment(namespace, dep)
-    return deployment.metadata.name, temp_app_name
+    return create_deployment(namespace, dep)
 
+def bluegreen_deploy(namespace: str, service_name: str, deployment_name: str):
+    service_patch_body = lambda name: {'spec': {'selector': {'app': name}}} 
 
-K8S_NAMESPACE = 'argocd'
-SERVICE_NAME = 'argocd-server'
-DEPLOYMENT_NAME = 'argocd-server'
+    app_service = read_service(namespace, service_name)
+    print(app_service)
 
-service_patch_body = lambda name: {'spec': {'selector': {'app': name}}} 
+    cloned_deployment = clone_deployment(namespace, deployment_name)
+    cloned_deployment_name = cloned_deployment.metadata.name
+    temp_app_name = cloned_deployment.metadata.labels['app']
 
-app_service = read_service(K8S_NAMESPACE, SERVICE_NAME)
-print(app_service)
+    # TODO... wait till ready
 
-cloned_deployment_name, temp_app_name = clone_deployment(K8S_NAMESPACE, DEPLOYMENT_NAME)
+    # patch app service
+    out = patch_service(namespace, service_name, service_patch_body(temp_app_name))
+    print('out = ' + str(out))
 
-# TODO... wait till ready
+    # wait...
 
-# patch app service
-out = patch_service(K8S_NAMESPACE, SERVICE_NAME, service_patch_body(temp_app_name))
-print('out = ' + str(out))
+    # now update existing deployment
+    new_body = {}
+    out = patch_deployment(namespace, deployment_name, new_body)
 
-# wait...
+    # wait...
 
-# now update existing deployment
-new_body = {}
-out = patch_deployment(K8S_NAMESPACE, DEPLOYMENT_NAME, new_body)
+    # now switch back service to original deployment
+    out = patch_service(namespace, service_name, service_patch_body(deployment_name))
 
-# wait...
+    # now delete new deployment
+    print('now deleting: ' + cloned_deployment_name)
+    delete_deployment(namespace, cloned_deployment_name)
 
-# now switch back service to original deployment
-out = patch_service(K8S_NAMESPACE, SERVICE_NAME, service_patch_body(DEPLOYMENT_NAME))
+if __name__ == '__main__':
+    try:
+        namespace = sys.argv[1]
+        service_name = sys.argv[2]
+        deployment_name = sys.argv[3]
+    except IndexError as e:
+        print('USAGE: {} NAMESPACE MANIFEST'.format(sys.argv[0]))
+        sys.exit(1)
 
-# now delete new deployment
-print('now deleting: ' + cloned_deployment_name)
-delete_deployment(K8S_NAMESPACE, cloned_deployment_name)
-
-
-# KUBECTL_COMMAND=kubectl
-
-# DEPLOYMENT_NAME=$1
-# SERVICE_NAME=$2
-
-# SERVICE_JSON=`${KUBECTL_COMMAND} get -o json services/${SERVICE_NAME}`
-
-# copy_deployment() {
-# 	DEPLOYMENT_NAME=$1
-# 	TIMESTAMP=`date '+%s'`
-
-# 	${KUBECTL_COMMAND} get -o json "deployments/${DEPLOYMENT_NAME}" | jq ".spec.selector.matchLabels.app=.metadata.labels.app=metadata.name=template.metadata.labels.app"
-
-# 	# return the new deployment name
-# 	echo "${DEPLOYMENT_NAME}-${TIMESTAMP}"
-# }
-
-# NEW_DEPLOYMENT_NAME=copy_deployment ${DEPLOYMENT_NAME}
-
-# # change TEMP deployment spec.selector.matchLabels.app to have suffix
-# cat yamldep.json | jq ".spec.selector.matchLabels.app+=\"${TIMESTAMP}\"" | jq '.spec.selector.matchLabels.app'
-
-# # deploy...
-# ${KUBECTL_COMMAND} create -f tmpnewyaml.yaml
-
-# # change ORIGINAL service spec.selector.app to be selector with suffix from deployment
-# ${KUBECTL_COMMAND} patch -f tmpnewyaml.yaml
-
-# # upgrade ORIGINAL deployment...
-
-
-# # change ORIGINAL service spec.selector.app to be original selector, without suffix from TEMP deployment
-# ${KUBECTL_COMMAND} create -f tmpnewyaml.yaml
+    bluegreen_deploy(namespace, service_name, deployment_name)
