@@ -82,16 +82,26 @@ func (ks *KsonnetAppComparator) CompareAppState(
 
 	// Retrieve the live versions of the objects
 	liveObjs, err := kubeutil.GetResourcesWithLabel(clst.RESTConfig(), namespace, common.LabelApplicationName, app.Name)
-
 	if err != nil {
 		return nil, err
 	}
-	objByFullName := ks.groupLiveObjects(liveObjs, targetObjs)
+
+	liveObjByFullName := ks.groupLiveObjects(liveObjs, targetObjs)
 
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 
 	for i, targetObj := range targetObjs {
-		controlledLiveObj[i] = objByFullName[getResourceFullName(targetObj)]
+		fullName := getResourceFullName(targetObj)
+		controlledLiveObj[i] = liveObjByFullName[fullName]
+		delete(liveObjByFullName, fullName)
+	}
+
+	for fullName := range liveObjByFullName {
+		liveObj := liveObjByFullName[fullName]
+		if !hasParent(liveObj) {
+			targetObjs = append(targetObjs, nil)
+			controlledLiveObj = append(controlledLiveObj, liveObj)
+		}
 	}
 
 	// Do the actual comparison
@@ -105,13 +115,27 @@ func (ks *KsonnetAppComparator) CompareAppState(
 		resState := v1alpha1.ResourceState{
 			ChildLiveResources: make([]v1alpha1.ResourceNode, 0),
 		}
-		targetObjBytes, err := json.Marshal(targetObjs[i].Object)
-		if err != nil {
-			return nil, err
+		diffResult := diffResults.Diffs[i]
+		if diffResult.Modified {
+			resState.Status = v1alpha1.ComparisonStatusOutOfSync
+		} else {
+			resState.Status = v1alpha1.ComparisonStatusSynced
 		}
-		resState.TargetState = string(targetObjBytes)
+
+		if targetObjs[i] == nil {
+			resState.TargetState = "null"
+			resState.Status = v1alpha1.ComparisonStatusOutOfSync
+		} else {
+			targetObjBytes, err := json.Marshal(targetObjs[i].Object)
+			if err != nil {
+				return nil, err
+			}
+			resState.TargetState = string(targetObjBytes)
+		}
+
 		if controlledLiveObj[i] == nil {
 			resState.LiveState = "null"
+			resState.Status = v1alpha1.ComparisonStatusOutOfSync
 		} else {
 			liveObjBytes, err := json.Marshal(controlledLiveObj[i].Object)
 			if err != nil {
@@ -119,19 +143,14 @@ func (ks *KsonnetAppComparator) CompareAppState(
 			}
 			resState.LiveState = string(liveObjBytes)
 		}
-		diffResult := diffResults.Diffs[i]
-		if diffResult.Modified {
-			resState.Status = v1alpha1.ComparisonStatusOutOfSync
-		} else {
-			resState.Status = v1alpha1.ComparisonStatusSynced
-		}
+
 		resources[i] = resState
 	}
 
 	for i, resource := range resources {
 		liveResource := controlledLiveObj[i]
 		if liveResource != nil {
-			childResources, err := getChildren(liveResource, objByFullName)
+			childResources, err := getChildren(liveResource, liveObjByFullName)
 			if err != nil {
 				return nil, err
 			}
@@ -154,6 +173,11 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	return &compResult, nil
 }
 
+func hasParent(obj *unstructured.Unstructured) bool {
+	// TODO: remove special case after Service and Endpoint get explicit relationship ( https://github.com/kubernetes/kubernetes/issues/28483 )
+	return obj.GetKind() == kubeutil.EndpointsKind || metav1.GetControllerOf(obj) != nil
+}
+
 func isControlledBy(obj *unstructured.Unstructured, parent *unstructured.Unstructured) bool {
 	// TODO: remove special case after Service and Endpoint get explicit relationship ( https://github.com/kubernetes/kubernetes/issues/28483 )
 	if obj.GetKind() == kubeutil.EndpointsKind && parent.GetKind() == kubeutil.ServiceKind {
@@ -162,17 +186,18 @@ func isControlledBy(obj *unstructured.Unstructured, parent *unstructured.Unstruc
 	return metav1.IsControlledBy(obj, parent)
 }
 
-func getChildren(parent *unstructured.Unstructured, objByFullName map[string]*unstructured.Unstructured) ([]v1alpha1.ResourceNode, error) {
+func getChildren(parent *unstructured.Unstructured, liveObjByFullName map[string]*unstructured.Unstructured) ([]v1alpha1.ResourceNode, error) {
 	children := make([]v1alpha1.ResourceNode, 0)
-	for _, obj := range objByFullName {
+	for fullName, obj := range liveObjByFullName {
 		if isControlledBy(obj, parent) {
+			delete(liveObjByFullName, fullName)
 			childResource := v1alpha1.ResourceNode{}
 			json, err := json.Marshal(obj)
 			if err != nil {
 				return nil, err
 			}
 			childResource.State = string(json)
-			childResourceChildren, err := getChildren(obj, objByFullName)
+			childResourceChildren, err := getChildren(obj, liveObjByFullName)
 			if err != nil {
 				return nil, err
 			}
