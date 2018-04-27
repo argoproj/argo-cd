@@ -154,10 +154,18 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	return &compResult, nil
 }
 
+func isControlledBy(obj *unstructured.Unstructured, parent *unstructured.Unstructured) bool {
+	// TODO: remove special case after Service and Endpoint get explicit relationship ( https://github.com/kubernetes/kubernetes/issues/28483 )
+	if obj.GetKind() == kubeutil.EndpointsKind && parent.GetKind() == kubeutil.ServiceKind {
+		return obj.GetName() == parent.GetName()
+	}
+	return metav1.IsControlledBy(obj, parent)
+}
+
 func getChildren(parent *unstructured.Unstructured, objByFullName map[string]*unstructured.Unstructured) ([]v1alpha1.ResourceNode, error) {
 	children := make([]v1alpha1.ResourceNode, 0)
 	for _, obj := range objByFullName {
-		if metav1.IsControlledBy(obj, parent) {
+		if isControlledBy(obj, parent) {
 			childResource := v1alpha1.ResourceNode{}
 			json, err := json.Marshal(obj)
 			if err != nil {
