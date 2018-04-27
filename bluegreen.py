@@ -4,6 +4,8 @@ import base64
 import kubernetes
 import os
 import sys
+import time
+import yaml
 
 from kubernetes import client, config
 
@@ -222,32 +224,46 @@ def clone_deployment(namespace: str, name: str):
 
     return create_deployment(namespace, dep)
 
-def bluegreen_deploy(namespace: str, service_name: str, deployment_name: str):
+
+def service_ready(service):
+    return True
+
+def deployment_ready(deployment):
+    return True
+
+def bluegreen_deploy(namespace: str, service_name: str, new_deployment: dict):
     service_patch_body = lambda name: {'spec': {'selector': {'app': name}}} 
 
     app_service = read_service(namespace, service_name)
-    print(app_service)
 
     cloned_deployment = clone_deployment(namespace, deployment_name)
+    if cloned_deployment is None:
+        raise RuntimeError("Could not clone deployment")
+
     cloned_deployment_name = cloned_deployment.metadata.name
     temp_app_name = cloned_deployment.metadata.labels['app']
 
+    while not deployment_ready(cloned_deployment):
+        time.sleep(1)
     # TODO... wait till ready
 
     # patch app service
-    out = patch_service(namespace, service_name, service_patch_body(temp_app_name))
-    print('out = ' + str(out))
+    patched_service = patch_service(namespace, service_name, service_patch_body(temp_app_name))
 
-    # wait...
+    while not service_ready(patched_service):
+        time.sleep(1)
 
     # now update existing deployment
-    new_body = {}
-    out = patch_deployment(namespace, deployment_name, new_body)
+    patched_deployment = patch_deployment(namespace, deployment_name, new_deployment)
 
-    # wait...
+    while not deployment_ready(patched_deployment):
+        time.sleep(1)
 
     # now switch back service to original deployment
-    out = patch_service(namespace, service_name, service_patch_body(deployment_name))
+    patched_service = patch_service(namespace, service_name, service_patch_body(deployment_name))
+
+    while not service_ready(patched_service):
+        time.sleep(1)
 
     # now delete new deployment
     print('now deleting: ' + cloned_deployment_name)
@@ -257,9 +273,11 @@ if __name__ == '__main__':
     try:
         namespace = sys.argv[1]
         service_name = sys.argv[2]
-        deployment_name = sys.argv[3]
+        deployment_filename = sys.argv[3]
     except IndexError as e:
-        print('USAGE: {} NAMESPACE MANIFEST'.format(sys.argv[0]))
+        print('USAGE: {} <namespace> <service_name> <manifest_yaml_file>'.format(sys.argv[0]))
         sys.exit(1)
 
-    bluegreen_deploy(namespace, service_name, deployment_name)
+    with open(deployment_filename, 'r') as f:
+        new_deployment_dict = yaml.load_all(f)
+        bluegreen_deploy(namespace, service_name, new_deployment_dict)
