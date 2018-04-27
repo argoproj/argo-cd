@@ -34,6 +34,11 @@ const (
 	deleteCollectionVerb = "deletecollection"
 )
 
+const (
+	ServiceKind   = "Service"
+	EndpointsKind = "Endpoints"
+)
+
 var (
 	// location to use for generating temporary files, such as the ca.crt needed by kubectl
 	kubectlTempDir string
