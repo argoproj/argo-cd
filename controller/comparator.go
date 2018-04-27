@@ -90,12 +90,14 @@ func (ks *KsonnetAppComparator) CompareAppState(
 
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 
+	// Move live resources which have corresponding target object to controlledLiveObj
 	for i, targetObj := range targetObjs {
 		fullName := getResourceFullName(targetObj)
 		controlledLiveObj[i] = liveObjByFullName[fullName]
 		delete(liveObjByFullName, fullName)
 	}
 
+	// Move root level live resources to controlledLiveObj and add nil to targetObjs to indicate that target object is missing
 	for fullName := range liveObjByFullName {
 		liveObj := liveObjByFullName[fullName]
 		if !hasParent(liveObj) {
@@ -109,6 +111,7 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	if err != nil {
 		return nil, err
 	}
+	comparisonStatus := v1alpha1.ComparisonStatusSynced
 
 	resources := make([]v1alpha1.ResourceState, len(targetObjs))
 	for i := 0; i < len(targetObjs); i++ {
@@ -117,14 +120,18 @@ func (ks *KsonnetAppComparator) CompareAppState(
 		}
 		diffResult := diffResults.Diffs[i]
 		if diffResult.Modified {
+			// Set resource state to 'OutOfSync' since target and corresponding live resource are different
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
+			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
 		} else {
 			resState.Status = v1alpha1.ComparisonStatusSynced
 		}
 
 		if targetObjs[i] == nil {
 			resState.TargetState = "null"
+			// Set resource state to 'OutOfSync' since target resource is missing and live resource is unexpected
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
+			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
 		} else {
 			targetObjBytes, err := json.Marshal(targetObjs[i].Object)
 			if err != nil {
@@ -135,7 +142,9 @@ func (ks *KsonnetAppComparator) CompareAppState(
 
 		if controlledLiveObj[i] == nil {
 			resState.LiveState = "null"
+			// Set resource state to 'OutOfSync' since target resource present but corresponding live resource is missing
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
+			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
 		} else {
 			liveObjBytes, err := json.Marshal(controlledLiveObj[i].Object)
 			if err != nil {
@@ -164,11 +173,7 @@ func (ks *KsonnetAppComparator) CompareAppState(
 		Server:     clst.Server,
 		Namespace:  namespace,
 		Resources:  resources,
-	}
-	if diffResults.Modified {
-		compResult.Status = v1alpha1.ComparisonStatusOutOfSync
-	} else {
-		compResult.Status = v1alpha1.ComparisonStatusSynced
+		Status:     comparisonStatus,
 	}
 	return &compResult, nil
 }
