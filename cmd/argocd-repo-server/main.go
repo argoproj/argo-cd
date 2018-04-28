@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/ksonnet"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -55,7 +56,11 @@ func newCommand() *cobra.Command {
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 			errors.CheckError(err)
 
+			ksVers, err := ksonnet.KsonnetVersion()
+			errors.CheckError(err)
+
 			log.Infof("argocd-repo-server %s serving on %s (namespace: %s)", argocd.GetVersion(), listener.Addr(), namespace)
+			log.Infof("ksonnet version: %s", ksVers)
 			err = grpc.Serve(listener)
 			errors.CheckError(err)
 			return nil

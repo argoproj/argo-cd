@@ -11,10 +11,10 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/ghodss/yaml"
-	"github.com/ksonnet/ksonnet/metadata"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	"github.com/ksonnet/ksonnet/pkg/component"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -44,28 +44,37 @@ type KsonnetApp interface {
 	SetComponentParams(environment string, component string, param string, value string) error
 }
 
+// KsonnetVersion returns the version of ksonnet used when running ksonnet commands
+func KsonnetVersion() (string, error) {
+	cmd := exec.Command("ks", "version")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("unable to determine ksonnet version: %v", err)
+	}
+	ksonnetVersionStr := strings.Split(string(out), "\n")[0]
+	parts := strings.SplitN(ksonnetVersionStr, ":", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("unexpected version string format: %s", ksonnetVersionStr)
+	}
+	return strings.TrimSpace(parts[1]), nil
+}
+
 type ksonnetApp struct {
-	manager metadata.Manager
-	app     app.App
-	spec    app.Spec
+	app  app.App
+	spec app.Spec
 }
 
 // NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
 func NewKsonnetApp(path string) (KsonnetApp, error) {
 	ksApp := ksonnetApp{}
-	mgr, err := metadata.Find(path)
-	if err != nil {
-		return nil, err
-	}
-	ksApp.manager = mgr
-	a, err := ksApp.manager.App()
+	a, err := app.Load(afero.NewOsFs(), path, false)
 	if err != nil {
 		return nil, err
 	}
 	ksApp.app = a
 
 	var spec app.Spec
-	err = cli.UnmarshalLocalFile(filepath.Join(ksApp.manager.Root(), "app.yaml"), &spec)
+	err = cli.UnmarshalLocalFile(filepath.Join(a.Root(), "app.yaml"), &spec)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +102,7 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 }
 
 func (k *ksonnetApp) Root() string {
-	return k.manager.Root()
+	return k.app.Root()
 }
 
 // App is the Ksonnet application
