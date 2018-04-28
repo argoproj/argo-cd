@@ -203,7 +203,6 @@ func (i *Installer) InstallApplicationController() {
 	i.unmarshalManifest("03b_application-controller-role.yaml", &applicationControllerRole)
 	i.unmarshalManifest("03c_application-controller-rolebinding.yaml", &applicationControllerRoleBinding)
 	i.unmarshalManifest("03d_application-controller-deployment.yaml", &applicationControllerDeployment)
-	applicationControllerRoleBinding.Subjects[0].Namespace = i.Namespace
 	applicationControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ControllerImage
 	applicationControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	i.MustInstallResource(kube.MustToUnstructured(&applicationControllerServiceAccount))
@@ -223,7 +222,6 @@ func (i *Installer) InstallArgoCDServer() {
 	i.unmarshalManifest("04c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
 	i.unmarshalManifest("04d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
 	i.unmarshalManifest("04e_argocd-server-service.yaml", &argoCDServerService)
-	argoCDServerControllerRoleBinding.Subjects[0].Namespace = i.Namespace
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.UIImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage

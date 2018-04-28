@@ -10,4 +10,3 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: application-controller
-  namespace: argocd
