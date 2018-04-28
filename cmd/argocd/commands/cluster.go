@@ -65,14 +65,12 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
-			if conf.Username == "" || conf.Password == "" {
-				// Install RBAC resources for managing the cluster if username and password are not specified
-				conf.BearerToken = common.InstallClusterManagerRBAC(conf)
-			}
+			// Install RBAC resources for managing the cluster
+			managerBearerToken := common.InstallClusterManagerRBAC(conf)
 
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clst := NewCluster(args[0], conf)
+			clst := NewCluster(args[0], conf, managerBearerToken)
 			clst, err = clusterIf.Create(context.Background(), clst)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
@@ -110,7 +108,7 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, conf *rest.Config) *argoappv1.Cluster {
+func NewCluster(name string, conf *rest.Config, managerBearerToken string) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -137,9 +135,7 @@ func NewCluster(name string, conf *rest.Config) *argoappv1.Cluster {
 		Server: conf.Host,
 		Name:   name,
 		Config: argoappv1.ClusterConfig{
-			Username:        conf.Username,
-			Password:        conf.Password,
-			BearerToken:     conf.BearerToken,
+			BearerToken:     managerBearerToken,
 			TLSClientConfig: tlsClientConfig,
 		},
 	}
