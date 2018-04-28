@@ -158,11 +158,6 @@
   revision = "e89373fe6b4a7413d7acd6da1725b83ef713e6e4"
 
 [[projects]]
-  name = "github.com/google/go-github"
-  packages = ["github"]
-  revision = "996760c56486beb81e91bb7bdb816f8c6f29284e"
-
-[[projects]]
   name = "github.com/google/go-jsonnet"
   packages = [
     ".",
@@ -170,12 +165,6 @@
     "parser"
   ]
   revision = "dfddf2b4e3aec377b0dcdf247ff92e7d078b8179"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/google/go-querystring"
-  packages = ["query"]
-  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
 
 [[projects]]
   branch = "master"
@@ -284,19 +273,14 @@
     "pkg/lib",
     "pkg/node",
     "pkg/params",
-    "pkg/parts",
-    "pkg/pkg",
     "pkg/prototype",
-    "pkg/registry",
     "pkg/schema",
-    "pkg/util/github",
     "pkg/util/jsonnet",
     "pkg/util/kslib",
-    "pkg/util/strings",
-    "pkg/util/yaml"
+    "pkg/util/strings"
   ]
-  revision = "52f89335ef2c7c7015f4ba92cc1ba1e109310c70"
-  version = "v0.10.0-alpha.3"
+  revision = "8c44a5b1545d3d03135f610170ef0167129294bc"
+  version = "v0.10.1"
 
 [[projects]]
   name = "github.com/ksonnet/ksonnet-lib"
@@ -309,7 +293,8 @@
     "ksonnet-gen/nodemaker",
     "ksonnet-gen/printer"
   ]
-  revision = "93eeff932dcb550d888dd7fa7e1f7c6a182108fb"
+  revision = "d15220fdcdd07fd377894abff6276d86cb2d776d"
+  version = "v0.1.3"
 
 [[projects]]
   branch = "master"
@@ -782,6 +767,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2993ca9c549880a06dd96160711aa3d8813184e579f8ba084c5c00f7f4f0a5c5"
+  inputs-digest = "9db3dbf3a55e8899f6ddfed1abf3a952b113059720c600d4b8c4d9f4727a7ecd"
   solver-name = "gps-cdcl"
   solver-version = 1
