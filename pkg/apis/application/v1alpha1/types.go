@@ -192,9 +192,9 @@ type TLSClientConfig struct {
 // Repository is a Git repository holding application configurations
 type Repository struct {
 	Repo          string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	Username      string `json:"username" protobuf:"bytes,2,opt,name=username"`
-	Password      string `json:"password" protobuf:"bytes,3,opt,name=password"`
-	SSHPrivateKey string `json:"sshPrivateKey" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	Username      string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	Password      string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 }
 
 // RepositoryList is a collection of Repositories.
