@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/cluster"
 	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util/cli"
@@ -21,7 +22,6 @@ import (
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
-	"github.com/argoproj/argo-cd/reposerver"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
@@ -38,11 +38,16 @@ func newCommand() *cobra.Command {
 		appResyncPeriod   int64
 		repoServerAddress string
 		workers           int
+		logLevel          string
 	)
 	var command = cobra.Command{
 		Use:   cliName,
 		Short: "application-controller is a controller to operate on applications CRD",
 		RunE: func(c *cobra.Command, args []string) error {
+			level, err := log.ParseLevel(logLevel)
+			errors.CheckError(err)
+			log.SetLevel(level)
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
@@ -88,6 +93,7 @@ func newCommand() *cobra.Command {
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
 	command.Flags().IntVar(&workers, "workers", 1, "Number of application workers")
+	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return &command
 }
 

@@ -14,6 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 )
 
 // AppComparator defines methods which allow to compare application spec and actual application state.
@@ -79,9 +81,10 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	if err != nil {
 		return nil, err
 	}
+	restConfig := clst.RESTConfig()
 
 	// Retrieve the live versions of the objects
-	liveObjs, err := kubeutil.GetResourcesWithLabel(clst.RESTConfig(), namespace, common.LabelApplicationName, app.Name)
+	liveObjs, err := kubeutil.GetResourcesWithLabel(restConfig, namespace, common.LabelApplicationName, app.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +94,34 @@ func (ks *KsonnetAppComparator) CompareAppState(
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 
 	// Move live resources which have corresponding target object to controlledLiveObj
+	dynClientPool := dynamic.NewDynamicClientPool(restConfig)
+	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
 	for i, targetObj := range targetObjs {
 		fullName := getResourceFullName(targetObj)
-		controlledLiveObj[i] = liveObjByFullName[fullName]
+		liveObj := liveObjByFullName[fullName]
+		if liveObj == nil {
+			// If we get here, it indicates we did not find the live resource when querying using
+			// our app label. However, it is possible that the resource was created/modified outside
+			// of ArgoCD. In order to determine that it is truly missing, we fall back to perform a
+			// direct lookup of the resource by name. See issue #141
+			gvk := targetObj.GroupVersionKind()
+			dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
+			if err != nil {
+				return nil, err
+			}
+			apiResource, err := kubeutil.ServerResourceForGroupVersionKind(disco, gvk)
+			if err != nil {
+				return nil, err
+			}
+			liveObj, err = kubeutil.GetLiveResource(dclient, targetObj, apiResource, namespace)
+			if err != nil {
+				return nil, err
+			}
+		}
+		controlledLiveObj[i] = liveObj
 		delete(liveObjByFullName, fullName)
 	}
 
