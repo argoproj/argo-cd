@@ -37,15 +37,9 @@ func NewService(namespace string, kubeClient kubernetes.Interface, gitClient git
 }
 
 func (s *Service) GetKsonnetApp(ctx context.Context, in *KsonnetAppRequest) (*KsonnetAppResponse, error) {
-	appRepoPath := path.Join(os.TempDir(), strings.Replace(in.Repo.Repo, "/", "_", -1))
+	appRepoPath := tempRepoPath(in.Repo.Repo)
 	s.repoLock.Lock(appRepoPath)
-	defer func() {
-		err := s.gitClient.Reset(appRepoPath)
-		if err != nil {
-			log.Warn(err)
-		}
-		s.repoLock.Unlock(appRepoPath)
-	}()
+	defer s.unlockAndResetRepoPath(appRepoPath)
 	ksApp, err := s.getAppSpec(*in.Repo, appRepoPath, in.Revision, in.Path)
 	if err != nil {
 		return nil, err
@@ -76,15 +70,9 @@ func ksAppToResponse(ksApp ksutil.KsonnetApp) (*KsonnetAppResponse, error) {
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
-	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
+	appRepoPath := tempRepoPath(q.Repo.Repo)
 	s.repoLock.Lock(appRepoPath)
-	defer func() {
-		err := s.gitClient.Reset(appRepoPath)
-		if err != nil {
-			log.Warn(err)
-		}
-		s.repoLock.Unlock(appRepoPath)
-	}()
+	defer s.unlockAndResetRepoPath(appRepoPath)
 
 	err := s.gitClient.CloneOrFetch(q.Repo.Repo, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey, appRepoPath)
 	if err != nil {
@@ -183,7 +171,7 @@ func (s *Service) setAppLabels(target *unstructured.Unstructured, appName string
 
 // GetEnvParams retrieves Ksonnet environment params in specified repo name and revision
 func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvParamsResponse, error) {
-	appRepoPath := path.Join(os.TempDir(), strings.Replace(q.Repo.Repo, "/", "_", -1))
+	appRepoPath := tempRepoPath(q.Repo.Repo)
 	s.repoLock.Lock(appRepoPath)
 	defer s.repoLock.Unlock(appRepoPath)
 
@@ -210,4 +198,19 @@ func (s *Service) GetEnvParams(c context.Context, q *EnvParamsRequest) (*EnvPara
 	return &EnvParamsResponse{
 		Params: target,
 	}, nil
+}
+
+// tempRepoPath returns a formulated temporary directory location to clone a repository
+func tempRepoPath(repo string) string {
+	return path.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
+}
+
+// unlockAndResetRepoPath will reset any local changes in a local git repo and unlock the path
+// so that other workers can use the local repo
+func (s *Service) unlockAndResetRepoPath(appRepoPath string) {
+	err := s.gitClient.Reset(appRepoPath)
+	if err != nil {
+		log.Warn(err)
+	}
+	s.repoLock.Unlock(appRepoPath)
 }
