@@ -37,6 +37,7 @@ func newCommand() *cobra.Command {
 		clientConfig      clientcmd.ClientConfig
 		appResyncPeriod   int64
 		repoServerAddress string
+		workers           int
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -77,7 +78,7 @@ func newCommand() *cobra.Command {
 			defer cancel()
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
-			go appController.Run(ctx, 1)
+			go appController.Run(ctx, workers)
 			// Wait forever
 			select {}
 		},
@@ -86,6 +87,7 @@ func newCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
+	command.Flags().IntVar(&workers, "workers", 1, "Number of application workers")
 	return &command
 }
 
