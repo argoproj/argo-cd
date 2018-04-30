@@ -26,7 +26,7 @@ func Diff(left, right *unstructured.Unstructured) *DiffResult {
 		leftObj = left.Object
 	}
 	if right != nil {
-		rightObj = removeMapFields(leftObj, right.Object)
+		rightObj = RemoveMapFields(leftObj, right.Object)
 	}
 	gjDiff := gojsondiff.New().CompareObjects(leftObj, rightObj)
 	dr := DiffResult{
@@ -75,7 +75,7 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 func removeFields(config, live interface{}) interface{} {
 	switch c := config.(type) {
 	case map[string]interface{}:
-		return removeMapFields(c, live.(map[string]interface{}))
+		return RemoveMapFields(c, live.(map[string]interface{}))
 	case []interface{}:
 		return removeListFields(c, live.([]interface{}))
 	default:
@@ -83,7 +83,7 @@ func removeFields(config, live interface{}) interface{} {
 	}
 }
 
-func removeMapFields(config, live map[string]interface{}) map[string]interface{} {
+func RemoveMapFields(config, live map[string]interface{}) map[string]interface{} {
 	result := map[string]interface{}{}
 	for k, v1 := range config {
 		v2, ok := live[k]
