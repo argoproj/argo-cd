@@ -156,22 +156,16 @@ func remarshal(obj *unstructured.Unstructured) error {
 	switch obj.GetAPIVersion() + ":" + obj.GetKind() {
 	case "apps/v1beta1:Deployment":
 		newObj = &v1beta1.Deployment{}
-		break
 	case "apps/v1beta2:Deployment":
 		newObj = &v1beta2.Deployment{}
-		break
 	case "extensions/v1beta1":
 		newObj = &v1ExtBeta1.Deployment{}
-		break
 	case "apps/v1beta1:StatefulSet":
 		newObj = &v1beta1.StatefulSet{}
-		break
 	case "apps/v1beta2:StatefulSet":
 		newObj = &v1beta2.StatefulSet{}
-		break
 	case "v1:Service":
 		newObj = &corev1.Service{}
-		break
 	}
 	if newObj != nil {
 		oldObj := obj.Object
@@ -191,6 +185,7 @@ func remarshal(obj *unstructured.Unstructured) error {
 		if err != nil {
 			return err
 		}
+		// remove all default values specified by custom formatter
 		obj.Object = diff.RemoveMapFields(oldObj, obj.Object)
 	}
 	return nil
