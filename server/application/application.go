@@ -6,7 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/controller"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -15,7 +18,6 @@ import (
 	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
@@ -43,6 +45,7 @@ type Server struct {
 	// TODO(jessesuen): move common cluster code to shared libraries
 	clusterService cluster.ClusterServiceServer
 	repoService    apirepository.RepositoryServiceServer
+	appComparator  controller.AppComparator
 }
 
 // NewServer returns a new instance of the Application service
@@ -61,6 +64,7 @@ func NewServer(
 		clusterService: clusterService,
 		repoClientset:  repoClientset,
 		repoService:    repoService,
+		appComparator:  controller.NewKsonnetAppComparator(clusterService),
 	}
 }
 
@@ -334,7 +338,7 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ApplicationSyncResult, error) {
-	return s.deployAndPersistDeploymentInfo(ctx, syncReq.Name, syncReq.Revision, nil, syncReq.DryRun)
+	return s.deployAndPersistDeploymentInfo(ctx, syncReq.Name, syncReq.Revision, nil, syncReq.DryRun, syncReq.Prune)
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*ApplicationSyncResult, error) {
@@ -352,11 +356,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if deploymentInfo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.ID)
 	}
-	return s.deployAndPersistDeploymentInfo(ctx, rollbackReq.Name, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, rollbackReq.DryRun)
+	return s.deployAndPersistDeploymentInfo(ctx, rollbackReq.Name, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, rollbackReq.DryRun, rollbackReq.Prune)
 }
 
 func (s *Server) deployAndPersistDeploymentInfo(
-	ctx context.Context, appName string, revision string, overrides *[]appv1.ComponentParameter, dryRun bool) (*ApplicationSyncResult, error) {
+	ctx context.Context, appName string, revision string, overrides *[]appv1.ComponentParameter, dryRun bool, prune bool) (*ApplicationSyncResult, error) {
 
 	log.Infof("Syncing application %s", appName)
 	app, err := s.Get(ctx, &ApplicationQuery{Name: appName})
@@ -372,7 +376,7 @@ func (s *Server) deployAndPersistDeploymentInfo(
 		app.Spec.Source.ComponentParameterOverrides = *overrides
 	}
 
-	res, manifest, err := s.deploy(ctx, app.Spec.Source, app.Spec.Destination, app.Name, dryRun)
+	res, manifest, err := s.deploy(ctx, app, dryRun, prune)
 	if err != nil {
 		return nil, err
 	}
@@ -470,43 +474,35 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 
 func (s *Server) deploy(
 	ctx context.Context,
-	source appv1.ApplicationSource,
-	destination *appv1.ApplicationDestination,
-	appLabel string,
-	dryRun bool) (*ApplicationSyncResult, *repository.ManifestResponse, error) {
+	app *appv1.Application,
+	dryRun bool,
+	prune bool) (*ApplicationSyncResult, *repository.ManifestResponse, error) {
 
-	repo := s.getRepo(ctx, source.RepoURL)
+	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, nil, err
 	}
 	defer util.Close(conn)
-	overrides := make([]*appv1.ComponentParameter, len(source.ComponentParameterOverrides))
-	if source.ComponentParameterOverrides != nil {
-		for i := range source.ComponentParameterOverrides {
-			item := source.ComponentParameterOverrides[i]
+	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
+	if app.Spec.Source.ComponentParameterOverrides != nil {
+		for i := range app.Spec.Source.ComponentParameterOverrides {
+			item := app.Spec.Source.ComponentParameterOverrides[i]
 			overrides[i] = &item
 		}
 	}
 
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:                        repo,
-		Environment:                 source.Environment,
-		Path:                        source.Path,
-		Revision:                    source.TargetRevision,
+		Environment:                 app.Spec.Source.Environment,
+		Path:                        app.Spec.Source.Path,
+		Revision:                    app.Spec.Source.TargetRevision,
 		ComponentParameterOverrides: overrides,
-		AppLabel:                    appLabel,
+		AppLabel:                    app.Name,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	server, namespace := argoutil.ResolveServerNamespace(destination, manifestInfo)
-
-	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
-	if err != nil {
-		return nil, nil, err
-	}
-	config := clst.RESTConfig()
 
 	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
 	for i, manifest := range manifestInfo.Manifests {
@@ -517,41 +513,85 @@ func (s *Server) deploy(
 		targetObjs[i] = obj
 	}
 
-	liveObjs, err := kube.GetLiveResources(config, targetObjs, namespace)
-	if err != nil {
-		return nil, nil, err
-	}
-	diffResList, err := diff.DiffArray(targetObjs, liveObjs)
+	server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
+
+	comparison, err := s.appComparator.CompareAppState(server, namespace, targetObjs, app)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
+	if err != nil {
+		return nil, nil, err
+	}
+	config := clst.RESTConfig()
+
 	var syncRes ApplicationSyncResult
 	syncRes.Resources = make([]*ResourceDetails, 0)
-	for i, diffRes := range diffResList.Diffs {
+	for _, resourceState := range comparison.Resources {
+		var liveObj, targetObj *unstructured.Unstructured
+
+		if resourceState.LiveState != "null" {
+			liveObj = &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(resourceState.LiveState), liveObj)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if resourceState.TargetState != "null" {
+			targetObj = &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(resourceState.TargetState), targetObj)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		needsCreate := liveObj == nil
+		needsDelete := targetObj == nil
+
+		obj := targetObj
+		if obj == nil {
+			obj = liveObj
+		}
 		resDetails := ResourceDetails{
-			Name:      targetObjs[i].GetName(),
-			Kind:      targetObjs[i].GetKind(),
+			Name:      obj.GetName(),
+			Kind:      obj.GetKind(),
 			Namespace: namespace,
 		}
-		needsCreate := bool(liveObjs[i] == nil)
-		if !diffRes.Modified {
+
+		if resourceState.Status == appv1.ComparisonStatusSynced {
 			resDetails.Message = fmt.Sprintf("already synced")
 		} else if dryRun {
 			if needsCreate {
 				resDetails.Message = fmt.Sprintf("will create")
+			} else if needsDelete {
+				resDetails.Message = fmt.Sprintf("will delete")
 			} else {
 				resDetails.Message = fmt.Sprintf("will update")
 			}
 		} else {
-			_, err := kube.ApplyResource(config, targetObjs[i], namespace)
-			if err != nil {
-				return nil, nil, err
-			}
-			if needsCreate {
-				resDetails.Message = fmt.Sprintf("created")
+			if needsDelete {
+				if prune {
+					err = kube.DeleteResource(config, liveObj, namespace)
+					if err != nil {
+						return nil, nil, err
+					}
+
+					resDetails.Message = fmt.Sprintf("deleted")
+				} else {
+					resDetails.Message = fmt.Sprintf("skipped (should be deleted)")
+				}
 			} else {
-				resDetails.Message = fmt.Sprintf("updated")
+				_, err := kube.ApplyResource(config, targetObj, namespace)
+				if err != nil {
+					return nil, nil, err
+				}
+				if needsCreate {
+					resDetails.Message = fmt.Sprintf("created")
+				} else {
+					resDetails.Message = fmt.Sprintf("updated")
+				}
 			}
 		}
 		syncRes.Resources = append(syncRes.Resources, &resDetails)

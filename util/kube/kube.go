@@ -439,6 +439,27 @@ func deleteFile(path string) {
 	_ = os.Remove(path)
 }
 
+// DeleteResource deletes resource
+func DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error {
+	dynClientPool := dynamic.NewDynamicClientPool(config)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return err
+	}
+	gvk := obj.GroupVersionKind()
+	dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
+	if err != nil {
+		return err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	if err != nil {
+		return err
+	}
+	reIf := dclient.Resource(apiResource, namespace)
+	propagationPolicy := metav1.DeletePropagationForeground
+	return reIf.Delete(obj.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+}
+
 // ApplyResource performs an apply of a unstructured resource
 func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
