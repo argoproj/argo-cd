@@ -566,7 +566,11 @@ func (s *Server) deploy(
 			if needsCreate {
 				resDetails.Message = fmt.Sprintf("will create")
 			} else if needsDelete {
-				resDetails.Message = fmt.Sprintf("will delete")
+				if prune {
+					resDetails.Message = fmt.Sprintf("will delete")
+				} else {
+					resDetails.Message = fmt.Sprintf("will be ignored (should be deleted)")
+				}
 			} else {
 				resDetails.Message = fmt.Sprintf("will update")
 			}
@@ -580,7 +584,7 @@ func (s *Server) deploy(
 
 					resDetails.Message = fmt.Sprintf("deleted")
 				} else {
-					resDetails.Message = fmt.Sprintf("skipped (should be deleted)")
+					resDetails.Message = fmt.Sprintf("ignored (should be deleted)")
 				}
 			} else {
 				_, err := kube.ApplyResource(config, targetObj, namespace)
