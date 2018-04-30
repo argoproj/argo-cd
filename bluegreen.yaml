@@ -1,0 +1,181 @@
+# This example demonstrates the "bluegreen" deployment type, which provides a
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: k8s-bluegreen-
+spec:
+  entrypoint: k8s-bluegreen
+  templates:
+  - name: k8s-bluegreen
+    steps:
+    # 1. Create a parallelized kubernetes deployment and
+    # wait for it to become ready
+    - - name: clone-deployment
+        template: clone-deployment
+        arguments:
+          parameters:
+          - name: deployment
+            value: SOME_DEPLOYMENT
+          - name: suffix
+            value: blue
+    - - name: wait-for-cloned-deployment
+        template: wait-for-cloned-deployment
+          parameters:
+          - name: deployment
+            value: SOME_DEPLOYMENT
+          - name: suffix
+            value: blue
+    # 2. Using the uid of the job, query all its associated pods and prints the
+    # generated random numbers to stdout.
+    - - name: print-generated-numbers
+        template: print-generated-numbers
+        arguments:
+          parameters:
+          - name: job-uid
+            value: '{{steps.random-number-job.outputs.parameters.job-uid}}'
+    # 3. Delete the job using the job name
+    - - name: delete-job
+        template: delete-job
+        arguments:
+          parameters:
+          - name: job-name
+            value: '{{steps.random-number-job.outputs.parameters.job-name}}'
+
+
+
+
+
+
+
+
+
+  - name: clone-deployment
+    inputs:
+      parameters:
+      - name: deployment
+      - name: suffix
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl -o json get deployments/{{inputs.parameters.deployment}} | jq '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl create -f -"]
+
+
+  - name: wait-for-cloned-deployment
+    inputs:
+      parameters:
+      - name: deployment
+      - name: suffix
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl rollout status deployments/{{inputs.parameters.deployment}}-{{inputs.parameters.suffix}} --watch=true"]
+
+  - name: patch-original-to-point-to-clone
+    inputs:
+      parameters:
+      - name: deployment
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl get deployments/{{inputs.parameters.deployment}}-blue -ojson | jq '.metadata.name+=-blue' | kubectl create -f -"]
+
+  - name: wait-SERVICE-READY-from-patch
+    inputs:
+      parameters:
+      - name: deployment
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl get deployments/{{inputs.parameters.deployment}}-blue -ojson | jq '.metadata.name+=-blue' | kubectl create -f -"]
+
+  - name: update-original-DEPLOYMENT
+    inputs:
+      parameters:
+      - name: deployment
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl get deployments/{{inputs.parameters.deployment}}-blue -ojson | jq '.metadata.name+=-blue' | kubectl create -f -"]
+
+  - name: wait-DEPLOYMENT-READY-from-update
+    inputs:
+      parameters:
+      - name: deployment
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl get deployments/{{inputs.parameters.deployment}}-blue -ojson | jq '.metadata.name+=-blue' | kubectl create -f -"]
+
+  - name: patch-original-service-to-point-back-to-original
+    inputs:
+      parameters:
+      - name: deployment
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl get deployments/{{inputs.parameters.deployment}}-blue -ojson | jq '.metadata.name+=-blue' | kubectl create -f -"]
+
+  - name: wait-SERVICE_READY-from-patch
+    inputs:
+      parameters:
+      - name: deployment
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl get deployments/{{inputs.parameters.deployment}}-blue -ojson | jq '.metadata.name+=-blue' | kubectl create -f -"]
+
+  - name: delete-clone
+    inputs:
+      parameters:
+      - name: deployment
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl get deployments/{{inputs.parameters.deployment}}-blue -ojson | jq '.metadata.name+=-blue' | kubectl create -f -"]
+
+
+
+  - name: pi-tmpl
+    resource:
+      action: create
+      # successCondition and failureCondition are optional expressions which are
+      # evaluated upon every update of the resource. If failureCondition is ever
+      # evaluated to true, the step is considered failed. Likewise, if successCondition
+      # is ever evaluated to true the step is considered successful. It uses kubernetes
+      # label selection syntax and can be applied against any field of the resource
+      # (not just labels). Multiple AND conditions can be represented by comma
+      # delimited expressions. For more details, see:
+      # https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+      successCondition: status.succeeded > 0
+      failureCondition: status.failed > 3
+      manifest: |
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          generateName: pi-job-
+        spec:
+          template:
+            metadata:
+              name: pi
+            spec:
+              containers:
+              - name: pi
+                image: perl
+                command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+              restartPolicy: Never
+          backoffLimit: 4
+    # Resource templates can have output parameters extracted from fields of the
+    # resource. Two techniques are provided: jsonpath and a jq filter.
+    outputs:
+      parameters:
+      # job-name is extracted using a jsonPath expression and is equivalent to:
+      # `kubectl get job <jobname> -o jsonpath='{.metadata.name}'`
+      - name: job-name
+        valueFrom:
+          jsonPath: '{.metadata.name}'
+      # job-obj is extracted using a jq filter and is equivalent to:
+      # `kubectl get job <jobname> -o json | jq -c '.'
+      # which returns the entire job object in json format
+      - name: job-obj
+        valueFrom:
+          jqFilter: '.'
