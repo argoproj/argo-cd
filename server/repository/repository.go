@@ -162,10 +162,10 @@ func repoToStringData(r *appsv1.Repository) map[string]string {
 // secretToRepo converts a secret into a repository object, optionally redacting sensitive information
 func secretToRepo(s *apiv1.Secret, redact bool) *appsv1.Repository {
 	repo := appsv1.Repository{
-		Repo:     string(s.Data["repository"]),
-		Username: string(s.Data["username"]),
+		Repo: string(s.Data["repository"]),
 	}
 	if !redact {
+		repo.Username = string(s.Data["username"])
 		repo.Password = string(s.Data["password"])
 		repo.SSHPrivateKey = string(s.Data["sshPrivateKey"])
 	}
