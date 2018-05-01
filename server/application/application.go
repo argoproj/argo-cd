@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"encoding/json"
-
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
