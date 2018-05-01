@@ -1,4 +1,4 @@
-# This example demonstrates the "bluegreen" deployment type, which provides a
+# This example demonstrates a "blue-green" deployment
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -8,8 +8,7 @@ spec:
   templates:
   - name: k8s-bluegreen
     steps:
-    # 1. Create a parallelized kubernetes deployment and
-    # wait for it to become ready
+    # 1. Create a parallel Kubernetes deployment with tweaks to name and app name
     - - name: create-blue-deployment
         template: clone-deployment
         arguments:
@@ -19,12 +18,14 @@ spec:
           - name: suffix
             value: blue
 
+    # 2. Wait for parallel deployment to become ready
     - - name: wait-for-blue-deployment
         template: wait-deployment-ready
           parameters:
           - name: deployment-name
             value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment.metadata.name}}'
 
+    # 3. Patch the named service to point to the parallel deployment app
     - - name: switch-service-to-blue-deployment
         template: patch-service
         arguments:
@@ -36,6 +37,7 @@ spec:
 
 # [TODO] wait for service to finish switching to blue deployment
 
+    # 4. Update the original deployment (receiving no traffic) with a new version
     - - name: create-green-deployment
         template: patch-deployment
         arguments:
@@ -43,12 +45,14 @@ spec:
           - name: manifest-file
             value: '{{MANIFEST_FILE}}'
 
+    # 5. Wait for the original deployment, now updated, to become ready
     - - name: wait-for-green-deployment
         template: wait-deployment-ready
           parameters:
           - name: deployment-name
             value: '{{steps.create-green-deployment.outputs.parameters.green-deployment.metadata.name}}'
 
+    # 6. Patch the named service to point to the original, now updated app
     - - name: switch-service-to-green-deployment
         template: patch-service
         arguments:
@@ -60,6 +64,7 @@ spec:
 
 # [TODO] wait for service to finish switching to green deployment
 
+    # 7. Remove the cloned deployment (no longer receiving traffic)
     - - name: delete-cloned-deployment
         template: delete-deployment
         arguments:
