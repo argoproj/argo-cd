@@ -349,6 +349,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		revision string
+		prune    bool
 		dryRun   bool
 	)
 	var command = &cobra.Command{
@@ -366,6 +367,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Name:     appName,
 				DryRun:   dryRun,
 				Revision: revision,
+				Prune:    prune,
 			}
 			syncRes, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
@@ -379,6 +381,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
+	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	return command
 }
@@ -460,6 +463,9 @@ func paramString(params []argoappv1.ComponentParameter) string {
 
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		prune bool
+	)
 	var command = &cobra.Command{
 		Use:   "rollback",
 		Short: "Rollback application to a previous deployed version",
@@ -487,8 +493,9 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
 			}
 			syncRes, err := appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
-				Name: appName,
-				ID:   int64(depID),
+				Name:  appName,
+				ID:    int64(depID),
+				Prune: prune,
 			})
 			errors.CheckError(err)
 			fmt.Printf("%s %s\n", appName, syncRes.Message)
@@ -500,5 +507,6 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			_ = w.Flush()
 		},
 	}
+	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	return command
 }

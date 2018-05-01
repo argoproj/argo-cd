@@ -32,6 +32,7 @@ message ApplicationSyncRequest {
 	string name = 1;
 	string revision = 2;
 	bool dryRun = 3;
+	bool prune = 4;
 }
 
 // ApplicationSyncResult is a result of a sync requeswt
@@ -44,6 +45,7 @@ message ApplicationRollbackRequest {
 	string name = 1;
 	int64 id = 2 [(gogoproto.customname) = "ID"];
 	bool dryRun = 3;
+	bool prune = 4;
 }
 
 message ResourceDetails {
