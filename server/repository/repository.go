@@ -10,8 +10,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/git"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +54,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 		Items: make([]appsv1.Repository, len(repoSecrets.Items)),
 	}
 	for i, repoSec := range repoSecrets.Items {
-		repoList.Items[i] = *secretToRepo(&repoSec)
+		repoList.Items[i] = *secretToRepo(&repoSec, true)
 	}
 	return &repoList, nil
 }
@@ -81,11 +81,11 @@ func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 	repoSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(repoSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
-			return nil, grpc.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
+			return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 		}
 		return nil, err
 	}
-	return secretToRepo(repoSecret), nil
+	return secretToRepo(repoSecret, true), nil
 }
 
 func (s *Server) getRepoSecret(repo string) (*apiv1.Secret, error) {
@@ -93,7 +93,7 @@ func (s *Server) getRepoSecret(repo string) (*apiv1.Secret, error) {
 	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return nil, grpc.Errorf(codes.NotFound, "repo '%s' not found", repo)
+			return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repo)
 		}
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 	if err != nil {
 		return nil, err
 	}
-	return secretToRepo(repoSecret), nil
+	return secretToRepo(repoSecret, true), nil
 }
 
 // Update updates a repository
@@ -124,7 +124,7 @@ func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 	if err != nil {
 		return nil, err
 	}
-	return secretToRepo(repoSecret), nil
+	return secretToRepo(repoSecret, true), nil
 }
 
 // UpdateREST updates a repository (from a REST request)
@@ -159,12 +159,15 @@ func repoToStringData(r *appsv1.Repository) map[string]string {
 	}
 }
 
-// secretToRepo converts a secret into a repository object
-func secretToRepo(s *apiv1.Secret) *appsv1.Repository {
-	return &appsv1.Repository{
-		Repo:          string(s.Data["repository"]),
-		Username:      string(s.Data["username"]),
-		Password:      string(s.Data["password"]),
-		SSHPrivateKey: string(s.Data["sshPrivateKey"]),
+// secretToRepo converts a secret into a repository object, optionally redacting sensitive information
+func secretToRepo(s *apiv1.Secret, redact bool) *appsv1.Repository {
+	repo := appsv1.Repository{
+		Repo:     string(s.Data["repository"]),
+		Username: string(s.Data["username"]),
 	}
+	if !redact {
+		repo.Password = string(s.Data["password"])
+		repo.SSHPrivateKey = string(s.Data["sshPrivateKey"])
+	}
+	return &repo
 }
