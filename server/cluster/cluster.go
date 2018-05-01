@@ -12,8 +12,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/kube"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,7 +63,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 		Items: make([]appv1.Cluster, len(clusterSecrets.Items)),
 	}
 	for i, clusterSecret := range clusterSecrets.Items {
-		clusterList.Items[i] = *secretToCluster(&clusterSecret)
+		clusterList.Items[i] = *secretToCluster(&clusterSecret, true)
 	}
 	return &clusterList, nil
 }
@@ -87,11 +87,11 @@ func (s *Server) Create(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 	clusterSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
-			return nil, grpc.Errorf(codes.AlreadyExists, "cluster '%s' already exists", c.Server)
+			return nil, status.Errorf(codes.AlreadyExists, "cluster '%s' already exists", c.Server)
 		}
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return secretToCluster(clusterSecret, true), nil
 }
 
 // ClusterEvent contains information about cluster event
@@ -120,7 +120,7 @@ func (s *Server) WatchClusters(ctx context.Context, callback func(*ClusterEvent)
 	}()
 	for next := range w.ResultChan() {
 		secret := next.Object.(*apiv1.Secret)
-		cluster := secretToCluster(secret)
+		cluster := secretToCluster(secret, false)
 		callback(&ClusterEvent{
 			Type:    next.Type,
 			Cluster: cluster,
@@ -134,7 +134,7 @@ func (s *Server) getClusterSecret(server string) (*apiv1.Secret, error) {
 	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return nil, grpc.Errorf(codes.NotFound, "cluster '%s' not found", server)
+			return nil, status.Errorf(codes.NotFound, "cluster '%s' not found", server)
 		}
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return secretToCluster(clusterSecret, true), nil
 }
 
 // Update updates a cluster
@@ -165,7 +165,7 @@ func (s *Server) Update(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return secretToCluster(clusterSecret, true), nil
 }
 
 // UpdateREST updates a cluster (special handler intended to be used only by the gRPC gateway)
@@ -210,8 +210,8 @@ func clusterToStringData(c *appv1.Cluster) map[string]string {
 	return stringData
 }
 
-// secretToRepo converts a secret into a repository object
-func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
+// secretToCluster converts a secret into a repository object, optionally redacting sensitive information
+func secretToCluster(s *apiv1.Secret, redact bool) *appv1.Cluster {
 	var config appv1.ClusterConfig
 	err := json.Unmarshal(s.Data["config"], &config)
 	if err != nil {
@@ -220,7 +220,9 @@ func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	cluster := appv1.Cluster{
 		Server: string(s.Data["server"]),
 		Name:   string(s.Data["name"]),
-		Config: config,
+	}
+	if !redact {
+		cluster.Config = config
 	}
 	return &cluster
 }
