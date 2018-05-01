@@ -2,6 +2,7 @@ package application
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -423,17 +425,26 @@ func (s *Server) persistDeploymentInfo(ctx context.Context, appName string, revi
 	if len(app.Status.RecentDeployments) > 0 {
 		nextId = app.Status.RecentDeployments[len(app.Status.RecentDeployments)-1].ID + 1
 	}
-	app.Status.RecentDeployments = append(app.Status.RecentDeployments, appv1.DeploymentInfo{
+	recentDeployments := append(app.Status.RecentDeployments, appv1.DeploymentInfo{
 		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		Revision:                    revision,
 		Params:                      params,
 		DeployedAt:                  metav1.NewTime(time.Now()),
 		ID:                          nextId,
 	})
-	if len(app.Status.RecentDeployments) > maxRecentDeploymentsCnt {
-		app.Status.RecentDeployments = app.Status.RecentDeployments[1 : maxRecentDeploymentsCnt+1]
+	if len(recentDeployments) > maxRecentDeploymentsCnt {
+		recentDeployments = recentDeployments[1 : maxRecentDeploymentsCnt+1]
 	}
-	_, err = s.Update(ctx, app)
+
+	patch, err := json.Marshal(map[string]map[string][]appv1.DeploymentInfo{
+		"status": {
+			"recentDeployments": recentDeployments,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(app.Name, types.MergePatchType, patch)
 	return err
 }
 
