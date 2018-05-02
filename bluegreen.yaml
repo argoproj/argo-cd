@@ -93,9 +93,9 @@ spec:
       image: argoproj/argoexec:latest
       command: [sh, -c]
       args: ["
-          kubectl -o json get deployments/{{inputs.parameters.green-deployment-name}} | jq -c '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl -o json create -f - > /tmp/blue-deployment
-          jq -r .metadata.name /tmp/blue-deployment > /tmp/blue-deployment-name
-          jq -r .spec.template.metadata.labels.app /tmp/blue-deployment > /tmp/blue-deployment-app-name
+          kubectl get -o json deployments/{{inputs.parameters.green-deployment-name}} | jq -c '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl create -o json -f - > /tmp/blue-deployment;
+          jq -j .metadata.name /tmp/blue-deployment > /tmp/blue-deployment-name;
+          jq -j .spec.template.metadata.labels.app /tmp/blue-deployment > /tmp/blue-deployment-app-name
       "]
     outputs:
       parameters:
@@ -114,9 +114,9 @@ spec:
       image: argoproj/argoexec:latest
       command: [sh, -c]
       args: ["
-          echo '{{inputs.parameters.deployment-manifest-data}}' | jq -c | kubectl -o json apply -f - > /tmp/green-deployment
-          jq -r .metadata.name /tmp/green-deployment > /tmp/green-deployment-name
-          jq -r .spec.template.metadata.labels.app /tmp/green-deployment > /tmp/green-deployment-app-name
+          echo '{{inputs.parameters.deployment-manifest-data}}' | kubectl apply -o json -f - > /tmp/green-deployment;
+          jq -j .metadata.name /tmp/green-deployment > /tmp/green-deployment-name;
+          jq -j .spec.template.metadata.labels.app /tmp/green-deployment > /tmp/green-deployment-app-name
       "]
     outputs:
       parameters:
@@ -134,23 +134,17 @@ spec:
     container:
       image: argoproj/argoexec:latest
       command: [sh, -c]
-      args: ["kubectl rollout status --watch=true deployments/{{inputs.parameters.deployment-name}}"]
+      args: ["kubectl rollout status --watch=true 'deployments/{{inputs.parameters.deployment-name}}'"]
 
   - name: patch-service
     inputs:
       parameters:
       - name: service-name
       - name: app-name
-    resource:
-      action: patch
-      manifest: |
-        apiVersion: batch/v1
-        kind: Service
-        metadata:
-          name: {{inputs.parameters.service-name}}
-        spec:
-          selector:
-            app: {{inputs.parameters.app-name}}
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl patch service '{{inputs.parameters.service-name}}' -p '{\"spec\": {\"selector\": {\"app\": \"{{inputs.parameters.app-name}}\"}}}'"]
 
   - name: delete-deployment
     inputs:
@@ -159,7 +153,7 @@ spec:
     resource:
       action: delete
       manifest: |
-        apiVersion: batch/v1
+        apiVersion: apps/v1
         kind: Deployment
         metadata:
           name: {{inputs.parameters.deployment-name}}
