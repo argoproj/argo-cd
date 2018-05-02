@@ -29,7 +29,7 @@ spec:
         arguments:
           parameters:
           - name: deployment-name
-            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment.metadata.name}}'
+            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment-name}}'
 
     # 3. Patch the named service to point to the parallel deployment app
     - - name: switch-service-to-blue-deployment
@@ -39,7 +39,7 @@ spec:
           - name: service-name
             value: '{{workflow.parameters.service-name}}'
           - name: app-name
-            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment.metadata.spec.template.metadata.labels.app}}'
+            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment-app-name}}'
 
 # [TODO] wait for service to finish switching to blue deployment
 
@@ -57,7 +57,7 @@ spec:
         arguments:
           parameters:
           - name: deployment-name
-            value: '{{steps.create-green-deployment.outputs.parameters.green-deployment.metadata.name}}'
+            value: '{{steps.create-green-deployment.outputs.parameters.green-deployment-name}}'
 
     # 6. Patch the named service to point to the original, now updated app
     - - name: switch-service-to-green-deployment
@@ -65,9 +65,9 @@ spec:
         arguments:
           parameters:
           - name: service-name
-            value: '{{inputs.parameters.service-name}}'
+            value: '{{workflow.parameters.service-name}}'
           - name: app-name
-            value: '{{steps.create-green-deployment.outputs.parameters.green-deployment.metadata.name}}'
+            value: '{{steps.create-green-deployment.outputs.parameters.green-deployment-app-name}}'
 
 # [TODO] wait for service to finish switching to green deployment
 
@@ -77,7 +77,7 @@ spec:
         arguments:
           parameters:
           - name: deployment-name
-            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment.metadata.name}}'
+            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment-name}}'
 
 # end of steps
 
@@ -92,12 +92,19 @@ spec:
     container:
       image: argoproj/argoexec:latest
       command: [sh, -c]
-      args: ["kubectl -o json get deployments/{{inputs.parameters.green-deployment-name}} | jq -c '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl -o jsonpath='{.metadata.name}' create -f - > /tmp/blue-deployment.json"]
+      args: ["
+          kubectl -o json get deployments/{{inputs.parameters.green-deployment-name}} | jq -c '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl -o json create -f - > /tmp/blue-deployment
+          jq -r .metadata.name /tmp/blue-deployment > /tmp/blue-deployment-name
+          jq -r .spec.template.metadata.labels.app /tmp/blue-deployment > /tmp/blue-deployment-app-name
+      "]
     outputs:
       parameters:
-      - name: blue-deployment
+      - name: blue-deployment-name
         valueFrom:
-          path: /tmp/blue-deployment.json
+          path: /tmp/blue-deployment-name
+      - name: blue-deployment-app-name
+        valueFrom:
+          path: /tmp/blue-deployment-app-name
 
   - name: patch-deployment
     inputs:
@@ -106,12 +113,19 @@ spec:
     container:
       image: argoproj/argoexec:latest
       command: [sh, -c]
-      args: ["echo '{{inputs.parameters.deployment-manifest-data}}' | jq -c | kubectl -o json apply -f - > /tmp/green-deployment.json"]
+      args: ["
+          echo '{{inputs.parameters.deployment-manifest-data}}' | jq -c | kubectl -o json apply -f - > /tmp/green-deployment
+          jq -r .metadata.name /tmp/green-deployment > /tmp/green-deployment-name
+          jq -r .spec.template.metadata.labels.app /tmp/green-deployment > /tmp/green-deployment-app-name
+      "]
     outputs:
       parameters:
-      - name: green-deployment
+      - name: green-deployment-name
         valueFrom:
-          path: /tmp/green-deployment.json
+          path: /tmp/green-deployment-name
+      - name: green-deployment-app-name
+        valueFrom:
+          path: /tmp/green-deployment-app-name
 
   - name: wait-deployment-ready
     inputs:
