@@ -334,6 +334,10 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	cookie := session.MakeCookieMetadata(common.AuthCookieName, clientToken, flags...)
 	w.Header().Set("Set-Cookie", cookie)
-	claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
-	renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, claimsJSON)
+	if os.Getenv(ssoDebugEnvVar) == "1" {
+		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
+		renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, claimsJSON)
+	} else {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
 }

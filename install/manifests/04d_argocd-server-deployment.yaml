@@ -16,8 +16,7 @@ spec:
       initContainers:
       - name: gendex
         image: argoproj/argocd-server:latest
-        # Generate a dex.yaml. If SSO is not configured, this is a noop
-        command: [/argocd-util, gendexcfg, -o, /shared/dex.yaml]
+        command: [cp, /argocd-util, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -36,7 +35,7 @@ spec:
           name: static-files
       - name: dex
         image: quay.io/coreos/dex:v2.10.0
-        command: [sh, -c, "while true; do if [ -f /shared/dex.yaml ]; then dex serve /shared/dex.yaml; fi; sleep 10; done"]
+        command: [/shared/argocd-util, rundex]
         volumeMounts:
         - mountPath: /shared
           name: static-files

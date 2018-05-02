@@ -126,7 +126,10 @@ func (a *ArgoCDServer) Run() {
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
-		tlsl = tls.NewListener(tlsl, a.selfTLSConfig())
+		tlsConfig := tls.Config{
+			Certificates: []tls.Certificate{*a.settings.Certificate},
+		}
+		tlsl = tls.NewListener(tlsl, &tlsConfig)
 
 		// Now, we build another mux recursively to match HTTPS and GoRPC.
 		tlsm = cmux.New(tlsl)

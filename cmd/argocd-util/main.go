@@ -63,7 +63,9 @@ func NewRunDexCommand() *cobra.Command {
 			errors.CheckError(err)
 			if len(dexCfgBytes) == 0 {
 				log.Infof("dex is not configured")
-				return nil
+				// need to sleep forever since we run as a sidecar and kubernetes does not permit
+				// containers in a deployment to have restartPolicy anything other than Always.
+				select {}
 			}
 			err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
 			errors.CheckError(err)

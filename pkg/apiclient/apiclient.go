@@ -152,6 +152,7 @@ func (c jwtCredentials) RequireTransportSecurity() bool {
 func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
 	return map[string]string{
 		MetaDataTokenKey: c.Token,
+		"tokens":         c.Token, // legacy key. delete eventually
 	}, nil
 }
 

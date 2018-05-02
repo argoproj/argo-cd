@@ -76,7 +76,7 @@ cli-darwin:
 
 .PHONY: argocd-util
 argocd-util:
-	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
+	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
 .PHONY: server
 server:
