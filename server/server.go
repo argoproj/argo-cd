@@ -11,7 +11,9 @@ import (
 	"time"
 
 	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apiclient"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/application"
@@ -42,12 +44,13 @@ import (
 )
 
 const (
-	port           = 8080
-	authCookieName = "argocd.argoproj.io/auth-token"
+	port = 8080
 )
 
 var (
 	endpoint = fmt.Sprintf("localhost:%d", port)
+
+	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 )
 
 // ArgoCDServer is the API server for ArgoCD
@@ -57,6 +60,7 @@ type ArgoCDServer struct {
 	ssoClientApp *dexutil.ClientApp
 	settings     config.ArgoCDSettings
 	log          *log.Entry
+	sessionMgr   *util_session.SessionManager
 }
 
 type ArgoCDServerOpts struct {
@@ -76,10 +80,12 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	if err != nil {
 		log.Fatal(err)
 	}
+	sessionMgr := util_session.MakeSessionManager(settings.ServerSignature)
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
 		log:              log.NewEntry(log.New()),
 		settings:         *settings,
+		sessionMgr:       &sessionMgr,
 	}
 }
 
@@ -188,22 +194,14 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	return grpcS
 }
 
-// MakeCookieMetadata generates a string representing a Web cookie.  Yum!
-func (a *ArgoCDServer) makeCookieMetadata(key, value string, flags ...string) string {
-	components := []string{
-		fmt.Sprintf("%s=%s", key, value),
-	}
-	if a.ArgoCDServerOpts.Insecure == false {
-		components = append(components, "Secure")
-	}
-	components = append(components, flags...)
-	return strings.Join(components, "; ")
-}
-
 // TranslateGrpcCookieHeader conditionally sets a cookie on the response.
 func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*session.SessionResponse); ok {
-		cookie := a.makeCookieMetadata(authCookieName, sessionResp.Token, "path=/")
+		flags := []string{"path=/"}
+		if !a.Insecure {
+			flags = append(flags, "Secure")
+		}
+		cookie := util_session.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
@@ -297,12 +295,14 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	mux.HandleFunc(DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
+	// Create a client app to dex
 	dexClient, err := dexutil.NewDexClient()
 	errors.CheckError(err)
 	dexClient.WaitUntilReady()
 	tlsConfig := a.selfTLSConfig()
 	tlsConfig.InsecureSkipVerify = true
-	a.ssoClientApp, err = dexClient.NewClientApp(a.settings.URL+CallbackEndpoint, a.settings.URL+DexAPIEndpoint, tlsConfig)
+	a.ssoClientApp, err = dexClient.NewClientApp(a.settings.URL+CallbackEndpoint,
+		a.settings.URL+DexAPIEndpoint, a.settings.ServerSignature, tlsConfig)
 	errors.CheckError(err)
 	mux.HandleFunc(LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(CallbackEndpoint, a.ssoClientApp.HandleCallback)
@@ -332,41 +332,45 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 	}
 }
 
-// parseTokens tests a slice of strings and returns `true` only if any of them are valid.
-func (a *ArgoCDServer) parseTokens(tokens []string) bool {
-	mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
-	for _, token := range tokens {
-		_, err := mgr.Parse(token)
-		if err == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// Authenticate checks for the presence of a token when accessing server-side resources.
+// Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
 	if a.DisableAuth {
 		return ctx, nil
 	}
-
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		tokens := md["tokens"]
-
-		// Extract only the value portion of cookie-stored tokens
-		for _, cookieToken := range md["grpcgateway-cookie"] {
-			tokenPair := strings.SplitN(cookieToken, "=", 2)
-			if len(tokenPair) == 2 {
-				tokens = append(tokens, tokenPair[1])
-			}
-		}
-
-		// Check both gRPC-provided tokens and Web-provided (cookie-based) ones
-		if a.parseTokens(tokens) {
-			return ctx, nil
-		}
-		return ctx, status.Errorf(codes.Unauthenticated, "user is not allowed access")
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ctx, ErrNoSession
 	}
+	token := getToken(md)
+	if token == "" {
+		return ctx, ErrNoSession
+	}
+	_, err := a.sessionMgr.Parse(token)
+	if err != nil {
+		return ctx, err
+	}
+	// TODO: when we care about user groups, we will want to put the claims into the context
+	return ctx, nil
+}
 
-	return ctx, status.Errorf(codes.Unauthenticated, "empty metadata")
+// getToken extracts the token from gRPC metadata or cookie headers
+func getToken(md metadata.MD) string {
+	// check the "token" metadata
+	tokens, ok := md[apiclient.MetaDataTokenKey]
+	if ok && len(tokens) > 0 {
+		return tokens[0]
+	}
+	// check the legacy key (v0.3.2 and below). 'tokens' was renamed to 'token'
+	tokens, ok = md["tokens"]
+	if ok && len(tokens) > 0 {
+		return tokens[0]
+	}
+	// check the HTTP cookie
+	for _, cookieToken := range md["grpcgateway-cookie"] {
+		tokenPair := strings.SplitN(cookieToken, "=", 2)
+		if len(tokenPair) == 2 && tokenPair[0] == common.AuthCookieName {
+			return tokenPair[1]
+		}
+	}
+	return ""
 }

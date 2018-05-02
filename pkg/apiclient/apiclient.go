@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	MetaDataTokenKey = "token"
 	// EnvArgoCDServer is the environment variable to look for an ArgoCD server address
 	EnvArgoCDServer = "ARGOCD_SERVER"
 	// EnvArgoCDAuthToken is the environment variable to look for an ArgoCD auth token
@@ -138,7 +139,8 @@ func NewClientOrDie(opts *ClientOptions) ServerClient {
 	return client
 }
 
-// JwtCredentials holds a token for authentication.
+// JwtCredentials implements the gRPC credentials.Credentials interface which we is used to do
+// grpc.WithPerRPCCredentials(), for authentication
 type jwtCredentials struct {
 	Token string
 }
@@ -149,7 +151,7 @@ func (c jwtCredentials) RequireTransportSecurity() bool {
 
 func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
 	return map[string]string{
-		"tokens": c.Token,
+		MetaDataTokenKey: c.Token,
 	}, nil
 }
 

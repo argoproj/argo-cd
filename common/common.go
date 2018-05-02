@@ -14,6 +14,9 @@ const (
 
 	// SecretTypeCluster indicates a secret type of cluster
 	SecretTypeCluster = "cluster"
+
+	// AuthCookieName is the HTTP cookie name where we store our auth token
+	AuthCookieName = "argocd.argoproj.io/auth-token"
 )
 
 const (

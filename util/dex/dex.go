@@ -1,7 +1,6 @@
 package dex
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -12,12 +11,14 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util/session"
 	"github.com/coreos/dex/api"
 	oidc "github.com/coreos/go-oidc"
+	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -33,6 +34,8 @@ const (
 	DexClientAppName = "ArgoCD"
 	// DexClientAppID is the Oauth client ID we will use when registering our app to dex
 	DexClientAppID = "argo-cd"
+
+	ssoDebugEnvVar = "ARGOCD_SSO_DEBUG"
 )
 
 type DexAPIClient struct {
@@ -99,11 +102,18 @@ type ClientApp struct {
 	offlineAsScope bool
 
 	client *http.Client
+
+	// sessionMgr creates and validates sessions
+	sessionMgr session.SessionManager
+
+	// secureCookie indicates if the cookie should be set with the Secure flag, meaning it should
+	// only ever be sent over HTTPS. This value is inferred by the scheme of the redirectURI.
+	secureCookie bool
 }
 
 // NewClientApp will register the ArgoCD client app in Dex and return an object which has HTTP
 // handlers for handling the HTTP responses for login and callback
-func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, tlsConfig *tls.Config) (*ClientApp, error) {
+func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, serverSecretKey []byte, tlsConfig *tls.Config) (*ClientApp, error) {
 	ctx := context.Background()
 	log.Infof("Creating client app (redirectURI: %s, issuerURL: %s)", redirectURI, issuerURL)
 	// The client secret is arbitrary since we are going to reconfigure dex as part of startup.
@@ -117,7 +127,6 @@ func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, tlsConfig *tl
 			RedirectUris: []string{redirectURI},
 		},
 	})
-	//log.Println(res)
 	errors.CheckError(err)
 
 	a := ClientApp{
@@ -131,6 +140,7 @@ func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, tlsConfig *tl
 		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
 	a.Path = u.Path
+	a.secureCookie = bool(u.Scheme == "https")
 
 	tlsConfig = tlsConfig.Clone()
 	tlsConfig.InsecureSkipVerify = true
@@ -146,9 +156,10 @@ func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, tlsConfig *tl
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	if os.Getenv("ARGOCD_SSO_DEBUG") == "1" {
+	if os.Getenv(ssoDebugEnvVar) == "1" {
 		a.client.Transport = debugTransport{a.client.Transport}
 	}
+	a.sessionMgr = session.MakeSessionManager(serverSecretKey)
 	return &a, nil
 }
 
@@ -235,20 +246,8 @@ func (a *ClientApp) oauth2Config(scopes []string) *oauth2.Config {
 }
 
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	var scopes []string
-	if extraScopes := r.FormValue("extra_scopes"); extraScopes != "" {
-		scopes = strings.Split(extraScopes, " ")
-	}
-	var clients []string
-	if crossClients := r.FormValue("cross_client"); crossClients != "" {
-		clients = strings.Split(crossClients, " ")
-	}
-	for _, client := range clients {
-		scopes = append(scopes, "audience:server:client_id:"+client)
-	}
-
-	authCodeURL := ""
-	scopes = append(scopes, "openid", "profile", "email", "groups")
+	var authCodeURL string
+	scopes := []string{"openid", "profile", "email", "groups"}
 	if r.FormValue("offline_access") != "yes" {
 		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState)
 	} else if a.offlineAsScope {
@@ -257,7 +256,6 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	} else {
 		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState, oauth2.AccessTypeOffline)
 	}
-
 	http.Redirect(w, r, authCodeURL, http.StatusSeeOther)
 }
 
@@ -319,11 +317,23 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to verify ID token: %v", err), http.StatusInternalServerError)
 		return
 	}
-	var claims json.RawMessage
-	_ = idToken.Claims(&claims)
-
-	buff := new(bytes.Buffer)
-	_ = json.Indent(buff, []byte(claims), "", "  ")
-
-	renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, buff.Bytes())
+	var claims jwt.MapClaims
+	err = idToken.Claims(&claims)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to unmarshal claims: %v", err), http.StatusInternalServerError)
+		return
+	}
+	clientToken, err := a.sessionMgr.SignClaims(claims)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to sign identity provider claims: %v", err), http.StatusInternalServerError)
+		return
+	}
+	flags := []string{"path=/"}
+	if a.secureCookie {
+		flags = append(flags, "Secure")
+	}
+	cookie := session.MakeCookieMetadata(common.AuthCookieName, clientToken, flags...)
+	w.Header().Set("Set-Cookie", cookie)
+	claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
+	renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, claimsJSON)
 }
