@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -25,17 +24,19 @@ import (
 )
 
 const (
-	// DexAddr is the address of the Dex OCIP API server, which we will run a reverse proxy against
-	DexAddr = "http://localhost:5556"
-	// DexAPIAddr is the address to the Dex API server for managing dex. This is assumed to run
+	// DexReverseProxyAddr is the address of the Dex OIDC server, which we run a reverse proxy against
+	DexReverseProxyAddr = "http://localhost:5556"
+	// DexgRPCAPIAddr is the address to the Dex gRPC API server for managing dex. This is assumed to run
 	// locally (as a sidecar)
-	DexAPIAddr = "localhost:5557"
-	// DexClientAppName is name of the Oauth client app used when registering our app to dex
-	DexClientAppName = "ArgoCD"
-	// DexClientAppID is the Oauth client ID we will use when registering our app to dex
-	DexClientAppID = "argo-cd"
-
-	ssoDebugEnvVar = "ARGOCD_SSO_DEBUG"
+	DexgRPCAPIAddr = "localhost:5557"
+	// DexAPIEndpoint is the endpoint where we serve the Dex API server
+	DexAPIEndpoint = "/api/dex"
+	// LoginEndpoint is ArgoCD's shorthand login endpoint which redirects to dex's OAuth 2.0 provider's consent page
+	LoginEndpoint = "/auth/login"
+	// CallbackEndpoint is ArgoCD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
+	CallbackEndpoint = "/auth/callback"
+	// envVarSSODebug is an environment variable to enable additional OAuth debugging in the API server
+	envVarSSODebug = "ARGOCD_SSO_DEBUG"
 )
 
 type DexAPIClient struct {
@@ -47,7 +48,7 @@ type DexAPIClient struct {
 // ArgoCD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy() func(writer http.ResponseWriter, request *http.Request) {
-	target, err := url.Parse(DexAddr)
+	target, err := url.Parse(DexReverseProxyAddr)
 	errors.CheckError(err)
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -56,9 +57,9 @@ func NewDexHTTPReverseProxy() func(writer http.ResponseWriter, request *http.Req
 }
 
 func NewDexClient() (*DexAPIClient, error) {
-	conn, err := grpc.Dial(DexAPIAddr, grpc.WithInsecure())
+	conn, err := grpc.Dial(DexgRPCAPIAddr, grpc.WithInsecure())
 	if err != nil {
-		return nil, fmt.Errorf("failed to dial %s: %v", DexAPIAddr, err)
+		return nil, fmt.Errorf("failed to dial %s: %v", DexgRPCAPIAddr, err)
 	}
 	apiClient := DexAPIClient{
 		api.NewDexClient(conn),
@@ -80,6 +81,7 @@ func (d *DexAPIClient) WaitUntilReady() {
 	}
 }
 
+// TODO: implement proper state management
 const exampleAppState = "I wish to wash my irish wristwatch"
 
 type ClientApp struct {
@@ -113,25 +115,13 @@ type ClientApp struct {
 
 // NewClientApp will register the ArgoCD client app in Dex and return an object which has HTTP
 // handlers for handling the HTTP responses for login and callback
-func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, serverSecretKey []byte, tlsConfig *tls.Config) (*ClientApp, error) {
-	ctx := context.Background()
+func NewClientApp(clientBaseURL string, serverSecretKey []byte, tlsConfig *tls.Config) (*ClientApp, error) {
+	redirectURI := clientBaseURL + CallbackEndpoint
+	issuerURL := clientBaseURL + DexAPIEndpoint
 	log.Infof("Creating client app (redirectURI: %s, issuerURL: %s)", redirectURI, issuerURL)
-	// The client secret is arbitrary since we are going to reconfigure dex as part of startup.
-	// Generate a random string as our client secret.
-	clientSecret := randString(20)
-	_, err := d.CreateClient(ctx, &api.CreateClientReq{
-		Client: &api.Client{
-			Name:         DexClientAppName,
-			Id:           DexClientAppID,
-			Secret:       clientSecret,
-			RedirectUris: []string{redirectURI},
-		},
-	})
-	errors.CheckError(err)
-
 	a := ClientApp{
 		clientID:     DexClientAppID,
-		clientSecret: clientSecret,
+		clientSecret: formulateOAuthClientSecret(serverSecretKey),
 		redirectURI:  redirectURI,
 		issuerURL:    issuerURL,
 	}
@@ -142,8 +132,6 @@ func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, serverSecretK
 	a.Path = u.Path
 	a.secureCookie = bool(u.Scheme == "https")
 
-	tlsConfig = tlsConfig.Clone()
-	tlsConfig.InsecureSkipVerify = true
 	a.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
@@ -156,20 +144,11 @@ func (d *DexAPIClient) NewClientApp(redirectURI, issuerURL string, serverSecretK
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	if os.Getenv(ssoDebugEnvVar) == "1" {
+	if os.Getenv(envVarSSODebug) == "1" {
 		a.client.Transport = debugTransport{a.client.Transport}
 	}
 	a.sessionMgr = session.MakeSessionManager(serverSecretKey)
 	return &a, nil
-}
-
-func randString(n int) string {
-	var letter = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letter[rand.Intn(len(letter))]
-	}
-	return string(b)
 }
 
 type debugTransport struct {
@@ -197,6 +176,7 @@ func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+// Initialize initializes the client app. The OIDC provider must be running
 func (a *ClientApp) Initialize() error {
 	log.Info("Initializing client app")
 	ctx := oidc.ClientContext(context.Background(), a.client)
@@ -334,7 +314,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	cookie := session.MakeCookieMetadata(common.AuthCookieName, clientToken, flags...)
 	w.Header().Set("Set-Cookie", cookie)
-	if os.Getenv(ssoDebugEnvVar) == "1" {
+	if os.Getenv(envVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, claimsJSON)
 	} else {

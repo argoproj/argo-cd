@@ -40,6 +40,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -49,7 +50,7 @@ const (
 
 var (
 	endpoint = fmt.Sprintf("localhost:%d", port)
-
+	// ErrNoSession indicates no auth token was supplied as part of a request
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 )
 
@@ -131,7 +132,7 @@ func (a *ArgoCDServer) Run() {
 		}
 		tlsl = tls.NewListener(tlsl, &tlsConfig)
 
-		// Now, we build another mux recursively to match HTTPS and GoRPC.
+		// Now, we build another mux recursively to match HTTPS and gRPC.
 		tlsm = cmux.New(tlsl)
 		httpsL = tlsm.Match(cmux.HTTP1Fast())
 		grpcL = tlsm.Match(cmux.Any())
@@ -146,15 +147,40 @@ func (a *ArgoCDServer) Run() {
 		go func() { errors.CheckError(httpsS.Serve(httpsL)) }()
 		go func() { errors.CheckError(tlsm.Serve()) }()
 	}
-	if a.settings.IsSSOConfigured() {
-		go func() {
-			time.Sleep(2 * time.Second)
-			err = a.ssoClientApp.Initialize()
-			errors.CheckError(err)
-		}()
-	}
+	go a.initializeOIDCClientApp()
 	err = tcpm.Serve()
 	errors.CheckError(err)
+}
+
+// initializeOIDCClientApp initializes the OIDC Client application, querying the well known oidc
+// configuration path. Because ArgoCD is a OIDC client to itself, we have a chicken-and-egg problem
+// of (1) serving dex over HTTP, and (2) querying the OIDC provider (ourselves) to initialize the
+// app (HTTP GET http://example-argocd.com/api/dex/.well-known/openid-configuration)
+// This method is expected to be invoked right after we start listening over HTTP
+func (a *ArgoCDServer) initializeOIDCClientApp() {
+	if !a.settings.IsSSOConfigured() {
+		return
+	}
+	// wait for dex to become ready
+	dexClient, err := dexutil.NewDexClient()
+	errors.CheckError(err)
+	dexClient.WaitUntilReady()
+	var backoff = wait.Backoff{
+		Steps:    5,
+		Duration: 1 * time.Second,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}
+	var realErr error
+	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		realErr = a.ssoClientApp.Initialize()
+		if realErr != nil {
+			a.log.Warnf("failed to initialize client app: %v", realErr)
+			return false, nil
+		}
+		return true, nil
+	})
+	errors.CheckError(realErr)
 }
 
 func (a *ArgoCDServer) useTLS() bool {
@@ -285,30 +311,20 @@ func (a *ArgoCDServer) selfTLSConfig() *tls.Config {
 	}
 }
 
-const (
-	DexAPIEndpoint   = "/api/dex"
-	LoginEndpoint    = "/auth/login"
-	CallbackEndpoint = "/auth/callback"
-)
-
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
 func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	if !a.settings.IsSSOConfigured() {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
-	mux.HandleFunc(DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
-	// Create a client app to dex
-	dexClient, err := dexutil.NewDexClient()
-	errors.CheckError(err)
-	dexClient.WaitUntilReady()
+	var err error
+	mux.HandleFunc(dexutil.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
 	tlsConfig := a.selfTLSConfig()
 	tlsConfig.InsecureSkipVerify = true
-	a.ssoClientApp, err = dexClient.NewClientApp(a.settings.URL+CallbackEndpoint,
-		a.settings.URL+DexAPIEndpoint, a.settings.ServerSignature, tlsConfig)
+	a.ssoClientApp, err = dexutil.NewClientApp(a.settings.URL, a.settings.ServerSignature, tlsConfig)
 	errors.CheckError(err)
-	mux.HandleFunc(LoginEndpoint, a.ssoClientApp.HandleLogin)
-	mux.HandleFunc(CallbackEndpoint, a.ssoClientApp.HandleCallback)
+	mux.HandleFunc(dexutil.LoginEndpoint, a.ssoClientApp.HandleLogin)
+	mux.HandleFunc(dexutil.CallbackEndpoint, a.ssoClientApp.HandleCallback)
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
@@ -350,7 +366,7 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	}
 	_, err := a.sessionMgr.Parse(token)
 	if err != nil {
-		return ctx, err
+		return ctx, fmt.Errorf("failed to validate auth token: %v", err)
 	}
 	// TODO: when we care about user groups, we will want to put the claims into the context
 	return ctx, nil

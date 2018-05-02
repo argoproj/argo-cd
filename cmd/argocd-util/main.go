@@ -65,6 +65,8 @@ func NewRunDexCommand() *cobra.Command {
 				log.Infof("dex is not configured")
 				// need to sleep forever since we run as a sidecar and kubernetes does not permit
 				// containers in a deployment to have restartPolicy anything other than Always.
+				// TODO: we should watch for a change in the dex.config key in the config-map
+				// to restart dex when there is a change (e.g. clientID and clientSecretKey changed)
 				select {}
 			}
 			err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)

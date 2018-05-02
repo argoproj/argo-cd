@@ -14,7 +14,7 @@ spec:
     spec:
       serviceAccountName: argocd-server
       initContainers:
-      - name: gendex
+      - name: copyutil
         image: argoproj/argocd-server:latest
         command: [cp, /argocd-util, /shared]
         volumeMounts:
