@@ -5,6 +5,11 @@ metadata:
   generateName: k8s-bluegreen-
 spec:
   entrypoint: k8s-bluegreen
+  arguments:
+    parameters:
+    - name: green-deployment-name
+    - name: service-name
+    - name: new-deployment-manifest
   templates:
   - name: k8s-bluegreen
     steps:
@@ -14,7 +19,7 @@ spec:
         arguments:
           parameters:
           - name: green-deployment-name
-            value: '{{GREEN_DEPLOYMENT_NAME}}'
+            value: '{{inputs.parameters.green-deployment-name}}'
           - name: suffix
             value: blue
 
@@ -31,7 +36,7 @@ spec:
         arguments:
           parameters:
           - name: service-name
-            value: '{{SERVICE_NAME}}'
+            value: '{{inputs.parameters.service-name}}'
           - name: app-name
             value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment.metadata.spec.template.metadata.labels.app}}'
 
@@ -42,8 +47,8 @@ spec:
         template: patch-deployment
         arguments:
           parameters:
-          - name: manifest-file
-            value: '{{MANIFEST_FILE}}'
+          - name: deployment-manifest-data
+            value: '{{inputs.parameters.new-deployment-manifest}}'
 
     # 5. Wait for the original deployment, now updated, to become ready
     - - name: wait-for-green-deployment
@@ -58,7 +63,7 @@ spec:
         arguments:
           parameters:
           - name: service-name
-            value: '{{SERVICE_NAME}}'
+            value: '{{inputs.parameters.service-name}}'
           - name: app-name
             value: '{{steps.create-green-deployment.outputs.parameters.green-deployment.metadata.name}}'
 
@@ -85,7 +90,7 @@ spec:
     container:
       image: argoproj/argoexec:latest
       command: [sh, -c]
-      args: ["kubectl -o json get deployments/{{inputs.parameters.green-deployment-name}} | jq '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl -o jsonpath='{.metadata.name}' create -f - > /tmp/blue-deployment.json"]
+      args: ["kubectl -o json get deployments/{{inputs.parameters.green-deployment-name}} | jq -c '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl -o jsonpath='{.metadata.name}' create -f - > /tmp/blue-deployment.json"]
     outputs:
       parameters:
       - name: blue-deployment
@@ -95,11 +100,11 @@ spec:
   - name: patch-deployment
     inputs:
       parameters:
-      - name: manifest-file
+      - name: deployment-manifest-data
     container:
       image: argoproj/argoexec:latest
       command: [sh, -c]
-      args: ["kubectl -o json apply -f {{inputs.parameters.manifest-file}} > /tmp/green-deployment.json"]
+      args: ["echo '{{inputs.parameters.deployment-manifest-data}}' | jq -c | kubectl -o json apply -f - > /tmp/green-deployment.json"]
     outputs:
       parameters:
       - name: green-deployment
