@@ -7,7 +7,7 @@ spec:
   entrypoint: k8s-bluegreen
   arguments:
     parameters:
-    - name: green-deployment-name
+    - name: deployment-name
     - name: service-name
     - name: new-deployment-manifest
   templates:
@@ -19,13 +19,14 @@ spec:
         arguments:
           parameters:
           - name: green-deployment-name
-            value: '{{inputs.parameters.green-deployment-name}}'
+            value: '{{workflow.parameters.deployment-name}}'
           - name: suffix
             value: blue
 
     # 2. Wait for parallel deployment to become ready
     - - name: wait-for-blue-deployment
         template: wait-deployment-ready
+        arguments:
           parameters:
           - name: deployment-name
             value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment.metadata.name}}'
@@ -36,7 +37,7 @@ spec:
         arguments:
           parameters:
           - name: service-name
-            value: '{{inputs.parameters.service-name}}'
+            value: '{{workflow.parameters.service-name}}'
           - name: app-name
             value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment.metadata.spec.template.metadata.labels.app}}'
 
@@ -48,11 +49,12 @@ spec:
         arguments:
           parameters:
           - name: deployment-manifest-data
-            value: '{{inputs.parameters.new-deployment-manifest}}'
+            value: '{{workflow.parameters.new-deployment-manifest}}'
 
     # 5. Wait for the original deployment, now updated, to become ready
     - - name: wait-for-green-deployment
         template: wait-deployment-ready
+        arguments:
           parameters:
           - name: deployment-name
             value: '{{steps.create-green-deployment.outputs.parameters.green-deployment.metadata.name}}'
