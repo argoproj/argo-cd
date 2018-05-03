@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
@@ -222,26 +223,26 @@ func (ctrl *ApplicationController) processNextItem() bool {
 	if isForceRefreshed || app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
 		log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
 
-		status, err := ctrl.tryRefreshAppStatus(app.DeepCopy())
+		comparisonResult, parameters, err := ctrl.tryRefreshAppStatus(app.DeepCopy())
 		if err != nil {
-			status = app.Status.DeepCopy()
-			status.ComparisonResult = appv1.ComparisonResult{
+			comparisonResult = &appv1.ComparisonResult{
 				Status:     appv1.ComparisonStatusError,
 				Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
 				ComparedTo: app.Spec.Source,
 				ComparedAt: metav1.Time{Time: time.Now().UTC()},
 			}
+			parameters = nil
 		}
-		ctrl.updateAppStatus(app.Name, app.Namespace, status)
+		ctrl.updateAppStatus(app.Name, app.Namespace, comparisonResult, parameters)
 	}
 
 	return true
 }
 
-func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ApplicationStatus, error) {
+func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, error) {
 	conn, client, err := ctrl.repoClientset.NewRepositoryClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer util.Close(conn)
 	repo, err := ctrl.apiRepoService.Get(context.Background(), &apireposerver.RepoQuery{Repo: app.Spec.Source.RepoURL})
@@ -271,14 +272,14 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	})
 	if err != nil {
 		log.Errorf("Failed to load application manifest %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
 	for i, manifestStr := range manifestInfo.Manifests {
 		var obj unstructured.Unstructured
 		if err := json.Unmarshal([]byte(manifestStr), &obj); err != nil {
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		targetObjs[i] = &obj
@@ -287,11 +288,10 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
 	comparisonResult, err := ctrl.appComparator.CompareAppState(server, namespace, targetObjs, app)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
-	newStatus := app.Status
-	newStatus.ComparisonResult = *comparisonResult
+
 	paramsReq := repository.EnvParamsRequest{
 		Repo:        repo,
 		Revision:    revision,
@@ -300,13 +300,13 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	}
 	params, err := client.GetEnvParams(context.Background(), &paramsReq)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	newStatus.Parameters = make([]appv1.ComponentParameter, len(params.Params))
+	parameters := make([]appv1.ComponentParameter, len(params.Params))
 	for i := range params.Params {
-		newStatus.Parameters[i] = *params.Params[i]
+		parameters[i] = *params.Params[i]
 	}
-	return &newStatus, nil
+	return comparisonResult, &parameters, nil
 }
 
 func (ctrl *ApplicationController) runWorker() {
@@ -314,23 +314,22 @@ func (ctrl *ApplicationController) runWorker() {
 	}
 }
 
-func (ctrl *ApplicationController) updateAppStatus(appName string, namespace string, status *appv1.ApplicationStatus) {
-	appKey := fmt.Sprintf("%s/%s", namespace, appName)
-	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
+func (ctrl *ApplicationController) updateAppStatus(appName string, namespace string, comparisonResult *appv1.ComparisonResult, parameters *[]appv1.ComponentParameter) {
+	statusPatch := make(map[string]interface{})
+	statusPatch["comparisonResult"] = comparisonResult
+	statusPatch["parameters"] = parameters
+	patch, err := json.Marshal(map[string]interface{}{
+		"status": statusPatch,
+	})
+
+	if err == nil {
+		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(namespace)
+		_, err = appClient.Patch(appName, types.MergePatchType, patch)
+	}
 	if err != nil {
-		log.Warnf("Failed to get application '%s' from informer index: %+v", appKey, err)
+		log.Warnf("Error updating application: %v", err)
 	} else {
-		if exists {
-			app := obj.(*appv1.Application).DeepCopy()
-			app.Status = *status
-			appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(namespace)
-			_, err := appClient.Update(app)
-			if err != nil {
-				log.Warnf("Error updating application: %v", err)
-			} else {
-				log.Info("Application update successful")
-			}
-		}
+		log.Info("Application update successful")
 	}
 }
 
