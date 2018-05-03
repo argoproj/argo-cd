@@ -1,0 +1,155 @@
+# This example demonstrates a "blue-green" deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: k8s-bluegreen-
+spec:
+  entrypoint: k8s-bluegreen
+  arguments:
+    parameters:
+    - name: deployment-name
+    - name: service-name
+    - name: new-deployment-manifest
+  templates:
+  - name: k8s-bluegreen
+    steps:
+    # 1. Create a parallel Kubernetes deployment with tweaks to name and app name
+    - - name: create-blue-deployment
+        template: clone-deployment
+        arguments:
+          parameters:
+          - name: green-deployment-name
+            value: '{{workflow.parameters.deployment-name}}'
+          - name: suffix
+            value: blue
+
+    # 2. Wait for parallel deployment to become ready
+    - - name: wait-for-blue-deployment
+        template: wait-deployment-ready
+        arguments:
+          parameters:
+          - name: deployment-name
+            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment-name}}'
+
+    # 3. Patch the named service to point to the parallel deployment app
+    - - name: switch-service-to-blue-deployment
+        template: patch-service
+        arguments:
+          parameters:
+          - name: service-name
+            value: '{{workflow.parameters.service-name}}'
+          - name: app-name
+            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment-app-name}}'
+
+    # 4. Update the original deployment (receiving no traffic) with a new version
+    - - name: create-green-deployment
+        template: patch-deployment
+        arguments:
+          parameters:
+          - name: deployment-manifest-data
+            value: '{{workflow.parameters.new-deployment-manifest}}'
+
+    # 5. Wait for the original deployment, now updated, to become ready
+    - - name: wait-for-green-deployment
+        template: wait-deployment-ready
+        arguments:
+          parameters:
+          - name: deployment-name
+            value: '{{steps.create-green-deployment.outputs.parameters.green-deployment-name}}'
+
+    # 6. Patch the named service to point to the original, now updated app
+    - - name: switch-service-to-green-deployment
+        template: patch-service
+        arguments:
+          parameters:
+          - name: service-name
+            value: '{{workflow.parameters.service-name}}'
+          - name: app-name
+            value: '{{steps.create-green-deployment.outputs.parameters.green-deployment-app-name}}'
+
+    # 7. Remove the cloned deployment (no longer receiving traffic)
+    - - name: delete-cloned-deployment
+        template: delete-deployment
+        arguments:
+          parameters:
+          - name: deployment-name
+            value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment-name}}'
+
+# end of steps
+
+
+
+
+  - name: clone-deployment
+    inputs:
+      parameters:
+      - name: green-deployment-name
+      - name: suffix
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["
+          kubectl get -o json deployments/{{inputs.parameters.green-deployment-name}} | jq -c '.metadata.name+=\"-{{inputs.parameters.suffix}}\" | (.metadata.labels.app, .spec.selector.matchLabels.app, .spec.template.metadata.labels.app) +=\"-{{inputs.parameters.suffix}}\"' | kubectl create -o json -f - > /tmp/blue-deployment;
+          jq -j .metadata.name /tmp/blue-deployment > /tmp/blue-deployment-name;
+          jq -j .spec.template.metadata.labels.app /tmp/blue-deployment > /tmp/blue-deployment-app-name
+      "]
+    outputs:
+      parameters:
+      - name: blue-deployment-name
+        valueFrom:
+          path: /tmp/blue-deployment-name
+      - name: blue-deployment-app-name
+        valueFrom:
+          path: /tmp/blue-deployment-app-name
+
+  - name: patch-deployment
+    inputs:
+      parameters:
+      - name: deployment-manifest-data
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["
+          echo '{{inputs.parameters.deployment-manifest-data}}' | kubectl apply -o json -f - > /tmp/green-deployment;
+          jq -j .metadata.name /tmp/green-deployment > /tmp/green-deployment-name;
+          jq -j .spec.template.metadata.labels.app /tmp/green-deployment > /tmp/green-deployment-app-name
+      "]
+    outputs:
+      parameters:
+      - name: green-deployment-name
+        valueFrom:
+          path: /tmp/green-deployment-name
+      - name: green-deployment-app-name
+        valueFrom:
+          path: /tmp/green-deployment-app-name
+
+  - name: wait-deployment-ready
+    inputs:
+      parameters:
+      - name: deployment-name
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl rollout status --watch=true 'deployments/{{inputs.parameters.deployment-name}}'"]
+
+  - name: patch-service
+    inputs:
+      parameters:
+      - name: service-name
+      - name: app-name
+    container:
+      image: argoproj/argoexec:latest
+      command: [sh, -c]
+      args: ["kubectl patch service '{{inputs.parameters.service-name}}' -p '{\"spec\": {\"selector\": {\"app\": \"{{inputs.parameters.app-name}}\"}}}'"]
+
+  - name: delete-deployment
+    inputs:
+      parameters:
+      - name: deployment-name
+    resource:
+      action: delete
+      manifest: |
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: {{inputs.parameters.deployment-name}}
