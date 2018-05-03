@@ -63,7 +63,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 		Items: make([]appv1.Cluster, len(clusterSecrets.Items)),
 	}
 	for i, clusterSecret := range clusterSecrets.Items {
-		clusterList.Items[i] = *secretToCluster(&clusterSecret, true)
+		clusterList.Items[i] = *secretToCluster(&clusterSecret, false)
 	}
 	return &clusterList, nil
 }
@@ -91,7 +91,7 @@ func (s *Server) Create(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 		}
 		return nil, err
 	}
-	return secretToCluster(clusterSecret, true), nil
+	return secretToCluster(clusterSecret, false), nil
 }
 
 // ClusterEvent contains information about cluster event
@@ -147,7 +147,7 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret, true), nil
+	return secretToCluster(clusterSecret, false), nil
 }
 
 // Update updates a cluster
@@ -165,7 +165,7 @@ func (s *Server) Update(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret, true), nil
+	return secretToCluster(clusterSecret, false), nil
 }
 
 // UpdateREST updates a cluster (special handler intended to be used only by the gRPC gateway)

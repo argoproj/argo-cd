@@ -43,6 +43,7 @@ func (m *NativeGitClient) Init(repo string, repoPath string) error {
 // SetCredentials sets a local credentials file to connect to a remote git repository
 func (m *NativeGitClient) SetCredentials(repo string, username string, password string, sshPrivateKey string, repoPath string) error {
 	if password != "" {
+		log.Infof("Setting password credentials")
 		gitCredentialsFile := path.Join(repoPath, ".git", "credentials")
 		repoURL, err := url.ParseRequestURI(repo)
 		if err != nil {
@@ -60,6 +61,7 @@ func (m *NativeGitClient) SetCredentials(repo string, username string, password 
 		}
 	}
 	if sshPrivateKey != "" {
+		log.Infof("Setting SSH credentials")
 		sshPrivateKeyFile := path.Join(repoPath, ".git", "ssh-private-key")
 		err := ioutil.WriteFile(sshPrivateKeyFile, []byte(sshPrivateKey), 0600)
 		if err != nil {

@@ -85,7 +85,7 @@ func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 		}
 		return nil, err
 	}
-	return secretToRepo(repoSecret, true), nil
+	return secretToRepo(repoSecret, false), nil
 }
 
 func (s *Server) getRepoSecret(repo string) (*apiv1.Secret, error) {
@@ -106,7 +106,7 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 	if err != nil {
 		return nil, err
 	}
-	return secretToRepo(repoSecret, true), nil
+	return secretToRepo(repoSecret, false), nil
 }
 
 // Update updates a repository
@@ -124,7 +124,7 @@ func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 	if err != nil {
 		return nil, err
 	}
-	return secretToRepo(repoSecret, true), nil
+	return secretToRepo(repoSecret, false), nil
 }
 
 // UpdateREST updates a repository (from a REST request)
