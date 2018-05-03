@@ -53,6 +53,8 @@ var (
 	endpoint = fmt.Sprintf("localhost:%d", port)
 	// ErrNoSession indicates no auth token was supplied as part of a request
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
+	// ErrInvalidSession indicates that specified token is invalid
+	ErrInvalidSession = status.Errorf(codes.Unauthenticated, "invalid session information")
 )
 
 // ArgoCDServer is the API server for ArgoCD
@@ -372,7 +374,7 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	}
 	_, err := a.sessionMgr.Parse(token)
 	if err != nil {
-		return ctx, fmt.Errorf("failed to validate auth token: %v", err)
+		return ctx, ErrInvalidSession
 	}
 	// TODO: when we care about user groups, we will want to put the claims into the context
 	return ctx, nil
