@@ -2,7 +2,9 @@ package session
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	util_password "github.com/argoproj/argo-cd/util/password"
@@ -23,12 +25,6 @@ const (
 	blankPasswordError = "Blank passwords are not allowed"
 )
 
-// SessionManagerTokenClaims holds claim metadata for a token.
-type SessionManagerTokenClaims struct {
-	//Foo string `json:"foo"`
-	jwt.StandardClaims
-}
-
 // MakeSessionManager creates a new session manager with the given secret key.
 func MakeSessionManager(secretKey []byte) SessionManager {
 	return SessionManager{
@@ -41,43 +37,39 @@ func (mgr SessionManager) Create(subject string) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().Unix()
-	claims := SessionManagerTokenClaims{
-		//"bar",
-		jwt.StandardClaims{
-			//ExpiresAt: time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
-			IssuedAt:  now,
-			Issuer:    sessionManagerClaimsIssuer,
-			NotBefore: now,
-			Subject:   subject,
-		},
+	claims := jwt.StandardClaims{
+		//ExpiresAt: time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
+		IssuedAt:  now,
+		Issuer:    sessionManagerClaimsIssuer,
+		NotBefore: now,
+		Subject:   subject,
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return mgr.SignClaims(claims)
+}
 
-	// Unix and get the complete encoded token as a string using the secret
+func (mgr SessionManager) SignClaims(claims jwt.Claims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(mgr.serverSecretKey)
 }
 
 // Parse tries to parse the provided string and returns the token claims.
-func (mgr SessionManager) Parse(tokenString string) (*SessionManagerTokenClaims, error) {
+func (mgr SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
-	token, err := jwt.ParseWithClaims(tokenString, &SessionManagerTokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+	var claims jwt.MapClaims
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-
 		return mgr.serverSecretKey, nil
 	})
-
-	if token != nil {
-		if claims, ok := token.Claims.(*SessionManagerTokenClaims); ok && token.Valid {
-			return claims, nil
-		}
+	if err != nil {
+		return nil, err
 	}
-	return nil, err
+	return token.Claims, nil
 }
 
 // MakeSignature generates a cryptographically-secure pseudo-random token, based on a given number of random bytes, for signing purposes.
@@ -87,6 +79,8 @@ func MakeSignature(size int) ([]byte, error) {
 	if err != nil {
 		b = nil
 	}
+	// base64 encode it so signing key can be typed into validation utilities
+	b = []byte(base64.StdEncoding.EncodeToString(b))
 	return b, err
 }
 
@@ -115,4 +109,13 @@ func (mgr SessionManager) LoginLocalUser(username, password string, users map[st
 	}
 
 	return "", fmt.Errorf(invalidLoginError)
+}
+
+// MakeCookieMetadata generates a string representing a Web cookie.  Yum!
+func MakeCookieMetadata(key, value string, flags ...string) string {
+	components := []string{
+		fmt.Sprintf("%s=%s", key, value),
+	}
+	components = append(components, flags...)
+	return strings.Join(components, "; ")
 }

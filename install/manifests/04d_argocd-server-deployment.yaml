@@ -14,16 +14,28 @@ spec:
     spec:
       serviceAccountName: argocd-server
       initContainers:
-      - command: [cp, -r, /app, /shared]
+      - name: copyutil
+        image: argoproj/argocd-server:latest
+        command: [cp, /argocd-util, /shared]
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      - name: ui
         image: argoproj/argocd-ui:latest
-        name: argocd-server-ui
+        command: [cp, -r, /app, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files
       containers:
-      - command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
+      - name: argocd-server
         image: argoproj/argocd-server:latest
-        name: argocd-server
+        command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      - name: dex
+        image: quay.io/coreos/dex:v2.10.0
+        command: [/shared/argocd-util, rundex]
         volumeMounts:
         - mountPath: /shared
           name: static-files

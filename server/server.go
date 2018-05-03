@@ -8,9 +8,12 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apiclient"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/application"
@@ -19,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util/config"
+	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -36,24 +40,28 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
-	port           = 8080
-	authCookieName = "argocd.argoproj.io/auth-token"
+	port = 8080
 )
 
 var (
 	endpoint = fmt.Sprintf("localhost:%d", port)
+	// ErrNoSession indicates no auth token was supplied as part of a request
+	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 )
 
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
 
-	settings config.ArgoCDSettings
-	log      *log.Entry
+	ssoClientApp *dexutil.ClientApp
+	settings     config.ArgoCDSettings
+	log          *log.Entry
+	sessionMgr   *util_session.SessionManager
 }
 
 type ArgoCDServerOpts struct {
@@ -73,10 +81,12 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	if err != nil {
 		log.Fatal(err)
 	}
+	sessionMgr := util_session.MakeSessionManager(settings.ServerSignature)
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
 		log:              log.NewEntry(log.New()),
 		settings:         *settings,
+		sessionMgr:       &sessionMgr,
 	}
 }
 
@@ -122,22 +132,55 @@ func (a *ArgoCDServer) Run() {
 		}
 		tlsl = tls.NewListener(tlsl, &tlsConfig)
 
-		// Now, we build another mux recursively to match HTTPS and GoRPC.
+		// Now, we build another mux recursively to match HTTPS and gRPC.
 		tlsm = cmux.New(tlsl)
 		httpsL = tlsm.Match(cmux.HTTP1Fast())
 		grpcL = tlsm.Match(cmux.Any())
 	}
 
 	// Start the muxed listeners for our servers
-	log.Infof("argocd %s serving on port %d (tls: %v, namespace: %s)", argocd.GetVersion(), port, a.useTLS(), a.Namespace)
+	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
+		argocd.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
 	go func() { errors.CheckError(grpcS.Serve(grpcL)) }()
 	go func() { errors.CheckError(httpS.Serve(httpL)) }()
 	if a.useTLS() {
 		go func() { errors.CheckError(httpsS.Serve(httpsL)) }()
 		go func() { errors.CheckError(tlsm.Serve()) }()
 	}
+	go a.initializeOIDCClientApp()
 	err = tcpm.Serve()
 	errors.CheckError(err)
+}
+
+// initializeOIDCClientApp initializes the OIDC Client application, querying the well known oidc
+// configuration path. Because ArgoCD is a OIDC client to itself, we have a chicken-and-egg problem
+// of (1) serving dex over HTTP, and (2) querying the OIDC provider (ourselves) to initialize the
+// app (HTTP GET http://example-argocd.com/api/dex/.well-known/openid-configuration)
+// This method is expected to be invoked right after we start listening over HTTP
+func (a *ArgoCDServer) initializeOIDCClientApp() {
+	if !a.settings.IsSSOConfigured() {
+		return
+	}
+	// wait for dex to become ready
+	dexClient, err := dexutil.NewDexClient()
+	errors.CheckError(err)
+	dexClient.WaitUntilReady()
+	var backoff = wait.Backoff{
+		Steps:    5,
+		Duration: 1 * time.Second,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}
+	var realErr error
+	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		realErr = a.ssoClientApp.Initialize()
+		if realErr != nil {
+			a.log.Warnf("failed to initialize client app: %v", realErr)
+			return false, nil
+		}
+		return true, nil
+	})
+	errors.CheckError(realErr)
 }
 
 func (a *ArgoCDServer) useTLS() bool {
@@ -180,22 +223,14 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	return grpcS
 }
 
-// MakeCookieMetadata generates a string representing a Web cookie.  Yum!
-func (a *ArgoCDServer) makeCookieMetadata(key, value string, flags ...string) string {
-	components := []string{
-		fmt.Sprintf("%s=%s", key, value),
-	}
-	if a.ArgoCDServerOpts.Insecure == false {
-		components = append(components, "Secure")
-	}
-	components = append(components, flags...)
-	return strings.Join(components, "; ")
-}
-
 // TranslateGrpcCookieHeader conditionally sets a cookie on the response.
 func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*session.SessionResponse); ok {
-		cookie := a.makeCookieMetadata(authCookieName, sessionResp.Token, "path=/")
+		flags := []string{"path=/"}
+		if !a.Insecure {
+			flags = append(flags, "Secure")
+		}
+		cookie := util_session.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
@@ -215,16 +250,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
 		// so we need to supply the same certificates to establish the connections that a normal,
 		// external gRPC client would need.
-		certPool := x509.NewCertPool()
-		pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.settings.Certificate)
-		ok := certPool.AppendCertsFromPEM(pemCertBytes)
-		if !ok {
-			panic("bad certs")
-		}
-		dCreds := credentials.NewTLS(&tls.Config{
-			RootCAs:            certPool,
-			InsecureSkipVerify: true,
-		})
+		tlsConfig := a.selfTLSConfig()
+		tlsConfig.InsecureSkipVerify = true
+		dCreds := credentials.NewTLS(tlsConfig)
 		dOpts = append(dOpts, grpc.WithTransportCredentials(dCreds))
 	} else {
 		dOpts = append(dOpts, grpc.WithInsecure())
@@ -246,6 +274,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
+	a.registerDexHandlers(mux)
+
 	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 			acceptHTML := false
@@ -266,6 +296,35 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 		})
 	}
 	return &httpS
+}
+
+// selfTLSConfig returns a tls.Config with the configured certificates
+func (a *ArgoCDServer) selfTLSConfig() *tls.Config {
+	certPool := x509.NewCertPool()
+	pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.settings.Certificate)
+	ok := certPool.AppendCertsFromPEM(pemCertBytes)
+	if !ok {
+		panic("bad certs")
+	}
+	return &tls.Config{
+		RootCAs: certPool,
+	}
+}
+
+// registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
+func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
+	if !a.settings.IsSSOConfigured() {
+		return
+	}
+	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
+	var err error
+	mux.HandleFunc(dexutil.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
+	tlsConfig := a.selfTLSConfig()
+	tlsConfig.InsecureSkipVerify = true
+	a.ssoClientApp, err = dexutil.NewClientApp(a.settings.URL, a.settings.ServerSignature, tlsConfig)
+	errors.CheckError(err)
+	mux.HandleFunc(dexutil.LoginEndpoint, a.ssoClientApp.HandleLogin)
+	mux.HandleFunc(dexutil.CallbackEndpoint, a.ssoClientApp.HandleCallback)
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
@@ -292,41 +351,45 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 	}
 }
 
-// parseTokens tests a slice of strings and returns `true` only if any of them are valid.
-func (a *ArgoCDServer) parseTokens(tokens []string) bool {
-	mgr := util_session.MakeSessionManager(a.settings.ServerSignature)
-	for _, token := range tokens {
-		_, err := mgr.Parse(token)
-		if err == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// Authenticate checks for the presence of a token when accessing server-side resources.
+// Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error) {
 	if a.DisableAuth {
 		return ctx, nil
 	}
-
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		tokens := md["tokens"]
-
-		// Extract only the value portion of cookie-stored tokens
-		for _, cookieToken := range md["grpcgateway-cookie"] {
-			tokenPair := strings.SplitN(cookieToken, "=", 2)
-			if len(tokenPair) == 2 {
-				tokens = append(tokens, tokenPair[1])
-			}
-		}
-
-		// Check both gRPC-provided tokens and Web-provided (cookie-based) ones
-		if a.parseTokens(tokens) {
-			return ctx, nil
-		}
-		return ctx, status.Errorf(codes.Unauthenticated, "user is not allowed access")
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ctx, ErrNoSession
 	}
+	token := getToken(md)
+	if token == "" {
+		return ctx, ErrNoSession
+	}
+	_, err := a.sessionMgr.Parse(token)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to validate auth token: %v", err)
+	}
+	// TODO: when we care about user groups, we will want to put the claims into the context
+	return ctx, nil
+}
 
-	return ctx, status.Errorf(codes.Unauthenticated, "empty metadata")
+// getToken extracts the token from gRPC metadata or cookie headers
+func getToken(md metadata.MD) string {
+	// check the "token" metadata
+	tokens, ok := md[apiclient.MetaDataTokenKey]
+	if ok && len(tokens) > 0 {
+		return tokens[0]
+	}
+	// check the legacy key (v0.3.2 and below). 'tokens' was renamed to 'token'
+	tokens, ok = md["tokens"]
+	if ok && len(tokens) > 0 {
+		return tokens[0]
+	}
+	// check the HTTP cookie
+	for _, cookieToken := range md["grpcgateway-cookie"] {
+		tokenPair := strings.SplitN(cookieToken, "=", 2)
+		if len(tokenPair) == 2 && tokenPair[0] == common.AuthCookieName {
+			return tokenPair[1]
+		}
+	}
+	return ""
 }

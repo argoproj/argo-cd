@@ -222,8 +222,10 @@ func (i *Installer) InstallArgoCDServer() {
 	i.unmarshalManifest("04c_argocd-server-rolebinding.yaml", &argoCDServerControllerRoleBinding)
 	i.unmarshalManifest("04d_argocd-server-deployment.yaml", &argoCDServerControllerDeployment)
 	i.unmarshalManifest("04e_argocd-server-service.yaml", &argoCDServerService)
-	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.UIImage
+	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
+	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[1].Image = i.UIImage
+	argoCDServerControllerDeployment.Spec.Template.Spec.InitContainers[1].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].Image = i.ServerImage
 	argoCDServerControllerDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = apiv1.PullPolicy(i.ImagePullPolicy)
 	i.MustInstallResource(kube.MustToUnstructured(&argoCDServerServiceAccount))

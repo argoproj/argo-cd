@@ -2,6 +2,8 @@ package session
 
 import (
 	"testing"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 func TestSessionManager(t *testing.T) {
@@ -21,7 +23,8 @@ func TestSessionManager(t *testing.T) {
 		t.Errorf("Could not parse token: %v", err)
 	}
 
-	subject := claims.Subject
+	mapClaims := *(claims.(*jwt.MapClaims))
+	subject := mapClaims["sub"].(string)
 	if subject != "argo" {
 		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, defaultSubject)
 	}
