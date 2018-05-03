@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/dex"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -117,12 +116,7 @@ func genDexConfig(clientConfig clientcmd.ClientConfig) ([]byte, error) {
 	errors.CheckError(err)
 
 	kubeClient := kubernetes.NewForConfigOrDie(config)
-	dexCfg, err := dex.GetDexConfig(kubeClient, namespace)
-	errors.CheckError(err)
-	if dexCfg == nil {
-		return nil, nil
-	}
-	return yaml.Marshal(dexCfg)
+	return dex.GenerateDexConfigYAML(kubeClient, namespace)
 }
 
 func main() {

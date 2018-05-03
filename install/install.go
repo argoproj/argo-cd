@@ -7,11 +7,11 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr"
@@ -131,8 +131,8 @@ func (i *Installer) InstallApplicationCRD() {
 func (i *Installer) InstallSettings() {
 	kubeclientset, err := kubernetes.NewForConfig(i.config)
 	errors.CheckError(err)
-	configManager := config.NewConfigManager(kubeclientset, i.Namespace)
-	_, err = configManager.GetSettings()
+	settingsMgr := settings.NewSettingsManager(kubeclientset, i.Namespace)
+	_, err = settingsMgr.GetSettings()
 	if err == nil {
 		log.Infof("Settings already exists. Skipping creation")
 		return
@@ -141,7 +141,7 @@ func (i *Installer) InstallSettings() {
 		log.Fatal(err)
 	}
 	// configmap/secret not yet created
-	var newSettings config.ArgoCDSettings
+	var newSettings settings.ArgoCDSettings
 
 	// set JWT signature
 	signature, err := session.MakeSignature(32)
@@ -173,7 +173,7 @@ func (i *Installer) InstallSettings() {
 	errors.CheckError(err)
 	newSettings.Certificate = cert
 
-	err = configManager.SaveSettings(&newSettings)
+	err = settingsMgr.SaveSettings(&newSettings)
 	errors.CheckError(err)
 }
 

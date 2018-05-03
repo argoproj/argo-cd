@@ -1,0 +1,38 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/settings";
+
+// Settings Service
+//
+// Settings Service API retrives ArgoCD settings 
+package cluster;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+// SettingsQuery is a query for ArgoCD settings
+message SettingsQuery {
+}
+
+message Settings {
+    string url = 1 [(gogoproto.customname) = "URL"];;
+    DexConfig dexConfig = 2;
+}
+
+message DexConfig {
+    repeated Connector connectors = 1;
+}
+
+message Connector {
+    string name = 1;
+    string type = 2;
+}
+
+// SettingsService 
+service SettingsService {
+
+    // Get returns ArgoCD settings
+    rpc Get(SettingsQuery) returns (Settings) {
+		option (google.api.http).get = "/api/v1/settings";
+	}
+
+}
