@@ -3,29 +3,21 @@ package session
 import (
 	"context"
 
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/client-go/kubernetes"
 )
 
 // Server provides a Session service
 type Server struct {
-	ns             string
-	kubeclientset  kubernetes.Interface
-	appclientset   appclientset.Interface
-	serversettings config.ArgoCDSettings
+	serversettings settings.ArgoCDSettings
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(namespace string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, serversettings config.ArgoCDSettings) *Server {
+func NewServer(serversettings settings.ArgoCDSettings) *Server {
 	return &Server{
-		ns:             namespace,
-		appclientset:   appclientset,
-		kubeclientset:  kubeclientset,
 		serversettings: serversettings,
 	}
 }

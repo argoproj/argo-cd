@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,18 +21,16 @@ const (
 	DexClientAppID = "argo-cd"
 )
 
-type DexConfig map[string]interface{}
-
-func GetDexConfig(kubeClientset kubernetes.Interface, namespace string) (*DexConfig, error) {
-	configMgr := config.NewConfigManager(kubeClientset, namespace)
-	settings, err := configMgr.GetSettings()
+func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string) ([]byte, error) {
+	settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+	settings, err := settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
 	if !settings.IsSSOConfigured() {
 		return nil, nil
 	}
-	var dexCfg DexConfig
+	var dexCfg map[string]interface{}
 	err = yaml.Unmarshal([]byte(settings.DexConfig), &dexCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
@@ -88,8 +86,7 @@ func GetDexConfig(kubeClientset kubernetes.Interface, namespace string) (*DexCon
 		return nil, err
 	}
 	dexCfg = replaceMapSecrets(dexCfg, secretValues)
-
-	return &dexCfg, nil
+	return yaml.Marshal(dexCfg)
 }
 
 // formulateOAuthClientSecret calculates an arbitrary, but predictable OAuth2 client secret string
@@ -120,7 +117,7 @@ func getSecretValues(kubeClientset kubernetes.Interface, namespace string) (map[
 }
 
 // replaceMapSecrets takes a json object and recursively looks for any secret key references in the
-// object and replaces the value withe secret value
+// object and replaces the value with the secret value
 func replaceMapSecrets(obj map[string]interface{}, secretValues map[string]string) map[string]interface{} {
 	newObj := make(map[string]interface{})
 	for k, v := range obj {

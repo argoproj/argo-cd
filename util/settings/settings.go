@@ -1,4 +1,4 @@
-package config
+package settings
 
 import (
 	"crypto/tls"
@@ -35,33 +35,28 @@ type ArgoCDSettings struct {
 }
 
 const (
-	// configManagerAdminPasswordKey designates the key for a root password inside a Kubernetes secret.
-	configManagerAdminPasswordKey = "admin.password"
-
-	// configManagerServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
-	configManagerServerSignatureKey = "server.secretkey"
-
-	// configManagerServerCertificate designates the key for the public cert used in TLS
-	configManagerServerCertificate = "server.crt"
-
-	// configManagerServerPrivateKey designates the key for the private key used in TLS
-	configManagerServerPrivateKey = "server.key"
-
-	// configManagerURL designates the key where ArgoCDs external URL is set
-	configManagerURLKey = "url"
-
-	// configManagerDexConfig designates the key for the dex config
-	configManagerDexConfigKey = "dex.config"
+	// settingAdminPasswordKey designates the key for a root password inside a Kubernetes secret.
+	settingAdminPasswordKey = "admin.password"
+	// settingServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
+	settingServerSignatureKey = "server.secretkey"
+	// settingServerCertificate designates the key for the public cert used in TLS
+	settingServerCertificate = "server.crt"
+	// settingServerPrivateKey designates the key for the private key used in TLS
+	settingServerPrivateKey = "server.key"
+	// settingURLKey designates the key where ArgoCDs external URL is set
+	settingURLKey = "url"
+	// settingDexConfigKey designates the key for the dex config
+	settingDexConfigKey = "dex.config"
 )
 
-// ConfigManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
-type ConfigManager struct {
+// SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
+type SettingsManager struct {
 	clientset kubernetes.Interface
 	namespace string
 }
 
 // GetSettings retrieves settings from the ConfigManager.
-func (mgr *ConfigManager) GetSettings() (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	argoCDCM, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -72,28 +67,28 @@ func (mgr *ConfigManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 
 	var settings ArgoCDSettings
-	settings.DexConfig = argoCDCM.Data[configManagerDexConfigKey]
-	settings.URL = argoCDCM.Data[configManagerURLKey]
+	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
+	settings.URL = argoCDCM.Data[settingURLKey]
 
-	adminPasswordHash, ok := argoCDSecret.Data[configManagerAdminPasswordKey]
+	adminPasswordHash, ok := argoCDSecret.Data[settingAdminPasswordKey]
 	if !ok {
 		return nil, fmt.Errorf("admin user not found")
 	}
 	settings.LocalUsers = map[string]string{
 		common.ArgoCDAdminUsername: string(adminPasswordHash),
 	}
-	secretKey, ok := argoCDSecret.Data[configManagerServerSignatureKey]
+	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if !ok {
 		return nil, fmt.Errorf("server secret key not found")
 	}
 	settings.ServerSignature = secretKey
 
-	serverCert, certOk := argoCDSecret.Data[configManagerServerCertificate]
-	serverKey, keyOk := argoCDSecret.Data[configManagerServerPrivateKey]
+	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
+	serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
 	if certOk && keyOk {
 		cert, err := tls.X509KeyPair(serverCert, serverKey)
 		if err != nil {
-			return nil, fmt.Errorf("invalid x509 key pair %s/%s in secret: %s", configManagerServerCertificate, configManagerServerPrivateKey, err)
+			return nil, fmt.Errorf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)
 		}
 		settings.Certificate = &cert
 	}
@@ -101,7 +96,7 @@ func (mgr *ConfigManager) GetSettings() (*ArgoCDSettings, error) {
 }
 
 // SaveSettings serializes ArgoCD settings and upserts it into K8s secret/configmap
-func (mgr *ConfigManager) SaveSettings(settings *ArgoCDSettings) error {
+func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	// Upsert the config data
 	argoCDCM, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
 	createCM := false
@@ -117,8 +112,8 @@ func (mgr *ConfigManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		createCM = true
 	}
-	argoCDCM.Data[configManagerURLKey] = settings.URL
-	argoCDCM.Data[configManagerDexConfigKey] = settings.DexConfig
+	argoCDCM.Data[settingURLKey] = settings.URL
+	argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
 	if createCM {
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
 	} else {
@@ -144,15 +139,15 @@ func (mgr *ConfigManager) SaveSettings(settings *ArgoCDSettings) error {
 		createSecret = true
 	}
 	argoCDSecret.StringData = make(map[string]string)
-	argoCDSecret.StringData[configManagerServerSignatureKey] = string(settings.ServerSignature)
-	argoCDSecret.StringData[configManagerAdminPasswordKey] = settings.LocalUsers[common.ArgoCDAdminUsername]
+	argoCDSecret.StringData[settingServerSignatureKey] = string(settings.ServerSignature)
+	argoCDSecret.StringData[settingAdminPasswordKey] = settings.LocalUsers[common.ArgoCDAdminUsername]
 	if settings.Certificate != nil {
 		certBytes, keyBytes := tlsutil.EncodeX509KeyPair(*settings.Certificate)
-		argoCDSecret.StringData[configManagerServerCertificate] = string(certBytes)
-		argoCDSecret.StringData[configManagerServerPrivateKey] = string(keyBytes)
+		argoCDSecret.StringData[settingServerCertificate] = string(certBytes)
+		argoCDSecret.StringData[settingServerPrivateKey] = string(keyBytes)
 	} else {
-		delete(argoCDSecret.Data, configManagerServerCertificate)
-		delete(argoCDSecret.Data, configManagerServerPrivateKey)
+		delete(argoCDSecret.Data, settingServerCertificate)
+		delete(argoCDSecret.Data, settingServerPrivateKey)
 	}
 	if createSecret {
 		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(argoCDSecret)
@@ -165,9 +160,9 @@ func (mgr *ConfigManager) SaveSettings(settings *ArgoCDSettings) error {
 	return nil
 }
 
-// NewConfigManager generates a new ConfigManager pointer and returns it
-func NewConfigManager(clientset kubernetes.Interface, namespace string) *ConfigManager {
-	return &ConfigManager{
+// NewSettingsManager generates a new SettingsManager pointer and returns it
+func NewSettingsManager(clientset kubernetes.Interface, namespace string) *SettingsManager {
+	return &SettingsManager{
 		clientset: clientset,
 		namespace: namespace,
 	}

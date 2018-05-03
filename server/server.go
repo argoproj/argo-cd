@@ -20,12 +20,13 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
+	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
-	"github.com/argoproj/argo-cd/util/config"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	util_session "github.com/argoproj/argo-cd/util/session"
+	settings_util "github.com/argoproj/argo-cd/util/settings"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -59,9 +60,10 @@ type ArgoCDServer struct {
 	ArgoCDServerOpts
 
 	ssoClientApp *dexutil.ClientApp
-	settings     config.ArgoCDSettings
+	settings     settings_util.ArgoCDSettings
 	log          *log.Entry
 	sessionMgr   *util_session.SessionManager
+	settingsMgr  *settings_util.SettingsManager
 }
 
 type ArgoCDServerOpts struct {
@@ -76,8 +78,8 @@ type ArgoCDServerOpts struct {
 
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
-	configManager := config.NewConfigManager(opts.KubeClientset, opts.Namespace)
-	settings, err := configManager.GetSettings()
+	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
+	settings, err := settingsMgr.GetSettings()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -87,6 +89,7 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 		log:              log.NewEntry(log.New()),
 		settings:         *settings,
 		sessionMgr:       &sessionMgr,
+		settingsMgr:      settingsMgr,
 	}
 }
 
@@ -210,13 +213,15 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	grpcS := grpc.NewServer(sOpts...)
 	clusterService := cluster.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
 	repoService := repository.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
-	sessionService := session.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.settings)
+	sessionService := session.NewServer(a.settings)
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, repoService, clusterService)
+	settingsService := settings.NewServer(a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
 	application.RegisterApplicationServiceServer(grpcS, applicationService)
 	repository.RegisterRepositoryServiceServer(grpcS, repoService)
 	session.RegisterSessionServiceServer(grpcS, sessionService)
+	settings.RegisterSettingsServiceServer(grpcS, settingsService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
@@ -273,6 +278,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 	mustRegisterGWHandler(application.RegisterApplicationServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	a.registerDexHandlers(mux)
 
