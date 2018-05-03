@@ -41,8 +41,6 @@ spec:
           - name: app-name
             value: '{{steps.create-blue-deployment.outputs.parameters.blue-deployment-app-name}}'
 
-# [TODO] wait for service to finish switching to blue deployment
-
     # 4. Update the original deployment (receiving no traffic) with a new version
     - - name: create-green-deployment
         template: patch-deployment
@@ -68,8 +66,6 @@ spec:
             value: '{{workflow.parameters.service-name}}'
           - name: app-name
             value: '{{steps.create-green-deployment.outputs.parameters.green-deployment-app-name}}'
-
-# [TODO] wait for service to finish switching to green deployment
 
     # 7. Remove the cloned deployment (no longer receiving traffic)
     - - name: delete-cloned-deployment
