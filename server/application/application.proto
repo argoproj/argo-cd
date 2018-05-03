@@ -35,6 +35,12 @@ message ApplicationSyncRequest {
 	bool prune = 4;
 }
 
+// ApplicationSpecRequest is a request to update application spec
+message ApplicationSpecRequest {
+	string appName = 1;
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
+}
+
 // ApplicationSyncResult is a result of a sync requeswt
 message ApplicationSyncResult {
 	string message = 1;
@@ -105,6 +111,14 @@ service ApplicationService {
 	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{metadata.name}"
+			body: "*"
+		};
+	}
+
+	// Update updates an application spec
+	rpc UpdateSpec(ApplicationSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec) {
+		option (google.api.http) = {
+			put: "/api/v1/applications/{appName}/spec"
 			body: "*"
 		};
 	}

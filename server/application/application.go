@@ -75,7 +75,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
-	err := s.validateApp(ctx, a)
+	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
 	}
@@ -89,11 +89,27 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 
 // Update updates an application
 func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
-	err := s.validateApp(ctx, a)
+	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
 	}
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
+}
+
+// UpdateSpec updates an application spec
+func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationSpecRequest) (*appv1.ApplicationSpec, error) {
+	err := s.validateApp(ctx, q.Spec)
+	if err != nil {
+		return nil, err
+	}
+	patch, err := json.Marshal(map[string]appv1.ApplicationSpec{
+		"spec": *q.Spec,
+	})
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(q.AppName, types.MergePatchType, patch)
+	return q.Spec, err
 }
 
 // Delete removes an application and all associated resources
@@ -164,20 +180,20 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 // * the git path contains a valid app.yaml
 // * the specified environment exists
 // * the referenced cluster has been added to ArgoCD
-func (s *Server) validateApp(ctx context.Context, a *appv1.Application) error {
+func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) error {
 	// Test the repo
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return err
 	}
 	defer util.Close(conn)
-	repoRes, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: a.Spec.Source.RepoURL})
+	repoRes, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: spec.Source.RepoURL})
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			// The repo has not been added to ArgoCD so we do not have credentials to access it.
 			// We support the mode where apps can be created from public repositories. Test the
-			// repo to make sure it is publically accessible
-			err = git.TestRepo(a.Spec.Source.RepoURL, "", "", "")
+			// repo to make sure it is publicly accessible
+			err = git.TestRepo(spec.Source.RepoURL, "", "", "")
 			if err != nil {
 				return err
 			}
@@ -189,10 +205,10 @@ func (s *Server) validateApp(ctx context.Context, a *appv1.Application) error {
 	// Verify app.yaml is functional
 	req := repository.KsonnetAppRequest{
 		Repo: &appv1.Repository{
-			Repo: a.Spec.Source.RepoURL,
+			Repo: spec.Source.RepoURL,
 		},
-		Revision: a.Spec.Source.TargetRevision,
-		Path:     a.Spec.Source.Path,
+		Revision: spec.Source.TargetRevision,
+		Path:     spec.Source.Path,
 	}
 	if repoRes != nil {
 		req.Repo.Username = repoRes.Username
@@ -205,15 +221,15 @@ func (s *Server) validateApp(ctx context.Context, a *appv1.Application) error {
 	}
 
 	// Verify the specified environment is defined in it
-	envSpec, ok := ksAppRes.Environments[a.Spec.Source.Environment]
+	envSpec, ok := ksAppRes.Environments[spec.Source.Environment]
 	if !ok {
-		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in app", a.Spec.Source.Environment)
+		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in app", spec.Source.Environment)
 	}
 	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
 	// NOTE: need to check if it was overridden in the destination spec
 	clusterURL := envSpec.Destination.Server
-	if a.Spec.Destination != nil && a.Spec.Destination.Server != "" {
-		clusterURL = a.Spec.Destination.Server
+	if spec.Destination != nil && spec.Destination.Server != "" {
+		clusterURL = spec.Destination.Server
 	}
 	_, err = s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: clusterURL})
 	if err != nil {
