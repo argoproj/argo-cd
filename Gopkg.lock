@@ -563,7 +563,9 @@
   name = "gopkg.in/go-playground/webhooks.v3"
   packages = [
     ".",
-    "github"
+    "bitbucket",
+    "github",
+    "gitlab"
   ]
   revision = "5580947e3ec83427ef5f6f2392eddca8dde5d99a"
   version = "v3.11.0"
@@ -807,6 +809,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "56af14792a29da40bfdd7de19e59a6dce98b9375ca1012235d041baed9f9adf7"
+  inputs-digest = "ef728e9142c17bf99d3472c5d4ad97e0fd4a991f757c6f4f8d6950625882f767"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -5,10 +5,9 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
-	"github.com/argoproj/argo-cd/common"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/settings"
 	log "github.com/sirupsen/logrus"
 	webhooks "gopkg.in/go-playground/webhooks.v3"
@@ -46,42 +45,71 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set setti
 	return &acdWebhook
 }
 
-// HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payloadIf interface{}, header webhooks.Header) {
-	var repoURL string
+// affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
+// the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
+func affectedRevisionInfo(payloadIf interface{}) (string, string, bool) {
+	var webURL string
 	var revision string
-	touchedHead := false
+	var touchedHead bool
+
+	parseRef := func(ref string) string {
+		refParts := strings.SplitN(ref, "/", 3)
+		return refParts[len(refParts)-1]
+	}
+
 	switch payload := payloadIf.(type) {
 	case github.PushPayload:
-		repoURL = payload.Repository.HTMLURL
-		refParts := strings.SplitN(payload.Ref, "/", 3)
-		revision = refParts[len(refParts)-1]
-		if payload.Repository.DefaultBranch == revision {
-			touchedHead = true
-		}
+		// See: https://developer.github.com/v3/activity/events/types/#pushevent
+		webURL = payload.Repository.HTMLURL
+		revision = parseRef(payload.Ref)
+		touchedHead = bool(payload.Repository.DefaultBranch == revision)
 	case gitlab.PushEventPayload:
-		// TODO
-		return
+		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
+		// NOTE: this is untested
+		webURL = payload.Project.WebURL
+		revision = parseRef(payload.Ref)
+		touchedHead = bool(payload.Project.DefaultBranch == revision)
 	case gitlab.TagEventPayload:
-		// TODO
-		return
+		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
+		// NOTE: this is untested
+		webURL = payload.Project.WebURL
+		revision = parseRef(payload.Ref)
+		touchedHead = bool(payload.Project.DefaultBranch == revision)
 	case bitbucket.RepoPushPayload:
-		// TODO
-		return
-	default:
+		// See: https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push
+		// NOTE: this is untested
+		webURL = payload.Repository.Links.HTML.Href
+		// TODO: bitbucket includes multiple changes as part of a single event.
+		// We only pick the first but need to consider how to handle multiple
+		for _, change := range payload.Push.Changes {
+			revision = change.New.Name
+			break
+		}
+		// Not actually sure how to check if the incoming change affected HEAD just by examining the
+		// payload alone. To be safe, we just return true and let the controller check for himself.
+		touchedHead = true
+	}
+	return webURL, revision, touchedHead
+}
+
+// HandleEvent handles webhook events for repo push events
+func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}, header webhooks.Header) {
+	webURL, revision, touchedHead := affectedRevisionInfo(payload)
+	// NOTE: the webURL does not include the .git extension
+	if webURL == "" {
 		log.Info("Ignoring webhook event")
 		return
 	}
-	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", repoURL, revision, touchedHead)
+	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	appIf := a.appClientset.ArgoprojV1alpha1().Applications(a.ns)
 	apps, err := appIf.List(metav1.ListOptions{})
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
 		return
 	}
-	urlObj, err := url.Parse(repoURL)
+	urlObj, err := url.Parse(webURL)
 	if err != nil {
-		log.Warnf("Failed to parse repoURL '%s'", repoURL)
+		log.Warnf("Failed to parse repoURL '%s'", webURL)
 		return
 	}
 	regexpStr := "(?i)(http://|https://|git@)" + urlObj.Host + "[:/]" + urlObj.Path[1:] + "(\\.git)?"
@@ -93,7 +121,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payloadIf interface{}, header webhook
 
 	for _, app := range apps.Items {
 		if !repoRegexp.MatchString(app.Spec.Source.RepoURL) {
-			log.Infof("%s does not match", app.Spec.Source.RepoURL)
+			log.Debugf("%s does not match", app.Spec.Source.RepoURL)
 			continue
 		}
 		targetRev := app.Spec.Source.TargetRevision
@@ -104,16 +132,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payloadIf interface{}, header webhook
 		} else if targetRev != revision {
 			continue
 		}
-		if app.ObjectMeta.Annotations == nil {
-			app.ObjectMeta.Annotations = make(map[string]string)
-		}
-		app.ObjectMeta.Annotations[common.AnnotationKeyRefresh] = time.Now().String()
-		_, err = appIf.Update(&app)
+		_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name)
 		if err != nil {
 			log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 			continue
 		}
-		log.Infof("Refreshed app '%s' for controller reprocessing", app.ObjectMeta.Name)
 	}
 }
 
