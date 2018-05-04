@@ -10,6 +10,14 @@ import (
 	"strings"
 )
 
+// EnsureSuffix idempotently ensures that a base string has a given suffix.
+func ensureSuffix(s, suffix string) string {
+	if !strings.HasSuffix(s, suffix) {
+		s += suffix
+	}
+	return s
+}
+
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
 	repoURL, err := url.Parse(repo)
