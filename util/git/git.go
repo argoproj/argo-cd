@@ -21,6 +21,7 @@ func NormalizeGitURL(repo string) string {
 
 // IsSshURL returns true is supplied URL is SSH URL
 func IsSshURL(url string) bool {
+	// TODO: should probably support ssh:// scheme too, since that's a valid SSH URL
 	return strings.HasPrefix(url, "git@")
 }
 
