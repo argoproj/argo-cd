@@ -129,3 +129,13 @@ export interface LogEntry {
     content: string;
     timeStamp: models.Time;
 }
+
+export interface AuthSettings {
+    url: string;
+    dexConfig: {
+        connectors: {
+            name: string;
+            type: string;
+        }[];
+    };
+}
