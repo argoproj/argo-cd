@@ -6,6 +6,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEnsurePrefix(t *testing.T) {
+	data := [][]string{
+		{"world", "hello", "helloworld"},
+		{"helloworld", "hello", "helloworld"},
+		{"example.com", "https://", "https://example.com"},
+		{"https://example.com", "https://", "https://example.com"},
+		{"cd", "argo", "argocd"},
+		{"argocd", "argo", "argocd"},
+		{"", "argocd", "argocd"},
+		{"argocd", "", "argocd"},
+	}
+	for _, table := range data {
+		result := ensurePrefix(table[0], table[1])
+		assert.Equal(t, table[2], result)
+	}
+}
+
 func TestEnsureSuffix(t *testing.T) {
 	data := [][]string{
 		{"hello", "world", "helloworld"},
@@ -16,6 +33,7 @@ func TestEnsureSuffix(t *testing.T) {
 		{"argo", "cd", "argocd"},
 		{"argocd", "cd", "argocd"},
 		{"argocd", "", "argocd"},
+		{"", "argocd", "argocd"},
 	}
 	for _, table := range data {
 		result := ensureSuffix(table[0], table[1])
