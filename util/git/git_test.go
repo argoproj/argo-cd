@@ -19,27 +19,33 @@ func TestEnsureSuffix(t *testing.T) {
 	}
 	for _, table := range data {
 		result := ensureSuffix(table[0], table[1])
-		assert.Equal(t, result, table[2])
+		assert.Equal(t, table[2], result)
 	}
 }
 
 func TestIsSSHUrl(t *testing.T) {
 	data := map[string]bool{
-		"git@GITHUB.com:argoproj/test.git":     true,
-		"git@github.com:test.git":              true,
-		"https://github.com/argoproj/test.git": false,
-		"git://github.com/argoproj/test.git":   false,
+		"git@GITHUB.com:argoproj/test.git":       true,
+		"git@github.com:test.git":                true,
+		"ssh://git@GITHUB.com:argoproj/test.git": true,
+		"ssh://git@github.com:test.git":          true,
+		"https://github.com/argoproj/test.git":   false,
+		"git://github.com/argoproj/test.git":     false,
 	}
 	for k, v := range data {
-		assert.Equal(t, IsSshURL(k), v)
+		assert.Equal(t, v, IsSshURL(k))
 	}
 }
 
 func TestNormalizeUrl(t *testing.T) {
 	data := map[string]string{
-		"git@GITHUB.com:test.git": "git@github.com:test.git",
+		"git@GITHUB.com:test.git":                "git@github.com:test.git",
+		"https://github.com/TEST.git":            "https://github.com/TEST.git",
+		"git@GITHUB.com:argoproj/test.git":       "git@github.com:argoproj/test.git",
+		"ssh://git@GITHUB.com:argoproj/test.git": "git@github.com:argoproj/test.git",
+		"https://GITHUB.com/argoproj/test.git":   "https://github.com/argoproj/test.git",
 	}
 	for k, v := range data {
-		assert.Equal(t, NormalizeGitURL(k), v)
+		assert.Equal(t, v, NormalizeGitURL(k))
 	}
 }
