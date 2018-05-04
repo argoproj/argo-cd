@@ -6,6 +6,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestEnsureSuffix(t *testing.T) {
+	data := [][]string{
+		{"hello", "world", "helloworld"},
+		{"helloworld", "world", "helloworld"},
+		{"repo", ".git", "repo.git"},
+		{"repo.git", ".git", "repo.git"},
+		{"", "repo.git", "repo.git"},
+		{"argo", "cd", "argocd"},
+		{"argocd", "cd", "argocd"},
+		{"argocd", "", "argocd"},
+	}
+	for _, table := range data {
+		result := ensureSuffix(table[0], table[1])
+		assert.Equal(t, result, table[2])
+	}
+}
+
 func TestIsSSHUrl(t *testing.T) {
 	data := map[string]bool{
 		"git@GITHUB.com:argoproj/test.git":     true,
