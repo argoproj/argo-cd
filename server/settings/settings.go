@@ -34,3 +34,8 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 	}
 	return &set, nil
 }
+
+// AuthFuncOverride disables authentication for settings service
+func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+	return ctx, nil
+}
