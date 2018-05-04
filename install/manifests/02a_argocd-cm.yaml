@@ -31,8 +31,8 @@ data:
       id: github
       name: GitHub
       config:
-        clientID: $github.clientID
-        clientSecret: $github.clientSecret
+        clientID: aabbccddeeff00112233
+        clientSecret: $dex.github.clientSecret
         orgs:
         - name: your-github-org
 
@@ -42,8 +42,8 @@ data:
       name: Acme GitHub
       config:
         hostName: github.acme.com
-        clientID: $acme.clientID
-        clientSecret: $acme.clientSecret
+        clientID: abcdefghijklmnopqrst
+        clientSecret: $dex.acme.clientSecret
         orgs:
         - name: your-github-org
 
@@ -53,5 +53,5 @@ data:
       name: Okta
       config:
         issuer: https://dev-123456.oktapreview.com
-        clientID: $okta.clientID
-        clientSecret: $okta.clientSecret
+        clientID: aaaabbbbccccddddeee
+        clientSecret: $dex.okta.clientSecret

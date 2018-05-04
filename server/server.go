@@ -28,6 +28,7 @@ import (
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"github.com/argoproj/argo-cd/util/webhook"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -280,7 +281,12 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
+	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
+
+	// Webhook handler for git events
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings)
+	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
 	if a.StaticAssetsDir != "" {
 		mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
