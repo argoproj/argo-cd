@@ -6,14 +6,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReturnsTrueForSSHUrl(t *testing.T) {
-	assert.True(t, IsSshURL("git@github.com:test.git"))
-}
-
-func TestReturnsFalseForNonSSHUrl(t *testing.T) {
-	assert.False(t, IsSshURL("https://github.com/test.git"))
+func TestIsSSHUrl(t *testing.T) {
+	data := map[string]bool{
+		"git@GITHUB.com:argoproj/test.git":     true,
+		"https://github.com/argoproj/test.git": false,
+	}
+	for k, v := range data {
+		assert.Equal(t, IsSshURL(k), v)
+	}
 }
 
 func TestNormalizeUrl(t *testing.T) {
-	assert.Equal(t, NormalizeGitURL("git@GITHUB.com:test.git"), "git@github.com:test.git")
+	data := map[string]string{
+		"git@GITHUB.com:test.git": "git@github.com:test.git",
+	}
+	for k, v := range data {
+		assert.Equal(t, NormalizeGitURL(k), v)
+	}
 }
