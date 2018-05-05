@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/ghodss/yaml"
+	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -203,26 +206,31 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 	}
 
 	// Verify app.yaml is functional
-	req := repository.KsonnetAppRequest{
+	req := repository.GetFileRequest{
 		Repo: &appv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
 		Revision: spec.Source.TargetRevision,
-		Path:     spec.Source.Path,
+		Path:     path.Join(spec.Source.Path, "app.yaml"),
 	}
 	if repoRes != nil {
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
 	}
-	ksAppRes, err := repoClient.GetKsonnetApp(ctx, &req)
+	getRes, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
 		return err
 	}
+	var appSpec app.Spec
+	err = yaml.Unmarshal(getRes.Data, &appSpec)
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, "app.yaml is not a valid ksonnet app spec")
+	}
 
 	// Verify the specified environment is defined in it
-	envSpec, ok := ksAppRes.Environments[spec.Source.Environment]
-	if !ok {
+	envSpec, ok := appSpec.Environments[spec.Source.Environment]
+	if !ok || envSpec == nil {
 		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in app", spec.Source.Environment)
 	}
 	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD

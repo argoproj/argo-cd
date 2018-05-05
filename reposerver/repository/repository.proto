@@ -36,44 +36,18 @@ message EnvParamsResponse {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 1;
 }
 
-// KsonnetAppRequest is a query for ksonnet app
-message KsonnetAppRequest {
+// GetFileRequest return
+message GetFileRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
     string path = 3;
 }
 
 
-// KsonnetAppResponse contains Ksonnet app response
-// This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
-// NOTE: we may expose ksonnet apps from API server, in which case these definitions will move to
-// a more public place. For now, these types are only used internally.
-message KsonnetAppResponse {
-    string name = 1;
-    map<string, KsonnetEnvironment> environments = 2;
+// GetFileResponse returns the contents of the file of a GetFile request
+message GetFileResponse {
+    bytes data = 1;
 }
-
-message KsonnetEnvironment {
-    // Name is the user defined name of an environment
-    string name = 1;
-	// KubernetesVersion is the kubernetes version the targetted cluster is running on.
-    string k8sVersion = 2;
-	// Path is the relative project path containing metadata for this environment.
-    string path = 3;
-    // Destination stores the cluster address that this environment points to.
-    KsonnetEnvironmentDestination destination = 4;
-
-    // Targets contain the relative component paths that this environment
-	//repeated string targets = X;
-}
-
-message KsonnetEnvironmentDestination {
-    // Server is the Kubernetes server that the cluster is running on.
-    string server = 1;
-	// Namespace is the namespace of the Kubernetes server that targets should be deployed to
-    string namespace = 2;
-}
-
 
 // ManifestService
 service RepositoryService {
@@ -86,8 +60,8 @@ service RepositoryService {
     rpc GetEnvParams(EnvParamsRequest) returns (EnvParamsResponse) {
     }
 
-    // Retrieve Ksonnet environment params in specified repo name and revision
-    rpc GetKsonnetApp(KsonnetAppRequest) returns (KsonnetAppResponse) {
+    // GetFile returns the file contents at the specified repo and path
+    rpc GetFile(GetFileRequest) returns (GetFileResponse) {
     }
     
 }

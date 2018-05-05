@@ -10,27 +10,24 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"k8s.io/client-go/kubernetes"
 )
 
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
-	ns            string
-	kubeclientset kubernetes.Interface
-	log           *log.Entry
+	log        *log.Entry
+	gitFactory git.ClientFactory
 }
 
 // NewServer returns a new instance of the ArgoCD Repo server
-func NewServer(kubeclientset kubernetes.Interface, namespace string) *ArgoCDRepoServer {
+func NewServer(gitFactory git.ClientFactory) *ArgoCDRepoServer {
 	return &ArgoCDRepoServer{
-		ns:            namespace,
-		kubeclientset: kubeclientset,
-		log:           log.NewEntry(log.New()),
+		log:        log.NewEntry(log.New()),
+		gitFactory: gitFactory,
 	}
 }
 
 // CreateGRPC creates new configured grpc server
-func (a *ArgoCDRepoServer) CreateGRPC(gitClient git.Client) *grpc.Server {
+func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_logrus.StreamServerInterceptor(a.log),
@@ -42,7 +39,7 @@ func (a *ArgoCDRepoServer) CreateGRPC(gitClient git.Client) *grpc.Server {
 		)),
 	)
 	version.RegisterVersionServiceServer(server, &version.Server{})
-	manifestService := repository.NewService(a.ns, a.kubeclientset, gitClient)
+	manifestService := repository.NewService(a.gitFactory)
 	repository.RegisterRepositoryServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.
