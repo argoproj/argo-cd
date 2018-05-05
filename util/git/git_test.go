@@ -43,12 +43,15 @@ func TestEnsureSuffix(t *testing.T) {
 
 func TestIsSSHUrl(t *testing.T) {
 	data := map[string]bool{
+		"git://github.com/argoproj/test.git":     false,
 		"git@GITHUB.com:argoproj/test.git":       true,
+		"git@github.com:test":                    true,
 		"git@github.com:test.git":                true,
+		"https://github.com/argoproj/test":       false,
+		"https://github.com/argoproj/test.git":   false,
+		"ssh://git@GITHUB.com:argoproj/test":     true,
 		"ssh://git@GITHUB.com:argoproj/test.git": true,
 		"ssh://git@github.com:test.git":          true,
-		"https://github.com/argoproj/test.git":   false,
-		"git://github.com/argoproj/test.git":     false,
 	}
 	for k, v := range data {
 		assert.Equal(t, v, IsSshURL(k))
@@ -57,11 +60,18 @@ func TestIsSSHUrl(t *testing.T) {
 
 func TestNormalizeUrl(t *testing.T) {
 	data := map[string]string{
-		"git@GITHUB.com:test.git":                "git@github.com:test.git",
-		"https://github.com/TEST.git":            "https://github.com/TEST.git",
+		"git@GITHUB.com:argoproj/test":           "git@github.com:argoproj/test.git",
 		"git@GITHUB.com:argoproj/test.git":       "git@github.com:argoproj/test.git",
-		"ssh://git@GITHUB.com:argoproj/test.git": "git@github.com:argoproj/test.git",
+		"git@GITHUB.com:test":                    "git@github.com:test.git",
+		"git@GITHUB.com:test.git":                "git@github.com:test.git",
+		"https://GITHUB.com/argoproj/test":       "https://github.com/argoproj/test.git",
 		"https://GITHUB.com/argoproj/test.git":   "https://github.com/argoproj/test.git",
+		"https://github.com/TEST":                "https://github.com/TEST.git",
+		"https://github.com/TEST.git":            "https://github.com/TEST.git",
+		"ssh://git@GITHUB.com:argoproj/test":     "git@github.com:argoproj/test.git",
+		"ssh://git@GITHUB.com:argoproj/test.git": "git@github.com:argoproj/test.git",
+		"ssh://git@GITHUB.com:test.git":          "git@github.com:test.git",
+		"ssh://git@github.com:test":              "git@github.com:test.git",
 	}
 	for k, v := range data {
 		assert.Equal(t, v, NormalizeGitURL(k))
