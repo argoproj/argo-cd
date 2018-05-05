@@ -10,18 +10,45 @@ import (
 	"strings"
 )
 
-// NormalizeGitURL normalizes a git URL for lookup and storage
-func NormalizeGitURL(repo string) string {
-	repoURL, err := url.Parse(repo)
-	if err != nil {
-		return strings.ToLower(repo)
+// EnsurePrefix idempotently ensures that a base string has a given prefix.
+func ensurePrefix(s, prefix string) string {
+	if !strings.HasPrefix(s, prefix) {
+		s = prefix + s
 	}
-	return repoURL.String()
+	return s
 }
 
-// IsSshURL returns true is supplied URL is SSH URL
+// EnsureSuffix idempotently ensures that a base string has a given suffix.
+func ensureSuffix(s, suffix string) string {
+	if !strings.HasSuffix(s, suffix) {
+		s += suffix
+	}
+	return s
+}
+
+// NormalizeGitURL normalizes a git URL for lookup and storage
+func NormalizeGitURL(repo string) string {
+	// preprocess
+	repo = ensureSuffix(repo, ".git")
+	if IsSshURL(repo) {
+		repo = ensurePrefix(repo, "ssh://")
+	}
+
+	// process
+	repoURL, err := url.Parse(repo)
+	if err != nil {
+		return ""
+	}
+
+	// postprocess
+	repoURL.Host = strings.ToLower(repoURL.Host)
+	normalized := repoURL.String()
+	return strings.TrimPrefix(normalized, "ssh://")
+}
+
+// IsSshURL returns true if supplied URL is SSH URL
 func IsSshURL(url string) bool {
-	return strings.Index(url, "git@") == 0
+	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
 }
 
 // GetGitCommandOptions returns URL and env options for git operation

@@ -142,11 +142,11 @@ func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error
 // repoURLToSecretName hashes repo URL to the secret name using a formula.
 // Part of the original repo name is incorporated for debugging purposes
 func repoURLToSecretName(repo string) string {
-	repo = git.NormalizeGitURL(repo)
+	repo = strings.ToLower(git.NormalizeGitURL(repo))
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
 	parts := strings.Split(strings.TrimSuffix(repo, ".git"), "/")
-	return fmt.Sprintf("repo-%s-%v", strings.ToLower(parts[len(parts)-1]), h.Sum32())
+	return fmt.Sprintf("repo-%s-%v", parts[len(parts)-1], h.Sum32())
 }
 
 // repoToStringData converts a repository object to string data for serialization to a secret
