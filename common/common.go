@@ -37,6 +37,11 @@ var (
 
 	// LabelApplicationName is the label which indicates that resource belongs to application with the specified name
 	LabelApplicationName = application.ApplicationFullName + "/app-name"
+
+	// AnnotationKeyRefresh is the annotation key in the application which is updated with an
+	// arbitrary value (i.e. timestamp) on a git event, to  force the controller to wake up and
+	// re-evaluate the application
+	AnnotationKeyRefresh = application.ApplicationFullName + "/refresh"
 )
 
 // ArgoCDManagerServiceAccount is the name of the service account for managing a cluster

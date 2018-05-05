@@ -19,19 +19,21 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach ArgoCD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string
-
 	// DexConfig is contains portions of a dex config yaml
 	DexConfig string
-
 	// LocalUsers holds users local to (stored on) the server.  This is to be distinguished from any potential alternative future login providers (LDAP, SAML, etc.) that might ever be added.
 	LocalUsers map[string]string
-
 	// ServerSignature holds the key used to generate JWT tokens.
 	ServerSignature []byte
-
 	// Certificate holds the certificate/private key for the ArgoCD API server.
 	// If nil, will run insecure without TLS.
 	Certificate *tls.Certificate
+	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
+	WebhookGitHubSecret string
+	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
+	WebhookGitLabSecret string
+	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
+	WebhookBitbucketUUID string
 }
 
 const (
@@ -47,6 +49,12 @@ const (
 	settingURLKey = "url"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
+	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
+	settingsWebhookGitHubSecretKey = "webhook.github.secret"
+	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
+	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
+	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
+	settingsWebhookBitbucketUUIDKey = "webhook.bitbucket.uuid"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -82,6 +90,15 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		return nil, fmt.Errorf("server secret key not found")
 	}
 	settings.ServerSignature = secretKey
+	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
+		settings.WebhookGitHubSecret = string(githubWebhookSecret)
+	}
+	if gitlabWebhookSecret := argoCDSecret.Data[settingsWebhookGitLabSecretKey]; len(gitlabWebhookSecret) > 0 {
+		settings.WebhookGitLabSecret = string(gitlabWebhookSecret)
+	}
+	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
+		settings.WebhookBitbucketUUID = string(bitbucketWebhookUUID)
+	}
 
 	serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
 	serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
@@ -141,6 +158,15 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	argoCDSecret.StringData = make(map[string]string)
 	argoCDSecret.StringData[settingServerSignatureKey] = string(settings.ServerSignature)
 	argoCDSecret.StringData[settingAdminPasswordKey] = settings.LocalUsers[common.ArgoCDAdminUsername]
+	if settings.WebhookGitHubSecret != "" {
+		argoCDSecret.StringData[settingsWebhookGitHubSecretKey] = settings.WebhookGitHubSecret
+	}
+	if settings.WebhookGitLabSecret != "" {
+		argoCDSecret.StringData[settingsWebhookGitLabSecretKey] = settings.WebhookGitLabSecret
+	}
+	if settings.WebhookBitbucketUUID != "" {
+		argoCDSecret.StringData[settingsWebhookBitbucketUUIDKey] = settings.WebhookBitbucketUUID
+	}
 	if settings.Certificate != nil {
 		certBytes, keyBytes := tlsutil.EncodeX509KeyPair(*settings.Certificate)
 		argoCDSecret.StringData[settingServerCertificate] = string(certBytes)
