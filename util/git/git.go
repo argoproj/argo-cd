@@ -46,7 +46,7 @@ func NormalizeGitURL(repo string) string {
 	return strings.TrimPrefix(normalized, "ssh://")
 }
 
-// IsSshURL returns true is supplied URL is SSH URL
+// IsSshURL returns true if supplied URL is SSH URL
 func IsSshURL(url string) bool {
 	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
 }
