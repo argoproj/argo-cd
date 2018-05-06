@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -156,7 +157,7 @@ func (s *Service) setAppLabels(target *unstructured.Unstructured, appName string
 	labels[common.LabelApplicationName] = appName
 	target.SetLabels(labels)
 	// special case for deployment: make sure that derived replicaset and pod has application label
-	if target.GetKind() == "Deployment" {
+	if target.GetKind() == kube.DeploymentKind {
 		labels, ok := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
 		if ok {
 			if labels == nil {

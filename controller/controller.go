@@ -19,6 +19,8 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/api/apps/v1"
+	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -29,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -222,7 +225,7 @@ func (ctrl *ApplicationController) processNextItem() bool {
 	if isForceRefreshed || app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
 		log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
 
-		comparisonResult, parameters, err := ctrl.tryRefreshAppStatus(app.DeepCopy())
+		comparisonResult, parameters, healthState, err := ctrl.tryRefreshAppStatus(app.DeepCopy())
 		if err != nil {
 			comparisonResult = &appv1.ComparisonResult{
 				Status:     appv1.ComparisonStatusError,
@@ -231,17 +234,18 @@ func (ctrl *ApplicationController) processNextItem() bool {
 				ComparedAt: metav1.Time{Time: time.Now().UTC()},
 			}
 			parameters = nil
+			healthState = &appv1.HealthState{Status: appv1.HealthStatusUnknown}
 		}
-		ctrl.updateAppStatus(app.Name, app.Namespace, comparisonResult, parameters)
+		ctrl.updateAppStatus(app.Name, app.Namespace, comparisonResult, parameters, *healthState)
 	}
 
 	return true
 }
 
-func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, error) {
+func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthState, error) {
 	conn, client, err := ctrl.repoClientset.NewRepositoryClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer util.Close(conn)
 	repo, err := ctrl.apiRepoService.Get(context.Background(), &apireposerver.RepoQuery{Repo: app.Spec.Source.RepoURL})
@@ -271,14 +275,14 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	})
 	if err != nil {
 		log.Errorf("Failed to load application manifest %v", err)
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
 	for i, manifestStr := range manifestInfo.Manifests {
 		var obj unstructured.Unstructured
 		if err := json.Unmarshal([]byte(manifestStr), &obj); err != nil {
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 		targetObjs[i] = &obj
@@ -287,7 +291,7 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
 	comparisonResult, err := ctrl.appComparator.CompareAppState(server, namespace, targetObjs, app)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
 
@@ -299,13 +303,121 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	}
 	params, err := client.GetEnvParams(context.Background(), &paramsReq)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	parameters := make([]appv1.ComponentParameter, len(params.Params))
 	for i := range params.Params {
 		parameters[i] = *params.Params[i]
 	}
-	return comparisonResult, &parameters, nil
+	healthState, err := ctrl.getAppHealthState(server, namespace, comparisonResult)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return comparisonResult, &parameters, healthState, nil
+}
+
+func (ctrl *ApplicationController) getServiceHealthState(config *rest.Config, namespace string, name string) (*appv1.HealthState, error) {
+	clientSet, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	service, err := clientSet.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	healthState := appv1.HealthState{Status: appv1.HealthStatusHealthy}
+	if service.Spec.Type == coreV1.ServiceTypeLoadBalancer {
+		healthState.Status = appv1.HealthStatusProgressing
+		for _, ingress := range service.Status.LoadBalancer.Ingress {
+			if ingress.Hostname != "" || ingress.IP != "" {
+				healthState.Status = appv1.HealthStatusHealthy
+				break
+			}
+		}
+	}
+	return &healthState, nil
+}
+
+func (ctrl *ApplicationController) getDeploymentHealthState(config *rest.Config, namespace string, name string) (*appv1.HealthState, error) {
+	clientSet, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	deploy, err := clientSet.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	healthState := appv1.HealthState{
+		Status: appv1.HealthStatusUnknown,
+	}
+	for _, condition := range deploy.Status.Conditions {
+		// deployment is healthy is it successfully progressed
+		if condition.Type == v1.DeploymentProgressing && condition.Status == "True" {
+			healthState.Status = appv1.HealthStatusHealthy
+		} else if condition.Type == v1.DeploymentReplicaFailure && condition.Status == "True" {
+			healthState.Status = appv1.HealthStatusDegraded
+		} else if condition.Type == v1.DeploymentProgressing && condition.Status == "False" {
+			healthState.Status = appv1.HealthStatusDegraded
+		} else if condition.Type == v1.DeploymentAvailable && condition.Status == "False" {
+			healthState.Status = appv1.HealthStatusDegraded
+		}
+		if healthState.Status != appv1.HealthStatusUnknown {
+			healthState.StatusDetails = fmt.Sprintf("%s:%s", condition.Reason, condition.Message)
+			break
+		}
+	}
+	return &healthState, nil
+}
+
+func (ctrl *ApplicationController) getAppHealthState(server string, namespace string, comparisonResult *appv1.ComparisonResult) (*appv1.HealthState, error) {
+	clst, err := ctrl.apiClusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
+	if err != nil {
+		return nil, err
+	}
+	restConfig := clst.RESTConfig()
+
+	appHealthState := appv1.HealthState{Status: appv1.HealthStatusHealthy}
+	for i := range comparisonResult.Resources {
+		resource := comparisonResult.Resources[i]
+		if resource.LiveState == "null" {
+			resource.HealthState = appv1.HealthState{Status: appv1.HealthStatusUnknown}
+		} else {
+			var obj unstructured.Unstructured
+			err := json.Unmarshal([]byte(resource.LiveState), &obj)
+			if err != nil {
+				return nil, err
+			}
+			switch obj.GetKind() {
+			case kube.DeploymentKind:
+				state, err := ctrl.getDeploymentHealthState(restConfig, namespace, obj.GetName())
+				if err != nil {
+					return nil, err
+				}
+				resource.HealthState = *state
+			case kube.ServiceKind:
+				state, err := ctrl.getServiceHealthState(restConfig, namespace, obj.GetName())
+				if err != nil {
+					return nil, err
+				}
+				resource.HealthState = *state
+			default:
+				resource.HealthState = appv1.HealthState{Status: appv1.HealthStatusHealthy}
+			}
+
+			if resource.HealthState.Status == appv1.HealthStatusProgressing {
+				if appHealthState.Status == appv1.HealthStatusHealthy {
+					appHealthState.Status = appv1.HealthStatusProgressing
+				}
+			} else if resource.HealthState.Status == appv1.HealthStatusDegraded {
+				if appHealthState.Status == appv1.HealthStatusHealthy || appHealthState.Status == appv1.HealthStatusProgressing {
+					appHealthState.Status = appv1.HealthStatusDegraded
+				}
+			}
+		}
+		comparisonResult.Resources[i] = resource
+	}
+	return &appHealthState, nil
 }
 
 func (ctrl *ApplicationController) runWorker() {
@@ -313,10 +425,12 @@ func (ctrl *ApplicationController) runWorker() {
 	}
 }
 
-func (ctrl *ApplicationController) updateAppStatus(appName string, namespace string, comparisonResult *appv1.ComparisonResult, parameters *[]appv1.ComponentParameter) {
+func (ctrl *ApplicationController) updateAppStatus(
+	appName string, namespace string, comparisonResult *appv1.ComparisonResult, parameters *[]appv1.ComponentParameter, healthState appv1.HealthState) {
 	statusPatch := make(map[string]interface{})
 	statusPatch["comparisonResult"] = comparisonResult
 	statusPatch["parameters"] = parameters
+	statusPatch["healthState"] = healthState
 	patch, err := json.Marshal(map[string]interface{}{
 		"status": statusPatch,
 	})
