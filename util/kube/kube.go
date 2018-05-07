@@ -32,11 +32,13 @@ const (
 	listVerb             = "list"
 	deleteVerb           = "delete"
 	deleteCollectionVerb = "deletecollection"
+	watchVerb            = "watch"
 )
 
 const (
-	ServiceKind   = "Service"
-	EndpointsKind = "Endpoints"
+	ServiceKind    = "Service"
+	EndpointsKind  = "Endpoints"
+	DeploymentKind = "Deployment"
 )
 
 var (
@@ -133,7 +135,7 @@ func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace
 			apiResource := apiResourcesList.APIResources[i]
 			watchSupported := false
 			for _, verb := range apiResource.Verbs {
-				if verb == "watch" {
+				if verb == watchVerb {
 					watchSupported = true
 					break
 				}
@@ -332,33 +334,6 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 	return asyncErr
 }
 
-// GetLiveResources returns the corresponding live resource from a list of resources
-func GetLiveResources(config *rest.Config, objs []*unstructured.Unstructured, namespace string) ([]*unstructured.Unstructured, error) {
-	liveObjs := make([]*unstructured.Unstructured, len(objs))
-	dynClientPool := dynamic.NewDynamicClientPool(config)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	for i, obj := range objs {
-		gvk := obj.GroupVersionKind()
-		dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
-		if err != nil {
-			return nil, err
-		}
-		apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
-		if err != nil {
-			return nil, err
-		}
-		liveObj, err := GetLiveResource(dclient, obj, apiResource, namespace)
-		if err != nil {
-			return nil, err
-		}
-		liveObjs[i] = liveObj
-	}
-	return liveObjs, nil
-}
-
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
 func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
 	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
@@ -395,40 +370,6 @@ func ListResources(dclient dynamic.Interface, apiResource metav1.APIResource, na
 		return nil, errors.WithStack(err)
 	}
 	return objList.Items, nil
-}
-
-// ListAllResources iterates the list of API resources, and returns all resources with the given filters
-func ListAllResources(config *rest.Config, apiResources []metav1.APIResource, namespace string, listOpts metav1.ListOptions) ([]*unstructured.Unstructured, error) {
-	// itemMap dedups items when there is duplication of a resource in multiple API types
-	// e.g. extensions/v1beta1/namespaces/default/deployments and apps/v1/namespaces/default/deployments
-	itemMap := make(map[string]*unstructured.Unstructured)
-
-	for _, apiResource := range apiResources {
-		dynConfig := *config
-		dynConfig.GroupVersion = &schema.GroupVersion{
-			Group:   apiResource.Group,
-			Version: apiResource.Kind,
-		}
-		dclient, err := dynamic.NewClient(&dynConfig)
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		resList, err := ListResources(dclient, apiResource, namespace, listOpts)
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		for _, liveObj := range resList {
-			itemMap[string(liveObj.GetUID())] = liveObj
-		}
-
-	}
-	resources := make([]*unstructured.Unstructured, len(itemMap))
-	i := 0
-	for _, obj := range itemMap {
-		resources[i] = obj
-		i++
-	}
-	return resources, nil
 }
 
 // deleteFile is best effort deletion of a file

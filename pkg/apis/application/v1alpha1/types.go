@@ -108,6 +108,7 @@ type ApplicationStatus struct {
 	ComparisonResult  ComparisonResult     `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
 	RecentDeployments []DeploymentInfo     `json:"recentDeployments" protobuf:"bytes,2,opt,name=recentDeployment"`
 	Parameters        []ComponentParameter `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
+	Health            HealthStatus         `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.
@@ -118,8 +119,22 @@ type ComparisonResult struct {
 	Namespace  string            `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
 	Resources  []ResourceState   `json:"resources" protobuf:"bytes,6,opt,name=resources"`
-	Error      string            `json:"error,omitempty" protobuf:"bytes,7,opt,name=error"`
+	Error      string            `json:"error" protobuf:"bytes,7,opt,name=error"`
 }
+
+type HealthStatus struct {
+	Status        HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	StatusDetails string           `json:"statusDetails,omitempty" protobuf:"bytes,2,opt,name=statusDetails"`
+}
+
+type HealthStatusCode = string
+
+const (
+	HealthStatusUnknown     = ""
+	HealthStatusProgressing = "Progressing"
+	HealthStatusHealthy     = "Healthy"
+	HealthStatusDegraded    = "Degraded"
+)
 
 // ResourceNode contains information about live resource and its children
 type ResourceNode struct {
@@ -133,6 +148,7 @@ type ResourceState struct {
 	LiveState          string           `json:"liveState,omitempty" protobuf:"bytes,2,opt,name=liveState"`
 	Status             ComparisonStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 	ChildLiveResources []ResourceNode   `json:"childLiveResources,omitempty" protobuf:"bytes,4,opt,name=childLiveResources"`
+	Health             HealthStatus     `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
 }
 
 // Cluster is the definition of a cluster resource
