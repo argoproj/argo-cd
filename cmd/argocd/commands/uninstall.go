@@ -11,8 +11,10 @@ import (
 // NewUninstallCommand returns a new instance of `argocd install` command
 func NewUninstallCommand() *cobra.Command {
 	var (
-		clientConfig clientcmd.ClientConfig
-		installOpts  install.InstallOptions
+		clientConfig    clientcmd.ClientConfig
+		installOpts     install.InstallOptions
+		deleteNamespace bool
+		deleteCRD       bool
 	)
 	var command = &cobra.Command{
 		Use:   "uninstall",
@@ -28,9 +30,11 @@ func NewUninstallCommand() *cobra.Command {
 			}
 			installer, err := install.NewInstaller(conf, installOpts)
 			errors.CheckError(err)
-			installer.Uninstall()
+			installer.Uninstall(deleteNamespace, deleteCRD)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	command.Flags().BoolVar(&deleteNamespace, "delete-namespace", false, "Also delete the namespace during uninstall")
+	command.Flags().BoolVar(&deleteCRD, "delete-crd", false, "Also delete the Application CRD during uninstall")
 	return command
 }
