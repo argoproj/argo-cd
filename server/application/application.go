@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"reflect"
 	"strings"
 	"time"
 
@@ -82,7 +83,17 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 	if err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
+	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
+	if apierr.IsAlreadyExists(err) {
+		// act idempotent if existing spec matches new spec
+		existing, err2 := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(a.Name, metav1.GetOptions{})
+		if err2 == nil {
+			if reflect.DeepEqual(existing.Spec, a.Spec) {
+				return existing, nil
+			}
+		}
+	}
+	return out, err
 }
 
 // Get returns an application by name
