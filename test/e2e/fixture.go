@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/cluster"
 	apirepository "github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util/git"
 	"google.golang.org/grpc"
 	"k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -109,7 +110,7 @@ func NewFixture() (*Fixture, error) {
 	kubeClient := kubernetes.NewForConfigOrDie(config)
 	namespace, err := createNamespace(kubeClient)
 	clusterService := cluster.NewServer(namespace, kubeClient, appClient)
-	repoServerGRPC := reposerver.NewServer(kubeClient, namespace).CreateGRPC(&FakeGitClient{})
+	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}).CreateGRPC()
 	if err != nil {
 		return nil, err
 	}
@@ -183,29 +184,54 @@ func PollUntil(t *testing.T, condition wait.ConditionFunc) {
 	}
 }
 
-// FakeGitClient is a test git client implementation which always clone local test repo.
-type FakeGitClient struct {
+// Client is a generic git client interface
+type Client interface {
+	Root() string
+	Init() error
+	Fetch() error
 }
 
-func (c *FakeGitClient) CloneOrFetch(repo string, username string, password string, sshPrivateKey string, repoPath string) error {
-	_, err := exec.Command("rm", "-rf", repoPath).Output()
+type FakeGitClientFactory struct{}
+
+func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) git.Client {
+	return &FakeGitClient{
+		root: path,
+	}
+}
+
+// FakeGitClient is a test git client implementation which always clone local test repo.
+type FakeGitClient struct {
+	root string
+}
+
+func (c *FakeGitClient) Init() error {
+	_, err := exec.Command("rm", "-rf", c.root).Output()
 	if err != nil {
 		return err
 	}
-	_, err = exec.Command("cp", "-r", "../../examples/guestbook", repoPath).Output()
+	_, err = exec.Command("cp", "-r", "../../examples/guestbook", c.root).Output()
 	return err
 }
 
-func (c *FakeGitClient) Checkout(repoPath string, sha string) (string, error) {
-	// do nothing
-	return "latest", nil
+func (c *FakeGitClient) Root() string {
+	return c.root
 }
 
-func (c *FakeGitClient) Reset(repoPath string) error {
+func (c *FakeGitClient) Fetch() error {
 	// do nothing
 	return nil
 }
 
-func (c *FakeGitClient) CommitSHA(repoPath string) (string, error) {
+func (c *FakeGitClient) Checkout(revision string) error {
+	// do nothing
+	return nil
+}
+
+func (c *FakeGitClient) Reset() error {
+	// do nothing
+	return nil
+}
+
+func (c *FakeGitClient) CommitSHA() (string, error) {
 	return "abcdef123456890", nil
 }

@@ -1,14 +1,13 @@
 package ksonnet
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"encoding/json"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/cli"
