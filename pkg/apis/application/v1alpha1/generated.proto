@@ -82,7 +82,7 @@ message ApplicationStatus {
 
   repeated ComponentParameter parameters = 3;
 
-  optional HealthState healthState = 4;
+  optional HealthStatus health = 4;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -172,7 +172,7 @@ message DeploymentInfo {
   optional int64 id = 5;
 }
 
-message HealthState {
+message HealthStatus {
   optional string status = 1;
 
   optional string statusDetails = 2;
@@ -213,7 +213,7 @@ message ResourceState {
 
   repeated ResourceNode childLiveResources = 4;
 
-  optional HealthState healthState = 5;
+  optional HealthStatus health = 5;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

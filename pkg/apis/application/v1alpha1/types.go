@@ -108,7 +108,7 @@ type ApplicationStatus struct {
 	ComparisonResult  ComparisonResult     `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
 	RecentDeployments []DeploymentInfo     `json:"recentDeployments" protobuf:"bytes,2,opt,name=recentDeployment"`
 	Parameters        []ComponentParameter `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
-	HealthState       HealthState          `json:"healthState,omitempty" protobuf:"bytes,4,opt,name=healthState"`
+	Health            HealthStatus         `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.
@@ -122,12 +122,12 @@ type ComparisonResult struct {
 	Error      string            `json:"error" protobuf:"bytes,7,opt,name=error"`
 }
 
-type HealthState struct {
-	Status        HealthStatus `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
-	StatusDetails string       `json:"statusDetails,omitempty" protobuf:"bytes,2,opt,name=statusDetails"`
+type HealthStatus struct {
+	Status        HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	StatusDetails string           `json:"statusDetails,omitempty" protobuf:"bytes,2,opt,name=statusDetails"`
 }
 
-type HealthStatus = string
+type HealthStatusCode = string
 
 const (
 	HealthStatusUnknown     = ""
@@ -148,7 +148,7 @@ type ResourceState struct {
 	LiveState          string           `json:"liveState,omitempty" protobuf:"bytes,2,opt,name=liveState"`
 	Status             ComparisonStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 	ChildLiveResources []ResourceNode   `json:"childLiveResources,omitempty" protobuf:"bytes,4,opt,name=childLiveResources"`
-	HealthState        HealthState      `json:"healthState,omitempty" protobuf:"bytes,5,opt,name=healthState"`
+	Health             HealthStatus     `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
 }
 
 // Cluster is the definition of a cluster resource

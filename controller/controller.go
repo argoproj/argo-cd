@@ -234,7 +234,7 @@ func (ctrl *ApplicationController) processNextItem() bool {
 				ComparedAt: metav1.Time{Time: time.Now().UTC()},
 			}
 			parameters = nil
-			healthState = &appv1.HealthState{Status: appv1.HealthStatusUnknown}
+			healthState = &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}
 		}
 		ctrl.updateAppStatus(app.Name, app.Namespace, comparisonResult, parameters, *healthState)
 	}
@@ -242,7 +242,7 @@ func (ctrl *ApplicationController) processNextItem() bool {
 	return true
 }
 
-func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthState, error) {
+func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthStatus, error) {
 	conn, client, err := ctrl.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, nil, nil, err
@@ -309,14 +309,14 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	for i := range params.Params {
 		parameters[i] = *params.Params[i]
 	}
-	healthState, err := ctrl.getAppHealthState(server, namespace, comparisonResult)
+	healthState, err := ctrl.getAppHealth(server, namespace, comparisonResult)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return comparisonResult, &parameters, healthState, nil
 }
 
-func (ctrl *ApplicationController) getServiceHealthState(config *rest.Config, namespace string, name string) (*appv1.HealthState, error) {
+func (ctrl *ApplicationController) getServiceHealth(config *rest.Config, namespace string, name string) (*appv1.HealthStatus, error) {
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -326,20 +326,20 @@ func (ctrl *ApplicationController) getServiceHealthState(config *rest.Config, na
 		return nil, err
 	}
 
-	healthState := appv1.HealthState{Status: appv1.HealthStatusHealthy}
+	health := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if service.Spec.Type == coreV1.ServiceTypeLoadBalancer {
-		healthState.Status = appv1.HealthStatusProgressing
+		health.Status = appv1.HealthStatusProgressing
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
 			if ingress.Hostname != "" || ingress.IP != "" {
-				healthState.Status = appv1.HealthStatusHealthy
+				health.Status = appv1.HealthStatusHealthy
 				break
 			}
 		}
 	}
-	return &healthState, nil
+	return &health, nil
 }
 
-func (ctrl *ApplicationController) getDeploymentHealthState(config *rest.Config, namespace string, name string) (*appv1.HealthState, error) {
+func (ctrl *ApplicationController) getDeploymentHealth(config *rest.Config, namespace string, name string) (*appv1.HealthStatus, error) {
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -348,40 +348,40 @@ func (ctrl *ApplicationController) getDeploymentHealthState(config *rest.Config,
 	if err != nil {
 		return nil, err
 	}
-	healthState := appv1.HealthState{
+	health := appv1.HealthStatus{
 		Status: appv1.HealthStatusUnknown,
 	}
 	for _, condition := range deploy.Status.Conditions {
 		// deployment is healthy is it successfully progressed
 		if condition.Type == v1.DeploymentProgressing && condition.Status == "True" {
-			healthState.Status = appv1.HealthStatusHealthy
+			health.Status = appv1.HealthStatusHealthy
 		} else if condition.Type == v1.DeploymentReplicaFailure && condition.Status == "True" {
-			healthState.Status = appv1.HealthStatusDegraded
+			health.Status = appv1.HealthStatusDegraded
 		} else if condition.Type == v1.DeploymentProgressing && condition.Status == "False" {
-			healthState.Status = appv1.HealthStatusDegraded
+			health.Status = appv1.HealthStatusDegraded
 		} else if condition.Type == v1.DeploymentAvailable && condition.Status == "False" {
-			healthState.Status = appv1.HealthStatusDegraded
+			health.Status = appv1.HealthStatusDegraded
 		}
-		if healthState.Status != appv1.HealthStatusUnknown {
-			healthState.StatusDetails = fmt.Sprintf("%s:%s", condition.Reason, condition.Message)
+		if health.Status != appv1.HealthStatusUnknown {
+			health.StatusDetails = fmt.Sprintf("%s:%s", condition.Reason, condition.Message)
 			break
 		}
 	}
-	return &healthState, nil
+	return &health, nil
 }
 
-func (ctrl *ApplicationController) getAppHealthState(server string, namespace string, comparisonResult *appv1.ComparisonResult) (*appv1.HealthState, error) {
+func (ctrl *ApplicationController) getAppHealth(server string, namespace string, comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
 	clst, err := ctrl.apiClusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
 	if err != nil {
 		return nil, err
 	}
 	restConfig := clst.RESTConfig()
 
-	appHealthState := appv1.HealthState{Status: appv1.HealthStatusHealthy}
+	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	for i := range comparisonResult.Resources {
 		resource := comparisonResult.Resources[i]
 		if resource.LiveState == "null" {
-			resource.HealthState = appv1.HealthState{Status: appv1.HealthStatusUnknown}
+			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusUnknown}
 		} else {
 			var obj unstructured.Unstructured
 			err := json.Unmarshal([]byte(resource.LiveState), &obj)
@@ -390,34 +390,34 @@ func (ctrl *ApplicationController) getAppHealthState(server string, namespace st
 			}
 			switch obj.GetKind() {
 			case kube.DeploymentKind:
-				state, err := ctrl.getDeploymentHealthState(restConfig, namespace, obj.GetName())
+				state, err := ctrl.getDeploymentHealth(restConfig, namespace, obj.GetName())
 				if err != nil {
 					return nil, err
 				}
-				resource.HealthState = *state
+				resource.Health = *state
 			case kube.ServiceKind:
-				state, err := ctrl.getServiceHealthState(restConfig, namespace, obj.GetName())
+				state, err := ctrl.getServiceHealth(restConfig, namespace, obj.GetName())
 				if err != nil {
 					return nil, err
 				}
-				resource.HealthState = *state
+				resource.Health = *state
 			default:
-				resource.HealthState = appv1.HealthState{Status: appv1.HealthStatusHealthy}
+				resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 			}
 
-			if resource.HealthState.Status == appv1.HealthStatusProgressing {
-				if appHealthState.Status == appv1.HealthStatusHealthy {
-					appHealthState.Status = appv1.HealthStatusProgressing
+			if resource.Health.Status == appv1.HealthStatusProgressing {
+				if appHealth.Status == appv1.HealthStatusHealthy {
+					appHealth.Status = appv1.HealthStatusProgressing
 				}
-			} else if resource.HealthState.Status == appv1.HealthStatusDegraded {
-				if appHealthState.Status == appv1.HealthStatusHealthy || appHealthState.Status == appv1.HealthStatusProgressing {
-					appHealthState.Status = appv1.HealthStatusDegraded
+			} else if resource.Health.Status == appv1.HealthStatusDegraded {
+				if appHealth.Status == appv1.HealthStatusHealthy || appHealth.Status == appv1.HealthStatusProgressing {
+					appHealth.Status = appv1.HealthStatusDegraded
 				}
 			}
 		}
 		comparisonResult.Resources[i] = resource
 	}
-	return &appHealthState, nil
+	return &appHealth, nil
 }
 
 func (ctrl *ApplicationController) runWorker() {
@@ -426,11 +426,11 @@ func (ctrl *ApplicationController) runWorker() {
 }
 
 func (ctrl *ApplicationController) updateAppStatus(
-	appName string, namespace string, comparisonResult *appv1.ComparisonResult, parameters *[]appv1.ComponentParameter, healthState appv1.HealthState) {
+	appName string, namespace string, comparisonResult *appv1.ComparisonResult, parameters *[]appv1.ComponentParameter, healthState appv1.HealthStatus) {
 	statusPatch := make(map[string]interface{})
 	statusPatch["comparisonResult"] = comparisonResult
 	statusPatch["parameters"] = parameters
-	statusPatch["healthState"] = healthState
+	statusPatch["health"] = healthState
 	patch, err := json.Marshal(map[string]interface{}{
 		"status": statusPatch,
 	})
