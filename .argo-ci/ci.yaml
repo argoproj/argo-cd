@@ -21,9 +21,7 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - make controller-image
-        - make server-image
-        - make repo-server-image
+        - make controller-image server-image repo-server-image
       - name: test
         template: ci-builder
         arguments:
@@ -31,8 +29,7 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - dep ensure && make lint
-        - dep ensure && make test test-e2e
+        - dep ensure && make cli lint test test-e2e
 
   - name: ci-builder
     inputs:
