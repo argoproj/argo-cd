@@ -64,6 +64,7 @@ func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 	shallowCopy := *r
 	r = &shallowCopy
 	r.Repo = git.NormalizeGitURL(r.Repo)
+	r.Username = strings.TrimSpace(r.Username)
 	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
 	if err != nil {
 		return nil, err
