@@ -18,6 +18,7 @@ type Client interface {
 	Init() error
 	Fetch() error
 	Checkout(revision string) error
+	LsRemote(revision string) (string, error)
 	CommitSHA() (string, error)
 	Reset() error
 }
@@ -63,9 +64,7 @@ func (m *nativeGitClient) Init() error {
 	if _, err := os.Stat(m.root); os.IsNotExist(err) {
 		needInit = true
 	} else {
-		cmd := exec.Command("git", "status")
-		cmd.Dir = m.root
-		_, err = cmd.Output()
+		_, err = m.runCmd("git", "status")
 		needInit = err != nil
 	}
 	if needInit {
@@ -182,6 +181,27 @@ func (m *nativeGitClient) Checkout(revision string) error {
 		return err
 	}
 	return nil
+}
+
+// LsRemote returns the commit SHA of a specific branch, tag, or HEAD
+func (m *nativeGitClient) LsRemote(revision string) (string, error) {
+	var args []string
+	if revision == "" || revision == "HEAD" {
+		args = []string{"ls-remote", "origin", "HEAD"}
+	} else {
+		args = []string{"ls-remote", "--head", "--tags", "origin", revision}
+
+	}
+	out, err := m.runCmd("git", args...)
+	if err != nil {
+		return "", err
+	}
+	if out == "" {
+		// if doesn't exist in remote, assume revision is a commit sha and return it
+		return revision, nil
+	}
+	// 3f4ec0ab2263038ba91d3b594b2188fc108fc8d7	refs/heads/master
+	return strings.Fields(out)[0], nil
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`

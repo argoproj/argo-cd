@@ -15,8 +15,10 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/cluster"
 	apirepository "github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	"google.golang.org/grpc"
 	"k8s.io/api/core/v1"
@@ -104,13 +106,14 @@ func GetKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 
 // NewFixture creates e2e tests fixture.
 func NewFixture() (*Fixture, error) {
+	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
 	config := GetKubeConfig("", clientcmd.ConfigOverrides{})
 	extensionsClient := apiextensionsclient.NewForConfigOrDie(config)
 	appClient := appclientset.NewForConfigOrDie(config)
 	kubeClient := kubernetes.NewForConfigOrDie(config)
 	namespace, err := createNamespace(kubeClient)
 	clusterService := cluster.NewServer(namespace, kubeClient, appClient)
-	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}).CreateGRPC()
+	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}, memCache).CreateGRPC()
 	if err != nil {
 		return nil, err
 	}
@@ -184,13 +187,6 @@ func PollUntil(t *testing.T, condition wait.ConditionFunc) {
 	}
 }
 
-// Client is a generic git client interface
-type Client interface {
-	Root() string
-	Init() error
-	Fetch() error
-}
-
 type FakeGitClientFactory struct{}
 
 func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) git.Client {
@@ -230,6 +226,10 @@ func (c *FakeGitClient) Checkout(revision string) error {
 func (c *FakeGitClient) Reset() error {
 	// do nothing
 	return nil
+}
+
+func (c *FakeGitClient) LsRemote(s string) (string, error) {
+	return "abcdef123456890", nil
 }
 
 func (c *FakeGitClient) CommitSHA() (string, error) {

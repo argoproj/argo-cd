@@ -3,6 +3,7 @@ package reposerver
 import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -16,13 +17,15 @@ import (
 type ArgoCDRepoServer struct {
 	log        *log.Entry
 	gitFactory git.ClientFactory
+	cache      cache.Cache
 }
 
 // NewServer returns a new instance of the ArgoCD Repo server
-func NewServer(gitFactory git.ClientFactory) *ArgoCDRepoServer {
+func NewServer(gitFactory git.ClientFactory, cache cache.Cache) *ArgoCDRepoServer {
 	return &ArgoCDRepoServer{
 		log:        log.NewEntry(log.New()),
 		gitFactory: gitFactory,
+		cache:      cache,
 	}
 }
 
@@ -39,7 +42,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 		)),
 	)
 	version.RegisterVersionServiceServer(server, &version.Server{})
-	manifestService := repository.NewService(a.gitFactory)
+	manifestService := repository.NewService(a.gitFactory, a.cache)
 	repository.RegisterRepositoryServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.
