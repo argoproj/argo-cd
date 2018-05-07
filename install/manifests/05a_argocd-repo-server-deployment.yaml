@@ -13,8 +13,12 @@ spec:
         app: argocd-repo-server
     spec:
       containers:
-      - command: [/argocd-repo-server]
+      - name: argocd-repo-server
         image: argoproj/argocd-repo-server:latest
-        name: argocd-repo-server
+        command: [/argocd-repo-server]
         ports:
           - containerPort: 8081
+      - name: redis
+        image: redis:3.2.11
+        ports:
+          - containerPort: 6379

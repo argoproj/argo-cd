@@ -8,8 +8,11 @@ import (
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/go-redis/redis"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +35,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 			log.SetLevel(level)
 
-			server := reposerver.NewServer(git.NewFactory())
+			server := reposerver.NewServer(git.NewFactory(), newCache())
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 			errors.CheckError(err)
@@ -50,6 +53,16 @@ func newCommand() *cobra.Command {
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return &command
+}
+
+func newCache() cache.Cache {
+	//return cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+	return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
 }
 
 func main() {
