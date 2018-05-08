@@ -52,9 +52,9 @@ func newCommand() *cobra.Command {
 			log.SetLevel(level)
 
 			// Set the glog level for the k8s go-client
-			flag.CommandLine.Parse([]string{})
-			flag.Lookup("logtostderr").Value.Set("true")
-			flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
+			_ = flag.CommandLine.Parse([]string{})
+			_ = flag.Lookup("logtostderr").Value.Set("true")
+			_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)

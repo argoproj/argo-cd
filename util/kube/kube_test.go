@@ -70,7 +70,7 @@ func TestGetCachedServerResources(t *testing.T) {
 	resList, err := GetCachedServerResources("host", fakeDiscovery)
 	count := 0
 	for _, resGroup := range resList {
-		for _ = range resGroup.APIResources {
+		for range resGroup.APIResources {
 			count++
 		}
 	}
@@ -82,7 +82,7 @@ func TestGetCachedServerResources(t *testing.T) {
 	resList, err = GetCachedServerResources("host", fakeDiscovery)
 	count = 0
 	for _, resGroup := range resList {
-		for _ = range resGroup.APIResources {
+		for range resGroup.APIResources {
 			count++
 		}
 	}
