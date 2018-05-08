@@ -62,14 +62,32 @@ func resourceList() []*metav1.APIResourceList {
 	}
 }
 
-func TestListAPIResources(t *testing.T) {
+func TestGetCachedServerResources(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(test.DemoService(), test.DemoDeployment())
 	fakeDiscovery, ok := kubeclientset.Discovery().(*fakediscovery.FakeDiscovery)
 	assert.True(t, ok)
 	fakeDiscovery.Fake.Resources = resourceList()
-	apiRes, err := ListAPIResources(fakeDiscovery)
+	resList, err := GetCachedServerResources("host", fakeDiscovery)
+	count := 0
+	for _, resGroup := range resList {
+		for _ = range resGroup.APIResources {
+			count++
+		}
+	}
 	assert.Nil(t, err)
-	assert.Equal(t, 11, len(apiRes))
+	assert.Equal(t, 11, count)
+
+	// set resources to empty list and make sure we get the cached result
+	fakeDiscovery.Fake.Resources = []*metav1.APIResourceList{}
+	resList, err = GetCachedServerResources("host", fakeDiscovery)
+	count = 0
+	for _, resGroup := range resList {
+		for _ = range resGroup.APIResources {
+			count++
+		}
+	}
+	assert.Nil(t, err)
+	assert.Equal(t, 11, count)
 }
 
 func TestGetLiveResource(t *testing.T) {

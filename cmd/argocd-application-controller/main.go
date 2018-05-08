@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	argocd "github.com/argoproj/argo-cd"
@@ -39,6 +41,7 @@ func newCommand() *cobra.Command {
 		repoServerAddress string
 		workers           int
 		logLevel          string
+		glogLevel         int
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -47,6 +50,11 @@ func newCommand() *cobra.Command {
 			level, err := log.ParseLevel(logLevel)
 			errors.CheckError(err)
 			log.SetLevel(level)
+
+			// Set the glog level for the k8s go-client
+			flag.CommandLine.Parse([]string{})
+			flag.Lookup("logtostderr").Value.Set("true")
+			flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -94,6 +102,7 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
 	command.Flags().IntVar(&workers, "workers", 1, "Number of application workers")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	return &command
 }
 
