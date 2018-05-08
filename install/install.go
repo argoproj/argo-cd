@@ -96,15 +96,23 @@ func (i *Installer) Install() {
 	i.InstallArgoCDRepoServer()
 }
 
-func (i *Installer) Uninstall() {
+func (i *Installer) Uninstall(deleteNamespace, deleteCRD bool) {
 	manifests := i.box.List()
 	for _, manifestPath := range manifests {
 		if strings.HasSuffix(manifestPath, ".yaml") || strings.HasSuffix(manifestPath, ".yml") {
 			var obj unstructured.Unstructured
 			i.unmarshalManifest(manifestPath, &obj)
-			if obj.GetKind() == "Namespace" {
-				// Don't delete namespaces
-				continue
+			switch strings.ToLower(obj.GetKind()) {
+			case "namespace":
+				if !deleteNamespace {
+					log.Infof("Skipped deletion of Namespace: '%s'", obj.GetName())
+					continue
+				}
+			case "customresourcedefinition":
+				if !deleteCRD {
+					log.Infof("Skipped deletion of CustomResourceDefinition: '%s'", obj.GetName())
+					continue
+				}
 			}
 			i.MustUninstallResource(&obj)
 		}
