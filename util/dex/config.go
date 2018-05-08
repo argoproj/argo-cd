@@ -15,10 +15,14 @@ import (
 )
 
 const (
-	// DexClientAppName is name of the Oauth client app used when registering our app to dex
-	DexClientAppName = "ArgoCD"
-	// DexClientAppID is the Oauth client ID we will use when registering our app to dex
-	DexClientAppID = "argo-cd"
+	// ArgoCDClientAppName is name of the Oauth client app used when registering our web app to dex
+	ArgoCDClientAppName = "ArgoCD"
+	// ArgoCDClientAppID is the Oauth client ID we will use when registering our app to dex
+	ArgoCDClientAppID = "argo-cd"
+	// ArgoCDCLIClientAppName is name of the Oauth client app used when registering our CLI to dex
+	ArgoCDCLIClientAppName = "ArgoCD CLI"
+	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
+	ArgoCDCLIClientAppID = "argo-cd-cli"
 )
 
 func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string) ([]byte, error) {
@@ -50,23 +54,22 @@ func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string)
 	}
 	dexCfg["staticClients"] = []map[string]interface{}{
 		{
-			"id":     DexClientAppID,
-			"name":   DexClientAppName,
+			"id":     ArgoCDClientAppID,
+			"name":   ArgoCDClientAppName,
 			"secret": formulateOAuthClientSecret(settings.ServerSignature),
 			"redirectURIs": []string{
 				settings.URL + CallbackEndpoint,
 			},
 		},
+		{
+			"id":     ArgoCDCLIClientAppID,
+			"name":   ArgoCDCLIClientAppName,
+			"public": true,
+			"redirectURIs": []string{
+				"http://localhost",
+			},
+		},
 	}
-	// dexCfg["enablePasswordDB"] = true
-	// dexCfg["staticPasswords"] = []map[string]interface{}{
-	// 	{
-	// 		"userID":   "00000000-0000-0000-0000-000000000001",
-	// 		"username": "admin",
-	// 		"email":    "admin@internal",
-	// 		"hash":     settings.LocalUsers["admin"],
-	// 	},
-	// }
 	connectors := dexCfg["connectors"].([]interface{})
 	for i, connectorIf := range connectors {
 		connector := connectorIf.(map[string]interface{})

@@ -120,7 +120,7 @@ func NewClientApp(clientBaseURL string, serverSecretKey []byte, tlsConfig *tls.C
 	issuerURL := clientBaseURL + DexAPIEndpoint
 	log.Infof("Creating client app (redirectURI: %s, issuerURL: %s)", redirectURI, issuerURL)
 	a := ClientApp{
-		clientID:     DexClientAppID,
+		clientID:     ArgoCDClientAppID,
 		clientSecret: formulateOAuthClientSecret(serverSecretKey),
 		redirectURI:  redirectURI,
 		issuerURL:    issuerURL,
