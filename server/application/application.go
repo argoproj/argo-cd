@@ -247,7 +247,7 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
 	// NOTE: need to check if it was overridden in the destination spec
 	clusterURL := envSpec.Destination.Server
-	if spec.Destination != nil && spec.Destination.Server != "" {
+	if spec.Destination.Server != "" {
 		clusterURL = spec.Destination.Server
 	}
 	_, err = s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: clusterURL})

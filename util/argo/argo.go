@@ -17,16 +17,14 @@ import (
 // ResolveServerNamespace resolves server and namespace to use given an application spec,
 // and a manifest response. It looks to explicit server/namespace overridden in the app CRD spec
 // and falls back to the server/namespace defined in the ksonnet environment
-func ResolveServerNamespace(destination *appv1.ApplicationDestination, manifestInfo *repository.ManifestResponse) (string, string) {
+func ResolveServerNamespace(destination appv1.ApplicationDestination, manifestInfo *repository.ManifestResponse) (string, string) {
 	server := manifestInfo.Server
 	namespace := manifestInfo.Namespace
-	if destination != nil {
-		if destination.Server != "" {
-			server = destination.Server
-		}
-		if destination.Namespace != "" {
-			namespace = destination.Namespace
-		}
+	if destination.Server != "" {
+		server = destination.Server
+	}
+	if destination.Namespace != "" {
+		namespace = destination.Namespace
 	}
 	return server, namespace
 }
