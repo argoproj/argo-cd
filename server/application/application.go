@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
-	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
@@ -247,7 +246,7 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
 	// NOTE: need to check if it was overridden in the destination spec
 	clusterURL := envSpec.Destination.Server
-	if spec.Destination != nil && spec.Destination.Server != "" {
+	if spec.Destination.Server != "" {
 		clusterURL = spec.Destination.Server
 	}
 	_, err = s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: clusterURL})
@@ -485,26 +484,9 @@ func (s *Server) getApplicationDestination(ctx context.Context, name string) (st
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return "", "", err
-	} else {
-		repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
-		conn, repoClient, err := s.repoClientset.NewRepositoryClient()
-		if err != nil {
-			return "", "", err
-		}
-		defer util.Close(conn)
-		manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
-			Repo:        repo,
-			Environment: app.Spec.Source.Environment,
-			Path:        app.Spec.Source.Path,
-			Revision:    app.Spec.Source.TargetRevision,
-			AppLabel:    app.Name,
-		})
-		if err != nil {
-			return "", "", err
-		}
-		server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
-		return server, namespace, nil
 	}
+	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
+	return server, namespace, nil
 }
 
 func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository {
@@ -557,7 +539,7 @@ func (s *Server) deploy(
 		targetObjs[i] = obj
 	}
 
-	server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
+	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
 
 	comparison, err := s.appComparator.CompareAppState(server, namespace, targetObjs, app)
 	if err != nil {

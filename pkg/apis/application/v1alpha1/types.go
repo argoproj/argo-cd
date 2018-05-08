@@ -56,8 +56,7 @@ type ApplicationSpec struct {
 	// Source is a reference to the location ksonnet application definition
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
 	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
-	// This field is optional. If omitted, uses the server and namespace defined in the environment
-	Destination *ApplicationDestination `json:"destination,omitempty" protobuf:"bytes,2,opt,name=destination"`
+	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
 	// SyncPolicy dictates whether we auto-sync based on the delta between the tracked branch and live state
 	SyncPolicy string `json:"syncPolicy,omitempty" protobuf:"bytes,3,opt,name=syncPolicy"`
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	apireposerver "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
-	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/apps/v1"
@@ -288,7 +287,7 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 		targetObjs[i] = &obj
 	}
 
-	server, namespace := argoutil.ResolveServerNamespace(app.Spec.Destination, manifestInfo)
+	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
 	comparisonResult, err := ctrl.appComparator.CompareAppState(server, namespace, targetObjs, app)
 	if err != nil {
 		return nil, nil, nil, err

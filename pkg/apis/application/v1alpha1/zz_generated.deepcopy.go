@@ -110,15 +110,7 @@ func (in *ApplicationSource) DeepCopy() *ApplicationSource {
 func (in *ApplicationSpec) DeepCopyInto(out *ApplicationSpec) {
 	*out = *in
 	in.Source.DeepCopyInto(&out.Source)
-	if in.Destination != nil {
-		in, out := &in.Destination, &out.Destination
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(ApplicationDestination)
-			**out = **in
-		}
-	}
+	out.Destination = in.Destination
 	return
 }
 

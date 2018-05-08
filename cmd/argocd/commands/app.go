@@ -98,11 +98,11 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					},
 				}
 			}
-			if appOpts.destServer != "" || appOpts.destNamespace != "" {
-				app.Spec.Destination = &argoappv1.ApplicationDestination{
-					Server:    appOpts.destServer,
-					Namespace: appOpts.destNamespace,
-				}
+			if appOpts.destServer != "" {
+				app.Spec.Destination.Server = appOpts.destServer
+			}
+			if appOpts.destNamespace != "" {
+				app.Spec.Destination.Namespace = appOpts.destNamespace
 			}
 			setParameterOverrides(&app, appOpts.parameters)
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
@@ -200,14 +200,8 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				case "revision":
 					app.Spec.Source.TargetRevision = appOpts.revision
 				case "dest-server":
-					if app.Spec.Destination == nil {
-						app.Spec.Destination = &argoappv1.ApplicationDestination{}
-					}
 					app.Spec.Destination.Server = appOpts.destServer
 				case "dest-namespace":
-					if app.Spec.Destination == nil {
-						app.Spec.Destination = &argoappv1.ApplicationDestination{}
-					}
 					app.Spec.Destination.Namespace = appOpts.destNamespace
 				}
 			})
