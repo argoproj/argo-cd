@@ -8,11 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/cluster"
 	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util/cli"
@@ -24,6 +23,7 @@ import (
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
+	"github.com/argoproj/argo-cd/reposerver"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
@@ -36,12 +36,13 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig      clientcmd.ClientConfig
-		appResyncPeriod   int64
-		repoServerAddress string
-		workers           int
-		logLevel          string
-		glogLevel         int
+		clientConfig        clientcmd.ClientConfig
+		appResyncPeriod     int64
+		repoServerAddress   string
+		statusProcessors    int
+		operationProcessors int
+		logLevel            string
+		glogLevel           int
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -71,19 +72,20 @@ func newCommand() *cobra.Command {
 				InstanceID: "",
 			}
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
-			apiRepoServer := apirepository.NewServer(namespace, kubeClient, appClient)
 			apiClusterServer := cluster.NewServer(namespace, kubeClient, appClient)
 			clusterService := cluster.NewServer(namespace, kubeClient, appClient)
-			appComparator := controller.NewKsonnetAppComparator(clusterService)
+			apiRepoServer := apirepository.NewServer(namespace, kubeClient, appClient)
+			appStateManager := controller.NewAppStateManager(
+				clusterService, apiRepoServer, appClient, reposerver.NewRepositoryServerClientset(repoServerAddress), namespace)
+			appHealthManager := controller.NewAppHealthManager(clusterService, namespace)
 
 			appController := controller.NewApplicationController(
 				namespace,
 				kubeClient,
 				appClient,
-				reposerver.NewRepositoryServerClientset(repoServerAddress),
-				apiRepoServer,
 				apiClusterServer,
-				appComparator,
+				appStateManager,
+				appHealthManager,
 				resyncDuration,
 				&controllerConfig)
 
@@ -91,7 +93,7 @@ func newCommand() *cobra.Command {
 			defer cancel()
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
-			go appController.Run(ctx, workers)
+			go appController.Run(ctx, statusProcessors, operationProcessors)
 			// Wait forever
 			select {}
 		},
@@ -100,7 +102,8 @@ func newCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
-	command.Flags().IntVar(&workers, "workers", 1, "Number of application workers")
+	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
+	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	return &command

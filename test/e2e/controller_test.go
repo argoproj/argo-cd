@@ -26,7 +26,7 @@ func TestController(t *testing.T) {
 	t.Run("TestComparisonErrorIfRepoDoesNotExist", func(t *testing.T) {
 		ctrl := fixture.CreateController()
 		ctx, cancel := context.WithCancel(context.Background())
-		go ctrl.Run(ctx, 1)
+		go ctrl.Run(ctx, 1, 1)
 		defer cancel()
 		app := fixture.CreateApp(t, testApp)
 
@@ -46,7 +46,7 @@ func TestController(t *testing.T) {
 	t.Run("TestComparisonFailsIfClusterNotAdded", func(t *testing.T) {
 		ctrl := fixture.CreateController()
 		ctx, cancel := context.WithCancel(context.Background())
-		go ctrl.Run(ctx, 1)
+		go ctrl.Run(ctx, 1, 1)
 		defer cancel()
 		_, err := fixture.ApiRepoService.Create(context.Background(), &v1alpha1.Repository{Repo: testApp.Spec.Source.RepoURL, Username: "", Password: ""})
 		if err != nil {

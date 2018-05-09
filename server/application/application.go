@@ -29,14 +29,9 @@ import (
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-)
-
-const (
-	maxRecentDeploymentsCnt = 5
 )
 
 // Server provides a Application service
@@ -48,7 +43,7 @@ type Server struct {
 	// TODO(jessesuen): move common cluster code to shared libraries
 	clusterService cluster.ClusterServiceServer
 	repoService    apirepository.RepositoryServiceServer
-	appComparator  controller.AppComparator
+	appComparator  controller.AppStateManager
 }
 
 // NewServer returns a new instance of the Application service
@@ -67,7 +62,7 @@ func NewServer(
 		clusterService: clusterService,
 		repoClientset:  repoClientset,
 		repoService:    repoService,
-		appComparator:  controller.NewKsonnetAppComparator(clusterService),
+		appComparator:  controller.NewAppStateManager(clusterService, repoService, appclientset, repoClientset, namespace),
 	}
 }
 
@@ -370,116 +365,6 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 	return nil
 }
 
-// Sync syncs an application to its target state
-func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ApplicationSyncResult, error) {
-	return s.deployAndPersistDeploymentInfo(ctx, syncReq.Name, syncReq.Revision, nil, syncReq.DryRun, syncReq.Prune)
-}
-
-func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*ApplicationSyncResult, error) {
-	app, err := s.Get(ctx, &ApplicationQuery{Name: rollbackReq.Name})
-	if err != nil {
-		return nil, err
-	}
-	var deploymentInfo *appv1.DeploymentInfo
-	for _, info := range app.Status.RecentDeployments {
-		if info.ID == rollbackReq.ID {
-			deploymentInfo = &info
-			break
-		}
-	}
-	if deploymentInfo == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.ID)
-	}
-	return s.deployAndPersistDeploymentInfo(ctx, rollbackReq.Name, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, rollbackReq.DryRun, rollbackReq.Prune)
-}
-
-func (s *Server) deployAndPersistDeploymentInfo(
-	ctx context.Context, appName string, revision string, overrides *[]appv1.ComponentParameter, dryRun bool, prune bool) (*ApplicationSyncResult, error) {
-
-	log.Infof("Syncing application %s", appName)
-	app, err := s.Get(ctx, &ApplicationQuery{Name: appName})
-	if err != nil {
-		return nil, err
-	}
-
-	if revision != "" {
-		app.Spec.Source.TargetRevision = revision
-	}
-
-	if overrides != nil {
-		app.Spec.Source.ComponentParameterOverrides = *overrides
-	}
-
-	res, manifest, err := s.deploy(ctx, app, dryRun, prune)
-	if err != nil {
-		return nil, err
-	}
-	if !dryRun {
-		err = s.persistDeploymentInfo(ctx, appName, manifest.Revision, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, err
-}
-
-func (s *Server) persistDeploymentInfo(ctx context.Context, appName string, revision string, overrides *[]appv1.ComponentParameter) error {
-	app, err := s.Get(ctx, &ApplicationQuery{Name: appName})
-	if err != nil {
-		return err
-	}
-
-	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
-	if err != nil {
-		return err
-	}
-	defer util.Close(conn)
-
-	log.Infof("Retrieving deployment params for application %s", appName)
-	envParams, err := repoClient.GetEnvParams(ctx, &repository.EnvParamsRequest{
-		Repo:        repo,
-		Environment: app.Spec.Source.Environment,
-		Path:        app.Spec.Source.Path,
-		Revision:    revision,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	params := make([]appv1.ComponentParameter, len(envParams.Params))
-	for i := range envParams.Params {
-		param := *envParams.Params[i]
-		params[i] = param
-	}
-	var nextId int64 = 0
-	if len(app.Status.RecentDeployments) > 0 {
-		nextId = app.Status.RecentDeployments[len(app.Status.RecentDeployments)-1].ID + 1
-	}
-	recentDeployments := append(app.Status.RecentDeployments, appv1.DeploymentInfo{
-		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
-		Revision:                    revision,
-		Params:                      params,
-		DeployedAt:                  metav1.NewTime(time.Now()),
-		ID:                          nextId,
-	})
-	if len(recentDeployments) > maxRecentDeploymentsCnt {
-		recentDeployments = recentDeployments[1 : maxRecentDeploymentsCnt+1]
-	}
-
-	patch, err := json.Marshal(map[string]map[string][]appv1.DeploymentInfo{
-		"status": {
-			"recentDeployments": recentDeployments,
-		},
-	})
-	if err != nil {
-		return err
-	}
-	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(app.Name, types.MergePatchType, patch)
-	return err
-}
-
 func (s *Server) getApplicationDestination(ctx context.Context, name string) (string, string, error) {
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
 	if err != nil {
@@ -498,134 +383,60 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 	return repo
 }
 
-func (s *Server) deploy(
-	ctx context.Context,
-	app *appv1.Application,
-	dryRun bool,
-	prune bool) (*ApplicationSyncResult, *repository.ManifestResponse, error) {
-
-	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
-	if err != nil {
-		return nil, nil, err
-	}
-	defer util.Close(conn)
-	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
-	if app.Spec.Source.ComponentParameterOverrides != nil {
-		for i := range app.Spec.Source.ComponentParameterOverrides {
-			item := app.Spec.Source.ComponentParameterOverrides[i]
-			overrides[i] = &item
-		}
-	}
-
-	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
-		Repo:                        repo,
-		Environment:                 app.Spec.Source.Environment,
-		Path:                        app.Spec.Source.Path,
-		Revision:                    app.Spec.Source.TargetRevision,
-		ComponentParameterOverrides: overrides,
-		AppLabel:                    app.Name,
+// Sync syncs an application to its target state
+func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*appv1.Application, error) {
+	return s.setAppOperation(ctx, syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
+		return &appv1.Operation{
+			Sync: &appv1.SyncOperation{
+				NoOverrides: true,
+				Revision:    syncReq.Revision,
+				Prune:       syncReq.Prune,
+				DryRun:      syncReq.DryRun,
+			},
+		}, nil
 	})
+}
+
+func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*appv1.Application, error) {
+	return s.setAppOperation(ctx, rollbackReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
+
+		var deploymentInfo *appv1.DeploymentInfo
+		for _, info := range app.Status.RecentDeployments {
+			if info.ID == rollbackReq.ID {
+				deploymentInfo = &info
+				break
+			}
+		}
+		if deploymentInfo == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.ID)
+		}
+
+		return &appv1.Operation{
+			Sync: &appv1.SyncOperation{
+				NoOverrides: false,
+				Overrides:   deploymentInfo.ComponentParameterOverrides,
+				Revision:    deploymentInfo.Revision,
+				Prune:       rollbackReq.Prune,
+				DryRun:      rollbackReq.DryRun,
+			},
+		}, nil
+	})
+}
+
+func (s *Server) setAppOperation(ctx context.Context, appName string, operationCreator func(app *appv1.Application) (*appv1.Operation, error)) (*appv1.Application, error) {
+	app, err := s.Get(ctx, &ApplicationQuery{Name: appName})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
-	for i, manifest := range manifestInfo.Manifests {
-		obj, err := appv1.UnmarshalToUnstructured(manifest)
-		if err != nil {
-			return nil, nil, err
-		}
-		targetObjs[i] = obj
+	if app.Operation != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "other operation is already in progress")
 	}
-
-	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
-
-	comparison, err := s.appComparator.CompareAppState(server, namespace, targetObjs, app)
+	op, err := operationCreator(app)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
-	if err != nil {
-		return nil, nil, err
-	}
-	config := clst.RESTConfig()
-
-	var syncRes ApplicationSyncResult
-	syncRes.Resources = make([]*ResourceDetails, 0)
-	for _, resourceState := range comparison.Resources {
-		var liveObj, targetObj *unstructured.Unstructured
-
-		if resourceState.LiveState != "null" {
-			liveObj = &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(resourceState.LiveState), liveObj)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-
-		if resourceState.TargetState != "null" {
-			targetObj = &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(resourceState.TargetState), targetObj)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-
-		needsCreate := liveObj == nil
-		needsDelete := targetObj == nil
-
-		obj := targetObj
-		if obj == nil {
-			obj = liveObj
-		}
-		resDetails := ResourceDetails{
-			Name:      obj.GetName(),
-			Kind:      obj.GetKind(),
-			Namespace: namespace,
-		}
-
-		if resourceState.Status == appv1.ComparisonStatusSynced {
-			resDetails.Message = fmt.Sprintf("already synced")
-		} else if dryRun {
-			if needsCreate {
-				resDetails.Message = fmt.Sprintf("will create")
-			} else if needsDelete {
-				if prune {
-					resDetails.Message = fmt.Sprintf("will delete")
-				} else {
-					resDetails.Message = fmt.Sprintf("will be ignored (should be deleted)")
-				}
-			} else {
-				resDetails.Message = fmt.Sprintf("will update")
-			}
-		} else {
-			if needsDelete {
-				if prune {
-					err = kube.DeleteResource(config, liveObj, namespace)
-					if err != nil {
-						return nil, nil, err
-					}
-
-					resDetails.Message = fmt.Sprintf("deleted")
-				} else {
-					resDetails.Message = fmt.Sprintf("ignored (should be deleted)")
-				}
-			} else {
-				_, err := kube.ApplyResource(config, targetObj, namespace)
-				if err != nil {
-					return nil, nil, err
-				}
-				if needsCreate {
-					resDetails.Message = fmt.Sprintf("created")
-				} else {
-					resDetails.Message = fmt.Sprintf("updated")
-				}
-			}
-		}
-		syncRes.Resources = append(syncRes.Resources, &resDetails)
-	}
-	syncRes.Message = "successfully synced"
-	return &syncRes, manifestInfo, nil
+	app.Operation = op
+	app.Status.OperationState = nil
+	_, err = s.Update(ctx, app)
+	return app, err
 }

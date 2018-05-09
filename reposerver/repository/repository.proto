@@ -23,17 +23,7 @@ message ManifestResponse {
     string namespace = 2;
     string server = 3;
     string revision = 4;
-}
-
-message EnvParamsRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
-    string revision = 2;
-    string path = 3;
-    string environment = 4;
-}
-
-message EnvParamsResponse {
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 1;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 5;
 }
 
 // GetFileRequest return
@@ -54,10 +44,6 @@ service RepositoryService {
 
     // Generate manifest for application in specified repo name and revision
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
-    }
-
-    // Retrieve Ksonnet environment params in specified repo name and revision
-    rpc GetEnvParams(EnvParamsRequest) returns (EnvParamsResponse) {
     }
 
     // GetFile returns the file contents at the specified repo and path

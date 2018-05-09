@@ -23,6 +23,8 @@ message Application {
   optional ApplicationSpec spec = 2;
 
   optional ApplicationStatus status = 3;
+
+  optional Operation operation = 4;
 }
 
 // ApplicationDestination contains deployment destination information
@@ -82,6 +84,8 @@ message ApplicationStatus {
   repeated ComponentParameter parameters = 3;
 
   optional HealthStatus health = 4;
+
+  optional OperationState operationState = 5;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -177,6 +181,20 @@ message HealthStatus {
   optional string statusDetails = 2;
 }
 
+// Operation contains requested operation parameters.
+message Operation {
+  optional SyncOperation sync = 2;
+}
+
+// OperationState contains information about state of currently performing operation on application.
+message OperationState {
+  optional string status = 1;
+
+  optional string errorDetails = 2;
+
+  optional SyncOperationResult sync = 3;
+}
+
 // Repository is a Git repository holding application configurations
 message Repository {
   optional string repo = 1;
@@ -193,6 +211,16 @@ message RepositoryList {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Repository items = 2;
+}
+
+message ResourceDetails {
+  optional string name = 1;
+
+  optional string kind = 2;
+
+  optional string namespace = 3;
+
+  optional string message = 4;
 }
 
 // ResourceNode contains information about live resource and its children
@@ -213,6 +241,26 @@ message ResourceState {
   repeated ResourceNode childLiveResources = 4;
 
   optional HealthStatus health = 5;
+}
+
+// SyncOperation contains sync operation details.
+message SyncOperation {
+  optional string revision = 1;
+
+  optional bool prune = 2;
+
+  repeated ComponentParameter overrides = 3;
+
+  optional bool noOverrides = 4;
+
+  optional bool dryRun = 5;
+}
+
+// SyncOperationResult represent result of sync operation
+message SyncOperationResult {
+  optional string message = 1;
+
+  repeated ResourceDetails resources = 2;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

@@ -42,7 +42,6 @@ type Fixture struct {
 	AppClient          appclientset.Interface
 	ApiRepoService     apirepository.RepositoryServiceServer
 	RepoClientset      reposerver.Clientset
-	AppComparator      controller.AppComparator
 	Namespace          string
 	InstanceID         string
 	repoServerGRPC     *grpc.Server
@@ -112,12 +111,12 @@ func NewFixture() (*Fixture, error) {
 	appClient := appclientset.NewForConfigOrDie(config)
 	kubeClient := kubernetes.NewForConfigOrDie(config)
 	namespace, err := createNamespace(kubeClient)
-	clusterService := cluster.NewServer(namespace, kubeClient, appClient)
-	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}, memCache).CreateGRPC()
 	if err != nil {
 		return nil, err
 	}
-	appComparator := controller.NewKsonnetAppComparator(clusterService)
+
+	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}, memCache).CreateGRPC()
+
 	fixture := &Fixture{
 		Config:           config,
 		ExtensionsClient: extensionsClient,
@@ -126,7 +125,6 @@ func NewFixture() (*Fixture, error) {
 		Namespace:        namespace,
 		InstanceID:       namespace,
 		ApiRepoService:   apirepository.NewServer(namespace, kubeClient, appClient),
-		AppComparator:    appComparator,
 		repoServerGRPC:   repoServerGRPC,
 	}
 	err = fixture.setup()
@@ -154,14 +152,20 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 
 // CreateController creates new controller instance
 func (f *Fixture) CreateController() *controller.ApplicationController {
+
+	clusterService := cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient)
+	appStateManager := controller.NewAppStateManager(
+		clusterService, f.ApiRepoService, f.AppClient, reposerver.NewRepositoryServerClientset(f.repoServerListener.Addr().String()), f.Namespace)
+
+	appHealthManager := controller.NewAppHealthManager(clusterService, f.Namespace)
+
 	return controller.NewApplicationController(
 		f.Namespace,
 		f.KubeClient,
 		f.AppClient,
-		reposerver.NewRepositoryServerClientset(f.repoServerListener.Addr().String()),
-		f.ApiRepoService,
 		cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient),
-		f.AppComparator,
+		appStateManager,
+		appHealthManager,
 		time.Second,
 		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
 }

@@ -366,8 +366,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Revision: revision,
 				Prune:    prune,
 			}
-			syncRes, err := appIf.Sync(context.Background(), &syncReq)
+			_, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
+
+			status, err := waitUntilOperationCompleted(appIf, appName)
+			errors.CheckError(err)
+			syncRes := status.SyncResult
+
 			fmt.Printf("%s %s\n", appName, syncRes.Message)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "NAME\tKIND\tMESSAGE\n")
@@ -381,6 +386,29 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	return command
+}
+
+func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string) (*argoappv1.OperationState, error) {
+	wc, err := appClient.Watch(context.Background(), &application.ApplicationQuery{
+		Name: appName,
+	})
+	if err != nil {
+		return nil, err
+	}
+	appEvent, err := wc.Recv()
+	if err != nil {
+		return nil, err
+	}
+	for {
+		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Status != argoappv1.OperationStatusInProgress {
+			return appEvent.Application.Status.OperationState, nil
+		} else {
+			appEvent, err = wc.Recv()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -489,12 +517,18 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			if depInfo == nil {
 				log.Fatalf("Application '%s' does not have deployment id '%d' in history\n", app.ObjectMeta.Name, depID)
 			}
-			syncRes, err := appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
+
+			_, err = appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
 				Name:  appName,
 				ID:    int64(depID),
 				Prune: prune,
 			})
 			errors.CheckError(err)
+
+			status, err := waitUntilOperationCompleted(appIf, appName)
+			errors.CheckError(err)
+			syncRes := status.SyncResult
+
 			fmt.Printf("%s %s\n", appName, syncRes.Message)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "NAME\tKIND\tMESSAGE\n")
