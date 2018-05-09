@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -9,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/install"
@@ -16,11 +19,13 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/server/cluster"
 	apirepository "github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
-	"google.golang.org/grpc"
+	"github.com/argoproj/argo-cd/util/settings"
 	"k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,16 +41,16 @@ const (
 
 // Fixture represents e2e tests fixture.
 type Fixture struct {
-	Config             *rest.Config
-	KubeClient         kubernetes.Interface
-	ExtensionsClient   apiextensionsclient.Interface
-	AppClient          appclientset.Interface
-	ApiRepoService     apirepository.RepositoryServiceServer
-	RepoClientset      reposerver.Clientset
-	Namespace          string
-	InstanceID         string
-	repoServerGRPC     *grpc.Server
-	repoServerListener net.Listener
+	Config            *rest.Config
+	KubeClient        kubernetes.Interface
+	ExtensionsClient  apiextensionsclient.Interface
+	AppClient         appclientset.Interface
+	Namespace         string
+	InstanceID        string
+	RepoServerAddress string
+	ApiServerAddress  string
+
+	tearDownCallback func()
 }
 
 func createNamespace(kubeClient *kubernetes.Clientset) (string, error) {
@@ -61,29 +66,98 @@ func createNamespace(kubeClient *kubernetes.Clientset) (string, error) {
 	return cns.Name, nil
 }
 
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer util.Close(l)
+	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
 func (f *Fixture) setup() error {
 	installer, err := install.NewInstaller(f.Config, install.InstallOptions{})
 	if err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	installer.InstallApplicationCRD()
+
+	settingsMgr := settings.NewSettingsManager(f.KubeClient, f.Namespace)
+	err = settingsMgr.SaveSettings(&settings.ArgoCDSettings{})
 	if err != nil {
 		return err
 	}
-	f.repoServerListener = listener
+
+	err = f.ensureClusterRegistered()
+	if err != nil {
+		return err
+	}
+
+	apiServerPort, err := getFreePort()
+	if err != nil {
+		return err
+	}
+
+	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
+	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}, memCache).CreateGRPC()
+	repoServerListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	f.RepoServerAddress = repoServerListener.Addr().String()
+	f.ApiServerAddress = fmt.Sprintf("127.0.0.1:%d", apiServerPort)
+
+	apiServer := server.NewServer(server.ArgoCDServerOpts{
+		Namespace:     f.Namespace,
+		AppClientset:  f.AppClient,
+		DisableAuth:   true,
+		Insecure:      true,
+		KubeClientset: f.KubeClient,
+		RepoClientset: reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		err = f.repoServerGRPC.Serve(listener)
+		err = repoServerGRPC.Serve(repoServerListener)
 	}()
-	installer.InstallApplicationCRD()
+	go func() {
+		apiServer.Run(ctx, apiServerPort)
+	}()
+
+	f.tearDownCallback = func() {
+		cancel()
+		repoServerGRPC.Stop()
+	}
+	return err
+}
+
+func (f *Fixture) ensureClusterRegistered() error {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := clientcmd.ConfigOverrides{}
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+	conf, err := clientConfig.ClientConfig()
+	if err != nil {
+		return err
+	}
+	// Install RBAC resources for managing the cluster
+	managerBearerToken := common.InstallClusterManagerRBAC(conf)
+	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken)
+	_, err = cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient).Create(context.Background(), clst)
 	return err
 }
 
 // TearDown deletes fixture resources.
 func (f *Fixture) TearDown() {
-	err := f.KubeClient.CoreV1().Namespaces().Delete(f.Namespace, &metav1.DeleteOptions{})
-	if err != nil {
-		f.repoServerGRPC.Stop()
+	if f.tearDownCallback != nil {
+		f.tearDownCallback()
 	}
+	err := f.KubeClient.CoreV1().Namespaces().Delete(f.Namespace, &metav1.DeleteOptions{})
 	if err != nil {
 		println("Unable to tear down fixture")
 	}
@@ -103,9 +177,9 @@ func GetKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 	return restConfig
 }
 
-// NewFixture creates e2e tests fixture.
+// NewFixture creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
+// configure currently available cluster.
 func NewFixture() (*Fixture, error) {
-	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
 	config := GetKubeConfig("", clientcmd.ConfigOverrides{})
 	extensionsClient := apiextensionsclient.NewForConfigOrDie(config)
 	appClient := appclientset.NewForConfigOrDie(config)
@@ -115,8 +189,6 @@ func NewFixture() (*Fixture, error) {
 		return nil, err
 	}
 
-	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}, memCache).CreateGRPC()
-
 	fixture := &Fixture{
 		Config:           config,
 		ExtensionsClient: extensionsClient,
@@ -124,8 +196,6 @@ func NewFixture() (*Fixture, error) {
 		KubeClient:       kubeClient,
 		Namespace:        namespace,
 		InstanceID:       namespace,
-		ApiRepoService:   apirepository.NewServer(namespace, kubeClient, appClient),
-		repoServerGRPC:   repoServerGRPC,
 	}
 	err = fixture.setup()
 	if err != nil {
@@ -152,10 +222,10 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 
 // CreateController creates new controller instance
 func (f *Fixture) CreateController() *controller.ApplicationController {
-
+	repoService := apirepository.NewServer(f.Namespace, f.KubeClient, f.AppClient)
 	clusterService := cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient)
 	appStateManager := controller.NewAppStateManager(
-		clusterService, f.ApiRepoService, f.AppClient, reposerver.NewRepositoryServerClientset(f.repoServerListener.Addr().String()), f.Namespace)
+		clusterService, repoService, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace)
 
 	appHealthManager := controller.NewAppHealthManager(clusterService, f.Namespace)
 
@@ -166,12 +236,21 @@ func (f *Fixture) CreateController() *controller.ApplicationController {
 		cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient),
 		appStateManager,
 		appHealthManager,
-		time.Second,
+		10*time.Second,
 		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
 }
 
-// PollUntil periodically executes specified condition until it returns true.
-func PollUntil(t *testing.T, condition wait.ConditionFunc) {
+func (f *Fixture) RunCli(args ...string) (string, error) {
+	cmd := commands.NewCommand()
+	cmd.SetArgs(append(args, "--server", f.ApiServerAddress, "--plaintext"))
+	output := new(bytes.Buffer)
+	cmd.SetOutput(output)
+	err := cmd.Execute()
+	return output.String(), err
+}
+
+// WaitUntil periodically executes specified condition until it returns true.
+func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 	stop := make(chan struct{})
 	isClosed := false
 	makeSureClosed := func() {

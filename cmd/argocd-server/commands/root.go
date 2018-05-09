@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"context"
+
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -51,7 +53,10 @@ func NewCommand() *cobra.Command {
 				DisableAuth:     disableAuth,
 			}
 			argocd := server.NewServer(argoCDOpts)
-			argocd.Run()
+			ctx := context.Background()
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			argocd.Run(ctx, 8080)
 		},
 	}
 
