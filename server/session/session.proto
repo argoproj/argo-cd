@@ -16,6 +16,7 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 message SessionCreateRequest {
   string username = 1;
   string password = 2;
+  string token = 3;
 }
 
 // SessionDeleteRequest is for logging out.

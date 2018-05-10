@@ -3,6 +3,7 @@ package session
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/util/settings"
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
@@ -11,7 +12,10 @@ func TestSessionManager(t *testing.T) {
 		defaultSecretKey = "Hello, world!"
 		defaultSubject   = "argo"
 	)
-	mgr := SessionManager{[]byte(defaultSecretKey)}
+	set := settings.ArgoCDSettings{
+		ServerSignature: []byte(defaultSecretKey),
+	}
+	mgr := NewSessionManager(&set)
 
 	token, err := mgr.Create(defaultSubject)
 	if err != nil {

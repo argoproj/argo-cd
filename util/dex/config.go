@@ -1,8 +1,6 @@
 package dex
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -12,17 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-)
-
-const (
-	// ArgoCDClientAppName is name of the Oauth client app used when registering our web app to dex
-	ArgoCDClientAppName = "ArgoCD"
-	// ArgoCDClientAppID is the Oauth client ID we will use when registering our app to dex
-	ArgoCDClientAppID = "argo-cd"
-	// ArgoCDCLIClientAppName is name of the Oauth client app used when registering our CLI to dex
-	ArgoCDCLIClientAppName = "ArgoCD CLI"
-	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
-	ArgoCDCLIClientAppID = "argo-cd-cli"
 )
 
 func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string) ([]byte, error) {
@@ -39,7 +26,7 @@ func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
 	}
-	dexCfg["issuer"] = settings.URL + DexAPIEndpoint
+	dexCfg["issuer"] = settings.IssuerURL()
 	dexCfg["storage"] = map[string]interface{}{
 		"type": "memory",
 	}
@@ -54,16 +41,16 @@ func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string)
 	}
 	dexCfg["staticClients"] = []map[string]interface{}{
 		{
-			"id":     ArgoCDClientAppID,
-			"name":   ArgoCDClientAppName,
-			"secret": formulateOAuthClientSecret(settings.ServerSignature),
+			"id":     common.ArgoCDClientAppID,
+			"name":   common.ArgoCDClientAppName,
+			"secret": settings.OAuth2ClientSecret(),
 			"redirectURIs": []string{
-				settings.URL + CallbackEndpoint,
+				settings.RedirectURL(),
 			},
 		},
 		{
-			"id":     ArgoCDCLIClientAppID,
-			"name":   ArgoCDCLIClientAppName,
+			"id":     common.ArgoCDCLIClientAppID,
+			"name":   common.ArgoCDCLIClientAppName,
 			"public": true,
 			"redirectURIs": []string{
 				"http://localhost",
@@ -90,20 +77,6 @@ func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string)
 	}
 	dexCfg = replaceMapSecrets(dexCfg, secretValues)
 	return yaml.Marshal(dexCfg)
-}
-
-// formulateOAuthClientSecret calculates an arbitrary, but predictable OAuth2 client secret string
-// derived some seed input (typically the server secret). This is called by the dex startup wrapper
-// (argocd-util rundex), as well as the API server, such that they both independently come to the
-// same conclusion of what the OAuth2 shared client secret should be.
-func formulateOAuthClientSecret(in []byte) string {
-	h := sha256.New()
-	_, err := h.Write(in)
-	if err != nil {
-		panic(err)
-	}
-	sha := h.Sum(nil)
-	return base64.URLEncoding.EncodeToString(sha)[:40]
 }
 
 // getSecretValues is a convenience to get the ArgoCD secret data as a map[string]string

@@ -2,7 +2,6 @@ package dex
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -15,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/coreos/dex/api"
 	oidc "github.com/coreos/go-oidc"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -29,14 +29,6 @@ const (
 	// DexgRPCAPIAddr is the address to the Dex gRPC API server for managing dex. This is assumed to run
 	// locally (as a sidecar)
 	DexgRPCAPIAddr = "localhost:5557"
-	// DexAPIEndpoint is the endpoint where we serve the Dex API server
-	DexAPIEndpoint = "/api/dex"
-	// LoginEndpoint is ArgoCD's shorthand login endpoint which redirects to dex's OAuth 2.0 provider's consent page
-	LoginEndpoint = "/auth/login"
-	// CallbackEndpoint is ArgoCD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
-	CallbackEndpoint = "/auth/callback"
-	// envVarSSODebug is an environment variable to enable additional OAuth debugging in the API server
-	envVarSSODebug = "ARGOCD_SSO_DEBUG"
 )
 
 type DexAPIClient struct {
@@ -94,44 +86,34 @@ type ClientApp struct {
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
 
-	Path string
-
-	verifier *oidc.IDTokenVerifier
-	provider *oidc.Provider
-
-	// Does the provider use "offline_access" scope to request a refresh token
-	// or does it use "access_type=offline" (e.g. Google)?
-	offlineAsScope bool
-
 	client *http.Client
-
-	// sessionMgr creates and validates sessions
-	sessionMgr session.SessionManager
 
 	// secureCookie indicates if the cookie should be set with the Secure flag, meaning it should
 	// only ever be sent over HTTPS. This value is inferred by the scheme of the redirectURI.
 	secureCookie bool
+
+	settings   *settings.ArgoCDSettings
+	sessionMgr *session.SessionManager
 }
 
 // NewClientApp will register the ArgoCD client app in Dex and return an object which has HTTP
 // handlers for handling the HTTP responses for login and callback
-func NewClientApp(clientBaseURL string, serverSecretKey []byte, tlsConfig *tls.Config) (*ClientApp, error) {
-	redirectURI := clientBaseURL + CallbackEndpoint
-	issuerURL := clientBaseURL + DexAPIEndpoint
-	log.Infof("Creating client app (redirectURI: %s, issuerURL: %s)", redirectURI, issuerURL)
+func NewClientApp(settings *settings.ArgoCDSettings, sessionMgr *session.SessionManager) (*ClientApp, error) {
+	log.Infof("Creating client app (%s)", common.ArgoCDClientAppID)
 	a := ClientApp{
-		clientID:     ArgoCDClientAppID,
-		clientSecret: formulateOAuthClientSecret(serverSecretKey),
-		redirectURI:  redirectURI,
-		issuerURL:    issuerURL,
+		clientID:     common.ArgoCDClientAppID,
+		clientSecret: settings.OAuth2ClientSecret(),
+		redirectURI:  settings.RedirectURL(),
+		issuerURL:    settings.IssuerURL(),
 	}
-	u, err := url.Parse(redirectURI)
+	u, err := url.Parse(settings.URL)
 	if err != nil {
 		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
-	a.Path = u.Path
-	a.secureCookie = bool(u.Scheme == "https")
-
+	tlsConfig := settings.TLSConfig()
+	if tlsConfig != nil {
+		tlsConfig.InsecureSkipVerify = true
+	}
 	a.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
@@ -144,82 +126,20 @@ func NewClientApp(clientBaseURL string, serverSecretKey []byte, tlsConfig *tls.C
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	if os.Getenv(envVarSSODebug) == "1" {
-		a.client.Transport = debugTransport{a.client.Transport}
-	}
-	a.sessionMgr = session.MakeSessionManager(serverSecretKey)
+
+	//a.Path = u.Path
+	a.secureCookie = bool(u.Scheme == "https")
+	a.settings = settings
+	a.sessionMgr = sessionMgr
 	return &a, nil
 }
 
-type debugTransport struct {
-	t http.RoundTripper
-}
-
-func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	reqDump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("%s", reqDump)
-
-	resp, err := d.t.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
-
-	respDump, err := httputil.DumpResponse(resp, true)
-	if err != nil {
-		_ = resp.Body.Close()
-		return nil, err
-	}
-	log.Printf("%s", respDump)
-	return resp, nil
-}
-
-// Initialize initializes the client app. The OIDC provider must be running
-func (a *ClientApp) Initialize() error {
-	log.Info("Initializing client app")
-	ctx := oidc.ClientContext(context.Background(), a.client)
-	provider, err := oidc.NewProvider(ctx, a.issuerURL)
-	if err != nil {
-		return fmt.Errorf("Failed to query provider %q: %v", a.issuerURL, err)
-	}
-	var s struct {
-		// What scopes does a provider support?
-		// See: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
-		ScopesSupported []string `json:"scopes_supported"`
-	}
-	if err := provider.Claims(&s); err != nil {
-		return fmt.Errorf("Failed to parse provider scopes_supported: %v", err)
-	}
-	log.Infof("OpenID supported scopes: %v", s.ScopesSupported)
-
-	a.provider = provider
-	a.verifier = provider.Verifier(&oidc.Config{ClientID: a.clientID})
-	if len(s.ScopesSupported) == 0 {
-		// scopes_supported is a "RECOMMENDED" discovery claim, not a required
-		// one. If missing, assume that the provider follows the spec and has
-		// an "offline_access" scope.
-		a.offlineAsScope = true
-	} else {
-		// See if scopes_supported has the "offline_access" scope.
-		a.offlineAsScope = func() bool {
-			for _, scope := range s.ScopesSupported {
-				if scope == oidc.ScopeOfflineAccess {
-					return true
-				}
-			}
-			return false
-		}()
-	}
-	return nil
-}
-
 func (a *ClientApp) oauth2Config(scopes []string) *oauth2.Config {
+	provider, _ := a.sessionMgr.OIDCProvider()
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
-		Endpoint:     a.provider.Endpoint(),
+		Endpoint:     provider.Endpoint(),
 		Scopes:       scopes,
 		RedirectURL:  a.redirectURI,
 	}
@@ -230,7 +150,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	scopes := []string{"openid", "profile", "email", "groups"}
 	if r.FormValue("offline_access") != "yes" {
 		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState)
-	} else if a.offlineAsScope {
+	} else if a.sessionMgr.OfflineAsScope() {
 		scopes = append(scopes, "offline_access")
 		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState)
 	} else {
@@ -292,7 +212,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := a.verifier.Verify(r.Context(), rawIDToken)
+	idToken, err := a.verify(rawIDToken)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to verify ID token: %v", err), http.StatusInternalServerError)
 		return
@@ -303,21 +223,26 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to unmarshal claims: %v", err), http.StatusInternalServerError)
 		return
 	}
-	clientToken, err := a.sessionMgr.SignClaims(claims)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to sign identity provider claims: %v", err), http.StatusInternalServerError)
-		return
-	}
 	flags := []string{"path=/"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}
-	cookie := session.MakeCookieMetadata(common.AuthCookieName, clientToken, flags...)
+	cookie := session.MakeCookieMetadata(common.AuthCookieName, rawIDToken, flags...)
 	w.Header().Set("Set-Cookie", cookie)
-	if os.Getenv(envVarSSODebug) == "1" {
+	log.Infof("'%v' logged in", claims["email"])
+	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, claimsJSON)
 	} else {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
+}
+
+func (a *ClientApp) verify(tokenString string) (*oidc.IDToken, error) {
+	provider, err := a.sessionMgr.OIDCProvider()
+	if err != nil {
+		return nil, err
+	}
+	verifier := provider.Verifier(&oidc.Config{ClientID: a.clientID})
+	return verifier.Verify(context.Background(), tokenString)
 }

@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -77,7 +77,8 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			if username == "admin" || !ssoConfigured(acdSet) {
 				tokenString = passwordLogin(acdClient, username, password)
 			} else {
-				tokenString = oauth2Login(server)
+				tokenString = oauth2Login(server, clientOpts.PlainText)
+				tokenString = tokenLogin(acdClient, tokenString)
 			}
 
 			parser := &jwt.Parser{
@@ -147,16 +148,20 @@ func getFreePort() (int, error) {
 }
 
 // oauth2Login opens a browser to delegate OAuth2 login flow and returns the JWT token
-func oauth2Login(host string) string {
+func oauth2Login(host string, plaintext bool) string {
 	ctx := context.Background()
 	port, err := getFreePort()
 	errors.CheckError(err)
+	var scheme = "https"
+	if plaintext {
+		scheme = "http"
+	}
 	conf := &oauth2.Config{
-		ClientID: dex.ArgoCDCLIClientAppID,
-		Scopes:   []string{"openid", "profile", "email", "groups"},
+		ClientID: common.ArgoCDCLIClientAppID,
+		Scopes:   []string{"openid", "profile", "email", "groups", "offline_access"},
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  fmt.Sprintf("https://%s%s/auth", host, dex.DexAPIEndpoint),
-			TokenURL: fmt.Sprintf("https://%s%s/token", host, dex.DexAPIEndpoint),
+			AuthURL:  fmt.Sprintf("%s://%s%s/auth", scheme, host, common.DexAPIEndpoint),
+			TokenURL: fmt.Sprintf("%s://%s%s/token", scheme, host, common.DexAPIEndpoint),
 		},
 		RedirectURL: fmt.Sprintf("http://localhost:%d/auth/callback", port),
 	}
@@ -237,6 +242,17 @@ func passwordLogin(acdClient argocdclient.ServerClient, username, password strin
 	sessionRequest := session.SessionCreateRequest{
 		Username: username,
 		Password: password,
+	}
+	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
+	errors.CheckError(err)
+	return createdSession.Token
+}
+
+func tokenLogin(acdClient argocdclient.ServerClient, token string) string {
+	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
+	defer util.Close(sessConn)
+	sessionRequest := session.SessionCreateRequest{
+		Token: token,
 	}
 	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
 	errors.CheckError(err)
