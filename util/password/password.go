@@ -3,8 +3,12 @@ package password
 import (
 	"crypto/subtle"
 	"fmt"
+	"syscall"
 
+	"github.com/argoproj/argo-cd/errors"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // PasswordHasher is an interface type to declare a general-purpose password management tool.
@@ -58,6 +62,24 @@ func verifyPasswordWithHashers(password, hashedPassword string, hashers []Passwo
 	}
 
 	return valid, stale
+}
+
+// ReadAndConfirmAdminPassword utility function which prompts for admin password
+func ReadAndConfirmAdminPassword() string {
+	for {
+		fmt.Print("*** Enter an admin password: ")
+		password, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		fmt.Print("\n")
+		fmt.Print("*** Confirm the admin password: ")
+		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		fmt.Print("\n")
+		if string(password) == string(confirmPassword) {
+			return string(password)
+		}
+		log.Error("Passwords do not match")
+	}
 }
 
 // HashPassword hashes against the current preferred hasher.
