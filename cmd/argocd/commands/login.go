@@ -32,6 +32,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		ctxName  string
 		username string
 		password string
+		sso      bool
 	)
 	var command = &cobra.Command{
 		Use:   "login SERVER",
@@ -47,12 +48,16 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			errors.CheckError(err)
 			if !tlsTestResult.TLS {
 				if !globalClientOpts.PlainText {
-					cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ")
+					if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+						os.Exit(1)
+					}
 					globalClientOpts.PlainText = true
 				}
 			} else if tlsTestResult.InsecureErr != nil {
 				if !globalClientOpts.Insecure {
-					cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr))
+					if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+						os.Exit(1)
+					}
 					globalClientOpts.Insecure = true
 				}
 			}
@@ -66,18 +71,26 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			setConn, setIf := acdClient.NewSettingsClientOrDie()
 			defer util.Close(setConn)
 
-			acdSet, err := setIf.Get(context.Background(), &settings.SettingsQuery{})
-			errors.CheckError(err)
-
 			ctxName = cli.PromptMessage("Enter a name for this context", ctxName)
-			username = cli.PromptUsername(username)
 
 			// Perform the login
 			var tokenString string
-			if username == "admin" || !ssoConfigured(acdSet) {
+			if !sso {
 				tokenString = passwordLogin(acdClient, username, password)
 			} else {
+				acdSet, err := setIf.Get(context.Background(), &settings.SettingsQuery{})
+				errors.CheckError(err)
+				if !ssoConfigured(acdSet) {
+					log.Fatalf("ArgoCD instance is not configured with SSO")
+				}
 				tokenString = oauth2Login(server, clientOpts.PlainText)
+				// The token which we just received from the OAuth2 flow, was from dex. ArgoCD
+				// currently does not back dex with any kind of persistent storage (it is run
+				// in-memory). As a result, this token cannot be used in any permanent capacity.
+				// Restarts of dex will result in a different signing key, and sessions becoming
+				// invalid. Instead we turn-around and ask ArgoCD to re-sign the token (who *does*
+				// have persistence of signing keys), and is what we store in the config. Should we
+				// ever decide to have a database layer for dex, the next line can be removed.
 				tokenString = tokenLogin(acdClient, tokenString)
 			}
 
@@ -121,6 +134,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.Flags().StringVar(&ctxName, "name", "", "name to use for the context")
 	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
+	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	return command
 }
 
@@ -147,7 +161,7 @@ func getFreePort() (int, error) {
 	return ln.Addr().(*net.TCPAddr).Port, ln.Close()
 }
 
-// oauth2Login opens a browser to delegate OAuth2 login flow and returns the JWT token
+// oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and returns the JWT token
 func oauth2Login(host string, plaintext bool) string {
 	ctx := context.Background()
 	port, err := getFreePort()
@@ -218,7 +232,7 @@ func oauth2Login(host string, plaintext bool) string {
 	}
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, sslcli)
 
-	// Redirect user to consent page to ask for permission for the scopes specified above.
+	// Redirect user to login & consent page to ask for permission for the scopes specified above.
 	log.Info("Opening browser for authentication")
 	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	log.Infof("Authentication URL: %s", url)
@@ -236,7 +250,7 @@ func oauth2Login(host string, plaintext bool) string {
 }
 
 func passwordLogin(acdClient argocdclient.ServerClient, username, password string) string {
-	password = cli.PromptPassword(password)
+	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
 	defer util.Close(sessConn)
 	sessionRequest := session.SessionCreateRequest{

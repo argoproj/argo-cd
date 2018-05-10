@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/coreos/dex/api"
@@ -73,9 +75,6 @@ func (d *DexAPIClient) WaitUntilReady() {
 	}
 }
 
-// TODO: implement proper state management
-const exampleAppState = "I wish to wash my irish wristwatch"
-
 type ClientApp struct {
 	// OAuth2 client ID of this application (e.g. argo-cd)
 	clientID string
@@ -85,15 +84,23 @@ type ClientApp struct {
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
-
+	// client is the HTTP client which is used to query the IDp
 	client *http.Client
-
 	// secureCookie indicates if the cookie should be set with the Secure flag, meaning it should
 	// only ever be sent over HTTPS. This value is inferred by the scheme of the redirectURI.
 	secureCookie bool
-
-	settings   *settings.ArgoCDSettings
+	// settings holds ArgoCD settings
+	settings *settings.ArgoCDSettings
+	// sessionMgr holds an ArgoCD session manager
 	sessionMgr *session.SessionManager
+	// states holds temporary nonce tokens to which hold application state values
+	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
+	states cache.Cache
+}
+
+type appState struct {
+	// ReturnURL is the URL in which to redirect a user back to after completing an OAuth2 login
+	ReturnURL string `json:"returnURL"`
 }
 
 // NewClientApp will register the ArgoCD client app in Dex and return an object which has HTTP
@@ -126,8 +133,8 @@ func NewClientApp(settings *settings.ArgoCDSettings, sessionMgr *session.Session
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-
-	//a.Path = u.Path
+	// NOTE: if we ever have replicas of ArgoCD, this needs to switch to Redis cache
+	a.states = cache.NewInMemoryCache(3 * time.Minute)
 	a.secureCookie = bool(u.Scheme == "https")
 	a.settings = settings
 	a.sessionMgr = sessionMgr
@@ -145,24 +152,70 @@ func (a *ClientApp) oauth2Config(scopes []string) *oauth2.Config {
 	}
 }
 
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randString(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+// generateAppState creates an app state nonce
+func (a *ClientApp) generateAppState(returnURL string) string {
+	randStr := randString(10)
+	if returnURL == "" {
+		returnURL = "/"
+	}
+	err := a.states.Set(&cache.Item{
+		Key: randStr,
+		Object: &appState{
+			ReturnURL: returnURL,
+		},
+	})
+	if err != nil {
+		// This should never happen with the in-memory cache
+		log.Errorf("Failed to set app state: %v", err)
+	}
+	return randStr
+}
+
+func (a *ClientApp) verifyAppState(state string) (*appState, error) {
+	var aState appState
+	err := a.states.Get(state, &aState)
+	if err != nil {
+		if err == cache.ErrCacheMiss {
+			return nil, fmt.Errorf("unknown app state %s", state)
+		} else {
+			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
+		}
+	}
+	// TODO: purge the state string from the cache so that it is a true nonce
+	return &aState, nil
+}
+
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var authCodeURL string
+	returnURL := r.FormValue("return_url")
 	scopes := []string{"openid", "profile", "email", "groups"}
+	appState := a.generateAppState(returnURL)
 	if r.FormValue("offline_access") != "yes" {
-		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState)
+		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(appState)
 	} else if a.sessionMgr.OfflineAsScope() {
 		scopes = append(scopes, "offline_access")
-		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState)
+		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(appState)
 	} else {
-		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(exampleAppState, oauth2.AccessTypeOffline)
+		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(appState, oauth2.AccessTypeOffline)
 	}
 	http.Redirect(w, r, authCodeURL, http.StatusSeeOther)
 }
 
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	var (
-		err   error
-		token *oauth2.Token
+		err       error
+		token     *oauth2.Token
+		returnURL string
 	)
 
 	ctx := oidc.ClientContext(r.Context(), a.client)
@@ -179,10 +232,13 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("no code in request: %q", r.Form), http.StatusBadRequest)
 			return
 		}
-		if state := r.FormValue("state"); state != exampleAppState {
-			http.Error(w, fmt.Sprintf("expected state %q got %q", exampleAppState, state), http.StatusBadRequest)
+		var aState *appState
+		aState, err = a.verifyAppState(r.FormValue("state"))
+		if err != nil {
+			http.Error(w, fmt.Sprintf("%v", err), http.StatusBadRequest)
 			return
 		}
+		returnURL = aState.ReturnURL
 		token, err = oauth2Config.Exchange(ctx, code)
 	case "POST":
 		// Form request from frontend to refresh a token.
@@ -229,12 +285,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	cookie := session.MakeCookieMetadata(common.AuthCookieName, rawIDToken, flags...)
 	w.Header().Set("Set-Cookie", cookie)
-	log.Infof("'%v' logged in", claims["email"])
+	log.Infof("Web login successful claims: %v", claims)
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, rawIDToken, token.RefreshToken, claimsJSON)
 	} else {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, returnURL, http.StatusSeeOther)
 	}
 }
 

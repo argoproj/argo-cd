@@ -55,7 +55,7 @@ func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 
-// PromptCredentials is a helper to prompt the user for a username and password
+// PromptCredentials is a helper to prompt the user for a username and password (unless already supplied)
 func PromptCredentials(username, password string) (string, string) {
 	return PromptUsername(username), PromptPassword(password)
 }
@@ -65,7 +65,7 @@ func PromptUsername(username string) string {
 	return PromptMessage("Username", username)
 }
 
-// PromptMessage prompts the user for a value
+// PromptMessage prompts the user for a value (unless already supplied)
 func PromptMessage(message, value string) string {
 	for value == "" {
 		reader := bufio.NewReader(os.Stdin)
@@ -77,6 +77,7 @@ func PromptMessage(message, value string) string {
 	return value
 }
 
+// PromptPassword prompts the user for a password, without local echo. (unless already supplied)
 func PromptPassword(password string) string {
 	for password == "" {
 		fmt.Print("Password: ")
@@ -88,22 +89,19 @@ func PromptPassword(password string) string {
 	return password
 }
 
-func AskToProceed(message string) {
-	proceed := ""
-	acceptedAnswers := map[string]bool{
-		"y":   true,
-		"yes": true,
-		"n":   true,
-		"no":  true,
-	}
-	for !acceptedAnswers[proceed] {
+// AskToProceed prompts the user with a message (typically a yes or no question) and returns whether
+// or not they responded in the affirmative or negative.
+func AskToProceed(message string) bool {
+	for {
 		fmt.Print(message)
 		reader := bufio.NewReader(os.Stdin)
 		proceedRaw, err := reader.ReadString('\n')
 		errors.CheckError(err)
-		proceed = strings.TrimSpace(proceedRaw)
-	}
-	if proceed == "no" || proceed == "n" {
-		os.Exit(1)
+		switch strings.ToLower(strings.TrimSpace(proceedRaw)) {
+		case "y", "yes":
+			return true
+		case "n", "no":
+			return false
+		}
 	}
 }
