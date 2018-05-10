@@ -45,7 +45,7 @@ func renameSecret(namespace, oldName, newName string) {
 	overrides := clientcmd.ConfigOverrides{}
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &overrides)
 
-	log.Printf("*** Renaming secret %q to %q in namespace %q\n", oldName, newName, namespace)
+	log.Printf("Renaming secret %q to %q in namespace %q\n", oldName, newName, namespace)
 
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
@@ -85,10 +85,14 @@ func renameRepositorySecrets(clientOpts argocdclient.ClientOptions, namespace st
 		return
 	}
 
+	log.Println("Renaming repository secrets...")
 	for _, repo := range repos.Items {
 		oldSecretName := origRepoURLToSecretName(repo.Repo)
 		newSecretName := repoURLToSecretName(repo.Repo)
-		renameSecret(namespace, oldSecretName, newSecretName)
+		if oldSecretName != newSecretName {
+			log.Printf("Repo %q had its secret name change, so updating\n", repo.Repo)
+			renameSecret(namespace, oldSecretName, newSecretName)
+		}
 	}
 }
 
@@ -102,12 +106,15 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 		return
 	}
 
+	log.Println("Populating app Destination fields")
 	for _, app := range apps.Items {
-		log.Printf("*** Ensuring destination field is populated on app %q\n", app.ObjectMeta.Name)
+		log.Printf("Ensuring destination field is populated on app %q\n", app.ObjectMeta.Name)
 		if app.Spec.Destination.Server == "" {
+			log.Printf("App %q was missing Destination.Server, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Server)
 			app.Spec.Destination.Server = app.Status.ComparisonResult.Server
 		}
 		if app.Spec.Destination.Namespace == "" {
+			log.Printf("App %q was missing Destination.Namespace, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Namespace)
 			app.Spec.Destination.Namespace = app.Status.ComparisonResult.Namespace
 		}
 
@@ -122,11 +129,11 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatal("Please specify server and namespace")
+	if len(os.Args) < 3 {
+		log.Fatalf("USAGE: %s SERVER NAMESPACE\n", os.Args[0])
 	}
-	server, namespace := os.Args[0], os.Args[1]
-	log.Printf("*** Using argocd server %q and namespace %q\n", server, namespace)
+	server, namespace := os.Args[1], os.Args[2]
+	log.Printf("Using argocd server %q and namespace %q\n", server, namespace)
 
 	isLocalhost := false
 	switch {
