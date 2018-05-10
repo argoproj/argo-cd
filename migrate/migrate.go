@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"os"
 	"strings"
 
@@ -44,18 +45,18 @@ func renameSecret(namespace, oldName, newName string) {
 	overrides := clientcmd.ConfigOverrides{}
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &overrides)
 
-	fmt.Printf("*** Renaming secret %q to %q in namespace %q\n", oldName, newName, namespace)
+	log.Printf("*** Renaming secret %q to %q in namespace %q\n", oldName, newName, namespace)
 
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		fmt.Println("Could not retrieve client config: ", err)
+		log.Println("Could not retrieve client config: ", err)
 		return
 	}
 
 	kubeclientset := kubernetes.NewForConfigOrDie(config)
 	repoSecret, err := kubeclientset.CoreV1().Secrets(namespace).Get(oldName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Println("Could not retrieve old secret: ", err)
+		log.Println("Could not retrieve old secret: ", err)
 		return
 	}
 
@@ -64,13 +65,13 @@ func renameSecret(namespace, oldName, newName string) {
 
 	repoSecret, err = kubeclientset.CoreV1().Secrets(namespace).Create(repoSecret)
 	if err != nil {
-		fmt.Println("Could not create new secret: ", err)
+		log.Println("Could not create new secret: ", err)
 		return
 	}
 
 	err = kubeclientset.CoreV1().Secrets(namespace).Delete(oldName, &metav1.DeleteOptions{})
 	if err != nil {
-		fmt.Println("Could not remove old secret: ", err)
+		log.Println("Could not remove old secret: ", err)
 	}
 }
 
@@ -80,7 +81,7 @@ func renameRepositorySecrets(clientOpts argocdclient.ClientOptions, namespace st
 	defer util.Close(conn)
 	repos, err := repoIf.List(context.Background(), &repository.RepoQuery{})
 	if err != nil {
-		fmt.Println("An error occurred, so skipping secret renaming: ", err)
+		log.Println("An error occurred, so skipping secret renaming: ", err)
 		return
 	}
 
@@ -97,12 +98,12 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 	defer util.Close(conn)
 	apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 	if err != nil {
-		fmt.Println("An error occurred, so skipping destination population: ", err)
+		log.Println("An error occurred, so skipping destination population: ", err)
 		return
 	}
 
 	for _, app := range apps.Items {
-		fmt.Printf("*** Ensuring destination field is populated on app %q\n", app.ObjectMeta.Name)
+		log.Printf("*** Ensuring destination field is populated on app %q\n", app.ObjectMeta.Name)
 		if app.Spec.Destination.Server == "" {
 			app.Spec.Destination.Server = app.Status.ComparisonResult.Server
 		}
@@ -115,18 +116,31 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 			Spec:    &app.Spec,
 		})
 		if err != nil {
-			fmt.Println("An error occurred (but continuing anyway): ", err)
+			log.Println("An error occurred (but continuing anyway): ", err)
 		}
 	}
 }
 
 func main() {
-	clientOpts := argocdclient.ClientOptions{
-		ConfigPath: "",
-		ServerAddr: os.Args[0],
-		Insecure:   false,
-		PlainText:  false,
+	if len(os.Args) < 2 {
+		log.Fatal("Please specify server and namespace")
 	}
-	renameSecrets(clientOpts, namespace)
+	server, namespace := os.Args[0], os.Args[1]
+	log.Printf("*** Using argocd server %q and namespace %q\n", server, namespace)
+
+	isLocalhost := false
+	switch {
+	case strings.HasPrefix(server, "localhost:"):
+		isLocalhost = true
+	case strings.HasPrefix(server, "127.0.0.1:"):
+		isLocalhost = true
+	}
+
+	clientOpts := argocdclient.ClientOptions{
+		ServerAddr: server,
+		Insecure:   true,
+		PlainText:  isLocalhost,
+	}
+	renameRepositorySecrets(clientOpts, namespace)
 	populateAppDestinations(clientOpts)
 }
