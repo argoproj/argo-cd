@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
+	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -42,6 +43,8 @@ type ServerClient interface {
 	NewApplicationClientOrDie() (*grpc.ClientConn, application.ApplicationServiceClient)
 	NewSessionClient() (*grpc.ClientConn, session.SessionServiceClient, error)
 	NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServiceClient)
+	NewSettingsClient() (*grpc.ClientConn, settings.SettingsServiceClient, error)
+	NewSettingsClientOrDie() (*grpc.ClientConn, settings.SettingsServiceClient)
 	NewVersionClient() (*grpc.ClientConn, version.VersionServiceClient, error)
 	NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServiceClient)
 }
@@ -244,6 +247,23 @@ func (c *client) NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServi
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, sessionIf
+}
+
+func (c *client) NewSettingsClient() (*grpc.ClientConn, settings.SettingsServiceClient, error) {
+	conn, err := c.NewConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	setIf := settings.NewSettingsServiceClient(conn)
+	return conn, setIf, nil
+}
+
+func (c *client) NewSettingsClientOrDie() (*grpc.ClientConn, settings.SettingsServiceClient) {
+	conn, setIf, err := c.NewSettingsClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, setIf
 }
 
 func (c *client) NewVersionClient() (*grpc.ClientConn, version.VersionServiceClient, error) {

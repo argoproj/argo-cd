@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -27,7 +26,6 @@ import (
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -54,8 +52,6 @@ var (
 	endpoint = fmt.Sprintf("localhost:%d", port)
 	// ErrNoSession indicates no auth token was supplied as part of a request
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
-	// ErrInvalidSession indicates that specified token is invalid
-	ErrInvalidSession = status.Errorf(codes.Unauthenticated, "invalid session information")
 )
 
 // ArgoCDServer is the API server for ArgoCD
@@ -63,7 +59,7 @@ type ArgoCDServer struct {
 	ArgoCDServerOpts
 
 	ssoClientApp *dexutil.ClientApp
-	settings     settings_util.ArgoCDSettings
+	settings     *settings_util.ArgoCDSettings
 	log          *log.Entry
 	sessionMgr   *util_session.SessionManager
 	settingsMgr  *settings_util.SettingsManager
@@ -86,12 +82,12 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sessionMgr := util_session.MakeSessionManager(settings.ServerSignature)
+	sessionMgr := util_session.NewSessionManager(settings)
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
 		log:              log.NewEntry(log.New()),
-		settings:         *settings,
-		sessionMgr:       &sessionMgr,
+		settings:         settings,
+		sessionMgr:       sessionMgr,
 		settingsMgr:      settingsMgr,
 	}
 }
@@ -179,7 +175,7 @@ func (a *ArgoCDServer) initializeOIDCClientApp() {
 	}
 	var realErr error
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		realErr = a.ssoClientApp.Initialize()
+		_, realErr = a.sessionMgr.OIDCProvider()
 		if realErr != nil {
 			a.log.Warnf("failed to initialize client app: %v", realErr)
 			return false, nil
@@ -216,7 +212,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	grpcS := grpc.NewServer(sOpts...)
 	clusterService := cluster.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
 	repoService := repository.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
-	sessionService := session.NewServer(a.settings)
+	sessionService := session.NewServer(a.sessionMgr)
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, repoService, clusterService)
 	settingsService := settings.NewServer(a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
@@ -258,7 +254,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
 		// so we need to supply the same certificates to establish the connections that a normal,
 		// external gRPC client would need.
-		tlsConfig := a.selfTLSConfig()
+		tlsConfig := a.settings.TLSConfig()
 		tlsConfig.InsecureSkipVerify = true
 		dCreds := credentials.NewTLS(tlsConfig)
 		dOpts = append(dOpts, grpc.WithTransportCredentials(dCreds))
@@ -312,19 +308,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
 	return &httpS
 }
 
-// selfTLSConfig returns a tls.Config with the configured certificates
-func (a *ArgoCDServer) selfTLSConfig() *tls.Config {
-	certPool := x509.NewCertPool()
-	pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.settings.Certificate)
-	ok := certPool.AppendCertsFromPEM(pemCertBytes)
-	if !ok {
-		panic("bad certs")
-	}
-	return &tls.Config{
-		RootCAs: certPool,
-	}
-}
-
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
 func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	if !a.settings.IsSSOConfigured() {
@@ -332,13 +315,13 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
-	mux.HandleFunc(dexutil.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
-	tlsConfig := a.selfTLSConfig()
+	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
+	tlsConfig := a.settings.TLSConfig()
 	tlsConfig.InsecureSkipVerify = true
-	a.ssoClientApp, err = dexutil.NewClientApp(a.settings.URL, a.settings.ServerSignature, tlsConfig)
+	a.ssoClientApp, err = dexutil.NewClientApp(a.settings, a.sessionMgr)
 	errors.CheckError(err)
-	mux.HandleFunc(dexutil.LoginEndpoint, a.ssoClientApp.HandleLogin)
-	mux.HandleFunc(dexutil.CallbackEndpoint, a.ssoClientApp.HandleCallback)
+	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
+	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
@@ -374,13 +357,13 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	if !ok {
 		return ctx, ErrNoSession
 	}
-	token := getToken(md)
-	if token == "" {
+	tokenString := getToken(md)
+	if tokenString == "" {
 		return ctx, ErrNoSession
 	}
-	_, err := a.sessionMgr.Parse(token)
+	_, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return ctx, ErrInvalidSession
+		return ctx, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 	// TODO: when we care about user groups, we will want to put the claims into the context
 	return ctx, nil

@@ -25,6 +25,25 @@ const (
 	ArgoCDConfigMapName = "argocd-cm"
 )
 
+const (
+	// DexAPIEndpoint is the endpoint where we serve the Dex API server
+	DexAPIEndpoint = "/api/dex"
+	// LoginEndpoint is ArgoCD's shorthand login endpoint which redirects to dex's OAuth 2.0 provider's consent page
+	LoginEndpoint = "/auth/login"
+	// CallbackEndpoint is ArgoCD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
+	CallbackEndpoint = "/auth/callback"
+	// ArgoCDClientAppName is name of the Oauth client app used when registering our web app to dex
+	ArgoCDClientAppName = "ArgoCD"
+	// ArgoCDClientAppID is the Oauth client ID we will use when registering our app to dex
+	ArgoCDClientAppID = "argo-cd"
+	// ArgoCDCLIClientAppName is name of the Oauth client app used when registering our CLI to dex
+	ArgoCDCLIClientAppName = "ArgoCD CLI"
+	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
+	ArgoCDCLIClientAppID = "argo-cd-cli"
+	// EnvVarSSODebug is an environment variable to enable additional OAuth debugging in the API server
+	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
+)
+
 var (
 	// LabelKeyAppInstance refers to the application instance resource name
 	LabelKeyAppInstance = MetadataPrefix + "/app-instance"

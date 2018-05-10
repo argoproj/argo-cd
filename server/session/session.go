@@ -2,61 +2,62 @@ package session
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
-	"github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
+	sessionmgr "github.com/argoproj/argo-cd/util/session"
+	jwt "github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // Server provides a Session service
 type Server struct {
-	serversettings settings.ArgoCDSettings
+	mgr *sessionmgr.SessionManager
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(serversettings settings.ArgoCDSettings) *Server {
+func NewServer(mgr *sessionmgr.SessionManager) *Server {
 	return &Server{
-		serversettings: serversettings,
+		mgr: mgr,
 	}
 }
 
-// invalidLoginMessage, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
-const (
-	invalidLoginError  = "Invalid username or password"
-	blankPasswordError = "Blank passwords are not allowed"
-)
-
-// Create an authentication cookie for the client.
+// Create generates a non-expiring JWT token signed by ArgoCD. This endpoint is used in two circumstances:
+// 1. Web/CLI logins for local users (i.e. admin), for when SSO is not configured. In this case,
+//    username/password.
+// 2. CLI login which completed an OAuth2 login flow but wish to store a permanent token in their config
 func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionResponse, error) {
-	if q.Password == "" {
-		err := status.Errorf(codes.Unauthenticated, blankPasswordError)
-		return nil, err
+	var tokenString string
+	var err error
+	if q.Password != "" {
+		// first case
+		err = s.mgr.VerifyUsernamePassword(q.Username, q.Password)
+		if err != nil {
+			return nil, err
+		}
+		tokenString, err = s.mgr.Create(q.Username)
+		if err != nil {
+			return nil, err
+		}
+	} else if q.Token != "" {
+		// second case
+		claimsIf, err := s.mgr.VerifyToken(q.Token)
+		if err != nil {
+			return nil, err
+		}
+		claims, err := MapClaims(claimsIf)
+		if err != nil {
+			return nil, err
+		}
+		tokenString, err = s.mgr.ReissueClaims(claims)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to resign claims: %v", err)
+		}
+	} else {
+		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
-
-	passwordHash, ok := s.serversettings.LocalUsers[q.Username]
-	if !ok {
-		// Username was not found in local user store.
-		// Ensure we still send password to hashing algorithm for comparison.
-		// This mitigates potential for timing attacks that benefit from short-circuiting,
-		// provided the hashing library/algorithm in use doesn't itself short-circuit.
-		passwordHash = ""
-	}
-
-	valid, _ := password.VerifyPassword(q.Password, passwordHash)
-	if !valid {
-		err := status.Errorf(codes.Unauthenticated, invalidLoginError)
-		return nil, err
-	}
-
-	sessionManager := session.MakeSessionManager(s.serversettings.ServerSignature)
-	token, err := sessionManager.Create(q.Username)
-	if err != nil {
-		token = ""
-	}
-
-	return &SessionResponse{token}, err
+	return &SessionResponse{Token: tokenString}, nil
 }
 
 // Delete an authentication cookie from the client.  This makes sense only for the Web client.
@@ -70,4 +71,18 @@ func (s *Server) Delete(ctx context.Context, q *SessionDeleteRequest) (*SessionR
 // chicken-and-egg situation if we didn't place this here to allow traffic to pass through.
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	return ctx, nil
+}
+
+// MapClaims converts a jwt.Claims to a MapClaims
+func MapClaims(claims jwt.Claims) (jwt.MapClaims, error) {
+	claimsBytes, err := json.Marshal(claims)
+	if err != nil {
+		return nil, err
+	}
+	var mapClaims jwt.MapClaims
+	err = json.Unmarshal(claimsBytes, &mapClaims)
+	if err != nil {
+		return nil, err
+	}
+	return mapClaims, nil
 }

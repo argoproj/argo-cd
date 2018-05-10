@@ -55,24 +55,53 @@ func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 
-// PromptCredentials is a helper to prompt the user for a username and password
+// PromptCredentials is a helper to prompt the user for a username and password (unless already supplied)
 func PromptCredentials(username, password string) (string, string) {
-	for username == "" {
+	return PromptUsername(username), PromptPassword(password)
+}
+
+// PromptUsername prompts the user for a username value
+func PromptUsername(username string) string {
+	return PromptMessage("Username", username)
+}
+
+// PromptMessage prompts the user for a value (unless already supplied)
+func PromptMessage(message, value string) string {
+	for value == "" {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Username: ")
-		usernameRaw, err := reader.ReadString('\n')
+		fmt.Print(message + ": ")
+		valueRaw, err := reader.ReadString('\n')
 		errors.CheckError(err)
-		username = strings.TrimSpace(usernameRaw)
+		value = strings.TrimSpace(valueRaw)
 	}
+	return value
+}
+
+// PromptPassword prompts the user for a password, without local echo. (unless already supplied)
+func PromptPassword(password string) string {
 	for password == "" {
 		fmt.Print("Password: ")
 		passwordRaw, err := terminal.ReadPassword(syscall.Stdin)
 		errors.CheckError(err)
 		password = string(passwordRaw)
-		if password == "" {
-			fmt.Print("\n")
+		fmt.Print("\n")
+	}
+	return password
+}
+
+// AskToProceed prompts the user with a message (typically a yes or no question) and returns whether
+// or not they responded in the affirmative or negative.
+func AskToProceed(message string) bool {
+	for {
+		fmt.Print(message)
+		reader := bufio.NewReader(os.Stdin)
+		proceedRaw, err := reader.ReadString('\n')
+		errors.CheckError(err)
+		switch strings.ToLower(strings.TrimSpace(proceedRaw)) {
+		case "y", "yes":
+			return true
+		case "n", "no":
+			return false
 		}
 	}
-	fmt.Print("\n")
-	return username, password
 }

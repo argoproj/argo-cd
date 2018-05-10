@@ -1,59 +1,111 @@
 package session
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"os"
 	"strings"
 	"time"
 
-	util_password "github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/common"
+	passwordutil "github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/coreos/go-oidc"
 	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	serverSecretKey []byte
+	settings *settings.ArgoCDSettings
+	client   *http.Client
+	provider *oidc.Provider
+
+	// Does the provider use "offline_access" scope to request a refresh token
+	// or does it use "access_type=offline" (e.g. Google)?
+	offlineAsScope bool
 }
 
 const (
-	// sessionManagerClaimsIssuer fills the "iss" field of the token.
-	sessionManagerClaimsIssuer = "argocd"
+	// SessionManagerClaimsIssuer fills the "iss" field of the token.
+	SessionManagerClaimsIssuer = "argocd"
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
 )
 
-// MakeSessionManager creates a new session manager with the given secret key.
-func MakeSessionManager(secretKey []byte) SessionManager {
-	return SessionManager{
-		serverSecretKey: secretKey,
+// NewSessionManager creates a new session manager from ArgoCD settings
+func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
+	s := SessionManager{
+		settings: settings,
 	}
+	tlsConfig := settings.TLSConfig()
+	if tlsConfig != nil {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	s.client = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	if os.Getenv(common.EnvVarSSODebug) == "1" {
+		s.client.Transport = debugTransport{s.client.Transport}
+	}
+	return &s
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
-func (mgr SessionManager) Create(subject string) (string, error) {
+func (mgr *SessionManager) Create(subject string) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().Unix()
 	claims := jwt.StandardClaims{
 		//ExpiresAt: time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
 		IssuedAt:  now,
-		Issuer:    sessionManagerClaimsIssuer,
+		Issuer:    SessionManagerClaimsIssuer,
 		NotBefore: now,
 		Subject:   subject,
 	}
-	return mgr.SignClaims(claims)
+	return mgr.signClaims(claims)
 }
 
-func (mgr SessionManager) SignClaims(claims jwt.Claims) (string, error) {
+func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
+	log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(mgr.serverSecretKey)
+	return token.SignedString(mgr.settings.ServerSignature)
+}
+
+// ReissueClaims re-issues and re-signs a new token signed by us, while preserving most of the claim values
+func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims) (string, error) {
+	now := time.Now().Unix()
+	newClaims := make(jwt.MapClaims)
+	for k, v := range claims {
+		newClaims[k] = v
+	}
+	newClaims["iss"] = SessionManagerClaimsIssuer
+	newClaims["iat"] = now
+	newClaims["nbf"] = now
+	delete(newClaims, "exp")
+	return mgr.signClaims(newClaims)
 }
 
 // Parse tries to parse the provided string and returns the token claims.
-func (mgr SessionManager) Parse(tokenString string) (jwt.Claims, error) {
+func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
@@ -64,7 +116,7 @@ func (mgr SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return mgr.serverSecretKey, nil
+		return mgr.settings.ServerSignature, nil
 	})
 	if err != nil {
 		return nil, err
@@ -84,15 +136,12 @@ func MakeSignature(size int) ([]byte, error) {
 	return b, err
 }
 
-// LoginLocalUser checks if a username/password combo is correct and creates a new token if so.
-// [TODO] This may belong elsewhere.
-func (mgr SessionManager) LoginLocalUser(username, password string, users map[string]string) (string, error) {
+// VerifyUsernamePassword verifies if a username/password combo is correct
+func (mgr *SessionManager) VerifyUsernamePassword(username, password string) error {
 	if password == "" {
-		err := fmt.Errorf(blankPasswordError)
-		return "", err
+		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
-
-	passwordHash, ok := users[username]
+	passwordHash, ok := mgr.settings.LocalUsers[username]
 	if !ok {
 		// Username was not found in local user store.
 		// Ensure we still send password to hashing algorithm for comparison.
@@ -100,15 +149,43 @@ func (mgr SessionManager) LoginLocalUser(username, password string, users map[st
 		// provided the hashing library/algorithm in use doesn't itself short-circuit.
 		passwordHash = ""
 	}
-
-	if valid, _ := util_password.VerifyPassword(password, passwordHash); valid {
-		token, err := mgr.Create(username)
-		if err == nil {
-			return token, nil
-		}
+	valid, _ := passwordutil.VerifyPassword(password, passwordHash)
+	if !valid {
+		return status.Errorf(codes.Unauthenticated, invalidLoginError)
 	}
+	return nil
+}
 
-	return "", fmt.Errorf(invalidLoginError)
+// VerifyToken verifies if a token is correct. Tokens can be issued either from us or by dex.
+// We choose how to verify based on the issuer.
+func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
+	parser := &jwt.Parser{
+		SkipClaimsValidation: true,
+	}
+	var claims jwt.StandardClaims
+	_, _, err := parser.ParseUnverified(tokenString, &claims)
+	if err != nil {
+		return nil, err
+	}
+	switch claims.Issuer {
+	case SessionManagerClaimsIssuer:
+		// ArgoCD signed token
+		return mgr.Parse(tokenString)
+	default:
+		// Dex signed token
+		provider, err := mgr.OIDCProvider()
+		if err != nil {
+			return nil, err
+		}
+		verifier := provider.Verifier(&oidc.Config{ClientID: claims.Audience})
+		idToken, err := verifier.Verify(context.Background(), tokenString)
+		if err != nil {
+			return nil, err
+		}
+		var claims jwt.MapClaims
+		err = idToken.Claims(&claims)
+		return claims, err
+	}
 }
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
@@ -118,4 +195,77 @@ func MakeCookieMetadata(key, value string, flags ...string) string {
 	}
 	components = append(components, flags...)
 	return strings.Join(components, "; ")
+}
+
+// OIDCProvider lazily returns the OIDC provider
+func (mgr *SessionManager) OIDCProvider() (*oidc.Provider, error) {
+	if mgr.provider != nil {
+		return mgr.provider, nil
+	}
+	if !mgr.settings.IsSSOConfigured() {
+		return nil, fmt.Errorf("SSO is not configured")
+	}
+	issuerURL := mgr.settings.IssuerURL()
+	log.Infof("Initializing OIDC provider (issuer: %s)", issuerURL)
+	ctx := oidc.ClientContext(context.Background(), mgr.client)
+	provider, err := oidc.NewProvider(ctx, issuerURL)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
+	}
+
+	// Returns the scopes the provider supports
+	// See: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+	var s struct {
+		ScopesSupported []string `json:"scopes_supported"`
+	}
+	if err := provider.Claims(&s); err != nil {
+		return nil, fmt.Errorf("Failed to parse provider scopes_supported: %v", err)
+	}
+	log.Infof("OpenID supported scopes: %v", s.ScopesSupported)
+	if len(s.ScopesSupported) == 0 {
+		// scopes_supported is a "RECOMMENDED" discovery claim, not a required
+		// one. If missing, assume that the provider follows the spec and has
+		// an "offline_access" scope.
+		mgr.offlineAsScope = true
+	} else {
+		// See if scopes_supported has the "offline_access" scope.
+		for _, scope := range s.ScopesSupported {
+			if scope == oidc.ScopeOfflineAccess {
+				mgr.offlineAsScope = true
+				break
+			}
+		}
+	}
+	mgr.provider = provider
+	return mgr.provider, nil
+}
+
+func (mgr *SessionManager) OfflineAsScope() bool {
+	_, _ = mgr.OIDCProvider() // forces offlineAsScope to be determined
+	return mgr.offlineAsScope
+}
+
+type debugTransport struct {
+	t http.RoundTripper
+}
+
+func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	reqDump, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("%s", reqDump)
+
+	resp, err := d.t.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	respDump, err := httputil.DumpResponse(resp, true)
+	if err != nil {
+		_ = resp.Body.Close()
+		return nil, err
+	}
+	log.Printf("%s", respDump)
+	return resp, nil
 }

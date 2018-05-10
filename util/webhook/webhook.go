@@ -28,7 +28,7 @@ type ArgoCDWebhookHandler struct {
 	bitbucketHandler http.Handler
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set settings.ArgoCDSettings) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:           namespace,
 		appClientset: appClientset,

@@ -393,6 +393,12 @@
   version = "v1.0.5"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/skratchdot/open-golang"
+  packages = ["open"]
+  revision = "75fb7ed4208cf72d323d7d02fd1a5964a7a9073c"
+
+[[projects]]
   name = "github.com/soheilhy/cmux"
   packages = ["."]
   revision = "e09e9389d85d8492d313d73d1469c029e710623f"
@@ -850,6 +856,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fe567a52d46df8bc00753d90df816ad4a102d0752427b3f1a46020f581ecdde9"
+  inputs-digest = "0d3fa2746dde57b33a3ed453063e8bd1d8ea3e9bbd91c34270817e0543f7aabf"
   solver-name = "gps-cdcl"
   solver-version = 1

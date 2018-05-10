@@ -23,7 +23,7 @@ func init() {
 
 func NewMockHandler() *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset()
-	return NewHandler("", appClientset, settings.ArgoCDSettings{})
+	return NewHandler("", appClientset, &settings.ArgoCDSettings{})
 }
 func TestGitHubCommitEvent(t *testing.T) {
 	h := NewMockHandler()

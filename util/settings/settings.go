@@ -1,7 +1,10 @@
 package settings
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/argoproj/argo-cd/common"
@@ -205,4 +208,42 @@ func (a *ArgoCDSettings) IsSSOConfigured() bool {
 		return false
 	}
 	return len(dexCfg) > 0
+}
+
+// TLSConfig returns a tls.Config with the configured certificates
+func (a *ArgoCDSettings) TLSConfig() *tls.Config {
+	if a.Certificate == nil {
+		return nil
+	}
+	certPool := x509.NewCertPool()
+	pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.Certificate)
+	ok := certPool.AppendCertsFromPEM(pemCertBytes)
+	if !ok {
+		panic("bad certs")
+	}
+	return &tls.Config{
+		RootCAs: certPool,
+	}
+}
+
+func (a *ArgoCDSettings) IssuerURL() string {
+	return a.URL + common.DexAPIEndpoint
+}
+
+func (a *ArgoCDSettings) RedirectURL() string {
+	return a.URL + common.CallbackEndpoint
+}
+
+// OAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
+// from the server secret. This is called by the dex startup wrapper (argocd-util rundex), as well
+// as the API server, such that they both independently come to the same conclusion of what the
+// OAuth2 shared client secret should be.
+func (a *ArgoCDSettings) OAuth2ClientSecret() string {
+	h := sha256.New()
+	_, err := h.Write(a.ServerSignature)
+	if err != nil {
+		panic(err)
+	}
+	sha := h.Sum(nil)
+	return base64.URLEncoding.EncodeToString(sha)[:40]
 }
