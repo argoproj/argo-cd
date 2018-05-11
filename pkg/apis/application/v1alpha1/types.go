@@ -11,6 +11,54 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// SyncOperation contains sync operation details.
+type SyncOperation struct {
+	Revision string `json:"revision" protobuf:"bytes,1,opt,name=revision"`
+	Prune    bool   `json:"prune" protobuf:"bytes,2,opt,name=prune"`
+	DryRun   bool   `json:"dryRun" protobuf:"bytes,3,opt,name=dryRun"`
+}
+
+type RollbackOperation struct {
+	ID     int64 `json:"id" protobuf:"bytes,1,opt,name=id"`
+	Prune  bool  `json:"prune" protobuf:"bytes,2,opt,name=prune"`
+	DryRun bool  `json:"dryRun" protobuf:"bytes,3,opt,name=dryRun"`
+}
+
+// Operation contains requested operation parameters.
+type Operation struct {
+	Sync     *SyncOperation     `json:"sync" protobuf:"bytes,1,opt,name=sync"`
+	Rollback *RollbackOperation `json:"rollback" protobuf:"bytes,2,opt,name=rollback"`
+}
+
+type OperationStatus = string
+
+const (
+	OperationStatusInProgress = "InProgress"
+	OperationStatusFailed     = "Failed"
+	OperationStatusSucceeded  = "Succeeded"
+)
+
+// OperationState contains information about state of currently performing operation on application.
+type OperationState struct {
+	Status         OperationStatus      `json:"status" protobuf:"bytes,1,opt,name=status"`
+	ErrorDetails   string               `json:"errorDetails" protobuf:"bytes,2,opt,name=errorDetails"`
+	SyncResult     *SyncOperationResult `json:"syncResult" protobuf:"bytes,3,opt,name=syncResult"`
+	RollbackResult *SyncOperationResult `json:"rollbackResult" protobuf:"bytes,4,opt,name=rollbackResult"`
+}
+
+// SyncOperationResult represent result of sync operation
+type SyncOperationResult struct {
+	Message   string             `json:"message" protobuf:"bytes,1,opt,name=message"`
+	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,2,opt,name=resources"`
+}
+
+type ResourceDetails struct {
+	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Namespace string `json:"namespace" protobuf:"bytes,3,opt,name=namespace"`
+	Message   string `json:"message" protobuf:"bytes,4,opt,name=message"`
+}
+
 // DeploymentInfo contains information relevant to an application deployment
 type DeploymentInfo struct {
 	Params                      []ComponentParameter `json:"params" protobuf:"bytes,1,name=params"`
@@ -29,6 +77,7 @@ type Application struct {
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 	Status            ApplicationStatus `json:"status" protobuf:"bytes,3,opt,name=status"`
+	Operation         *Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -108,6 +157,7 @@ type ApplicationStatus struct {
 	RecentDeployments []DeploymentInfo     `json:"recentDeployments" protobuf:"bytes,2,opt,name=recentDeployment"`
 	Parameters        []ComponentParameter `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
 	Health            HealthStatus         `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
+	OperationState    *OperationState      `json:"operationState,omitempty" protobuf:"bytes,5,opt,name=operationState"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.

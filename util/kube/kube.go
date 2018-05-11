@@ -446,8 +446,10 @@ func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespac
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
 	if err != nil {
-		exErr := err.(*exec.ExitError)
-		return nil, fmt.Errorf("failed to apply '%s': %s", obj.GetName(), exErr.Stderr)
+		if exErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("failed to apply '%s': %s", obj.GetName(), exErr.Stderr)
+		}
+		return nil, err
 	}
 	var liveObj unstructured.Unstructured
 	err = json.Unmarshal(out, &liveObj)

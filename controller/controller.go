@@ -11,15 +11,12 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/cluster"
-	apireposerver "github.com/argoproj/argo-cd/server/repository"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/apps/v1"
-	coreV1 "k8s.io/api/core/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -30,26 +27,26 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
 const (
-	watchResourcesRetryTimeout = 10 * time.Second
+	watchResourcesRetryTimeout  = 10 * time.Second
+	updateOperationStateTimeout = 1 * time.Second
 )
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
 	namespace             string
-	repoClientset         reposerver.Clientset
 	kubeClientset         kubernetes.Interface
 	applicationClientset  appclientset.Interface
-	appQueue              workqueue.RateLimitingInterface
+	appRefreshQueue       workqueue.RateLimitingInterface
+	appOperationQueue     workqueue.RateLimitingInterface
 	appInformer           cache.SharedIndexInformer
-	appComparator         AppComparator
+	appStateManager       AppStateManager
+	appHealthManager      AppHealthManager
 	statusRefreshTimeout  time.Duration
-	apiRepoService        apireposerver.RepositoryServiceServer
 	apiClusterService     *cluster.Server
 	forceRefreshApps      map[string]bool
 	forceRefreshAppsMutex *sync.Mutex
@@ -65,24 +62,24 @@ func NewApplicationController(
 	namespace string,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
-	repoClientset reposerver.Clientset,
-	apiRepoService apireposerver.RepositoryServiceServer,
 	apiClusterService *cluster.Server,
-	appComparator AppComparator,
+	appStateManager AppStateManager,
+	appHealthManager AppHealthManager,
 	appResyncPeriod time.Duration,
 	config *ApplicationControllerConfig,
 ) *ApplicationController {
-	appQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	appRefreshQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	appOperationQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 	return &ApplicationController{
 		namespace:             namespace,
 		kubeClientset:         kubeClientset,
 		applicationClientset:  applicationClientset,
-		repoClientset:         repoClientset,
-		appQueue:              appQueue,
-		apiRepoService:        apiRepoService,
+		appRefreshQueue:       appRefreshQueue,
+		appOperationQueue:     appOperationQueue,
 		apiClusterService:     apiClusterService,
-		appComparator:         appComparator,
-		appInformer:           newApplicationInformer(applicationClientset, appQueue, appResyncPeriod, config),
+		appStateManager:       appStateManager,
+		appHealthManager:      appHealthManager,
+		appInformer:           newApplicationInformer(applicationClientset, appRefreshQueue, appOperationQueue, appResyncPeriod, config),
 		statusRefreshTimeout:  appResyncPeriod,
 		forceRefreshApps:      make(map[string]bool),
 		forceRefreshAppsMutex: &sync.Mutex{},
@@ -90,9 +87,9 @@ func NewApplicationController(
 }
 
 // Run starts the Application CRD controller.
-func (ctrl *ApplicationController) Run(ctx context.Context, appWorkers int) {
+func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int) {
 	defer runtime.HandleCrash()
-	defer ctrl.appQueue.ShutDown()
+	defer ctrl.appRefreshQueue.ShutDown()
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.watchAppsResources()
@@ -102,8 +99,18 @@ func (ctrl *ApplicationController) Run(ctx context.Context, appWorkers int) {
 		return
 	}
 
-	for i := 0; i < appWorkers; i++ {
-		go wait.Until(ctrl.runWorker, time.Second, ctx.Done())
+	for i := 0; i < statusProcessors; i++ {
+		go wait.Until(func() {
+			for ctrl.processAppRefreshQueueItem() {
+			}
+		}, time.Second, ctx.Done())
+	}
+
+	for i := 0; i < operationProcessors; i++ {
+		go wait.Until(func() {
+			for ctrl.processAppOperationQueueItem() {
+			}
+		}, time.Second, ctx.Done())
 	}
 
 	<-ctx.Done()
@@ -141,7 +148,7 @@ func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, it
 			}
 			if appName, ok := objLabels[common.LabelApplicationName]; ok {
 				ctrl.forceAppRefresh(appName)
-				ctrl.appQueue.Add(ctrl.namespace + "/" + appName)
+				ctrl.appRefreshQueue.Add(ctrl.namespace + "/" + appName)
 			}
 		}
 		return fmt.Errorf("resource updates channel has closed")
@@ -197,13 +204,98 @@ func retryUntilSucceed(action func() error, desc string, ctx context.Context, ti
 	}
 }
 
-func (ctrl *ApplicationController) processNextItem() bool {
-	appKey, shutdown := ctrl.appQueue.Get()
+func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
+	appKey, shutdown := ctrl.appOperationQueue.Get()
 	if shutdown {
 		return false
 	}
 
-	defer ctrl.appQueue.Done(appKey)
+	defer ctrl.appOperationQueue.Done(appKey)
+
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
+	if err != nil {
+		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
+		return true
+	}
+	if !exists {
+		// This happens after app was deleted, but the work queue still had an entry for it.
+		return true
+	}
+	app, ok := obj.(*appv1.Application)
+	if !ok {
+		log.Warnf("Key '%s' in index is not an application", appKey)
+		return true
+	}
+
+	if app.Operation != nil && app.Status.OperationState == nil {
+		state := appv1.OperationState{Status: appv1.OperationStatusInProgress}
+		ctrl.setOperationState(app.Name, state, app.Operation)
+		var opError error
+		if app.Operation.Sync != nil {
+			syncResult, err := ctrl.appStateManager.SyncAppState(app, app.Operation.Sync.Revision, nil, app.Operation.Sync.DryRun, app.Operation.Sync.Prune)
+			if err == nil {
+				state.SyncResult = syncResult
+			} else {
+				opError = err
+			}
+		} else if app.Operation.Rollback != nil {
+			var deploymentInfo *appv1.DeploymentInfo
+			for _, info := range app.Status.RecentDeployments {
+				if info.ID == app.Operation.Rollback.ID {
+					deploymentInfo = &info
+					break
+				}
+			}
+			if deploymentInfo == nil {
+				opError = status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", app.Name, app.Operation.Rollback.ID)
+			} else {
+				rollbackResult, err := ctrl.appStateManager.SyncAppState(
+					app, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, app.Operation.Rollback.DryRun, app.Operation.Rollback.Prune)
+				if err == nil {
+					state.RollbackResult = rollbackResult
+				} else {
+					opError = err
+				}
+			}
+		} else {
+			opError = errors.New("Invalid operation request")
+		}
+		if opError != nil {
+			state.ErrorDetails = opError.Error()
+			state.Status = appv1.OperationStatusFailed
+		} else {
+			state.Status = appv1.OperationStatusSucceeded
+		}
+		ctrl.setOperationState(app.Name, state, nil)
+	}
+
+	return true
+}
+
+func (ctrl *ApplicationController) setOperationState(appName string, state appv1.OperationState, operation *appv1.Operation) {
+	retryUntilSucceed(func() error {
+		patch, err := json.Marshal(map[string]interface{}{
+			"status": map[string]interface{}{
+				"operationState": state,
+			},
+			"operation": operation,
+		})
+
+		if err == nil {
+			appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
+			_, err = appClient.Patch(appName, types.MergePatchType, patch)
+		}
+		return err
+	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
+}
+
+func (ctrl *ApplicationController) processAppRefreshQueueItem() bool {
+	appKey, shutdown := ctrl.appRefreshQueue.Get()
+	if shutdown {
+		return false
+	}
+
+	defer ctrl.appRefreshQueue.Done(appKey)
 
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
 	if err != nil {
@@ -242,186 +334,21 @@ func (ctrl *ApplicationController) processNextItem() bool {
 }
 
 func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthStatus, error) {
-	conn, client, err := ctrl.repoClientset.NewRepositoryClient()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	defer util.Close(conn)
-	repo, err := ctrl.apiRepoService.Get(context.Background(), &apireposerver.RepoQuery{Repo: app.Spec.Source.RepoURL})
-	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &appv1.Repository{
-			Repo:     app.Spec.Source.RepoURL,
-			Username: "",
-			Password: "",
-		}
-	}
-	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
-	if app.Spec.Source.ComponentParameterOverrides != nil {
-		for i := range app.Spec.Source.ComponentParameterOverrides {
-			item := app.Spec.Source.ComponentParameterOverrides[i]
-			overrides[i] = &item
-		}
-	}
-	revision := app.Spec.Source.TargetRevision
-	manifestInfo, err := client.GenerateManifest(context.Background(), &repository.ManifestRequest{
-		Repo:                        repo,
-		Revision:                    revision,
-		Path:                        app.Spec.Source.Path,
-		Environment:                 app.Spec.Source.Environment,
-		AppLabel:                    app.Name,
-		ComponentParameterOverrides: overrides,
-	})
-	if err != nil {
-		log.Errorf("Failed to load application manifest %v", err)
-		return nil, nil, nil, err
-	}
-	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
-	for i, manifestStr := range manifestInfo.Manifests {
-		var obj unstructured.Unstructured
-		if err := json.Unmarshal([]byte(manifestStr), &obj); err != nil {
-			if err != nil {
-				return nil, nil, nil, err
-			}
-		}
-		targetObjs[i] = &obj
-	}
-
-	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
-	comparisonResult, err := ctrl.appComparator.CompareAppState(server, namespace, targetObjs, app)
+	comparisonResult, manifestInfo, err := ctrl.appStateManager.CompareAppState(app)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
 
-	paramsReq := repository.EnvParamsRequest{
-		Repo:        repo,
-		Revision:    revision,
-		Path:        app.Spec.Source.Path,
-		Environment: app.Spec.Source.Environment,
+	parameters := make([]appv1.ComponentParameter, len(manifestInfo.Params))
+	for i := range manifestInfo.Params {
+		parameters[i] = *manifestInfo.Params[i]
 	}
-	params, err := client.GetEnvParams(context.Background(), &paramsReq)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	parameters := make([]appv1.ComponentParameter, len(params.Params))
-	for i := range params.Params {
-		parameters[i] = *params.Params[i]
-	}
-	healthState, err := ctrl.getAppHealth(server, namespace, comparisonResult)
+	healthState, err := ctrl.appHealthManager.GetAppHealth(app.Spec.Destination.Server, app.Spec.Destination.Namespace, comparisonResult)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return comparisonResult, &parameters, healthState, nil
-}
-
-func (ctrl *ApplicationController) getServiceHealth(config *rest.Config, namespace string, name string) (*appv1.HealthStatus, error) {
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	service, err := clientSet.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	health := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
-	if service.Spec.Type == coreV1.ServiceTypeLoadBalancer {
-		health.Status = appv1.HealthStatusProgressing
-		for _, ingress := range service.Status.LoadBalancer.Ingress {
-			if ingress.Hostname != "" || ingress.IP != "" {
-				health.Status = appv1.HealthStatusHealthy
-				break
-			}
-		}
-	}
-	return &health, nil
-}
-
-func (ctrl *ApplicationController) getDeploymentHealth(config *rest.Config, namespace string, name string) (*appv1.HealthStatus, error) {
-	clientSet, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	deploy, err := clientSet.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	health := appv1.HealthStatus{
-		Status: appv1.HealthStatusUnknown,
-	}
-	for _, condition := range deploy.Status.Conditions {
-		// deployment is healthy is it successfully progressed
-		if condition.Type == v1.DeploymentProgressing && condition.Status == "True" {
-			health.Status = appv1.HealthStatusHealthy
-		} else if condition.Type == v1.DeploymentReplicaFailure && condition.Status == "True" {
-			health.Status = appv1.HealthStatusDegraded
-		} else if condition.Type == v1.DeploymentProgressing && condition.Status == "False" {
-			health.Status = appv1.HealthStatusDegraded
-		} else if condition.Type == v1.DeploymentAvailable && condition.Status == "False" {
-			health.Status = appv1.HealthStatusDegraded
-		}
-		if health.Status != appv1.HealthStatusUnknown {
-			health.StatusDetails = fmt.Sprintf("%s:%s", condition.Reason, condition.Message)
-			break
-		}
-	}
-	return &health, nil
-}
-
-func (ctrl *ApplicationController) getAppHealth(server string, namespace string, comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
-	clst, err := ctrl.apiClusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
-	if err != nil {
-		return nil, err
-	}
-	restConfig := clst.RESTConfig()
-
-	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
-	for i := range comparisonResult.Resources {
-		resource := comparisonResult.Resources[i]
-		if resource.LiveState == "null" {
-			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusUnknown}
-		} else {
-			var obj unstructured.Unstructured
-			err := json.Unmarshal([]byte(resource.LiveState), &obj)
-			if err != nil {
-				return nil, err
-			}
-			switch obj.GetKind() {
-			case kube.DeploymentKind:
-				state, err := ctrl.getDeploymentHealth(restConfig, namespace, obj.GetName())
-				if err != nil {
-					return nil, err
-				}
-				resource.Health = *state
-			case kube.ServiceKind:
-				state, err := ctrl.getServiceHealth(restConfig, namespace, obj.GetName())
-				if err != nil {
-					return nil, err
-				}
-				resource.Health = *state
-			default:
-				resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
-			}
-
-			if resource.Health.Status == appv1.HealthStatusProgressing {
-				if appHealth.Status == appv1.HealthStatusHealthy {
-					appHealth.Status = appv1.HealthStatusProgressing
-				}
-			} else if resource.Health.Status == appv1.HealthStatusDegraded {
-				if appHealth.Status == appv1.HealthStatusHealthy || appHealth.Status == appv1.HealthStatusProgressing {
-					appHealth.Status = appv1.HealthStatusDegraded
-				}
-			}
-		}
-		comparisonResult.Resources[i] = resource
-	}
-	return &appHealth, nil
-}
-
-func (ctrl *ApplicationController) runWorker() {
-	for ctrl.processNextItem() {
-	}
 }
 
 func (ctrl *ApplicationController) updateAppStatus(
@@ -446,7 +373,11 @@ func (ctrl *ApplicationController) updateAppStatus(
 }
 
 func newApplicationInformer(
-	appClientset appclientset.Interface, appQueue workqueue.RateLimitingInterface, appResyncPeriod time.Duration, config *ApplicationControllerConfig) cache.SharedIndexInformer {
+	appClientset appclientset.Interface,
+	appQueue workqueue.RateLimitingInterface,
+	appOperationQueue workqueue.RateLimitingInterface,
+	appResyncPeriod time.Duration,
+	config *ApplicationControllerConfig) cache.SharedIndexInformer {
 
 	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
 		appClientset,
@@ -476,12 +407,14 @@ func newApplicationInformer(
 				key, err := cache.MetaNamespaceKeyFunc(obj)
 				if err == nil {
 					appQueue.Add(key)
+					appOperationQueue.Add(key)
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
 				key, err := cache.MetaNamespaceKeyFunc(new)
 				if err == nil {
 					appQueue.Add(key)
+					appOperationQueue.Add(key)
 				}
 			},
 			DeleteFunc: func(obj interface{}) {

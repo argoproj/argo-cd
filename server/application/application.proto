@@ -41,24 +41,11 @@ message ApplicationSpecRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
 }
 
-// ApplicationSyncResult is a result of a sync requeswt
-message ApplicationSyncResult {
-	string message = 1;
-	repeated ResourceDetails resources = 2;
-}
-
 message ApplicationRollbackRequest {
 	string name = 1;
 	int64 id = 2 [(gogoproto.customname) = "ID"];
 	bool dryRun = 3;
 	bool prune = 4;
-}
-
-message ResourceDetails {
-	string name = 1;
-	string kind = 2;
-	string namespace = 3;
-	string message = 4;
 }
 
 message DeletePodQuery {
@@ -129,7 +116,7 @@ service ApplicationService {
 	}
 
 	// Sync syncs an application to its target state
-	rpc Sync(ApplicationSyncRequest) returns (ApplicationSyncResult) {
+	rpc Sync(ApplicationSyncRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/sync"
 			body: "*"
@@ -137,7 +124,7 @@ service ApplicationService {
 	}
 
 	// Sync syncs an application to its target state
-	rpc Rollback(ApplicationRollbackRequest) returns (ApplicationSyncResult) {
+	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollback"
 			body: "*"

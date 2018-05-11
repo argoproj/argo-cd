@@ -45,5 +45,5 @@ func (r *redisCache) Get(key string, obj interface{}) error {
 	if err == rediscache.ErrCacheMiss {
 		return ErrCacheMiss
 	}
-	return nil
+	return err
 }

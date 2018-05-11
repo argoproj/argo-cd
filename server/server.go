@@ -44,12 +44,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const (
-	port = 8080
-)
-
 var (
-	endpoint = fmt.Sprintf("localhost:%d", port)
 	// ErrNoSession indicates no auth token was supplied as part of a request
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 )
@@ -96,19 +91,15 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *ArgoCDServer) Run() {
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	grpcS := a.newGRPCServer()
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
-		httpS = newRedirectServer()
-		httpsS = a.newHTTPServer(ctx)
+		httpS = newRedirectServer(port)
+		httpsS = a.newHTTPServer(ctx, port)
 	} else {
-		httpS = a.newHTTPServer(ctx)
+		httpS = a.newHTTPServer(ctx, port)
 	}
 
 	// Cmux is used to support servicing gRPC and HTTP1.1+JSON on the same port
@@ -242,7 +233,8 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
-func (a *ArgoCDServer) newHTTPServer(ctx context.Context) *http.Server {
+func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server {
+	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{
 		Addr:    endpoint,
@@ -325,9 +317,9 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
-func newRedirectServer() *http.Server {
+func newRedirectServer(port int) *http.Server {
 	return &http.Server{
-		Addr: endpoint,
+		Addr: fmt.Sprintf("localhost:%d", port),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			target := "https://" + req.Host + req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
