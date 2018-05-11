@@ -47,17 +47,17 @@ var (
 
 // InstallOptions stores a collection of installation settings.
 type InstallOptions struct {
-	DryRun          bool
-	Upgrade         bool
-	ConfigSuperuser bool
-	CreateSignature bool
-	ConfigMap       string
-	Namespace       string
-	ControllerImage string
-	UIImage         string
-	ServerImage     string
-	RepoServerImage string
-	ImagePullPolicy string
+	DryRun            bool
+	Upgrade           bool
+	UpdateSuperuser   bool
+	UpdateSignature   bool
+	SuperuserPassword string
+	Namespace         string
+	ControllerImage   string
+	UIImage           string
+	ServerImage       string
+	RepoServerImage   string
+	ImagePullPolicy   string
 }
 
 type Installer struct {
@@ -140,48 +140,57 @@ func (i *Installer) InstallSettings() {
 	kubeclientset, err := kubernetes.NewForConfig(i.config)
 	errors.CheckError(err)
 	settingsMgr := settings.NewSettingsManager(kubeclientset, i.Namespace)
-	_, err = settingsMgr.GetSettings()
-	if err == nil {
-		log.Infof("Settings already exists. Skipping creation")
-		return
-	}
-	if !apierr.IsNotFound(err) {
-		log.Fatal(err)
-	}
-	// configmap/secret not yet created
-	var newSettings settings.ArgoCDSettings
-
-	// set JWT signature
-	signature, err := session.MakeSignature(32)
-	errors.CheckError(err)
-	newSettings.ServerSignature = signature
-
-	// generate admin password
-	passwordRaw := readAndConfirmPassword()
-	hashedPassword, err := password.HashPassword(passwordRaw)
-	errors.CheckError(err)
-	newSettings.LocalUsers = map[string]string{
-		common.ArgoCDAdminUsername: hashedPassword,
+	cdSettings, err := settingsMgr.GetSettings()
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			cdSettings = &settings.ArgoCDSettings{}
+		} else {
+			log.Fatal(err)
+		}
 	}
 
-	// generate TLS cert
-	hosts := []string{
-		"localhost",
-		"argocd-server",
-		fmt.Sprintf("argocd-server.%s", i.Namespace),
-		fmt.Sprintf("argocd-server.%s.svc", i.Namespace),
-		fmt.Sprintf("argocd-server.%s.svc.cluster.local", i.Namespace),
+	if cdSettings.ServerSignature == nil || i.UpdateSignature {
+		// set JWT signature
+		signature, err := session.MakeSignature(32)
+		errors.CheckError(err)
+		cdSettings.ServerSignature = signature
 	}
-	certOpts := tlsutil.CertOptions{
-		Hosts:        hosts,
-		Organization: "Argo CD",
-		IsCA:         true,
-	}
-	cert, err := tlsutil.GenerateX509KeyPair(certOpts)
-	errors.CheckError(err)
-	newSettings.Certificate = cert
 
-	err = settingsMgr.SaveSettings(&newSettings)
+	if cdSettings.LocalUsers == nil {
+		cdSettings.LocalUsers = make(map[string]string)
+	}
+	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok || i.UpdateSuperuser {
+		passwordRaw := i.SuperuserPassword
+		if passwordRaw == "" {
+			passwordRaw = readAndConfirmPassword()
+		}
+		hashedPassword, err := password.HashPassword(passwordRaw)
+		errors.CheckError(err)
+		cdSettings.LocalUsers = map[string]string{
+			common.ArgoCDAdminUsername: hashedPassword,
+		}
+	}
+
+	if cdSettings.Certificate == nil {
+		// generate TLS cert
+		hosts := []string{
+			"localhost",
+			"argocd-server",
+			fmt.Sprintf("argocd-server.%s", i.Namespace),
+			fmt.Sprintf("argocd-server.%s.svc", i.Namespace),
+			fmt.Sprintf("argocd-server.%s.svc.cluster.local", i.Namespace),
+		}
+		certOpts := tlsutil.CertOptions{
+			Hosts:        hosts,
+			Organization: "Argo CD",
+			IsCA:         true,
+		}
+		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
+		errors.CheckError(err)
+		cdSettings.Certificate = cert
+	}
+
+	err = settingsMgr.SaveSettings(cdSettings)
 	errors.CheckError(err)
 }
 
