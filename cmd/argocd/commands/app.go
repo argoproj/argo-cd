@@ -401,7 +401,11 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	}
 	for {
 		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Status != argoappv1.OperationStatusInProgress {
-			return appEvent.Application.Status.OperationState, nil
+			if appEvent.Application.Status.OperationState.Status == argoappv1.OperationStatusFailed {
+				return nil, fmt.Errorf("operation failed: %s", appEvent.Application.Status.OperationState.ErrorDetails)
+			} else {
+				return appEvent.Application.Status.OperationState, nil
+			}
 		} else {
 			appEvent, err = wc.Recv()
 			if err != nil {
