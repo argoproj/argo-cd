@@ -137,6 +137,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			format := "%-15s%s\n"
 			fmt.Printf(format, "Name:", app.Name)
 			fmt.Printf(format, "Environment:", app.Spec.Source.Environment)
+			fmt.Printf(format, "Server:", app.Spec.Destination.Server)
+			fmt.Printf(format, "Namespace:", app.Spec.Destination.Namespace)
 			fmt.Printf(format, "Repo:", app.Spec.Source.RepoURL)
 			fmt.Printf(format, "Path:", app.Spec.Source.Path)
 			if app.Spec.Source.TargetRevision == "" {
@@ -146,12 +148,6 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			if app.Status.ComparisonResult.Error != "" {
 				fmt.Printf(format, "Error:", app.Status.ComparisonResult.Error)
-			}
-			if app.Status.ComparisonResult.Server != "" {
-				fmt.Printf(format, "Server:", app.Status.ComparisonResult.Server)
-			}
-			if app.Status.ComparisonResult.Namespace != "" {
-				fmt.Printf(format, "Namespace:", app.Status.ComparisonResult.Namespace)
 			}
 			if len(app.Status.ComparisonResult.Resources) > 0 {
 				fmt.Println()
@@ -331,8 +327,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app.Name,
 					app.Spec.Source.Environment,
 					targetRev,
-					app.Status.ComparisonResult.Server,
-					app.Status.ComparisonResult.Namespace,
+					app.Spec.Destination.Server,
+					app.Spec.Destination.Namespace,
 					app.Status.ComparisonResult.Status,
 				)
 			}
