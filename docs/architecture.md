@@ -9,9 +9,10 @@
 The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD 
 systems. It has the following responsibilities:
 * application management and status reporting
-* invoking of application actions (e.g. manual sync, user-defined actions)
+* invoking of application operations (e.g. sync, rollback, user-defined actions)
 * repository and cluster credential management (stored as K8s secrets)
-* authentication and RBAC enforcement, with eventual integration with external identity providers
+* authentication and auth delegation to external identity providers
+* RBAC enforcement
 * listener/forwarder for git webhook events
 
 ### Repository Server

@@ -44,6 +44,8 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Automated or manual syncing of applications to its target state
 * Web and CLI based visualization of applications and differences between live vs. target state
 * Rollback/Roll-anywhere to any application state committed in the git repository
+* SSO Integration (OIDC, LDAP, SAML 2.0, GitLab, Microsoft, LinkedIn)
+* Webhook Integration (GitHub, BitBucket, GitLab)
 
 ## What is ksonnet?
 
@@ -87,5 +89,3 @@ concise definition of kubernetes manifests
 * PreSync, PostSync, OutOfSync hooks
 * Customized application actions as Argo workflows
 * Blue/Green & canary upgrades
-* SSO Integration
-* GitHub & Docker webhooks
