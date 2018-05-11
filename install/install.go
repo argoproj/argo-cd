@@ -3,7 +3,6 @@ package install
 import (
 	"fmt"
 	"strings"
-	"syscall"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -17,7 +16,6 @@ import (
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
 	"github.com/yudai/gojsondiff/formatter"
-	"golang.org/x/crypto/ssh/terminal"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -157,7 +155,7 @@ func (i *Installer) InstallSettings() {
 	newSettings.ServerSignature = signature
 
 	// generate admin password
-	passwordRaw := readAndConfirmPassword()
+	passwordRaw := password.ReadAndConfirmAdminPassword()
 	hashedPassword, err := password.HashPassword(passwordRaw)
 	errors.CheckError(err)
 	newSettings.LocalUsers = map[string]string{
@@ -183,23 +181,6 @@ func (i *Installer) InstallSettings() {
 
 	err = settingsMgr.SaveSettings(&newSettings)
 	errors.CheckError(err)
-}
-
-func readAndConfirmPassword() string {
-	for {
-		fmt.Print("*** Enter an admin password: ")
-		password, err := terminal.ReadPassword(syscall.Stdin)
-		errors.CheckError(err)
-		fmt.Print("\n")
-		fmt.Print("*** Confirm the admin password: ")
-		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
-		errors.CheckError(err)
-		fmt.Print("\n")
-		if string(password) == string(confirmPassword) {
-			return string(password)
-		}
-		log.Error("Passwords do not match")
-	}
 }
 
 func (i *Installer) InstallApplicationController() {

@@ -10,14 +10,18 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/dex"
+	"github.com/argoproj/argo-cd/util/settings"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/password"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
@@ -43,6 +47,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.AddCommand(NewRunDexCommand())
 	command.AddCommand(NewGenDexConfigCommand())
+	command.AddCommand(NewResetAdminPasswordCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
@@ -106,6 +111,55 @@ func NewGenDexConfigCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+	return &command
+}
+
+func NewResetAdminPasswordCommand() *cobra.Command {
+	var (
+		clientConfig clientcmd.ClientConfig
+		passwordRaw  string
+	)
+	var command = cobra.Command{
+		Use:   "resetadmin",
+		Short: "Reset admin password",
+		Run: func(c *cobra.Command, args []string) {
+			conf, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+
+			kubeclientset, err := kubernetes.NewForConfig(conf)
+			errors.CheckError(err)
+
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+
+			settingsMgr := settings.NewSettingsManager(kubeclientset, namespace)
+			argoCDSettings, err := settingsMgr.GetSettings()
+
+			if apierr.IsNotFound(err) {
+				argoCDSettings = &settings.ArgoCDSettings{}
+			} else {
+				log.Fatal(err)
+			}
+
+			if argoCDSettings.LocalUsers == nil {
+				argoCDSettings.LocalUsers = make(map[string]string)
+			}
+
+			if passwordRaw == "" {
+				passwordRaw = password.ReadAndConfirmAdminPassword()
+			}
+			hashedPassword, err := password.HashPassword(passwordRaw)
+			errors.CheckError(err)
+			argoCDSettings.LocalUsers = map[string]string{
+				common.ArgoCDAdminUsername: hashedPassword,
+			}
+			err = settingsMgr.SaveSettings(argoCDSettings)
+			errors.CheckError(err)
+		},
+	}
+
+	clientConfig = cli.AddKubectlFlagsToCmd(&command)
+	command.Flags().StringVar(&passwordRaw, "password", "", "admin password")
 	return &command
 }
 
