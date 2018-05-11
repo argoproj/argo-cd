@@ -183,7 +183,9 @@ message HealthStatus {
 
 // Operation contains requested operation parameters.
 message Operation {
-  optional SyncOperation sync = 2;
+  optional SyncOperation sync = 1;
+
+  optional RollbackOperation rollback = 2;
 }
 
 // OperationState contains information about state of currently performing operation on application.
@@ -192,7 +194,9 @@ message OperationState {
 
   optional string errorDetails = 2;
 
-  optional SyncOperationResult sync = 3;
+  optional SyncOperationResult syncResult = 3;
+
+  optional SyncOperationResult rollbackResult = 4;
 }
 
 // Repository is a Git repository holding application configurations
@@ -243,17 +247,21 @@ message ResourceState {
   optional HealthStatus health = 5;
 }
 
+message RollbackOperation {
+  optional int64 id = 1;
+
+  optional bool prune = 2;
+
+  optional bool dryRun = 3;
+}
+
 // SyncOperation contains sync operation details.
 message SyncOperation {
   optional string revision = 1;
 
   optional bool prune = 2;
 
-  repeated ComponentParameter overrides = 3;
-
-  optional bool noOverrides = 4;
-
-  optional bool dryRun = 5;
+  optional bool dryRun = 3;
 }
 
 // SyncOperationResult represent result of sync operation

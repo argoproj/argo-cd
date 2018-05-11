@@ -13,16 +13,21 @@ import (
 
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
-	Revision    string               `json:"revision" protobuf:"bytes,1,opt,name=revision"`
-	Prune       bool                 `json:"prune" protobuf:"bytes,2,opt,name=prune"`
-	Overrides   []ComponentParameter `json:"overrides,omitempty" protobuf:"bytes,3,opt,name=overrides"`
-	NoOverrides bool                 `json:"noOverrides,omitempty" protobuf:"bytes,4,opt,name=noOverrides"`
-	DryRun      bool                 `json:"dryRun" protobuf:"bytes,5,opt,name=dryRun"`
+	Revision string `json:"revision" protobuf:"bytes,1,opt,name=revision"`
+	Prune    bool   `json:"prune" protobuf:"bytes,2,opt,name=prune"`
+	DryRun   bool   `json:"dryRun" protobuf:"bytes,3,opt,name=dryRun"`
+}
+
+type RollbackOperation struct {
+	ID     int64 `json:"id" protobuf:"bytes,1,opt,name=id"`
+	Prune  bool  `json:"prune" protobuf:"bytes,2,opt,name=prune"`
+	DryRun bool  `json:"dryRun" protobuf:"bytes,3,opt,name=dryRun"`
 }
 
 // Operation contains requested operation parameters.
 type Operation struct {
-	Sync *SyncOperation `json:"sync" protobuf:"bytes,2,opt,name=sync"`
+	Sync     *SyncOperation     `json:"sync" protobuf:"bytes,1,opt,name=sync"`
+	Rollback *RollbackOperation `json:"rollback" protobuf:"bytes,2,opt,name=rollback"`
 }
 
 type OperationStatus = string
@@ -35,9 +40,10 @@ const (
 
 // OperationState contains information about state of currently performing operation on application.
 type OperationState struct {
-	Status       OperationStatus      `json:"status" protobuf:"bytes,1,opt,name=status"`
-	ErrorDetails string               `json:"errorDetails" protobuf:"bytes,2,opt,name=errorDetails"`
-	SyncResult   *SyncOperationResult `json:"syncResult" protobuf:"bytes,3,opt,name=sync"`
+	Status         OperationStatus      `json:"status" protobuf:"bytes,1,opt,name=status"`
+	ErrorDetails   string               `json:"errorDetails" protobuf:"bytes,2,opt,name=errorDetails"`
+	SyncResult     *SyncOperationResult `json:"syncResult" protobuf:"bytes,3,opt,name=syncResult"`
+	RollbackResult *SyncOperationResult `json:"rollbackResult" protobuf:"bytes,4,opt,name=rollbackResult"`
 }
 
 // SyncOperationResult represent result of sync operation

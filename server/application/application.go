@@ -388,10 +388,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 	return s.setAppOperation(ctx, syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
 		return &appv1.Operation{
 			Sync: &appv1.SyncOperation{
-				NoOverrides: true,
-				Revision:    syncReq.Revision,
-				Prune:       syncReq.Prune,
-				DryRun:      syncReq.DryRun,
+				Revision: syncReq.Revision,
+				Prune:    syncReq.Prune,
+				DryRun:   syncReq.DryRun,
 			},
 		}, nil
 	})
@@ -399,25 +398,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*appv1.Application, error) {
 	return s.setAppOperation(ctx, rollbackReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
-
-		var deploymentInfo *appv1.DeploymentInfo
-		for _, info := range app.Status.RecentDeployments {
-			if info.ID == rollbackReq.ID {
-				deploymentInfo = &info
-				break
-			}
-		}
-		if deploymentInfo == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", rollbackReq.Name, rollbackReq.ID)
-		}
-
 		return &appv1.Operation{
-			Sync: &appv1.SyncOperation{
-				NoOverrides: false,
-				Overrides:   deploymentInfo.ComponentParameterOverrides,
-				Revision:    deploymentInfo.Revision,
-				Prune:       rollbackReq.Prune,
-				DryRun:      rollbackReq.DryRun,
+			Rollback: &appv1.RollbackOperation{
+				ID:     rollbackReq.ID,
+				Prune:  rollbackReq.Prune,
+				DryRun: rollbackReq.DryRun,
 			},
 		}, nil
 	})
@@ -429,7 +414,7 @@ func (s *Server) setAppOperation(ctx context.Context, appName string, operationC
 		return nil, err
 	}
 	if app.Operation != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "other operation is already in progress")
+		return nil, status.Errorf(codes.InvalidArgument, "another operation is already in progress")
 	}
 	op, err := operationCreator(app)
 	if err != nil {

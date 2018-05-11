@@ -13,7 +13,10 @@ import (
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -227,27 +230,41 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 	if app.Operation != nil && app.Status.OperationState == nil {
 		state := appv1.OperationState{Status: appv1.OperationStatusInProgress}
 		ctrl.setOperationState(app.Name, state, app.Operation)
+		var opError error
 		if app.Operation.Sync != nil {
-			var overrides *[]appv1.ComponentParameter
-			if !app.Operation.Sync.NoOverrides {
-				overrides = &app.Operation.Sync.Overrides
-			}
-			syncResult, err := ctrl.appStateManager.SyncAppState(
-				app,
-				app.Operation.Sync.Revision,
-				overrides,
-				app.Operation.Sync.DryRun,
-				app.Operation.Sync.Prune)
-			if err != nil {
-				state.ErrorDetails = err.Error()
-				state.Status = appv1.OperationStatusFailed
-			} else {
+			syncResult, err := ctrl.appStateManager.SyncAppState(app, app.Operation.Sync.Revision, nil, app.Operation.Sync.DryRun, app.Operation.Sync.Prune)
+			if err == nil {
 				state.SyncResult = syncResult
-				state.Status = appv1.OperationStatusSucceeded
+			} else {
+				opError = err
+			}
+		} else if app.Operation.Rollback != nil {
+			var deploymentInfo *appv1.DeploymentInfo
+			for _, info := range app.Status.RecentDeployments {
+				if info.ID == app.Operation.Rollback.ID {
+					deploymentInfo = &info
+					break
+				}
+			}
+			if deploymentInfo == nil {
+				opError = status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", app.Name, app.Operation.Rollback.ID)
+			} else {
+				rollbackResult, err := ctrl.appStateManager.SyncAppState(
+					app, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, app.Operation.Rollback.DryRun, app.Operation.Rollback.Prune)
+				if err == nil {
+					state.RollbackResult = rollbackResult
+				} else {
+					opError = err
+				}
 			}
 		} else {
-			state.ErrorDetails = "Invalid operation request"
+			opError = errors.New("Invalid operation request")
+		}
+		if opError != nil {
+			state.ErrorDetails = opError.Error()
 			state.Status = appv1.OperationStatusFailed
+		} else {
+			state.Status = appv1.OperationStatusSucceeded
 		}
 		ctrl.setOperationState(app.Name, state, nil)
 	}
@@ -327,7 +344,7 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	for i := range manifestInfo.Params {
 		parameters[i] = *manifestInfo.Params[i]
 	}
-	healthState, err := ctrl.appHealthManager.GetAppHealth(manifestInfo.Server, manifestInfo.Namespace, comparisonResult)
+	healthState, err := ctrl.appHealthManager.GetAppHealth(app.Spec.Destination.Server, app.Spec.Destination.Namespace, comparisonResult)
 	if err != nil {
 		return nil, nil, nil, err
 	}
