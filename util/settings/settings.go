@@ -128,9 +128,11 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDConfigMapName,
 			},
-			Data: make(map[string]string),
 		}
 		createCM = true
+	}
+	if argoCDCM.Data == nil {
+		argoCDCM.Data = make(map[string]string)
 	}
 	argoCDCM.Data[settingURLKey] = settings.URL
 	argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
