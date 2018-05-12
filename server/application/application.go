@@ -15,9 +15,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/server/cluster"
-	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
@@ -40,10 +39,8 @@ type Server struct {
 	kubeclientset kubernetes.Interface
 	appclientset  appclientset.Interface
 	repoClientset reposerver.Clientset
-	// TODO(jessesuen): move common cluster code to shared libraries
-	clusterService cluster.ClusterServiceServer
-	repoService    apirepository.RepositoryServiceServer
-	appComparator  controller.AppStateManager
+	db            db.ArgoDB
+	appComparator controller.AppStateManager
 }
 
 // NewServer returns a new instance of the Application service
@@ -52,17 +49,16 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
-	repoService apirepository.RepositoryServiceServer,
-	clusterService cluster.ClusterServiceServer) ApplicationServiceServer {
+	db db.ArgoDB,
+) ApplicationServiceServer {
 
 	return &Server{
-		ns:             namespace,
-		appclientset:   appclientset,
-		kubeclientset:  kubeclientset,
-		clusterService: clusterService,
-		repoClientset:  repoClientset,
-		repoService:    repoService,
-		appComparator:  controller.NewAppStateManager(clusterService, repoService, appclientset, repoClientset, namespace),
+		ns:            namespace,
+		appclientset:  appclientset,
+		kubeclientset: kubeclientset,
+		db:            db,
+		repoClientset: repoClientset,
+		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
 	}
 }
 
@@ -133,7 +129,7 @@ func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*Appl
 	}
 
 	if server != "" && namespace != "" {
-		clst, err := s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: server})
+		clst, err := s.db.GetCluster(ctx, server)
 		if err != nil && !q.Force {
 			return nil, err
 		}
@@ -195,7 +191,7 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 		return err
 	}
 	defer util.Close(conn)
-	repoRes, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: spec.Source.RepoURL})
+	repoRes, err := s.db.GetRepository(ctx, spec.Source.RepoURL)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			// The repo has not been added to ArgoCD so we do not have credentials to access it.
@@ -244,7 +240,7 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 	if spec.Destination.Server != "" {
 		clusterURL = spec.Destination.Server
 	}
-	_, err = s.clusterService.Get(ctx, &cluster.ClusterQuery{Server: clusterURL})
+	_, err = s.db.GetCluster(ctx, clusterURL)
 	if err != nil {
 		return err
 	}
@@ -256,7 +252,7 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 	if err != nil {
 		return nil, "", err
 	}
-	clst, err := s.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
+	clst, err := s.db.GetCluster(context.Background(), server)
 	if err != nil {
 		return nil, "", err
 	}
@@ -375,7 +371,7 @@ func (s *Server) getApplicationDestination(ctx context.Context, name string) (st
 }
 
 func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository {
-	repo, err := s.repoService.Get(ctx, &apirepository.RepoQuery{Repo: repoURL})
+	repo, err := s.db.GetRepository(ctx, repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &appv1.Repository{Repo: repoURL}

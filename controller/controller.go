@@ -11,7 +11,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -47,7 +47,7 @@ type ApplicationController struct {
 	appStateManager       AppStateManager
 	appHealthManager      AppHealthManager
 	statusRefreshTimeout  time.Duration
-	apiClusterService     *cluster.Server
+	db                    db.ArgoDB
 	forceRefreshApps      map[string]bool
 	forceRefreshAppsMutex *sync.Mutex
 }
@@ -62,7 +62,7 @@ func NewApplicationController(
 	namespace string,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
-	apiClusterService *cluster.Server,
+	db db.ArgoDB,
 	appStateManager AppStateManager,
 	appHealthManager AppHealthManager,
 	appResyncPeriod time.Duration,
@@ -76,10 +76,10 @@ func NewApplicationController(
 		applicationClientset:  applicationClientset,
 		appRefreshQueue:       appRefreshQueue,
 		appOperationQueue:     appOperationQueue,
-		apiClusterService:     apiClusterService,
 		appStateManager:       appStateManager,
 		appHealthManager:      appHealthManager,
 		appInformer:           newApplicationInformer(applicationClientset, appRefreshQueue, appOperationQueue, appResyncPeriod, config),
+		db:                    db,
 		statusRefreshTimeout:  appResyncPeriod,
 		forceRefreshApps:      make(map[string]bool),
 		forceRefreshAppsMutex: &sync.Mutex{},
@@ -161,7 +161,7 @@ func (ctrl *ApplicationController) watchAppsResources() {
 	watchingClusters := make(map[string]context.CancelFunc)
 
 	retryUntilSucceed(func() error {
-		return ctrl.apiClusterService.WatchClusters(context.Background(), func(event *cluster.ClusterEvent) {
+		return ctrl.db.WatchClusters(context.Background(), func(event *db.ClusterEvent) {
 			cancel, ok := watchingClusters[event.Cluster.Server]
 			if event.Type == watch.Deleted && ok {
 				cancel()
