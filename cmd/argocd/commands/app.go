@@ -152,11 +152,11 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			if len(app.Status.ComparisonResult.Resources) > 0 {
 				fmt.Println()
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				fmt.Fprintf(w, "KIND\tNAME\tSTATUS\n")
+				fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
 				for _, res := range app.Status.ComparisonResult.Resources {
 					targetObj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
 					errors.CheckError(err)
-					fmt.Fprintf(w, "%s\t%s\t%s\n", targetObj.GetKind(), targetObj.GetName(), res.Status)
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", targetObj.GetKind(), targetObj.GetName(), res.Status, res.Health.Status)
 				}
 				_ = w.Flush()
 			}
@@ -317,19 +317,20 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tENVIRONMENT\tTARGET\tCLUSTER\tNAMESPACE\tSTATUS\n")
+			fmt.Fprintf(w, "NAME\tENVIRONMENT\tTARGET\tCLUSTER\tNAMESPACE\tSTATUS\tHEALTH\n")
 			for _, app := range apps.Items {
 				targetRev := app.Spec.Source.TargetRevision
 				if targetRev == "" {
 					targetRev = "HEAD"
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					app.Name,
 					app.Spec.Source.Environment,
 					targetRev,
 					app.Spec.Destination.Server,
 					app.Spec.Destination.Namespace,
 					app.Status.ComparisonResult.Status,
+					app.Status.Health.Status,
 				)
 			}
 			_ = w.Flush()
