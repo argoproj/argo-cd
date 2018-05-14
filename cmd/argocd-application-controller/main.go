@@ -12,9 +12,8 @@ import (
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/server/cluster"
-	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -71,19 +70,16 @@ func newCommand() *cobra.Command {
 				Namespace:  namespace,
 				InstanceID: "",
 			}
+			db := db.NewDB(namespace, kubeClient)
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
-			apiClusterServer := cluster.NewServer(namespace, kubeClient, appClient)
-			clusterService := cluster.NewServer(namespace, kubeClient, appClient)
-			apiRepoServer := apirepository.NewServer(namespace, kubeClient, appClient)
-			appStateManager := controller.NewAppStateManager(
-				clusterService, apiRepoServer, appClient, reposerver.NewRepositoryServerClientset(repoServerAddress), namespace)
-			appHealthManager := controller.NewAppHealthManager(clusterService, namespace)
+			appStateManager := controller.NewAppStateManager(db, appClient, reposerver.NewRepositoryServerClientset(repoServerAddress), namespace)
+			appHealthManager := controller.NewAppHealthManager(db, namespace)
 
 			appController := controller.NewApplicationController(
 				namespace,
 				kubeClient,
 				appClient,
-				apiClusterServer,
+				db,
 				appStateManager,
 				appHealthManager,
 				resyncDuration,

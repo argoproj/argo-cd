@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
+	"github.com/argoproj/argo-cd/util/db"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
@@ -201,10 +202,11 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 
 	grpcS := grpc.NewServer(sOpts...)
-	clusterService := cluster.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
-	repoService := repository.NewServer(a.Namespace, a.KubeClientset, a.AppClientset)
+	db := db.NewDB(a.Namespace, a.KubeClientset)
+	clusterService := cluster.NewServer(db)
+	repoService := repository.NewServer(db)
 	sessionService := session.NewServer(a.sessionMgr)
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, repoService, clusterService)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db)
 	settingsService := settings.NewServer(a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)

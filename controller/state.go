@@ -11,9 +11,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/server/cluster"
-	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
@@ -32,11 +31,10 @@ type AppStateManager interface {
 
 // KsonnetAppStateManager allows to compare application using KSonnet CLI
 type KsonnetAppStateManager struct {
-	clusterService cluster.ClusterServiceServer
-	repoService    apirepository.RepositoryServiceServer
-	appclientset   appclientset.Interface
-	repoClientset  reposerver.Clientset
-	namespace      string
+	db            db.ArgoDB
+	appclientset  appclientset.Interface
+	repoClientset reposerver.Clientset
+	namespace     string
 }
 
 // groupLiveObjects deduplicate list of kubernetes resources and choose correct version of resource: if resource has corresponding expected application resource then method pick
@@ -120,7 +118,7 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 
 	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, server, namespace)
 	// Get the REST config for the cluster corresponding to the environment
-	clst, err := ks.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
+	clst, err := ks.db.GetCluster(context.Background(), server)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -313,7 +311,7 @@ func (s *KsonnetAppStateManager) SyncAppState(
 }
 
 func (s *KsonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
-	repo, err := s.repoService.Get(context.Background(), &apirepository.RepoQuery{Repo: repoURL})
+	repo, err := s.db.GetRepository(context.Background(), repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &v1alpha1.Repository{Repo: repoURL}
@@ -367,7 +365,7 @@ func (s *KsonnetAppStateManager) syncAppResources(
 		return nil, nil, err
 	}
 
-	clst, err := s.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: comparison.Server})
+	clst, err := s.db.GetCluster(context.Background(), comparison.Server)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -453,17 +451,15 @@ func (s *KsonnetAppStateManager) syncAppResources(
 
 // NewAppStateManager creates new instance of Ksonnet app comparator
 func NewAppStateManager(
-	clusterService cluster.ClusterServiceServer,
-	repoService apirepository.RepositoryServiceServer,
+	db db.ArgoDB,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
 	namespace string,
 ) AppStateManager {
 	return &KsonnetAppStateManager{
-		clusterService: clusterService,
-		repoService:    repoService,
-		appclientset:   appclientset,
-		repoClientset:  repoClientset,
-		namespace:      namespace,
+		db:            db,
+		appclientset:  appclientset,
+		repoClientset: repoClientset,
+		namespace:     namespace,
 	}
 }

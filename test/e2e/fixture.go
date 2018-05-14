@@ -21,9 +21,9 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/server/cluster"
-	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/settings"
 	"k8s.io/api/core/v1"
@@ -45,6 +45,7 @@ type Fixture struct {
 	KubeClient        kubernetes.Interface
 	ExtensionsClient  apiextensionsclient.Interface
 	AppClient         appclientset.Interface
+	DB                db.ArgoDB
 	Namespace         string
 	InstanceID        string
 	RepoServerAddress string
@@ -148,7 +149,7 @@ func (f *Fixture) ensureClusterRegistered() error {
 	// Install RBAC resources for managing the cluster
 	managerBearerToken := common.InstallClusterManagerRBAC(conf)
 	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken)
-	_, err = cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient).Create(context.Background(), clst)
+	_, err = cluster.NewServer(f.DB).Create(context.Background(), clst)
 	return err
 }
 
@@ -188,11 +189,13 @@ func NewFixture() (*Fixture, error) {
 	if err != nil {
 		return nil, err
 	}
+	db := db.NewDB(namespace, kubeClient)
 
 	fixture := &Fixture{
 		Config:           config,
 		ExtensionsClient: extensionsClient,
 		AppClient:        appClient,
+		DB:               db,
 		KubeClient:       kubeClient,
 		Namespace:        namespace,
 		InstanceID:       namespace,
@@ -222,18 +225,16 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 
 // CreateController creates new controller instance
 func (f *Fixture) CreateController() *controller.ApplicationController {
-	repoService := apirepository.NewServer(f.Namespace, f.KubeClient, f.AppClient)
-	clusterService := cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient)
 	appStateManager := controller.NewAppStateManager(
-		clusterService, repoService, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace)
+		f.DB, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace)
 
-	appHealthManager := controller.NewAppHealthManager(clusterService, f.Namespace)
+	appHealthManager := controller.NewAppHealthManager(f.DB, f.Namespace)
 
 	return controller.NewApplicationController(
 		f.Namespace,
 		f.KubeClient,
 		f.AppClient,
-		cluster.NewServer(f.Namespace, f.KubeClient, f.AppClient),
+		f.DB,
 		appStateManager,
 		appHealthManager,
 		10*time.Second,

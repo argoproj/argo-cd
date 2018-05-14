@@ -62,9 +62,4 @@ service ClusterService {
 		option (google.api.http).delete = "/api/v1/clusters/{server}";
 	}
 
-	// ListPods returns pods in a cluster
-	rpc ListPods(ClusterQuery) returns (k8s.io.api.core.v1.PodList) {
-		option (google.api.http).get = "/api/v1/clusters/{server}/pods";
-	}
-
 }

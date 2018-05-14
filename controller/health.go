@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
@@ -25,13 +25,12 @@ type AppHealthManager interface {
 }
 
 type kubeAppHealthManager struct {
-	clusterService cluster.ClusterServiceServer
-	namespace      string
+	db        db.ArgoDB
+	namespace string
 }
 
-func NewAppHealthManager(clusterService cluster.ClusterServiceServer,
-	namespace string) AppHealthManager {
-	return &kubeAppHealthManager{clusterService: clusterService, namespace: namespace}
+func NewAppHealthManager(db db.ArgoDB, namespace string) AppHealthManager {
+	return &kubeAppHealthManager{db: db, namespace: namespace}
 }
 
 func (ctrl *kubeAppHealthManager) getServiceHealth(config *rest.Config, namespace string, name string) (*appv1.HealthStatus, error) {
@@ -88,7 +87,7 @@ func (ctrl *kubeAppHealthManager) getDeploymentHealth(config *rest.Config, names
 }
 
 func (ctrl *kubeAppHealthManager) GetAppHealth(server string, namespace string, comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
-	clst, err := ctrl.clusterService.Get(context.Background(), &cluster.ClusterQuery{Server: server})
+	clst, err := ctrl.db.GetCluster(context.Background(), server)
 	if err != nil {
 		return nil, err
 	}
