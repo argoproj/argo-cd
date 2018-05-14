@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
@@ -110,12 +111,20 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 	for _, app := range apps.Items {
 		log.Printf("Ensuring destination field is populated on app %q\n", app.ObjectMeta.Name)
 		if app.Spec.Destination.Server == "" {
-			log.Printf("App %q was missing Destination.Server, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Server)
-			app.Spec.Destination.Server = app.Status.ComparisonResult.Server
+			if app.Status.ComparisonResult.Status == appv1.ComparisonStatusUnknown || app.Status.ComparisonResult.Status == appv1.ComparisonStatusError {
+				log.Printf("App %q was missing Destination.Server, but could not fill it in: %s", app.ObjectMeta.Name, app.Status.ComparisonResult.Status)
+			} else {
+				log.Printf("App %q was missing Destination.Server, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Server)
+				app.Spec.Destination.Server = app.Status.ComparisonResult.Server
+			}
 		}
 		if app.Spec.Destination.Namespace == "" {
-			log.Printf("App %q was missing Destination.Namespace, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Namespace)
-			app.Spec.Destination.Namespace = app.Status.ComparisonResult.Namespace
+			if app.Status.ComparisonResult.Status == appv1.ComparisonStatusUnknown || app.Status.ComparisonResult.Status == appv1.ComparisonStatusError {
+				log.Printf("App %q was missing Destination.Namespace, but could not fill it in: %s", app.ObjectMeta.Name, app.Status.ComparisonResult.Status)
+			} else {
+				log.Printf("App %q was missing Destination.Namespace, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Namespace)
+				app.Spec.Destination.Namespace = app.Status.ComparisonResult.Namespace
+			}
 		}
 
 		_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationSpecRequest{
