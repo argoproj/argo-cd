@@ -13,7 +13,7 @@ require('./login.scss');
 
 const required = (value: any) => (value ? undefined : 'Required');
 
-type LoginProperties = InjectedFormProps<LoginForm, {}> & { loginError: string };
+type LoginProperties = InjectedFormProps<LoginForm, {}> & { returnUrl: string, loginError: string };
 
 export interface LoginForm {
     username: string;
@@ -50,7 +50,7 @@ export class Form extends React.Component<LoginProperties, {authSettings: AuthSe
                     </div>
                     {authSettings && authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0 && (
                         <div className='login__box_saml width-control'>
-                            <a href='/auth/login'>
+                            <a href={`/auth/login?return_url=${encodeURIComponent(this.props.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {authSettings.dexConfig.connectors.length === 1 && (
                                         <span>Login via {authSettings.dexConfig.connectors[0].name}</span>
@@ -88,6 +88,7 @@ export class Form extends React.Component<LoginProperties, {authSettings: AuthSe
 }
 
 const rxLogin = connect((state: AppState<State>) => ({
+    returnUrl: new URLSearchParams(state.router.location.search).get('return_url') || '',
     loginError: state.page.loginError,
 }))(Form);
 

@@ -38,7 +38,7 @@ export const store = createStore(reducer, applyMiddleware(asyncMiddleware, redux
 
 requests.onError.subscribe((err) => {
     if (err.status === 401) {
-        store.dispatch(push('/login'));
+        store.dispatch(push(`/login?return_url=${encodeURIComponent(location.href)}`));
     }
 });
 
