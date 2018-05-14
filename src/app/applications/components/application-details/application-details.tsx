@@ -77,16 +77,16 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                 toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
                     items: [{
                         className: 'icon argo-icon-deploy',
-                        title: 'Deploy',
+                        title: 'Sync',
                         action: () => this.setDeployPanelVisible(true),
+                    }, {
+                        className: 'icon fa fa-history',
+                        title: 'History',
+                        action: () => this.setRollbackPanelVisible(0),
                     }, {
                         className: 'icon fa fa-times-circle',
                         title: 'Delete',
                         action: () => this.props.deleteApp(this.props.match.params.name, true),
-                    }, {
-                        className: 'icon fa fa-undo',
-                        title: 'Rollback',
-                        action: () => this.setRollbackPanelVisible(0),
                     }],
                 } }}>
                 <div className='argo-container application-details'>
