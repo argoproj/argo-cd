@@ -109,6 +109,8 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 
 	log.Println("Populating app Destination fields")
 	for _, app := range apps.Items {
+		changed := false
+
 		log.Printf("Ensuring destination field is populated on app %q\n", app.ObjectMeta.Name)
 		if app.Spec.Destination.Server == "" {
 			if app.Status.ComparisonResult.Status == appv1.ComparisonStatusUnknown || app.Status.ComparisonResult.Status == appv1.ComparisonStatusError {
@@ -116,6 +118,7 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 			} else {
 				log.Printf("App %q was missing Destination.Server, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Server)
 				app.Spec.Destination.Server = app.Status.ComparisonResult.Server
+				changed = true
 			}
 		}
 		if app.Spec.Destination.Namespace == "" {
@@ -124,15 +127,18 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 			} else {
 				log.Printf("App %q was missing Destination.Namespace, so setting to %q\n", app.ObjectMeta.Name, app.Status.ComparisonResult.Namespace)
 				app.Spec.Destination.Namespace = app.Status.ComparisonResult.Namespace
+				changed = true
 			}
 		}
 
-		_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationSpecRequest{
-			AppName: app.Name,
-			Spec:    &app.Spec,
-		})
-		if err != nil {
-			log.Println("An error occurred (but continuing anyway): ", err)
+		if changed {
+			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationSpecRequest{
+				AppName: app.Name,
+				Spec:    &app.Spec,
+			})
+			if err != nil {
+				log.Println("An error occurred (but continuing anyway): ", err)
+			}
 		}
 	}
 }
