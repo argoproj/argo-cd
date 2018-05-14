@@ -4,8 +4,8 @@ import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 export const ApplicationSummary = ({app}: {app: models.Application}) => {
     const attributes = [
-        {title: 'CLUSTER', value: app.status.comparisonResult.server},
-        {title: 'NAMESPACE', value: app.status.comparisonResult.namespace},
+        {title: 'CLUSTER', value: app.spec.destination.server},
+        {title: 'NAMESPACE', value: app.spec.destination.namespace},
         {title: 'REPO URL', value: (
             <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
                 <i className='fa fa-external-link'/> {app.spec.source.repoURL}

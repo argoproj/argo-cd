@@ -72,7 +72,7 @@ export interface ApplicationSource {
 
 export interface ApplicationSpec {
     source: ApplicationSource;
-    destination?: ApplicationDestination;
+    destination: ApplicationDestination;
 }
 
 /**
