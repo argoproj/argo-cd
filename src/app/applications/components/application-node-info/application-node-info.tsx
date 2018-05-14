@@ -1,9 +1,7 @@
 import * as React from 'react';
-
 import * as models from '../../../shared/models';
-
 import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
-import { ComparisonStatusIcon, getPodPhase, getStateAndNode } from '../utils';
+import { ComparisonStatusIcon, getPodPhase, getStateAndNode, HealthStatusIcon } from '../utils';
 
 require('./application-node-info.scss');
 
@@ -29,6 +27,9 @@ export const ApplicationNodeInfo = (props: { node: models.ResourceNode | models.
     if (resourceState) {
         attributes.push({title: 'STATUS', value: (
             <span><ComparisonStatusIcon status={resourceState.status}/> {resourceState.status}</span>
+        )} as any);
+        attributes.push({title: 'HEALTH', value: (
+            <span><HealthStatusIcon state={resourceState.health}/> {resourceState.health.status}</span>
         )} as any);
     }
 

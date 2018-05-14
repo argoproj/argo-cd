@@ -1,8 +1,6 @@
 import * as React from 'react';
-
 import * as models from '../../../shared/models';
-
-import { ComparisonStatusIcon } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 export const ApplicationSummary = ({app}: {app: models.Application}) => {
     const attributes = [
@@ -16,6 +14,9 @@ export const ApplicationSummary = ({app}: {app: models.Application}) => {
         {title: 'ENVIRONMENT', value: app.spec.source.environment},
         {title: 'STATUS', value: (
             <span><ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}</span>
+        )},
+        {title: 'HEALTH', value: (
+            <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
     if (app.status.comparisonResult.error) {

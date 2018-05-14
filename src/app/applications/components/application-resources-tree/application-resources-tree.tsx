@@ -2,9 +2,8 @@ import { DropDownMenu, MenuItem } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
-
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./application-resources-tree.scss');
 
@@ -79,13 +78,20 @@ export const ApplicationResourcesTree = (props: {
                 const node = graph.node(fullName) as (models.ResourceNode | models.ResourceState) & dagre.Node;
                 let kubeState: models.State;
                 let comparisonStatus: models.ComparisonStatus = null;
+                let healthState: models.HealthStatus = null;
                 if (node.liveState || node.targetState) {
                     const resourceState = node as models.ResourceState;
                     kubeState = resourceState.targetState || resourceState.liveState;
                     comparisonStatus = resourceState.status;
+                    healthState = resourceState.health;
                 } else {
                     const resourceNode = node as models.ResourceNode;
                     kubeState = resourceNode.state;
+                    if (kubeState.kind === 'Application') {
+                        const appState = kubeState as models.Application;
+                        comparisonStatus = appState.status.comparisonResult.status;
+                        healthState = appState.status.health;
+                    }
                 }
                 const kindIcon = ICON_CLASS_BY_KIND[kubeState.kind.toLocaleLowerCase()] || 'fa fa-gears';
                 return (
@@ -99,8 +105,11 @@ export const ApplicationResourcesTree = (props: {
                         </div>
                         <div className='application-resources-tree__node-content'>
                             <span className='application-resources-tree__node-title' title={kubeState.metadata.name}>{kubeState.metadata.name}</span>
-                            <div className='application-resources-tree__node-status-icon'>
+                            <div className={classNames('application-resources-tree__node-status-icon', {
+                                'application-resources-tree__node-status-icon--offset': kubeState.kind === 'Application',
+                            })}>
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
+                                {healthState != null && <HealthStatusIcon state={healthState}/>}
                             </div>
                         </div>
                         <div className='application-resources-tree__node-labels'>

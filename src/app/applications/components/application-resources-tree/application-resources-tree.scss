@@ -98,8 +98,16 @@
     }
 
     &__node-status-icon {
+        font-size: 0.8em;
         position: absolute;
         left: 0;
         bottom: -5px;
+        i {
+            margin-right: 2px;
+        }
+
+        &--offset {
+            left: 40px;
+        }
     }
 }

@@ -95,6 +95,20 @@ export const ComparisonStatuses = {
     OutOfSync: 'OutOfSync',
 };
 
+export type HealthStatusCode = '' | 'Progressing' | 'Healthy' | 'Degraded';
+
+export const HealthStatuses = {
+    Unknown: '',
+    Progressing: 'Progressing',
+    Healthy: 'Healthy',
+    Degraded: 'Degraded',
+};
+
+export interface HealthStatus {
+    status: HealthStatusCode;
+    statusDetails: string;
+}
+
 export type State = models.TypeMeta & { metadata: models.ObjectMeta } & { status: any, spec: any };
 
 export interface ResourceNode {
@@ -106,6 +120,7 @@ export interface ResourceState {
     targetState: State;
     liveState: State;
     status: ComparisonStatus;
+    health: HealthStatus;
     childLiveResources: ResourceNode[];
 }
 
@@ -123,6 +138,7 @@ export interface ApplicationStatus {
     comparisonResult: ComparisonResult;
     recentDeployments: DeploymentInfo[];
     parameters: ComponentParameter[];
+    health: HealthStatus;
 }
 
 export interface LogEntry {

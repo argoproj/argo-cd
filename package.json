@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
+    "start": "webpack-dev-server --config ./src/app/webpack.config.js",
     "docker": "./scripts/build_docker.sh",
     "build": "webpack --config ./src/app/webpack.config.js",
-    "dev:ui": "webpack-dev-server --config ./src/app/webpack.config.js",
     "lint": "tslint -p ./src/app"
   },
   "dependencies": {

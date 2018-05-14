@@ -5,12 +5,11 @@ import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
 import { Field, InjectedFormProps, reduxForm, submit } from 'redux-form';
 import { Subscription } from 'rxjs';
-
 import { FormField, Page } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
-import { ComparisonStatusIcon } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
@@ -110,10 +109,16 @@ class Component extends React.Component<ApplicationProps> {
                                                     <i className='argo-icon-application icon'/> <span className='applications-list__title'>{app.metadata.name}</span>
                                                 </div>
                                             </div>
-                                            <div className='row'>
+                                            <div className='row applications-list__icons'>
                                                 <div className='columns small-6'>STATUS:</div>
                                                 <div className='columns small-6'>
                                                     <ComparisonStatusIcon status={app.status.comparisonResult.status} /> {app.status.comparisonResult.status}
+                                                </div>
+                                            </div>
+                                            <div className='row applications-list__icons'>
+                                                <div className='columns small-6'>HEALTH:</div>
+                                                <div className='columns small-6'>
+                                                    <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                                 </div>
                                             </div>
                                         </div>

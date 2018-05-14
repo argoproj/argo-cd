@@ -1,5 +1,4 @@
 import * as React from 'react';
-
 import * as appModels from '../../shared/models';
 
 const ARGO_SUCCESS_COLOR = '#18BE94';
@@ -29,6 +28,30 @@ export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonSta
             break;
     }
     return <i title={status} className={className} style={{ color }} />;
+};
+
+export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => {
+    let color = '';
+
+    switch (state.status) {
+        case appModels.HealthStatuses.Healthy:
+            color = ARGO_SUCCESS_COLOR;
+            break;
+        case appModels.HealthStatuses.Degraded:
+            color = ARGO_FAILED_COLOR;
+            break;
+        case appModels.HealthStatuses.Progressing:
+            color = ARGO_RUNNING_COLOR;
+            break;
+        case appModels.HealthStatuses.Unknown:
+            color = ARGO_RUNNING_COLOR;
+            break;
+    }
+    let title: string = state.status;
+    if (state.statusDetails) {
+        title = `${state.status}: ${state.statusDetails};`;
+    }
+    return <i title={title} className='fa fa-heartbeat' style={{ color }} />;
 };
 
 export function getStateAndNode(resource: appModels.ResourceNode | appModels.ResourceState) {
