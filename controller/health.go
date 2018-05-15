@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	maxRecentDeploymentsCnt = 5
+	maxHistoryCnt = 5
 )
 
 type AppHealthManager interface {
