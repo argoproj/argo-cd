@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -202,31 +203,82 @@ func retryUntilSucceed(action func() error, desc string, ctx context.Context, ti
 	}
 }
 
-func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
+func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext bool) {
 	appKey, shutdown := ctrl.appOperationQueue.Get()
 	if shutdown {
-		return false
+		processNext = false
+		return
+	} else {
+		processNext = true
 	}
 
-	defer ctrl.appOperationQueue.Done(appKey)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+		ctrl.appOperationQueue.Done(appKey)
+	}()
+
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return true
+		return
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return true
+		return
 	}
 	app, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return true
+		return
 	}
-	if app.Operation == nil {
-		return true
+	if app.Operation != nil {
+		ctrl.processRequestedAppOperation(app)
+	} else if app.DeletionTimestamp != nil && app.NeedPruneResources() {
+		ctrl.finalizeApplicationDeletion(app)
 	}
 
+	return
+}
+
+func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) {
+	log.Infof("Deleting resources for application %s", app.Name)
+	// Get refreshed application info, since informer app copy might be stale
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			log.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
+		}
+		return
+	}
+
+	clst, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+
+	if err == nil {
+		config := clst.RESTConfig()
+		err = kube.DeleteResourceWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
+		if err == nil {
+			app.SetNeedPruneResources(false)
+			var patch []byte
+			patch, err = json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": app.Finalizers,
+				},
+			})
+			if err == nil {
+				_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
+			}
+		}
+	}
+	if err != nil {
+		log.Errorf("Unable to delete application resources: %v", err)
+	} else {
+		log.Infof("Successfully deleted resources for application %s", app.Name)
+	}
+}
+
+func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Application) {
 	state := appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
@@ -242,7 +294,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 			ctrl.setOperationState(app.Name, state, app.Operation)
 		}
 	}()
-
 	if app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed() {
 		// If we get here, we are about process an operation but we notice it is already Running.
 		// We need to detect if the controller crashed before completing the operation, or if the
@@ -252,11 +303,11 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("Failed to retrieve latest application state: %v", err)
-			return true
+			return
 		}
 		if freshApp.Status.OperationState == nil || freshApp.Status.OperationState.Phase.Completed() {
 			log.Infof("Skipping operation on stale application state (%s)", app.ObjectMeta.Name)
-			return true
+			return
 		}
 		log.Warnf("Found interrupted application operation %s %v", app.ObjectMeta.Name, app.Status.OperationState)
 	} else {
@@ -290,7 +341,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 		state.Message = "Invalid operation request"
 	}
 	ctrl.setOperationState(app.Name, state, app.Operation)
-	return true
 }
 
 func (ctrl *ApplicationController) setOperationState(appName string, state appv1.OperationState, operation *appv1.Operation) {
@@ -329,27 +379,35 @@ func (ctrl *ApplicationController) setOperationState(appName string, state appv1
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
 }
 
-func (ctrl *ApplicationController) processAppRefreshQueueItem() bool {
+func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
-		return false
+		processNext = false
+		return
+	} else {
+		processNext = true
 	}
 
-	defer ctrl.appRefreshQueue.Done(appKey)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+		ctrl.appRefreshQueue.Done(appKey)
+	}()
 
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
-		return true
+		return
 	}
 	if !exists {
 		// This happens after app was deleted, but the work queue still had an entry for it.
-		return true
+		return
 	}
 	app, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
-		return true
+		return
 	}
 
 	isForceRefreshed := ctrl.isRefreshForced(app.Name)
@@ -370,7 +428,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() bool {
 		ctrl.updateAppStatus(app.Name, app.Namespace, comparisonResult, parameters, *healthState)
 	}
 
-	return true
+	return
 }
 
 func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthStatus, error) {

@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -73,6 +72,7 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 	if err != nil {
 		return nil, err
 	}
+	a.SetNeedPruneResources(true)
 	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
 	if apierr.IsAlreadyExists(err) {
 		// act idempotent if existing spec matches new spec
@@ -118,30 +118,26 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationSpecRequest) (*ap
 
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*ApplicationResponse, error) {
-	var err error
-	server := q.Server
-	namespace := q.Namespace
-	if server == "" || namespace == "" {
-		server, namespace, err = s.getApplicationDestination(ctx, q.Name)
-		if err != nil && !apierr.IsNotFound(err) && !q.Force {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.Name, metav1.GetOptions{})
+	if err != nil && !apierr.IsNotFound(err) {
+		return nil, err
+	}
+
+	if q.Force != a.NeedPruneResources() {
+		a.SetNeedPruneResources(true)
+		patch, err := json.Marshal(map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"finalizers": a.Finalizers,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		_, err = s.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(a.Name, types.MergePatchType, patch)
+		if err != nil {
 			return nil, err
 		}
 	}
-
-	if server != "" && namespace != "" {
-		clst, err := s.db.GetCluster(ctx, server)
-		if err != nil && !q.Force {
-			return nil, err
-		}
-		if clst != nil {
-			config := clst.RESTConfig()
-			err = kube.DeleteResourceWithLabel(config, namespace, common.LabelApplicationName, q.Name)
-			if err != nil && !q.Force {
-				return nil, err
-			}
-		}
-	}
-
 	err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err

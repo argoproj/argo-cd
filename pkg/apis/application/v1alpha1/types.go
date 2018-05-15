@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/argoproj/argo-cd/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -283,6 +284,33 @@ type Repository struct {
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+func (app *Application) getFinalizerIndex(name string) int {
+	for i, finalizer := range app.Finalizers {
+		if finalizer == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// NeedPruneResources indicates if resources finalizer is set and controller should delete app resources before deleting app
+func (app *Application) NeedPruneResources() bool {
+	return app.getFinalizerIndex(common.ResourcesFinalizerName) > -1
+}
+
+// SetNeedPruneResources sets or remove resources finalizer
+func (app *Application) SetNeedPruneResources(prune bool) {
+	index := app.getFinalizerIndex(common.ResourcesFinalizerName)
+	if prune != (index > -1) {
+		if index > -1 {
+			app.Finalizers[index] = app.Finalizers[len(app.Finalizers)-1]
+			app.Finalizers = app.Finalizers[:len(app.Finalizers)-1]
+		} else {
+			app.Finalizers = append(app.Finalizers, common.ResourcesFinalizerName)
+		}
+	}
 }
 
 // NeedRefreshAppStatus answers if application status needs to be refreshed. Returns true if application never been compared, has changed or comparison result has expired.
