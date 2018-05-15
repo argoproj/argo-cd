@@ -95,32 +95,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*reposi
 	}
 	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
 
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
-	if err != nil {
-		return nil, err
-	}
-	defer util.Close(conn)
-	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
-	if app.Spec.Source.ComponentParameterOverrides != nil {
-		for i := range app.Spec.Source.ComponentParameterOverrides {
-			item := app.Spec.Source.ComponentParameterOverrides[i]
-			overrides[i] = &item
-		}
-	}
-
-	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
-		Repo:                        repo,
-		Environment:                 app.Spec.Source.Environment,
-		Path:                        app.Spec.Source.Path,
-		Revision:                    app.Spec.Source.TargetRevision,
-		ComponentParameterOverrides: overrides,
-		AppLabel:                    app.Name,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return manifestInfo, nil
+	return controller.GetManifest(s.repoClientset, repo, app)
 }
 
 // Get returns an application by name

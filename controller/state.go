@@ -79,12 +79,11 @@ func (ks *KsonnetAppStateManager) groupLiveObjects(liveObjs []*unstructured.Unst
 	return liveByFullName
 }
 
-// CompareAppState compares application spec and real app state using KSonnet
-func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error) {
-	repo := ks.getRepo(app.Spec.Source.RepoURL)
-	conn, repoClient, err := ks.repoClientset.NewRepositoryClient()
+// GetManifest retrieves a manifest from the given repo and app version.
+func GetManifest(repoClientset reposerver.Clientset, repo *v1alpha1.Repository, app *v1alpha1.Application) (*repository.ManifestResponse, error) {
+	conn, repoClient, err := repoClientset.NewRepositoryClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer util.Close(conn)
 	overrides := make([]*v1alpha1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
@@ -95,7 +94,7 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 		}
 	}
 
-	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
+	return repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
 		Environment:                 app.Spec.Source.Environment,
 		Path:                        app.Spec.Source.Path,
@@ -103,6 +102,12 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 		ComponentParameterOverrides: overrides,
 		AppLabel:                    app.Name,
 	})
+}
+
+// CompareAppState compares application spec and real app state using KSonnet
+func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error) {
+	repo := ks.getRepo(app.Spec.Source.RepoURL)
+	manifestInfo, err := GetManifest(ks.repoClientset, repo, app)
 	if err != nil {
 		return nil, nil, err
 	}
