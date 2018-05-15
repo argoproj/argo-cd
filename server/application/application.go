@@ -229,10 +229,15 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 		return status.Errorf(codes.InvalidArgument, "app.yaml is not a valid ksonnet app spec")
 	}
 
+	// Default revision to HEAD if unspecified
+	if spec.Source.TargetRevision == "" {
+		spec.Source.TargetRevision = "HEAD"
+	}
+
 	// Verify the specified environment is defined in it
 	envSpec, ok := appSpec.Environments[spec.Source.Environment]
 	if !ok || envSpec == nil {
-		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in app", spec.Source.Environment)
+		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in ksonnet app", spec.Source.Environment)
 	}
 
 	// If server and namespace are not supplied, pull it from the app.yaml
