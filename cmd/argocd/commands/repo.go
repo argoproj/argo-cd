@@ -42,7 +42,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		sshPrivateKeyPath string
 	)
 	var command = &cobra.Command{
-		Use:   "add",
+		Use:   "add REPO",
 		Short: "Add git repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
@@ -59,7 +59,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			err := git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
 			if err != nil {
-				if repo.Username != "" && repo.Password != "" || git.IsSshURL(repo.Repo) {
+				if repo.Username != "" && repo.Password != "" || git.IsSSHURL(repo.Repo) {
 					// if everything was supplied or repo URL is SSH url, one of the inputs was definitely bad
 					log.Fatal(err)
 				}
@@ -84,7 +84,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewRepoRemoveCommand returns a new instance of an `argocd repo list` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "rm",
+		Use:   "rm REPO",
 		Short: "Remove git repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
