@@ -326,10 +326,10 @@ func (s *KsonnetAppStateManager) persistDeploymentInfo(
 		params[i] = param
 	}
 	var nextId int64 = 0
-	if len(app.Status.RecentDeployments) > 0 {
-		nextId = app.Status.RecentDeployments[len(app.Status.RecentDeployments)-1].ID + 1
+	if len(app.Status.History) > 0 {
+		nextId = app.Status.History[len(app.Status.History)-1].ID + 1
 	}
-	recentDeployments := append(app.Status.RecentDeployments, v1alpha1.DeploymentInfo{
+	history := append(app.Status.History, v1alpha1.DeploymentInfo{
 		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		Revision:                    revision,
 		Params:                      params,
@@ -337,13 +337,13 @@ func (s *KsonnetAppStateManager) persistDeploymentInfo(
 		ID:                          nextId,
 	})
 
-	if len(recentDeployments) > maxRecentDeploymentsCnt {
-		recentDeployments = recentDeployments[1 : maxRecentDeploymentsCnt+1]
+	if len(history) > maxHistoryCnt {
+		history = history[1 : maxHistoryCnt+1]
 	}
 
 	patch, err := json.Marshal(map[string]map[string][]v1alpha1.DeploymentInfo{
 		"status": {
-			"recentDeployments": recentDeployments,
+			"history": history,
 		},
 	})
 	if err != nil {

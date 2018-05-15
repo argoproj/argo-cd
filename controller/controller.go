@@ -270,7 +270,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 		state.SyncResult = opRes.SyncResult
 	} else if app.Operation.Rollback != nil {
 		var deploymentInfo *appv1.DeploymentInfo
-		for _, info := range app.Status.RecentDeployments {
+		for _, info := range app.Status.History {
 			if info.ID == app.Operation.Rollback.ID {
 				deploymentInfo = &info
 				break

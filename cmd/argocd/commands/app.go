@@ -449,7 +449,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "ID\tDATE\tCOMMIT\tPARAMETERS\n")
-			for _, depInfo := range app.Status.RecentDeployments {
+			for _, depInfo := range app.Status.History {
 				paramStr := paramString(depInfo.Params)
 				fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision, paramStr)
 			}
@@ -492,7 +492,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: appName})
 			errors.CheckError(err)
 			var depInfo *argoappv1.DeploymentInfo
-			for _, di := range app.Status.RecentDeployments {
+			for _, di := range app.Status.History {
 				if di.ID == int64(depID) {
 					depInfo = &di
 					break
