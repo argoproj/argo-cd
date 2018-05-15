@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/install"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -239,6 +240,14 @@ func (f *Fixture) CreateController() *controller.ApplicationController {
 		appHealthManager,
 		10*time.Second,
 		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
+}
+
+func (f *Fixture) NewApiClientset() (argocdclient.ServerClient, error) {
+	return argocdclient.NewClient(&argocdclient.ClientOptions{
+		Insecure:   true,
+		PlainText:  true,
+		ServerAddr: f.ApiServerAddress,
+	})
 }
 
 func (f *Fixture) RunCli(args ...string) (string, error) {
