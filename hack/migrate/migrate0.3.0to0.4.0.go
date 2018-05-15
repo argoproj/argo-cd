@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
@@ -97,6 +95,7 @@ func renameRepositorySecrets(clientOpts argocdclient.ClientOptions, namespace st
 	}
 }
 
+/*
 // PopulateAppDestinations ensures that apps have a Server and Namespace set explicitly.
 func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 	conn, appIf := argocdclient.NewClientOrDie(&clientOpts).NewApplicationClientOrDie()
@@ -142,6 +141,7 @@ func populateAppDestinations(clientOpts argocdclient.ClientOptions) {
 		}
 	}
 }
+*/
 
 func main() {
 	if len(os.Args) < 3 {
@@ -164,5 +164,5 @@ func main() {
 		PlainText:  isLocalhost,
 	}
 	renameRepositorySecrets(clientOpts, namespace)
-	populateAppDestinations(clientOpts)
+	//populateAppDestinations(clientOpts)
 }
