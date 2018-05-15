@@ -232,7 +232,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 		if r := recover(); r != nil {
 			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 			// TODO: consider adding Error OperationStatus in addition to Failed
-			state := appv1.OperationState{Phase: appv1.OperationError}
+			state := appv1.OperationState{Phase: appv1.OperationError, Operation: *app.Operation}
 			if rerr, ok := r.(error); ok {
 				state.Message = rerr.Error()
 			} else {
@@ -242,7 +242,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 		}
 	}()
 
-	state := appv1.OperationState{Phase: appv1.OperationRunning}
+	state := appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation}
 	if app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed() {
 		// If we get here, we are about process an operation but we notice it is already Running.
 		// We need to detect if the controller crashed before completing the operation, or if the
@@ -306,9 +306,9 @@ func (ctrl *ApplicationController) setOperationState(appName string, state appv1
 			// it to nil which indicates no operation is in progress.
 			inProgressOpValue = operation
 		}
+		state.LastUpdateTime = metav1.NewTime(time.Now())
 		patch, err := json.Marshal(map[string]interface{}{
 			"status": map[string]interface{}{
-				"operation":      operation,
 				"operationState": state,
 			},
 			"operation": inProgressOpValue,

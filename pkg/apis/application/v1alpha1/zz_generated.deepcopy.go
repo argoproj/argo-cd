@@ -387,6 +387,7 @@ func (in *OperationState) DeepCopyInto(out *OperationState) {
 			(*in).DeepCopyInto(*out)
 		}
 	}
+	in.LastUpdateTime.DeepCopyInto(&out.LastUpdateTime)
 	return
 }
 
