@@ -365,18 +365,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			_, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
-
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
-			syncRes := status.SyncResult
-
-			fmt.Printf("%s %s\n", appName, syncRes.Message)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tKIND\tMESSAGE\n")
-			for _, resDetails := range syncRes.Resources {
-				fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Name, resDetails.Kind, resDetails.Message)
+			printOperationResult(appName, status)
+			if !status.Phase.Successful() {
+				os.Exit(1)
 			}
-			_ = w.Flush()
 		},
 	}
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
@@ -397,12 +391,8 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 		return nil, err
 	}
 	for {
-		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Status != argoappv1.OperationStatusInProgress {
-			if appEvent.Application.Status.OperationState.Status == argoappv1.OperationStatusFailed {
-				return nil, fmt.Errorf("operation failed: %s", appEvent.Application.Status.OperationState.ErrorDetails)
-			} else {
-				return appEvent.Application.Status.OperationState, nil
-			}
+		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Phase.Completed() {
+			return appEvent.Application.Status.OperationState, nil
 		} else {
 			appEvent, err = wc.Recv()
 			if err != nil {
@@ -528,17 +518,39 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
-			syncRes := status.SyncResult
-
-			fmt.Printf("%s %s\n", appName, syncRes.Message)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tKIND\tMESSAGE\n")
-			for _, resDetails := range syncRes.Resources {
-				fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Name, resDetails.Kind, resDetails.Message)
+			printOperationResult(appName, status)
+			if !status.Phase.Successful() {
+				os.Exit(1)
 			}
-			_ = w.Flush()
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	return command
+}
+
+const printOpFmtStr = "%-20s%s\n"
+
+func printOperationResult(appName string, opState *argoappv1.OperationState) {
+	fmt.Printf(printOpFmtStr, "Application:", appName)
+	var syncRes *argoappv1.SyncOperationResult
+	if opState.SyncResult != nil {
+		syncRes = opState.SyncResult
+		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
+	} else if opState.RollbackResult != nil {
+		fmt.Printf(printOpFmtStr, "Operation:", "Rollback")
+		syncRes = opState.RollbackResult
+	}
+	fmt.Printf(printOpFmtStr, "Phase:", opState.Phase)
+	if opState.Message != "" {
+		fmt.Printf(printOpFmtStr, "Message:", opState.Message)
+	}
+	if syncRes != nil {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Printf("\n")
+		fmt.Fprintf(w, "KIND\tNAME\tMESSAGE\n")
+		for _, resDetails := range syncRes.Resources {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Kind, resDetails.Name, resDetails.Message)
+		}
+		_ = w.Flush()
+	}
 }

@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,50 +12,68 @@ import (
 
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
-	Revision string `json:"revision" protobuf:"bytes,1,opt,name=revision"`
-	Prune    bool   `json:"prune" protobuf:"bytes,2,opt,name=prune"`
-	DryRun   bool   `json:"dryRun" protobuf:"bytes,3,opt,name=dryRun"`
+	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
+	Prune    bool   `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
+	DryRun   bool   `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 }
 
 type RollbackOperation struct {
 	ID     int64 `json:"id" protobuf:"bytes,1,opt,name=id"`
-	Prune  bool  `json:"prune" protobuf:"bytes,2,opt,name=prune"`
-	DryRun bool  `json:"dryRun" protobuf:"bytes,3,opt,name=dryRun"`
+	Prune  bool  `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
+	DryRun bool  `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 }
 
 // Operation contains requested operation parameters.
 type Operation struct {
-	Sync     *SyncOperation     `json:"sync" protobuf:"bytes,1,opt,name=sync"`
-	Rollback *RollbackOperation `json:"rollback" protobuf:"bytes,2,opt,name=rollback"`
+	Sync     *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	Rollback *RollbackOperation `json:"rollback,omitempty" protobuf:"bytes,2,opt,name=rollback"`
 }
 
-type OperationStatus = string
+type OperationPhase string
 
 const (
-	OperationStatusInProgress = "InProgress"
-	OperationStatusFailed     = "Failed"
-	OperationStatusSucceeded  = "Succeeded"
+	OperationRunning   OperationPhase = "Running"
+	OperationFailed    OperationPhase = "Failed"
+	OperationError     OperationPhase = "Error"
+	OperationSucceeded OperationPhase = "Succeeded"
 )
+
+func (os OperationPhase) Completed() bool {
+	switch os {
+	case OperationFailed, OperationError, OperationSucceeded:
+		return true
+	}
+	return false
+}
+
+func (os OperationPhase) Successful() bool {
+	return os == OperationSucceeded
+}
 
 // OperationState contains information about state of currently performing operation on application.
 type OperationState struct {
-	Status         OperationStatus      `json:"status" protobuf:"bytes,1,opt,name=status"`
-	ErrorDetails   string               `json:"errorDetails" protobuf:"bytes,2,opt,name=errorDetails"`
-	SyncResult     *SyncOperationResult `json:"syncResult" protobuf:"bytes,3,opt,name=syncResult"`
-	RollbackResult *SyncOperationResult `json:"rollbackResult" protobuf:"bytes,4,opt,name=rollbackResult"`
+	// Operation is the original requested operation
+	Operation Operation `json:"operation" protobuf:"bytes,1,opt,name=operation"`
+	// Phase is the current phase of the operation
+	Phase OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
+	// Message hold any pertinent messages when attempting to perform operation (typically errors).
+	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
+	// SyncResult is the result of a Sync operation
+	SyncResult *SyncOperationResult `json:"syncResult,omitempty" protobuf:"bytes,4,opt,name=syncResult"`
+	// RollbackResult is the result of a Rollback operation
+	RollbackResult *SyncOperationResult `json:"rollbackResult,omitempty" protobuf:"bytes,5,opt,name=rollbackResult"`
 }
 
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
-	Message   string             `json:"message" protobuf:"bytes,1,opt,name=message"`
-	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,2,opt,name=resources"`
+	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,1,opt,name=resources"`
 }
 
 type ResourceDetails struct {
 	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Namespace string `json:"namespace" protobuf:"bytes,3,opt,name=namespace"`
-	Message   string `json:"message" protobuf:"bytes,4,opt,name=message"`
+	Message   string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 }
 
 // DeploymentInfo contains information relevant to an application deployment
@@ -164,8 +181,6 @@ type ApplicationStatus struct {
 type ComparisonResult struct {
 	ComparedAt metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
 	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Server     string            `json:"server" protobuf:"bytes,3,opt,name=server"`
-	Namespace  string            `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
 	Resources  []ResourceState   `json:"resources" protobuf:"bytes,6,opt,name=resources"`
 	Error      string            `json:"error" protobuf:"bytes,7,opt,name=error"`
@@ -304,7 +319,7 @@ func (c *Cluster) RESTConfig() *rest.Config {
 func (cr *ComparisonResult) TargetObjects() ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(cr.Resources))
 	for i, resState := range cr.Resources {
-		obj, err := UnmarshalToUnstructured(resState.TargetState)
+		obj, err := resState.TargetObject()
 		if err != nil {
 			return nil, err
 		}
@@ -317,7 +332,7 @@ func (cr *ComparisonResult) TargetObjects() ([]*unstructured.Unstructured, error
 func (cr *ComparisonResult) LiveObjects() ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(cr.Resources))
 	for i, resState := range cr.Resources {
-		obj, err := UnmarshalToUnstructured(resState.LiveState)
+		obj, err := resState.LiveObject()
 		if err != nil {
 			return nil, err
 		}
@@ -336,4 +351,12 @@ func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error
 		return nil, err
 	}
 	return &obj, nil
+}
+
+func (r ResourceState) LiveObject() (*unstructured.Unstructured, error) {
+	return UnmarshalToUnstructured(r.LiveState)
+}
+
+func (r ResourceState) TargetObject() (*unstructured.Unstructured, error) {
+	return UnmarshalToUnstructured(r.TargetState)
 }

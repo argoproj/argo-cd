@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/kube"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,12 +22,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 )
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error)
-	SyncAppState(app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter, dryRun bool, prune bool) (*v1alpha1.SyncOperationResult, error)
+	SyncAppState(app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter, dryRun bool, prune bool) *v1alpha1.OperationState
 }
 
 // KsonnetAppStateManager allows to compare application using KSonnet CLI
@@ -239,8 +241,6 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 	compResult := v1alpha1.ComparisonResult{
 		ComparedTo: app.Spec.Source,
 		ComparedAt: metav1.Time{Time: time.Now().UTC()},
-		Server:     clst.Server,
-		Namespace:  namespace,
 		Resources:  resources,
 		Status:     comparisonStatus,
 	}
@@ -287,7 +287,7 @@ func getResourceFullName(obj *unstructured.Unstructured) string {
 }
 
 func (s *KsonnetAppStateManager) SyncAppState(
-	app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter, dryRun bool, prune bool) (*v1alpha1.SyncOperationResult, error) {
+	app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter, dryRun bool, prune bool) *v1alpha1.OperationState {
 
 	if revision != "" {
 		app.Spec.Source.TargetRevision = revision
@@ -297,17 +297,15 @@ func (s *KsonnetAppStateManager) SyncAppState(
 		app.Spec.Source.ComponentParameterOverrides = *overrides
 	}
 
-	res, manifest, err := s.syncAppResources(app, dryRun, prune)
-	if err != nil {
-		return nil, err
-	}
-	if !dryRun {
-		err = s.persistDeploymentInfo(app, manifest.Revision, manifest.Params, nil)
+	opRes, manifest := s.syncAppResources(app, dryRun, prune)
+	if !dryRun && opRes.Phase.Successful() {
+		err := s.persistDeploymentInfo(app, manifest.Revision, manifest.Params, nil)
 		if err != nil {
-			return nil, err
+			opRes.Phase = v1alpha1.OperationError
+			opRes.Message = fmt.Sprintf("failed to record sync to history: %v", err)
 		}
 	}
-	return res, err
+	return opRes
 }
 
 func (s *KsonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
@@ -358,95 +356,126 @@ func (s *KsonnetAppStateManager) persistDeploymentInfo(
 func (s *KsonnetAppStateManager) syncAppResources(
 	app *v1alpha1.Application,
 	dryRun bool,
-	prune bool) (*v1alpha1.SyncOperationResult, *repository.ManifestResponse, error) {
+	prune bool) (*v1alpha1.OperationState, *repository.ManifestResponse) {
+
+	opRes := v1alpha1.OperationState{
+		SyncResult: &v1alpha1.SyncOperationResult{},
+	}
 
 	comparison, manifestInfo, err := s.CompareAppState(app)
 	if err != nil {
-		return nil, nil, err
+		opRes.Phase = v1alpha1.OperationError
+		opRes.Message = err.Error()
+		return &opRes, manifestInfo
 	}
 
-	clst, err := s.db.GetCluster(context.Background(), comparison.Server)
+	clst, err := s.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
-		return nil, nil, err
+		opRes.Phase = v1alpha1.OperationError
+		opRes.Message = err.Error()
+		return &opRes, manifestInfo
 	}
 	config := clst.RESTConfig()
 
-	var syncRes v1alpha1.SyncOperationResult
-	syncRes.Resources = make([]*v1alpha1.ResourceDetails, 0)
-	for _, resourceState := range comparison.Resources {
-		var liveObj, targetObj *unstructured.Unstructured
+	opRes.SyncResult.Resources = make([]*v1alpha1.ResourceDetails, len(comparison.Resources))
+	liveObjs := make([]*unstructured.Unstructured, len(comparison.Resources))
+	targetObjs := make([]*unstructured.Unstructured, len(comparison.Resources))
 
-		if resourceState.LiveState != "null" {
-			liveObj = &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(resourceState.LiveState), liveObj)
-			if err != nil {
-				return nil, nil, err
-			}
+	// First perform a `kubectl apply --dry-run` against all the manifests. This will detect most
+	// (but not all) validation issues with the users' manifests (e.g. will detect syntax issues,
+	// but will not not detect if they are mutating immutable fields). If anything fails, we will
+	// refuse to perform the sync.
+	dryRunSuccessful := true
+	for i, resourceState := range comparison.Resources {
+		liveObj, err := resourceState.LiveObject()
+		if err != nil {
+			opRes.Phase = v1alpha1.OperationError
+			opRes.Message = fmt.Sprintf("Failed to unmarshal live object: %v", err)
+			return &opRes, manifestInfo
 		}
-
-		if resourceState.TargetState != "null" {
-			targetObj = &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(resourceState.TargetState), targetObj)
-			if err != nil {
-				return nil, nil, err
-			}
+		targetObj, err := resourceState.TargetObject()
+		if err != nil {
+			opRes.Phase = v1alpha1.OperationError
+			opRes.Message = fmt.Sprintf("Failed to unmarshal target object: %v", err)
+			return &opRes, manifestInfo
 		}
-
-		needsCreate := liveObj == nil
-		needsDelete := targetObj == nil
-
-		obj := targetObj
-		if obj == nil {
-			obj = liveObj
+		liveObjs[i] = liveObj
+		targetObjs[i] = targetObj
+		resDetails, successful := syncObject(config, app.Spec.Destination.Namespace, targetObj, liveObj, prune, true)
+		if !successful {
+			dryRunSuccessful = false
 		}
-		resDetails := v1alpha1.ResourceDetails{
-			Name:      obj.GetName(),
-			Kind:      obj.GetKind(),
-			Namespace: comparison.Namespace,
+		opRes.SyncResult.Resources[i] = &resDetails
+	}
+	if !dryRunSuccessful {
+		opRes.Phase = v1alpha1.OperationFailed
+		opRes.Message = "one or more objects failed to apply (dry run)"
+		return &opRes, manifestInfo
+	}
+	if dryRun {
+		opRes.Phase = v1alpha1.OperationSucceeded
+		opRes.Message = "successfully synced (dry run)"
+		return &opRes, manifestInfo
+	}
+	// If we get here, all objects passed their dry-run, so we are now ready to actually perform the
+	// `kubectl apply`. Loop through the resources again, this time without dry-run.
+	syncSuccessful := true
+	for i := range comparison.Resources {
+		resDetails, successful := syncObject(config, app.Spec.Destination.Namespace, targetObjs[i], liveObjs[i], prune, false)
+		if !successful {
+			syncSuccessful = false
 		}
+		opRes.SyncResult.Resources[i] = &resDetails
+	}
+	if !syncSuccessful {
+		opRes.Message = "one or more objects failed to apply"
+		opRes.Phase = v1alpha1.OperationFailed
+	} else {
+		opRes.Message = "successfully synced"
+		opRes.Phase = v1alpha1.OperationSucceeded
+	}
+	return &opRes, manifestInfo
+}
 
-		if resourceState.Status == v1alpha1.ComparisonStatusSynced {
-			resDetails.Message = fmt.Sprintf("already synced")
-		} else if dryRun {
-			if needsCreate {
-				resDetails.Message = fmt.Sprintf("will create")
-			} else if needsDelete {
-				if prune {
-					resDetails.Message = fmt.Sprintf("will delete")
-				} else {
-					resDetails.Message = fmt.Sprintf("will be ignored (should be deleted)")
-				}
+// syncObject performs a sync of a single resource
+func syncObject(config *rest.Config, namespace string, targetObj, liveObj *unstructured.Unstructured, prune, dryRun bool) (v1alpha1.ResourceDetails, bool) {
+	obj := targetObj
+	if obj == nil {
+		obj = liveObj
+	}
+	resDetails := v1alpha1.ResourceDetails{
+		Name:      obj.GetName(),
+		Kind:      obj.GetKind(),
+		Namespace: namespace,
+	}
+	needsDelete := targetObj == nil
+	successful := true
+	if needsDelete {
+		if prune {
+			if dryRun {
+				resDetails.Message = "pruned (dry run)"
 			} else {
-				resDetails.Message = fmt.Sprintf("will update")
+				err := kubeutil.DeleteResource(config, liveObj, namespace)
+				if err != nil {
+					resDetails.Message = err.Error()
+					successful = false
+				} else {
+					resDetails.Message = "pruned"
+				}
 			}
 		} else {
-			if needsDelete {
-				if prune {
-					err = kubeutil.DeleteResource(config, liveObj, comparison.Namespace)
-					if err != nil {
-						return nil, nil, err
-					}
-
-					resDetails.Message = fmt.Sprintf("deleted")
-				} else {
-					resDetails.Message = fmt.Sprintf("ignored (should be deleted)")
-				}
-			} else {
-				_, err := kubeutil.ApplyResource(config, targetObj, comparison.Namespace)
-				if err != nil {
-					return nil, nil, err
-				}
-				if needsCreate {
-					resDetails.Message = fmt.Sprintf("created")
-				} else {
-					resDetails.Message = fmt.Sprintf("updated")
-				}
-			}
+			resDetails.Message = "ignored (requires pruning)"
 		}
-		syncRes.Resources = append(syncRes.Resources, &resDetails)
+	} else {
+		message, err := kube.ApplyResource(config, targetObj, namespace, dryRun)
+		if err != nil {
+			resDetails.Message = err.Error()
+			successful = false
+		} else {
+			resDetails.Message = message
+		}
 	}
-	syncRes.Message = "successfully synced"
-	return &syncRes, manifestInfo, nil
+	return resDetails, successful
 }
 
 // NewAppStateManager creates new instance of Ksonnet app comparator
