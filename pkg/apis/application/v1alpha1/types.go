@@ -245,8 +245,8 @@ type Cluster struct {
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
 
-	// Error, if not blank, holds a state error of some sort.
-	Error string `json:"-" protobuf:"bytes,4,opt,name=error"`
+	// Message can hold a status message or error.
+	Message string `json:"-" protobuf:"bytes,4,opt,name=message"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -297,7 +297,7 @@ type Repository struct {
 	Username      string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
 	Password      string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
 	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	Error         string `json:"-" protobuf:"bytes,5,opt,name=error"`
+	Message       string `json:"-" protobuf:"bytes,5,opt,name=message"`
 }
 
 // RepositoryList is a collection of Repositories.
