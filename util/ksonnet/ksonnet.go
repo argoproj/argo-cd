@@ -94,7 +94,7 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 
 	cmdStr := strings.Join(cmd.Args, " ")
 	log.Debug(cmdStr)
-	out, err := cmd.Output()
+	outBytes, err := cmd.Output()
 	if err != nil {
 		exErr, ok := err.(*exec.ExitError)
 		if !ok {
@@ -104,7 +104,9 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 		log.Errorf("`%s` failed: %s", cmdStr, errOutput)
 		return "", fmt.Errorf(strings.TrimSpace(errOutput))
 	}
-	return string(out), nil
+	out := string(outBytes)
+	log.Debug(out)
+	return out, nil
 }
 
 func (k *ksonnetApp) Root() string {
@@ -192,6 +194,7 @@ func remarshal(obj *unstructured.Unstructured) error {
 
 // ListEnvParams returns list of environment parameters
 func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error) {
+	log.Infof("listing environment '%s' parameters", environment)
 	mod, err := component.DefaultManager.Module(k.app, "")
 	if err != nil {
 		return nil, err

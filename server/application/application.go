@@ -234,14 +234,21 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 	if !ok || envSpec == nil {
 		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in app", spec.Source.Environment)
 	}
-	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
-	// NOTE: need to check if it was overridden in the destination spec
-	clusterURL := envSpec.Destination.Server
-	if spec.Destination.Server != "" {
-		clusterURL = spec.Destination.Server
+
+	// If server and namespace are not supplied, pull it from the app.yaml
+	if spec.Destination.Server == "" {
+		spec.Destination.Server = envSpec.Destination.Server
 	}
-	_, err = s.db.GetCluster(ctx, clusterURL)
+	if spec.Destination.Namespace == "" {
+		spec.Destination.Namespace = envSpec.Destination.Namespace
+	}
+
+	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
+	_, err = s.db.GetCluster(ctx, spec.Destination.Server)
 	if err != nil {
+		if apierr.IsNotFound(err) {
+			return status.Errorf(codes.InvalidArgument, "cluster '%s' has not been configured", spec.Destination.Server)
+		}
 		return err
 	}
 	return nil
