@@ -1,9 +1,8 @@
 package repository
 
 import (
-	"github.com/argoproj/argo-cd/util/db"
-
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/db"
 	"golang.org/x/net/context"
 )
 

@@ -30,7 +30,7 @@ func ensureSuffix(s, suffix string) string {
 func NormalizeGitURL(repo string) string {
 	// preprocess
 	repo = ensureSuffix(repo, ".git")
-	if IsSshURL(repo) {
+	if IsSSHURL(repo) {
 		repo = ensurePrefix(repo, "ssh://")
 	}
 
@@ -46,16 +46,19 @@ func NormalizeGitURL(repo string) string {
 	return strings.TrimPrefix(normalized, "ssh://")
 }
 
-// IsSshURL returns true if supplied URL is SSH URL
-func IsSshURL(url string) bool {
+// IsSSHURL returns true if supplied URL is SSH URL
+func IsSSHURL(url string) bool {
 	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
 }
 
-// GetGitCommandOptions returns URL and env options for git operation
+const gitSSHCommand = "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20"
+
+// GetGitCommandEnvAndURL returns URL and env options for git operation
 func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey string) (string, []string, error) {
 	cmdURL := repo
 	env := os.Environ()
-	if IsSshURL(repo) {
+	if IsSSHURL(repo) {
+		sshCmd := gitSSHCommand
 		if sshPrivateKey != "" {
 			sshFile, err := ioutil.TempFile("", "")
 			if err != nil {
@@ -69,8 +72,9 @@ func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey strin
 			if err != nil {
 				return "", nil, err
 			}
-			env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=ssh -o StrictHostKeyChecking=no -i %s", sshFile.Name()))
+			sshCmd += " -i " + sshFile.Name()
 		}
+		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
 	} else {
 		env = append(env, "GIT_ASKPASS=")
 		repoURL, err := url.ParseRequestURI(repo)
@@ -91,7 +95,6 @@ func TestRepo(repo, username, password string, sshPrivateKey string) error {
 		return err
 	}
 	cmd := exec.Command("git", "ls-remote", repo, "HEAD")
-
 	cmd.Env = env
 	_, err = cmd.Output()
 	if err != nil {

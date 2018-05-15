@@ -41,7 +41,7 @@ func TestEnsureSuffix(t *testing.T) {
 	}
 }
 
-func TestIsSSHUrl(t *testing.T) {
+func TestIsSSHURL(t *testing.T) {
 	data := map[string]bool{
 		"git://github.com/argoproj/test.git":     false,
 		"git@GITHUB.com:argoproj/test.git":       true,
@@ -54,7 +54,7 @@ func TestIsSSHUrl(t *testing.T) {
 		"ssh://git@github.com:test.git":          true,
 	}
 	for k, v := range data {
-		assert.Equal(t, v, IsSshURL(k))
+		assert.Equal(t, v, IsSSHURL(k))
 	}
 }
 

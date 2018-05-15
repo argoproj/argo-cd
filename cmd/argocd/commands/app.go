@@ -122,7 +122,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "get",
+		Use:   "get APPNAME",
 		Short: "Get application details",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
@@ -171,7 +171,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		appOpts appOptions
 	)
 	var command = &cobra.Command{
-		Use:   "set",
+		Use:   "set APPNAME",
 		Short: "Set application parameters",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
@@ -241,7 +241,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "diff",
+		Use:   "diff APPNAME",
 		Short: "Perform a diff against the target and live state",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
@@ -283,7 +283,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		force bool
 	)
 	var command = &cobra.Command{
-		Use:   "delete",
+		Use:   "delete APPNAME",
 		Short: "Delete an application",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
@@ -347,7 +347,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		dryRun   bool
 	)
 	var command = &cobra.Command{
-		Use:   "sync",
+		Use:   "sync APPNAME",
 		Short: "Sync an application to its target state",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
@@ -442,7 +442,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 // NewApplicationHistoryCommand returns a new instance of an `argocd app history` command
 func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "history",
+		Use:   "history APPNAME",
 		Short: "Show application deployment history",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
@@ -483,7 +483,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		prune bool
 	)
 	var command = &cobra.Command{
-		Use:   "rollback",
+		Use:   "rollback APPNAME",
 		Short: "Rollback application to a previous deployed version",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {

@@ -112,15 +112,18 @@ func (m *nativeGitClient) setCredentials() error {
 			return err
 		}
 	}
-	if m.sshPrivateKey != "" {
-		log.Debug("Setting SSH credentials")
-		sshPrivateKeyFile := path.Join(".git", "ssh-private-key")
-		err := ioutil.WriteFile(sshPrivateKeyFile, []byte(m.sshPrivateKey), 0600)
-		if err != nil {
-			return fmt.Errorf("failed to set git credentials: %v", err)
+	if IsSSHURL(m.repoURL) {
+		sshCmd := gitSSHCommand
+		if m.sshPrivateKey != "" {
+			log.Debug("Setting SSH credentials")
+			sshPrivateKeyFile := path.Join(".git", "ssh-private-key")
+			err := ioutil.WriteFile(sshPrivateKeyFile, []byte(m.sshPrivateKey), 0600)
+			if err != nil {
+				return fmt.Errorf("failed to set git credentials: %v", err)
+			}
+			sshCmd += sshCmd + " -i " + sshPrivateKeyFile
 		}
-		sshCmd := fmt.Sprintf("ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i %s", sshPrivateKeyFile)
-		_, err = m.runCmd("git", "config", "--local", "core.sshCommand", sshCmd)
+		_, err := m.runCmd("git", "config", "--local", "core.sshCommand", sshCmd)
 		if err != nil {
 			return err
 		}
