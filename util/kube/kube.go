@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -424,39 +425,39 @@ func DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespa
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) (*unstructured.Unstructured, error) {
+func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun bool) (string, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(kubectlTempDir, "")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
+		return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
 	}
 	_ = f.Close()
 	err = WriteKubeConfig(config, namespace, f.Name())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to write kubeconfig: %v", err)
+		return "", fmt.Errorf("Failed to write kubeconfig: %v", err)
 	}
 	defer deleteFile(f.Name())
-
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	cmd := exec.Command("kubectl", "--kubeconfig", f.Name(), "-n", namespace, "apply", "-o", "json", "-f", "-")
+	applyArgs := []string{"--kubeconfig", f.Name(), "-n", namespace, "apply", "-f", "-"}
+	if dryRun {
+		applyArgs = append(applyArgs, "--dry-run")
+	}
+	cmd := exec.Command("kubectl", applyArgs...)
 	log.Info(cmd.Args)
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
 	if err != nil {
 		if exErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("failed to apply '%s': %s", obj.GetName(), exErr.Stderr)
+			// this makes the output a little better to read
+			errMsg := strings.Replace(strings.TrimSpace(string(exErr.Stderr)), ": error when creating \"STDIN\"", "", -1)
+			return "", errors.New(errMsg)
 		}
-		return nil, err
+		return "", err
 	}
-	var liveObj unstructured.Unstructured
-	err = json.Unmarshal(out, &liveObj)
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply '%s': %s", obj.GetName(), err)
-	}
-	return &liveObj, nil
+	return strings.TrimSpace(string(out)), nil
 }
 
 // WriteKubeConfig takes a rest.Config and writes it as a kubeconfig at the specified path

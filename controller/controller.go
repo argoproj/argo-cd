@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -13,10 +14,7 @@ import (
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -211,7 +209,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 	}
 
 	defer ctrl.appOperationQueue.Done(appKey)
-
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
@@ -226,66 +223,106 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() bool {
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return true
 	}
-
-	if app.Operation != nil && app.Status.OperationState == nil {
-		state := appv1.OperationState{Status: appv1.OperationStatusInProgress}
-		ctrl.setOperationState(app.Name, state, app.Operation)
-		var opError error
-		if app.Operation.Sync != nil {
-			syncResult, err := ctrl.appStateManager.SyncAppState(app, app.Operation.Sync.Revision, nil, app.Operation.Sync.DryRun, app.Operation.Sync.Prune)
-			if err == nil {
-				state.SyncResult = syncResult
-			} else {
-				opError = err
-			}
-		} else if app.Operation.Rollback != nil {
-			var deploymentInfo *appv1.DeploymentInfo
-			for _, info := range app.Status.RecentDeployments {
-				if info.ID == app.Operation.Rollback.ID {
-					deploymentInfo = &info
-					break
-				}
-			}
-			if deploymentInfo == nil {
-				opError = status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", app.Name, app.Operation.Rollback.ID)
-			} else {
-				rollbackResult, err := ctrl.appStateManager.SyncAppState(
-					app, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, app.Operation.Rollback.DryRun, app.Operation.Rollback.Prune)
-				if err == nil {
-					state.RollbackResult = rollbackResult
-				} else {
-					opError = err
-				}
-			}
-		} else {
-			opError = errors.New("Invalid operation request")
-		}
-		if opError != nil {
-			state.ErrorDetails = opError.Error()
-			state.Status = appv1.OperationStatusFailed
-		} else {
-			state.Status = appv1.OperationStatusSucceeded
-		}
-		ctrl.setOperationState(app.Name, state, nil)
+	if app.Operation == nil {
+		return true
 	}
 
+	// Recover from any unexpected panics and automatically set the status to be failed
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			// TODO: consider adding Error OperationStatus in addition to Failed
+			state := appv1.OperationState{Phase: appv1.OperationError}
+			if rerr, ok := r.(error); ok {
+				state.Message = rerr.Error()
+			} else {
+				state.Message = fmt.Sprintf("%v", r)
+			}
+			ctrl.setOperationState(app.Name, state, app.Operation)
+		}
+	}()
+
+	state := appv1.OperationState{Phase: appv1.OperationRunning}
+	if app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed() {
+		// If we get here, we are about process an operation but we notice it is already Running.
+		// We need to detect if the controller crashed before completing the operation, or if the
+		// the app object we pulled off the informer is simply stale and doesn't reflect the fact
+		// that the operation is completed. We don't want to perform the operation again. To detect
+		// this, always retrieve the latest version to ensure it is not stale.
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("Failed to retrieve latest application state: %v", err)
+			return true
+		}
+		if freshApp.Status.OperationState == nil || freshApp.Status.OperationState.Phase.Completed() {
+			log.Infof("Skipping operation on stale application state (%s)", app.ObjectMeta.Name)
+			return true
+		}
+		log.Warnf("Found interrupted application operation %s %v", app.ObjectMeta.Name, app.Status.OperationState)
+	} else {
+		ctrl.setOperationState(app.Name, state, app.Operation)
+	}
+
+	if app.Operation.Sync != nil {
+		opRes := ctrl.appStateManager.SyncAppState(app, app.Operation.Sync.Revision, nil, app.Operation.Sync.DryRun, app.Operation.Sync.Prune)
+		state.Phase = opRes.Phase
+		state.Message = opRes.Message
+		state.SyncResult = opRes.SyncResult
+	} else if app.Operation.Rollback != nil {
+		var deploymentInfo *appv1.DeploymentInfo
+		for _, info := range app.Status.RecentDeployments {
+			if info.ID == app.Operation.Rollback.ID {
+				deploymentInfo = &info
+				break
+			}
+		}
+		if deploymentInfo == nil {
+			state.Phase = appv1.OperationFailed
+			state.Message = fmt.Sprintf("application %s does not have deployment with id %v", app.Name, app.Operation.Rollback.ID)
+		} else {
+			opRes := ctrl.appStateManager.SyncAppState(app, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, app.Operation.Rollback.DryRun, app.Operation.Rollback.Prune)
+			state.Phase = opRes.Phase
+			state.Message = opRes.Message
+			state.RollbackResult = opRes.RollbackResult
+		}
+	} else {
+		state.Phase = appv1.OperationFailed
+		state.Message = "Invalid operation request"
+	}
+	ctrl.setOperationState(app.Name, state, app.Operation)
 	return true
 }
 
 func (ctrl *ApplicationController) setOperationState(appName string, state appv1.OperationState, operation *appv1.Operation) {
 	retryUntilSucceed(func() error {
+		var inProgressOpValue *appv1.Operation
+		if state.Phase == "" {
+			// expose any bugs where we neglect to set phase
+			panic("no phase was set")
+		}
+		if !state.Phase.Completed() {
+			// If operation is still running, we populate the app.operation field, which prevents
+			// any other operation from running at the same time. Otherwise, it is cleared by setting
+			// it to nil which indicates no operation is in progress.
+			inProgressOpValue = operation
+		}
 		patch, err := json.Marshal(map[string]interface{}{
 			"status": map[string]interface{}{
+				"operation":      operation,
 				"operationState": state,
 			},
-			"operation": operation,
+			"operation": inProgressOpValue,
 		})
-
-		if err == nil {
-			appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
-			_, err = appClient.Patch(appName, types.MergePatchType, patch)
+		if err != nil {
+			return err
 		}
-		return err
+		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
+		_, err = appClient.Patch(appName, types.MergePatchType, patch)
+		if err != nil {
+			return err
+		}
+		log.Infof("updated '%s' operation (phase: %s)", appName, state.Phase)
+		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
 }
 
