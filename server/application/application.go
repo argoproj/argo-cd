@@ -87,8 +87,33 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 }
 
 // GetManifests returns application manifests
-func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.Name, metav1.GetOptions{})
+func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*repository.ManifestResponse, error) {
+	// CompareAppState compares application spec and real app state using KSonnet
+
+	app := s.Get(ctx, q)
+	repo := s.getRepo(app.Spec.Source.RepoURL)
+
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer util.Close(conn)
+	overrides := make([]*v1alpha1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
+	if app.Spec.Source.ComponentParameterOverrides != nil {
+		for i := range app.Spec.Source.ComponentParameterOverrides {
+			item := app.Spec.Source.ComponentParameterOverrides[i]
+			overrides[i] = &item
+		}
+	}
+
+	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
+		Repo:                        repo,
+		Environment:                 app.Spec.Source.Environment,
+		Path:                        app.Spec.Source.Path,
+		Revision:                    app.Spec.Source.TargetRevision,
+		ComponentParameterOverrides: overrides,
+		AppLabel:                    app.Name,
+	})
 }
 
 // Get returns an application by name
