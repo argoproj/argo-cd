@@ -57,6 +57,8 @@ func TestAppManagement(t *testing.T) {
 			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.ComparisonStatusSynced, err
 		})
 		assert.Equal(t, v1alpha1.ComparisonStatusSynced, app.Status.ComparisonResult.Status)
+		assert.True(t, app.Status.OperationState.SyncResult != nil)
+		assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
 	})
 
 	t.Run("TestComparisonFailsIfClusterNotAdded", func(t *testing.T) {

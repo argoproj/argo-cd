@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -384,6 +385,16 @@ func (in *OperationState) DeepCopyInto(out *OperationState) {
 			*out = nil
 		} else {
 			*out = new(SyncOperationResult)
+			(*in).DeepCopyInto(*out)
+		}
+	}
+	in.StartedAt.DeepCopyInto(&out.StartedAt)
+	if in.FinishedAt != nil {
+		in, out := &in.FinishedAt, &out.FinishedAt
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(v1.Time)
 			(*in).DeepCopyInto(*out)
 		}
 	}
