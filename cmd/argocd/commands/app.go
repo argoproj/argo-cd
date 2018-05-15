@@ -49,10 +49,9 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts    appOptions
-		fileURL    string
-		appName    string
-		syncPolicy string
+		appOpts appOptions
+		fileURL string
+		appName string
 	)
 	var command = &cobra.Command{
 		Use:   "create",
@@ -75,10 +74,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				}
 
 			} else {
-				if syncPolicy != "" && syncPolicy != "Always" {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
 				if appOpts.repoURL == "" || appOpts.appPath == "" || appOpts.env == "" || appName == "" {
 					log.Fatal("name, repo, path, env are required")
 					os.Exit(1)
@@ -94,7 +89,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 							Environment:    appOpts.env,
 							TargetRevision: appOpts.revision,
 						},
-						SyncPolicy: syncPolicy,
 					},
 				}
 			}
@@ -115,7 +109,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set")
 	addAppFlags(command, &appOpts)
-	//command.Flags().StringVar(&syncPolicy, "sync-policy", "", "Synchronization policy for application (e.g., Always)")
 	return command
 }
 
