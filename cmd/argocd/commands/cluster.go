@@ -202,7 +202,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "SERVER\tNAME\tERROR\n")
 			for _, c := range clusters.Items {
-				fmt.Fprintf(w, "%s\t%s\n", c.Server, c.Name, c.Error)
+				fmt.Fprintf(w, "%s\t%s\t%s\n", c.Server, c.Name, c.Error)
 			}
 			_ = w.Flush()
 		},

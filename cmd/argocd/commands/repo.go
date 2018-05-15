@@ -115,7 +115,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "REPO\tUSER\tERROR\n")
 			for _, r := range repos.Items {
-				fmt.Fprintf(w, "%s\t%s\n", r.Repo, r.Username, r.Error)
+				fmt.Fprintf(w, "%s\t%s\t%s\n", r.Repo, r.Username, r.Error)
 			}
 			_ = w.Flush()
 		},
