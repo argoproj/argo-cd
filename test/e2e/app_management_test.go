@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -43,12 +42,12 @@ func TestAppManagement(t *testing.T) {
 			"--dest-server", fixture.Config.Host,
 			"--dest-namespace", fixture.Namespace)
 		if err != nil {
-			t.Fatal(fmt.Sprintf("Unable to create app %v", err))
+			t.Fatalf("Unable to create app %v", err)
 		}
 
 		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(appName, metav1.GetOptions{})
 		if err != nil {
-			t.Fatal(fmt.Sprintf("Unable to get app %v", err))
+			t.Fatalf("Unable to get app %v", err)
 		}
 		assert.Equal(t, appName, app.Name)
 		assert.Equal(t, "https://github.com/argoproj/argo-cd.git", app.Spec.Source.RepoURL)
@@ -63,7 +62,7 @@ func TestAppManagement(t *testing.T) {
 		_, err := fixture.RunCli("app", "delete", app.Name)
 
 		if err != nil {
-			t.Fatal(fmt.Sprintf("Unable to delete app %v", err))
+			t.Fatalf("Unable to delete app %v", err)
 		}
 
 		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.Name, metav1.GetOptions{})
@@ -90,7 +89,7 @@ func TestAppManagement(t *testing.T) {
 		// sync app and make sure it reaches InSync state
 		_, err := fixture.RunCli("app", "sync", app.Name)
 		if err != nil {
-			t.Fatal(fmt.Sprintf("Unable to sync app %v", err))
+			t.Fatalf("Unable to sync app %v", err)
 		}
 
 		WaitUntil(t, func() (done bool, err error) {
@@ -104,7 +103,7 @@ func TestAppManagement(t *testing.T) {
 
 	t.Run("TestAppRollbackSuccessful", func(t *testing.T) {
 		appWithHistory := testApp.DeepCopy()
-		appWithHistory.Status.RecentDeployments = []v1alpha1.DeploymentInfo{{
+		appWithHistory.Status.History = []v1alpha1.DeploymentInfo{{
 			ID:       1,
 			Revision: "abc",
 		}, {
@@ -129,7 +128,7 @@ func TestAppManagement(t *testing.T) {
 		// sync app and make sure it reaches InSync state
 		_, err := fixture.RunCli("app", "rollback", app.Name, "1")
 		if err != nil {
-			t.Fatal(fmt.Sprintf("Unable to sync app %v", err))
+			t.Fatalf("Unable to sync app %v", err)
 		}
 
 		WaitUntil(t, func() (done bool, err error) {
@@ -139,7 +138,7 @@ func TestAppManagement(t *testing.T) {
 		assert.Equal(t, v1alpha1.ComparisonStatusSynced, app.Status.ComparisonResult.Status)
 		assert.True(t, app.Status.OperationState.RollbackResult != nil)
 		assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
-		assert.Equal(t, 3, len(app.Status.RecentDeployments))
+		assert.Equal(t, 3, len(app.Status.History))
 	})
 
 	t.Run("TestComparisonFailsIfClusterNotAdded", func(t *testing.T) {
@@ -160,7 +159,7 @@ func TestAppManagement(t *testing.T) {
 
 		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
-			t.Fatal(fmt.Sprintf("Unable to get app %v", err))
+			t.Fatalf("Unable to get app %v", err)
 		}
 
 		assert.Equal(t, v1alpha1.ComparisonStatusError, app.Status.ComparisonResult.Status)
