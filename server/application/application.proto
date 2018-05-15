@@ -92,6 +92,11 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
+        // GetManifests returns application manifests
+	rpc GetManifests(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
+	}
+
 	// Update updates an application
 	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {

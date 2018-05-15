@@ -86,6 +86,11 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 	return out, err
 }
 
+// GetManifests returns application manifests
+func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.Name, metav1.GetOptions{})
+}
+
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
