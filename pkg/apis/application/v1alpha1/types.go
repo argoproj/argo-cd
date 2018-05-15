@@ -62,8 +62,10 @@ type OperationState struct {
 	SyncResult *SyncOperationResult `json:"syncResult,omitempty" protobuf:"bytes,4,opt,name=syncResult"`
 	// RollbackResult is the result of a Rollback operation
 	RollbackResult *SyncOperationResult `json:"rollbackResult,omitempty" protobuf:"bytes,5,opt,name=rollbackResult"`
-	// LastUpdateTime contains the timestamp of last operation status update
-	LastUpdateTime metav1.Time `json:"lastUpdateTime" protobuf:"bytes,6,opt,name=lastUpdateTime"`
+	// StartedAt contains time of operation start
+	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
+	// FinishedAt contains time of operation completion
+	FinishedAt *metav1.Time `json:"finishedAt" protobuf:"bytes,7,opt,name=finishedAt"`
 }
 
 // SyncOperationResult represent result of sync operation

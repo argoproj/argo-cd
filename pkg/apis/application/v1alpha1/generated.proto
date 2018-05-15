@@ -198,8 +198,11 @@ message OperationState {
   // RollbackResult is the result of a Rollback operation
   optional SyncOperationResult rollbackResult = 5;
 
-  // LastUpdateTime contains the timestamp of last operation status update
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastUpdateTime = 6;
+  // StartedAt contains time of operation start
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
+
+  // FinishedAt contains time of operation completion
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 }
 
 // Repository is a Git repository holding application configurations
