@@ -13,6 +13,7 @@ import { Page } from '../../../shared/components';
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
+import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
 import { ApplicationSummary } from '../application-summary/application-summary';
 import { ParametersPanel } from '../parameters-panel/parameters-panel';
 import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
@@ -89,6 +90,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                         action: () => this.props.deleteApp(this.props.match.params.name, true),
                     }],
                 } }}>
+                {this.props.application && <ApplicationStatusPanel application={this.props.application}/>}
                 <div className='argo-container application-details'>
                     {this.props.application ? (
                         <ApplicationResourcesTree
@@ -121,7 +123,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                 <SlidingPanel isNarrow={true} isShown={this.props.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.syncApplication(this.state.deployRevision)}>
-                                Deploy
+                                Synchronize
                             </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
@@ -129,7 +131,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                     )}>
                     {this.props.application && (
                         <form>
-                            <h6>Deploying application manifests from <a href={this.props.application.spec.source.repoURL}>{this.props.application.spec.source.repoURL}</a></h6>
+                            <h6>Synchronizing application manifests from <a href={this.props.application.spec.source.repoURL}>{this.props.application.spec.source.repoURL}</a></h6>
                             <h6>Revision:
                                 <input className='argo-field' placeholder='latest' value={this.state.deployRevision}
                                     onChange={(event) => this.setState({ deployRevision: event.target.value })}/>

@@ -15,12 +15,56 @@ export interface ApplicationList {
     metadata: models.ListMeta;
 }
 
+export interface SyncOperation {
+    revision: string;
+    prune: boolean;
+    dryRun: boolean;
+}
+
+export interface RollbackOperation {
+    id: number;
+    prune: boolean;
+    dryRun: boolean;
+}
+
+export interface Operation {
+    sync: SyncOperation;
+    rollback: RollbackOperation;
+}
+
+export type OperationPhase = 'InProgress' | 'Failed' | 'Succeeded';
+
+/**
+ * OperationState contains information about state of currently performing operation on application.
+ */
+export interface OperationState {
+    operation: Operation;
+    phase: OperationPhase;
+    message: string;
+    syncResult: SyncOperationResult;
+    rollbackResult: SyncOperationResult;
+    startedAt: models.Time;
+    finishedAt: models.Time;
+}
+
+export interface SyncOperationResult {
+    resources: ResourceDetails[];
+}
+
+export interface ResourceDetails {
+    name: string;
+    kind: string;
+    namespace: string;
+    message: string;
+}
+
 export interface Application {
     apiVersion?: string;
     kind?: string;
     metadata: models.ObjectMeta;
     spec: ApplicationSpec;
     status: ApplicationStatus;
+    operation?: Operation;
 }
 
 type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
@@ -139,6 +183,7 @@ export interface ApplicationStatus {
     recentDeployments: DeploymentInfo[];
     parameters: ComponentParameter[];
     health: HealthStatus;
+    operationState?: OperationState;
 }
 
 export interface LogEntry {
