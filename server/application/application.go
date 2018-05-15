@@ -89,16 +89,18 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*repository.ManifestResponse, error) {
 	// CompareAppState compares application spec and real app state using KSonnet
-
-	app := s.Get(ctx, q)
-	repo := s.getRepo(app.Spec.Source.RepoURL)
+	app, err := s.Get(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
 
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer util.Close(conn)
-	overrides := make([]*v1alpha1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
+	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
 	if app.Spec.Source.ComponentParameterOverrides != nil {
 		for i := range app.Spec.Source.ComponentParameterOverrides {
 			item := app.Spec.Source.ComponentParameterOverrides[i]
@@ -114,6 +116,11 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*reposi
 		ComponentParameterOverrides: overrides,
 		AppLabel:                    app.Name,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return manifestInfo, nil
 }
 
 // Get returns an application by name
