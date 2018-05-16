@@ -46,6 +46,10 @@ spec:
       command: [sh, -c]
       args: ["{{inputs.parameters.cmd}}"]
       workingDir: /go/src/github.com/argoproj/argo-cd
+      resources:
+        requests:
+          memory: 1024Mi
+          cpu: 200m
 
   - name: ci-dind
     inputs:
@@ -65,6 +69,10 @@ spec:
       env:
       - name: DOCKER_HOST
         value: 127.0.0.1
+      resources:
+        requests:
+          memory: 1024Mi
+          cpu: 200m
     sidecars:
     - name: dind
       image: docker:17.10-dind

@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server"
+	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
@@ -135,7 +136,23 @@ func (f *Fixture) setup() error {
 		cancel()
 		repoServerGRPC.Stop()
 	}
-	return err
+	if err != nil {
+		return err
+	}
+
+	return waitUntilE(func() (done bool, err error) {
+		clientset, err := f.NewApiClientset()
+		if err != nil {
+			return false, nil
+		}
+		conn, appClient, err := clientset.NewApplicationClient()
+		if err != nil {
+			return false, nil
+		}
+		defer util.Close(conn)
+		_, err = appClient.List(context.Background(), &application.ApplicationQuery{})
+		return err == nil, nil
+	})
 }
 
 func (f *Fixture) ensureClusterRegistered() error {
@@ -259,8 +276,7 @@ func (f *Fixture) RunCli(args ...string) (string, error) {
 	return output.String(), err
 }
 
-// WaitUntil periodically executes specified condition until it returns true.
-func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
+func waitUntilE(condition wait.ConditionFunc) error {
 	stop := make(chan struct{})
 	isClosed := false
 	makeSureClosed := func() {
@@ -274,7 +290,12 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 		time.Sleep(TestTimeout)
 		makeSureClosed()
 	}()
-	err := wait.PollUntil(time.Second, condition, stop)
+	return wait.PollUntil(time.Second, condition, stop)
+}
+
+// WaitUntil periodically executes specified condition until it returns true.
+func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
+	err := waitUntilE(condition)
 	if err != nil {
 		t.Fatal("Failed to wait for expected condition")
 	}
