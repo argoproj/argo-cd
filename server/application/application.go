@@ -125,7 +125,7 @@ func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*Appl
 
 	if q.Cascade != nil {
 		if *q.Cascade != a.CascadedDeletion() {
-			a.SetCascadedDeletion(true)
+			a.SetCascadedDeletion(*q.Cascade)
 			patch, err := json.Marshal(map[string]interface{}{
 				"metadata": map[string]interface{}{
 					"finalizers": a.Finalizers,
