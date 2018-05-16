@@ -391,19 +391,6 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 	return repo
 }
 
-// Wait waits for a target state
-func (s *Server) Wait(ctx context.Context, waitReq *ApplicationWaitRequest) (*appv1.Application, error) {
-	return s.setAppOperation(ctx, waitReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
-		return &appv1.Operation{
-			Wait: &appv1.WaitOperation{
-				Revision: syncReq.Revision,
-				Prune:    syncReq.Prune,
-				DryRun:   syncReq.DryRun,
-			},
-		}, nil
-	})
-}
-
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*appv1.Application, error) {
 	return s.setAppOperation(ctx, syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {

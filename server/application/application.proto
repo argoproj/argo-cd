@@ -27,14 +27,6 @@ message DeleteApplicationRequest {
 	bool force = 4;
 }
 
-// ApplicationWaitRequest is a request to wait for health and/or sync
-message ApplicationWaitRequest {
-	string name = 1;
-	string timeout = 2;
-	bool health = 3;
-	bool sync = 4;
-}
-
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	string name = 1;
