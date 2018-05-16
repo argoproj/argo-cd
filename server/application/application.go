@@ -87,9 +87,8 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 }
 
 // GetManifests returns application manifests
-func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*repository.ManifestResponse, error) {
-	// CompareAppState compares application spec and real app state using KSonnet
-	app, err := s.Get(ctx, q)
+func (s *Server) GetManifests(ctx context.Context, q *ManifestQuery) (*repository.ManifestResponse, error) {
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.AppName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +111,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationQuery) (*reposi
 		Repo:                        repo,
 		Environment:                 app.Spec.Source.Environment,
 		Path:                        app.Spec.Source.Path,
-		Revision:                    app.Spec.Source.TargetRevision,
+		Revision:                    q.Revision,
 		ComponentParameterOverrides: overrides,
 		AppLabel:                    app.Name,
 	})

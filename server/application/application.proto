@@ -19,6 +19,12 @@ message ApplicationQuery {
 	optional string name = 1;
 }
 
+// ManifestQuery is a query for manifest resources
+message ManifestQuery {
+	string appName = 1;
+	string revision = 2;
+}
+
 message ApplicationResponse {}
 
 message DeleteApplicationRequest {
@@ -94,8 +100,8 @@ service ApplicationService {
 	}
 
         // GetManifests returns application manifests
-	rpc GetManifests(ApplicationQuery) returns (repository.ManifestResponse) {
-		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
+	rpc GetManifests(ManifestQuery) returns (repository.ManifestResponse) {
+		option (google.api.http).get = "/api/v1/applications/{appName}/manifests";
 	}
 
 	// Update updates an application
