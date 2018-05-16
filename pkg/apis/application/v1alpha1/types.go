@@ -173,11 +173,27 @@ const (
 
 // ApplicationStatus contains information about application status in target environment.
 type ApplicationStatus struct {
-	ComparisonResult ComparisonResult     `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
-	History          []DeploymentInfo     `json:"history" protobuf:"bytes,2,opt,name=history"`
-	Parameters       []ComponentParameter `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
-	Health           HealthStatus         `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
-	OperationState   *OperationState      `json:"operationState,omitempty" protobuf:"bytes,5,opt,name=operationState"`
+	ComparisonResult ComparisonResult       `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
+	History          []DeploymentInfo       `json:"history" protobuf:"bytes,2,opt,name=history"`
+	Parameters       []ComponentParameter   `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
+	Health           HealthStatus           `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
+	OperationState   *OperationState        `json:"operationState,omitempty" protobuf:"bytes,5,opt,name=operationState"`
+	Conditions       []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,6,opt,name=conditions"`
+}
+
+type ApplicationConditionType = string
+
+const (
+	// ApplicationConditionDeletionError indicates that controller failed to delete application
+	ApplicationConditionDeletionError = "DeletionError"
+)
+
+// ApplicationCondition contains details about current application condition
+type ApplicationCondition struct {
+	// Type is an application condition type
+	Type ApplicationConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	// Message contains human-readable message indicating details about condition
+	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
 }
 
 // ComparisonResult is a comparison result of application spec and deployed application.
@@ -295,13 +311,13 @@ func (app *Application) getFinalizerIndex(name string) int {
 	return -1
 }
 
-// NeedPruneResources indicates if resources finalizer is set and controller should delete app resources before deleting app
-func (app *Application) NeedPruneResources() bool {
+// CascadedDeletion indicates if resources finalizer is set and controller should delete app resources before deleting app
+func (app *Application) CascadedDeletion() bool {
 	return app.getFinalizerIndex(common.ResourcesFinalizerName) > -1
 }
 
-// SetNeedPruneResources sets or remove resources finalizer
-func (app *Application) SetNeedPruneResources(prune bool) {
+// SetCascadedDeletion sets or remove resources finalizer
+func (app *Application) SetCascadedDeletion(prune bool) {
 	index := app.getFinalizerIndex(common.ResourcesFinalizerName)
 	if prune != (index > -1) {
 		if index > -1 {

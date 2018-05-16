@@ -235,7 +235,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	}
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
-	} else if app.DeletionTimestamp != nil && app.NeedPruneResources() {
+	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		ctrl.finalizeApplicationDeletion(app)
 	}
 
@@ -259,7 +259,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		config := clst.RESTConfig()
 		err = kube.DeleteResourceWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
 		if err == nil {
-			app.SetNeedPruneResources(false)
+			app.SetCascadedDeletion(false)
 			var patch []byte
 			patch, err = json.Marshal(map[string]interface{}{
 				"metadata": map[string]interface{}{
@@ -273,8 +273,39 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	if err != nil {
 		log.Errorf("Unable to delete application resources: %v", err)
+		ctrl.setAppCondition(app, appv1.ApplicationCondition{
+			Type:    appv1.ApplicationConditionDeletionError,
+			Message: err.Error(),
+		})
 	} else {
 		log.Infof("Successfully deleted resources for application %s", app.Name)
+	}
+}
+
+func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
+	index := -1
+	for i, exiting := range app.Status.Conditions {
+		if exiting.Type == condition.Type {
+			index = i
+			break
+		}
+	}
+	if index > -1 {
+		app.Status.Conditions[index] = condition
+	} else {
+		app.Status.Conditions = append(app.Status.Conditions, condition)
+	}
+	var patch []byte
+	patch, err := json.Marshal(map[string]interface{}{
+		"status": map[string]interface{}{
+			"conditions": app.Status.Conditions,
+		},
+	})
+	if err == nil {
+		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
+	}
+	if err != nil {
+		log.Errorf("Unable to set application condition: %v", err)
 	}
 }
 
