@@ -27,6 +27,15 @@ message Application {
   optional Operation operation = 4;
 }
 
+// ApplicationCondition contains details about current application condition
+message ApplicationCondition {
+  // Type is an application condition type
+  optional string type = 1;
+
+  // Message contains human-readable message indicating details about condition
+  optional string message = 2;
+}
+
 // ApplicationDestination contains deployment destination information
 message ApplicationDestination {
   // Server overrides the environment server value in the ksonnet app.yaml
@@ -83,6 +92,8 @@ message ApplicationStatus {
   optional HealthStatus health = 4;
 
   optional OperationState operationState = 5;
+
+  repeated ApplicationCondition conditions = 6;
 }
 
 // ApplicationWatchEvent contains information about application change.

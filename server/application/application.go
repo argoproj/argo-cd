@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -73,6 +72,7 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 	if err != nil {
 		return nil, err
 	}
+	a.SetCascadedDeletion(true)
 	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
 	if apierr.IsAlreadyExists(err) {
 		// act idempotent if existing spec matches new spec
@@ -88,7 +88,7 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.Name, metav1.GetOptions{})
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 }
 
 // Update updates an application
@@ -102,47 +102,46 @@ func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Appli
 
 // UpdateSpec updates an application spec
 func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationSpecRequest) (*appv1.ApplicationSpec, error) {
-	err := s.validateApp(ctx, q.Spec)
+	err := s.validateApp(ctx, &q.Spec)
 	if err != nil {
 		return nil, err
 	}
 	patch, err := json.Marshal(map[string]appv1.ApplicationSpec{
-		"spec": *q.Spec,
+		"spec": q.Spec,
 	})
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(q.AppName, types.MergePatchType, patch)
-	return q.Spec, err
+	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(*q.AppName, types.MergePatchType, patch)
+	return &q.Spec, err
 }
 
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*ApplicationResponse, error) {
-	var err error
-	server := q.Server
-	namespace := q.Namespace
-	if server == "" || namespace == "" {
-		server, namespace, err = s.getApplicationDestination(ctx, q.Name)
-		if err != nil && !apierr.IsNotFound(err) && !q.Force {
-			return nil, err
-		}
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil && !apierr.IsNotFound(err) {
+		return nil, err
 	}
 
-	if server != "" && namespace != "" {
-		clst, err := s.db.GetCluster(ctx, server)
-		if err != nil && !q.Force {
-			return nil, err
-		}
-		if clst != nil {
-			config := clst.RESTConfig()
-			err = kube.DeleteResourceWithLabel(config, namespace, common.LabelApplicationName, q.Name)
-			if err != nil && !q.Force {
+	if q.Cascade != nil {
+		if *q.Cascade != a.CascadedDeletion() {
+			a.SetCascadedDeletion(*q.Cascade)
+			patch, err := json.Marshal(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"finalizers": a.Finalizers,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+			_, err = s.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(a.Name, types.MergePatchType, patch)
+			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
+	err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Delete(*q.Name, &metav1.DeleteOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
 	}
@@ -159,7 +158,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	go func() {
 		for next := range w.ResultChan() {
 			app := *next.Object.(*appv1.Application)
-			if q.Name == "" || q.Name == app.Name {
+			if q.Name == nil || *q.Name == "" || *q.Name == app.Name {
 				err = ws.Send(&appv1.ApplicationWatchEvent{
 					Type:        next.Type,
 					Application: app,
@@ -288,7 +287,7 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 }
 
 func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*ApplicationResponse, error) {
-	config, namespace, err := s.getApplicationClusterConfig(q.ApplicationName)
+	config, namespace, err := s.getApplicationClusterConfig(*q.ApplicationName)
 	if err != nil {
 		return nil, err
 	}
@@ -296,11 +295,11 @@ func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*Application
 	if err != nil {
 		return nil, err
 	}
-	err = s.ensurePodBelongsToApp(q.ApplicationName, q.PodName, namespace, kubeClientset)
+	err = s.ensurePodBelongsToApp(*q.ApplicationName, *q.PodName, namespace, kubeClientset)
 	if err != nil {
 		return nil, err
 	}
-	err = kubeClientset.CoreV1().Pods(namespace).Delete(q.PodName, &metav1.DeleteOptions{})
+	err = kubeClientset.CoreV1().Pods(namespace).Delete(*q.PodName, &metav1.DeleteOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +307,7 @@ func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*Application
 }
 
 func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) error {
-	config, namespace, err := s.getApplicationClusterConfig(q.ApplicationName)
+	config, namespace, err := s.getApplicationClusterConfig(*q.ApplicationName)
 	if err != nil {
 		return err
 	}
@@ -316,7 +315,7 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 	if err != nil {
 		return err
 	}
-	err = s.ensurePodBelongsToApp(q.ApplicationName, q.PodName, namespace, kubeClientset)
+	err = s.ensurePodBelongsToApp(*q.ApplicationName, *q.PodName, namespace, kubeClientset)
 	if err != nil {
 		return err
 	}
@@ -328,7 +327,7 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 	if q.TailLines > 0 {
 		tailLines = &q.TailLines
 	}
-	stream, err := kubeClientset.CoreV1().Pods(namespace).GetLogs(q.PodName, &v1.PodLogOptions{
+	stream, err := kubeClientset.CoreV1().Pods(namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
 		Container:    q.Container,
 		Follow:       q.Follow,
 		Timestamps:   true,
@@ -353,7 +352,7 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 					if line != "" {
 						err = ws.Send(&LogEntry{
 							Content:   line,
-							TimeStamp: &metaLogTime,
+							TimeStamp: metaLogTime,
 						})
 						if err != nil {
 							log.Warnf("Unable to send stream message: %v", err)
@@ -393,7 +392,7 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*appv1.Application, error) {
-	return s.setAppOperation(ctx, syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
+	return s.setAppOperation(ctx, *syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
 		return &appv1.Operation{
 			Sync: &appv1.SyncOperation{
 				Revision: syncReq.Revision,
@@ -405,7 +404,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*appv1.Application, error) {
-	return s.setAppOperation(ctx, rollbackReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
+	return s.setAppOperation(ctx, *rollbackReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
 		return &appv1.Operation{
 			Rollback: &appv1.RollbackOperation{
 				ID:     rollbackReq.ID,
@@ -417,7 +416,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 }
 
 func (s *Server) setAppOperation(ctx context.Context, appName string, operationCreator func(app *appv1.Application) (*appv1.Operation, error)) (*appv1.Application, error) {
-	app, err := s.Get(ctx, &ApplicationQuery{Name: appName})
+	app, err := s.Get(ctx, &ApplicationQuery{Name: &appName})
 	if err != nil {
 		return nil, err
 	}

@@ -1,9 +1,9 @@
-syntax = "proto3";
+syntax = "proto2";
 option go_package = "github.com/argoproj/argo-cd/server/application";
 
 // Application Service
 //
-// Application Service API performs CRUD actions against application resources 
+// Application Service API performs CRUD actions against application resources
 package application;
 
 import "gogoproto/gogo.proto";
@@ -15,57 +15,55 @@ import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.prot
 
 // ApplicationQuery is a query for application resources
 message ApplicationQuery {
-	string name = 1;
+	optional string name = 1;
 }
 
 message ApplicationResponse {}
 
 message DeleteApplicationRequest {
-	string name = 1;
-	string namespace = 2;
-	string server = 3;
-	bool force = 4;
+	required string name = 1;
+	optional bool cascade = 2;
 }
 
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
-	string name = 1;
-	string revision = 2;
-	bool dryRun = 3;
-	bool prune = 4;
+	required string name = 1;
+	required string revision = 2 [(gogoproto.nullable) = false];
+	required bool dryRun = 3 [(gogoproto.nullable) = false];
+	required bool prune = 4 [(gogoproto.nullable) = false];
 }
 
 // ApplicationSpecRequest is a request to update application spec
 message ApplicationSpecRequest {
-	string appName = 1;
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
+	required string appName = 1;
+	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
 }
 
 message ApplicationRollbackRequest {
-	string name = 1;
-	int64 id = 2 [(gogoproto.customname) = "ID"];
-	bool dryRun = 3;
-	bool prune = 4;
+	required string name = 1;
+	required int64 id = 2 [(gogoproto.customname) = "ID", (gogoproto.nullable) = false];
+	required bool dryRun = 3 [(gogoproto.nullable) = false];
+	required bool prune = 4 [(gogoproto.nullable) = false];
 }
 
 message DeletePodQuery {
-	string applicationName = 1;
-	string podName = 2;
+	required string applicationName = 1;
+	required string podName = 2;
 }
 
 message PodLogsQuery {
-	string applicationName = 1;
-	string podName = 2;
-	string container = 3;
-	int64 sinceSeconds = 4;
-	k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 5;
-	int64 tailLines = 6;
-	bool follow = 7;
+	required string applicationName = 1;
+	required string podName = 2;
+	required string container = 3 [(gogoproto.nullable) = false];
+	required int64 sinceSeconds = 4 [(gogoproto.nullable) = false];
+	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 5;
+	required int64 tailLines = 6 [(gogoproto.nullable) = false];
+	required bool follow = 7 [(gogoproto.nullable) = false];
 }
 
 message LogEntry {
-	string content = 1;
-	k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2;
+	required string content = 1 [(gogoproto.nullable) = false];
+	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false];
 }
 
 // ApplicationService
