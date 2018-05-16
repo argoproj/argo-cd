@@ -338,7 +338,11 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var (
 		syncOnly   bool
 		healthOnly bool
-		timeout    uint64
+		timeout    uint
+	)
+	const (
+		DEFAULT_CHECK_TIMEOUT_SECONDS  = 10
+		DEFAULT_CHECK_INTERVAL_SECONDS = 5
 	)
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
@@ -355,27 +359,36 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 
 			appName := args[0]
+
+			util.Wait(DEFAULT_CHECK_INTERVAL_SECONDS, timeout, func() bool {
+				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				fmt.Println(app)
+				return false
+			})
+			/* DO SOME STUFF HERE...
 			waitReq := application.ApplicationWaitRequest{
 				Name:    appName,
 				Timeout: timeout,
 				Health:  !syncOnly,
 				Sync:    !healthOnly,
 			}
-			_, err := appIf.Sync(context.Background(), &waitReq)
+			_, err := appIf.Wait(context.Background(), &waitReq)
 			errors.CheckError(err)
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
 			printOperationResult(appName, status)
 			if !status.Phase.Successful() {
 				os.Exit(1)
-			}
+			}*/
 		},
 	}
 	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
 	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
-	// avoid a magic number
-	const DEFAULT_TIMEOUT_SECONDS = 10
-	command.Flags().UintVar(&timeout, "timeout", DEFAULT_TIMEOUT_SECONDS, "Time out after this many seconds")
+	command.Flags().UintVar(&timeout, "timeout", DEFAULT_CHECK_TIMEOUT_SECONDS, "Time out after this many seconds")
 	return command
 }
 
