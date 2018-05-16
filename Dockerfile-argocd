@@ -58,7 +58,7 @@ FROM golang:1.10 as cli-tooling
 #RUN go get -v -u github.com/ksonnet/ksonnet && mv ${GOPATH}/bin/ksonnet /ks
 
 # Option 2: use official tagged ksonnet release
-env KSONNET_VERSION=0.10.1
+env KSONNET_VERSION=0.10.2
 RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /ks
