@@ -43,6 +43,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationRollbackCommand(clientOpts))
 	command.AddCommand(NewApplicationListCommand(clientOpts))
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
+	command.AddCommand(NewApplicationWaitCommand(clientOpts))
 	return command
 }
 
@@ -329,6 +330,52 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_ = w.Flush()
 		},
 	}
+	return command
+}
+
+// NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
+func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		syncOnly   bool
+		healthOnly bool
+		timeout    uint64
+	)
+	var command = &cobra.Command{
+		Use:   "wait APPNAME",
+		Short: "Wait for application to reach a target state",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			if syncOnly && healthOnly {
+				log.Fatalln("Please specify at most one of --sync-only or --health-only.")
+			}
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+
+			appName := args[0]
+			waitReq := application.ApplicationWaitRequest{
+				Name:    appName,
+				Timeout: timeout,
+				Health:  !syncOnly,
+				Sync:    !healthOnly,
+			}
+			_, err := appIf.Sync(context.Background(), &waitReq)
+			errors.CheckError(err)
+			status, err := waitUntilOperationCompleted(appIf, appName)
+			errors.CheckError(err)
+			printOperationResult(appName, status)
+			if !status.Phase.Successful() {
+				os.Exit(1)
+			}
+		},
+	}
+	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
+	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
+	// avoid a magic number
+	const DEFAULT_TIMEOUT_SECONDS = 10
+	command.Flags().UintVar(&timeout, "timeout", DEFAULT_TIMEOUT_SECONDS, "Time out after this many seconds")
 	return command
 }
 
