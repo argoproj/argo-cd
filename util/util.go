@@ -35,5 +35,4 @@ func Wait(checkInterval, checkTimeout uint, check func() bool) bool {
 			return false
 		}
 	}
-	return false
 }
