@@ -19,7 +19,7 @@ export const ApplicationStatusPanel = ({application}: { application: models.Appl
 
     const daysActive = Math.round(Math.abs((today.getTime() - creationDate.getTime()) / (24 * 60 * 60 * 1000)));
     let daysSinceLastSynchronized = 0;
-    const history = application.status.recentDeployments || [];
+    const history = application.status.history || [];
     if (history.length > 0) {
         const deployDate = new Date(history[history.length - 1].deployedAt);
         daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));

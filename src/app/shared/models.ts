@@ -180,7 +180,7 @@ export interface ComparisonResult {
 
 export interface ApplicationStatus {
     comparisonResult: ComparisonResult;
-    recentDeployments: DeploymentInfo[];
+    history: DeploymentInfo[];
     parameters: ComponentParameter[];
     health: HealthStatus;
     operationState?: OperationState;

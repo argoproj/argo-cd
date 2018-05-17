@@ -17,7 +17,7 @@ export const ApplicationDeploymentHistory = ({
     rollbackApp: (info: models.DeploymentInfo) => any,
     selectDeployment: (index: number) => any,
 }) => {
-    const deployments = (app.status.recentDeployments || []).slice().reverse();
+    const deployments = (app.status.history || []).slice().reverse();
     const recentDeployments = deployments.map((info, i) => {
         const params = info.params || [];
         const nextDeployedAt = i === 0 ? null : deployments[i - 1].deployedAt;
