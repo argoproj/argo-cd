@@ -5,8 +5,8 @@ import * as actions from '../actions';
 
 const Component = (props: TopBarProps & { logout: () => any}) => {
     const toolbar = props.toolbar || {};
-    props.toolbar.tools = [
-        props.toolbar.tools,
+    toolbar.tools = [
+        toolbar.tools,
         <a key='logout' onClick={() => props.logout()}>Logout</a>,
     ];
     return <ArgoPage {...props} toolbar={toolbar} />;

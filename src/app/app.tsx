@@ -14,16 +14,22 @@ export const history = createHistory();
 const reduxRouterMiddleware = routerMiddleware(history);
 
 import applications from './applications';
+import help from './help';
 import login from './login';
 const routes: {[path: string]: RouteImplementation & { noLayout?: boolean } } = {
     '/applications': { component: applications.component, reducer: applications.reducer },
     '/login': { component: login.component as any, reducer: login.reducer, noLayout: true },
+    '/help': { component: help.component, reducer: help.reducer },
 };
 
 const navItems = [{
     title: 'Apps',
     path: '/applications',
     iconClassName: 'argo-icon-application',
+}, {
+    title: 'Help',
+    path: '/help',
+    iconClassName: 'argo-icon-docs',
 }];
 
 const routesReducer = getReducer(routes);

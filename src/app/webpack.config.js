@@ -44,7 +44,7 @@ const config = {
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             SYSTEM_INFO: JSON.stringify({
-                version: process.env.ARGO_VERSION || 'latest',
+                version: process.env.IMAGE_TAG || 'latest',
             }),
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
@@ -61,7 +61,7 @@ const config = {
         port: 4000,
         proxy: {
             '/api': {
-                'target': process.env.ARGO_API_URL || 'http://localhost:8080',
+                'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
                 'secure': false,
             }
         }
