@@ -88,7 +88,7 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *ManifestQuery) (*repository.ManifestResponse, error) {
-	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.AppName, metav1.GetOptions{})
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.AppName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ManifestQuery) (*repositor
 		Repo:                        repo,
 		Environment:                 app.Spec.Source.Environment,
 		Path:                        app.Spec.Source.Path,
-		Revision:                    q.Revision,
+		Revision:                    *q.Revision,
 		ComponentParameterOverrides: overrides,
 		AppLabel:                    app.Name,
 	})
