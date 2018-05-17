@@ -11,11 +11,18 @@ import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
 
 
 // ApplicationQuery is a query for application resources
 message ApplicationQuery {
 	optional string name = 1;
+}
+
+// ManifestQuery is a query for manifest resources
+message ManifestQuery {
+	required string appName = 1;
+	optional string revision = 2;
 }
 
 message ApplicationResponse {}
@@ -90,6 +97,11 @@ service ApplicationService {
 	// Get returns an application by name
 	rpc Get(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
+	}
+
+        // GetManifests returns application manifests
+	rpc GetManifests(ManifestQuery) returns (repository.ManifestResponse) {
+		option (google.api.http).get = "/api/v1/applications/{appName}/manifests";
 	}
 
 	// Update updates an application
