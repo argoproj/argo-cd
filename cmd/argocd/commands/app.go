@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -368,7 +369,17 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			_, err := appIf.Watch(context.Background(), &waitReq)
 			errors.CheckError(err)
-			status, err := waitUntilOperationCompleted(appIf, appName)
+			status, err := waitUntilTimeout(appIf, appName, timeout, func(app argoappv1.Application) bool {
+				log.Printf("App %q has health status %q and sync status %q", appName, app.Status.Health.Status, app.Status.ComparisonResult.Status)
+				if !healthOnly && app.Status.ComparisonResult.Status != argoappv1.ComparisonStatusSynced {
+					return false
+				}
+				if !syncOnly && app.Status.Health.Status != argoappv1.HealthStatusHealthy {
+					return false
+				}
+
+				return true
+			})
 			errors.CheckError(err)
 			printOperationResult(appName, status)
 			if !status.Phase.Successful() {
@@ -420,6 +431,34 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	return command
+}
+
+func waitUntilTimeout(appClient application.ApplicationServiceClient, appName string, timeout uint, check func(argoappv1.Application) bool) (*argoappv1.OperationState, error) {
+	timedOut := time.After(time.Duration(timeout) * time.Second)
+
+	wc, err := appClient.Watch(context.Background(), &application.ApplicationQuery{
+		Name: &appName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		select {
+		case <-timedOut:
+			return nil, fmt.Errorf("Timed out waiting for app %q", appName)
+		default:
+			appEvent, err := wc.Recv()
+			if err != nil {
+				return nil, err
+			}
+
+			if check(appEvent.Application) {
+				return nil, nil
+			}
+		}
+	}
+
 }
 
 func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string) (*argoappv1.OperationState, error) {
