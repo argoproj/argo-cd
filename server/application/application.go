@@ -107,9 +107,9 @@ func (s *Server) GetManifests(ctx context.Context, q *ManifestQuery) (*repositor
 		}
 	}
 
-	revision := *q.Revision
-	if revision == "" {
-		revision = app.Spec.Source.TargetRevision
+	revision := app.Spec.Source.TargetRevision
+	if q.Revision != nil && *q.Revision != "" {
+		revision = *q.Revision
 	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
