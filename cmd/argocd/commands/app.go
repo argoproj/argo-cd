@@ -365,12 +365,13 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 
 			success := util.Wait(DEFAULT_CHECK_INTERVAL_SECONDS, timeout, func() bool {
+				log.Printf("Checking app %q...", appName)
 				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				log.Printf("Checking app %q...", appName)
+				log.Printf("App %q has health status %q and sync status %q", appName, app.Status.Health.Status, app.Status.ComparisonResult.Status)
 				if !healthOnly && app.Status.ComparisonResult.Status != argoappv1.ComparisonStatusSynced {
 					return false
 				}
