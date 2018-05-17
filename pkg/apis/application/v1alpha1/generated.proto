@@ -118,6 +118,9 @@ message Cluster {
 
   // Config holds cluster information for connecting to a cluster
   optional ClusterConfig config = 3;
+
+  // Message can hold a status message or error.
+  optional string message = 4;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -225,6 +228,8 @@ message Repository {
   optional string password = 3;
 
   optional string sshPrivateKey = 4;
+
+  optional string message = 5;
 }
 
 // RepositoryList is a collection of Repositories.
