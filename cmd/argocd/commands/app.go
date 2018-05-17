@@ -365,7 +365,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 
 			success := util.Wait(DEFAULT_CHECK_INTERVAL_SECONDS, timeout, func() bool {
-				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
+				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 				if err != nil {
 					log.Fatal(err)
 				}
