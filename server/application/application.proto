@@ -21,8 +21,8 @@ message ApplicationQuery {
 
 // ManifestQuery is a query for manifest resources
 message ManifestQuery {
-	string appName = 1;
-	string revision = 2;
+	required string appName = 1;
+	optional string revision = 2;
 }
 
 message ApplicationResponse {}
