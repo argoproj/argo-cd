@@ -363,38 +363,16 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 
 			appName := args[0]
-
-			success := util.Wait(DEFAULT_CHECK_INTERVAL_SECONDS, timeout, func() bool {
-				log.Printf("Checking app %q...", appName)
-				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
-				errors.CheckError(err)
-
-				log.Printf("App %q has health status %q and sync status %q", appName, app.Status.Health.Status, app.Status.ComparisonResult.Status)
-				if !healthOnly && app.Status.ComparisonResult.Status != argoappv1.ComparisonStatusSynced {
-					return false
-				}
-				if !syncOnly && app.Status.Health.Status != argoappv1.HealthStatusHealthy {
-					return false
-				}
-
-				return true
-			})
-			if success {
-				log.Printf("App %q matches desired state", appName)
-			} else {
-				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
-				errors.CheckError(err)
-
-				log.Errorf("Timed out before seeing app %q match desired state", appName)
-				if len(app.Status.ComparisonResult.Resources) > 0 {
-					for _, res := range app.Status.ComparisonResult.Resources {
-						targetObj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-						errors.CheckError(err)
-						if res.Status != argoappv1.ComparisonStatusSynced || res.Health.Status != argoappv1.HealthStatusHealthy {
-							log.Warnf("%s %q has sync status %q and health status %q: %s", targetObj.GetKind(), targetObj.GetName(), res.Status, res.Health.Status, res.Health.StatusDetails)
-						}
-					}
-				}
+			waitReq := application.ApplicationQuery{
+				Name: &appName,
+			}
+			_, err := appIf.Watch(context.Background(), &waitReq)
+			errors.CheckError(err)
+			status, err := waitUntilOperationCompleted(appIf, appName)
+			errors.CheckError(err)
+			printOperationResult(appName, status)
+			if !status.Phase.Successful() {
+				os.Exit(1)
 			}
 		},
 	}
