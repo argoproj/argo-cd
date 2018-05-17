@@ -56,6 +56,7 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 // ThreeWayDiff performs a diff with the understanding of how to incorporate the
 // last-applied-configuration annotation in the diff.
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) *DiffResult {
+	orig = removeNamespaceAnnotation(orig)
 	// remove extra fields in the live, that were not in the original object
 	liveObj := RemoveMapFields(orig.Object, live.Object)
 	// now we have a pruned live object
@@ -82,6 +83,22 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) *DiffResult {
 		dr.Modified = modified
 	}
 	return &dr
+}
+
+func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Unstructured {
+	orig = orig.DeepCopy()
+	// remove the namespace an annotation from the
+	if metadataIf, ok := orig.Object["metadata"]; ok {
+		metadata := metadataIf.(map[string]interface{})
+		delete(metadata, "namespace")
+		if annotationsIf, ok := metadata["annotations"]; ok {
+			annotation := annotationsIf.(map[string]interface{})
+			if len(annotation) == 0 {
+				delete(metadata, "annotations")
+			}
+		}
+	}
+	return orig
 }
 
 func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, error) {

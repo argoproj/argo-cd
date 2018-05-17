@@ -15,12 +15,23 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+var (
+	formatOpts = formatter.AsciiFormatterConfig{
+		Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
+	}
+)
+
 func TestDiff(t *testing.T) {
 	leftDep := test.DemoDeployment()
 	leftUn := kube.MustToUnstructured(leftDep)
 
 	diffRes := Diff(leftUn, leftUn)
 	assert.False(t, diffRes.Diff.Modified())
+	ascii, err := diffRes.ASCIIFormat(leftUn, formatOpts)
+	assert.Nil(t, err)
+	if ascii != "" {
+		log.Println(ascii)
+	}
 }
 
 func TestDiffWithNils(t *testing.T) {
@@ -86,6 +97,7 @@ func TestDiffArrayModification(t *testing.T) {
 func TestThreeWayDiff(t *testing.T) {
 	// 1. get config and live to be the same. Both have a foo annotation.
 	configDep := test.DemoDeployment()
+	configDep.ObjectMeta.Namespace = ""
 	configDep.Annotations = map[string]string{
 		"foo": "bar",
 	}
@@ -93,11 +105,15 @@ func TestThreeWayDiff(t *testing.T) {
 
 	// 2. add a extra field to the live. this simulates kubernetes adding default values in the
 	// object. We should not consider defaulted values as a difference
-	liveDep.Annotations["some-default-val"] = "default"
+	liveDep.SetNamespace("default")
 	configUn := kube.MustToUnstructured(configDep)
 	liveUn := kube.MustToUnstructured(liveDep)
 	res := Diff(configUn, liveUn)
-	assert.False(t, res.Modified)
+	if !assert.False(t, res.Modified) {
+		ascii, err := res.ASCIIFormat(configUn, formatOpts)
+		assert.Nil(t, err)
+		log.Println(ascii)
+	}
 
 	// 3. Add a last-applied-configuration annotation in the live. There should still not be any
 	// difference
@@ -107,7 +123,11 @@ func TestThreeWayDiff(t *testing.T) {
 	configUn = kube.MustToUnstructured(configDep)
 	liveUn = kube.MustToUnstructured(liveDep)
 	res = Diff(configUn, liveUn)
-	assert.False(t, res.Modified)
+	if !assert.False(t, res.Modified) {
+		ascii, err := res.ASCIIFormat(configUn, formatOpts)
+		assert.Nil(t, err)
+		log.Println(ascii)
+	}
 
 	// 4. Remove the foo annotation from config and perform the diff again. We should detect a
 	// difference since three-way diff detects the removal of a managed field
@@ -125,13 +145,66 @@ func TestThreeWayDiff(t *testing.T) {
 	configUn = kube.MustToUnstructured(configDep)
 	liveUn = kube.MustToUnstructured(liveDep)
 	res = Diff(configUn, liveUn)
-	formatOpts := formatter.AsciiFormatterConfig{
-		Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
-	}
 	ascii, err := res.ASCIIFormat(configUn, formatOpts)
 	assert.Nil(t, err)
 	if ascii != "" {
 		log.Println(ascii)
 	}
 	assert.False(t, res.Modified)
+}
+
+var demoConfig = `
+{
+  "apiVersion": "v1",
+  "kind": "ServiceAccount",
+  "metadata": {
+    "labels": {
+      "applications.argoproj.io/app-name": "argocd-demo"
+    },
+    "name": "application-controller"
+  }
+}
+`
+
+var demoLive = `
+{
+  "apiVersion": "v1",
+  "kind": "ServiceAccount",
+  "metadata": {
+    "annotations": {
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"applications.argoproj.io/app-name\":\"argocd-demo\"},\"name\":\"application-controller\",\"namespace\":\"argocd-demo\"}}\n"
+    },
+    "creationTimestamp": "2018-04-16T22:08:57Z",
+    "labels": {
+      "applications.argoproj.io/app-name": "argocd-demo"
+    },
+    "name": "application-controller",
+    "namespace": "argocd-demo",
+    "resourceVersion": "7584502",
+    "selfLink": "/api/v1/namespaces/argocd-demo/serviceaccounts/application-controller",
+    "uid": "c22bb2b4-41c2-11e8-978a-028445d52ec8"
+  },
+  "secrets": [
+    {
+      "name": "application-controller-token-kfxct"
+    }
+  ]
+}
+`
+
+// Tests a real world example
+func TestDiffActualExample(t *testing.T) {
+	var configUn, liveUn unstructured.Unstructured
+	err := json.Unmarshal([]byte(demoConfig), &configUn.Object)
+	assert.Nil(t, err)
+	err = json.Unmarshal([]byte(demoLive), &liveUn.Object)
+	assert.Nil(t, err)
+	dr := Diff(&configUn, &liveUn)
+	assert.False(t, dr.Modified)
+	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	assert.Nil(t, err)
+	if ascii != "" {
+		log.Println(ascii)
+	}
+
 }
