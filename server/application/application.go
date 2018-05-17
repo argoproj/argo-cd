@@ -86,6 +86,46 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 	return out, err
 }
 
+// GetManifests returns application manifests
+func (s *Server) GetManifests(ctx context.Context, q *ManifestQuery) (*repository.ManifestResponse, error) {
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.AppName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
+
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(conn)
+	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
+	if app.Spec.Source.ComponentParameterOverrides != nil {
+		for i := range app.Spec.Source.ComponentParameterOverrides {
+			item := app.Spec.Source.ComponentParameterOverrides[i]
+			overrides[i] = &item
+		}
+	}
+
+	revision := app.Spec.Source.TargetRevision
+	if q.Revision != nil && *q.Revision != "" {
+		revision = *q.Revision
+	}
+	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
+		Repo:                        repo,
+		Environment:                 app.Spec.Source.Environment,
+		Path:                        app.Spec.Source.Path,
+		Revision:                    revision,
+		ComponentParameterOverrides: overrides,
+		AppLabel:                    app.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return manifestInfo, nil
+}
+
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
