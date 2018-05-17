@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
-	"time"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -364,26 +363,46 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer util.Close(conn)
 
 			appName := args[0]
-			waitReq := application.ApplicationQuery{
+			wc, err := appIf.Watch(context.Background(), &application.ApplicationQuery{
 				Name: &appName,
-			}
-			_, err := appIf.Watch(context.Background(), &waitReq)
-			errors.CheckError(err)
-			status, err := waitUntilTimeout(appIf, appName, timeout, func(app argoappv1.Application) bool {
-				log.Printf("App %q has health status %q and sync status %q", appName, app.Status.Health.Status, app.Status.ComparisonResult.Status)
-				if !healthOnly && app.Status.ComparisonResult.Status != argoappv1.ComparisonStatusSynced {
-					return false
-				}
-				if !syncOnly && app.Status.Health.Status != argoappv1.HealthStatusHealthy {
-					return false
-				}
-
-				return true
 			})
 			errors.CheckError(err)
-			printOperationResult(appName, status)
-			if !status.Phase.Successful() {
-				os.Exit(1)
+
+			success := util.Wait(timeout, func(quit chan bool) {
+				for {
+					appEvent, err := wc.Recv()
+					errors.CheckError(err)
+
+					app := appEvent.Application
+					healthStatus := app.Status.Health.Status
+					syncStatus := app.Status.ComparisonResult.Status
+
+					log.Printf("App %q has sync status %q and health status %q", appName, syncStatus, healthStatus)
+					synced := (syncStatus == argoappv1.ComparisonStatusSynced)
+					healthy := (healthStatus == argoappv1.HealthStatusHealthy)
+
+					if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
+						quit <- true
+					}
+				}
+			})
+
+			if success {
+				log.Printf("App %q matches desired state", appName)
+			} else {
+				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+				errors.CheckError(err)
+
+				log.Errorf("Timed out before seeing app %q match desired state", appName)
+				if len(app.Status.ComparisonResult.Resources) > 0 {
+					for _, res := range app.Status.ComparisonResult.Resources {
+						targetObj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
+						errors.CheckError(err)
+						if res.Status != argoappv1.ComparisonStatusSynced || res.Health.Status != argoappv1.HealthStatusHealthy {
+							log.Warnf("%s %q has sync status %q and health status %q: %s", targetObj.GetKind(), targetObj.GetName(), res.Status, res.Health.Status, res.Health.StatusDetails)
+						}
+					}
+				}
 			}
 		},
 	}
@@ -431,34 +450,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	return command
-}
-
-func waitUntilTimeout(appClient application.ApplicationServiceClient, appName string, timeout uint, check func(argoappv1.Application) bool) (*argoappv1.OperationState, error) {
-	timedOut := time.After(time.Duration(timeout) * time.Second)
-
-	wc, err := appClient.Watch(context.Background(), &application.ApplicationQuery{
-		Name: &appName,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	for {
-		select {
-		case <-timedOut:
-			return nil, fmt.Errorf("Timed out waiting for app %q", appName)
-		default:
-			appEvent, err := wc.Recv()
-			if err != nil {
-				return nil, err
-			}
-
-			if check(appEvent.Application) {
-				return nil, nil
-			}
-		}
-	}
-
 }
 
 func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string) (*argoappv1.OperationState, error) {
