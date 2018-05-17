@@ -366,24 +366,16 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					log.Fatal(err)
 				}
 
-				fmt.Println(app)
-				return false
+				fmt.Printf("Checking app %q...\n", appName)
+				if !healthOnly && app.Status.ComparisonResult.Status != "Synced" {
+					return false
+				}
+				if !syncOnly && app.Status.Health.Status != "Progressing" {
+					return false
+				}
+
+				return true
 			})
-			/* DO SOME STUFF HERE...
-			waitReq := application.ApplicationWaitRequest{
-				Name:    appName,
-				Timeout: timeout,
-				Health:  !syncOnly,
-				Sync:    !healthOnly,
-			}
-			_, err := appIf.Wait(context.Background(), &waitReq)
-			errors.CheckError(err)
-			status, err := waitUntilOperationCompleted(appIf, appName)
-			errors.CheckError(err)
-			printOperationResult(appName, status)
-			if !status.Phase.Successful() {
-				os.Exit(1)
-			}*/
 		},
 	}
 	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
