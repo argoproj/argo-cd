@@ -642,6 +642,7 @@
   branch = "release-1.9"
   name = "k8s.io/api"
   packages = [
+    "admission/v1beta1",
     "admissionregistration/v1alpha1",
     "admissionregistration/v1beta1",
     "apps/v1",
@@ -660,6 +661,7 @@
     "core/v1",
     "events/v1beta1",
     "extensions/v1beta1",
+    "imagepolicy/v1alpha1",
     "networking/v1",
     "policy/v1beta1",
     "rbac/v1",
@@ -693,6 +695,9 @@
     "pkg/api/errors",
     "pkg/api/meta",
     "pkg/api/resource",
+    "pkg/apimachinery",
+    "pkg/apimachinery/announced",
+    "pkg/apimachinery/registered",
     "pkg/apis/meta/internalversion",
     "pkg/apis/meta/v1",
     "pkg/apis/meta/v1/unstructured",
@@ -718,15 +723,18 @@
     "pkg/util/framer",
     "pkg/util/intstr",
     "pkg/util/json",
+    "pkg/util/mergepatch",
     "pkg/util/net",
     "pkg/util/runtime",
     "pkg/util/sets",
+    "pkg/util/strategicpatch",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
     "pkg/util/yaml",
     "pkg/version",
     "pkg/watch",
+    "third_party/forked/golang/json",
     "third_party/forked/golang/reflect"
   ]
   revision = "19e3f5aa3adca672c153d324e6b7d82ff8935f03"
@@ -850,12 +858,24 @@
 [[projects]]
   branch = "master"
   name = "k8s.io/kube-openapi"
-  packages = ["pkg/common"]
+  packages = [
+    "pkg/common",
+    "pkg/util/proto"
+  ]
   revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
+
+[[projects]]
+  name = "k8s.io/kubernetes"
+  packages = [
+    "pkg/apis/core",
+    "pkg/kubectl/scheme"
+  ]
+  revision = "81753b10df112992bf51bbc2c2f85208aad78335"
+  version = "v1.10.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0d3fa2746dde57b33a3ed453063e8bd1d8ea3e9bbd91c34270817e0543f7aabf"
+  inputs-digest = "736e8116bcf49bf0889c2caf8e832a78a43fd5af65c5d10c86a443993de63d3c"
   solver-name = "gps-cdcl"
   solver-version = 1
