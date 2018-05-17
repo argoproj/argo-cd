@@ -360,22 +360,27 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			appName := args[0]
 
-			util.Wait(DEFAULT_CHECK_INTERVAL_SECONDS, timeout, func() bool {
+			success := util.Wait(DEFAULT_CHECK_INTERVAL_SECONDS, timeout, func() bool {
 				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: appName})
 				if err != nil {
 					log.Fatal(err)
 				}
 
-				fmt.Printf("Checking app %q...\n", appName)
-				if !healthOnly && app.Status.ComparisonResult.Status != "Synced" {
+				log.Printf("Checking app %q...", appName)
+				if !healthOnly && app.Status.ComparisonResult.Status != argoappv1.ComparisonStatusSynced {
 					return false
 				}
-				if !syncOnly && app.Status.Health.Status != "Progressing" {
+				if !syncOnly && app.Status.Health.Status != argoappv1.HealthStatusHealthy {
 					return false
 				}
 
 				return true
 			})
+			if success {
+				log.Printf("App %q matches desired state", appName)
+			} else {
+				log.Printf("Timed out before seeing app %q match desired state", appName)
+			}
 		},
 	}
 	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
