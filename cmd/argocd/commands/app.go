@@ -344,10 +344,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		healthOnly bool
 		timeout    uint
 	)
-	const (
-		DEFAULT_CHECK_TIMEOUT_SECONDS  = 10
-		DEFAULT_CHECK_INTERVAL_SECONDS = 5
-	)
+	const defaultCheckTimeoutSeconds = 10
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
 		Short: "Wait for an application to reach a synced and healthy state",
@@ -408,7 +405,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
 	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
-	command.Flags().UintVar(&timeout, "timeout", DEFAULT_CHECK_TIMEOUT_SECONDS, "Time out after this many seconds")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
 
