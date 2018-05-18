@@ -43,6 +43,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationRollbackCommand(clientOpts))
 	command.AddCommand(NewApplicationListCommand(clientOpts))
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
+	command.AddCommand(NewApplicationWaitCommand(clientOpts))
 	return command
 }
 
@@ -333,6 +334,78 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_ = w.Flush()
 		},
 	}
+	return command
+}
+
+// NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
+func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		syncOnly   bool
+		healthOnly bool
+		timeout    uint
+	)
+	const defaultCheckTimeoutSeconds = 0
+	var command = &cobra.Command{
+		Use:   "wait APPNAME",
+		Short: "Wait for an application to reach a synced and healthy state",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			if syncOnly && healthOnly {
+				log.Fatalln("Please specify at most one of --sync-only or --health-only.")
+			}
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+
+			appName := args[0]
+			wc, err := appIf.Watch(context.Background(), &application.ApplicationQuery{
+				Name: &appName,
+			})
+			errors.CheckError(err)
+
+			success := util.Wait(timeout, func(done chan<- bool) {
+				for {
+					appEvent, err := wc.Recv()
+					errors.CheckError(err)
+
+					app := appEvent.Application
+					healthStatus := app.Status.Health.Status
+					syncStatus := app.Status.ComparisonResult.Status
+
+					log.Printf("App %q has sync status %q and health status %q", appName, syncStatus, healthStatus)
+					synced := (syncStatus == argoappv1.ComparisonStatusSynced)
+					healthy := (healthStatus == argoappv1.HealthStatusHealthy)
+
+					if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
+						done <- true
+					}
+				}
+			})
+
+			if success {
+				log.Printf("App %q matches desired state", appName)
+			} else {
+				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+				errors.CheckError(err)
+
+				log.Errorf("Timed out before seeing app %q match desired state", appName)
+				if len(app.Status.ComparisonResult.Resources) > 0 {
+					for _, res := range app.Status.ComparisonResult.Resources {
+						targetObj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
+						errors.CheckError(err)
+						if res.Status != argoappv1.ComparisonStatusSynced || res.Health.Status != argoappv1.HealthStatusHealthy {
+							log.Warnf("%s %q has sync status %q and health status %q: %s", targetObj.GetKind(), targetObj.GetName(), res.Status, res.Health.Status, res.Health.StatusDetails)
+						}
+					}
+				}
+			}
+		},
+	}
+	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
+	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
 
