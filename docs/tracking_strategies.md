@@ -2,10 +2,6 @@
 
 An ArgoCD application spec provides several different ways of track kubernetes resource manifests in git. This document describes the different techniques and the means of deploying those manifests to the target environment.
 
-## Auto-Sync
-
-In all tracking strategies described below, the application has the option to sync automatically. If auto-sync is configured, the new resources manifests will be applied automatically -- as soon as a difference is detected between the target state (git) and live state. If auto-sync is disabled, a manual sync will be needed using the Argo UI, CLI, or API.
-
 ## Branch Tracking
 
 If a branch name is specified, ArgoCD will continually compare live state against the resource manifests defined at the tip of the specified branch.
@@ -23,12 +19,13 @@ To redeploy an application, the user uses git to change the meaning of a tag by 
 If a git commit SHA is specified, the application is effectively pinned to the manifests defined at the specified commit. This is the most restrictive of the techniques and is typically used to control production environments.
 
 Since commit SHAs cannot change meaning, the only way to change the live state of an application which is pinned to a commit, is by updating the tracking revision in the application to a different commit containing the new manifests.
+Note that parameter overrides can still be made against a application which is pinned to a revision.
 
 ## Parameter Overrides
 
 ArgoCD provides means to override the parameters of a ksonnet app. This gives some extra flexibility in having *some* parts of the k8s manifests determined dynamically. It also serves as an alternative way of redeploying an application by changing application parameters via ArgoCD, instead of making the changes to the manifests in git.
 
-The following is an example of where this would be useful: A team maintains a "dev" environment, which needs to be continually updated with the latest version of their guestbook application after every build in the tip of master. To solve this, the ksonnet application would expose an parameter named `image`, whose value used in the `dev` environment contains a placeholder value (e.g. `example/guestbook:replaceme`) intended to be set externally (outside of git) such as by build systems. As part of the build pipeline, the parameter value of the `image` would be continually updated to the freshly built image (e.g. `example/guestbook:abcd123`). A sync operation would result in the application being redeployed with the new image.
+The following is an example of where this would be useful: A team maintains a "dev" environment, which needs to be continually updated with the latest version of their guestbook application after every build in the tip of master. To address this use case, the ksonnet application should expose an parameter named `image`, whose value used in the `dev` environment contains a placeholder value (e.g. `example/guestbook:replaceme`), intended to be set externally (outside of git) such as a build systems. As part of the build pipeline, the parameter value of the `image` would be continually updated to the freshly built image (e.g. `example/guestbook:abcd123`). A sync operation would result in the application being redeployed with the new image.
 
 ArgoCD provides these operations conveniently via the CLI, or alternatively via the gRPC/REST API.
 ```
@@ -38,3 +35,7 @@ $ argocd app sync guestbook
 
 Note that in all tracking strategies, any parameter overrides set in the application instance will be honored.
 
+
+## [Auto-Sync](https://github.com/argoproj/argo-cd/issues/79) (Not Yet Implemented)
+
+In all tracking strategies, the application will have the option to sync automatically. If auto-sync is configured, the new resources manifests will be applied automatically -- as soon as a difference is detected between the target state (git) and live state. If auto-sync is disabled, a manual sync will be needed using the Argo UI, CLI, or API.
