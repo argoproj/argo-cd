@@ -17,14 +17,14 @@ func Close(c Closer) {
 // Wait takes a check interval and timeout and waits for a function to return `true`.
 // Wait will return `true` on success and `false` on timeout.
 // The passed function, in turn, should return whether the desired state has been achieved yet.
-func Wait(timeout uint, f func(chan bool)) bool {
-	success := make(chan bool)
-	go f(success)
+func Wait(timeout uint, f func(chan<- bool)) bool {
+	done := make(chan bool)
+	go f(done)
 
 	timedOut := time.After(time.Duration(timeout) * time.Second)
 	for {
 		select {
-		case <-success:
+		case <-done:
 			return true
 		case <-timedOut:
 			return false

@@ -365,7 +365,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			})
 			errors.CheckError(err)
 
-			success := util.Wait(timeout, func(quit chan bool) {
+			success := util.Wait(timeout, func(done chan<- bool) {
 				for {
 					appEvent, err := wc.Recv()
 					errors.CheckError(err)
@@ -379,7 +379,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					healthy := (healthStatus == argoappv1.HealthStatusHealthy)
 
 					if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
-						quit <- true
+						done <- true
 					}
 				}
 			})
