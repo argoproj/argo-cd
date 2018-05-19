@@ -71,7 +71,9 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			setConn, setIf := acdClient.NewSettingsClientOrDie()
 			defer util.Close(setConn)
 
-			ctxName = cli.PromptMessage("Enter a name for this context", ctxName)
+			if ctxName == "" {
+				ctxName = server
+			}
 
 			// Perform the login
 			var tokenString string
@@ -249,7 +251,7 @@ func oauth2Login(host string, plaintext bool) string {
 	return tokenString
 }
 
-func passwordLogin(acdClient argocdclient.ServerClient, username, password string) string {
+func passwordLogin(acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
 	defer util.Close(sessConn)
@@ -262,7 +264,7 @@ func passwordLogin(acdClient argocdclient.ServerClient, username, password strin
 	return createdSession.Token
 }
 
-func tokenLogin(acdClient argocdclient.ServerClient, token string) string {
+func tokenLogin(acdClient argocdclient.Client, token string) string {
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
 	defer util.Close(sessConn)
 	sessionRequest := session.SessionCreateRequest{

@@ -259,7 +259,7 @@ func (f *Fixture) CreateController() *controller.ApplicationController {
 		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
 }
 
-func (f *Fixture) NewApiClientset() (argocdclient.ServerClient, error) {
+func (f *Fixture) NewApiClientset() (argocdclient.Client, error) {
 	return argocdclient.NewClient(&argocdclient.ClientOptions{
 		Insecure:   true,
 		PlainText:  true,
