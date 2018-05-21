@@ -144,8 +144,16 @@ func (m *nativeGitClient) Fetch() error {
 	if _, err := m.runCmd("git", "remote", "set-head", "origin", "-a"); err != nil {
 		return err
 	}
+	return nil
+}
+
+// Reset resets local changes in a repository
+func (m *nativeGitClient) Reset() error {
+	if _, err := m.runCmd("git", "reset", "--hard", "origin/HEAD"); err != nil {
+		return err
+	}
 	// Delete all local branches (we must first detach so we are not checked out a branch we are about to delete)
-	if _, err = m.runCmd("git", "checkout", "--detach", "origin/HEAD"); err != nil {
+	if _, err := m.runCmd("git", "checkout", "--detach", "origin/HEAD"); err != nil {
 		return err
 	}
 	branchesOut, err := m.runCmd("git", "for-each-ref", "--format=%(refname:short)", "refs/heads/")
@@ -160,14 +168,6 @@ func (m *nativeGitClient) Fetch() error {
 		if _, err = m.runCmd("git", args...); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// Reset resets local changes in a repository
-func (m *nativeGitClient) Reset() error {
-	if _, err := m.runCmd("git", "reset", "--hard", "origin/HEAD"); err != nil {
-		return err
 	}
 	if _, err := m.runCmd("git", "clean", "-f"); err != nil {
 		return err
