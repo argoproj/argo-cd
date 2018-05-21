@@ -123,23 +123,21 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			format := "%-15s%s\n"
 			fmt.Printf(format, "Name:", app.Name)
-			fmt.Printf(format, "Environment:", app.Spec.Source.Environment)
 			fmt.Printf(format, "Server:", app.Spec.Destination.Server)
 			fmt.Printf(format, "Namespace:", app.Spec.Destination.Namespace)
+			fmt.Printf(format, "URL:", appURL(acdClient, app))
+			fmt.Printf(format, "Environment:", app.Spec.Source.Environment)
 			fmt.Printf(format, "Repo:", app.Spec.Source.RepoURL)
 			fmt.Printf(format, "Path:", app.Spec.Source.Path)
-			if app.Spec.Source.TargetRevision == "" {
-				fmt.Printf(format, "Target:", "HEAD")
-			} else {
-				fmt.Printf(format, "Target:", app.Spec.Source.TargetRevision)
-			}
+			fmt.Printf(format, "Target:", app.Spec.Source.TargetRevision)
 			if app.Status.ComparisonResult.Error != "" {
 				fmt.Printf(format, "Error:", app.Status.ComparisonResult.Error)
 			}
@@ -157,6 +155,22 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	return command
+}
+
+// appURL returns the URL of an application
+func appURL(acdClient argocdclient.Client, app *argoappv1.Application) string {
+	var scheme string
+	opts := acdClient.ClientOptions()
+	server := opts.ServerAddr
+	if opts.PlainText {
+		scheme = "http"
+	} else {
+		scheme = "https"
+		if strings.HasSuffix(opts.ServerAddr, ":443") {
+			server = server[0 : len(server)-4]
+		}
+	}
+	return fmt.Sprintf("%s://%s/applications/%s/%s", scheme, server, app.Namespace, app.Name)
 }
 
 // NewApplicationSetCommand returns a new instance of an `argocd app set` command
@@ -274,7 +288,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
 func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		force bool
+		cascade bool
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -287,25 +301,26 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
-				var cascade *bool
-				if c.Flag("force").Changed {
-					cascade = &force
-				}
 				appDeleteReq := application.DeleteApplicationRequest{
-					Name:    &appName,
-					Cascade: cascade,
+					Name: &appName,
+				}
+				if c.Flag("cascade").Changed {
+					appDeleteReq.Cascade = &cascade
 				}
 				_, err := appIf.Delete(context.Background(), &appDeleteReq)
 				errors.CheckError(err)
 			}
 		},
 	}
-	command.Flags().BoolVar(&force, "force", false, "Force delete application even if cascaded deletion unsuccessful")
+	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
 	return command
 }
 
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List applications",
@@ -315,25 +330,32 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tENVIRONMENT\tTARGET\tCLUSTER\tNAMESPACE\tSTATUS\tHEALTH\n")
+			var fmtStr string
+			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "STATUS", "HEALTH"}
+			if output == "wide" {
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				headers = append(headers, "ENV", "REPO", "TARGET")
+			} else {
+				fmtStr = "%s\t%s\t%s\t%s\t%s\n"
+			}
+			fmt.Fprintf(w, fmtStr, headers...)
 			for _, app := range apps.Items {
-				targetRev := app.Spec.Source.TargetRevision
-				if targetRev == "" {
-					targetRev = "HEAD"
-				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				vals := []interface{}{
 					app.Name,
-					app.Spec.Source.Environment,
-					targetRev,
 					app.Spec.Destination.Server,
 					app.Spec.Destination.Namespace,
 					app.Status.ComparisonResult.Status,
 					app.Status.Health.Status,
-				)
+				}
+				if output == "wide" {
+					vals = append(vals, app.Spec.Source.Environment, app.Spec.Source.RepoURL, app.Spec.Source.TargetRevision)
+				}
+				fmt.Fprintf(w, fmtStr, vals...)
 			}
 			_ = w.Flush()
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
 	return command
 }
 
@@ -463,11 +485,10 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	for {
 		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Phase.Completed() {
 			return appEvent.Application.Status.OperationState, nil
-		} else {
-			appEvent, err = wc.Recv()
-			if err != nil {
-				return nil, err
-			}
+		}
+		appEvent, err = wc.Recv()
+		if err != nil {
+			return nil, err
 		}
 	}
 }

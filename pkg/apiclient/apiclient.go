@@ -32,8 +32,9 @@ const (
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
 )
 
-// ServerClient defines an interface for interaction with an Argo CD server.
-type ServerClient interface {
+// Client defines an interface for interaction with an Argo CD server.
+type Client interface {
+	ClientOptions() ClientOptions
 	NewConn() (*grpc.ClientConn, error)
 	NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error)
 	NewRepoClientOrDie() (*grpc.ClientConn, repository.RepositoryServiceClient)
@@ -69,7 +70,7 @@ type client struct {
 }
 
 // NewClient creates a new API client from a set of config options.
-func NewClient(opts *ClientOptions) (ServerClient, error) {
+func NewClient(opts *ClientOptions) (Client, error) {
 	var c client
 	localCfg, err := localconfig.ReadLocalConfig(opts.ConfigPath)
 	if err != nil {
@@ -134,7 +135,7 @@ func NewClient(opts *ClientOptions) (ServerClient, error) {
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
-func NewClientOrDie(opts *ClientOptions) ServerClient {
+func NewClientOrDie(opts *ClientOptions) Client {
 	client, err := NewClient(opts)
 	if err != nil {
 		log.Fatal(err)
@@ -179,6 +180,15 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 		Token: c.AuthToken,
 	}
 	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials))
+}
+
+func (c *client) ClientOptions() ClientOptions {
+	return ClientOptions{
+		ServerAddr: c.ServerAddr,
+		PlainText:  c.PlainText,
+		Insecure:   c.Insecure,
+		AuthToken:  c.AuthToken,
+	}
 }
 
 func (c *client) NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error) {
