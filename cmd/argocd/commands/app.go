@@ -412,7 +412,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 				errors.CheckError(err)
 
-				log.Errorf("Timed out before seeing app %q match desired state", appName)
 				if len(app.Status.ComparisonResult.Resources) > 0 {
 					for _, res := range app.Status.ComparisonResult.Resources {
 						targetObj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
@@ -422,6 +421,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						}
 					}
 				}
+				log.Fatalf("Timed out before seeing app %q match desired state", appName)
 			}
 		},
 	}
