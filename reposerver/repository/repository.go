@@ -41,6 +41,13 @@ func NewService(gitFactory git.ClientFactory, cache cache.Cache) *Service {
 	}
 }
 
+// ListDir lists the contents of a GitHub repo
+func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirResponse, error) {
+	return &ListDirResponse{
+		[]string{"Hello", "world!"},
+	}, nil
+}
+
 func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
 	appRepoPath := tempRepoPath(q.Repo.Repo)
 	s.repoLock.Lock(appRepoPath)

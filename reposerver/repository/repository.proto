@@ -26,6 +26,18 @@ message ManifestResponse {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 5;
 }
 
+// ListDirRequest requests a repository directory structure
+message ListDirRequest {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+}
+
+
+// ListDirResponse returns the contents of the repo of a ListDir request
+message ListDirResponse {
+    repeated string data = 1;
+}
+
 // GetFileRequest return
 message GetFileRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -44,6 +56,10 @@ service RepositoryService {
 
     // Generate manifest for application in specified repo name and revision
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    }
+
+    // ListDir returns the file contents at the specified repo and path
+    rpc ListDir(ListDirRequest) returns (ListDirResponse) {
     }
 
     // GetFile returns the file contents at the specified repo and path
