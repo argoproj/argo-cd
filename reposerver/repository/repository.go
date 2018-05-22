@@ -64,51 +64,38 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirRespo
 	if err != nil {
 		return nil, err
 	}
+
+	commitSHA, err := gitClient.LsRemote(q.Revision)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := listDirCacheKey(commitSHA, q)
+	var res ListDirResponse
+	err = s.cache.Get(cacheKey, &res)
+	if err == nil {
+		log.Infof("manifest cache hit: %s", cacheKey)
+		return &res, nil
+	}
+
 	err = checkoutRevision(gitClient, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 
-	lsFiles, err := gitClient.LsFiles()
+	lsFiles, err := gitClient.LsFiles(q.Path)
 	if err != nil {
 		return nil, err
 	}
 
-	// commitSHA, err := gitClient.LsRemote(q.Revision)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// cacheKey := manifestCacheKey(commitSHA, q)
-	// var res ManifestResponse
-	// err = s.cache.Get(cacheKey, &res)
-	// if err == nil {
-	// 	log.Infof("manifest cache hit: %s", cacheKey)
-	// 	return &res, nil
-	// }
-
-	// list dir here
-	// git ls-files
-	// data, err := ioutil.ReadFile(path.Join(gitClient.Root(), q.Path))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// res := GetFileResponse{
-	// 	Data: data,
-	// }
-	// path := q.Path
-
-	// client := http.Client{}
-	// resp, err := client.Get("https://api.github.com/repos/argoproj/argo-cd/contents/")
-	// entries := make([]GitFileEntry, 0)
-	// err := cli.UnmarshalRemoteFile("https://api.github.com/repos/argoproj/argo-cd/contents/", &entries)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// fmt.Println("WE HAVE A WINNER:", entries)
-
-	return &ListDirResponse{
-		Data: strings.Split(lsFiles, "\n"),
-	}, nil
+	res = ListDirResponse{
+		Data: lsFiles,
+	}
+	err = s.cache.Set(&cache.Item{
+		Key:        cacheKey,
+		Object:     &res,
+		Expiration: DefaultRepoCacheExpiration,
+	})
+	return &res, nil
 }
 
 func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
@@ -275,4 +262,8 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
 	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
 	return fmt.Sprintf("mfst|%s|%s|%s|%s", q.Path, q.Environment, commitSHA, string(pStr))
+}
+
+func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
+	return fmt.Sprintf("ldir|%s|%s", q.Path, commitSHA)
 }
