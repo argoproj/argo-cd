@@ -1,16 +1,24 @@
 import * as classNames from 'classnames';
 import * as React from 'react';
-import { WrappedFieldProps } from 'redux-form';
+import { FieldProps, FormApi } from 'react-form';
 
-export const FormField = (props: WrappedFieldProps & { type: string }) => {
+export const FormField = (props: React.Props<any> & {
+    label: string,
+    field: string,
+    formApi: FormApi,
+    component: React.StatelessComponent<FieldProps & React.InputHTMLAttributes<any>>,
+    componentProps?: React.InputHTMLAttributes<any>,
+}) => {
     return (
         <div>
-            <input {...props.input} className={classNames('argo-field', {
-                'argo-has-value': props.input.value,
-            })} type={props.type} />
+            <props.component
+                {...props.componentProps || {}}
+                field={props.field}
+                className={classNames({ 'argo-field': true, 'argo-has-value': !!props.formApi.values[props.field] })}/>
+
             <label className='argo-label-placeholder'>{props.label}</label>
-            {props.meta.touched &&
-                (props.meta.error && <div className='argo-form-row__error-msg'>{props.meta.error}</div>)
+            {props.formApi.touched[props.field] &&
+                (props.formApi.errors[props.field] && <div className='argo-form-row__error-msg'>{props.formApi.errors[props.field]}</div>)
             }
         </div>
     );

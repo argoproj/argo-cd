@@ -6,7 +6,6 @@ import createHistory from 'history/createBrowserHistory';
 import { Redirect, Route, Switch } from 'react-router';
 import { ConnectedRouter, push, routerMiddleware} from 'react-router-redux';
 import { applyMiddleware, createStore, Store } from 'redux';
-import { reducer as formReducer } from 'redux-form';
 
 import requests from './shared/services/requests';
 
@@ -33,14 +32,7 @@ const navItems = [{
 }];
 
 const routesReducer = getReducer(routes);
-
-const reducer = (state: any, action: any) => {
-    const next = routesReducer(state, action) as any;
-    next.form = formReducer(next.form, action);
-    return next;
-};
-
-export const store = createStore(reducer, applyMiddleware(asyncMiddleware, reduxRouterMiddleware));
+export const store = createStore(routesReducer, applyMiddleware(asyncMiddleware, reduxRouterMiddleware));
 
 requests.onError.subscribe((err) => {
     if (err.status === 401) {

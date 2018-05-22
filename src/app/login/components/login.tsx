@@ -1,26 +1,28 @@
 import * as React from 'react';
+import { Form, Text } from 'react-form';
 import { connect } from 'react-redux';
-import { Field, InjectedFormProps, reduxForm } from 'redux-form';
 
 import { AppState } from 'argo-ui';
 import * as actions from '../../shared/actions';
-import { FormField } from '../../shared/components';
+import {FormField } from '../../shared/components';
 import { AuthSettings } from '../../shared/models';
 import { services } from '../../shared/services';
 import { State } from '../state';
 
 require('./login.scss');
 
-const required = (value: any) => (value ? undefined : 'Required');
-
-type LoginProperties = InjectedFormProps<LoginForm, {}> & { returnUrl: string, loginError: string };
+interface LoginProperties {
+    returnUrl: string;
+    loginError: string;
+    login: (username: string, password: string, returnURL: string ) => any;
+}
 
 export interface LoginForm {
     username: string;
     password: string;
 }
 
-export class Form extends React.Component<LoginProperties, {authSettings: AuthSettings}> {
+export class LoginForm extends React.Component<LoginProperties, {authSettings: AuthSettings}> {
 
     constructor(props: LoginProperties) {
         super(props);
@@ -62,20 +64,29 @@ export class Form extends React.Component<LoginProperties, {authSettings: AuthSe
                             <div className='login__saml-separator'><span>or</span></div>
                         </div>
                     )}
-                    <form role='form' className='width-control' onSubmit={props.handleSubmit}>
-                        <div className='argo-form-row'>
-                            <Field validate={required} name='username' component={FormField} type='text' label='Username'/>
-                        </div>
-                        <div className='argo-form-row'>
-                            <Field validate={required} name='password' component={FormField} type='password' label='Password'/>
-                            <div className='argo-form-row__error-msg'>{props.loginError}</div>
-                        </div>
-                        <div className='login__form-row'>
-                            <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
-                                Sign In
-                            </button>
-                        </div>
-                    </form>
+                    <Form
+                        onSubmit={(params: LoginForm) => this.props.login(params.username, params.password, this.props.returnUrl)}
+                        validateError={(params: LoginForm) => ({
+                            username: !params.username && 'Username is required',
+                            password: !params.password && 'Password is required',
+                        })}>
+                        {(formApi) => (
+                            <form role='form' className='width-control' onSubmit={formApi.submitForm}>
+                            <div className='argo-form-row'>
+                                <FormField formApi={formApi} label='Username' field='username' component={Text}/>
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}}/>
+                                <div className='argo-form-row__error-msg'>{props.loginError}</div>
+                            </div>
+                            <div className='login__form-row'>
+                                <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
+                                    Sign In
+                                </button>
+                            </div>
+                        </form>
+                        )}
+                    </Form>
                     <div className='login__footer'>
                         <a href='https://argoproj.io' target='_blank'>
                             <img className='logo-image' src='assets/images/argologo.svg' alt='argo'/>
@@ -87,17 +98,12 @@ export class Form extends React.Component<LoginProperties, {authSettings: AuthSe
     }
 }
 
-const rxLogin = connect((state: AppState<State>) => ({
+const Login = connect((state: AppState<State>) => ({
     returnUrl: new URLSearchParams(state.router.location.search).get('return_url') || '',
     loginError: state.page.loginError,
-}))(Form);
-
-const Login = reduxForm<LoginForm>({
-    form: 'loginForm',
-    onSubmit: (values, dispatch) => {
-        dispatch(actions.login(values.username, values.password));
-    },
-})(rxLogin);
+}), (dispatch) => ({
+    login: (username: string, password: string, returnURL: string) => dispatch(actions.login(username, password, returnURL)),
+}))(LoginForm);
 
 export {
     Login,

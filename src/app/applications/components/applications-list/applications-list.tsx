@@ -1,11 +1,13 @@
 import { AppContext, AppState, MockupList, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import { Form, FormApi, Text } from 'react-form';
 import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
-import { Field, InjectedFormProps, reduxForm, submit } from 'redux-form';
 import { Subscription } from 'rxjs';
-import { FormField, Page } from '../../../shared/components';
+
+import { Page } from '../../../shared/components';
+import { FormField } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import * as actions from '../../actions';
 import { State } from '../../state';
@@ -15,7 +17,7 @@ require('./applications-list.scss');
 
 export interface ApplicationProps extends RouteComponentProps<{}> {
     onLoad: () => any;
-    createApp: () => any;
+    createApp: (params: NewAppParams) => any;
     applications: models.Application[];
     changesSubscription: Subscription;
     showNewAppPanel: boolean;
@@ -30,50 +32,13 @@ interface NewAppParams {
     namespace: string;
 }
 
-const required = (value: any) => (value ? undefined : 'Required');
-
-const NewAppForm = reduxForm<NewAppParams>({
-    form: 'newAppForm',
-    onSubmit: (params, dispatch) => {
-        dispatch(actions.createApplication(params.applicationName, {
-            environment: params.environment,
-            path: params.path,
-            repoURL: params.repoURL,
-            targetRevision: null,
-            componentParameterOverrides: null,
-        }, {
-            server: params.clusterURL,
-            namespace: params.namespace,
-        }));
-    },
-})((props: InjectedFormProps<NewAppParams, {}>) => (
-    <form role='form' className='width-control'>
-        <div className='argo-form-row'>
-            <Field validate={required} name='applicationName' component={FormField} type='text' label='Application Name'/>
-        </div>
-        <div className='argo-form-row'>
-            <Field validate={required} name='repoURL' component={FormField} type='text' label='Repository URL'/>
-        </div>
-        <div className='argo-form-row'>
-            <Field validate={required} name='path' component={FormField} type='text' label='Path'/>
-        </div>
-        <div className='argo-form-row'>
-            <Field validate={required} name='environment' component={FormField} type='text' label='Environment'/>
-        </div>
-        <div className='argo-form-row'>
-            <Field name='clusterURL' component={FormField} type='text' label='Cluster URL'/>
-        </div>
-        <div className='argo-form-row'>
-            <Field name='namespace' component={FormField} type='text' label='Namespace'/>
-        </div>
-    </form>
-));
-
 class Component extends React.Component<ApplicationProps> {
 
     public static contextTypes = {
         router: PropTypes.object,
     };
+
+    private formApi: FormApi;
 
     public componentDidMount() {
         this.props.onLoad();
@@ -156,14 +121,46 @@ class Component extends React.Component<ApplicationProps> {
                 </div>
                 <SlidingPanel isShown={this.props.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} isMiddle={true} header={(
                         <div>
-                            <button className='argo-button argo-button--base' onClick={() => this.props.createApp()}>
+                            <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
                                 Create
                             </button> <button onClick={() => this.setNewAppPanelVisible(false)} className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>
                     )}>
-                    <NewAppForm/>
+                    <Form onSubmit={(params) => this.props.createApp(params as NewAppParams)}
+                        getApi={(api) => this.formApi = api}
+                        validateError={(params: NewAppParams) => ({
+                            applicationName: !params.applicationName && 'Application name is required',
+                            repoURL: !params.repoURL && 'Repository URL is required',
+                            path: !params.path && 'Path is required',
+                            environment: !params.environment && 'Environment is required',
+                            clusterURL: !params.clusterURL && 'Cluster URL is required',
+                            namespace: !params.namespace && 'Namespace URL is required',
+                        })}>
+                        {(formApi) => (
+                            <form onSubmit={formApi.submitForm} role='form' className='width-control'>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Application Name' field='applicationName' component={Text}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Repository URL' field='repoURL' component={Text}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Path' field='path' component={Text}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Environment' field='environment' component={Text}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Cluster URL' field='clusterURL' component={Text}/>
+                                </div>
+                                <div className='argo-form-row'>
+                                    <FormField formApi={formApi} label='Namespace' field='namespace' component={Text}/>
+                                </div>
+                            </form>
+                        )}
+                    </Form>
                 </SlidingPanel>
             </Page>
         );
@@ -186,5 +183,16 @@ export const ApplicationsList = connect((state: AppState<State>) => {
     };
 }, (dispatch) => ({
     onLoad: () => dispatch(actions.loadAppsList()),
-    createApp: () => dispatch(submit('newAppForm')),
+    createApp: (params: NewAppParams) => {
+        dispatch(actions.createApplication(params.applicationName, {
+            environment: params.environment,
+            path: params.path,
+            repoURL: params.repoURL,
+            targetRevision: null,
+            componentParameterOverrides: null,
+        }, {
+            server: params.clusterURL,
+            namespace: params.namespace,
+        }));
+    },
 }))(Component);
