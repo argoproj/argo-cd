@@ -456,19 +456,25 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 }
 
 func (s *Server) setAppOperation(ctx context.Context, appName string, operationCreator func(app *appv1.Application) (*appv1.Operation, error)) (*appv1.Application, error) {
-	app, err := s.Get(ctx, &ApplicationQuery{Name: &appName})
-	if err != nil {
-		return nil, err
+	for {
+		a, err := s.Get(ctx, &ApplicationQuery{Name: &appName})
+		if err != nil {
+			return nil, err
+		}
+		if a.Operation != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "another operation is already in progress")
+		}
+		op, err := operationCreator(a)
+		if err != nil {
+			return nil, err
+		}
+		a.Operation = op
+		a.Status.OperationState = nil
+		_, err = s.Update(ctx, a)
+		if err != nil && apierr.IsConflict(err) {
+			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
+		} else {
+			return a, err
+		}
 	}
-	if app.Operation != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "another operation is already in progress")
-	}
-	op, err := operationCreator(app)
-	if err != nil {
-		return nil, err
-	}
-	app.Operation = op
-	app.Status.OperationState = nil
-	_, err = s.Update(ctx, app)
-	return app, err
 }
