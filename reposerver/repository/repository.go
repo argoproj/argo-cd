@@ -41,10 +41,73 @@ func NewService(gitFactory git.ClientFactory, cache cache.Cache) *Service {
 	}
 }
 
+type GitFileEntry struct {
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	SHA         string `json:"sha"`
+	Size        uint64 `json:"size"`
+	URL         string `json:"url"`
+	HtmlURL     string `json:"html_url"`
+	GitURL      string `json:"git_url"`
+	DownloadURL string `json:"download_url"`
+	Type        string `json:"type"`
+}
+
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirResponse, error) {
+	appRepoPath := tempRepoPath(q.Repo.Repo)
+	s.repoLock.Lock(appRepoPath)
+	defer s.repoLock.Unlock(appRepoPath)
+
+	gitClient := s.gitFactory.NewClient(q.Repo.Repo, appRepoPath, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey)
+	err := gitClient.Init()
+	if err != nil {
+		return nil, err
+	}
+	err = checkoutRevision(gitClient, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+
+	lsFiles, err := gitClient.LsFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	// commitSHA, err := gitClient.LsRemote(q.Revision)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// cacheKey := manifestCacheKey(commitSHA, q)
+	// var res ManifestResponse
+	// err = s.cache.Get(cacheKey, &res)
+	// if err == nil {
+	// 	log.Infof("manifest cache hit: %s", cacheKey)
+	// 	return &res, nil
+	// }
+
+	// list dir here
+	// git ls-files
+	// data, err := ioutil.ReadFile(path.Join(gitClient.Root(), q.Path))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// res := GetFileResponse{
+	// 	Data: data,
+	// }
+	// path := q.Path
+
+	// client := http.Client{}
+	// resp, err := client.Get("https://api.github.com/repos/argoproj/argo-cd/contents/")
+	// entries := make([]GitFileEntry, 0)
+	// err := cli.UnmarshalRemoteFile("https://api.github.com/repos/argoproj/argo-cd/contents/", &entries)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// fmt.Println("WE HAVE A WINNER:", entries)
+
 	return &ListDirResponse{
-		[]string{"Hello", "world!"},
+		Data: strings.Split(lsFiles, "\n"),
 	}, nil
 }
 

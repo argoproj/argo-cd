@@ -19,6 +19,7 @@ type Client interface {
 	Fetch() error
 	Checkout(revision string) error
 	LsRemote(revision string) (string, error)
+	LsFiles() (string, error)
 	CommitSHA() (string, error)
 	Reset() error
 }
@@ -145,6 +146,11 @@ func (m *nativeGitClient) Fetch() error {
 		return err
 	}
 	return nil
+}
+
+// LsFiles lists the local working tree, including only files that are under source control
+func (m *nativeGitClient) LsFiles() (string, error) {
+	return m.runCmd("git", "ls-files")
 }
 
 // Reset resets local changes in a repository
