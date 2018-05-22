@@ -1,4 +1,5 @@
-import { asyncMiddleware, getReducer, Layout, NotificationsContainer, RouteImplementation } from 'argo-ui';
+import { asyncMiddleware, getReducer, Layout, NotificationInfo, Notifications, RouteImplementation } from 'argo-ui';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Provider } from 'react-redux';
 
@@ -7,6 +8,7 @@ import { Redirect, Route, Switch } from 'react-router';
 import { ConnectedRouter, push, routerMiddleware} from 'react-router-redux';
 import { applyMiddleware, createStore, Store } from 'redux';
 
+import { NotificationManager } from './shared/components';
 import requests from './shared/services/requests';
 
 export const history = createHistory();
@@ -40,28 +42,58 @@ requests.onError.subscribe((err) => {
     }
 });
 
-export const App = (props: {store: Store<any>}) => (
-    <Provider store={props.store}>
-        <ConnectedRouter history={history} store={props.store}>
-            <Switch>
-                <Redirect exact={true} path='/' to='/applications'/>
-                {Object.keys(routes).map((path) => {
-                    const route = routes[path];
-                    return <Route key={path} path={path} render={(routeProps) => (
-                        route.noLayout ? (
-                            <div>
-                                <NotificationsContainer />
-                                <route.component {...routeProps}/>
-                            </div>
-                        ) : (
-                            <Layout navItems={navItems}>
-                                <NotificationsContainer />
-                                <route.component {...routeProps}/>
-                            </Layout>
-                        )
-                    )}/>;
-                })}
-            </Switch>
-        </ConnectedRouter>
-    </Provider>
-);
+export class App extends React.Component<{store: Store<any>}, { notifications: NotificationInfo[] }> implements NotificationManager {
+    public static childContextTypes = {
+        notificationManager: PropTypes.object,
+    };
+
+    constructor(props: {store: Store<any>}) {
+        super(props);
+        this.state = { notifications: [] };
+    }
+
+    public showNotification(notification: NotificationInfo) {
+        this.setState({ notifications: [...(this.state.notifications || []), notification] });
+    }
+
+    public closeNotification(notification: NotificationInfo): void {
+        const notifications = (this.state.notifications || []).slice();
+        const index = this.state.notifications.indexOf(notification);
+        if (index > -1) {
+            notifications.splice(index, 1);
+            this.setState({notifications});
+        }
+    }
+
+    public render() {
+        return (
+            <Provider store={this.props.store}>
+                <ConnectedRouter history={history} store={this.props.store}>
+                    <Switch>
+                        <Redirect exact={true} path='/' to='/applications'/>
+                        {Object.keys(routes).map((path) => {
+                            const route = routes[path];
+                            return <Route key={path} path={path} render={(routeProps) => (
+                                route.noLayout ? (
+                                    <div>
+                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                        <route.component {...routeProps}/>
+                                    </div>
+                                ) : (
+                                    <Layout navItems={navItems}>
+                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                        <route.component {...routeProps}/>
+                                    </Layout>
+                                )
+                            )}/>;
+                        })}
+                    </Switch>
+                </ConnectedRouter>
+            </Provider>
+        );
+    }
+
+    public getChildContext() {
+        return { notificationManager: this };
+    }
+}

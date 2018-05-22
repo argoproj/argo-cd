@@ -6,8 +6,6 @@ export const ACTION_TYPES = {
     APPLICATIONS_LOAD_SUCCESS: 'APPLICATIONS_LOAD_SUCCESS',
     APPLICATIONS_CHANGED: 'APPLICATIONS_CHANGED',
 
-    APPLICATION_LOAD_REQUEST: 'APPLICATION_LOAD_REQUEST',
-    APPLICATION_LOAD_SUCCESS: 'APPLICATION_LOAD_SUCCESS',
 };
 
 export default function(state: State = { }, action: any): State {
@@ -16,10 +14,6 @@ export default function(state: State = { }, action: any): State {
             return {...state, applications: null, changesSubscription: action.changesSubscription };
         case ACTION_TYPES.APPLICATIONS_LOAD_SUCCESS:
             return {...state, applications: action.applications, changesSubscription: action.changesSubscription};
-        case ACTION_TYPES.APPLICATION_LOAD_REQUEST:
-            return {...state, application: null, changesSubscription: action.changesSubscription };
-        case ACTION_TYPES.APPLICATION_LOAD_SUCCESS:
-            return {...state, application: action.application, changesSubscription: action.changesSubscription};
         case ACTION_TYPES.APPLICATIONS_CHANGED:
             const applicationChange: models.ApplicationWatchEvent = action.applicationChange;
             switch (applicationChange.type) {

@@ -1,15 +1,14 @@
-import { AppContext, AppState, MenuItem, SlidingPanel, Tab, Tabs} from 'argo-ui';
+import { MenuItem, NotificationType, SlidingPanel, Tab, Tabs} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
-import { Subscription } from 'rxjs';
-
-import * as appModels from '../../../shared/models';
-import * as actions from '../../actions';
-import { State } from '../../state';
+import { Observable, Subscription } from 'rxjs';
 
 import { Page } from '../../../shared/components';
+import { AppContext } from '../../../shared/context';
+import * as appModels from '../../../shared/models';
+import { services } from '../../../shared/services';
+
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
@@ -22,36 +21,47 @@ import * as AppUtils from '../utils';
 require('./application-details.scss');
 
 export interface ApplicationDetailsProps extends RouteComponentProps<{ name: string; namespace: string; }> {
-    application: appModels.Application;
-    onLoad: typeof actions.loadApplication;
-    syncApp: typeof actions.syncApplication;
-    rollbackApp: typeof actions.rollbackApplication;
-    deletePod: typeof actions.deletePod;
-    deleteApp: typeof actions.deleteApplication;
-    changesSubscription: Subscription;
-    showDeployPanel: boolean;
-    selectedRollbackDeploymentIndex: number;
-    selectedNodeFullName: string;
 }
 
-class Component extends React.Component<ApplicationDetailsProps, { deployRevision: string }> {
+export class ApplicationDetails extends React.Component<ApplicationDetailsProps, { deployRevision: string, application: appModels.Application }> {
 
     public static contextTypes = {
         router: PropTypes.object,
+        notificationManager: PropTypes.object,
     };
+
+    private changesSubscription: Subscription;
 
     constructor(props: ApplicationDetailsProps) {
         super(props);
-        this.state = { deployRevision: ''};
+        this.state = { deployRevision: '', application: null};
     }
 
-    public componentDidMount() {
-        this.props.onLoad(this.props.match.params.name);
+    private get showDeployPanel() {
+        return new URLSearchParams(this.props.history.location.search).get('deploy') === 'true';
+    }
+
+    private get selectedRollbackDeploymentIndex() {
+        return parseInt(new URLSearchParams(this.props.history.location.search).get('rollback'), 10);
+    }
+
+    private get selectedNodeFullName() {
+        return new URLSearchParams(this.props.location.search).get('node');
+    }
+
+    public async componentDidMount() {
+        const appName = this.props.match.params.name;
+        const appUpdates = Observable
+            .from([await services.applications.get(appName)])
+            .merge(services.applications.watch({name: appName}).map((changeEvent) => changeEvent.application));
+        this.changesSubscription = appUpdates.subscribe((application) => {
+            this.setState({ application });
+        });
     }
 
     public componentWillUnmount() {
-        if (this.props.changesSubscription) {
-            this.props.changesSubscription.unsubscribe();
+        if (this.changesSubscription) {
+            this.changesSubscription.unsubscribe();
         }
     }
 
@@ -69,8 +79,8 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
 
     public render() {
         const appNodesByName = this.groupAppNodesByName();
-        const selectedItem = this.props.selectedNodeFullName && appNodesByName.get(this.props.selectedNodeFullName) || null;
-        const isAppSelected = this.props.application != null && selectedItem === this.props.application;
+        const selectedItem = this.selectedNodeFullName && appNodesByName.get(this.selectedNodeFullName) || null;
+        const isAppSelected = this.state.application != null && selectedItem === this.state.application;
         const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
         return (
             <Page
@@ -87,18 +97,18 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                     }, {
                         className: 'icon fa fa-times-circle',
                         title: 'Delete',
-                        action: () => this.props.deleteApp(this.props.match.params.name, true),
+                        action: () => this.deleteApplication(true),
                     }],
                 } }}>
-                {this.props.application && <ApplicationStatusPanel application={this.props.application}/>}
+                {this.state.application && <ApplicationStatusPanel application={this.state.application}/>}
                 <div className='argo-container application-details'>
-                    {this.props.application ? (
+                    {this.state.application ? (
                         <ApplicationResourcesTree
-                            selectedNodeFullName={this.props.selectedNodeFullName}
+                            selectedNodeFullName={this.selectedNodeFullName}
                             onNodeClick={(fullName) => this.selectNode(fullName)}
                             nodeMenuItems={(node) => this.getResourceMenuItems(node)}
                             nodeLabels={(node) => this.getResourceLabels(node)}
-                            app={this.props.application}/>
+                            app={this.state.application}/>
                     ) : (
                         <div>Loading...</div>
                     )}
@@ -111,27 +121,27 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                     }
                     {isAppSelected && (
                         <Tabs navTransparent={true} tabs={[{
-                            title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={this.props.application}/>,
+                            title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={this.state.application}/>,
                         }, {
                             title: 'PARAMETERS', key: 'parameters', content: <ParametersPanel
-                                params={this.props.application.status.parameters || []}
-                                overrides={this.props.application.spec.source.componentParameterOverrides}/>,
+                                params={this.state.application.status.parameters || []}
+                                overrides={this.state.application.spec.source.componentParameterOverrides}/>,
                         }]}/>
                     )}
                     </div>
                 </SlidingPanel>
-                <SlidingPanel isNarrow={true} isShown={this.props.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
+                <SlidingPanel isNarrow={true} isShown={this.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
                         <div>
-                            <button className='argo-button argo-button--base' onClick={() => this.syncApplication(this.state.deployRevision)}>
-                                Synchronize
-                            </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
-                                Cancel
-                            </button>
+                        <button className='argo-button argo-button--base' onClick={() => this.syncApplication(this.state.deployRevision)}>
+                            Synchronize
+                        </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
+                            Cancel
+                        </button>
                         </div>
                     )}>
-                    {this.props.application && (
+                    {this.state.application && (
                         <form>
-                            <h6>Synchronizing application manifests from <a href={this.props.application.spec.source.repoURL}>{this.props.application.spec.source.repoURL}</a></h6>
+                            <h6>Synchronizing application manifests from <a href={this.state.application.spec.source.repoURL}>{this.state.application.spec.source.repoURL}</a></h6>
                             <h6>Revision:
                                 <input className='argo-field' placeholder='latest' value={this.state.deployRevision}
                                     onChange={(event) => this.setState({ deployRevision: event.target.value })}/>
@@ -139,10 +149,10 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                         </form>
                     )}
                 </SlidingPanel>
-                <SlidingPanel isShown={this.props.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
-                    {this.props.application && <ApplicationDeploymentHistory
-                        app={this.props.application}
-                        selectedRollbackDeploymentIndex={this.props.selectedRollbackDeploymentIndex}
+                <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
+                    {this.state.application && <ApplicationDeploymentHistory
+                        app={this.state.application}
+                        selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
                         rollbackApp={(info) => this.rollbackApplication(info)}
                         selectDeployment={(i) => this.setRollbackPanelVisible(i)}
                         />}
@@ -160,9 +170,9 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
             }
         }
 
-        if (this.props.application) {
-            nodeByFullName.set(`${this.props.application.kind}:${this.props.application.metadata.name}`, this.props.application);
-            for (const node of (this.props.application.status.comparisonResult.resources || [])) {
+        if (this.state.application) {
+            nodeByFullName.set(`${this.state.application.kind}:${this.state.application.metadata.name}`, this.state.application);
+            for (const node of (this.state.application.status.comparisonResult.resources || [])) {
                 const state = node.liveState || node.targetState;
                 addChildren({...node, children: node.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
             }
@@ -170,14 +180,28 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
         return nodeByFullName;
     }
 
-    private syncApplication(revision: string) {
-        this.props.syncApp(this.props.application.metadata.name, revision);
-        this.setDeployPanelVisible(false);
+    private async syncApplication(revision: string) {
+        try {
+            await services.applications.sync(this.props.match.params.name, revision);
+            this.setDeployPanelVisible(false);
+        } catch (e) {
+            this.appContext.notificationManager.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
+            });
+        }
     }
 
-    private rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
-        this.props.rollbackApp(this.props.application.metadata.name, deploymentInfo.id);
-        this.setRollbackPanelVisible(-1);
+    private async rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
+        try {
+            await services.applications.rollback(this.props.match.params.name, deploymentInfo.id);
+            this.setRollbackPanelVisible(-1);
+        } catch (e) {
+            this.appContext.notificationManager.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to rollback application: ${e.response && e.response.text || 'Internal error'}`,
+            });
+        }
     }
 
     private get appContext(): AppContext {
@@ -194,10 +218,33 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
         if (resourceNode.state.kind === 'Pod') {
             menuItems.push({
                 title: 'Delete',
-                action: () => this.props.deletePod(this.props.match.params.name, resourceNode.state.metadata.name),
+                action: () => this.deletePod(resourceNode.state.metadata.name),
             });
         }
         return menuItems;
+    }
+
+    private async deletePod(podName: string) {
+        try {
+            await services.applications.deletePod(this.props.match.params.name, podName);
+        } catch (e) {
+            this.appContext.notificationManager.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to delete pod: ${e.response && e.response.text || 'Internal error'}`,
+            });
+        }
+    }
+
+    private async deleteApplication(force: boolean) {
+        try {
+            await services.applications.delete(this.props.match.params.name, force);
+            this.appContext.router.history.push('/applications');
+        } catch (e) {
+            this.appContext.notificationManager.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
+            });
+        }
     }
 
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
@@ -220,7 +267,7 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
                 title: 'LOGS',
                 content: (
                     <div className='application-details__tab-content-full-height'>
-                        <PodsLogsViewer pod={resourceNode.state} applicationName={this.props.application.metadata.name} />
+                        <PodsLogsViewer pod={resourceNode.state} applicationName={this.state.application.metadata.name} />
                     </div>
                 ),
             }]);
@@ -228,17 +275,3 @@ class Component extends React.Component<ApplicationDetailsProps, { deployRevisio
         return tabs;
     }
 }
-
-export const ApplicationDetails = connect((state: AppState<State>) => ({
-    application: state.page.application,
-    changesSubscription: state.page.changesSubscription,
-    showDeployPanel: new URLSearchParams(state.router.location.search).get('deploy') === 'true',
-    selectedRollbackDeploymentIndex: parseInt(new URLSearchParams(state.router.location.search).get('rollback'), 10),
-    selectedNodeFullName: new URLSearchParams(state.router.location.search).get('node'),
-}), (dispatch) => ({
-    onLoad: (name: string) => dispatch(actions.loadApplication(name)),
-    syncApp: (name: string, revision: string) => dispatch(actions.syncApplication(name, revision)),
-    deletePod: (appName: string, podName: string) => dispatch(actions.deletePod(appName, podName)),
-    deleteApp: (appName: string, force: boolean) => dispatch(actions.deleteApplication(appName, force)),
-    rollbackApp: (appName: string, id: number) => dispatch(actions.rollbackApplication(appName, id)),
-}))(Component);
