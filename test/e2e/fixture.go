@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
+
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
@@ -31,6 +33,7 @@ import (
 	"k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -176,7 +179,28 @@ func (f *Fixture) TearDown() {
 	if f.tearDownCallback != nil {
 		f.tearDownCallback()
 	}
-	err := f.KubeClient.CoreV1().Namespaces().Delete(f.Namespace, &metav1.DeleteOptions{})
+	apps, err := f.AppClient.ArgoprojV1alpha1().Applications(f.Namespace).List(metav1.ListOptions{})
+	if err == nil {
+		for _, app := range apps.Items {
+			if len(app.Finalizers) > 0 {
+				var patch []byte
+				patch, err = json.Marshal(map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"finalizers": make([]string, 0),
+					},
+				})
+				if err == nil {
+					_, err = f.AppClient.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+	}
+	if err == nil {
+		err = f.KubeClient.CoreV1().Namespaces().Delete(f.Namespace, &metav1.DeleteOptions{})
+	}
 	if err != nil {
 		println("Unable to tear down fixture")
 	}
