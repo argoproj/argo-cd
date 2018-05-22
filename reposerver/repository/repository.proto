@@ -30,8 +30,8 @@ message ManifestResponse {
 message ListDirRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
+    string path = 3;
 }
-
 
 // ListDirResponse returns the contents of the repo of a ListDir request
 message ListDirResponse {
