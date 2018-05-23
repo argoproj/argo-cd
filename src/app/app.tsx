@@ -1,30 +1,22 @@
-import { asyncMiddleware, getReducer, Layout, NotificationInfo, Notifications, RouteImplementation } from 'argo-ui';
+import { Layout, NotificationInfo, Notifications } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Provider } from 'react-redux';
 
 import createHistory from 'history/createBrowserHistory';
-import { Redirect, Route, Switch } from 'react-router';
-import { ConnectedRouter, push, routerMiddleware} from 'react-router-redux';
-import { applyMiddleware, createStore, Store } from 'redux';
+import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
 import { NotificationManager } from './shared/components';
 import requests from './shared/services/requests';
 
 export const history = createHistory();
-const reduxRouterMiddleware = routerMiddleware(history);
-
-const noopReducer = (state: any, action: any) => {
-    // do nothing
-};
 
 import applications from './applications';
 import help from './help';
 import login from './login';
-const routes: {[path: string]: RouteImplementation & { noLayout?: boolean } } = {
-    '/applications': { component: applications.component, reducer: noopReducer },
-    '/login': { component: login.component as any, reducer: noopReducer, noLayout: true },
-    '/help': { component: help.component, reducer: noopReducer },
+const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
+    '/applications': { component: applications.component },
+    '/login': { component: login.component as any, noLayout: true },
+    '/help': { component: help.component },
 };
 
 const navItems = [{
@@ -37,21 +29,21 @@ const navItems = [{
     iconClassName: 'argo-icon-docs',
 }];
 
-const routesReducer = getReducer(routes);
-export const store = createStore(routesReducer, applyMiddleware(asyncMiddleware, reduxRouterMiddleware));
-
 requests.onError.subscribe((err) => {
     if (err.status === 401) {
-        store.dispatch(push(`/login?return_url=${encodeURIComponent(location.href)}`));
+        if (!history.location.pathname.startsWith('/login')) {
+            history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
+        }
     }
 });
 
-export class App extends React.Component<{store: Store<any>}, { notifications: NotificationInfo[] }> implements NotificationManager {
+export class App extends React.Component<{}, { notifications: NotificationInfo[] }> implements NotificationManager {
     public static childContextTypes = {
         notificationManager: PropTypes.object,
+        history: PropTypes.object,
     };
 
-    constructor(props: {store: Store<any>}) {
+    constructor(props: {}) {
         super(props);
         this.state = { notifications: [] };
     }
@@ -74,33 +66,31 @@ export class App extends React.Component<{store: Store<any>}, { notifications: N
 
     public render() {
         return (
-            <Provider store={this.props.store}>
-                <ConnectedRouter history={history} store={this.props.store}>
-                    <Switch>
-                        <Redirect exact={true} path='/' to='/applications'/>
-                        {Object.keys(routes).map((path) => {
-                            const route = routes[path];
-                            return <Route key={path} path={path} render={(routeProps) => (
-                                route.noLayout ? (
-                                    <div>
-                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
-                                        <route.component {...routeProps}/>
-                                    </div>
-                                ) : (
-                                    <Layout navItems={navItems}>
-                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
-                                        <route.component {...routeProps}/>
-                                    </Layout>
-                                )
-                            )}/>;
-                        })}
-                    </Switch>
-                </ConnectedRouter>
-            </Provider>
+            <Router history={history}>
+                <Switch>
+                    <Redirect exact={true} path='/' to='/applications'/>
+                    {Object.keys(routes).map((path) => {
+                        const route = routes[path];
+                        return <Route key={path} path={path} render={(routeProps) => (
+                            route.noLayout ? (
+                                <div>
+                                    <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                    <route.component {...routeProps}/>
+                                </div>
+                            ) : (
+                                <Layout navItems={navItems}>
+                                    <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                    <route.component {...routeProps}/>
+                                </Layout>
+                            )
+                        )}/>;
+                    })}
+                </Switch>
+            </Router>
         );
     }
 
     public getChildContext() {
-        return { notificationManager: this };
+        return { notificationManager: this, history };
     }
 }

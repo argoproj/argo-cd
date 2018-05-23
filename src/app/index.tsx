@@ -1,8 +1,8 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { App, store } from './app';
+import { App } from './app';
 
-ReactDOM.render(<App store={store}/>, document.getElementById('app'));
+ReactDOM.render(<App/>, document.getElementById('app'));
 
 const mdl = module as any;
 if (mdl.hot) {

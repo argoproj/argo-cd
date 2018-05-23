@@ -1,17 +1,30 @@
 import { Page as ArgoPage, TopBarProps } from 'argo-ui';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { connect } from 'react-redux';
-import * as actions from '../actions';
+import { AppContext } from '../context';
+import { services } from '../services';
 
-const Component = (props: TopBarProps & { logout: () => any}) => {
-    const toolbar = props.toolbar || {};
-    toolbar.tools = [
-        toolbar.tools,
-        <a key='logout' onClick={() => props.logout()}>Logout</a>,
-    ];
-    return <ArgoPage {...props} toolbar={toolbar} />;
-};
+export class Page extends React.Component<TopBarProps> {
+    public static contextTypes = {
+        router: PropTypes.object,
+        history: PropTypes.object,
+    };
 
-export const Page = connect(null, (dispatch) => ({
-    logout: () => dispatch(actions.logout()),
-}))(Component);
+    public render() {
+        const toolbar = this.props.toolbar || {};
+        toolbar.tools = [
+            toolbar.tools,
+            <a key='logout' onClick={() => this.logout()}>Logout</a>,
+        ];
+        return <ArgoPage {...this.props} toolbar={toolbar} />;
+    }
+
+    private async logout() {
+        await services.userService.logout();
+        this.appContext.history.push('/login');
+    }
+
+    private get appContext(): AppContext {
+        return this.context as AppContext;
+    }
+}
