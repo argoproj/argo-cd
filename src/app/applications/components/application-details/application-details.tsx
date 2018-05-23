@@ -27,7 +27,6 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
 
     public static contextTypes = {
         router: PropTypes.object,
-        notificationManager: PropTypes.object,
         apis: PropTypes.object,
     };
 
@@ -185,7 +184,7 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
             await services.applications.sync(this.props.match.params.name, revision);
             this.setDeployPanelVisible(false);
         } catch (e) {
-            this.appContext.notificationManager.showNotification({
+            this.appContext.apis.notifications.show({
                 type: NotificationType.Error,
                 content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
             });
@@ -197,7 +196,7 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
             await services.applications.rollback(this.props.match.params.name, deploymentInfo.id);
             this.setRollbackPanelVisible(-1);
         } catch (e) {
-            this.appContext.notificationManager.showNotification({
+            this.appContext.apis.notifications.show({
                 type: NotificationType.Error,
                 content: `Unable to rollback application: ${e.response && e.response.text || 'Internal error'}`,
             });
@@ -233,7 +232,7 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
         try {
             await services.applications.deletePod(this.props.match.params.name, podName);
         } catch (e) {
-            this.appContext.notificationManager.showNotification({
+            this.appContext.apis.notifications.show({
                 type: NotificationType.Error,
                 content: `Unable to delete pod: ${e.response && e.response.text || 'Internal error'}`,
             });
@@ -247,7 +246,7 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
                 await services.applications.delete(this.props.match.params.name, force);
                 this.appContext.router.history.push('/applications');
             } catch (e) {
-                this.appContext.notificationManager.showNotification({
+                this.appContext.apis.notifications.show({
                     type: NotificationType.Error,
                     content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
                 });

@@ -27,7 +27,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
 
     public static contextTypes = {
         router: PropTypes.object,
-        notificationManager: PropTypes.object,
+        apis: PropTypes.object,
     };
 
     private formApi: FormApi;
@@ -215,7 +215,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
             });
             this.setNewAppPanelVisible(false);
         } catch (e) {
-            this.appContext.notificationManager.showNotification({
+            this.appContext.apis.notifications.show({
                 type: NotificationType.Error,
                 content: `Unable to create application: ${e.response && e.response.text || 'Internal error'}`,
             });

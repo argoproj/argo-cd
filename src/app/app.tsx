@@ -5,7 +5,7 @@ import * as React from 'react';
 import createHistory from 'history/createBrowserHistory';
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
-import { NotificationManager, Popup, PopupProps } from './shared/components';
+import { NotificationsManager, Popup, PopupProps } from './shared/components';
 import requests from './shared/services/requests';
 
 export const history = createHistory();
@@ -39,39 +39,25 @@ requests.onError.subscribe((err) => {
     }
 });
 
-export class App extends React.Component<{}, { notifications: NotificationInfo[], popupProps: PopupProps }> implements NotificationManager {
+export class App extends React.Component<{}, { notifications: NotificationInfo[], popupProps: PopupProps }> {
     public static childContextTypes = {
-        notificationManager: PropTypes.object,
         history: PropTypes.object,
         apis: PropTypes.object,
     };
 
     private popupManager: PopupManager;
+    private notificationsManager: NotificationsManager;
 
     constructor(props: {}) {
         super(props);
         this.state = { notifications: [], popupProps: null };
         this.popupManager = new PopupManager();
+        this.notificationsManager = new NotificationsManager();
     }
 
     public componentDidMount() {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
-    }
-
-    public showNotification(notification: NotificationInfo, autoHideMs = 5000) {
-        this.setState({ notifications: [...(this.state.notifications || []), notification] });
-        if (autoHideMs > -1) {
-            setTimeout(() => this.closeNotification(notification), autoHideMs);
-        }
-    }
-
-    public closeNotification(notification: NotificationInfo): void {
-        const notifications = (this.state.notifications || []).slice();
-        const index = this.state.notifications.indexOf(notification);
-        if (index > -1) {
-            notifications.splice(index, 1);
-            this.setState({notifications});
-        }
+        this.notificationsManager.notifications.subscribe((notifications) => this.setState({ notifications }));
     }
 
     public render() {
@@ -86,12 +72,14 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
                             return <Route key={path} path={path} render={(routeProps) => (
                                 route.noLayout ? (
                                     <div>
-                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                        <Notifications leftOffset={60}
+                                            closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
                                         <route.component {...routeProps}/>
                                     </div>
                                 ) : (
                                     <Layout navItems={navItems}>
-                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                        <Notifications leftOffset={60}
+                                            closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
                                         <route.component {...routeProps}/>
                                     </Layout>
                                 )
@@ -104,6 +92,6 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
     }
 
     public getChildContext() {
-        return { notificationManager: this, history, apis: { popup: this.popupManager } };
+        return { history, apis: { popup: this.popupManager, notifications: this.notificationsManager } };
     }
 }
