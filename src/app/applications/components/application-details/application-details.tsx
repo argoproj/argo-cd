@@ -193,7 +193,10 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
 
     private async rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
         try {
-            await services.applications.rollback(this.props.match.params.name, deploymentInfo.id);
+            const confirmed = await this.appContext.apis.popup.confirm('Rollback application', `Are you sure you want to rollback application '${this.props.match.params.name}'?`);
+            if (confirmed) {
+                await services.applications.rollback(this.props.match.params.name, deploymentInfo.id);
+            }
             this.setRollbackPanelVisible(-1);
         } catch (e) {
             this.appContext.apis.notifications.show({
