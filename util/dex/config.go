@@ -8,21 +8,14 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
-func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string) ([]byte, error) {
-	settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
-	settings, err := settingsMgr.GetSettings()
-	if err != nil {
-		return nil, err
-	}
+func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	if !settings.IsSSOConfigured() {
 		return nil, nil
 	}
 	var dexCfg map[string]interface{}
-	err = yaml.Unmarshal([]byte(settings.DexConfig), &dexCfg)
+	err := yaml.Unmarshal([]byte(settings.DexConfig), &dexCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
 	}
@@ -70,26 +63,8 @@ func GenerateDexConfigYAML(kubeClientset kubernetes.Interface, namespace string)
 		connectors[i] = connector
 	}
 	dexCfg["connectors"] = connectors
-
-	secretValues, err := getSecretValues(kubeClientset, namespace)
-	if err != nil {
-		return nil, err
-	}
-	dexCfg = replaceMapSecrets(dexCfg, secretValues)
+	dexCfg = replaceMapSecrets(dexCfg, settings.Secrets)
 	return yaml.Marshal(dexCfg)
-}
-
-// getSecretValues is a convenience to get the ArgoCD secret data as a map[string]string
-func getSecretValues(kubeClientset kubernetes.Interface, namespace string) (map[string]string, error) {
-	sec, err := kubeClientset.CoreV1().Secrets(namespace).Get(common.ArgoCDSecretName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	secretValues := make(map[string]string, len(sec.Data))
-	for k, v := range sec.Data {
-		secretValues[k] = string(v)
-	}
-	return secretValues, nil
 }
 
 // replaceMapSecrets takes a json object and recursively looks for any secret key references in the

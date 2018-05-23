@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/dex"
+	"github.com/argoproj/argo-cd/util/settings"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -56,22 +58,57 @@ func NewRunDexCommand() *cobra.Command {
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the ArgoCD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
-			dexPath, err := exec.LookPath("dex")
+			_, err := exec.LookPath("dex")
 			errors.CheckError(err)
-			dexCfgBytes, err := genDexConfig(clientConfig)
+			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			if len(dexCfgBytes) == 0 {
-				log.Infof("dex is not configured")
-				// need to sleep forever since we run as a sidecar and kubernetes does not permit
-				// containers in a deployment to have restartPolicy anything other than Always.
-				// TODO: we should watch for a change in the dex.config key in the config-map
-				// to restart dex when there is a change (e.g. clientID and clientSecretKey changed)
-				select {}
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			kubeClientset := kubernetes.NewForConfigOrDie(config)
+			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			settings, err := settingsMgr.GetSettings()
+			errors.CheckError(err)
+			ctx := context.Background()
+			settingsMgr.StartNotifier(ctx, settings)
+			updateCh := make(chan struct{}, 1)
+			settingsMgr.Subscribe(updateCh)
+
+			for {
+				var cmd *exec.Cmd
+				dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
+				errors.CheckError(err)
+				if len(dexCfgBytes) == 0 {
+					log.Infof("dex is not configured")
+				} else {
+					err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
+					errors.CheckError(err)
+					log.Info(string(dexCfgBytes))
+					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					err = cmd.Start()
+					errors.CheckError(err)
+				}
+
+				// loop until the dex config changes
+				for {
+					<-updateCh
+					newDexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
+					errors.CheckError(err)
+					if string(newDexCfgBytes) != string(dexCfgBytes) {
+						log.Infof("dex config modified. restarting dex")
+						if cmd != nil && cmd.Process != nil {
+							err = cmd.Process.Signal(syscall.SIGTERM)
+							errors.CheckError(err)
+							_, err = cmd.Process.Wait()
+							errors.CheckError(err)
+						}
+						break
+					} else {
+						log.Infof("dex config unmodified")
+					}
+				}
 			}
-			err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
-			errors.CheckError(err)
-			log.Info(string(dexCfgBytes))
-			return syscall.Exec(dexPath, []string{"dex", "serve", "/tmp/dex.yaml"}, []string{})
 		},
 	}
 
@@ -88,7 +125,15 @@ func NewGenDexConfigCommand() *cobra.Command {
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from ArgoCD settings",
 		RunE: func(c *cobra.Command, args []string) error {
-			dexCfgBytes, err := genDexConfig(clientConfig)
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			kubeClientset := kubernetes.NewForConfigOrDie(config)
+			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			settings, err := settingsMgr.GetSettings()
+			errors.CheckError(err)
+			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
 			errors.CheckError(err)
 			if len(dexCfgBytes) == 0 {
 				log.Infof("dex is not configured")
@@ -107,16 +152,6 @@ func NewGenDexConfigCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
 	return &command
-}
-
-func genDexConfig(clientConfig clientcmd.ClientConfig) ([]byte, error) {
-	config, err := clientConfig.ClientConfig()
-	errors.CheckError(err)
-	namespace, _, err := clientConfig.Namespace()
-	errors.CheckError(err)
-
-	kubeClient := kubernetes.NewForConfigOrDie(config)
-	return dex.GenerateDexConfigYAML(kubeClient, namespace)
 }
 
 func main() {

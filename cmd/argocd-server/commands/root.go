@@ -53,10 +53,13 @@ func NewCommand() *cobra.Command {
 				DisableAuth:     disableAuth,
 			}
 			argocd := server.NewServer(argoCDOpts)
-			ctx := context.Background()
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
-			argocd.Run(ctx, 8080)
+
+			for {
+				ctx := context.Background()
+				ctx, cancel := context.WithCancel(ctx)
+				argocd.Run(ctx, 8080)
+				cancel()
+			}
 		},
 	}
 

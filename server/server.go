@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
@@ -50,6 +51,13 @@ var (
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 )
 
+var backoff = wait.Backoff{
+	Steps:    5,
+	Duration: 500 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
+
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
@@ -59,6 +67,9 @@ type ArgoCDServer struct {
 	log          *log.Entry
 	sessionMgr   *util_session.SessionManager
 	settingsMgr  *settings_util.SettingsManager
+
+	// stopCh is the channel which when closed, will shutdown the ArgoCD server
+	stopCh chan struct{}
 }
 
 type ArgoCDServerOpts struct {
@@ -103,10 +114,20 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 		httpS = a.newHTTPServer(ctx, port)
 	}
 
-	// Cmux is used to support servicing gRPC and HTTP1.1+JSON on the same port
-	conn, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	errors.CheckError(err)
+	// Start listener
+	var conn net.Listener
+	var realErr error
+	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		conn, realErr = net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if realErr != nil {
+			a.log.Warnf("failed listen: %v", realErr)
+			return false, nil
+		}
+		return true, nil
+	})
+	errors.CheckError(realErr)
 
+	// Cmux is used to support servicing gRPC and HTTP1.1+JSON on the same port
 	tcpm := cmux.New(conn)
 	var tlsm cmux.CMux
 	var grpcL net.Listener
@@ -135,15 +156,82 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		argocd.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
-	go func() { errors.CheckError(grpcS.Serve(grpcL)) }()
-	go func() { errors.CheckError(httpS.Serve(httpL)) }()
+	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
+	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {
-		go func() { errors.CheckError(httpsS.Serve(httpsL)) }()
-		go func() { errors.CheckError(tlsm.Serve()) }()
+		go func() { a.checkServeErr("httpsS", httpsS.Serve(httpsL)) }()
+		go func() { a.checkServeErr("tlsm", tlsm.Serve()) }()
 	}
 	go a.initializeOIDCClientApp()
-	err = tcpm.Serve()
+	go a.watchSettings(ctx)
+	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
+
+	a.stopCh = make(chan struct{})
+	<-a.stopCh
+	errors.CheckError(conn.Close())
+}
+
+// checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
+func (a *ArgoCDServer) checkServeErr(name string, err error) {
+	if err != nil {
+		if a.stopCh == nil {
+			// a nil stopCh indicates a graceful shutdown
+			log.Infof("graceful shutdown %s: %v", name, err)
+		} else {
+			log.Fatalf("%s: %v", name, err)
+		}
+	} else {
+		log.Infof("graceful shutdown %s", name)
+	}
+}
+
+func (a *ArgoCDServer) Shutdown() {
+	log.Info("Shut down requested")
+	stopCh := a.stopCh
+	a.stopCh = nil
+	if stopCh != nil {
+		close(stopCh)
+	}
+}
+
+// watchSettings watches the configmap and secret for any setting updates that would warrant a
+// restart of the API server.
+func (a *ArgoCDServer) watchSettings(ctx context.Context) {
+	a.settingsMgr.StartNotifier(ctx, a.settings)
+	updateCh := make(chan struct{}, 1)
+	a.settingsMgr.Subscribe(updateCh)
+
+	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
 	errors.CheckError(err)
+	prevGitHubSecret := a.settings.WebhookGitHubSecret
+	prevGitLabSecret := a.settings.WebhookGitLabSecret
+	prevBitBucketUUID := a.settings.WebhookBitbucketUUID
+
+	for {
+		<-updateCh
+		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
+		errors.CheckError(err)
+		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
+			log.Infof("dex config modified. restarting")
+			break
+		}
+		if prevGitHubSecret != a.settings.WebhookGitHubSecret {
+			log.Infof("github secret modified. restarting")
+			break
+		}
+		if prevGitLabSecret != a.settings.WebhookGitLabSecret {
+			log.Infof("gitlab secret modified. restarting")
+			break
+		}
+		if prevBitBucketUUID != a.settings.WebhookBitbucketUUID {
+			log.Infof("bitbucket uuid modified. restarting")
+			break
+		}
+	}
+	log.Info("shutting down settings watch")
+	a.Shutdown()
+	a.settingsMgr.Unsubscribe(updateCh)
+	close(updateCh)
 }
 
 // initializeOIDCClientApp initializes the OIDC Client application, querying the well known oidc
@@ -159,12 +247,6 @@ func (a *ArgoCDServer) initializeOIDCClientApp() {
 	dexClient, err := dexutil.NewDexClient()
 	errors.CheckError(err)
 	dexClient.WaitUntilReady()
-	var backoff = wait.Backoff{
-		Steps:    5,
-		Duration: 1 * time.Second,
-		Factor:   1.0,
-		Jitter:   0.1,
-	}
 	var realErr error
 	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
 		_, realErr = a.sessionMgr.OIDCProvider()
