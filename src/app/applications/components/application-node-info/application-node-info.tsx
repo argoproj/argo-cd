@@ -48,11 +48,14 @@ export const ApplicationNodeInfo = (props: { node: models.ResourceNode | models.
                 </div>
             </div>
 
+            <div className='application-node-info__manifest'>
             {resourceState &&
-                <div className='application-node-info__manifest'>
-                    <ApplicationResourceDiff targetState={resourceState.targetState} liveState={resourceState.liveState}/>
+                <ApplicationResourceDiff targetState={resourceState.targetState} liveState={resourceState.liveState}/> ||
+                <div  className='application-node-info__manifest application-node-info__manifest--raw'>
+                    {JSON.stringify(resourceNode, null, 2)}
                 </div>
             }
+            </div>
         </div>
     );
 };

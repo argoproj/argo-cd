@@ -4,5 +4,11 @@
     &__manifest {
         background: white;
         padding: 1em;
+
+        &--raw {
+            font-family: 'Bitstream Vera Sans Mono', 'DejaVu Sans Mono', Monaco, Courier, monospace;
+            white-space: pre;
+            font-size: 12px;
+        }
     }
 }
