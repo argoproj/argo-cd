@@ -54,15 +54,14 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
         const appUpdates = Observable
             .from([await services.applications.get(appName)])
             .merge(services.applications.watch({name: appName}).map((changeEvent) => changeEvent.application));
+        this.ensureUnsubscribed();
         this.changesSubscription = appUpdates.subscribe((application) => {
             this.setState({ application });
         });
     }
 
     public componentWillUnmount() {
-        if (this.changesSubscription) {
-            this.changesSubscription.unsubscribe();
-        }
+        this.ensureUnsubscribed();
     }
 
     public setDeployPanelVisible(isVisible: boolean) {
@@ -273,5 +272,12 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
             }]);
         }
         return tabs;
+    }
+
+    private ensureUnsubscribed() {
+        if (this.changesSubscription) {
+            this.changesSubscription.unsubscribe();
+        }
+        this.changesSubscription = null;
     }
 }

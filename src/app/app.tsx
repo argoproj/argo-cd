@@ -52,8 +52,11 @@ export class App extends React.Component<{store: Store<any>}, { notifications: N
         this.state = { notifications: [] };
     }
 
-    public showNotification(notification: NotificationInfo) {
+    public showNotification(notification: NotificationInfo, autoHideMs = 5000) {
         this.setState({ notifications: [...(this.state.notifications || []), notification] });
+        if (autoHideMs > -1) {
+            setTimeout(() => this.closeNotification(notification), autoHideMs);
+        }
     }
 
     public closeNotification(notification: NotificationInfo): void {

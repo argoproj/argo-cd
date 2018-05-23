@@ -1,27 +1,18 @@
-import { AppContext, AppState, MockupList, SlidingPanel } from 'argo-ui';
+import { MockupList, NotificationType, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
-import { connect } from 'react-redux';
 import { RouteComponentProps } from 'react-router';
 import { Subscription } from 'rxjs';
 
 import { Page } from '../../../shared/components';
 import { FormField } from '../../../shared/components';
+import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
-import * as actions from '../../actions';
-import { State } from '../../state';
+import { services } from '../../../shared/services';
 import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./applications-list.scss');
-
-export interface ApplicationProps extends RouteComponentProps<{}> {
-    onLoad: () => any;
-    createApp: (params: NewAppParams) => any;
-    applications: models.Application[];
-    changesSubscription: Subscription;
-    showNewAppPanel: boolean;
-}
 
 interface NewAppParams {
     applicationName: string;
@@ -32,22 +23,51 @@ interface NewAppParams {
     namespace: string;
 }
 
-class Component extends React.Component<ApplicationProps> {
+export class ApplicationsList extends React.Component<RouteComponentProps<{}>, { applications: models.Application[] }> {
 
     public static contextTypes = {
         router: PropTypes.object,
+        notificationManager: PropTypes.object,
     };
 
     private formApi: FormApi;
+    private changesSubscription: Subscription;
 
-    public componentDidMount() {
-        this.props.onLoad();
+    private get showNewAppPanel() {
+        return new URLSearchParams(this.props.location.search).get('new') === 'true';
+    }
+
+    constructor(props: RouteComponentProps<{}>) {
+        super(props);
+        this.state = { applications: [] };
+    }
+
+    public async componentDidMount() {
+        this.ensureUnsubscribed();
+        this.setState({ applications: (await services.applications.list()) });
+        this.changesSubscription = services.applications.watch().subscribe((applicationChange) => {
+            const applications = this.state.applications.slice();
+            switch (applicationChange.type) {
+                case 'ADDED':
+                case 'MODIFIED':
+                    const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
+                    if (index > -1) {
+                        applications[index] = applicationChange.application;
+                        this.setState({ applications });
+                    } else {
+                        applications.unshift(applicationChange.application);
+                        this.setState({ applications });
+                    }
+                    break;
+                case 'DELETED':
+                    this.setState({ applications: applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name) });
+                    break;
+            }
+        });
     }
 
     public componentWillUnmount() {
-        if (this.props.changesSubscription) {
-            this.props.changesSubscription.unsubscribe();
-        }
+        this.ensureUnsubscribed();
     }
 
     public render() {
@@ -63,9 +83,9 @@ class Component extends React.Component<ApplicationProps> {
                 },
             }} >
                 <div className='argo-container applications-list'>
-                    {this.props.applications ? (
+                    {this.state.applications ? (
                         <div className='argo-table-list argo-table-list--clickable'>
-                            {this.props.applications.map((app) => (
+                            {this.state.applications.map((app) => (
                                 <div key={app.metadata.name} className='argo-table-list__row'>
                                     <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
                                         <div className='columns small-3'>
@@ -119,7 +139,7 @@ class Component extends React.Component<ApplicationProps> {
                         </div>
                     ) : <MockupList height={50} marginTop={30}/>}
                 </div>
-                <SlidingPanel isShown={this.props.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} isMiddle={true} header={(
+                <SlidingPanel isShown={this.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} isMiddle={true} header={(
                         <div>
                             <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
                                 Create
@@ -128,7 +148,7 @@ class Component extends React.Component<ApplicationProps> {
                             </button>
                         </div>
                     )}>
-                    <Form onSubmit={(params) => this.props.createApp(params as NewAppParams)}
+                    <Form onSubmit={(params) => this.createApplication(params as NewAppParams)}
                         getApi={(api) => this.formApi = api}
                         validateError={(params: NewAppParams) => ({
                             applicationName: !params.applicationName && 'Application name is required',
@@ -173,26 +193,32 @@ class Component extends React.Component<ApplicationProps> {
     private setNewAppPanelVisible(isVisible: boolean) {
         this.appContext.router.history.push(`${this.props.match.url}?new=${isVisible}`);
     }
-}
 
-export const ApplicationsList = connect((state: AppState<State>) => {
-    return {
-        applications: state.page.applications,
-        changesSubscription: state.page.changesSubscription,
-        showNewAppPanel: new URLSearchParams(state.router.location.search).get('new') === 'true',
-    };
-}, (dispatch) => ({
-    onLoad: () => dispatch(actions.loadAppsList()),
-    createApp: (params: NewAppParams) => {
-        dispatch(actions.createApplication(params.applicationName, {
-            environment: params.environment,
-            path: params.path,
-            repoURL: params.repoURL,
-            targetRevision: null,
-            componentParameterOverrides: null,
-        }, {
-            server: params.clusterURL,
-            namespace: params.namespace,
-        }));
-    },
-}))(Component);
+    private ensureUnsubscribed() {
+        if (this.changesSubscription) {
+            this.changesSubscription.unsubscribe();
+        }
+        this.changesSubscription = null;
+    }
+
+    private async createApplication(params: NewAppParams) {
+        try {
+            await services.applications.create(params.applicationName, {
+                environment: params.environment,
+                path: params.path,
+                repoURL: params.repoURL,
+                targetRevision: null,
+                componentParameterOverrides: null,
+            }, {
+                server: params.clusterURL,
+                namespace: params.namespace,
+            });
+            this.setNewAppPanelVisible(false);
+        } catch (e) {
+            this.appContext.notificationManager.showNotification({
+                type: NotificationType.Error,
+                content: `Unable to create application: ${e.response && e.response.text || 'Internal error'}`,
+            });
+        }
+    }
+}
