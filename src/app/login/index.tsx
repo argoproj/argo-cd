@@ -1,4 +1,5 @@
-import { Login as component } from './components/login';
-import reducer from './reducers';
+import { Login } from './components/login';
 
-export default { component, reducer };
+export default {
+    component: Login,
+};

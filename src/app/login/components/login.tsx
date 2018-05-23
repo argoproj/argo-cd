@@ -1,32 +1,27 @@
 import * as React from 'react';
 import { Form, Text } from 'react-form';
-import { connect } from 'react-redux';
+import { RouteComponentProps } from 'react-router';
 
-import { AppState } from 'argo-ui';
-import * as actions from '../../shared/actions';
-import {FormField } from '../../shared/components';
+import { FormField } from '../../shared/components';
 import { AuthSettings } from '../../shared/models';
 import { services } from '../../shared/services';
-import { State } from '../state';
 
 require('./login.scss');
-
-interface LoginProperties {
-    returnUrl: string;
-    loginError: string;
-    login: (username: string, password: string, returnURL: string ) => any;
-}
 
 export interface LoginForm {
     username: string;
     password: string;
 }
 
-export class LoginForm extends React.Component<LoginProperties, {authSettings: AuthSettings}> {
+export class Login extends React.Component<RouteComponentProps<{}>, {authSettings: AuthSettings, loginError: string}> {
 
-    constructor(props: LoginProperties) {
+    private get returnUrl() {
+        return new URLSearchParams(this.props.location.search).get('return_url') || '';
+    }
+
+    constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = { authSettings: null };
+        this.state = { authSettings: null, loginError: null };
     }
 
     public async componentDidMount() {
@@ -36,7 +31,6 @@ export class LoginForm extends React.Component<LoginProperties, {authSettings: A
     }
 
     public render() {
-        const props = this.props;
         const authSettings = this.state.authSettings;
         return (
             <div className='login'>
@@ -52,7 +46,7 @@ export class LoginForm extends React.Component<LoginProperties, {authSettings: A
                     </div>
                     {authSettings && authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0 && (
                         <div className='login__box_saml width-control'>
-                            <a href={`/auth/login?return_url=${encodeURIComponent(this.props.returnUrl)}`}>
+                            <a href={`/auth/login?return_url=${encodeURIComponent(this.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {authSettings.dexConfig.connectors.length === 1 && (
                                         <span>Login via {authSettings.dexConfig.connectors[0].name}</span>
@@ -65,7 +59,7 @@ export class LoginForm extends React.Component<LoginProperties, {authSettings: A
                         </div>
                     )}
                     <Form
-                        onSubmit={(params: LoginForm) => this.props.login(params.username, params.password, this.props.returnUrl)}
+                        onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.returnUrl)}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required',
@@ -77,7 +71,7 @@ export class LoginForm extends React.Component<LoginProperties, {authSettings: A
                             </div>
                             <div className='argo-form-row'>
                                 <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}}/>
-                                <div className='argo-form-row__error-msg'>{props.loginError}</div>
+                                <div className='argo-form-row__error-msg'>{this.state.loginError}</div>
                             </div>
                             <div className='login__form-row'>
                                 <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
@@ -96,15 +90,19 @@ export class LoginForm extends React.Component<LoginProperties, {authSettings: A
             </div>
         );
     }
+
+    private async login(username: string, password: string, returnURL: string) {
+        try {
+            this.setState({loginError: ''});
+            await services.userService.login(username, password);
+            if (returnURL) {
+                const url = new URL(returnURL);
+                this.props.history.push(url.pathname + url.search);
+            } else {
+                this.props.history.push('/applications');
+            }
+        } catch (e) {
+            this.setState({loginError: e.response.body.error});
+        }
+    }
 }
-
-const Login = connect((state: AppState<State>) => ({
-    returnUrl: new URLSearchParams(state.router.location.search).get('return_url') || '',
-    loginError: state.page.loginError,
-}), (dispatch) => ({
-    login: (username: string, password: string, returnURL: string) => dispatch(actions.login(username, password, returnURL)),
-}))(LoginForm);
-
-export {
-    Login,
-};

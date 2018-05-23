@@ -14,13 +14,17 @@ import requests from './shared/services/requests';
 export const history = createHistory();
 const reduxRouterMiddleware = routerMiddleware(history);
 
+const noopReducer = (state: any, action: any) => {
+    // do nothing
+};
+
 import applications from './applications';
 import help from './help';
 import login from './login';
 const routes: {[path: string]: RouteImplementation & { noLayout?: boolean } } = {
-    '/applications': { component: applications.component, reducer: applications.reducer },
-    '/login': { component: login.component as any, reducer: login.reducer, noLayout: true },
-    '/help': { component: help.component, reducer: help.reducer },
+    '/applications': { component: applications.component, reducer: noopReducer },
+    '/login': { component: login.component as any, reducer: noopReducer, noLayout: true },
+    '/help': { component: help.component, reducer: noopReducer },
 };
 
 const navItems = [{
