@@ -5,7 +5,7 @@ import * as React from 'react';
 import createHistory from 'history/createBrowserHistory';
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
-import { NotificationManager } from './shared/components';
+import { NotificationManager, Popup, PopupProps } from './shared/components';
 import requests from './shared/services/requests';
 
 export const history = createHistory();
@@ -13,6 +13,8 @@ export const history = createHistory();
 import applications from './applications';
 import help from './help';
 import login from './login';
+import { PopupManager } from './shared/components/popup/popup-manager';
+
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
     '/applications': { component: applications.component },
     '/login': { component: login.component as any, noLayout: true },
@@ -37,15 +39,23 @@ requests.onError.subscribe((err) => {
     }
 });
 
-export class App extends React.Component<{}, { notifications: NotificationInfo[] }> implements NotificationManager {
+export class App extends React.Component<{}, { notifications: NotificationInfo[], popupProps: PopupProps }> implements NotificationManager {
     public static childContextTypes = {
         notificationManager: PropTypes.object,
         history: PropTypes.object,
+        apis: PropTypes.object,
     };
+
+    private popupManager: PopupManager;
 
     constructor(props: {}) {
         super(props);
-        this.state = { notifications: [] };
+        this.state = { notifications: [], popupProps: null };
+        this.popupManager = new PopupManager();
+    }
+
+    public componentDidMount() {
+        this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
     }
 
     public showNotification(notification: NotificationInfo, autoHideMs = 5000) {
@@ -66,31 +76,34 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
 
     public render() {
         return (
-            <Router history={history}>
-                <Switch>
-                    <Redirect exact={true} path='/' to='/applications'/>
-                    {Object.keys(routes).map((path) => {
-                        const route = routes[path];
-                        return <Route key={path} path={path} render={(routeProps) => (
-                            route.noLayout ? (
-                                <div>
-                                    <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
-                                    <route.component {...routeProps}/>
-                                </div>
-                            ) : (
-                                <Layout navItems={navItems}>
-                                    <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
-                                    <route.component {...routeProps}/>
-                                </Layout>
-                            )
-                        )}/>;
-                    })}
-                </Switch>
-            </Router>
+            <div>
+                {this.state.popupProps && <Popup {...this.state.popupProps}/>}
+                <Router history={history}>
+                    <Switch>
+                        <Redirect exact={true} path='/' to='/applications'/>
+                        {Object.keys(routes).map((path) => {
+                            const route = routes[path];
+                            return <Route key={path} path={path} render={(routeProps) => (
+                                route.noLayout ? (
+                                    <div>
+                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                        <route.component {...routeProps}/>
+                                    </div>
+                                ) : (
+                                    <Layout navItems={navItems}>
+                                        <Notifications leftOffset={60} closeNotification={(item) => this.closeNotification(item)} notifications={this.state.notifications}/>
+                                        <route.component {...routeProps}/>
+                                    </Layout>
+                                )
+                            )}/>;
+                        })}
+                    </Switch>
+                </Router>
+            </div>
         );
     }
 
     public getChildContext() {
-        return { notificationManager: this, history };
+        return { notificationManager: this, history, apis: { popup: this.popupManager } };
     }
 }

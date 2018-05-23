@@ -28,6 +28,7 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
     public static contextTypes = {
         router: PropTypes.object,
         notificationManager: PropTypes.object,
+        apis: PropTypes.object,
     };
 
     private changesSubscription: Subscription;
@@ -217,7 +218,12 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
         if (resourceNode.state.kind === 'Pod') {
             menuItems.push({
                 title: 'Delete',
-                action: () => this.deletePod(resourceNode.state.metadata.name),
+                action: async () => {
+                    const confirmed = await this.appContext.apis.popup.confirm('Delete pod', `Are your sure you want to delete pod '${resourceNode.state.metadata.name}'?`);
+                    if (confirmed) {
+                        this.deletePod(resourceNode.state.metadata.name);
+                    }
+                },
             });
         }
         return menuItems;
@@ -235,14 +241,17 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
     }
 
     private async deleteApplication(force: boolean) {
-        try {
-            await services.applications.delete(this.props.match.params.name, force);
-            this.appContext.router.history.push('/applications');
-        } catch (e) {
-            this.appContext.notificationManager.showNotification({
-                type: NotificationType.Error,
-                content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
-            });
+        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are your sure you want to delete application '${this.props.match.params.name}'?`);
+        if (confirmed) {
+            try {
+                await services.applications.delete(this.props.match.params.name, force);
+                this.appContext.router.history.push('/applications');
+            } catch (e) {
+                this.appContext.notificationManager.showNotification({
+                    type: NotificationType.Error,
+                    content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
+                });
+            }
         }
     }
 
