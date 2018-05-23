@@ -11,6 +11,44 @@ import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
 
+// RepoKsonnetQuery is a query for Repository contents matching a particular path
+message RepoKsonnetQuery {
+	string repo = 1;
+	string revision = 2;
+}
+
+// RepoKsonnetResponse is a response for Repository contents matching a particular path
+message RepoKsonnetResponse {
+	repeated KsonnetAppSpec data = 1;
+}
+
+// KsonnetAppSpec contains Ksonnet app response
+// This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
+message KsonnetAppSpec {
+    string name = 1;
+    map<string, KsonnetEnvironment> environments = 2;
+}
+
+message KsonnetEnvironment {
+    // Name is the user defined name of an environment
+    string name = 1;
+    // KubernetesVersion is the kubernetes version the targetted cluster is running on.
+    string k8sVersion = 2;
+    // Path is the relative project path containing metadata for this environment.
+    string path = 3;
+    // Destination stores the cluster address that this environment points to.
+    KsonnetEnvironmentDestination destination = 4;
+
+    // Targets contain the relative component paths that this environment
+    //repeated string targets = X;
+}
+
+message KsonnetEnvironmentDestination {
+    // Server is the Kubernetes server that the cluster is running on.
+    string server = 1;
+    // Namespace is the namespace of the Kubernetes server that targets should be deployed to
+    string namespace = 2;
+}
 
 // RepoQuery is a query for Repository resources
 message RepoQuery {
