@@ -17,9 +17,13 @@ type Server struct {
 }
 
 // NewServer returns a new instance of the Repository service
-func NewServer(db db.ArgoDB) *Server {
+func NewServer(
+	repoClientset reposerver.Clientset,
+	db db.ArgoDB,
+) *Server {
 	return &Server{
-		db: db,
+		db:            db,
+		repoClientset: repoClientset,
 	}
 }
 

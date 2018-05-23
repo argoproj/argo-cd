@@ -286,7 +286,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.KubeClientset)
 	clusterService := cluster.NewServer(db)
-	repoService := repository.NewServer(db)
+	repoService := repository.NewServer(a.RepoClientset, db)
 	sessionService := session.NewServer(a.sessionMgr)
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db)
 	settingsService := settings.NewServer(a.settingsMgr)
