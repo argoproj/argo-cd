@@ -147,6 +147,26 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 }
 
+// Events returns an application by name
+func (s *Server) ListEvents(ctx context.Context, q *ApplicationEventQuery) (*ApplicationEventResponse, error) {
+	if q.AppName == nil {
+		*q.AppName = "APP WAS NIL"
+	}
+	if q.ResName == nil {
+		*q.ResName = "APP WAS NIL"
+	}
+	myMap := map[string]string{
+		"hello": "world",
+		"app":   *q.AppName,
+		"res":   *q.ResName,
+	}
+	var err error = nil
+	resp := ApplicationEventResponse{
+		Data: myMap,
+	}
+	return &resp, err
+}
+
 // Update updates an application
 func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
 	err := s.validateApp(ctx, &a.Spec)

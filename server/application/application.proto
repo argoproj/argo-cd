@@ -19,6 +19,12 @@ message ApplicationQuery {
 	optional string name = 1;
 }
 
+// ApplicationEventQuery is a query for application resource events
+message ApplicationEventQuery {
+	required string appName = 1;
+	optional string resName = 2;
+}
+
 // ManifestQuery is a query for manifest resources
 message ManifestQuery {
 	required string appName = 1;
@@ -26,6 +32,10 @@ message ManifestQuery {
 }
 
 message ApplicationResponse {}
+
+message ApplicationEventResponse {
+	map<string, string> data = 1;
+}
 
 message DeleteApplicationRequest {
 	required string name = 1;
@@ -79,6 +89,11 @@ service ApplicationService {
 	// List returns list of applications
 	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
 		option (google.api.http).get = "/api/v1/applications";
+	}
+
+	// List returns list of applications
+	rpc ListEvents(ApplicationEventQuery) returns (ApplicationEventResponse) {
+		option (google.api.http).get = "/api/v1/applications/{appName}/events/{resName}";
 	}
 
 	// Watch returns stream of application change events.
