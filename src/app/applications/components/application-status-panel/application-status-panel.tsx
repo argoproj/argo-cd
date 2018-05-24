@@ -1,19 +1,11 @@
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
+import * as utils from '../utils';
 
 require('./application-status-panel.scss');
 
-function getOperationType(state: models.OperationState) {
-    if (state.operation.sync) {
-        return 'synchronization';
-    } else if (state.operation.rollback) {
-        return 'rollback';
-    }
-    return 'unknown operation';
-}
-
-export const ApplicationStatusPanel = ({application}: { application: models.Application }) => {
+export const ApplicationStatusPanel = ({application, onClick}: { application: models.Application, onClick?: () => any}) => {
     const today = new Date();
     const creationDate = new Date(application.metadata.creationTimestamp);
 
@@ -36,7 +28,9 @@ export const ApplicationStatusPanel = ({application}: { application: models.Appl
             </div>
             {application.status.operationState && (
             <div className='application-status-panel__item columns small-3'>
-                <div className='application-status-panel__item-value'>{getOperationType(application.status.operationState)}</div>
+                <div className='application-status-panel__item-value'>
+                    <a onClick={() => onClick && onClick()}>{utils.getOperationType(application.status.operationState)}</a>
+                </div>
                 <div className='application-status-panel__item-name'>
                     {application.status.operationState.phase} at {application.status.operationState.finishedAt || application.status.operationState.startedAt}
                 </div>

@@ -76,3 +76,12 @@ export function getPodPhase(pod: appModels.State) {
     }
     return phase;
 }
+
+export function getOperationType(state: appModels.OperationState) {
+    if (state.operation.sync) {
+        return 'synchronization';
+    } else if (state.operation.rollback) {
+        return 'rollback';
+    }
+    return 'unknown operation';
+}

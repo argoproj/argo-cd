@@ -11,6 +11,7 @@ import { services } from '../../../shared/services';
 
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
+import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
 import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
 import { ApplicationSummary } from '../application-summary/application-summary';
@@ -20,10 +21,9 @@ import * as AppUtils from '../utils';
 
 require('./application-details.scss');
 
-export interface ApplicationDetailsProps extends RouteComponentProps<{ name: string; namespace: string; }> {
-}
-
-export class ApplicationDetails extends React.Component<ApplicationDetailsProps, { deployRevision: string, application: appModels.Application }> {
+export class ApplicationDetails extends React.Component<
+        RouteComponentProps<{ name: string; namespace: string; }>,
+        { deployRevision: string, application: appModels.Application }> {
 
     public static contextTypes = {
         router: PropTypes.object,
@@ -32,9 +32,13 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
 
     private changesSubscription: Subscription;
 
-    constructor(props: ApplicationDetailsProps) {
+    constructor(props: RouteComponentProps<{ name: string; namespace: string; }>) {
         super(props);
         this.state = { deployRevision: '', application: null};
+    }
+
+    private get showOperationState() {
+        return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
     }
 
     private get showDeployPanel() {
@@ -64,23 +68,12 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
         this.ensureUnsubscribed();
     }
 
-    public setDeployPanelVisible(isVisible: boolean) {
-        this.appContext.router.history.push(`${this.props.match.url}?deploy=${isVisible}`);
-    }
-
-    public setRollbackPanelVisible(selectedDeploymentIndex = 0) {
-        this.appContext.router.history.push(`${this.props.match.url}?rollback=${selectedDeploymentIndex}`);
-    }
-
-    public selectNode(fullName: string) {
-        this.appContext.router.history.push(`${this.props.match.url}?node=${fullName}`);
-    }
-
     public render() {
         const appNodesByName = this.groupAppNodesByName();
         const selectedItem = this.selectedNodeFullName && appNodesByName.get(this.selectedNodeFullName) || null;
         const isAppSelected = this.state.application != null && selectedItem === this.state.application;
         const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
+        const operationState = this.state.application && this.state.application.status.operationState;
         return (
             <Page
                 title={'Application Details'}
@@ -99,7 +92,7 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
                         action: () => this.deleteApplication(true),
                     }],
                 } }}>
-                {this.state.application && <ApplicationStatusPanel application={this.state.application}/>}
+                {this.state.application && <ApplicationStatusPanel application={this.state.application} onClick={() => this.setOperationStatusVisible(true)}/>}
                 <div className='argo-container application-details'>
                     {this.state.application ? (
                         <ApplicationResourcesTree
@@ -156,6 +149,9 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
                         selectDeployment={(i) => this.setRollbackPanelVisible(i)}
                         />}
                 </SlidingPanel>
+                <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
+                    {operationState && <ApplicationOperationState operationState={operationState}/>}
+                </SlidingPanel>
             </Page>
         );
     }
@@ -177,6 +173,22 @@ export class ApplicationDetails extends React.Component<ApplicationDetailsProps,
             }
         }
         return nodeByFullName;
+    }
+
+    private setDeployPanelVisible(isVisible: boolean) {
+        this.appContext.router.history.push(`${this.props.match.url}?deploy=${isVisible}`);
+    }
+
+    private setOperationStatusVisible(isVisible: boolean) {
+        this.appContext.router.history.push(`${this.props.match.url}?operation=${isVisible}`);
+    }
+
+    private setRollbackPanelVisible(selectedDeploymentIndex = 0) {
+        this.appContext.router.history.push(`${this.props.match.url}?rollback=${selectedDeploymentIndex}`);
+    }
+
+    private selectNode(fullName: string) {
+        this.appContext.router.history.push(`${this.props.match.url}?node=${fullName}`);
     }
 
     private async syncApplication(revision: string) {
