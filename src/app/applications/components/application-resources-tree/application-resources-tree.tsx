@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
+import { ComparisonStatusIcon, getStateAndNode, HealthStatusIcon } from '../utils';
 
 require('./application-resources-tree.scss');
 
@@ -29,15 +29,30 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     return {width, height};
 }
 
+function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.ResourceNode | models.ResourceState) => boolean) {
+    graph.nodes().forEach((nodeId) => {
+        const node = graph.node(nodeId) as (models.ResourceNode | models.ResourceState) & dagre.Node;
+        if (!predicate(node)) {
+            const childIds = graph.successors(nodeId);
+            const parentIds = graph.predecessors(nodeId);
+            graph.removeNode(nodeId);
+            childIds.forEach((childId: any) => {
+                parentIds.forEach((parentId: any) => {
+                    graph.setEdge(parentId, childId);
+                });
+            });
+        }
+    });
+}
+
 export const ApplicationResourcesTree = (props: {
     app: models.Application,
-    selectedNodeFullName?:
-    string,
+    kindsFilter: string[],
+    selectedNodeFullName?: string,
     onNodeClick?: (fullName: string) => any,
     nodeMenuItems?: (node: models.ResourceNode | models.ResourceState) => MenuItem[],
     nodeLabels?: (node: models.ResourceNode | models.ResourceState) => string[];
 }) => {
-
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR' });
     graph.setDefaultEdgeLabel(() => ({}));
@@ -56,6 +71,13 @@ export const ApplicationResourcesTree = (props: {
         const state = node.liveState || node.targetState;
         addChildren({...node, children: node.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
         graph.setEdge(`${props.app.kind}:${props.app.metadata.name}`, `${state.kind}:${state.metadata.name}`);
+    }
+
+    if (props.kindsFilter.length > 0) {
+        filterGraph(graph, (res) => {
+            const {resourceNode} = getStateAndNode(res);
+            return resourceNode.state.kind === 'Application' || props.kindsFilter.indexOf(resourceNode.state.kind) > -1;
+        });
     }
 
     dagre.layout(graph);

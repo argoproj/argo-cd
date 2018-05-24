@@ -1,4 +1,4 @@
-import { MenuItem, NotificationType, SlidingPanel, Tab, Tabs} from 'argo-ui';
+import { MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
@@ -84,6 +84,26 @@ export class ApplicationDetails extends React.Component<
     }
 
     public render() {
+        const kindsSet = new Set<string>();
+        if (this.state.application) {
+            const items: (appModels.ResourceNode | appModels.ResourceState)[] = [...this.state.application.status.comparisonResult.resources];
+            while (items.length > 0) {
+                const next = items.pop();
+                const {resourceNode} = AppUtils.getStateAndNode(next);
+                kindsSet.add(resourceNode.state.kind);
+                (resourceNode.children || []).forEach((child) => items.push(child));
+            }
+        }
+        const kinds = Array.from(kindsSet);
+        const kindsFilter = this.getKindsFilter();
+        const filter: TopBarFilter<string> = {
+            items: kinds.map((kind) => ({ value: kind, label: kind })),
+            selectedValues: kindsFilter,
+            selectionChanged: (items) => {
+                this.appContext.router.history.push(`${this.props.match.url}?kinds=${items.join(',')}`);
+            },
+        };
+
         const appNodesByName = this.groupAppNodesByName();
         const selectedItem = this.selectedNodeFullName && appNodesByName.get(this.selectedNodeFullName) || null;
         const isAppSelected = this.state.application != null && selectedItem === this.state.application;
@@ -92,7 +112,7 @@ export class ApplicationDetails extends React.Component<
         return (
             <Page
                 title={'Application Details'}
-                toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
+                toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
                     items: [{
                         className: 'icon argo-icon-deploy',
                         title: 'Sync',
@@ -111,6 +131,7 @@ export class ApplicationDetails extends React.Component<
                 <div className='argo-container application-details'>
                     {this.state.application ? (
                         <ApplicationResourcesTree
+                            kindsFilter={kindsFilter}
                             selectedNodeFullName={this.selectedNodeFullName}
                             onNodeClick={(fullName) => this.selectNode(fullName)}
                             nodeMenuItems={(node) => this.getResourceMenuItems(node)}
@@ -188,6 +209,14 @@ export class ApplicationDetails extends React.Component<
             }
         }
         return nodeByFullName;
+    }
+
+    private getKindsFilter() {
+        let kinds = new URLSearchParams(this.props.history.location.search).get('kinds');
+        if (kinds === null) {
+            kinds = 'Deployment,Service,Pod,StatefulSet';
+        }
+        return kinds.split(',').filter((item) => !!item);
     }
 
     private setDeployPanelVisible(isVisible: boolean) {

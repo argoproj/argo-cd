@@ -14,7 +14,7 @@ export class Page extends React.Component<TopBarProps> {
         const toolbar = this.props.toolbar || {};
         toolbar.tools = [
             toolbar.tools,
-            <a key='logout' onClick={() => this.logout()}>Logout</a>,
+            <a  style={{float: 'right', paddingLeft: '1em'}} key='logout' onClick={() => this.logout()}>Logout</a>,
         ];
         return <ArgoPage {...this.props} toolbar={toolbar} />;
     }
