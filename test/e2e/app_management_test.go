@@ -137,6 +137,7 @@ func TestAppManagement(t *testing.T) {
 		})
 		assert.Equal(t, v1alpha1.ComparisonStatusSynced, app.Status.ComparisonResult.Status)
 		assert.True(t, app.Status.OperationState.RollbackResult != nil)
+		assert.Equal(t, 2, len(app.Status.OperationState.RollbackResult.Resources))
 		assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
 		assert.Equal(t, 3, len(app.Status.History))
 	})
