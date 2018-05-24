@@ -370,6 +370,10 @@ func (c *FakeGitClient) LsRemote(s string) (string, error) {
 	return "abcdef123456890", nil
 }
 
+func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
+	return []string{"abcdef123456890"}, nil
+}
+
 func (c *FakeGitClient) CommitSHA() (string, error) {
 	return "abcdef123456890", nil
 }
