@@ -70,9 +70,9 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories";
 	}
 
-	// GetKsonnetApps returns list of Ksonnet apps in the repo
-	rpc GetKsonnetApps(RepoKsonnetQuery) returns (RepoKsonnetResponse) {
-		option (google.api.http).get = "/api/v1/repositories/{repo}/ksonnet";
+	// ListKsonnetApps returns list of Ksonnet apps in the repo
+	rpc ListKsonnetApps(RepoKsonnetQuery) returns (RepoKsonnetResponse) {
+		option (google.api.http).get = "/api/v1/repositories/ksonnet";
 	}
 
 	// Create creates a repo

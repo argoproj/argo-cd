@@ -38,9 +38,12 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	return repoList, err
 }
 
-// List returns list of repositories
-func (s *Server) GetKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*RepoKsonnetResponse, error) {
+// ListKsonnetApps returns list of Ksonnet apps in the repo
+func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*RepoKsonnetResponse, error) {
 	repo, err := s.db.GetRepository(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
 
 	// Test the repo
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
