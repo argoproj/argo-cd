@@ -41,18 +41,6 @@ func NewService(gitFactory git.ClientFactory, cache cache.Cache) *Service {
 	}
 }
 
-type GitFileEntry struct {
-	Name        string `json:"name"`
-	Path        string `json:"path"`
-	SHA         string `json:"sha"`
-	Size        uint64 `json:"size"`
-	URL         string `json:"url"`
-	HtmlURL     string `json:"html_url"`
-	GitURL      string `json:"git_url"`
-	DownloadURL string `json:"download_url"`
-	Type        string `json:"type"`
-}
-
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirResponse, error) {
 	appRepoPath := tempRepoPath(q.Repo.Repo)
