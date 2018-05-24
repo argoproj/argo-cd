@@ -5,5 +5,30 @@
 
     &__tab-content-full-height {
         height: calc(100vh - 2 * 50px);
+        div.row, div.columns {
+            height: 100%;
+        }
+    }
+    
+    &__container {
+        position: relative;
+        text-transform: uppercase;
+        margin-top: 0.5em;
+        cursor: pointer;
+        font-size: 0.8em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-left: 10px;
+
+        i {
+            position: absolute;
+            left: 0px;
+            top: 2px;
+        }
+
+        span {
+            color: $argo-color-teal-5;
+        }
     }
 }

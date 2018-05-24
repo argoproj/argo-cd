@@ -49,8 +49,23 @@ export class ApplicationDetails extends React.Component<
         return parseInt(new URLSearchParams(this.props.history.location.search).get('rollback'), 10);
     }
 
+    private get selectedNodeContainer() {
+        const nodeContainer = {
+            fullName: '',
+            container: 0,
+        };
+        const node = new URLSearchParams(this.props.location.search).get('node');
+        if (node) {
+            const parts = node.split(':');
+            nodeContainer.fullName = parts.slice(0, 2).join(':');
+            nodeContainer.container = parseInt(parts[2] || '0', 10);
+        }
+        return nodeContainer;
+    }
+
     private get selectedNodeFullName() {
-        return new URLSearchParams(this.props.location.search).get('node');
+        const nodeContainer = this.selectedNodeContainer;
+        return nodeContainer.fullName;
     }
 
     public async componentDidMount() {
@@ -187,8 +202,9 @@ export class ApplicationDetails extends React.Component<
         this.appContext.router.history.push(`${this.props.match.url}?rollback=${selectedDeploymentIndex}`);
     }
 
-    private selectNode(fullName: string) {
-        this.appContext.router.history.push(`${this.props.match.url}?node=${fullName}`);
+    private selectNode(fullName: string, containerIndex = 0) {
+        const node = fullName ? `${fullName}:${containerIndex}` : '';
+        this.appContext.router.history.push(`${this.props.match.url}?node=${node}`);
     }
 
     private async syncApplication(revision: string) {
@@ -289,7 +305,21 @@ export class ApplicationDetails extends React.Component<
                 title: 'LOGS',
                 content: (
                     <div className='application-details__tab-content-full-height'>
-                        <PodsLogsViewer pod={resourceNode.state} applicationName={this.state.application.metadata.name} />
+                        <div className='row'>
+                            <div className='columns small-3 medium-2'>
+                                <p>CONTAINERS:</p>
+                                {resourceNode.state.spec.containers.map((container: any, i: number) => (
+                                    <div className='application-details__container' key={container.name} onClick={() => this.selectNode(this.selectedNodeFullName, i)}>
+                                        {i === this.selectedNodeContainer.container && <i className='fa fa-angle-right'/>}
+                                        <span title={container.name}>{container.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className='columns small-9 medium-10'>
+                                <PodsLogsViewer
+                                    pod={resourceNode.state} applicationName={this.state.application.metadata.name} containerIndex={this.selectedNodeContainer.container} />
+                            </div>
+                        </div>
                     </div>
                 ),
             }]);
