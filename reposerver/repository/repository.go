@@ -83,6 +83,9 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirRespo
 		Object:     &res,
 		Expiration: DefaultRepoCacheExpiration,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return &res, nil
 }
 
