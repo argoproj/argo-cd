@@ -365,7 +365,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			opRes := ctrl.appStateManager.SyncAppState(app, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, app.Operation.Rollback.DryRun, app.Operation.Rollback.Prune)
 			state.Phase = opRes.Phase
 			state.Message = opRes.Message
-			state.RollbackResult = opRes.RollbackResult
+			state.RollbackResult = opRes.SyncResult
 		}
 	} else {
 		state.Phase = appv1.OperationFailed
