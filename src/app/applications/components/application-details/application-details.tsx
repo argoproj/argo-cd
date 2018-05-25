@@ -95,7 +95,7 @@ export class ApplicationDetails extends React.Component<
             }
         }
         const kinds = Array.from(kindsSet);
-        const kindsFilter = this.getKindsFilter();
+        const kindsFilter = this.getKindsFilter().filter((kind) => kinds.indexOf(kind) > -1);
         const filter: TopBarFilter<string> = {
             items: kinds.map((kind) => ({ value: kind, label: kind })),
             selectedValues: kindsFilter,
