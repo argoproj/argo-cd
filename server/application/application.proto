@@ -20,10 +20,10 @@ message ApplicationQuery {
 	optional string name = 1;
 }
 
-// ApplicationEventQuery is a query for application resource events
-message ApplicationEventQuery {
+// ApplicationEventsQuery is a query for application resource events
+message ApplicationResourceEventsQuery {
 	required string appName = 1;
-	optional string resName = 2;
+	required string resName = 2;
 }
 
 // ManifestQuery is a query for manifest resources
@@ -34,13 +34,8 @@ message ManifestQuery {
 
 message ApplicationResponse {}
 
-// ApplicationEventResponse maps a resource name to a list of application events.
-message ApplicationEventResponse {
-	map<string, ApplicationEventList> data = 1;
-}
-
-// ApplicationEventList holds a list of Kubernetes events.
-message ApplicationEventList {
+// ApplicationResourceEventsResponse holds a list of resource events.
+message ApplicationResourceEventsResponse {
 	repeated k8s.io.api.events.v1beta1.Event data = 1;
 }
 
@@ -98,8 +93,8 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications";
 	}
 
-	// List returns list of applications
-	rpc ListEvents(ApplicationEventQuery) returns (ApplicationEventResponse) {
+	// ListResourceEvents returns a list of event resources
+	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (ApplicationResourceEventsResponse) {
 		option (google.api.http).get = "/api/v1/applications/{appName}/events/{resName}";
 	}
 

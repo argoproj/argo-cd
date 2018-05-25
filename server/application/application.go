@@ -148,28 +148,19 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 }
 
-// Events returns an application by name
-func (s *Server) ListEvents(ctx context.Context, q *ApplicationEventQuery) (*ApplicationEventResponse, error) {
-	if q.AppName == nil {
-		*q.AppName = "APP WAS NIL"
-	}
-	if q.ResName == nil {
-		*q.ResName = "APP WAS NIL"
-	}
-	// myMap := map[string]string{
-	// 	"hello": "world",
-	// 	"app":   *q.AppName,
-	// 	"res":   *q.ResName,
+// ListResourceEvents returns a list of event resources
+func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*ApplicationResourceEventsResponse, error) {
+	// // iterate if not specified
+	// if q.ResName == "" {
+	// }
+
+	events := make([]*v1beta1.Event, 0)
+	// for _, event := range outputEvents {
+	// 	events = append(events, event)
 	// }
 	var err error = nil
-	someresourceList := ApplicationEventList{
-		Data: []*v1beta1.Event{},
-	}
-	myMap := map[string]*ApplicationEventList{
-		"someresource": &someresourceList,
-	}
-	resp := ApplicationEventResponse{
-		Data: myMap,
+	resp := ApplicationResourceEventsResponse{
+		Data: events,
 	}
 	return &resp, err
 }
