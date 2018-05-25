@@ -38,9 +38,6 @@ message KsonnetEnvironment {
     string path = 3;
     // Destination stores the cluster address that this environment points to.
     KsonnetEnvironmentDestination destination = 4;
-
-    // Targets contain the relative component paths that this environment
-    //repeated string targets = X;
 }
 
 message KsonnetEnvironmentDestination {
