@@ -9,6 +9,7 @@ package application;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
+import "k8s.io/api/events/v1beta1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
@@ -33,8 +34,14 @@ message ManifestQuery {
 
 message ApplicationResponse {}
 
+// ApplicationEventResponse maps a resource name to a list of application events.
 message ApplicationEventResponse {
-	map<string, string> data = 1;
+	map<string, ApplicationEventList> data = 1;
+}
+
+// ApplicationEventList holds a list of Kubernetes events.
+message ApplicationEventList {
+	repeated k8s.io.api.events.v1beta1.Event data = 1;
 }
 
 message DeleteApplicationRequest {

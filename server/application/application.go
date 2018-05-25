@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
+	"k8s.io/api/events/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -155,12 +156,18 @@ func (s *Server) ListEvents(ctx context.Context, q *ApplicationEventQuery) (*App
 	if q.ResName == nil {
 		*q.ResName = "APP WAS NIL"
 	}
-	myMap := map[string]string{
-		"hello": "world",
-		"app":   *q.AppName,
-		"res":   *q.ResName,
-	}
+	// myMap := map[string]string{
+	// 	"hello": "world",
+	// 	"app":   *q.AppName,
+	// 	"res":   *q.ResName,
+	// }
 	var err error = nil
+	someresourceList := ApplicationEventList{
+		Data: []*v1beta1.Event{},
+	}
+	myMap := map[string]*ApplicationEventList{
+		"someresource": &someresourceList,
+	}
 	resp := ApplicationEventResponse{
 		Data: myMap,
 	}
