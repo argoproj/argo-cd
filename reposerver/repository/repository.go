@@ -41,6 +41,54 @@ func NewService(gitFactory git.ClientFactory, cache cache.Cache) *Service {
 	}
 }
 
+// ListDir lists the contents of a GitHub repo
+func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirResponse, error) {
+	appRepoPath := tempRepoPath(q.Repo.Repo)
+	s.repoLock.Lock(appRepoPath)
+	defer s.repoLock.Unlock(appRepoPath)
+
+	gitClient := s.gitFactory.NewClient(q.Repo.Repo, appRepoPath, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey)
+	err := gitClient.Init()
+	if err != nil {
+		return nil, err
+	}
+
+	commitSHA, err := gitClient.LsRemote(q.Revision)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := listDirCacheKey(commitSHA, q)
+	var res ListDirResponse
+	err = s.cache.Get(cacheKey, &res)
+	if err == nil {
+		log.Infof("manifest cache hit: %s", cacheKey)
+		return &res, nil
+	}
+
+	err = checkoutRevision(gitClient, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+
+	lsFiles, err := gitClient.LsFiles(q.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	res = ListDirResponse{
+		Data: lsFiles,
+	}
+	err = s.cache.Set(&cache.Item{
+		Key:        cacheKey,
+		Object:     &res,
+		Expiration: DefaultRepoCacheExpiration,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
 	appRepoPath := tempRepoPath(q.Repo.Repo)
 	s.repoLock.Lock(appRepoPath)
@@ -205,4 +253,8 @@ func checkoutRevision(gitClient git.Client, revision string) error {
 func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
 	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
 	return fmt.Sprintf("mfst|%s|%s|%s|%s", q.Path, q.Environment, commitSHA, string(pStr))
+}
+
+func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
+	return fmt.Sprintf("ldir|%s|%s", q.Path, commitSHA)
 }

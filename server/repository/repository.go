@@ -2,19 +2,28 @@ package repository
 
 import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
 )
 
 // Server provides a Repository service
 type Server struct {
-	db db.ArgoDB
+	db            db.ArgoDB
+	repoClientset reposerver.Clientset
 }
 
 // NewServer returns a new instance of the Repository service
-func NewServer(db db.ArgoDB) *Server {
+func NewServer(
+	repoClientset reposerver.Clientset,
+	db db.ArgoDB,
+) *Server {
 	return &Server{
-		db: db,
+		db:            db,
+		repoClientset: repoClientset,
 	}
 }
 
@@ -27,6 +36,59 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 		}
 	}
 	return repoList, err
+}
+
+// ListKsonnetApps returns list of Ksonnet apps in the repo
+func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*RepoKsonnetResponse, error) {
+	repo, err := s.db.GetRepository(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Test the repo
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(conn)
+
+	revision := q.Revision
+	if revision == "" {
+		revision = "HEAD"
+	}
+
+	// Verify app.yaml is functional
+	req := repository.ListDirRequest{
+		Repo:     repo,
+		Revision: revision,
+		Path:     "*app.yaml",
+	}
+	getRes, err := repoClient.ListDir(ctx, &req)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*KsonnetAppSpec, 0)
+	for _, path := range getRes.Data {
+		getFileRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
+			Repo:     repo,
+			Revision: revision,
+			Path:     path,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var appSpec KsonnetAppSpec
+		err = yaml.Unmarshal(getFileRes.Data, &appSpec)
+		if err == nil && appSpec.Name != "" && len(appSpec.Environments) > 0 {
+			out = append(out, &appSpec)
+		}
+	}
+
+	return &RepoKsonnetResponse{
+		Data: out,
+	}, nil
 }
 
 // Create creates a repository
