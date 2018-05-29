@@ -42,7 +42,7 @@ func NewService(gitFactory git.ClientFactory, cache cache.Cache) *Service {
 }
 
 // ListDir lists the contents of a GitHub repo
-func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirResponse, error) {
+func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, error) {
 	appRepoPath := tempRepoPath(q.Repo.Repo)
 	s.repoLock.Lock(appRepoPath)
 	defer s.repoLock.Unlock(appRepoPath)
@@ -58,7 +58,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirRespo
 		return nil, err
 	}
 	cacheKey := listDirCacheKey(commitSHA, q)
-	var res ListDirResponse
+	var res FileList
 	err = s.cache.Get(cacheKey, &res)
 	if err == nil {
 		log.Infof("manifest cache hit: %s", cacheKey)
@@ -75,8 +75,8 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*ListDirRespo
 		return nil, err
 	}
 
-	res = ListDirResponse{
-		Data: lsFiles,
+	res = FileList{
+		Items: lsFiles,
 	}
 	err = s.cache.Set(&cache.Item{
 		Key:        cacheKey,
