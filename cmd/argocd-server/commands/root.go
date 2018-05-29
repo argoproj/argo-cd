@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/events/v1beta1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -43,7 +42,6 @@ func NewCommand() *cobra.Command {
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
 			repoclientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
-			eventclientset, err := v1beta1.NewForConfig(config)
 			errors.CheckError(err)
 
 			argoCDOpts := server.ArgoCDServerOpts{
@@ -53,7 +51,6 @@ func NewCommand() *cobra.Command {
 				KubeClientset:   kubeclientset,
 				AppClientset:    appclientset,
 				RepoClientset:   repoclientset,
-				EventClientset:  eventclientset,
 				DisableAuth:     disableAuth,
 			}
 			argocd := server.NewServer(argoCDOpts)

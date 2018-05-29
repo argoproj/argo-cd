@@ -26,24 +26,21 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
-	eventsapi "k8s.io/api/events/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	events "k8s.io/client-go/kubernetes/typed/events/v1beta1"
 	"k8s.io/client-go/rest"
 )
 
 // Server provides a Application service
 type Server struct {
-	ns             string
-	kubeclientset  kubernetes.Interface
-	appclientset   appclientset.Interface
-	repoClientset  reposerver.Clientset
-	db             db.ArgoDB
-	appComparator  controller.AppStateManager
-	eventclientset events.EventsV1beta1Interface
+	ns            string
+	kubeclientset kubernetes.Interface
+	appclientset  appclientset.Interface
+	repoClientset reposerver.Clientset
+	db            db.ArgoDB
+	appComparator controller.AppStateManager
 }
 
 // NewServer returns a new instance of the Application service
@@ -52,18 +49,16 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
-	eventClientset events.EventsV1beta1Interface,
 	db db.ArgoDB,
 ) ApplicationServiceServer {
 
 	return &Server{
-		ns:             namespace,
-		appclientset:   appclientset,
-		kubeclientset:  kubeclientset,
-		db:             db,
-		repoClientset:  repoClientset,
-		appComparator:  controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
-		eventclientset: eventClientset,
+		ns:            namespace,
+		appclientset:  appclientset,
+		kubeclientset: kubeclientset,
+		db:            db,
+		repoClientset: repoClientset,
+		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
 	}
 }
 
@@ -153,8 +148,8 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 }
 
 // ListResourceEvents returns a list of event resources
-func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*eventsapi.EventList, error) {
-	return s.eventclientset.Events(s.ns).List(metav1.ListOptions{})
+func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*v1.EventList, error) {
+	return s.kubeclientset.CoreV1().Events(s.ns).List(metav1.ListOptions{})
 }
 
 // Update updates an application
