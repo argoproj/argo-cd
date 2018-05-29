@@ -153,7 +153,6 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	fieldSelector := fields.SelectorFromSet(map[string]string{
 		"involvedObject.name":      *q.ResName,
 		"involvedObject.namespace": s.ns,
-		// "involvedObject.uid": uid,
 	})
 	opts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
 	return s.kubeclientset.CoreV1().Events(s.ns).List(opts)
