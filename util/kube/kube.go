@@ -518,10 +518,10 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 
 // SelectorStringFromMap turns a map of key-value strings and combines them into a single term selector for Kubernetes.
 func SelectorStringFromMap(m map[string]string) string {
-	selector := fields.Everything()
+	selectors := []fields.Selector{}
 	for k, v := range m {
-		s := fields.OneTermEqualSelector(k, v)
-		selector = fields.AndSelectors(s)
+		selector := fields.OneTermEqualSelector(k, v)
+		selectors = append(selectors, selector)
 	}
-	return selector.String()
+	return fields.AndSelectors(selectors...).String()
 }
