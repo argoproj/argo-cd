@@ -16,7 +16,6 @@
     "@types/react-dom": "^16.0.3",
     "@types/react-form": "^2.16.0",
     "@types/react-router-dom": "^4.2.3",
-    "@types/react-router-redux": "^5.0.11",
     "@types/superagent": "^3.5.7",
     "argo-ui": "^2.1.1-alpha4",
     "awesome-typescript-loader": "^3.4.1",
