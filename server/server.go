@@ -44,6 +44,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/typed/events/v1beta1"
 )
 
 var (
@@ -80,6 +81,7 @@ type ArgoCDServerOpts struct {
 	KubeClientset   kubernetes.Interface
 	AppClientset    appclientset.Interface
 	RepoClientset   reposerver.Clientset
+	EventClientset  v1beta1.EventInterface
 }
 
 // NewServer returns a new instance of the ArgoCD API server
@@ -288,7 +290,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db)
 	repoService := repository.NewServer(a.RepoClientset, db)
 	sessionService := session.NewServer(a.sessionMgr)
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.EventClientset, db)
 	settingsService := settings.NewServer(a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)

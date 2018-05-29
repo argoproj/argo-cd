@@ -26,22 +26,23 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
-	"k8s.io/api/events/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/typed/events/v1beta1"
 	"k8s.io/client-go/rest"
 )
 
 // Server provides a Application service
 type Server struct {
-	ns            string
-	kubeclientset kubernetes.Interface
-	appclientset  appclientset.Interface
-	repoClientset reposerver.Clientset
-	db            db.ArgoDB
-	appComparator controller.AppStateManager
+	ns             string
+	kubeclientset  kubernetes.Interface
+	appclientset   appclientset.Interface
+	repoClientset  reposerver.Clientset
+	db             db.ArgoDB
+	appComparator  controller.AppStateManager
+	eventclientset v1beta1.EventInterface
 }
 
 // NewServer returns a new instance of the Application service
@@ -154,7 +155,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	// if q.ResName == "" {
 	// }
 
-	events := make([]*v1beta1.Event, 0)
+	events := make([]*v1.Event, 0)
 	// for _, event := range outputEvents {
 	// 	events = append(events, event)
 	// }
