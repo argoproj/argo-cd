@@ -34,11 +34,6 @@ message ManifestQuery {
 
 message ApplicationResponse {}
 
-// ApplicationResourceEventsResponse holds a list of resource events.
-message ApplicationResourceEventsResponse {
-	required k8s.io.api.events.v1beta1.EventList data = 1;
-}
-
 message DeleteApplicationRequest {
 	required string name = 1;
 	optional bool cascade = 2;
@@ -94,7 +89,7 @@ service ApplicationService {
 	}
 
 	// ListResourceEvents returns a list of event resources
-	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (ApplicationResourceEventsResponse) {
+	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (k8s.io.api.events.v1beta1.EventList) {
 		option (google.api.http).get = "/api/v1/applications/{appName}/events/{resName}";
 	}
 
