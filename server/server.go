@@ -81,7 +81,7 @@ type ArgoCDServerOpts struct {
 	KubeClientset   kubernetes.Interface
 	AppClientset    appclientset.Interface
 	RepoClientset   reposerver.Clientset
-	EventClientset  v1beta1.EventInterface
+	EventClientset  v1beta1.EventsV1beta1Interface
 }
 
 // NewServer returns a new instance of the ArgoCD API server

@@ -26,11 +26,12 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
+	events_api "k8s.io/api/events/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/events/v1beta1"
+	events "k8s.io/client-go/kubernetes/typed/events/v1beta1"
 	"k8s.io/client-go/rest"
 )
 
@@ -42,7 +43,7 @@ type Server struct {
 	repoClientset  reposerver.Clientset
 	db             db.ArgoDB
 	appComparator  controller.AppStateManager
-	eventclientset v1beta1.EventInterface
+	eventclientset events.EventsV1beta1Interface
 }
 
 // NewServer returns a new instance of the Application service
@@ -51,16 +52,18 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
+	eventClientset events.EventsV1beta1Interface,
 	db db.ArgoDB,
 ) ApplicationServiceServer {
 
 	return &Server{
-		ns:            namespace,
-		appclientset:  appclientset,
-		kubeclientset: kubeclientset,
-		db:            db,
-		repoClientset: repoClientset,
-		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
+		ns:             namespace,
+		appclientset:   appclientset,
+		kubeclientset:  kubeclientset,
+		db:             db,
+		repoClientset:  repoClientset,
+		appComparator:  controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
+		eventclientset: eventClientset,
 	}
 }
 
@@ -155,7 +158,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	// if q.ResName == "" {
 	// }
 
-	events := make([]*v1.Event, 0)
+	events := make([]*events_api.Event, 0)
 	// for _, event := range outputEvents {
 	// 	events = append(events, event)
 	// }
