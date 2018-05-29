@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -149,7 +150,13 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*v1.EventList, error) {
-	return s.kubeclientset.CoreV1().Events(s.ns).List(metav1.ListOptions{})
+	fieldSelector := kube.SelectorStringFromMap(map[string]string{
+		"involvedObject.name":      *q.ResName,
+		"involvedObject.namespace": s.ns,
+		// "involvedObject.uid": uid,
+	})
+	opts := metav1.ListOptions{FieldSelector: fieldSelector}
+	return s.kubeclientset.CoreV1().Events(s.ns).List(opts)
 }
 
 // Update updates an application

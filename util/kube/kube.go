@@ -20,6 +20,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -513,4 +514,14 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 		kubeConfig.AuthInfos[restConfig.Host].Token = restConfig.BearerToken
 	}
 	return clientcmd.WriteToFile(kubeConfig, filename)
+}
+
+// SelectorStringFromMap turns a map of key-value strings and combines them into a single term selector for Kubernetes.
+func SelectorStringFromMap(m map[string]string) string {
+	selector := fields.Everything()
+	for k, v := range m {
+		s := fields.OneTermEqualSelector(k, v)
+		selector = fields.AndSelectors(s)
+	}
+	return selector.String()
 }
