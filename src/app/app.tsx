@@ -1,11 +1,10 @@
-import { Layout, NotificationInfo, Notifications } from 'argo-ui';
+import { Layout, NotificationInfo, Notifications, NotificationsManager, Popup, PopupManager, PopupProps } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
 import createHistory from 'history/createBrowserHistory';
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
-import { NotificationsManager, Popup, PopupProps } from './shared/components';
 import requests from './shared/services/requests';
 
 export const history = createHistory();
@@ -13,7 +12,6 @@ export const history = createHistory();
 import applications from './applications';
 import help from './help';
 import login from './login';
-import { PopupManager } from './shared/components/popup/popup-manager';
 
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
     '/applications': { component: applications.component },
