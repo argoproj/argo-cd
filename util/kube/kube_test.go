@@ -142,32 +142,3 @@ func TestListResources(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(resList))
 }
-
-func TestSelectorStringFromMap(t *testing.T) {
-	tables := []struct {
-		expected string
-		data     map[string]string
-	}{
-		{
-			expected: "involvedObject.name=guestbook-ui,involvedObject.namespace=default",
-			data: map[string]string{
-				"involvedObject.name":      "guestbook-ui",
-				"involvedObject.namespace": "default",
-			},
-		},
-		{
-			expected: "involvedObject.uid=abcdef123456",
-			data: map[string]string{
-				"involvedObject.uid": "abcdef123456",
-			},
-		},
-		{
-			expected: "",
-			data:     map[string]string{},
-		},
-	}
-
-	for _, table := range tables {
-		assert.Equal(t, table.expected, SelectorStringFromMap(table.data))
-	}
-}

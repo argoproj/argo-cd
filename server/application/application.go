@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -150,12 +150,12 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*v1.EventList, error) {
-	fieldSelector := kube.SelectorStringFromMap(map[string]string{
+	fieldSelector := fields.SelectorFromSet(map[string]string{
 		"involvedObject.name":      *q.ResName,
 		"involvedObject.namespace": s.ns,
 		// "involvedObject.uid": uid,
 	})
-	opts := metav1.ListOptions{FieldSelector: fieldSelector}
+	opts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
 	return s.kubeclientset.CoreV1().Events(s.ns).List(opts)
 }
 
