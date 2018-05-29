@@ -36,7 +36,7 @@ message ApplicationResponse {}
 
 // ApplicationResourceEventsResponse holds a list of resource events.
 message ApplicationResourceEventsResponse {
-	repeated k8s.io.api.events.v1beta1.Event data = 1;
+	required k8s.io.api.events.v1beta1.EventList data = 1;
 }
 
 message DeleteApplicationRequest {

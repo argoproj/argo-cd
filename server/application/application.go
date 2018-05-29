@@ -26,7 +26,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
-	events_api "k8s.io/api/events/v1beta1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -154,19 +153,15 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*ApplicationResourceEventsResponse, error) {
-	// // iterate if not specified
-	// if q.ResName == "" {
-	// }
+	events, err := s.eventclientset.Events(s.ns).List(metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
 
-	events := make([]*events_api.Event, 0)
-	// for _, event := range outputEvents {
-	// 	events = append(events, event)
-	// }
-	var err error = nil
 	resp := ApplicationResourceEventsResponse{
 		Data: events,
 	}
-	return &resp, err
+	return &resp, nil
 }
 
 // Update updates an application
