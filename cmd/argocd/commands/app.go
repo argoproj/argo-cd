@@ -119,6 +119,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		showParams bool
+	)
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
@@ -145,19 +148,27 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			if app.Status.ComparisonResult.Error != "" {
 				fmt.Printf(format, "Error:", app.Status.ComparisonResult.Error)
 			}
+			if showParams {
+				printParams(app)
+			}
 			if len(app.Status.ComparisonResult.Resources) > 0 {
 				fmt.Println()
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
 				for _, res := range app.Status.ComparisonResult.Resources {
-					targetObj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
+					obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
 					errors.CheckError(err)
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", targetObj.GetKind(), targetObj.GetName(), res.Status, res.Health.Status)
+					if obj == nil {
+						obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
+						errors.CheckError(err)
+					}
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
 				}
 				_ = w.Flush()
 			}
 		},
 	}
+	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	return command
 }
 
@@ -175,6 +186,34 @@ func appURL(acdClient argocdclient.Client, app *argoappv1.Application) string {
 		}
 	}
 	return fmt.Sprintf("%s://%s/applications/%s/%s", scheme, server, app.Namespace, app.Name)
+}
+
+func truncateString(str string, num int) string {
+	bnoden := str
+	if len(str) > num {
+		if num > 3 {
+			num -= 3
+		}
+		bnoden = str[0:num] + "..."
+	}
+	return bnoden
+}
+
+// printParams prints parameters and overrides
+func printParams(app *argoappv1.Application) {
+	paramLenLimit := 80
+	overrides := make(map[string]string)
+	for _, p := range app.Spec.Source.ComponentParameterOverrides {
+		overrides[fmt.Sprintf("%s/%s", p.Component, p.Name)] = p.Value
+	}
+	fmt.Println()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "COMPONENT\tNAME\tVALUE\tOVERRIDE\n")
+	for _, p := range app.Status.Parameters {
+		overrideValue := overrides[fmt.Sprintf("%s/%s", p.Component, p.Name)]
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", p.Component, p.Name, truncateString(p.Value, paramLenLimit), truncateString(overrideValue, paramLenLimit))
+	}
+	_ = w.Flush()
 }
 
 // NewApplicationSetCommand returns a new instance of an `argocd app set` command
