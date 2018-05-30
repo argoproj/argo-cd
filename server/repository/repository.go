@@ -69,7 +69,7 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 	}
 
 	out := make([]*KsonnetAppSpec, 0)
-	for _, path := range getRes.Data {
+	for _, path := range getRes.Items {
 		getFileRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
 			Repo:     repo,
 			Revision: revision,

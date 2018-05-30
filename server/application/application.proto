@@ -19,6 +19,13 @@ message ApplicationQuery {
 	optional string name = 1;
 }
 
+// ApplicationEventsQuery is a query for application resource events
+message ApplicationResourceEventsQuery {
+	required string appName = 1;
+	required string resName = 2;
+	required string resUid = 3;
+}
+
 // ManifestQuery is a query for manifest resources
 message ManifestQuery {
 	required string appName = 1;
@@ -79,6 +86,11 @@ service ApplicationService {
 	// List returns list of applications
 	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationList) {
 		option (google.api.http).get = "/api/v1/applications";
+	}
+
+	// ListResourceEvents returns a list of event resources
+	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
+		option (google.api.http).get = "/api/v1/applications/{appName}/events";
 	}
 
 	// Watch returns stream of application change events.

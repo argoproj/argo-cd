@@ -33,9 +33,9 @@ message ListDirRequest {
     string path = 3;
 }
 
-// ListDirResponse returns the contents of the repo of a ListDir request
-message ListDirResponse {
-    repeated string data = 1;
+// FileList returns the contents of the repo of a ListDir request
+message FileList {
+    repeated string items = 1;
 }
 
 // GetFileRequest return
@@ -59,7 +59,7 @@ service RepositoryService {
     }
 
     // ListDir returns the file contents at the specified repo and path
-    rpc ListDir(ListDirRequest) returns (ListDirResponse) {
+    rpc ListDir(ListDirRequest) returns (FileList) {
     }
 
     // GetFile returns the file contents at the specified repo and path
