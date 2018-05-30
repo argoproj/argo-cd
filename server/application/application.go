@@ -156,7 +156,16 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 		"involvedObject.namespace": s.ns,
 	})
 	opts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
-	return s.kubeclientset.CoreV1().Events(s.ns).List(opts)
+
+	config, namespace, err := s.getApplicationClusterConfig(*q.AppName)
+	if err != nil {
+		return nil, err
+	}
+	kubeClientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
 // Update updates an application
