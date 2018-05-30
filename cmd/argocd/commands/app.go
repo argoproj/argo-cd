@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/yudai/gojsondiff/formatter"
 	"golang.org/x/crypto/ssh/terminal"
+	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,6 +54,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		appOpts appOptions
 		fileURL string
 		appName string
+		upsert  bool
 	)
 	var command = &cobra.Command{
 		Use:   "create",
@@ -64,8 +66,8 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			var app argoappv1.Application
 			if fileURL != "" {
-				_, err := url.ParseRequestURI(fileURL)
-				if err != nil {
+				parsedURL, err := url.ParseRequestURI(fileURL)
+				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 					err = cli.UnmarshalLocalFile(fileURL, &app)
 				} else {
 					err = cli.UnmarshalRemoteFile(fileURL, &app)
@@ -102,13 +104,15 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			setParameterOverrides(&app, appOpts.parameters)
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			created, err := appIf.Create(context.Background(), &app)
+			ctx := metadata.AppendToOutgoingContext(context.Background(), "upsert", strconv.FormatBool(upsert))
+			created, err := appIf.Create(ctx, &app)
 			errors.CheckError(err)
 			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
 	}
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set")
+	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
 	addAppFlags(command, &appOpts)
 	return command
 }

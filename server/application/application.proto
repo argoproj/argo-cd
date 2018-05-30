@@ -99,7 +99,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
-        // GetManifests returns application manifests
+	// GetManifests returns application manifests
 	rpc GetManifests(ManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{appName}/manifests";
 	}

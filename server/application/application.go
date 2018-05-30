@@ -23,6 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -68,6 +69,13 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
+	upsert := false
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		upsertMd := md["upsert"]
+		upsert = len(upsertMd) > 0 && upsertMd[0] == "true"
+	}
+
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
@@ -76,10 +84,18 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
 	if apierr.IsAlreadyExists(err) {
 		// act idempotent if existing spec matches new spec
-		existing, err2 := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(a.Name, metav1.GetOptions{})
-		if err2 == nil {
+		existing, getErr := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(a.Name, metav1.GetOptions{})
+		if getErr != nil {
+			return nil, fmt.Errorf("unable to check existing application details: %v", err)
+		}
+		if upsert {
+			existing.Spec = a.Spec
+			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
+		} else {
 			if reflect.DeepEqual(existing.Spec, a.Spec) {
 				return existing, nil
+			} else {
+				return nil, fmt.Errorf("existing application spec is different, use upsert flag to force update")
 			}
 		}
 	}
