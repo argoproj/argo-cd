@@ -150,13 +150,6 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*v1.EventList, error) {
-	fieldSelector := fields.SelectorFromSet(map[string]string{
-		"involvedObject.name":      *q.ResName,
-		"involvedObject.uid":       *q.ResUid,
-		"involvedObject.namespace": s.ns,
-	})
-	opts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
-
 	config, namespace, err := s.getApplicationClusterConfig(*q.AppName)
 	if err != nil {
 		return nil, err
@@ -165,6 +158,16 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	if err != nil {
 		return nil, err
 	}
+
+	fieldSelector := fields.SelectorFromSet(map[string]string{
+		"involvedObject.name":      *q.ResName,
+		"involvedObject.uid":       *q.ResUid,
+		"involvedObject.namespace": namespace,
+	}).String()
+
+	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
+	opts := metav1.ListOptions{FieldSelector: fieldSelector}
+
 	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
