@@ -152,6 +152,7 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*v1.EventList, error) {
 	fieldSelector := fields.SelectorFromSet(map[string]string{
 		"involvedObject.name":      *q.ResName,
+		"involvedObject.uid":       *q.ResUid,
 		"involvedObject.namespace": s.ns,
 	})
 	opts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
