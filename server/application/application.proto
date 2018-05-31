@@ -128,7 +128,7 @@ service ApplicationService {
 	// Update updates an application
 	rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
-			put: "/api/v1/applications/{application.metadata.name}"
+			put: "/api/v1/applications"
 			body: "*"
 		};
 	}

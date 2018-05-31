@@ -32,8 +32,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cluster, error) {
-	c := &(*c).Cluster
-	clust, err := s.db.CreateCluster(ctx, c)
+	clust, err := s.db.CreateCluster(ctx, q.Cluster)
 	return redact(clust), err
 }
 
@@ -45,14 +44,13 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 
 // Update updates a cluster
 func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cluster, error) {
-	c := &(*q).Cluster
-	clust, err := s.db.UpdateCluster(ctx, c)
+	clust, err := s.db.UpdateCluster(ctx, q.Cluster)
 	return redact(clust), err
 }
 
 // UpdateREST updates a cluster (special handler intended to be used only by the gRPC gateway)
 func (s *Server) UpdateREST(ctx context.Context, r *ClusterRESTUpdateRequest) (*appv1.Cluster, error) {
-	return s.Update(ctx, r.Cluster)
+	return s.Update(ctx, &ClusterUpdateRequest{Cluster: r.Cluster})
 }
 
 // Delete deletes a cluster by name

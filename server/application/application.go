@@ -69,14 +69,14 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv1.Application, error) {
-	a := &(*q).Application
+	a := q.Application
 
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
 	}
 	a.SetCascadedDeletion(true)
-	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
+	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(&a)
 	if apierr.IsAlreadyExists(err) {
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(a.Name, metav1.GetOptions{})
@@ -167,12 +167,12 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv1.Application, error) {
-	a := &(*q).Application
+	a := q.Application
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(&a)
 }
 
 // UpdateSpec updates an application spec
@@ -505,7 +505,7 @@ func (s *Server) setAppOperation(ctx context.Context, appName string, operationC
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
-		_, err = s.Update(ctx, a)
+		_, err = s.Update(ctx, &ApplicationUpdateRequest{Application: *a})
 		if err != nil && apierr.IsConflict(err) {
 			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 		} else {

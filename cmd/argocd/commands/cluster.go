@@ -71,7 +71,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			clst := NewCluster(args[0], conf, managerBearerToken)
-			clst, err = clusterIf.Create(context.Background(), clst)
+			clst, err = clusterIf.Create(context.Background(), &cluster.ClusterCreateRequest{Cluster: clst})
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
 		},
