@@ -39,6 +39,10 @@ message ApplicationCreateRequest {
 	required bool upsert = 2;
 }
 
+message ApplicationUpdateRequest {
+	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
+}
+
 message ApplicationDeleteRequest {
 	required string name = 1;
 	optional bool cascade = 2;
@@ -122,9 +126,9 @@ service ApplicationService {
 	}
 
 	// Update updates an application
-	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
-			put: "/api/v1/applications/{metadata.name}"
+			put: "/api/v1/applications/{application.metadata.name}"
 			body: "*"
 		};
 	}

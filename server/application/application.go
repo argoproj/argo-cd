@@ -166,7 +166,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 }
 
 // Update updates an application
-func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
+func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv1.Application, error) {
+	a := &(*q).Application
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
