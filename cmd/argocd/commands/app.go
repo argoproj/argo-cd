@@ -106,7 +106,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			defer util.Close(conn)
 			appCreateRequest := application.ApplicationCreateRequest{
 				Application: app,
-				Upsert:      upsert,
+				Upsert:      &upsert,
 			}
 			created, err := appIf.Create(context.Background(), &appCreateRequest)
 			errors.CheckError(err)
