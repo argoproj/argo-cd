@@ -21,22 +21,22 @@ message ApplicationQuery {
 
 // ApplicationEventsQuery is a query for application resource events
 message ApplicationResourceEventsQuery {
-	required string appName = 1;
-	required string resName = 2;
-	required string resUid = 3;
+	required string name = 1;
+	required string resourceName = 2 [(gogoproto.nullable) = false];
+	required string resourceUID = 3 [(gogoproto.nullable) = false];
 }
 
 // ManifestQuery is a query for manifest resources
-message ManifestQuery {
-	required string appName = 1;
-	optional string revision = 2;
+message ApplicationManifestQuery {
+	required string name = 1;
+	optional string revision = 2 [(gogoproto.nullable) = false];
 }
 
 message ApplicationResponse {}
 
 message ApplicationCreateRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
-	required bool upsert = 2;
+	optional bool upsert = 2;
 }
 
 message ApplicationUpdateRequest {
@@ -58,7 +58,7 @@ message ApplicationSyncRequest {
 
 // ApplicationSpecRequest is a request to update application spec
 message ApplicationSpecRequest {
-	required string appName = 1;
+	required string name = 1;
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
 }
 
@@ -69,13 +69,13 @@ message ApplicationRollbackRequest {
 	required bool prune = 4 [(gogoproto.nullable) = false];
 }
 
-message DeletePodQuery {
-	required string applicationName = 1;
+message ApplicationDeletePodRequest {
+	required string name = 1;
 	required string podName = 2;
 }
 
-message PodLogsQuery {
-	required string applicationName = 1;
+message ApplicationPodLogsQuery {
+	required string name = 1;
 	required string podName = 2;
 	required string container = 3 [(gogoproto.nullable) = false];
 	required int64 sinceSeconds = 4 [(gogoproto.nullable) = false];
@@ -99,7 +99,7 @@ service ApplicationService {
 
 	// ListResourceEvents returns a list of event resources
 	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
-		option (google.api.http).get = "/api/v1/applications/{appName}/events";
+		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 
 	// Watch returns stream of application change events.
@@ -121,8 +121,8 @@ service ApplicationService {
 	}
 
 	// GetManifests returns application manifests
-	rpc GetManifests(ManifestQuery) returns (repository.ManifestResponse) {
-		option (google.api.http).get = "/api/v1/applications/{appName}/manifests";
+	rpc GetManifests(ApplicationManifestQuery) returns (repository.ManifestResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
 	}
 
 	// Update updates an application
@@ -136,7 +136,7 @@ service ApplicationService {
 	// Update updates an application spec
 	rpc UpdateSpec(ApplicationSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec) {
 		option (google.api.http) = {
-			put: "/api/v1/applications/{appName}/spec"
+			put: "/api/v1/applications/{name}/spec"
 			body: "*"
 		};
 	}
@@ -163,12 +163,12 @@ service ApplicationService {
 	}
 
 	// PodLogs returns stream of log entries for the specified pod. Pod
-	rpc DeletePod(DeletePodQuery) returns (ApplicationResponse) {
-		option (google.api.http).delete = "/api/v1/applications/{applicationName}/pods/{podName}";
+	rpc DeletePod(ApplicationDeletePodRequest) returns (ApplicationResponse) {
+		option (google.api.http).delete = "/api/v1/applications/{name}/pods/{podName}";
 	}
 
 	// PodLogs returns stream of log entries for the specified pod. Pod
-	rpc PodLogs(PodLogsQuery) returns (stream LogEntry) {
-		option (google.api.http).get = "/api/v1/applications/{applicationName}/pods/{podName}/logs";
+	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
+		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
 	}
 }

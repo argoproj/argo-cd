@@ -125,26 +125,3 @@ func (_m *ClusterServiceServer) Update(_a0 context.Context, _a1 *cluster.Cluster
 
 	return r0, r1
 }
-
-// UpdateREST provides a mock function with given fields: _a0, _a1
-func (_m *ClusterServiceServer) UpdateREST(_a0 context.Context, _a1 *cluster.ClusterRESTUpdateRequest) (*v1alpha1.Cluster, error) {
-	ret := _m.Called(_a0, _a1)
-
-	var r0 *v1alpha1.Cluster
-	if rf, ok := ret.Get(0).(func(context.Context, *cluster.ClusterRESTUpdateRequest) *v1alpha1.Cluster); ok {
-		r0 = rf(_a0, _a1)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*v1alpha1.Cluster)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *cluster.ClusterRESTUpdateRequest) error); ok {
-		r1 = rf(_a0, _a1)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}

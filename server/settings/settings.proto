@@ -14,7 +14,7 @@ message SettingsQuery {
 }
 
 message Settings {
-    string url = 1 [(gogoproto.customname) = "URL"];;
+    string url = 1 [(gogoproto.customname) = "URL"];
     DexConfig dexConfig = 2;
 }
 

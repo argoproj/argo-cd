@@ -87,7 +87,7 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 	}
 
 	return &RepoKsonnetResponse{
-		Data: out,
+		Items: out,
 	}, nil
 }
 
@@ -107,11 +107,6 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
 	repo, err := s.db.UpdateRepository(ctx, q.Repo)
 	return redact(repo), err
-}
-
-// UpdateREST updates a repository (from a REST request)
-func (s *Server) UpdateREST(ctx context.Context, r *RepoRESTUpdateRequest) (*appsv1.Repository, error) {
-	return s.Update(ctx, &RepoUpdateRequest{Repo: r.Repo})
 }
 
 // Delete updates a repository
