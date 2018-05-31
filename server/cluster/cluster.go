@@ -31,7 +31,8 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 }
 
 // Create creates a cluster
-func (s *Server) Create(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cluster, error) {
+	c := &(*c).Cluster
 	clust, err := s.db.CreateCluster(ctx, c)
 	return redact(clust), err
 }
@@ -43,7 +44,8 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 }
 
 // Update updates a cluster
-func (s *Server) Update(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cluster, error) {
+	c := &(*q).Cluster
 	clust, err := s.db.UpdateCluster(ctx, c)
 	return redact(clust), err
 }
