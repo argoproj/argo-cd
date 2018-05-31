@@ -395,7 +395,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
-				appDeleteReq := application.DeleteApplicationRequest{
+				appDeleteReq := application.ApplicationDeleteRequest{
 					Name: &appName,
 				}
 				if c.Flag("cascade").Changed {

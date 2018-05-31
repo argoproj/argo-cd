@@ -39,7 +39,7 @@ message ApplicationCreateRequest {
 	required bool upsert = 2;
 }
 
-message DeleteApplicationRequest {
+message ApplicationDeleteRequest {
 	required string name = 1;
 	optional bool cascade = 2;
 }
@@ -138,7 +138,7 @@ service ApplicationService {
 	}
 
 	// Delete deletes an application
-	rpc Delete(DeleteApplicationRequest) returns (ApplicationResponse) {
+	rpc Delete(ApplicationDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
 	}
 

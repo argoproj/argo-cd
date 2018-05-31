@@ -191,7 +191,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationSpecRequest) (*ap
 }
 
 // Delete removes an application and all associated resources
-func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*ApplicationResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
