@@ -51,7 +51,7 @@ func (s *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 	if err != nil {
 		return nil, err
 	}
-	secName := RepoURLToSecretName(r.Repo)
+	secName := repoURLToSecretName(r.Repo)
 	repoSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
@@ -100,12 +100,12 @@ func (s *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 
 // Delete updates a repository
 func (s *db) DeleteRepository(ctx context.Context, name string) error {
-	secName := RepoURLToSecretName(name)
+	secName := repoURLToSecretName(name)
 	return s.kubeclientset.CoreV1().Secrets(s.ns).Delete(secName, &metav1.DeleteOptions{})
 }
 
 func (s *db) getRepoSecret(repo string) (*apiv1.Secret, error) {
-	secName := RepoURLToSecretName(repo)
+	secName := repoURLToSecretName(repo)
 	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -116,9 +116,9 @@ func (s *db) getRepoSecret(repo string) (*apiv1.Secret, error) {
 	return repoSecret, nil
 }
 
-// RepoURLToSecretName hashes repo URL to the secret name using a formula.
+// repoURLToSecretName hashes repo URL to the secret name using a formula.
 // Part of the original repo name is incorporated for debugging purposes
-func RepoURLToSecretName(repo string) string {
+func repoURLToSecretName(repo string) string {
 	repo = strings.ToLower(git.NormalizeGitURL(repo))
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
