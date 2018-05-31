@@ -70,7 +70,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			errors.CheckError(err)
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
-			createdRepo, err := repoIf.Create(context.Background(), &repository.RepoCreateRequest{Repo: &repo})
+			repoCreateReq := repository.RepoCreateRequest{Repo: &repo}
+			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
 		},
