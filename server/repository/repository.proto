@@ -58,7 +58,7 @@ message RepoCreateRequest {
         github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
-message RepoUpdateQuery {
+message RepoUpdateRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
@@ -94,7 +94,7 @@ service RepositoryService {
 	}
 
 	// Update updates a repo
-	rpc Update(RepoUpdateQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 	}
 
 	// Update updates a repo (special handler intended to be used only by the gRPC gateway)

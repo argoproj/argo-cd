@@ -92,7 +92,8 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 }
 
 // Create creates a repository
-func (s *Server) Create(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (s *Server) Create(ctx context.Context, r *RepoCreateRequest) (*appsv1.Repository, error) {
+	r := &(*r).Repo
 	repo, err := s.db.CreateRepository(ctx, r)
 	return redact(repo), err
 }
@@ -104,7 +105,8 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 }
 
 // Update updates a repository
-func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (s *Server) Update(ctx context.Context, r *RepoUpdateRequest) (*appsv1.Repository, error) {
+	r := &(*r).Repo
 	repo, err := s.db.UpdateRepository(ctx, r)
 	return redact(repo), err
 }
