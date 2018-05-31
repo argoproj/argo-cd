@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
@@ -64,7 +63,7 @@ func request_RepositoryService_ListKsonnetApps_0(ctx context.Context, marshaler 
 }
 
 func request_RepositoryService_Create_0(ctx context.Context, marshaler runtime.Marshaler, client RepositoryServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq v1alpha1.Repository
+	var protoReq RepoCreateRequest
 	var metadata runtime.ServerMetadata
 
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
@@ -104,7 +103,7 @@ func request_RepositoryService_Get_0(ctx context.Context, marshaler runtime.Mars
 }
 
 func request_RepositoryService_UpdateREST_0(ctx context.Context, marshaler runtime.Marshaler, client RepositoryServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq RepoUpdateRequest
+	var protoReq RepoRESTUpdateRequest
 	var metadata runtime.ServerMetadata
 
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Repo); err != nil {

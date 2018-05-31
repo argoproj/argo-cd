@@ -14,7 +14,9 @@
 	It has these top-level messages:
 		ClusterQuery
 		ClusterResponse
+		ClusterCreateRequest
 		ClusterUpdateRequest
+		ClusterRESTUpdateRequest
 */
 package cluster
 
@@ -67,24 +69,56 @@ func (m *ClusterResponse) String() string            { return proto.CompactTextS
 func (*ClusterResponse) ProtoMessage()               {}
 func (*ClusterResponse) Descriptor() ([]byte, []int) { return fileDescriptorCluster, []int{1} }
 
+type ClusterCreateRequest struct {
+	Cluster *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster `protobuf:"bytes,1,opt,name=cluster" json:"cluster,omitempty"`
+}
+
+func (m *ClusterCreateRequest) Reset()                    { *m = ClusterCreateRequest{} }
+func (m *ClusterCreateRequest) String() string            { return proto.CompactTextString(m) }
+func (*ClusterCreateRequest) ProtoMessage()               {}
+func (*ClusterCreateRequest) Descriptor() ([]byte, []int) { return fileDescriptorCluster, []int{2} }
+
+func (m *ClusterCreateRequest) GetCluster() *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster {
+	if m != nil {
+		return m.Cluster
+	}
+	return nil
+}
+
 type ClusterUpdateRequest struct {
-	Server  string                                                             `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
-	Cluster *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster `protobuf:"bytes,2,opt,name=cluster" json:"cluster,omitempty"`
+	Cluster *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster `protobuf:"bytes,1,opt,name=cluster" json:"cluster,omitempty"`
 }
 
 func (m *ClusterUpdateRequest) Reset()                    { *m = ClusterUpdateRequest{} }
 func (m *ClusterUpdateRequest) String() string            { return proto.CompactTextString(m) }
 func (*ClusterUpdateRequest) ProtoMessage()               {}
-func (*ClusterUpdateRequest) Descriptor() ([]byte, []int) { return fileDescriptorCluster, []int{2} }
+func (*ClusterUpdateRequest) Descriptor() ([]byte, []int) { return fileDescriptorCluster, []int{3} }
 
-func (m *ClusterUpdateRequest) GetServer() string {
+func (m *ClusterUpdateRequest) GetCluster() *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster {
+	if m != nil {
+		return m.Cluster
+	}
+	return nil
+}
+
+type ClusterRESTUpdateRequest struct {
+	Server  string                                                             `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
+	Cluster *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster `protobuf:"bytes,2,opt,name=cluster" json:"cluster,omitempty"`
+}
+
+func (m *ClusterRESTUpdateRequest) Reset()                    { *m = ClusterRESTUpdateRequest{} }
+func (m *ClusterRESTUpdateRequest) String() string            { return proto.CompactTextString(m) }
+func (*ClusterRESTUpdateRequest) ProtoMessage()               {}
+func (*ClusterRESTUpdateRequest) Descriptor() ([]byte, []int) { return fileDescriptorCluster, []int{4} }
+
+func (m *ClusterRESTUpdateRequest) GetServer() string {
 	if m != nil {
 		return m.Server
 	}
 	return ""
 }
 
-func (m *ClusterUpdateRequest) GetCluster() *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster {
+func (m *ClusterRESTUpdateRequest) GetCluster() *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster {
 	if m != nil {
 		return m.Cluster
 	}
@@ -94,7 +128,9 @@ func (m *ClusterUpdateRequest) GetCluster() *github_com_argoproj_argo_cd_pkg_api
 func init() {
 	proto.RegisterType((*ClusterQuery)(nil), "cluster.ClusterQuery")
 	proto.RegisterType((*ClusterResponse)(nil), "cluster.ClusterResponse")
+	proto.RegisterType((*ClusterCreateRequest)(nil), "cluster.ClusterCreateRequest")
 	proto.RegisterType((*ClusterUpdateRequest)(nil), "cluster.ClusterUpdateRequest")
+	proto.RegisterType((*ClusterRESTUpdateRequest)(nil), "cluster.ClusterRESTUpdateRequest")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -111,13 +147,13 @@ type ClusterServiceClient interface {
 	// List returns list of clusters
 	List(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error)
 	// Create creates a cluster
-	Create(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	Create(ctx context.Context, in *ClusterCreateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Get returns a cluster by server address
 	Get(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Update updates a cluster
-	Update(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	Update(ctx context.Context, in *ClusterUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Update updates a cluster (special handler intended to be used only by the gRPC gateway)
-	UpdateREST(ctx context.Context, in *ClusterUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	UpdateREST(ctx context.Context, in *ClusterRESTUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Delete updates a cluster
 	Delete(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*ClusterResponse, error)
 }
@@ -139,7 +175,7 @@ func (c *clusterServiceClient) List(ctx context.Context, in *ClusterQuery, opts 
 	return out, nil
 }
 
-func (c *clusterServiceClient) Create(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
+func (c *clusterServiceClient) Create(ctx context.Context, in *ClusterCreateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
 	out := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
 	err := grpc.Invoke(ctx, "/cluster.ClusterService/Create", in, out, c.cc, opts...)
 	if err != nil {
@@ -157,7 +193,7 @@ func (c *clusterServiceClient) Get(ctx context.Context, in *ClusterQuery, opts .
 	return out, nil
 }
 
-func (c *clusterServiceClient) Update(ctx context.Context, in *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
+func (c *clusterServiceClient) Update(ctx context.Context, in *ClusterUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
 	out := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
 	err := grpc.Invoke(ctx, "/cluster.ClusterService/Update", in, out, c.cc, opts...)
 	if err != nil {
@@ -166,7 +202,7 @@ func (c *clusterServiceClient) Update(ctx context.Context, in *github_com_argopr
 	return out, nil
 }
 
-func (c *clusterServiceClient) UpdateREST(ctx context.Context, in *ClusterUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
+func (c *clusterServiceClient) UpdateREST(ctx context.Context, in *ClusterRESTUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error) {
 	out := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
 	err := grpc.Invoke(ctx, "/cluster.ClusterService/UpdateREST", in, out, c.cc, opts...)
 	if err != nil {
@@ -190,13 +226,13 @@ type ClusterServiceServer interface {
 	// List returns list of clusters
 	List(context.Context, *ClusterQuery) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ClusterList, error)
 	// Create creates a cluster
-	Create(context.Context, *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	Create(context.Context, *ClusterCreateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Get returns a cluster by server address
 	Get(context.Context, *ClusterQuery) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Update updates a cluster
-	Update(context.Context, *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	Update(context.Context, *ClusterUpdateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Update updates a cluster (special handler intended to be used only by the gRPC gateway)
-	UpdateREST(context.Context, *ClusterUpdateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
+	UpdateREST(context.Context, *ClusterRESTUpdateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Delete updates a cluster
 	Delete(context.Context, *ClusterQuery) (*ClusterResponse, error)
 }
@@ -224,7 +260,7 @@ func _ClusterService_List_Handler(srv interface{}, ctx context.Context, dec func
 }
 
 func _ClusterService_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
+	in := new(ClusterCreateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -236,7 +272,7 @@ func _ClusterService_Create_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/cluster.ClusterService/Create",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).Create(ctx, req.(*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster))
+		return srv.(ClusterServiceServer).Create(ctx, req.(*ClusterCreateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -260,7 +296,7 @@ func _ClusterService_Get_Handler(srv interface{}, ctx context.Context, dec func(
 }
 
 func _ClusterService_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster)
+	in := new(ClusterUpdateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -272,13 +308,13 @@ func _ClusterService_Update_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/cluster.ClusterService/Update",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).Update(ctx, req.(*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster))
+		return srv.(ClusterServiceServer).Update(ctx, req.(*ClusterUpdateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _ClusterService_UpdateREST_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClusterUpdateRequest)
+	in := new(ClusterRESTUpdateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -290,7 +326,7 @@ func _ClusterService_UpdateREST_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: "/cluster.ClusterService/UpdateREST",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ClusterServiceServer).UpdateREST(ctx, req.(*ClusterUpdateRequest))
+		return srv.(ClusterServiceServer).UpdateREST(ctx, req.(*ClusterRESTUpdateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -388,6 +424,34 @@ func (m *ClusterResponse) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *ClusterCreateRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClusterCreateRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Cluster != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintCluster(dAtA, i, uint64(m.Cluster.Size()))
+		n1, err := m.Cluster.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
+	return i, nil
+}
+
 func (m *ClusterUpdateRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -403,6 +467,34 @@ func (m *ClusterUpdateRequest) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.Cluster != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintCluster(dAtA, i, uint64(m.Cluster.Size()))
+		n2, err := m.Cluster.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n2
+	}
+	return i, nil
+}
+
+func (m *ClusterRESTUpdateRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ClusterRESTUpdateRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
 	if len(m.Server) > 0 {
 		dAtA[i] = 0xa
 		i++
@@ -413,11 +505,11 @@ func (m *ClusterUpdateRequest) MarshalTo(dAtA []byte) (int, error) {
 		dAtA[i] = 0x12
 		i++
 		i = encodeVarintCluster(dAtA, i, uint64(m.Cluster.Size()))
-		n1, err := m.Cluster.MarshalTo(dAtA[i:])
+		n3, err := m.Cluster.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n1
+		i += n3
 	}
 	return i, nil
 }
@@ -447,7 +539,27 @@ func (m *ClusterResponse) Size() (n int) {
 	return n
 }
 
+func (m *ClusterCreateRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.Cluster != nil {
+		l = m.Cluster.Size()
+		n += 1 + l + sovCluster(uint64(l))
+	}
+	return n
+}
+
 func (m *ClusterUpdateRequest) Size() (n int) {
+	var l int
+	_ = l
+	if m.Cluster != nil {
+		l = m.Cluster.Size()
+		n += 1 + l + sovCluster(uint64(l))
+	}
+	return n
+}
+
+func (m *ClusterRESTUpdateRequest) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.Server)
@@ -603,6 +715,89 @@ func (m *ClusterResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *ClusterCreateRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCluster
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClusterCreateRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClusterCreateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Cluster", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCluster
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthCluster
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Cluster == nil {
+				m.Cluster = &github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster{}
+			}
+			if err := m.Cluster.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCluster(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthCluster
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *ClusterUpdateRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -630,6 +825,89 @@ func (m *ClusterUpdateRequest) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: ClusterUpdateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Cluster", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCluster
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthCluster
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Cluster == nil {
+				m.Cluster = &github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster{}
+			}
+			if err := m.Cluster.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCluster(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthCluster
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ClusterRESTUpdateRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCluster
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ClusterRESTUpdateRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ClusterRESTUpdateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -823,35 +1101,36 @@ var (
 func init() { proto.RegisterFile("server/cluster/cluster.proto", fileDescriptorCluster) }
 
 var fileDescriptorCluster = []byte{
-	// 470 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x54, 0x4d, 0x6b, 0x15, 0x31,
-	0x14, 0x35, 0x55, 0x46, 0x8c, 0xe2, 0x47, 0x68, 0xe5, 0x39, 0xad, 0x8f, 0x3a, 0x88, 0x94, 0x07,
-	0x26, 0xbc, 0xba, 0x29, 0x5d, 0xb6, 0x7e, 0x20, 0xb8, 0xf1, 0x55, 0x37, 0x52, 0x90, 0x74, 0xe6,
-	0x92, 0x8e, 0x6f, 0x9c, 0xc4, 0x24, 0x33, 0x20, 0x22, 0x82, 0x6e, 0x5d, 0xe9, 0xd2, 0xdf, 0xe0,
-	0xff, 0x70, 0x29, 0xb8, 0x71, 0x29, 0x0f, 0x7f, 0x88, 0x4c, 0x26, 0xb1, 0xed, 0x2b, 0xe3, 0xc6,
-	0x59, 0x74, 0x35, 0xc9, 0x4d, 0xe6, 0x9c, 0x7b, 0xce, 0xbd, 0xb9, 0x78, 0xc5, 0x80, 0xae, 0x41,
-	0xb3, 0xb4, 0xa8, 0x8c, 0x3d, 0xf8, 0x52, 0xa5, 0xa5, 0x95, 0xe4, 0xac, 0xdf, 0xc6, 0x8b, 0x42,
-	0x0a, 0xe9, 0x62, 0xac, 0x59, 0xb5, 0xc7, 0xf1, 0x8a, 0x90, 0x52, 0x14, 0xc0, 0xb8, 0xca, 0x19,
-	0x2f, 0x4b, 0x69, 0xb9, 0xcd, 0x65, 0x69, 0xfc, 0x69, 0x32, 0xdd, 0x30, 0x34, 0x97, 0xee, 0x34,
-	0x95, 0x1a, 0x58, 0x3d, 0x66, 0x02, 0x4a, 0xd0, 0xdc, 0x42, 0xe6, 0xef, 0x3c, 0x14, 0xb9, 0xdd,
-	0xaf, 0xf6, 0x68, 0x2a, 0x5f, 0x32, 0xae, 0x1d, 0xc5, 0x0b, 0xb7, 0xb8, 0x9d, 0x66, 0x4c, 0x4d,
-	0x45, 0xf3, 0xb3, 0x61, 0x5c, 0xa9, 0x22, 0x4f, 0x1d, 0x38, 0xab, 0xc7, 0xbc, 0x50, 0xfb, 0xfc,
-	0x18, 0x54, 0x72, 0x0b, 0x5f, 0xd8, 0x6e, 0xb3, 0x7d, 0x5c, 0x81, 0x7e, 0x4d, 0xae, 0xe2, 0xa8,
-	0xd5, 0x36, 0x40, 0xab, 0x68, 0xed, 0xdc, 0xc4, 0xef, 0x92, 0x2b, 0xf8, 0x92, 0xbf, 0x37, 0x01,
-	0xa3, 0x64, 0x69, 0x20, 0xf9, 0x88, 0xf0, 0xa2, 0x8f, 0x3d, 0x55, 0x19, 0xb7, 0x30, 0x81, 0x57,
-	0x15, 0x18, 0xdb, 0x85, 0x41, 0x76, 0x71, 0x70, 0x66, 0xb0, 0xb0, 0x8a, 0xd6, 0xce, 0xaf, 0x6f,
-	0xd1, 0x03, 0x21, 0x34, 0x08, 0x71, 0x8b, 0xe7, 0x69, 0x46, 0xd5, 0x54, 0xd0, 0x46, 0x08, 0x3d,
-	0x24, 0x84, 0x06, 0x21, 0x34, 0x64, 0x13, 0x20, 0xd7, 0x7f, 0x46, 0xf8, 0xa2, 0x0f, 0xee, 0x80,
-	0xae, 0xf3, 0x14, 0xc8, 0x3b, 0x7c, 0xe6, 0x51, 0x6e, 0x2c, 0x59, 0xa2, 0xa1, 0x40, 0x87, 0xb5,
-	0xc6, 0xf7, 0xff, 0x9f, 0xbe, 0x81, 0x4f, 0x06, 0xef, 0x7f, 0xfc, 0xfe, 0xbc, 0x40, 0xc8, 0x65,
-	0x57, 0xb4, 0x7a, 0x1c, 0xda, 0xc1, 0x90, 0xaf, 0x08, 0x47, 0xdb, 0x1a, 0xb8, 0x05, 0xd2, 0x83,
-	0xd6, 0xb8, 0x07, 0x8c, 0x64, 0xd9, 0x25, 0xbb, 0x94, 0x1c, 0x4b, 0x76, 0x13, 0x8d, 0xc8, 0x07,
-	0x84, 0x4f, 0x3f, 0x80, 0x4e, 0xc3, 0xfa, 0xe0, 0xbf, 0xe1, 0xf8, 0x97, 0xc9, 0xb5, 0x79, 0x7e,
-	0xf6, 0xa6, 0x6d, 0x93, 0xb7, 0xe4, 0x13, 0xc2, 0x51, 0xdb, 0x51, 0x27, 0xc6, 0xb5, 0x53, 0xe4,
-	0x0b, 0xc2, 0xd8, 0xb7, 0xf9, 0xbd, 0x9d, 0x27, 0xe4, 0xfa, 0xbc, 0x43, 0x47, 0x9e, 0x40, 0x2f,
-	0x9c, 0x23, 0xe7, 0xd4, 0xcd, 0xb8, 0xdb, 0xa9, 0xcd, 0xd0, 0xfc, 0x64, 0x17, 0x47, 0x77, 0xa1,
-	0x00, 0x0b, 0x5d, 0xa5, 0x1b, 0xcc, 0x87, 0xff, 0x3e, 0x63, 0x5f, 0x90, 0x51, 0x37, 0xcd, 0xd6,
-	0xc6, 0xb7, 0xd9, 0x10, 0x7d, 0x9f, 0x0d, 0xd1, 0xaf, 0xd9, 0x10, 0x3d, 0x1b, 0xfd, 0x6b, 0xfa,
-	0x1c, 0x1d, 0x8c, 0x7b, 0x91, 0x9b, 0x32, 0x77, 0xfe, 0x04, 0x00, 0x00, 0xff, 0xff, 0xac, 0xa0,
-	0x1d, 0x93, 0x31, 0x05, 0x00, 0x00,
+	// 490 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x94, 0x4f, 0x6b, 0x14, 0x31,
+	0x18, 0xc6, 0x4d, 0x95, 0x11, 0xa3, 0xf8, 0x27, 0xb4, 0xb2, 0x4e, 0xeb, 0x62, 0x07, 0x11, 0x59,
+	0x30, 0x61, 0xeb, 0xa5, 0xf4, 0xd8, 0x5a, 0x45, 0xf0, 0xe2, 0x6e, 0xbd, 0x48, 0x41, 0xd2, 0xd9,
+	0x97, 0x74, 0xdc, 0xe9, 0x24, 0x26, 0xd9, 0x01, 0x11, 0x11, 0xf4, 0xe2, 0x51, 0xf1, 0x03, 0xf8,
+	0x75, 0x3c, 0x0a, 0x7e, 0x01, 0x59, 0xfc, 0x20, 0xb2, 0x99, 0x84, 0xee, 0xee, 0x30, 0x5e, 0x1c,
+	0x7a, 0xda, 0xe4, 0x4d, 0xf6, 0x7d, 0x7e, 0xf3, 0xe4, 0xe1, 0xc5, 0x1b, 0x06, 0x74, 0x09, 0x9a,
+	0xa5, 0xf9, 0xc4, 0xd8, 0xd3, 0x5f, 0xaa, 0xb4, 0xb4, 0x92, 0x5c, 0xf4, 0xdb, 0x78, 0x55, 0x48,
+	0x21, 0x5d, 0x8d, 0xcd, 0x56, 0xd5, 0x71, 0xbc, 0x21, 0xa4, 0x14, 0x39, 0x30, 0xae, 0x32, 0xc6,
+	0x8b, 0x42, 0x5a, 0x6e, 0x33, 0x59, 0x18, 0x7f, 0x9a, 0x8c, 0xb7, 0x0d, 0xcd, 0xa4, 0x3b, 0x4d,
+	0xa5, 0x06, 0x56, 0xf6, 0x99, 0x80, 0x02, 0x34, 0xb7, 0x30, 0xf2, 0x77, 0x9e, 0x8a, 0xcc, 0x1e,
+	0x4f, 0x8e, 0x68, 0x2a, 0x4f, 0x18, 0xd7, 0x4e, 0xe2, 0xb5, 0x5b, 0x3c, 0x48, 0x47, 0x4c, 0x8d,
+	0xc5, 0xec, 0xcf, 0x86, 0x71, 0xa5, 0xf2, 0x2c, 0x75, 0xcd, 0x59, 0xd9, 0xe7, 0xb9, 0x3a, 0xe6,
+	0xb5, 0x56, 0xc9, 0x3d, 0x7c, 0x65, 0xaf, 0xa2, 0x7d, 0x3e, 0x01, 0xfd, 0x96, 0xdc, 0xc4, 0x51,
+	0xf5, 0x6d, 0x1d, 0x74, 0x07, 0xdd, 0xbf, 0x34, 0xf0, 0xbb, 0xe4, 0x06, 0xbe, 0xe6, 0xef, 0x0d,
+	0xc0, 0x28, 0x59, 0x18, 0x48, 0x2c, 0x5e, 0xf5, 0xa5, 0x3d, 0x0d, 0xdc, 0xc2, 0x00, 0xde, 0x4c,
+	0xc0, 0x58, 0x72, 0x88, 0x83, 0x01, 0xae, 0xc7, 0xe5, 0xad, 0x5d, 0x7a, 0xca, 0x4b, 0x03, 0xaf,
+	0x5b, 0xbc, 0x4a, 0x47, 0x54, 0x8d, 0x05, 0x9d, 0xf1, 0xd2, 0x39, 0x5e, 0x1a, 0x78, 0x69, 0x10,
+	0x0d, 0x2d, 0xe7, 0x54, 0x5f, 0xa8, 0xd1, 0x99, 0xa9, 0x7e, 0x41, 0xb8, 0x13, 0x8a, 0xfb, 0xc3,
+	0x83, 0x45, 0xe9, 0x06, 0xcf, 0xe6, 0x91, 0x56, 0x5a, 0x47, 0xda, 0xfa, 0x1a, 0xe1, 0xab, 0xbe,
+	0x38, 0x04, 0x5d, 0x66, 0x29, 0x90, 0x0f, 0xf8, 0xc2, 0xb3, 0xcc, 0x58, 0xb2, 0x46, 0x43, 0x20,
+	0xe7, 0xdf, 0x36, 0x7e, 0xfc, 0xff, 0xf2, 0xb3, 0xf6, 0x49, 0xe7, 0xe3, 0xaf, 0x3f, 0xdf, 0x56,
+	0x08, 0xb9, 0xee, 0x42, 0x5a, 0xf6, 0x43, 0xfc, 0x0d, 0xf9, 0x8c, 0x70, 0x54, 0x85, 0x81, 0xdc,
+	0x5e, 0x66, 0x58, 0x08, 0x49, 0xdc, 0x82, 0x15, 0xc9, 0xba, 0xe3, 0x58, 0x4b, 0x6a, 0x1c, 0x3b,
+	0xa8, 0x47, 0x3e, 0x21, 0x7c, 0xfe, 0x09, 0x34, 0x7a, 0xd1, 0x86, 0xfe, 0xa6, 0xd3, 0x5f, 0x27,
+	0xb7, 0x96, 0xf5, 0xd9, 0xbb, 0x2a, 0x01, 0xef, 0xc9, 0x09, 0x8e, 0xaa, 0xac, 0xd4, 0xfd, 0x58,
+	0xc8, 0x50, 0x2b, 0x3c, 0xe7, 0xc8, 0x77, 0x84, 0xb1, 0xef, 0xbb, 0x3f, 0x3c, 0x20, 0x9b, 0xcb,
+	0x9a, 0xb5, 0xec, 0xb6, 0xa2, 0xdb, 0x73, 0x3e, 0xdc, 0x8d, 0x9b, 0x7d, 0xd8, 0x09, 0xa9, 0x25,
+	0x87, 0x38, 0x7a, 0x04, 0x39, 0x58, 0x68, 0x7a, 0x98, 0x4e, 0x8d, 0x39, 0xcc, 0x1b, 0x6f, 0x77,
+	0xaf, 0x59, 0x66, 0x77, 0xfb, 0xc7, 0xb4, 0x8b, 0x7e, 0x4e, 0xbb, 0xe8, 0xf7, 0xb4, 0x8b, 0x5e,
+	0xf6, 0xfe, 0x35, 0x26, 0x17, 0x27, 0xf8, 0x51, 0xe4, 0xc6, 0xe1, 0xc3, 0xbf, 0x01, 0x00, 0x00,
+	0xff, 0xff, 0x60, 0x65, 0x09, 0x67, 0xda, 0x05, 0x00, 0x00,
 }
