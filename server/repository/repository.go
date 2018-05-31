@@ -110,7 +110,7 @@ func (s *Server) Update(ctx context.Context, r *appsv1.Repository) (*appsv1.Repo
 }
 
 // UpdateREST updates a repository (from a REST request)
-func (s *Server) UpdateREST(ctx context.Context, r *RepoUpdateRequest) (*appsv1.Repository, error) {
+func (s *Server) UpdateREST(ctx context.Context, r *RepoRESTUpdateRequest) (*appsv1.Repository, error) {
 	return s.Update(ctx, r.Repo)
 }
 
