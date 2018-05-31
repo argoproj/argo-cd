@@ -39,6 +39,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationGetCommand(clientOpts))
 	command.AddCommand(NewApplicationDiffCommand(clientOpts))
 	command.AddCommand(NewApplicationSetCommand(clientOpts))
+	command.AddCommand(NewApplicationUnsetCommand(clientOpts))
 	command.AddCommand(NewApplicationSyncCommand(clientOpts))
 	command.AddCommand(NewApplicationHistoryCommand(clientOpts))
 	command.AddCommand(NewApplicationRollbackCommand(clientOpts))
@@ -287,6 +288,54 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
+}
+
+// NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
+func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		parameters []string
+	)
+	var command = &cobra.Command{
+		Use:   "unset APPNAME -p COMPONENT=PARAM",
+		Short: "Unset application parameters",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 || len(parameters) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+			errors.CheckError(err)
+
+			updated := false
+			for _, paramStr := range parameters {
+				parts := strings.SplitN(paramStr, "=", 2)
+				if len(parts) != 2 {
+					log.Fatalf("Expected parameter of the form: component=param. Received: %s", paramStr)
+				}
+				overrides := app.Spec.Source.ComponentParameterOverrides
+				for i, override := range overrides {
+					if override.Component == parts[0] && override.Name == parts[1] {
+						app.Spec.Source.ComponentParameterOverrides = append(overrides[0:i], overrides[i+1:]...)
+						updated = true
+						break
+					}
+				}
+			}
+			if !updated {
+				return
+			}
+			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationSpecRequest{
+				AppName: &app.Name,
+				Spec:    app.Spec,
+			})
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "unset a parameter override (e.g. -p guestbook=image)")
+	return command
 }
 
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
