@@ -84,7 +84,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		Expiration: DefaultRepoCacheExpiration,
 	})
 	if err != nil {
-		return nil, err
+		log.Warnf("manifest cache set error %s: %v", cacheKey, err)
 	}
 	return &res, nil
 }
