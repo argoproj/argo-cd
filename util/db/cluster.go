@@ -39,7 +39,7 @@ func (s *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 		Items: make([]appv1.Cluster, len(clusterSecrets.Items)),
 	}
 	for i, clusterSecret := range clusterSecrets.Items {
-		clusterList.Items[i] = *secretToCluster(&clusterSecret)
+		clusterList.Items[i] = *SecretToCluster(&clusterSecret)
 	}
 	return &clusterList, nil
 }
@@ -50,7 +50,7 @@ func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 	if err != nil {
 		return nil, err
 	}
-	secName := serverToSecretName(c.Server)
+	secName := ServerToSecretName(c.Server)
 	clusterSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
@@ -67,7 +67,7 @@ func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 		}
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return SecretToCluster(clusterSecret), nil
 }
 
 // ClusterEvent contains information about cluster event
@@ -96,7 +96,7 @@ func (s *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) er
 	}()
 	for next := range w.ResultChan() {
 		secret := next.Object.(*apiv1.Secret)
-		cluster := secretToCluster(secret)
+		cluster := SecretToCluster(secret)
 		callback(&ClusterEvent{
 			Type:    next.Type,
 			Cluster: cluster,
@@ -106,7 +106,7 @@ func (s *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) er
 }
 
 func (s *db) getClusterSecret(server string) (*apiv1.Secret, error) {
-	secName := serverToSecretName(server)
+	secName := ServerToSecretName(server)
 	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -123,7 +123,7 @@ func (s *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, err
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return SecretToCluster(clusterSecret), nil
 }
 
 // UpdateCluster updates a cluster
@@ -141,18 +141,18 @@ func (s *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return SecretToCluster(clusterSecret), nil
 }
 
 // Delete deletes a cluster by name
 func (s *db) DeleteCluster(ctx context.Context, name string) error {
-	secName := serverToSecretName(name)
+	secName := ServerToSecretName(name)
 	return s.kubeclientset.CoreV1().Secrets(s.ns).Delete(secName, &metav1.DeleteOptions{})
 }
 
-// serverToSecretName hashes server address to the secret name using a formula.
+// ServerToSecretName hashes server address to the secret name using a formula.
 // Part of the server address is incorporated for debugging purposes
-func serverToSecretName(server string) string {
+func ServerToSecretName(server string) string {
 	serverURL, err := url.ParseRequestURI(server)
 	if err != nil {
 		panic(err)
@@ -180,17 +180,18 @@ func clusterToStringData(c *appv1.Cluster) map[string]string {
 	return stringData
 }
 
-// secretToCluster converts a secret into a repository object
-func secretToCluster(s *apiv1.Secret) *appv1.Cluster {
+// SecretToCluster converts a secret into a repository object
+func SecretToCluster(s *apiv1.Secret) *appv1.Cluster {
 	var config appv1.ClusterConfig
 	err := json.Unmarshal(s.Data["config"], &config)
 	if err != nil {
 		panic(err)
 	}
 	cluster := appv1.Cluster{
-		Server: string(s.Data["server"]),
-		Name:   string(s.Data["name"]),
-		Config: config,
+		Server:          string(s.Data["server"]),
+		Name:            string(s.Data["name"]),
+		Config:          config,
+		ConnectionState: ConnectionStateFromAnnotations(s.Annotations),
 	}
 	return &cluster
 }

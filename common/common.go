@@ -53,6 +53,13 @@ var (
 	// LabelKeySecretType contains the type of argocd secret (either 'cluster' or 'repo')
 	LabelKeySecretType = MetadataPrefix + "/secret-type"
 
+	// AnnotationConnectionStatus contains connection state status
+	AnnotationConnectionStatus = MetadataPrefix + "/connection-status"
+	// AnnotationConnectionMessage contains additional information about connection status
+	AnnotationConnectionMessage = MetadataPrefix + "/connection-message"
+	// AnnotationConnectionMessage contains timestamp when connection state was collected
+	AnnotationConnectionAttemptedAt = MetadataPrefix + "/connection-attempted-at"
+
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"
 

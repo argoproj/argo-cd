@@ -22,6 +22,7 @@ import (
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
+
 	"github.com/argoproj/argo-cd/reposerver"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
@@ -72,7 +73,8 @@ func newCommand() *cobra.Command {
 			}
 			db := db.NewDB(namespace, kubeClient)
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
-			appStateManager := controller.NewAppStateManager(db, appClient, reposerver.NewRepositoryServerClientset(repoServerAddress), namespace)
+			repoClientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
+			appStateManager := controller.NewAppStateManager(db, appClient, repoClientset, namespace)
 			appHealthManager := controller.NewAppHealthManager(db, namespace)
 
 			appController := controller.NewApplicationController(
@@ -84,11 +86,14 @@ func newCommand() *cobra.Command {
 				appHealthManager,
 				resyncDuration,
 				&controllerConfig)
+			secretController := controller.NewSecretController(kubeClient, repoClientset, resyncDuration, namespace)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
+
+			go secretController.Run(ctx)
 			go appController.Run(ctx, statusProcessors, operationProcessors)
 			// Wait forever
 			select {}

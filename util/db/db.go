@@ -1,8 +1,13 @@
 package db
 
 import (
+	"time"
+
+	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -42,5 +47,41 @@ func NewDB(namespace string, kubeclientset kubernetes.Interface) ArgoDB {
 	return &db{
 		ns:            namespace,
 		kubeclientset: kubeclientset,
+	}
+}
+
+func AnnotationsFromConnectionState(connectionState *appv1.ConnectionState) map[string]string {
+	attemptedAtStr := ""
+	if connectionState.AttemptedAt != nil {
+		attemptedAtStr = connectionState.AttemptedAt.Format(time.RFC3339)
+	}
+	return map[string]string{
+		common.AnnotationConnectionMessage:     connectionState.Message,
+		common.AnnotationConnectionStatus:      connectionState.Status,
+		common.AnnotationConnectionAttemptedAt: attemptedAtStr,
+	}
+}
+
+func ConnectionStateFromAnnotations(annotations map[string]string) appv1.ConnectionState {
+	status := annotations[common.AnnotationConnectionStatus]
+	if status == "" {
+		status = appv1.ConnectionStatusUnknown
+	}
+	attemptedAtStr := annotations[common.AnnotationConnectionAttemptedAt]
+	var attemptedAtMetaTimePtr *metav1.Time
+	if attemptedAtStr != "" {
+		attemptedAtTime, err := time.Parse(time.RFC3339, attemptedAtStr)
+		if err != nil {
+			log.Warnf("Unable to parse connection status attemptedAt time")
+		} else {
+			attemptedAtMetaTime := metav1.NewTime(attemptedAtTime)
+			attemptedAtMetaTimePtr = &attemptedAtMetaTime
+		}
+
+	}
+	return appv1.ConnectionState{
+		Status:      status,
+		Message:     annotations[common.AnnotationConnectionMessage],
+		AttemptedAt: attemptedAtMetaTimePtr,
 	}
 }

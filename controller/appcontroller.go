@@ -155,7 +155,7 @@ func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, it
 
 }
 
-// watchAppsResources watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
+// WatchAppsResources watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
 func (ctrl *ApplicationController) watchAppsResources() {
 	watchingClusters := make(map[string]context.CancelFunc)
 
