@@ -50,7 +50,10 @@ func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 	if err != nil {
 		return nil, err
 	}
-	secName := ServerToSecretName(c.Server)
+	secName, err := serverToSecretName(c.Server)
+	if err != nil {
+		return nil, err
+	}
 	clusterSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
@@ -106,7 +109,10 @@ func (s *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) er
 }
 
 func (s *db) getClusterSecret(server string) (*apiv1.Secret, error) {
-	secName := ServerToSecretName(server)
+	secName, err := serverToSecretName(server)
+	if err != nil {
+		return nil, err
+	}
 	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -146,21 +152,24 @@ func (s *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 
 // Delete deletes a cluster by name
 func (s *db) DeleteCluster(ctx context.Context, name string) error {
-	secName := ServerToSecretName(name)
+	secName, err := serverToSecretName(name)
+	if err != nil {
+		return err
+	}
 	return s.kubeclientset.CoreV1().Secrets(s.ns).Delete(secName, &metav1.DeleteOptions{})
 }
 
-// ServerToSecretName hashes server address to the secret name using a formula.
+// serverToSecretName hashes server address to the secret name using a formula.
 // Part of the server address is incorporated for debugging purposes
-func ServerToSecretName(server string) string {
+func serverToSecretName(server string) (string, error) {
 	serverURL, err := url.ParseRequestURI(server)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(server))
 	host := strings.ToLower(strings.Split(serverURL.Host, ":")[0])
-	return fmt.Sprintf("cluster-%s-%v", host, h.Sum32())
+	return fmt.Sprintf("cluster-%s-%v", host, h.Sum32()), nil
 }
 
 // clusterToStringData converts a cluster object to string data for serialization to a secret
