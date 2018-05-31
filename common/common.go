@@ -57,8 +57,8 @@ var (
 	AnnotationConnectionStatus = MetadataPrefix + "/connection-status"
 	// AnnotationConnectionMessage contains additional information about connection status
 	AnnotationConnectionMessage = MetadataPrefix + "/connection-message"
-	// AnnotationConnectionMessage contains timestamp when connection state was collected
-	AnnotationConnectionAttemptedAt = MetadataPrefix + "/connection-attempted-at"
+	// AnnotationConnectionModifiedAt contains timestamp when connection state had been modified
+	AnnotationConnectionModifiedAt = MetadataPrefix + "/connection-modified-at"
 
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"

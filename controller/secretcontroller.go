@@ -89,10 +89,9 @@ func (ctrl *SecretController) processSecret() (processNext bool) {
 }
 
 func (ctrl *SecretController) getRepoConnectionState(repo *v1alpha1.Repository) v1alpha1.ConnectionState {
-	nowTime := metav1.Now()
 	state := v1alpha1.ConnectionState{
-		AttemptedAt: &nowTime,
-		Status:      v1alpha1.ConnectionStatusUnknown,
+		ModifiedAt: repo.ConnectionState.ModifiedAt,
+		Status:     v1alpha1.ConnectionStatusUnknown,
 	}
 	closer, client, err := ctrl.repoClientset.NewRepositoryClient()
 	if err != nil {
@@ -114,10 +113,9 @@ func (ctrl *SecretController) getRepoConnectionState(repo *v1alpha1.Repository) 
 }
 
 func (ctrl *SecretController) getClusterState(cluster *v1alpha1.Cluster) v1alpha1.ConnectionState {
-	nowTime := metav1.Now()
 	state := v1alpha1.ConnectionState{
-		AttemptedAt: &nowTime,
-		Status:      v1alpha1.ConnectionStatusUnknown,
+		ModifiedAt: cluster.ConnectionState.ModifiedAt,
+		Status:     v1alpha1.ConnectionStatusUnknown,
 	}
 	kubeClientset, err := kubernetes.NewForConfig(cluster.RESTConfig())
 	if err == nil {
@@ -141,6 +139,7 @@ func (ctrl *SecretController) updateState(secret *corev1.Secret, state v1alpha1.
 		}
 	}
 	if len(annotationsPatch) > 0 {
+		annotationsPatch[common.AnnotationConnectionModifiedAt] = metav1.Now().Format(time.RFC3339)
 		patchData, err := json.Marshal(map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"annotations": annotationsPatch,

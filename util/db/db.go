@@ -52,13 +52,13 @@ func NewDB(namespace string, kubeclientset kubernetes.Interface) ArgoDB {
 
 func AnnotationsFromConnectionState(connectionState *appv1.ConnectionState) map[string]string {
 	attemptedAtStr := ""
-	if connectionState.AttemptedAt != nil {
-		attemptedAtStr = connectionState.AttemptedAt.Format(time.RFC3339)
+	if connectionState.ModifiedAt != nil {
+		attemptedAtStr = connectionState.ModifiedAt.Format(time.RFC3339)
 	}
 	return map[string]string{
-		common.AnnotationConnectionMessage:     connectionState.Message,
-		common.AnnotationConnectionStatus:      connectionState.Status,
-		common.AnnotationConnectionAttemptedAt: attemptedAtStr,
+		common.AnnotationConnectionMessage:    connectionState.Message,
+		common.AnnotationConnectionStatus:     connectionState.Status,
+		common.AnnotationConnectionModifiedAt: attemptedAtStr,
 	}
 }
 
@@ -67,7 +67,7 @@ func ConnectionStateFromAnnotations(annotations map[string]string) appv1.Connect
 	if status == "" {
 		status = appv1.ConnectionStatusUnknown
 	}
-	attemptedAtStr := annotations[common.AnnotationConnectionAttemptedAt]
+	attemptedAtStr := annotations[common.AnnotationConnectionModifiedAt]
 	var attemptedAtMetaTimePtr *metav1.Time
 	if attemptedAtStr != "" {
 		attemptedAtTime, err := time.Parse(time.RFC3339, attemptedAtStr)
@@ -80,8 +80,8 @@ func ConnectionStateFromAnnotations(annotations map[string]string) appv1.Connect
 
 	}
 	return appv1.ConnectionState{
-		Status:      status,
-		Message:     annotations[common.AnnotationConnectionMessage],
-		AttemptedAt: attemptedAtMetaTimePtr,
+		Status:     status,
+		Message:    annotations[common.AnnotationConnectionMessage],
+		ModifiedAt: attemptedAtMetaTimePtr,
 	}
 }
