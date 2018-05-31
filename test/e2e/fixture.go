@@ -170,7 +170,8 @@ func (f *Fixture) ensureClusterRegistered() error {
 	// Install RBAC resources for managing the cluster
 	managerBearerToken := common.InstallClusterManagerRBAC(conf)
 	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken)
-	_, err = cluster.NewServer(f.DB).Create(context.Background(), clst)
+	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
+	_, err = cluster.NewServer(f.DB).Create(context.Background(), &clstCreateReq)
 	return err
 }
 
