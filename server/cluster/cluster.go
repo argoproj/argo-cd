@@ -49,7 +49,7 @@ func (s *Server) Update(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, 
 }
 
 // UpdateREST updates a cluster (special handler intended to be used only by the gRPC gateway)
-func (s *Server) UpdateREST(ctx context.Context, r *ClusterUpdateRequest) (*appv1.Cluster, error) {
+func (s *Server) UpdateREST(ctx context.Context, r *ClusterRESTUpdateRequest) (*appv1.Cluster, error) {
 	return s.Update(ctx, r.Cluster)
 }
 
