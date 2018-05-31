@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/yudai/gojsondiff/formatter"
 	"golang.org/x/crypto/ssh/terminal"
-	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -105,8 +104,11 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			setParameterOverrides(&app, appOpts.parameters)
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := metadata.AppendToOutgoingContext(context.Background(), "upsert", strconv.FormatBool(upsert))
-			created, err := appIf.Create(ctx, &app)
+			appCreateRequest := application.ApplicationCreateRequest{
+				Application: app,
+				Upsert:      &upsert,
+			}
+			created, err := appIf.Create(context.Background(), &appCreateRequest)
 			errors.CheckError(err)
 			fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 		},
@@ -393,7 +395,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			for _, appName := range args {
-				appDeleteReq := application.DeleteApplicationRequest{
+				appDeleteReq := application.ApplicationDeleteRequest{
 					Name: &appName,
 				}
 				if c.Flag("cascade").Changed {

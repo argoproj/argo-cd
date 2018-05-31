@@ -12,11 +12,11 @@ type RepositoryServiceServer struct {
 }
 
 // Create provides a mock function with given fields: _a0, _a1
-func (_m *RepositoryServiceServer) Create(_a0 context.Context, _a1 *v1alpha1.Repository) (*v1alpha1.Repository, error) {
+func (_m *RepositoryServiceServer) Create(_a0 context.Context, _a1 *repository.RepoCreateRequest) (*v1alpha1.Repository, error) {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 *v1alpha1.Repository
-	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Repository) *v1alpha1.Repository); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *repository.RepoCreateRequest) *v1alpha1.Repository); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
@@ -25,7 +25,7 @@ func (_m *RepositoryServiceServer) Create(_a0 context.Context, _a1 *v1alpha1.Rep
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Repository) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *repository.RepoCreateRequest) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
@@ -103,21 +103,21 @@ func (_m *RepositoryServiceServer) List(_a0 context.Context, _a1 *repository.Rep
 	return r0, r1
 }
 
-// Update provides a mock function with given fields: _a0, _a1
-func (_m *RepositoryServiceServer) Update(_a0 context.Context, _a1 *v1alpha1.Repository) (*v1alpha1.Repository, error) {
+// ListKsonnetApps provides a mock function with given fields: _a0, _a1
+func (_m *RepositoryServiceServer) ListKsonnetApps(_a0 context.Context, _a1 *repository.RepoKsonnetQuery) (*repository.RepoKsonnetResponse, error) {
 	ret := _m.Called(_a0, _a1)
 
-	var r0 *v1alpha1.Repository
-	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Repository) *v1alpha1.Repository); ok {
+	var r0 *repository.RepoKsonnetResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *repository.RepoKsonnetQuery) *repository.RepoKsonnetResponse); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*v1alpha1.Repository)
+			r0 = ret.Get(0).(*repository.RepoKsonnetResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Repository) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *repository.RepoKsonnetQuery) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
@@ -126,8 +126,8 @@ func (_m *RepositoryServiceServer) Update(_a0 context.Context, _a1 *v1alpha1.Rep
 	return r0, r1
 }
 
-// UpdateREST provides a mock function with given fields: _a0, _a1
-func (_m *RepositoryServiceServer) UpdateREST(_a0 context.Context, _a1 *repository.RepoUpdateRequest) (*v1alpha1.Repository, error) {
+// Update provides a mock function with given fields: _a0, _a1
+func (_m *RepositoryServiceServer) Update(_a0 context.Context, _a1 *repository.RepoUpdateRequest) (*v1alpha1.Repository, error) {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 *v1alpha1.Repository
@@ -141,6 +141,29 @@ func (_m *RepositoryServiceServer) UpdateREST(_a0 context.Context, _a1 *reposito
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *repository.RepoUpdateRequest) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateREST provides a mock function with given fields: _a0, _a1
+func (_m *RepositoryServiceServer) UpdateREST(_a0 context.Context, _a1 *repository.RepoRESTUpdateRequest) (*v1alpha1.Repository, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 *v1alpha1.Repository
+	if rf, ok := ret.Get(0).(func(context.Context, *repository.RepoRESTUpdateRequest) *v1alpha1.Repository); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.Repository)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *repository.RepoRESTUpdateRequest) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)

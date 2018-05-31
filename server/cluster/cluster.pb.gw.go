@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
@@ -47,7 +46,7 @@ func request_ClusterService_List_0(ctx context.Context, marshaler runtime.Marsha
 }
 
 func request_ClusterService_Create_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq v1alpha1.Cluster
+	var protoReq ClusterCreateRequest
 	var metadata runtime.ServerMetadata
 
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
@@ -87,7 +86,7 @@ func request_ClusterService_Get_0(ctx context.Context, marshaler runtime.Marshal
 }
 
 func request_ClusterService_UpdateREST_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ClusterUpdateRequest
+	var protoReq ClusterRESTUpdateRequest
 	var metadata runtime.ServerMetadata
 
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq.Cluster); err != nil {

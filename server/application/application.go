@@ -23,7 +23,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -69,27 +68,22 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 }
 
 // Create creates an application
-func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
-	upsert := false
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		upsertMd := md["upsert"]
-		upsert = len(upsertMd) > 0 && upsertMd[0] == "true"
-	}
+func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv1.Application, error) {
+	a := q.Application
 
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
 	}
 	a.SetCascadedDeletion(true)
-	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(a)
+	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(&a)
 	if apierr.IsAlreadyExists(err) {
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(a.Name, metav1.GetOptions{})
 		if getErr != nil {
 			return nil, fmt.Errorf("unable to check existing application details: %v", err)
 		}
-		if upsert {
+		if *q.Upsert {
 			existing.Spec = a.Spec
 			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
 		} else {
@@ -172,12 +166,13 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 }
 
 // Update updates an application
-func (s *Server) Update(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
+func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv1.Application, error) {
+	a := q.Application
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(&a)
 }
 
 // UpdateSpec updates an application spec
@@ -197,7 +192,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationSpecRequest) (*ap
 }
 
 // Delete removes an application and all associated resources
-func (s *Server) Delete(ctx context.Context, q *DeleteApplicationRequest) (*ApplicationResponse, error) {
+func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
@@ -510,7 +505,7 @@ func (s *Server) setAppOperation(ctx context.Context, appName string, operationC
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
-		_, err = s.Update(ctx, a)
+		_, err = s.Update(ctx, &ApplicationUpdateRequest{Application: *a})
 		if err != nil && apierr.IsConflict(err) {
 			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 		} else {

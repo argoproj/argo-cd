@@ -54,7 +54,15 @@ message RepoQuery {
 
 message RepoResponse {}
 
+message RepoCreateRequest {
+        github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+}
+
 message RepoUpdateRequest {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+}
+
+message RepoRESTUpdateRequest {
 	string url = 1;
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 2;
 }
@@ -73,24 +81,24 @@ service RepositoryService {
 	}
 
 	// Create creates a repo
-	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
 			body: "*"
 		};
 	}
 	
-    // Get returns a repo by name
-    rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	// Get returns a repo by name
+	rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}";
 	}
 
 	// Update updates a repo
-	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 	}
 
 	// Update updates a repo (special handler intended to be used only by the gRPC gateway)
-	rpc UpdateREST(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
+	rpc UpdateREST(RepoRESTUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/repositories/{url}"
 			body: "repo"

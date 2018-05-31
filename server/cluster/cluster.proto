@@ -19,7 +19,15 @@ message ClusterQuery {
 
 message ClusterResponse {}
 
+message ClusterCreateRequest {
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+}
+
 message ClusterUpdateRequest {
+	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+}
+
+message ClusterRESTUpdateRequest {
 	string server = 1;
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 2;
 }
@@ -33,24 +41,24 @@ service ClusterService {
 	}
 
 	// Create creates a cluster
-	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc Create(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			post: "/api/v1/clusters"
 			body: "*"
 		};
 	}
 	
-    // Get returns a cluster by server address
-    rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	// Get returns a cluster by server address
+	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).get = "/api/v1/clusters/{server}";
 	}
 
 	// Update updates a cluster
-	rpc Update(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 	}
 
 	// Update updates a cluster (special handler intended to be used only by the gRPC gateway)
-	rpc UpdateREST(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
+	rpc UpdateREST(ClusterRESTUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			put: "/api/v1/clusters/{server}"
 			body: "cluster"
