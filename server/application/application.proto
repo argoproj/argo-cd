@@ -34,6 +34,11 @@ message ManifestQuery {
 
 message ApplicationResponse {}
 
+message ApplicationCreateRequest {
+	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
+	required bool upsert = 2;
+}
+
 message DeleteApplicationRequest {
 	required string name = 1;
 	optional bool cascade = 2;
@@ -99,7 +104,7 @@ service ApplicationService {
 	}
 
 	// Create creates an application
-	rpc Create(github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	rpc Create(ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications"
 			body: "*"

@@ -23,7 +23,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -69,13 +68,8 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 }
 
 // Create creates an application
-func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Application, error) {
-	upsert := false
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		upsertMd := md["upsert"]
-		upsert = len(upsertMd) > 0 && upsertMd[0] == "true"
-	}
+func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv1.Application, error) {
+	a := &(*q).Application
 
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
@@ -89,7 +83,7 @@ func (s *Server) Create(ctx context.Context, a *appv1.Application) (*appv1.Appli
 		if getErr != nil {
 			return nil, fmt.Errorf("unable to check existing application details: %v", err)
 		}
-		if upsert {
+		if *q.Upsert {
 			existing.Spec = a.Spec
 			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
 		} else {
