@@ -234,6 +234,22 @@ type ResourceState struct {
 	Health             HealthStatus     `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
 }
 
+// ConnectionStatus represents connection status
+type ConnectionStatus = string
+
+const (
+	ConnectionStatusUnknown    = "Unknown"
+	ConnectionStatusSuccessful = "Successful"
+	ConnectionStatusFailed     = "Failed"
+)
+
+// ConnectionState contains information about remote resource connection state
+type ConnectionState struct {
+	Status      ConnectionStatus `json:"status" protobuf:"bytes,1,opt,name=status"`
+	Message     string           `json:"message" protobuf:"bytes,2,opt,name=message"`
+	AttemptedAt *metav1.Time     `json:"attemptedAt" protobuf:"bytes,3,opt,name=attemptedAt"`
+}
+
 // Cluster is the definition of a cluster resource
 type Cluster struct {
 	// Server is the API server URL of the Kubernetes cluster
@@ -245,8 +261,8 @@ type Cluster struct {
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
 
-	// Message can hold a status message or error.
-	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	// ConnectionState contains information about cluster connection state
+	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
 }
 
 // ClusterList is a collection of Clusters.
@@ -293,11 +309,11 @@ type TLSClientConfig struct {
 
 // Repository is a Git repository holding application configurations
 type Repository struct {
-	Repo          string `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	Username      string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
-	Password      string `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	SSHPrivateKey string `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	Message       string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+	Repo            string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	Username        string          `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
+	Password        string          `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
+	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
+	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
 }
 
 // RepositoryList is a collection of Repositories.

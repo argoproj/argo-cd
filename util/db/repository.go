@@ -36,7 +36,7 @@ func (s *db) ListRepositories(ctx context.Context) (*appsv1.RepositoryList, erro
 		Items: make([]appsv1.Repository, len(repoSecrets.Items)),
 	}
 	for i, repoSec := range repoSecrets.Items {
-		repoList.Items[i] = *secretToRepo(&repoSec)
+		repoList.Items[i] = *SecretToRepo(&repoSec)
 	}
 	return &repoList, nil
 }
@@ -51,7 +51,7 @@ func (s *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 	if err != nil {
 		return nil, err
 	}
-	secName := repoURLToSecretName(r.Repo)
+	secName := RepoURLToSecretName(r.Repo)
 	repoSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
@@ -68,7 +68,7 @@ func (s *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 		}
 		return nil, err
 	}
-	return secretToRepo(repoSecret), nil
+	return SecretToRepo(repoSecret), nil
 }
 
 // GetRepository returns a repository by URL
@@ -77,7 +77,7 @@ func (s *db) GetRepository(ctx context.Context, name string) (*appsv1.Repository
 	if err != nil {
 		return nil, err
 	}
-	return secretToRepo(repoSecret), nil
+	return SecretToRepo(repoSecret), nil
 }
 
 // UpdateRepository updates a repository
@@ -95,17 +95,17 @@ func (s *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 	if err != nil {
 		return nil, err
 	}
-	return secretToRepo(repoSecret), nil
+	return SecretToRepo(repoSecret), nil
 }
 
 // Delete updates a repository
 func (s *db) DeleteRepository(ctx context.Context, name string) error {
-	secName := repoURLToSecretName(name)
+	secName := RepoURLToSecretName(name)
 	return s.kubeclientset.CoreV1().Secrets(s.ns).Delete(secName, &metav1.DeleteOptions{})
 }
 
 func (s *db) getRepoSecret(repo string) (*apiv1.Secret, error) {
-	secName := repoURLToSecretName(repo)
+	secName := RepoURLToSecretName(repo)
 	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -116,9 +116,9 @@ func (s *db) getRepoSecret(repo string) (*apiv1.Secret, error) {
 	return repoSecret, nil
 }
 
-// repoURLToSecretName hashes repo URL to the secret name using a formula.
+// RepoURLToSecretName hashes repo URL to the secret name using a formula.
 // Part of the original repo name is incorporated for debugging purposes
-func repoURLToSecretName(repo string) string {
+func RepoURLToSecretName(repo string) string {
 	repo = strings.ToLower(git.NormalizeGitURL(repo))
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
@@ -136,13 +136,14 @@ func repoToStringData(r *appsv1.Repository) map[string]string {
 	}
 }
 
-// secretToRepo converts a secret into a repository object, optionally redacting sensitive information
-func secretToRepo(s *apiv1.Secret) *appsv1.Repository {
+// SecretToRepo converts a secret into a repository object, optionally redacting sensitive information
+func SecretToRepo(s *apiv1.Secret) *appsv1.Repository {
 	repo := appsv1.Repository{
-		Repo:          string(s.Data["repository"]),
-		Username:      string(s.Data["username"]),
-		Password:      string(s.Data["password"]),
-		SSHPrivateKey: string(s.Data["sshPrivateKey"]),
+		Repo:            string(s.Data["repository"]),
+		Username:        string(s.Data["username"]),
+		Password:        string(s.Data["password"]),
+		SSHPrivateKey:   string(s.Data["sshPrivateKey"]),
+		ConnectionState: ConnectionStateFromAnnotations(s.Annotations),
 	}
 	return &repo
 }

@@ -200,9 +200,9 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			clusters, err := clusterIf.List(context.Background(), &cluster.ClusterQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "SERVER\tNAME\tMESSAGE\n")
+			fmt.Fprintf(w, "SERVER\tNAME\tSTATUS\tMESSAGE\n")
 			for _, c := range clusters.Items {
-				fmt.Fprintf(w, "%s\t%s\t%s\n", c.Server, c.Name, c.Message)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Server, c.Name, c.ConnectionState.Status, c.ConnectionState.Message)
 			}
 			_ = w.Flush()
 		},

@@ -12,7 +12,7 @@ func TestRepoURLToSecretName(t *testing.T) {
 	}
 
 	for k, v := range tables {
-		if sn := repoURLToSecretName(k); sn != v {
+		if sn := RepoURLToSecretName(k); sn != v {
 			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 		}
 	}
