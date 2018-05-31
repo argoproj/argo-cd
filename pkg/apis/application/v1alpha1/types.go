@@ -245,9 +245,9 @@ const (
 
 // ConnectionState contains information about remote resource connection state
 type ConnectionState struct {
-	Status      ConnectionStatus `json:"status" protobuf:"bytes,1,opt,name=status"`
-	Message     string           `json:"message" protobuf:"bytes,2,opt,name=message"`
-	AttemptedAt *metav1.Time     `json:"attemptedAt" protobuf:"bytes,3,opt,name=attemptedAt"`
+	Status     ConnectionStatus `json:"status" protobuf:"bytes,1,opt,name=status"`
+	Message    string           `json:"message" protobuf:"bytes,2,opt,name=message"`
+	ModifiedAt *metav1.Time     `json:"attemptedAt" protobuf:"bytes,3,opt,name=attemptedAt"`
 }
 
 // Cluster is the definition of a cluster resource
