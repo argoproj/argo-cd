@@ -16,7 +16,7 @@ const (
 	SecretTypeCluster = "cluster"
 
 	// AuthCookieName is the HTTP cookie name where we store our auth token
-	AuthCookieName = "argocd.argoproj.io/auth-token"
+	AuthCookieName = "argocd.token"
 	// ResourcesFinalizerName is a number of application CRD finalizer
 	ResourcesFinalizerName = "resources-finalizer." + MetadataPrefix
 )
