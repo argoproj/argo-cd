@@ -55,7 +55,7 @@ message RepoQuery {
 message RepoResponse {}
 
 message RepoCreateRequest {
-        github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 message RepoUpdateRequest {
@@ -79,7 +79,7 @@ service RepositoryService {
 	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
-			body: "*"
+			body: "repo"
 		};
 	}
 	
@@ -92,7 +92,7 @@ service RepositoryService {
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories/{repo.repo}"
-			body: "*"
+			body: "repo"
 		};
 	}
 

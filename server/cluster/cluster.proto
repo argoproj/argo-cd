@@ -39,7 +39,7 @@ service ClusterService {
 	rpc Create(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			post: "/api/v1/clusters"
-			body: "*"
+			body: "cluster"
 		};
 	}
 	
@@ -52,7 +52,7 @@ service ClusterService {
 	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
 			put: "/api/v1/clusters/{cluster.server}"
-			body: "*"
+			body: "cluster"
 		};
 	}
 
