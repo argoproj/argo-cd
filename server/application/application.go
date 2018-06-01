@@ -98,8 +98,8 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 }
 
 // GetManifests returns application manifests
-func (s *Server) GetManifests(ctx context.Context, q *ManifestQuery) (*repository.ManifestResponse, error) {
-	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.AppName, metav1.GetOptions{})
+func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) (*repository.ManifestResponse, error) {
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +119,8 @@ func (s *Server) GetManifests(ctx context.Context, q *ManifestQuery) (*repositor
 	}
 
 	revision := app.Spec.Source.TargetRevision
-	if q.Revision != nil && *q.Revision != "" {
-		revision = *q.Revision
+	if q.Revision != "" {
+		revision = q.Revision
 	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
@@ -144,7 +144,7 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*v1.EventList, error) {
-	config, namespace, err := s.getApplicationClusterConfig(*q.AppName)
+	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -154,8 +154,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	}
 
 	fieldSelector := fields.SelectorFromSet(map[string]string{
-		"involvedObject.name":      *q.ResName,
-		"involvedObject.uid":       *q.ResUid,
+		"involvedObject.name":      q.ResourceName,
+		"involvedObject.uid":       q.ResourceUID,
 		"involvedObject.namespace": namespace,
 	}).String()
 
@@ -187,7 +187,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationSpecRequest) (*ap
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(*q.AppName, types.MergePatchType, patch)
+	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(*q.Name, types.MergePatchType, patch)
 	return &q.Spec, err
 }
 
@@ -361,8 +361,8 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 	return nil
 }
 
-func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*ApplicationResponse, error) {
-	config, namespace, err := s.getApplicationClusterConfig(*q.ApplicationName)
+func (s *Server) DeletePod(ctx context.Context, q *ApplicationDeletePodRequest) (*ApplicationResponse, error) {
+	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +370,7 @@ func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*Application
 	if err != nil {
 		return nil, err
 	}
-	err = s.ensurePodBelongsToApp(*q.ApplicationName, *q.PodName, namespace, kubeClientset)
+	err = s.ensurePodBelongsToApp(*q.Name, *q.PodName, namespace, kubeClientset)
 	if err != nil {
 		return nil, err
 	}
@@ -381,8 +381,8 @@ func (s *Server) DeletePod(ctx context.Context, q *DeletePodQuery) (*Application
 	return &ApplicationResponse{}, nil
 }
 
-func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) error {
-	config, namespace, err := s.getApplicationClusterConfig(*q.ApplicationName)
+func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLogsServer) error {
+	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return err
 	}
@@ -390,7 +390,7 @@ func (s *Server) PodLogs(q *PodLogsQuery, ws ApplicationService_PodLogsServer) e
 	if err != nil {
 		return err
 	}
-	err = s.ensurePodBelongsToApp(*q.ApplicationName, *q.PodName, namespace, kubeClientset)
+	err = s.ensurePodBelongsToApp(*q.Name, *q.PodName, namespace, kubeClientset)
 	if err != nil {
 		return err
 	}

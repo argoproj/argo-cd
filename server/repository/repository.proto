@@ -19,7 +19,7 @@ message RepoKsonnetQuery {
 
 // RepoKsonnetResponse is a response for Repository contents matching a particular path
 message RepoKsonnetResponse {
-	repeated KsonnetAppSpec data = 1;
+	repeated KsonnetAppSpec items = 1;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
@@ -62,11 +62,6 @@ message RepoUpdateRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
-message RepoRESTUpdateRequest {
-	string url = 1;
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 2;
-}
-
 // RepositoryService 
 service RepositoryService {
 
@@ -95,13 +90,9 @@ service RepositoryService {
 
 	// Update updates a repo
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
-	}
-
-	// Update updates a repo (special handler intended to be used only by the gRPC gateway)
-	rpc UpdateREST(RepoRESTUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
-			put: "/api/v1/repositories/{url}"
-			body: "repo"
+			post: "/api/v1/repositories/{repo.repo}"
+			body: "*"
 		};
 	}
 

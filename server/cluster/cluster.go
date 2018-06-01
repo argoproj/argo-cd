@@ -48,11 +48,6 @@ func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cl
 	return redact(clust), err
 }
 
-// UpdateREST updates a cluster (special handler intended to be used only by the gRPC gateway)
-func (s *Server) UpdateREST(ctx context.Context, r *ClusterRESTUpdateRequest) (*appv1.Cluster, error) {
-	return s.Update(ctx, &ClusterUpdateRequest{Cluster: r.Cluster})
-}
-
 // Delete deletes a cluster by name
 func (s *Server) Delete(ctx context.Context, q *ClusterQuery) (*ClusterResponse, error) {
 	err := s.db.DeleteCluster(ctx, q.Server)

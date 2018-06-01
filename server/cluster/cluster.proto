@@ -27,11 +27,6 @@ message ClusterUpdateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 }
 
-message ClusterRESTUpdateRequest {
-	string server = 1;
-	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 2;
-}
-
 // ClusterService 
 service ClusterService {
 
@@ -55,13 +50,9 @@ service ClusterService {
 
 	// Update updates a cluster
 	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
-	}
-
-	// Update updates a cluster (special handler intended to be used only by the gRPC gateway)
-	rpc UpdateREST(ClusterRESTUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http) = {
-			put: "/api/v1/clusters/{server}"
-			body: "cluster"
+			put: "/api/v1/clusters/{cluster.server}"
+			body: "*"
 		};
 	}
 

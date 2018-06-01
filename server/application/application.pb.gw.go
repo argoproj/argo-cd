@@ -46,7 +46,7 @@ func request_ApplicationService_List_0(ctx context.Context, marshaler runtime.Ma
 }
 
 var (
-	filter_ApplicationService_ListResourceEvents_0 = &utilities.DoubleArray{Encoding: map[string]int{"appName": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ApplicationService_ListResourceEvents_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_ApplicationService_ListResourceEvents_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -60,15 +60,15 @@ func request_ApplicationService_ListResourceEvents_0(ctx context.Context, marsha
 		_   = err
 	)
 
-	val, ok = pathParams["appName"]
+	val, ok = pathParams["name"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "appName")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.AppName, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.StringP(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "appName", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
 	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_ApplicationService_ListResourceEvents_0); err != nil {
@@ -109,7 +109,7 @@ func request_ApplicationService_Create_0(ctx context.Context, marshaler runtime.
 	var protoReq ApplicationCreateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -146,11 +146,11 @@ func request_ApplicationService_Get_0(ctx context.Context, marshaler runtime.Mar
 }
 
 var (
-	filter_ApplicationService_GetManifests_0 = &utilities.DoubleArray{Encoding: map[string]int{"appName": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ApplicationService_GetManifests_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
 func request_ApplicationService_GetManifests_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ManifestQuery
+	var protoReq ApplicationManifestQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -160,15 +160,15 @@ func request_ApplicationService_GetManifests_0(ctx context.Context, marshaler ru
 		_   = err
 	)
 
-	val, ok = pathParams["appName"]
+	val, ok = pathParams["name"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "appName")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.AppName, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.StringP(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "appName", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
 	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_ApplicationService_GetManifests_0); err != nil {
@@ -184,7 +184,7 @@ func request_ApplicationService_Update_0(ctx context.Context, marshaler runtime.
 	var protoReq ApplicationUpdateRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -197,7 +197,7 @@ func request_ApplicationService_UpdateSpec_0(ctx context.Context, marshaler runt
 	var protoReq ApplicationSpecRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -208,15 +208,15 @@ func request_ApplicationService_UpdateSpec_0(ctx context.Context, marshaler runt
 		_   = err
 	)
 
-	val, ok = pathParams["appName"]
+	val, ok = pathParams["name"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "appName")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.AppName, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.StringP(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "appName", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
 	msg, err := client.UpdateSpec(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -263,7 +263,7 @@ func request_ApplicationService_Sync_0(ctx context.Context, marshaler runtime.Ma
 	var protoReq ApplicationSyncRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -294,7 +294,7 @@ func request_ApplicationService_Rollback_0(ctx context.Context, marshaler runtim
 	var protoReq ApplicationRollbackRequest
 	var metadata runtime.ServerMetadata
 
-	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil {
+	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && err != io.EOF {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -322,7 +322,7 @@ func request_ApplicationService_Rollback_0(ctx context.Context, marshaler runtim
 }
 
 func request_ApplicationService_DeletePod_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq DeletePodQuery
+	var protoReq ApplicationDeletePodRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -332,15 +332,15 @@ func request_ApplicationService_DeletePod_0(ctx context.Context, marshaler runti
 		_   = err
 	)
 
-	val, ok = pathParams["applicationName"]
+	val, ok = pathParams["name"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.ApplicationName, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.StringP(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
 	val, ok = pathParams["podName"]
@@ -360,11 +360,11 @@ func request_ApplicationService_DeletePod_0(ctx context.Context, marshaler runti
 }
 
 var (
-	filter_ApplicationService_PodLogs_0 = &utilities.DoubleArray{Encoding: map[string]int{"applicationName": 0, "podName": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+	filter_ApplicationService_PodLogs_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0, "podName": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
 )
 
 func request_ApplicationService_PodLogs_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (ApplicationService_PodLogsClient, runtime.ServerMetadata, error) {
-	var protoReq PodLogsQuery
+	var protoReq ApplicationPodLogsQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -374,15 +374,15 @@ func request_ApplicationService_PodLogs_0(ctx context.Context, marshaler runtime
 		_   = err
 	)
 
-	val, ok = pathParams["applicationName"]
+	val, ok = pathParams["name"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.ApplicationName, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.StringP(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
 	val, ok = pathParams["podName"]
@@ -834,7 +834,7 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 var (
 	pattern_ApplicationService_List_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applications"}, ""))
 
-	pattern_ApplicationService_ListResourceEvents_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "appName", "events"}, ""))
+	pattern_ApplicationService_ListResourceEvents_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "events"}, ""))
 
 	pattern_ApplicationService_Watch_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "stream", "applications"}, ""))
 
@@ -842,11 +842,11 @@ var (
 
 	pattern_ApplicationService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
 
-	pattern_ApplicationService_GetManifests_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "appName", "manifests"}, ""))
+	pattern_ApplicationService_GetManifests_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "manifests"}, ""))
 
 	pattern_ApplicationService_Update_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applications"}, ""))
 
-	pattern_ApplicationService_UpdateSpec_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "appName", "spec"}, ""))
+	pattern_ApplicationService_UpdateSpec_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "spec"}, ""))
 
 	pattern_ApplicationService_Delete_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applications", "name"}, ""))
 
@@ -854,9 +854,9 @@ var (
 
 	pattern_ApplicationService_Rollback_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "rollback"}, ""))
 
-	pattern_ApplicationService_DeletePod_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"api", "v1", "applications", "applicationName", "pods", "podName"}, ""))
+	pattern_ApplicationService_DeletePod_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5}, []string{"api", "v1", "applications", "name", "pods", "podName"}, ""))
 
-	pattern_ApplicationService_PodLogs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"api", "v1", "applications", "applicationName", "pods", "podName", "logs"}, ""))
+	pattern_ApplicationService_PodLogs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"api", "v1", "applications", "name", "pods", "podName", "logs"}, ""))
 )
 
 var (
