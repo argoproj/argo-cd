@@ -3,7 +3,6 @@ package application
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"path"
 	"reflect"
 	"strings"
@@ -81,16 +80,16 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(a.Name, metav1.GetOptions{})
 		if getErr != nil {
-			return nil, fmt.Errorf("unable to check existing application details: %v", err)
+			return nil, status.Errorf(codes.Internal, "unable to check existing application details: %v", err)
 		}
-		if *q.Upsert {
+		if q.Upsert != nil && *q.Upsert {
 			existing.Spec = a.Spec
 			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
 		} else {
 			if reflect.DeepEqual(existing.Spec, a.Spec) {
 				return existing, nil
 			} else {
-				return nil, fmt.Errorf("existing application spec is different, use upsert flag to force update")
+				return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 			}
 		}
 	}
@@ -172,11 +171,11 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	if err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(&a)
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 }
 
 // UpdateSpec updates an application spec
-func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationSpecRequest) (*appv1.ApplicationSpec, error) {
+func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
 	err := s.validateApp(ctx, &q.Spec)
 	if err != nil {
 		return nil, err
@@ -198,21 +197,19 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 		return nil, err
 	}
 
-	if q.Cascade != nil {
-		if *q.Cascade != a.CascadedDeletion() {
-			a.SetCascadedDeletion(*q.Cascade)
-			patch, err := json.Marshal(map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"finalizers": a.Finalizers,
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			_, err = s.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(a.Name, types.MergePatchType, patch)
-			if err != nil {
-				return nil, err
-			}
+	if q.Cascade != nil && *q.Cascade != a.CascadedDeletion() {
+		a.SetCascadedDeletion(*q.Cascade)
+		patch, err := json.Marshal(map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"finalizers": a.Finalizers,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		_, err = s.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Patch(a.Name, types.MergePatchType, patch)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -351,7 +348,7 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 	if err != nil {
 		return err
 	}
-	wrongPodError := fmt.Errorf("pod %s does not belong to application %s", podName, applicationName)
+	wrongPodError := status.Errorf(codes.InvalidArgument, "pod %s does not belong to application %s", podName, applicationName)
 	if pod.Labels == nil {
 		return wrongPodError
 	}
@@ -505,7 +502,7 @@ func (s *Server) setAppOperation(ctx context.Context, appName string, operationC
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
-		_, err = s.Update(ctx, &ApplicationUpdateRequest{Application: *a})
+		_, err = s.Update(ctx, &ApplicationUpdateRequest{Application: a})
 		if err != nil && apierr.IsConflict(err) {
 			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 		} else {

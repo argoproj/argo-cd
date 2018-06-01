@@ -40,7 +40,7 @@ message ApplicationCreateRequest {
 }
 
 message ApplicationUpdateRequest {
-	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1 [(gogoproto.nullable) = false];
+	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application application = 1;
 }
 
 message ApplicationDeleteRequest {
@@ -56,8 +56,8 @@ message ApplicationSyncRequest {
 	required bool prune = 4 [(gogoproto.nullable) = false];
 }
 
-// ApplicationSpecRequest is a request to update application spec
-message ApplicationSpecRequest {
+// ApplicationUpdateSpecRequest is a request to update application spec
+message ApplicationUpdateSpecRequest {
 	required string name = 1;
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
 }
@@ -111,7 +111,7 @@ service ApplicationService {
 	rpc Create(ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications"
-			body: "*"
+			body: "application"
 		};
 	}
 
@@ -128,16 +128,16 @@ service ApplicationService {
 	// Update updates an application
 	rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
-			put: "/api/v1/applications"
-			body: "*"
+			put: "/api/v1/applications/{application.metadata.name}"
+			body: "application"
 		};
 	}
 
 	// Update updates an application spec
-	rpc UpdateSpec(ApplicationSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec) {
+	rpc UpdateSpec(ApplicationUpdateSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{name}/spec"
-			body: "*"
+			body: "spec"
 		};
 	}
 

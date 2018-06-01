@@ -11,7 +11,9 @@ type objectMeta struct {
 }
 
 func (a *Application) GetMetadata() *objectMeta {
-	return &objectMeta{
-		Name: &a.Name,
+	var om objectMeta
+	if a != nil {
+		om.Name = &a.Name
 	}
+	return &om
 }

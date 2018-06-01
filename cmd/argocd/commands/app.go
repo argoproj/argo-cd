@@ -261,7 +261,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				os.Exit(1)
 			}
 			setParameterOverrides(app, appOpts.parameters)
-			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationSpecRequest{
+			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
@@ -329,7 +329,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			if !updated {
 				return
 			}
-			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationSpecRequest{
+			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
