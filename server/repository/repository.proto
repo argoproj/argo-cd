@@ -92,7 +92,7 @@ service RepositoryService {
 	// Update updates a repo
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
-			post: "/api/v1/repositories/{repo.repo}"
+			put: "/api/v1/repositories/{repo.repo}"
 			body: "repo"
 		};
 	}

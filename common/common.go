@@ -1,8 +1,9 @@
 package common
 
 import (
-	"github.com/argoproj/argo-cd/pkg/apis/application"
 	rbacv1 "k8s.io/api/rbac/v1"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application"
 )
 
 const (
@@ -22,9 +23,10 @@ const (
 )
 
 const (
-	ArgoCDAdminUsername = "admin"
-	ArgoCDSecretName    = "argocd-secret"
-	ArgoCDConfigMapName = "argocd-cm"
+	ArgoCDAdminUsername     = "admin"
+	ArgoCDSecretName        = "argocd-secret"
+	ArgoCDConfigMapName     = "argocd-cm"
+	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
 )
 
 const (
@@ -44,6 +46,8 @@ const (
 	ArgoCDCLIClientAppID = "argo-cd-cli"
 	// EnvVarSSODebug is an environment variable to enable additional OAuth debugging in the API server
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
+	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
+	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
 )
 
 var (
