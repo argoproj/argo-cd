@@ -6,10 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
+
+	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/settings"
 	log "github.com/sirupsen/logrus"
@@ -45,6 +49,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.AddCommand(NewRunDexCommand())
 	command.AddCommand(NewGenDexConfigCommand())
+	command.AddCommand(NewExportCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
@@ -145,6 +150,61 @@ func NewGenDexConfigCommand() *cobra.Command {
 				err = ioutil.WriteFile(out, dexCfgBytes, 0644)
 				errors.CheckError(err)
 			}
+			return nil
+		},
+	}
+
+	clientConfig = cli.AddKubectlFlagsToCmd(&command)
+	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+	return &command
+}
+
+func NewExportCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		clientConfig clientcmd.ClientConfig
+		out          string
+	)
+	var command = cobra.Command{
+		Use:   "export",
+		Short: "Export all Argo CD data",
+		RunE: func(c *cobra.Command, args []string) error {
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			kubeClientset := kubernetes.NewForConfigOrDie(config)
+
+			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			settings, err := settingsMgr.GetSettings()
+			errors.CheckError(err)
+			settingsData, err := yaml.Marshal(settings)
+			errors.CheckError(err)
+
+			db := db.NewDB(namespace, kubeClientset)
+			clusters, err := db.ListClusters(context.Background())
+			errors.CheckError(err)
+			clusterData, err := yaml.Marshal(clusters)
+			errors.CheckError(err)
+
+			repos, err := db.ListRepositories(context.Background())
+			errors.CheckError(err)
+			repoData, err := yaml.Marshal(repos)
+			errors.CheckError(err)
+
+			// conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			// defer util.Close(conn)
+			// apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
+			// errors.CheckError(err)
+			// appsData, err := yaml.Marshal(apps)
+			// errors.CheckError(err)
+
+			outputStrings := []string{
+				string(settingsData),
+				string(repoData),
+				string(clusterData),
+				// string(appsData),
+			}
+			fmt.Println(strings.Join(outputStrings, "\n---\n"))
 			return nil
 		},
 	}
