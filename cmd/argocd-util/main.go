@@ -32,6 +32,9 @@ import (
 const (
 	// CLIName is the name of the CLI
 	cliName = "argocd-util"
+
+	// YamlSeparator separates sections of a YAML file
+	yamlSeparator = "\n---\n"
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -218,7 +221,7 @@ func NewExportCommand() *cobra.Command {
 				string(clusterData),
 				string(appsData),
 			}
-			output := strings.Join(outputStrings, "\n---\n")
+			output := strings.Join(outputStrings, yamlSeparator)
 
 			if out == "" {
 				fmt.Println(output)
