@@ -196,6 +196,8 @@ func NewExportCommand() *cobra.Command {
 
 			appClientset := appclientset.NewForConfigOrDie(config)
 			apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
+			errors.CheckError(err)
+
 			// remove extraneous cruft from output
 			for idx, app := range apps.Items {
 				apps.Items[idx].ObjectMeta = metav1.ObjectMeta{
