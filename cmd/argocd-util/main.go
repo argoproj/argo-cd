@@ -54,6 +54,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.AddCommand(NewRunDexCommand())
 	command.AddCommand(NewGenDexConfigCommand())
+	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
@@ -161,6 +162,81 @@ func NewGenDexConfigCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+	return &command
+}
+
+// NewImportCommand defines a new command for exporting Kubernetes and Argo CD resources.
+func NewImportCommand() *cobra.Command {
+	var (
+		clientConfig clientcmd.ClientConfig
+		out          string
+	)
+	var command = cobra.Command{
+		Use:   "import",
+		Short: "Import Argo CD data",
+		RunE: func(c *cobra.Command, args []string) error {
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			kubeClientset := kubernetes.NewForConfigOrDie(config)
+
+			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			settings, err := settingsMgr.GetSettings()
+			errors.CheckError(err)
+			settingsData, err := yaml.Marshal(settings)
+			errors.CheckError(err)
+
+			db := db.NewDB(namespace, kubeClientset)
+			clusters, err := db.ListClusters(context.Background())
+			errors.CheckError(err)
+			clusterData, err := yaml.Marshal(clusters)
+			errors.CheckError(err)
+
+			repos, err := db.ListRepositories(context.Background())
+			errors.CheckError(err)
+			repoData, err := yaml.Marshal(repos)
+			errors.CheckError(err)
+
+			appClientset := appclientset.NewForConfigOrDie(config)
+			apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
+			errors.CheckError(err)
+
+			// remove extraneous cruft from output
+			for idx, app := range apps.Items {
+				apps.Items[idx].ObjectMeta = metav1.ObjectMeta{
+					Name:       app.ObjectMeta.Name,
+					Finalizers: app.ObjectMeta.Finalizers,
+				}
+				apps.Items[idx].Status = v1alpha1.ApplicationStatus{
+					History: app.Status.History,
+				}
+				apps.Items[idx].Operation = nil
+			}
+			appsData, err := yaml.Marshal(apps)
+			errors.CheckError(err)
+
+			outputStrings := []string{
+				string(settingsData),
+				string(repoData),
+				string(clusterData),
+				string(appsData),
+			}
+			output := strings.Join(outputStrings, "\n---\n")
+
+			if out == "" {
+				fmt.Println(output)
+			} else {
+				err = ioutil.WriteFile(out, []byte(output), 0644)
+				errors.CheckError(err)
+			}
+			return nil
+		},
+	}
+
+	clientConfig = cli.AddKubectlFlagsToCmd(&command)
+	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+
 	return &command
 }
 
