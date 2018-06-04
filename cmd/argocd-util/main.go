@@ -12,6 +12,9 @@ import (
 	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-cd/errors"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -35,7 +38,8 @@ const (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		logLevel string
+		logLevel   string
+		clientOpts argocdclient.ClientOptions
 	)
 
 	var command = &cobra.Command{
@@ -49,9 +53,15 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.AddCommand(NewRunDexCommand())
 	command.AddCommand(NewGenDexConfigCommand())
-	command.AddCommand(NewExportCommand())
+	command.AddCommand(NewExportCommand(&clientOpts))
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", "", "Path to ArgoCD config")
+	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
+	command.PersistentFlags().BoolVar(&clientOpts.PlainText, "plaintext", false, "Disable TLS")
+	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
+	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
+	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", "", "Authentication token")
 	return command
 }
 
@@ -191,18 +201,18 @@ func NewExportCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoData, err := yaml.Marshal(repos)
 			errors.CheckError(err)
 
-			// conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			// defer util.Close(conn)
-			// apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
-			// errors.CheckError(err)
-			// appsData, err := yaml.Marshal(apps)
-			// errors.CheckError(err)
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
+			errors.CheckError(err)
+			appsData, err := yaml.Marshal(apps)
+			errors.CheckError(err)
 
 			outputStrings := []string{
 				string(settingsData),
 				string(repoData),
 				string(clusterData),
-				// string(appsData),
+				string(appsData),
 			}
 			fmt.Println(strings.Join(outputStrings, "\n---\n"))
 			return nil
