@@ -9,18 +9,17 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/ghodss/yaml"
-
 	"github.com/argoproj/argo-cd/errors"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -167,7 +166,6 @@ func NewExportCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
 		out          string
-		clientOpts   argocdclient.ClientOptions
 	)
 	var command = cobra.Command{
 		Use:   "export",
@@ -196,10 +194,18 @@ func NewExportCommand() *cobra.Command {
 			repoData, err := yaml.Marshal(repos)
 			errors.CheckError(err)
 
-			conn, appIf := argocdclient.NewClientOrDie(&clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
-			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
-			errors.CheckError(err)
+			appClientset := appclientset.NewForConfigOrDie(config)
+			apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
+			// remove extraneous cruft from output
+			for idx, app := range apps.Items {
+				apps.Items[idx].ObjectMeta = metav1.ObjectMeta{
+					Name:       app.ObjectMeta.Name,
+					Finalizers: app.ObjectMeta.Finalizers,
+				}
+				apps.Items[idx].Status = v1alpha1.ApplicationStatus{
+					History: app.Status.History,
+				}
+			}
 			appsData, err := yaml.Marshal(apps)
 			errors.CheckError(err)
 
@@ -223,12 +229,6 @@ func NewExportCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
-	command.Flags().StringVar(&clientOpts.ConfigPath, "config", "", "Path to ArgoCD config")
-	command.Flags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
-	command.Flags().BoolVar(&clientOpts.PlainText, "plaintext", false, "Disable TLS")
-	command.Flags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
-	command.Flags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
-	command.Flags().StringVar(&clientOpts.AuthToken, "auth-token", "", "Authentication token")
 
 	return &command
 }
