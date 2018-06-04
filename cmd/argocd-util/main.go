@@ -176,8 +176,12 @@ func NewImportCommand() *cobra.Command {
 		Short: "Import Argo CD data",
 		RunE: func(c *cobra.Command, args []string) error {
 			var (
-				input []byte
-				err   error
+				input    []byte
+				err      error
+				settings *settings.ArgoCDSettings
+				clusters []*v1alpha1.Cluster
+				repos    []*v1alpha1.Repository
+				apps     []*v1alpha1.Application
 			)
 			if in == "" {
 				input, err = ioutil.ReadAll(os.Stdin)
@@ -187,18 +191,24 @@ func NewImportCommand() *cobra.Command {
 				errors.CheckError(err)
 			}
 			inputStrings := strings.Split(string(input), yamlSeparator)
-			settingsInput, repoInput, clusterInput, appInput := []byte(inputStrings[0]), []byte(inputStrings[1]), []byte(inputStrings[2]), []byte(inputStrings[3])
 
-			fmt.Println("settings: ", settingsInput)
-			fmt.Println("repoInput: ", repoInput)
-			fmt.Println("clusterInput: ", clusterInput)
-			fmt.Println("appInput: ", string(appInput))
+			err = yaml.Unmarshal([]byte(inputStrings[0]), &settings)
+			errors.CheckError(err)
+
+			err = yaml.Unmarshal([]byte(inputStrings[1]), &clusters)
+			errors.CheckError(err)
+
+			err = yaml.Unmarshal([]byte(inputStrings[2]), &repos)
+			errors.CheckError(err)
+
+			err = yaml.Unmarshal([]byte(inputStrings[3]), &apps)
+			errors.CheckError(err)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			// namespace, _, err := clientConfig.Namespace()
-			// errors.CheckError(err)
-			fmt.Println(config)
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+
 			// kubeClientset := kubernetes.NewForConfigOrDie(config)
 
 			// settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
@@ -218,34 +228,12 @@ func NewImportCommand() *cobra.Command {
 			// repoData, err := yaml.Marshal(repos)
 			// errors.CheckError(err)
 
-			// appClientset := appclientset.NewForConfigOrDie(config)
-			var apps []*v1alpha1.Application
-			err = yaml.Unmarshal(appInput, &apps)
-			errors.CheckError(err)
-
-			fmt.Println(apps)
-			// apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
-
-			// // remove extraneous cruft from output
-			// for idx, app := range apps.Items {
-			// 	apps.Items[idx].ObjectMeta = metav1.ObjectMeta{
-			// 		Name:       app.ObjectMeta.Name,
-			// 		Finalizers: app.ObjectMeta.Finalizers,
-			// 	}
-			// 	apps.Items[idx].Status = v1alpha1.ApplicationStatus{
-			// 		History: app.Status.History,
-			// 	}
-			// 	apps.Items[idx].Operation = nil
-			// }
-			// appsData, err := yaml.Marshal(apps)
-			// errors.CheckError(err)
-
-			// outputStrings := []string{
-			// 	string(settingsData),
-			// 	string(repoData),
-			// 	string(clusterData),
-			// 	string(appsData),
-			// }
+			appClientset := appclientset.NewForConfigOrDie(config)
+			for _, app := range apps {
+				out, err := appClientset.ArgoprojV1alpha1().Applications(namespace).Create(app)
+				errors.CheckError(err)
+				log.Println(out)
+			}
 
 			return nil
 		},
