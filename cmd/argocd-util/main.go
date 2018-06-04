@@ -208,7 +208,14 @@ func NewExportCommand() *cobra.Command {
 				string(clusterData),
 				string(appsData),
 			}
-			fmt.Println(strings.Join(outputStrings, "\n---\n"))
+			output := fmt.Sprint(strings.Join(outputStrings, "\n---\n"))
+
+			if out == "" {
+				fmt.Println(output)
+			} else {
+				err = ioutil.WriteFile(out, []byte(output), 0644)
+				errors.CheckError(err)
+			}
 			return nil
 		},
 	}
