@@ -189,12 +189,12 @@ func NewExportCommand() *cobra.Command {
 			db := db.NewDB(namespace, kubeClientset)
 			clusters, err := db.ListClusters(context.Background())
 			errors.CheckError(err)
-			clusterData, err := yaml.Marshal(clusters)
+			clusterData, err := yaml.Marshal(clusters.Items)
 			errors.CheckError(err)
 
 			repos, err := db.ListRepositories(context.Background())
 			errors.CheckError(err)
-			repoData, err := yaml.Marshal(repos)
+			repoData, err := yaml.Marshal(repos.Items)
 			errors.CheckError(err)
 
 			appClientset := appclientset.NewForConfigOrDie(config)
@@ -212,7 +212,7 @@ func NewExportCommand() *cobra.Command {
 				}
 				apps.Items[idx].Operation = nil
 			}
-			appsData, err := yaml.Marshal(apps)
+			appsData, err := yaml.Marshal(apps.Items)
 			errors.CheckError(err)
 
 			outputStrings := []string{
