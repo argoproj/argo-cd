@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -277,6 +278,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+		bug21955WorkaroundInterceptor,
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_auth.UnaryServerInterceptor(a.authenticate),
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
@@ -322,7 +324,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mux := http.NewServeMux()
 	httpS := http.Server{
 		Addr:    endpoint,
-		Handler: mux,
+		Handler: &bug21955Workaround{handler: mux},
 	}
 	var dOpts []grpc.DialOption
 	if a.useTLS() {
@@ -468,4 +470,66 @@ func getToken(md metadata.MD) string {
 		}
 	}
 	return ""
+}
+
+// Workaround for https://github.com/golang/go/issues/21955 to support escaped URLs in URL path.
+type bug21955Workaround struct {
+	handler http.Handler
+}
+
+func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	paths := map[string][]string{
+		"/api/v1/repositories/": {"ksonnet"},
+		"/api/v1/clusters/":     {},
+	}
+	for path, subPaths := range paths {
+		if strings.Index(r.URL.Path, path) > -1 {
+			postfix := ""
+			for _, subPath := range subPaths {
+				if strings.LastIndex(r.URL.Path, subPath) == len(r.URL.Path)-len(subPath) {
+					postfix = "/" + subPath
+					r.URL.Path = r.URL.Path[0 : len(r.URL.Path)-len(subPath)-1]
+					break
+				}
+			}
+			r.URL.Path = path + url.QueryEscape(r.URL.Path[len(path):]) + postfix
+			break
+		}
+	}
+	bf.handler.ServeHTTP(w, r)
+}
+
+func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	if rq, ok := req.(*repository.RepoQuery); ok {
+		repo, err := url.QueryUnescape(rq.Repo)
+		if err != nil {
+			return nil, err
+		}
+		rq.Repo = repo
+	} else if rk, ok := req.(*repository.RepoKsonnetQuery); ok {
+		repo, err := url.QueryUnescape(rk.Repo)
+		if err != nil {
+			return nil, err
+		}
+		rk.Repo = repo
+	} else if ru, ok := req.(*repository.RepoUpdateRequest); ok {
+		repo, err := url.QueryUnescape(ru.Repo.Repo)
+		if err != nil {
+			return nil, err
+		}
+		ru.Repo.Repo = repo
+	} else if cq, ok := req.(*cluster.ClusterQuery); ok {
+		server, err := url.QueryUnescape(cq.Server)
+		if err != nil {
+			return nil, err
+		}
+		cq.Server = server
+	} else if cu, ok := req.(*cluster.ClusterUpdateRequest); ok {
+		server, err := url.QueryUnescape(cu.Cluster.Server)
+		if err != nil {
+			return nil, err
+		}
+		cu.Cluster.Server = server
+	}
+	return handler(ctx, req)
 }
