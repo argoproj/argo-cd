@@ -1,9 +1,7 @@
 import * as React from 'react';
-import * as appModels from '../../shared/models';
 
-const ARGO_SUCCESS_COLOR = '#18BE94';
-const ARGO_FAILED_COLOR = '#E96D76';
-const ARGO_RUNNING_COLOR = '#0DADEA';
+import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR } from '../../shared/components';
+import * as appModels from '../../shared/models';
 
 export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonStatus }) => {
     let className = '';

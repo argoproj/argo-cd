@@ -1,12 +1,12 @@
 import { models } from 'argo-ui';
 
-export interface ApplicationList {
+interface ItemsList<T> {
     /**
      * APIVersion defines the versioned schema of this representation of an object.
      * Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values.
      */
     apiVersion?: string;
-    items: Application[];
+    items: T[];
     /**
      * Kind is a string value representing the REST resource this object represents.
      * Servers may infer this from the endpoint the client submits requests to.
@@ -14,6 +14,8 @@ export interface ApplicationList {
     kind?: string;
     metadata: models.ListMeta;
 }
+
+export interface ApplicationList extends ItemsList<Application> {}
 
 export interface SyncOperation {
     revision: string;
@@ -200,3 +202,31 @@ export interface AuthSettings {
         }[];
     };
 }
+
+export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
+
+export const ConnectionStatuses = {
+    Unknown: 'Unknown' ,
+    Failed: 'Failed' ,
+    Successful: 'Successful',
+};
+
+export interface ConnectionState {
+    status: ConnectionStatus;
+    message: string;
+    attemptedAt: models.Time;
+}
+
+export interface Repository {
+    repo: string;
+    connectionState: ConnectionState;
+}
+
+export interface RepositoryList extends ItemsList<Repository> {}
+
+export interface Cluster {
+    server: string;
+    connectionState: ConnectionState;
+}
+
+export interface ClusterList extends ItemsList<Cluster> {}

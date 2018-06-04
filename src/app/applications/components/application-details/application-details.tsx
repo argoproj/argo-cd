@@ -86,7 +86,7 @@ export class ApplicationDetails extends React.Component<
     public render() {
         const kindsSet = new Set<string>();
         if (this.state.application) {
-            const items: (appModels.ResourceNode | appModels.ResourceState)[] = [...this.state.application.status.comparisonResult.resources];
+            const items: (appModels.ResourceNode | appModels.ResourceState)[] = [...this.state.application.status.comparisonResult.resources || []];
             while (items.length > 0) {
                 const next = items.pop();
                 const {resourceNode} = AppUtils.getStateAndNode(next);

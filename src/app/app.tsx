@@ -1,8 +1,7 @@
 import { Layout, NotificationInfo, Notifications, NotificationsManager, Popup, PopupManager, PopupProps } from 'argo-ui';
+import createHistory from 'history/createBrowserHistory';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-
-import createHistory from 'history/createBrowserHistory';
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
 import requests from './shared/services/requests';
@@ -12,10 +11,12 @@ export const history = createHistory();
 import applications from './applications';
 import help from './help';
 import login from './login';
+import repos from './repos';
 
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
-    '/applications': { component: applications.component },
     '/login': { component: login.component as any, noLayout: true },
+    '/applications': { component: applications.component },
+    '/repositories': { component: repos.component },
     '/help': { component: help.component },
 };
 
@@ -23,6 +24,10 @@ const navItems = [{
     title: 'Apps',
     path: '/applications',
     iconClassName: 'argo-icon-application',
+}, {
+    title: 'Repositories',
+    path: '/repositories',
+    iconClassName: 'argo-icon-git',
 }, {
     title: 'Help',
     path: '/help',
