@@ -218,7 +218,7 @@ func NewExportCommand() *cobra.Command {
 				string(clusterData),
 				string(appsData),
 			}
-			output := fmt.Sprint(strings.Join(outputStrings, "\n---\n"))
+			output := strings.Join(outputStrings, "\n---\n")
 
 			if out == "" {
 				fmt.Println(output)
