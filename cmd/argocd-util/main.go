@@ -38,8 +38,7 @@ const (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		logLevel   string
-		clientOpts argocdclient.ClientOptions
+		logLevel string
 	)
 
 	var command = &cobra.Command{
@@ -53,15 +52,9 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.AddCommand(NewRunDexCommand())
 	command.AddCommand(NewGenDexConfigCommand())
-	command.AddCommand(NewExportCommand(&clientOpts))
+	command.AddCommand(NewExportCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", "", "Path to ArgoCD config")
-	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
-	command.PersistentFlags().BoolVar(&clientOpts.PlainText, "plaintext", false, "Disable TLS")
-	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
-	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
-	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", "", "Authentication token")
 	return command
 }
 
@@ -169,10 +162,11 @@ func NewGenDexConfigCommand() *cobra.Command {
 	return &command
 }
 
-func NewExportCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewExportCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
 		out          string
+		clientOpts   argocdclient.ClientOptions
 	)
 	var command = cobra.Command{
 		Use:   "export",
@@ -201,7 +195,7 @@ func NewExportCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoData, err := yaml.Marshal(repos)
 			errors.CheckError(err)
 
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdclient.NewClientOrDie(&clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			apps, err := appIf.List(context.Background(), &application.ApplicationQuery{})
 			errors.CheckError(err)
@@ -221,6 +215,13 @@ func NewExportCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+	command.Flags().StringVar(&clientOpts.ConfigPath, "config", "", "Path to ArgoCD config")
+	command.Flags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
+	command.Flags().BoolVar(&clientOpts.PlainText, "plaintext", false, "Disable TLS")
+	command.Flags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
+	command.Flags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
+	command.Flags().StringVar(&clientOpts.AuthToken, "auth-token", "", "Authentication token")
+
 	return &command
 }
 
