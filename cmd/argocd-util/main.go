@@ -162,6 +162,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 	return &command
 }
 
+// NewExportCommand defines a new command for exporting Kubernetes and Argo CD resources.
 func NewExportCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
