@@ -176,12 +176,12 @@ func NewImportCommand() *cobra.Command {
 		Short: "Import Argo CD data",
 		RunE: func(c *cobra.Command, args []string) error {
 			var (
-				input    []byte
-				err      error
-				settings *settings.ArgoCDSettings
-				clusters []*v1alpha1.Cluster
-				repos    []*v1alpha1.Repository
-				apps     []*v1alpha1.Application
+				input       []byte
+				err         error
+				newSettings *settings.ArgoCDSettings
+				newClusters []*v1alpha1.Cluster
+				newRepos    []*v1alpha1.Repository
+				newApps     []*v1alpha1.Application
 			)
 			if in == "" {
 				input, err = ioutil.ReadAll(os.Stdin)
@@ -192,30 +192,27 @@ func NewImportCommand() *cobra.Command {
 			}
 			inputStrings := strings.Split(string(input), yamlSeparator)
 
-			err = yaml.Unmarshal([]byte(inputStrings[0]), &settings)
+			err = yaml.Unmarshal([]byte(inputStrings[0]), &newSettings)
 			errors.CheckError(err)
 
-			err = yaml.Unmarshal([]byte(inputStrings[1]), &clusters)
+			err = yaml.Unmarshal([]byte(inputStrings[1]), &newClusters)
 			errors.CheckError(err)
 
-			err = yaml.Unmarshal([]byte(inputStrings[2]), &repos)
+			err = yaml.Unmarshal([]byte(inputStrings[2]), &newRepos)
 			errors.CheckError(err)
 
-			err = yaml.Unmarshal([]byte(inputStrings[3]), &apps)
+			err = yaml.Unmarshal([]byte(inputStrings[3]), &newApps)
 			errors.CheckError(err)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
+			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
-			// kubeClientset := kubernetes.NewForConfigOrDie(config)
-
-			// settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
-			// settings, err := settingsMgr.GetSettings()
-			// errors.CheckError(err)
-			// settingsData, err := yaml.Marshal(settings)
-			// errors.CheckError(err)
+			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			err = settingsMgr.SaveSettings(newSettings)
+			errors.CheckError(err)
 
 			// db := db.NewDB(namespace, kubeClientset)
 			// clusters, err := db.ListClusters(context.Background())
@@ -229,7 +226,7 @@ func NewImportCommand() *cobra.Command {
 			// errors.CheckError(err)
 
 			appClientset := appclientset.NewForConfigOrDie(config)
-			for _, app := range apps {
+			for _, app := range newApps {
 				out, err := appClientset.ArgoprojV1alpha1().Applications(namespace).Create(app)
 				errors.CheckError(err)
 				log.Println(out)
