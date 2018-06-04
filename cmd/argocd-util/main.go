@@ -205,6 +205,7 @@ func NewExportCommand() *cobra.Command {
 				apps.Items[idx].Status = v1alpha1.ApplicationStatus{
 					History: app.Status.History,
 				}
+				apps.Items[idx].Operation = nil
 			}
 			appsData, err := yaml.Marshal(apps)
 			errors.CheckError(err)
