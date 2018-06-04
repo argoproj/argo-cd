@@ -169,73 +169,90 @@ func NewGenDexConfigCommand() *cobra.Command {
 func NewImportCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
-		out          string
+		in           string
 	)
 	var command = cobra.Command{
 		Use:   "import",
 		Short: "Import Argo CD data",
 		RunE: func(c *cobra.Command, args []string) error {
-			config, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
-			kubeClientset := kubernetes.NewForConfigOrDie(config)
-
-			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
-			settings, err := settingsMgr.GetSettings()
-			errors.CheckError(err)
-			settingsData, err := yaml.Marshal(settings)
-			errors.CheckError(err)
-
-			db := db.NewDB(namespace, kubeClientset)
-			clusters, err := db.ListClusters(context.Background())
-			errors.CheckError(err)
-			clusterData, err := yaml.Marshal(clusters)
-			errors.CheckError(err)
-
-			repos, err := db.ListRepositories(context.Background())
-			errors.CheckError(err)
-			repoData, err := yaml.Marshal(repos)
-			errors.CheckError(err)
-
-			appClientset := appclientset.NewForConfigOrDie(config)
-			apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
-			errors.CheckError(err)
-
-			// remove extraneous cruft from output
-			for idx, app := range apps.Items {
-				apps.Items[idx].ObjectMeta = metav1.ObjectMeta{
-					Name:       app.ObjectMeta.Name,
-					Finalizers: app.ObjectMeta.Finalizers,
-				}
-				apps.Items[idx].Status = v1alpha1.ApplicationStatus{
-					History: app.Status.History,
-				}
-				apps.Items[idx].Operation = nil
-			}
-			appsData, err := yaml.Marshal(apps)
-			errors.CheckError(err)
-
-			outputStrings := []string{
-				string(settingsData),
-				string(repoData),
-				string(clusterData),
-				string(appsData),
-			}
-			output := strings.Join(outputStrings, "\n---\n")
-
-			if out == "" {
-				fmt.Println(output)
+			var (
+				input []byte
+				err   error
+			)
+			if in == "" {
+				input, err = ioutil.ReadAll(os.Stdin)
+				errors.CheckError(err)
 			} else {
-				err = ioutil.WriteFile(out, []byte(output), 0644)
+				input, err = ioutil.ReadFile(in)
 				errors.CheckError(err)
 			}
+			inputStrings := strings.Split(string(input), yamlSeparator)
+			settingsInput, repoInput, clusterInput, appInput := []byte(inputStrings[0]), []byte(inputStrings[1]), []byte(inputStrings[2]), []byte(inputStrings[3])
+
+			fmt.Println("settings: ", settingsInput)
+			fmt.Println("repoInput: ", repoInput)
+			fmt.Println("clusterInput: ", clusterInput)
+			fmt.Println("appInput: ", string(appInput))
+
+			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			// namespace, _, err := clientConfig.Namespace()
+			// errors.CheckError(err)
+			fmt.Println(config)
+			// kubeClientset := kubernetes.NewForConfigOrDie(config)
+
+			// settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			// settings, err := settingsMgr.GetSettings()
+			// errors.CheckError(err)
+			// settingsData, err := yaml.Marshal(settings)
+			// errors.CheckError(err)
+
+			// db := db.NewDB(namespace, kubeClientset)
+			// clusters, err := db.ListClusters(context.Background())
+			// errors.CheckError(err)
+			// clusterData, err := yaml.Marshal(clusters)
+			// errors.CheckError(err)
+
+			// repos, err := db.ListRepositories(context.Background())
+			// errors.CheckError(err)
+			// repoData, err := yaml.Marshal(repos)
+			// errors.CheckError(err)
+
+			// appClientset := appclientset.NewForConfigOrDie(config)
+			var apps []*v1alpha1.Application
+			err = yaml.Unmarshal(appInput, &apps)
+			errors.CheckError(err)
+
+			fmt.Println(apps)
+			// apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
+
+			// // remove extraneous cruft from output
+			// for idx, app := range apps.Items {
+			// 	apps.Items[idx].ObjectMeta = metav1.ObjectMeta{
+			// 		Name:       app.ObjectMeta.Name,
+			// 		Finalizers: app.ObjectMeta.Finalizers,
+			// 	}
+			// 	apps.Items[idx].Status = v1alpha1.ApplicationStatus{
+			// 		History: app.Status.History,
+			// 	}
+			// 	apps.Items[idx].Operation = nil
+			// }
+			// appsData, err := yaml.Marshal(apps)
+			// errors.CheckError(err)
+
+			// outputStrings := []string{
+			// 	string(settingsData),
+			// 	string(repoData),
+			// 	string(clusterData),
+			// 	string(appsData),
+			// }
+
 			return nil
 		},
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+	command.Flags().StringVarP(&in, "in", "i", "", "Output to the specified file instead of stdout")
 
 	return &command
 }
