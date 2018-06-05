@@ -72,10 +72,11 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
             }} >
                 <div className='argo-container applications-list'>
                     {this.state.applications ? (
-                        <div className='argo-table-list argo-table-list--clickable'>
+                        <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
                             {this.state.applications.map((app) => (
-                                <div key={app.metadata.name} className='argo-table-list__row'>
-                                    <div className={`row applications-list__entry applications-list__entry--health-${app.status.health.status}`} onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
+			    <div className='column column-block'>
+                                <div key={app.metadata.name} className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status}`}>
+                                    <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
                                         <div className='columns small-12 applications-list__info'>
                                             <div className='row'>
                                                 <div className='columns applications-list__title'>{app.metadata.name}</div>
@@ -119,6 +120,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                         </div>
                                     </div>
                                 </div>
+				</div>
                             ))}
                         </div>
                     ) : <MockupList height={50} marginTop={30}/>}
