@@ -98,12 +98,24 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                         </div>
                                         <div className='columns small-9 applications-list__info'>
                                             <div className='row'>
-                                                <div className='columns small-3'>CLUSTER:</div>
+                                                <div className='columns small-3'>Namespace:</div>
+                                                <div className='columns small-9'>{app.spec.destination.namespace}</div>
+                                            </div>
+                                            <div className='row'>
+                                                <div className='columns small-3'>Cluster:</div>
                                                 <div className='columns small-9'>{app.spec.destination.server}</div>
                                             </div>
                                             <div className='row'>
-                                                <div className='columns small-3'>NAMESPACE:</div>
-                                                <div className='columns small-9'>{app.spec.destination.namespace}</div>
+                                                <div className='columns small-3'>Kubernetes:</div>
+                                                <div className='columns small-9'>{app.spec.destination.server}</div>
+                                            </div>
+                                            <div className='row'>
+                                                <div className='columns small-3'>Status:</div>
+                                                <div className='columns small-9'>{app.status.comparisonResult.status}</div>
+                                            </div>
+                                            <div className='row'>
+                                                <div className='columns small-3'>Age:</div>
+                                                <div className='columns small-9'>{app.status.comparisonResult.status}</div>
                                             </div>
                                             <div className='row'>
                                                 <div className='columns small-3'>REPO URL:</div>
