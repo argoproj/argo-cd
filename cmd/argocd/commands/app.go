@@ -9,6 +9,15 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/yudai/gojsondiff/formatter"
+	"golang.org/x/crypto/ssh/terminal"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -16,12 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/diff"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/yudai/gojsondiff/formatter"
-	"golang.org/x/crypto/ssh/terminal"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -45,6 +48,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationListCommand(clientOpts))
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
 	command.AddCommand(NewApplicationWaitCommand(clientOpts))
+	command.AddCommand(NewApplicationManifestsCommand(clientOpts))
 	return command
 }
 
@@ -738,4 +742,66 @@ func printOperationResult(appName string, opState *argoappv1.OperationState) {
 		}
 		_ = w.Flush()
 	}
+}
+
+// NewApplicationManifestsCommand returns a new instance of an `argocd app manifests` command
+func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		source   string
+		revision string
+	)
+	var command = &cobra.Command{
+		Use:   "manifests APPNAME",
+		Short: "Print manifests of an application",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			ctx := context.Background()
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
+			errors.CheckError(err)
+
+			var unstructureds []*unstructured.Unstructured
+			switch source {
+			case "git":
+				if revision != "" {
+					q := application.ApplicationManifestQuery{
+						Name:     &appName,
+						Revision: revision,
+					}
+					res, err := appIf.GetManifests(ctx, &q)
+					errors.CheckError(err)
+					for _, mfst := range res.Manifests {
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						errors.CheckError(err)
+						unstructureds = append(unstructureds, obj)
+					}
+				} else {
+					targetObjs, err := app.Status.ComparisonResult.TargetObjects()
+					errors.CheckError(err)
+					unstructureds = targetObjs
+				}
+			case "live":
+				liveObjs, err := app.Status.ComparisonResult.LiveObjects()
+				errors.CheckError(err)
+				unstructureds = liveObjs
+			default:
+				log.Fatalf("Unknown source type '%s'", source)
+			}
+
+			for _, obj := range unstructureds {
+				fmt.Println("---")
+				yamlBytes, err := yaml.Marshal(obj)
+				errors.CheckError(err)
+				fmt.Printf("%s\n", yamlBytes)
+			}
+		},
+	}
+	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
+	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
+	return command
 }
