@@ -89,7 +89,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                 <div className='columns small-9'>{app.spec.destination.server}</div>
                                             </div>
                                             <div className='row'>
-                                                <div className='columns small-3'>Kubernetes:</div>
+                                                <div className='columns small-3'>k8sVersion:</div>
                                                 <div className='columns small-9'>{app.spec.destination.server}</div>
                                             </div>
                                             <div className='row'>
