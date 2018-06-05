@@ -9,7 +9,6 @@ import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
-import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
@@ -76,27 +75,11 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                         <div className='argo-table-list argo-table-list--clickable'>
                             {this.state.applications.map((app) => (
                                 <div key={app.metadata.name} className='argo-table-list__row'>
-                                    <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
-                                        <div className='columns small-3'>
+                                    <div className='row applications-list__entry health-{app.status.health.status}' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
+                                        <div className='columns small-12 applications-list__info'>
                                             <div className='row'>
-                                                <div className='columns small-12'>
-                                                    <i className='argo-icon-application icon'/> <span className='applications-list__title'>{app.metadata.name}</span>
-                                                </div>
+                                                <div className='columns applications-list__title'>{app.metadata.name}</div>
                                             </div>
-                                            <div className='row applications-list__icons'>
-                                                <div className='columns small-6'>STATUS:</div>
-                                                <div className='columns small-6'>
-                                                    <ComparisonStatusIcon status={app.status.comparisonResult.status} /> {app.status.comparisonResult.status}
-                                                </div>
-                                            </div>
-                                            <div className='row applications-list__icons'>
-                                                <div className='columns small-6'>HEALTH:</div>
-                                                <div className='columns small-6'>
-                                                    <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className='columns small-9 applications-list__info'>
                                             <div className='row'>
                                                 <div className='columns small-3'>Namespace:</div>
                                                 <div className='columns small-9'>{app.spec.destination.namespace}</div>
