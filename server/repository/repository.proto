@@ -25,8 +25,9 @@ message RepoKsonnetResponse {
 // KsonnetAppSpec contains Ksonnet app response
 // This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
 message KsonnetAppSpec {
-    string name = 1;
-    map<string, KsonnetEnvironment> environments = 2;
+	string name = 1;
+	string path = 2;
+	map<string, KsonnetEnvironment> environments = 3;
 }
 
 message KsonnetEnvironment {

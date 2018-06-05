@@ -80,6 +80,7 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 		}
 
 		var appSpec KsonnetAppSpec
+		appSpec.Path = path
 		err = yaml.Unmarshal(getFileRes.Data, &appSpec)
 		if err == nil && appSpec.Name != "" && len(appSpec.Environments) > 0 {
 			out = append(out, &appSpec)
