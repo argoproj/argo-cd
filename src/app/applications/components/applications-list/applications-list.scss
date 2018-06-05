@@ -23,15 +23,15 @@
         border-left: 5px solid $argo-color-gray-4;
 
         &.health-Healthy {
-            border-left-color: green;
+            border-left-color: #6e6;
         }
 
         &.health-Degraded {
-            border-left: red;
+            border-left-color: #e66;
         }
 
         &.health-Progressing {
-            border-left: blue;
+            border-left-color: #66e;
         }
     }
 }
