@@ -21,6 +21,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
+        history: PropTypes.object,
     };
 
     private formApi: FormApi;
@@ -48,7 +49,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
                             <p>Connect your repo to deploy apps.</p>
                             <button className='argo-button argo-button--base' onClick={() => this.showConnectRepo = true} >Connect Repo</button>
                             <p>Successfully connected your repo?</p>
-                            <button className='argo-button argo-button--base'>Create Apps</button>
+                            <button className='argo-button argo-button--base' onClick={() => this.appContext.history.push('/applications?new=true')}>
+                                Create Apps
+                            </button>
                         </div>
                     </div>
                     <div className='argo-container'>

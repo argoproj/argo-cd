@@ -12,7 +12,8 @@
         "jsx-alignment": false,
         "max-line-length": [true, 180],
         "jsx-no-lambda": false,
-        "array-type": false
+        "array-type": false,
+        "max-classes-per-file": false
     },
     "rulesDirectory": []
 }

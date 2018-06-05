@@ -13,4 +13,8 @@ export class RepositoriesService {
     public delete(url: string): Promise<models.Repository> {
         return requests.delete(`/repositories/${encodeURIComponent(url)}`).send().then((res) => res.body as models.Repository);
     }
+
+    public ksonnetApps(repo: string): Promise<models.KsonnetAppSpec[]> {
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/ksonnet`).then((res) => res.body.items as models.KsonnetAppSpec[] || []);
+    }
 }

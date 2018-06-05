@@ -230,3 +230,15 @@ export interface Cluster {
 }
 
 export interface ClusterList extends ItemsList<Cluster> {}
+
+export interface KsonnetEnvironment {
+    k8sVersion: string;
+    path: string;
+    destination: { server: string; namespace: string; };
+}
+
+export interface KsonnetAppSpec {
+    name: string;
+    path: string;
+    environments: { [key: string]: KsonnetEnvironment; };
+}

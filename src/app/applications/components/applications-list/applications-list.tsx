@@ -1,36 +1,25 @@
 import { MockupList, NotificationType, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import { Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 import { Subscription } from 'rxjs';
 
 import { Page } from '../../../shared/components';
-import { FormField } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
+import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
 import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
-interface NewAppParams {
-    applicationName: string;
-    path: string;
-    repoURL: string;
-    environment: string;
-    clusterURL: string;
-    namespace: string;
-}
-
-export class ApplicationsList extends React.Component<RouteComponentProps<{}>, { applications: models.Application[] }> {
+export class ApplicationsList extends React.Component<RouteComponentProps<{}>, { applications: models.Application[], appWizardStepState: WizardStepState }> {
 
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
     };
 
-    private formApi: FormApi;
     private changesSubscription: Subscription;
 
     private get showNewAppPanel() {
@@ -39,7 +28,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = { applications: [] };
+        this.state = { applications: [], appWizardStepState: { next: null, prev: null, nextTitle: 'Next'} };
     }
 
     public async componentDidMount() {
@@ -139,48 +128,24 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                         </div>
                     ) : <MockupList height={50} marginTop={30}/>}
                 </div>
-                <SlidingPanel isShown={this.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} isMiddle={true} header={(
+                <SlidingPanel isShown={this.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} header={
                         <div>
-                            <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
-                                Create
+                            <button className='argo-button argo-button--base'
+                                    disabled={!this.state.appWizardStepState.prev}
+                                    onClick={() => this.state.appWizardStepState.prev && this.state.appWizardStepState.prev()}>
+                                Back
+                            </button> <button className='argo-button argo-button--base'
+                                    disabled={!this.state.appWizardStepState.next}
+                                    onClick={() => this.state.appWizardStepState.next && this.state.appWizardStepState.next()}>
+                                {this.state.appWizardStepState.nextTitle}
                             </button> <button onClick={() => this.setNewAppPanelVisible(false)} className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>
-                    )}>
-                    <Form onSubmit={(params) => this.createApplication(params as NewAppParams)}
-                        getApi={(api) => this.formApi = api}
-                        validateError={(params: NewAppParams) => ({
-                            applicationName: !params.applicationName && 'Application name is required',
-                            repoURL: !params.repoURL && 'Repository URL is required',
-                            path: !params.path && 'Path is required',
-                            environment: !params.environment && 'Environment is required',
-                            clusterURL: !params.clusterURL && 'Cluster URL is required',
-                            namespace: !params.namespace && 'Namespace URL is required',
-                        })}>
-                        {(formApi) => (
-                            <form onSubmit={formApi.submitForm} role='form' className='width-control'>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Application Name' field='applicationName' component={Text}/>
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Repository URL' field='repoURL' component={Text}/>
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Path' field='path' component={Text}/>
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Environment' field='environment' component={Text}/>
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Cluster URL' field='clusterURL' component={Text}/>
-                                </div>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Namespace' field='namespace' component={Text}/>
-                                </div>
-                            </form>
-                        )}
-                    </Form>
+                    }>
+                    <ApplicationCreationWizardContainer
+                        createApp={(params) => this.createApplication(params)}
+                        onStateChanged={(appWizardStepState) => this.setState({ appWizardStepState })} />
                 </SlidingPanel>
             </Page>
         );
