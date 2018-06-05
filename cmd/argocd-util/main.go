@@ -179,8 +179,8 @@ func NewImportCommand() *cobra.Command {
 				input       []byte
 				err         error
 				newSettings *settings.ArgoCDSettings
-				newClusters []*v1alpha1.Cluster
 				newRepos    []*v1alpha1.Repository
+				newClusters []*v1alpha1.Cluster
 				newApps     []*v1alpha1.Application
 			)
 			if in == "" {
@@ -195,10 +195,10 @@ func NewImportCommand() *cobra.Command {
 			err = yaml.Unmarshal([]byte(inputStrings[0]), &newSettings)
 			errors.CheckError(err)
 
-			err = yaml.Unmarshal([]byte(inputStrings[1]), &newClusters)
+			err = yaml.Unmarshal([]byte(inputStrings[1]), &newRepos)
 			errors.CheckError(err)
 
-			err = yaml.Unmarshal([]byte(inputStrings[2]), &newRepos)
+			err = yaml.Unmarshal([]byte(inputStrings[2]), &newClusters)
 			errors.CheckError(err)
 
 			err = yaml.Unmarshal([]byte(inputStrings[3]), &newApps)
@@ -213,17 +213,17 @@ func NewImportCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
 			err = settingsMgr.SaveSettings(newSettings)
 			errors.CheckError(err)
+			db := db.NewDB(namespace, kubeClientset)
 
-			// db := db.NewDB(namespace, kubeClientset)
-			// clusters, err := db.ListClusters(context.Background())
-			// errors.CheckError(err)
-			// clusterData, err := yaml.Marshal(clusters)
-			// errors.CheckError(err)
+			for _, repo := range newRepos {
+				_, err := db.CreateRepository(context.Background(), repo)
+				errors.CheckError(err)
+			}
 
-			// repos, err := db.ListRepositories(context.Background())
-			// errors.CheckError(err)
-			// repoData, err := yaml.Marshal(repos)
-			// errors.CheckError(err)
+			for _, cluster := range newClusters {
+				_, err := db.CreateCluster(context.Background(), cluster)
+				errors.CheckError(err)
+			}
 
 			appClientset := appclientset.NewForConfigOrDie(config)
 			for _, app := range newApps {
