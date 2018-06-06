@@ -217,12 +217,16 @@ func NewImportCommand() *cobra.Command {
 
 			for _, repo := range newRepos {
 				_, err := db.CreateRepository(context.Background(), repo)
-				errors.CheckError(err)
+				if err != nil {
+					log.Warn(err)
+				}
 			}
 
 			for _, cluster := range newClusters {
 				_, err := db.CreateCluster(context.Background(), cluster)
-				errors.CheckError(err)
+				if err != nil {
+					log.Warn(err)
+				}
 			}
 
 			appClientset := appclientset.NewForConfigOrDie(config)
