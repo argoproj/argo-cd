@@ -169,12 +169,16 @@ func NewGenDexConfigCommand() *cobra.Command {
 func NewImportCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
-		in           string
 	)
 	var command = cobra.Command{
-		Use:   "import",
-		Short: "Import Argo CD data",
+		Use:   "import SOURCE",
+		Short: "Import Argo CD data from stdin (specify `-') or a file",
 		RunE: func(c *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
 			var (
 				input       []byte
 				err         error
@@ -183,7 +187,8 @@ func NewImportCommand() *cobra.Command {
 				newClusters []*v1alpha1.Cluster
 				newApps     []*v1alpha1.Application
 			)
-			if in == "-" {
+
+			if in := args[0]; in == "-" {
 				input, err = ioutil.ReadAll(os.Stdin)
 				errors.CheckError(err)
 			} else {
@@ -241,7 +246,6 @@ func NewImportCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVarP(&in, "in", "i", "-", "Input from the specified file instead of stdin")
 
 	return &command
 }
@@ -254,7 +258,7 @@ func NewExportCommand() *cobra.Command {
 	)
 	var command = cobra.Command{
 		Use:   "export",
-		Short: "Export all Argo CD data",
+		Short: "Export all Argo CD data to stdout (default) or a file",
 		RunE: func(c *cobra.Command, args []string) error {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
