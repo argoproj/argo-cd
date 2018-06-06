@@ -8,6 +8,7 @@ func TestRepoURLToSecretName(t *testing.T) {
 		"https://github.com/argoproj/ARGO-cd":       "repo-argo-cd-821842295",
 		"https://github.com/argoproj/argo-cd":       "repo-argo-cd-821842295",
 		"https://github.com/argoproj/argo-cd.git":   "repo-argo-cd-821842295",
+		"https://github.com/argoproj/argo_cd.git":   "repo-argo-cd-1049844989",
 		"ssh://git@github.com/argoproj/argo-cd.git": "repo-argo-cd-1019298066",
 	}
 
