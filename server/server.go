@@ -63,6 +63,17 @@ var backoff = wait.Backoff{
 	Jitter:   0.1,
 }
 
+var (
+	box           = packr.NewBox("../util/rbac")
+	builtinPolicy string
+)
+
+func init() {
+	var err error
+	builtinPolicy, err = box.MustString("builtin-policy.csv")
+	errors.CheckError(err)
+}
+
 // ArgoCDServer is the API server for ArgoCD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
@@ -97,8 +108,6 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName)
 	enf.EnableEnforce(!opts.DisableAuth)
-	builtinPolicy, err := packr.NewBox("../util/rbac").MustString("builtin-policy.csv")
-	errors.CheckError(err)
 	err = enf.SetBuiltinPolicy(builtinPolicy)
 	errors.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")

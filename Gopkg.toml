@@ -42,6 +42,10 @@ required = [
   name = "github.com/ksonnet/ksonnet"
   version = "v0.10.1"
 
+[[constraint]]
+  name = "github.com/gobuffalo/packr"
+  version = "v1.11.0"
+
 # override ksonnet's logrus dependency
 [[override]]
   name = "github.com/sirupsen/logrus"

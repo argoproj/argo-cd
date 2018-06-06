@@ -97,7 +97,6 @@
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
-  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -151,8 +150,8 @@
 [[projects]]
   name = "github.com/gobuffalo/packr"
   packages = ["."]
-  revision = "6434a292ac52e6964adebfdce3f9ce6d9f16be01"
-  version = "v1.10.4"
+  revision = "7f4074995d431987caaa35088199f13c44b24440"
+  version = "v1.11.0"
 
 [[projects]]
   name = "github.com/gogo/protobuf"
@@ -968,6 +967,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "930a86df1be8a9b1241db41961fb11c22dce16356e73de265274a4a6a2f451ed"
+  inputs-digest = "866ac05c71a770ae44aa5d28d5d1844db0b045fa0ab7cecc4650d7db8aa38145"
   solver-name = "gps-cdcl"
   solver-version = 1

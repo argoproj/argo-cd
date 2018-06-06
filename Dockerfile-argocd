@@ -25,7 +25,7 @@ RUN cd /usr/local && \
     unzip protoc-*.zip && \
     wget https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -O /usr/local/bin/dep && \
     chmod +x /usr/local/bin/dep && \
-    wget https://github.com/gobuffalo/packr/releases/download/v1.10.4/packr_1.10.4_linux_amd64.tar.gz && \
+    wget https://github.com/gobuffalo/packr/releases/download/v1.11.0/packr_1.11.0_linux_amd64.tar.gz && \
     tar -vxf packr*.tar.gz -C /tmp/ && \
     mv /tmp/packr /usr/local/bin/packr 
 
