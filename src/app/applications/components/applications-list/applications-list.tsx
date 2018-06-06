@@ -1,4 +1,4 @@
-import { MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import { DropDownMenu, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
@@ -117,6 +117,10 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                     <div className='columns small-3'>ENVIRONMENT:</div>
                                                     <div className='columns small-9'>{app.spec.source.environment}</div>
                                                 </div>
+<DropDownMenu anchor={() => <a>Actions</a>} items={[{
+            title: 'menu item 1',
+            action: () => window.alert('Clicked!'),
+}]} />
                                             </div>
                                         </div>
                                     </div>
