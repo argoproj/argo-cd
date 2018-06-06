@@ -7,8 +7,26 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
+
+	"github.com/gobuffalo/packr"
+	golang_proto "github.com/golang/protobuf/proto"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	log "github.com/sirupsen/logrus"
+	"github.com/soheilhy/cmux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
@@ -27,24 +45,10 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/webhook"
-	golang_proto "github.com/golang/protobuf/proto"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	log "github.com/sirupsen/logrus"
-	"github.com/soheilhy/cmux"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -68,6 +72,7 @@ type ArgoCDServer struct {
 	log          *log.Entry
 	sessionMgr   *util_session.SessionManager
 	settingsMgr  *settings_util.SettingsManager
+	enf          *rbac.Enforcer
 
 	// stopCh is the channel which when closed, will shutdown the ArgoCD server
 	stopCh chan struct{}
@@ -87,16 +92,23 @@ type ArgoCDServerOpts struct {
 func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.GetSettings()
-	if err != nil {
-		log.Fatal(err)
-	}
+	errors.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settings)
+
+	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName)
+	enf.EnableEnforce(!opts.DisableAuth)
+	builtinPolicy, err := packr.NewBox("../util/rbac").MustString("builtin-policy.csv")
+	errors.CheckError(err)
+	err = enf.SetBuiltinPolicy(builtinPolicy)
+	errors.CheckError(err)
+	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
 		log:              log.NewEntry(log.New()),
 		settings:         settings,
 		sessionMgr:       sessionMgr,
 		settingsMgr:      settingsMgr,
+		enf:              enf,
 	}
 }
 
@@ -165,6 +177,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	}
 	go a.initializeOIDCClientApp()
 	go a.watchSettings(ctx)
+	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 
 	a.stopCh = make(chan struct{})
@@ -235,6 +248,11 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	close(updateCh)
 }
 
+func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
+	err := a.enf.RunPolicyLoader(ctx)
+	errors.CheckError(err)
+}
+
 // initializeOIDCClientApp initializes the OIDC Client application, querying the well known oidc
 // configuration path. Because ArgoCD is a OIDC client to itself, we have a chicken-and-egg problem
 // of (1) serving dex over HTTP, and (2) querying the OIDC provider (ourselves) to initialize the
@@ -287,10 +305,10 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.KubeClientset)
-	clusterService := cluster.NewServer(db)
-	repoService := repository.NewServer(a.RepoClientset, db)
+	clusterService := cluster.NewServer(db, a.enf)
+	repoService := repository.NewServer(a.RepoClientset, db, a.enf)
 	sessionService := session.NewServer(a.sessionMgr)
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf)
 	settingsService := settings.NewServer(a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
@@ -439,11 +457,12 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 	if tokenString == "" {
 		return ctx, ErrNoSession
 	}
-	_, err := a.sessionMgr.VerifyToken(tokenString)
+	claims, err := a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
 		return ctx, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	// TODO: when we care about user groups, we will want to put the claims into the context
+	// Add claims to the context to inspect for RBAC
+	ctx = context.WithValue(ctx, "claims", claims)
 	return ctx, nil
 }
 

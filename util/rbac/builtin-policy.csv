@@ -1,0 +1,28 @@
+# Built-in policy which defines two roles: role:readonly and role:admin,
+# and additionally assigns the admin user to the role:admin role.
+# The policy format is:
+# p, <user/group>, <resource>, <action>, <project>/<object>
+
+p, role:readonly, applications, get, */*
+p, role:readonly, applications/events, get, */*
+p, role:readonly, applications/manifests, get, */*
+p, role:readonly, applications/logs, get, */*
+p, role:readonly, clusters, get, */*
+p, role:readonly, repositories, get, */*
+p, role:readonly, repositories/apps, get, */*
+
+p, role:admin, applications, create, */*
+p, role:admin, applications, update, */*
+p, role:admin, applications, delete, */*
+p, role:admin, applications, sync, */*
+p, role:admin, applications, rollback, */*
+p, role:admin, applications/pods, delete, */*
+p, role:admin, clusters, create, */*
+p, role:admin, clusters, update, */*
+p, role:admin, clusters, delete, */*
+p, role:admin, repositories, create, */*
+p, role:admin, repositories, update, */*
+p, role:admin, repositories, delete, */*
+
+g, role:admin, role:readonly
+g, admin, role:admin

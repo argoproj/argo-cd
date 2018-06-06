@@ -1,29 +1,37 @@
 package repository
 
 import (
+	"fmt"
+
+	"github.com/ghodss/yaml"
+	"golang.org/x/net/context"
+
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/ghodss/yaml"
-	"golang.org/x/net/context"
+	"github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/rbac"
 )
 
 // Server provides a Repository service
 type Server struct {
 	db            db.ArgoDB
 	repoClientset reposerver.Clientset
+	enf           *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Repository service
 func NewServer(
 	repoClientset reposerver.Clientset,
 	db db.ArgoDB,
+	enf *rbac.Enforcer,
 ) *Server {
 	return &Server{
 		db:            db,
 		repoClientset: repoClientset,
+		enf:           enf,
 	}
 }
 
@@ -31,15 +39,22 @@ func NewServer(
 func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
 	repoList, err := s.db.ListRepositories(ctx)
 	if repoList != nil {
-		for i, repo := range repoList.Items {
-			repoList.Items[i] = *redact(&repo)
+		newItems := make([]appsv1.Repository, 0)
+		for _, repo := range repoList.Items {
+			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", fmt.Sprintf("*/%s", repo.Repo)) {
+				newItems = append(newItems, *redact(&repo))
+			}
 		}
+		repoList.Items = newItems
 	}
 	return repoList, err
 }
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
 func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*RepoKsonnetResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories/apps", "get", fmt.Sprintf("*/%s", q.Repo)) {
+		return nil, grpc.ErrPermissionDenied
+	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
 		return nil, err
@@ -94,24 +109,36 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", fmt.Sprintf("*/%s", q.Repo.Repo)) {
+		return nil, grpc.ErrPermissionDenied
+	}
 	repo, err := s.db.CreateRepository(ctx, q.Repo)
 	return redact(repo), err
 }
 
 // Get returns a repository by URL
 func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", fmt.Sprintf("*/%s", q.Repo)) {
+		return nil, grpc.ErrPermissionDenied
+	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
 	return redact(repo), err
 }
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", fmt.Sprintf("*/%s", q.Repo.Repo)) {
+		return nil, grpc.ErrPermissionDenied
+	}
 	repo, err := s.db.UpdateRepository(ctx, q.Repo)
 	return redact(repo), err
 }
 
 // Delete updates a repository
 func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "delete", fmt.Sprintf("*/%s", q.Repo)) {
+		return nil, grpc.ErrPermissionDenied
+	}
 	err := s.db.DeleteRepository(ctx, q.Repo)
 	return &RepoResponse{}, err
 }

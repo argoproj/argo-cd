@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -11,7 +12,14 @@ import (
 	"testing"
 	"time"
 
-	"encoding/json"
+	"k8s.io/api/core/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
@@ -29,15 +37,8 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
-	"k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -55,6 +56,7 @@ type Fixture struct {
 	InstanceID        string
 	RepoServerAddress string
 	ApiServerAddress  string
+	Enforcer          *rbac.Enforcer
 
 	tearDownCallback func()
 }
@@ -92,6 +94,19 @@ func (f *Fixture) setup() error {
 		return err
 	}
 	installer.InstallApplicationCRD()
+
+	cm := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: common.ArgoCDRBACConfigMapName,
+		},
+		Data: map[string]string{
+			rbac.ConfigMapPolicyDefaultKey: "role:admin",
+		},
+	}
+	_, err = f.KubeClient.CoreV1().ConfigMaps(f.Namespace).Create(&cm)
+	if err != nil {
+		return err
+	}
 
 	settingsMgr := settings.NewSettingsManager(f.KubeClient, f.Namespace)
 	err = settingsMgr.SaveSettings(&settings.ArgoCDSettings{})
@@ -171,7 +186,7 @@ func (f *Fixture) ensureClusterRegistered() error {
 	managerBearerToken := common.InstallClusterManagerRBAC(conf)
 	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken)
 	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
-	_, err = cluster.NewServer(f.DB).Create(context.Background(), &clstCreateReq)
+	_, err = cluster.NewServer(f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
 	return err
 }
 
@@ -233,6 +248,8 @@ func NewFixture() (*Fixture, error) {
 		return nil, err
 	}
 	db := db.NewDB(namespace, kubeClient)
+	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName)
+	enforcer.SetDefaultRole("role:admin")
 
 	fixture := &Fixture{
 		Config:           config,
@@ -242,6 +259,7 @@ func NewFixture() (*Fixture, error) {
 		KubeClient:       kubeClient,
 		Namespace:        namespace,
 		InstanceID:       namespace,
+		Enforcer:         enforcer,
 	}
 	err = fixture.setup()
 	if err != nil {

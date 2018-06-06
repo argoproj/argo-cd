@@ -5,14 +5,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
@@ -29,6 +21,15 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
+	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
 var (
@@ -91,6 +92,7 @@ func (i *Installer) Install() {
 	i.InstallNamespace()
 	i.InstallApplicationCRD()
 	i.InstallSettings()
+	i.InstallRBACConfigMap()
 	i.InstallApplicationController()
 	i.InstallArgoCDServer()
 	i.InstallArgoCDRepoServer()
@@ -192,6 +194,15 @@ func (i *Installer) InstallSettings() {
 
 	err = settingsMgr.SaveSettings(cdSettings)
 	errors.CheckError(err)
+}
+
+func (i *Installer) InstallRBACConfigMap() {
+	var rbacCM apiv1.ConfigMap
+	i.unmarshalManifest("02c_argocd-rbac-cm.yaml", &rbacCM)
+	_, err := i.InstallResource(kube.MustToUnstructured(&rbacCM))
+	if err != nil && !apierr.IsAlreadyExists(err) {
+		errors.CheckError(err)
+	}
 }
 
 func readAndConfirmPassword() string {
