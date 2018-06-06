@@ -47,7 +47,7 @@ func fakeConfigMap(policy ...string) *apiv1.ConfigMap {
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
 func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 
@@ -85,7 +85,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 func TestPolicyInformer(t *testing.T) {
 	cm := fakeConfigMap()
 	kubeclientset := fake.NewSimpleClientset(cm)
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -113,7 +113,7 @@ func TestPolicyInformer(t *testing.T) {
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
 func TestProjectIsolationEnforcement(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
 p, role:foo-admin, *, *, foo/*
 p, role:bar-admin, *, *, bar/*
@@ -133,7 +133,7 @@ g, bob, role:bar-admin
 // TestProjectReadOnly verifies the ability to have a read only role in a Project
 func TestProjectReadOnly(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
 p, role:foo-readonly, *, get, foo/*
 g, alice, role:foo-readonly
@@ -148,7 +148,7 @@ g, alice, role:foo-readonly
 
 func TestEnforceClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
 	policy := `
 g, org2:team2, role:admin
@@ -179,7 +179,7 @@ g, bob, role:admin
 // TestDefaultRole tests the ability to set a default role
 func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
@@ -196,7 +196,7 @@ func TestDefaultRole(t *testing.T) {
 // TestURLAsObjectName tests the ability to have a URL as an object name
 func TestURLAsObjectName(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 	policy := `
@@ -216,7 +216,7 @@ p, cathy, repositories, *, foo/*
 
 func TestEnforceNilClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
 	assert.False(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 	enf.SetDefaultRole("role:readonly")

@@ -106,7 +106,7 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	errors.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settings)
 
-	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName)
+	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(builtinPolicy)
 	errors.CheckError(err)

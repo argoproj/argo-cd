@@ -28,11 +28,15 @@ const (
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
 
+// ClaimsEnforcerFunc is func template
+type ClaimsEnforcerFunc func(rvals ...interface{}) bool
+
 type Enforcer struct {
 	*casbin.Enforcer
-	clientset kubernetes.Interface
-	namespace string
-	configmap string
+	clientset          kubernetes.Interface
+	namespace          string
+	configmap          string
+	claimsEnforcerFunc ClaimsEnforcerFunc
 
 	model             model.Model
 	defaultRole       string
@@ -40,18 +44,19 @@ type Enforcer struct {
 	userDefinedPolicy string
 }
 
-func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string) *Enforcer {
+func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	box := packr.NewBox(".")
 	modelConf := box.String(builtinModelFile)
 	model := casbin.NewModel(modelConf)
 	enf := casbin.Enforcer{}
 	enf.EnableLog(false)
 	return &Enforcer{
-		Enforcer:  &enf,
-		clientset: clientset,
-		namespace: namespace,
-		configmap: configmap,
-		model:     model,
+		Enforcer:           &enf,
+		clientset:          clientset,
+		namespace:          namespace,
+		configmap:          configmap,
+		model:              model,
+		claimsEnforcerFunc: claimsEnforcer,
 	}
 }
 
@@ -59,6 +64,13 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string) *E
 // normal enforcement fails
 func (e *Enforcer) SetDefaultRole(roleName string) {
 	e.defaultRole = roleName
+}
+
+// SetClaimsEnforcerFunc sets a claims enforce function during enforcement. The claims enforce function
+// can extract claims from JWT token and do the proper enforcement based on user, group or any information
+// available in the input parameter list
+func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
+	e.claimsEnforcerFunc = claimsEnforcer
 }
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role
@@ -75,6 +87,16 @@ func (e *Enforcer) Enforce(rvals ...interface{}) bool {
 
 // EnforceClaims checks if the first value is a jwt.Claims and runs enforce against its groups and sub
 func (e *Enforcer) EnforceClaims(rvals ...interface{}) bool {
+
+	// User default claims enforcer if it is nil
+	if e.claimsEnforcerFunc == nil {
+		return e.defaultEnforceClaims(rvals...)
+	}
+
+	return e.claimsEnforcerFunc(rvals...)
+}
+
+func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 	claims, ok := rvals[0].(jwt.Claims)
 	if !ok {
 		if rvals[0] == nil {

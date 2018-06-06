@@ -248,7 +248,7 @@ func NewFixture() (*Fixture, error) {
 		return nil, err
 	}
 	db := db.NewDB(namespace, kubeClient)
-	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName)
+	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetDefaultRole("role:admin")
 
 	fixture := &Fixture{
