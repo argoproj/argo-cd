@@ -261,6 +261,8 @@ func NewExportCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
+			// certificate is included in Secrets
+			settings.Certificate = nil
 			settingsData, err := yaml.Marshal(settings)
 			errors.CheckError(err)
 
