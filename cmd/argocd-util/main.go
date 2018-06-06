@@ -183,7 +183,7 @@ func NewImportCommand() *cobra.Command {
 				newClusters []*v1alpha1.Cluster
 				newApps     []*v1alpha1.Application
 			)
-			if in == "" {
+			if in == "-" {
 				input, err = ioutil.ReadAll(os.Stdin)
 				errors.CheckError(err)
 			} else {
@@ -241,7 +241,7 @@ func NewImportCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVarP(&in, "in", "i", "", "Output to the specified file instead of stdout")
+	command.Flags().StringVarP(&in, "in", "i", "-", "Input from the specified file instead of stdin")
 
 	return &command
 }
@@ -307,7 +307,7 @@ func NewExportCommand() *cobra.Command {
 			}
 			output := strings.Join(outputStrings, yamlSeparator)
 
-			if out == "" {
+			if out == "-" {
 				fmt.Println(output)
 			} else {
 				err = ioutil.WriteFile(out, []byte(output), 0644)
@@ -318,7 +318,7 @@ func NewExportCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
 
 	return &command
 }
