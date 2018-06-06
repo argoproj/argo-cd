@@ -123,7 +123,8 @@ func repoURLToSecretName(repo string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
 	parts := strings.Split(strings.TrimSuffix(repo, ".git"), "/")
-	return fmt.Sprintf("repo-%s-%v", parts[len(parts)-1], h.Sum32())
+	shortName := strings.Replace(parts[len(parts)-1], "_", "-", -1)
+	return fmt.Sprintf("repo-%s-%v", shortName, h.Sum32())
 }
 
 // repoToStringData converts a repository object to string data for serialization to a secret
