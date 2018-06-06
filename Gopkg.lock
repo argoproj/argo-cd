@@ -747,6 +747,8 @@
     "discovery/fake",
     "dynamic",
     "dynamic/fake",
+    "informers/core/v1",
+    "informers/internalinterfaces",
     "kubernetes",
     "kubernetes/fake",
     "kubernetes/scheme",
@@ -806,6 +808,7 @@
     "kubernetes/typed/storage/v1alpha1/fake",
     "kubernetes/typed/storage/v1beta1",
     "kubernetes/typed/storage/v1beta1/fake",
+    "listers/core/v1",
     "pkg/version",
     "plugin/pkg/client/auth/gcp",
     "plugin/pkg/client/auth/oidc",
@@ -876,6 +879,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "736e8116bcf49bf0889c2caf8e832a78a43fd5af65c5d10c86a443993de63d3c"
+  inputs-digest = "e336c1acaf22142bbb031deed1513923d09b6fda70d228e48a9556f9d40cb785"
   solver-name = "gps-cdcl"
   solver-version = 1
