@@ -27,24 +27,24 @@ import (
 type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach ArgoCD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
-	URL string
+	URL string `json:"url,omitempty"`
 	// DexConfig is contains portions of a dex config yaml
-	DexConfig string
+	DexConfig string `json:"dexConfig,omitempty"`
 	// LocalUsers holds users local to (stored on) the server.  This is to be distinguished from any potential alternative future login providers (LDAP, SAML, etc.) that might ever be added.
-	LocalUsers map[string]string
+	LocalUsers map[string]string `json:"localUsers,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
-	ServerSignature []byte
+	ServerSignature []byte `json:"serverSignature,omitempty"`
 	// Certificate holds the certificate/private key for the ArgoCD API server.
 	// If nil, will run insecure without TLS.
-	Certificate *tls.Certificate
+	Certificate *tls.Certificate `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
-	WebhookGitHubSecret string
+	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
-	WebhookGitLabSecret string
+	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
-	WebhookBitbucketUUID string
+	WebhookBitbucketUUID string `json:"webhookBitbucketUUID,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
-	Secrets map[string]string
+	Secrets map[string]string `json:"secrets,omitempty"`
 }
 
 const (
