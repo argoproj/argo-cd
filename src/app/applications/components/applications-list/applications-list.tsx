@@ -74,53 +74,53 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     {this.state.applications ? (
                         <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
                             {this.state.applications.map((app) => (
-			    <div className='column column-block'>
-                                <div key={app.metadata.name} className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status}`}>
-                                    <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
-                                        <div className='columns small-12 applications-list__info'>
-                                            <div className='row'>
-                                                <div className='columns applications-list__title'>{app.metadata.name}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>Namespace:</div>
-                                                <div className='columns small-9'>{app.spec.destination.namespace}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>Cluster:</div>
-                                                <div className='columns small-9'>{app.spec.destination.server}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>k8sVersion:</div>
-                                                <div className='columns small-9'>{app.spec.destination.server}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>Status:</div>
-                                                <div className='columns small-9'>{app.status.comparisonResult.status}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>Age:</div>
-                                                <div className='columns small-9'>{app.status.comparisonResult.status}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>REPO URL:</div>
-                                                <div className='columns small-9'>
-                                                    <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                                                        <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-                                                    </a>
+                                <div className='column column-block'>
+                                    <div key={app.metadata.name} className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status}`}>
+                                        <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
+                                            <div className='columns small-12 applications-list__info'>
+                                                <div className='row'>
+                                                    <div className='columns applications-list__title'>{app.metadata.name}</div>
                                                 </div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>PATH:</div>
-                                                <div className='columns small-9'>{app.spec.source.path}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>ENVIRONMENT:</div>
-                                                <div className='columns small-9'>{app.spec.source.environment}</div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Namespace:</div>
+                                                    <div className='columns small-9'>{app.spec.destination.namespace}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Cluster:</div>
+                                                    <div className='columns small-9'>{app.spec.destination.server}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>k8sVersion:</div>
+                                                    <div className='columns small-9'>{app.spec.destination.server}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Status:</div>
+                                                    <div className='columns small-9'>{app.status.comparisonResult.status}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Age:</div>
+                                                    <div className='columns small-9'>{app.status.comparisonResult.status}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>REPO URL:</div>
+                                                    <div className='columns small-9'>
+                                                        <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
+                                                            <i className='fa fa-external-link'/> {app.spec.source.repoURL}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>PATH:</div>
+                                                    <div className='columns small-9'>{app.spec.source.path}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>ENVIRONMENT:</div>
+                                                    <div className='columns small-9'>{app.spec.source.environment}</div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-				</div>
                             ))}
                         </div>
                     ) : <MockupList height={50} marginTop={30}/>}
