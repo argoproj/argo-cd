@@ -1,4 +1,5 @@
-import { MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import { DropDownMenu, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
@@ -9,7 +10,6 @@ import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
-import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
@@ -73,53 +73,59 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
             }} >
                 <div className='argo-container applications-list'>
                     {this.state.applications ? (
-                        <div className='argo-table-list argo-table-list--clickable'>
+                        <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
                             {this.state.applications.map((app) => (
-                                <div key={app.metadata.name} className='argo-table-list__row'>
-                                    <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
-                                        <div className='columns small-3'>
-                                            <div className='row'>
-                                                <div className='columns small-12'>
-                                                    <i className='argo-icon-application icon'/> <span className='applications-list__title'>{app.metadata.name}</span>
+                                <div className='column column-block'>
+                                    <div key={app.metadata.name} className={`argo-table-list__row
+                                        applications-list__entry applications-list__entry--health-${app.status.health.status}`
+                                    }>
+                                        <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
+                                            <div className='columns small-12 applications-list__info'>
+                                                <div className='row'>
+                                                    <div className='columns applications-list__title'>{app.metadata.name}</div>
                                                 </div>
-                                            </div>
-                                            <div className='row applications-list__icons'>
-                                                <div className='columns small-6'>STATUS:</div>
-                                                <div className='columns small-6'>
-                                                    <ComparisonStatusIcon status={app.status.comparisonResult.status} /> {app.status.comparisonResult.status}
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Namespace:</div>
+                                                    <div className='columns small-9'>{app.spec.destination.namespace}</div>
                                                 </div>
-                                            </div>
-                                            <div className='row applications-list__icons'>
-                                                <div className='columns small-6'>HEALTH:</div>
-                                                <div className='columns small-6'>
-                                                    <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Cluster:</div>
+                                                    <div className='columns small-9'>{app.spec.destination.server}</div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div className='columns small-9 applications-list__info'>
-                                            <div className='row'>
-                                                <div className='columns small-3'>CLUSTER:</div>
-                                                <div className='columns small-9'>{app.spec.destination.server}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>NAMESPACE:</div>
-                                                <div className='columns small-9'>{app.spec.destination.namespace}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>REPO URL:</div>
-                                                <div className='columns small-9'>
-                                                    <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                                                        <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-                                                    </a>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Status:</div>
+                                                    <div className='columns small-9'>{app.status.comparisonResult.status}</div>
                                                 </div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>PATH:</div>
-                                                <div className='columns small-9'>{app.spec.source.path}</div>
-                                            </div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>ENVIRONMENT:</div>
-                                                <div className='columns small-9'>{app.spec.source.environment}</div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Age:</div>
+                                                    <div className='columns small-9'>{this.daysBeforeNow(app.metadata.creationTimestamp)} days</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Repository:</div>
+                                                    <div className='columns small-9'>
+                                                        <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
+                                                            <i className='fa fa-external-link'/> {app.spec.source.repoURL}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Path:</div>
+                                                    <div className='columns small-9'>{app.spec.source.path}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Environment:</div>
+                                                    <div className='columns small-9'>{app.spec.source.environment}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns applications-list__entry--actions'>
+                                                        <DropDownMenu anchor={() =>
+                                                            <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'/></button>
+                                                        } items={[
+                                                            { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
+                                                            { title: 'Delete', action: () => this.deleteApplication(app.metadata.name, false) },
+                                                        ]} />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -167,6 +173,14 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
         this.changesSubscription = null;
     }
 
+    // DaysBeforeNow returns the delta, in days, between now and a given timestamp.
+    private daysBeforeNow(timestamp: string): number {
+        const end = moment();
+        const start = moment(timestamp);
+        const delta = moment.duration(end.diff(start));
+        return Math.round(delta.asDays());
+    }
+
     private async createApplication(params: NewAppParams) {
         try {
             await services.applications.create(params.applicationName, {
@@ -185,6 +199,37 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                 type: NotificationType.Error,
                 content: `Unable to create application: ${e.response && e.response.text || 'Internal error'}`,
             });
+        }
+    }
+
+    private async syncApplication(appName: string, revision: string) {
+        try {
+            await services.applications.sync(appName, revision).then(() => {
+                this.appContext.apis.notifications.show({
+                    type: NotificationType.Success,
+                    content: `Synced revision`,
+                });
+            });
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                type: NotificationType.Error,
+                content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
+            });
+        }
+    }
+
+    private async deleteApplication(appName: string, force: boolean) {
+        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are your sure you want to delete application '${appName}'?`);
+        if (confirmed) {
+            try {
+                await services.applications.delete(appName, force);
+                this.appContext.router.history.push('/applications');
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    type: NotificationType.Error,
+                    content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
+                });
+            }
         }
     }
 }
