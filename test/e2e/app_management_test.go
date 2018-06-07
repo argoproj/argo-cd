@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -18,9 +17,7 @@ import (
 )
 
 func TestAppManagement(t *testing.T) {
-
 	testApp := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{GenerateName: "e2e-test"},
 		Spec: v1alpha1.ApplicationSpec{
 			Source: v1alpha1.ApplicationSource{
 				RepoURL: "https://github.com/argoproj/argo-cd.git", Path: ".", Environment: "minikube",
@@ -72,19 +69,11 @@ func TestAppManagement(t *testing.T) {
 	})
 
 	t.Run("TestTrackAppStateAndSyncApp", func(t *testing.T) {
-		ctrl := fixture.CreateController()
-		ctx, cancel := context.WithCancel(context.Background())
-		go ctrl.Run(ctx, 1, 1)
-		defer cancel()
-
-		// create app and ensure it reaches OutOfSync state
 		app := fixture.CreateApp(t, testApp)
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 			return err == nil && app.Status.ComparisonResult.Status != v1alpha1.ComparisonStatusUnknown, err
 		})
-
-		assert.Equal(t, v1alpha1.ComparisonStatusOutOfSync, app.Status.ComparisonResult.Status)
 
 		// sync app and make sure it reaches InSync state
 		_, err := fixture.RunCli("app", "sync", app.Name)
@@ -103,30 +92,30 @@ func TestAppManagement(t *testing.T) {
 
 	t.Run("TestAppRollbackSuccessful", func(t *testing.T) {
 		appWithHistory := testApp.DeepCopy()
-		appWithHistory.Status.History = []v1alpha1.DeploymentInfo{{
-			ID:       1,
-			Revision: "abc",
-		}, {
-			ID:       2,
-			Revision: "cdb",
-		}}
 
-		ctrl := fixture.CreateController()
-		ctx, cancel := context.WithCancel(context.Background())
-		go ctrl.Run(ctx, 1, 1)
-		defer cancel()
-
-		// create app and ensure it reaches OutOfSync state
+		// create app and ensure it's comparion status is not ComparisonStatusUnknown
 		app := fixture.CreateApp(t, appWithHistory)
+		app.Status.History = []v1alpha1.DeploymentInfo{{
+			ID:                          1,
+			Revision:                    "abc",
+			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+		}, {
+			ID:                          2,
+			Revision:                    "cdb",
+			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+		}}
+		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Update(app)
+		if err != nil {
+			t.Fatalf("Unable to update app %v", err)
+		}
+
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 			return err == nil && app.Status.ComparisonResult.Status != v1alpha1.ComparisonStatusUnknown, err
 		})
 
-		assert.Equal(t, v1alpha1.ComparisonStatusOutOfSync, app.Status.ComparisonResult.Status)
-
 		// sync app and make sure it reaches InSync state
-		_, err := fixture.RunCli("app", "rollback", app.Name, "1")
+		_, err = fixture.RunCli("app", "rollback", app.Name, "1")
 		if err != nil {
 			t.Fatalf("Unable to sync app %v", err)
 		}
@@ -146,11 +135,6 @@ func TestAppManagement(t *testing.T) {
 		invalidApp := testApp.DeepCopy()
 		invalidApp.Spec.Destination.Server = "https://not-registered-cluster/api"
 
-		ctrl := fixture.CreateController()
-		ctx, cancel := context.WithCancel(context.Background())
-		go ctrl.Run(ctx, 1, 1)
-		defer cancel()
-
 		app := fixture.CreateApp(t, invalidApp)
 
 		WaitUntil(t, func() (done bool, err error) {
@@ -167,13 +151,7 @@ func TestAppManagement(t *testing.T) {
 	})
 
 	t.Run("TestArgoCDWaitEnsureAppIsNotCrashing", func(t *testing.T) {
-		ctrl := fixture.CreateController()
-		ctx, cancel := context.WithCancel(context.Background())
-		go ctrl.Run(ctx, 1, 1)
-		defer cancel()
-
 		updatedApp := testApp.DeepCopy()
-		updatedApp.Spec.Source.ComponentParameterOverrides = []v1alpha1.ComponentParameter{{Name: "type", Value: "ClusterIP", Component: "guestbook-ui"}}
 
 		// deploy app and make sure it is healthy
 		app := fixture.CreateApp(t, updatedApp)
@@ -189,7 +167,7 @@ func TestAppManagement(t *testing.T) {
 
 		// deploy app which fails and make sure it became unhealthy
 		app.Spec.Source.ComponentParameterOverrides = append(
-			updatedApp.Spec.Source.ComponentParameterOverrides,
+			app.Spec.Source.ComponentParameterOverrides,
 			v1alpha1.ComponentParameter{Name: "command", Value: "wrong-command", Component: "guestbook-ui"})
 		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Update(app)
 		if err != nil {
