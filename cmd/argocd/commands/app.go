@@ -643,8 +643,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
-			printOperationResult(appName, status)
-			if !status.Phase.Successful() {
+			err = printOperationResult(appName, status)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if !status.Phase.Successful() && !dryRun {
 				os.Exit(1)
 			}
 		},
@@ -793,7 +796,10 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
-			printOperationResult(appName, status)
+			err = printOperationResult(appName, status)
+			if err != nil {
+				log.Fatal(err)
+			}
 			if !status.Phase.Successful() {
 				os.Exit(1)
 			}
@@ -805,7 +811,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 const printOpFmtStr = "%-20s%s\n"
 
-func printOperationResult(appName string, opState *argoappv1.OperationState) {
+func printOperationResult(appName string, opState *argoappv1.OperationState) error {
 	fmt.Printf(printOpFmtStr, "Application:", appName)
 	var syncRes *argoappv1.SyncOperationResult
 	if opState.SyncResult != nil {
@@ -823,11 +829,19 @@ func printOperationResult(appName string, opState *argoappv1.OperationState) {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Printf("\n")
 		fmt.Fprintf(w, "KIND\tNAME\tMESSAGE\n")
+		pruningRequired := 0
 		for _, resDetails := range syncRes.Resources {
 			fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Kind, resDetails.Name, resDetails.Message)
+			if resDetails.Status == ResourceDetailsPruningRequired {
+				pruningRequired++
+			}
 		}
 		_ = w.Flush()
+		if pruningRequired > 0 {
+			return fmt.Errorf("Some resources (%d) require pruning", pruningRequired)
+		}
 	}
+	return nil
 }
 
 // NewApplicationManifestsCommand returns a new instance of an `argocd app manifests` command
