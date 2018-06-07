@@ -454,25 +454,31 @@ func syncObject(config *rest.Config, namespace string, targetObj, liveObj *unstr
 		if prune {
 			if dryRun {
 				resDetails.Message = "pruned (dry run)"
+				resDetails.Status = ResourceDetailsSyncedAndPruned
 			} else {
 				err := kubeutil.DeleteResource(config, liveObj, namespace)
 				if err != nil {
 					resDetails.Message = err.Error()
+					resDetails.Status = ResourceDetailsSyncFailed
 					successful = false
 				} else {
 					resDetails.Message = "pruned"
+					resDetails.Status = ResourceDetailsSyncedAndPruned
 				}
 			}
 		} else {
 			resDetails.Message = "ignored (requires pruning)"
+			resDetails.Status = ResourceDetailsPruningRequired
 		}
 	} else {
 		message, err := kube.ApplyResource(config, targetObj, namespace, dryRun)
 		if err != nil {
 			resDetails.Message = err.Error()
+			resDetails.Status = ResourceDetailsSyncFailed
 			successful = false
 		} else {
 			resDetails.Message = message
+			resDetails.Status = ResourceDetailsSynced
 		}
 	}
 	return resDetails, successful

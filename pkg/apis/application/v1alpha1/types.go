@@ -74,12 +74,21 @@ type SyncOperationResult struct {
 	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,1,opt,name=resources"`
 }
 
+type ResourceSyncStatus int
+
+const (
+	ResourceDetailsSynced          ResourceSyncStatus = iota
+	ResourceDetailsSyncFailed      ResourceSyncStatus = iota
+	ResourceDetailsSyncedAndPruned ResourceSyncStatus = iota
+	ResourceDetailsPruningRequired ResourceSyncStatus = iota
+)
+
 type ResourceDetails struct {
-	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Namespace string `json:"namespace" protobuf:"bytes,3,opt,name=namespace"`
-	Message   string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
-	Status    string `json:"status,omitempty" protobuf:"bytes,5,opt,name=status"`
+	Name      string             `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Kind      string             `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Namespace string             `json:"namespace" protobuf:"bytes,3,opt,name=namespace"`
+	Message   string             `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	Status    ResourceSyncStatus `json:"status,omitempty" protobuf:"bytes,5,opt,name=status"`
 }
 
 // DeploymentInfo contains information relevant to an application deployment
