@@ -113,7 +113,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                     <div className='columns applications-list__entry--actions'>
                                                         <DropDownMenu anchor={() => <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'> </i></button>} items={[
                                                                 { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
-                                                                { title: 'Delete', action: () => window.alert('Clicked!'), },
+                                                                { title: 'Delete', action: () => this.deleteApplication(app.metadata.name, false) },
                                                         ]} />
                                                     </div>
                                                 </div>
@@ -197,6 +197,21 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                 type: NotificationType.Error,
                 content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
             });
+        }
+    }
+
+    private async deleteApplication(appName: string, force: boolean) {
+        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are your sure you want to delete application '${appName}'?`);
+        if (confirmed) {
+            try {
+                await services.applications.delete(appName, force);
+                this.appContext.router.history.push('/applications');
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    type: NotificationType.Error,
+                    content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
+                });
+            }
         }
     }
 }
