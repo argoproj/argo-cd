@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -12,6 +11,8 @@ import (
 	"time"
 
 	"encoding/json"
+
+	"strings"
 
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
@@ -129,21 +130,10 @@ func (f *Fixture) setup() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		err = repoServerGRPC.Serve(repoServerListener)
-	}()
-	go func() {
 		apiServer.Run(ctx, apiServerPort)
 	}()
 
-	f.tearDownCallback = func() {
-		cancel()
-		repoServerGRPC.Stop()
-	}
-	if err != nil {
-		return err
-	}
-
-	return waitUntilE(func() (done bool, err error) {
+	err = waitUntilE(func() (done bool, err error) {
 		clientset, err := f.NewApiClientset()
 		if err != nil {
 			return false, nil
@@ -156,6 +146,22 @@ func (f *Fixture) setup() error {
 		_, err = appClient.List(context.Background(), &application.ApplicationQuery{})
 		return err == nil, nil
 	})
+
+	ctrl := f.createController()
+	ctrlCtx, cancelCtrl := context.WithCancel(context.Background())
+	go ctrl.Run(ctrlCtx, 1, 1)
+
+	go func() {
+		err = repoServerGRPC.Serve(repoServerListener)
+	}()
+
+	f.tearDownCallback = func() {
+		cancel()
+		cancelCtrl()
+		repoServerGRPC.Stop()
+	}
+
+	return err
 }
 
 func (f *Fixture) ensureClusterRegistered() error {
@@ -251,12 +257,18 @@ func NewFixture() (*Fixture, error) {
 
 // CreateApp creates application with appropriate controller instance id.
 func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1alpha1.Application {
+	application = application.DeepCopy()
+	application.Name = fmt.Sprintf("e2e-test-%v", time.Now().Unix())
 	labels := application.ObjectMeta.Labels
 	if labels == nil {
 		labels = make(map[string]string)
 		application.ObjectMeta.Labels = labels
 	}
 	labels[common.LabelKeyApplicationControllerInstanceID] = f.InstanceID
+
+	application.Spec.Source.ComponentParameterOverrides = append(
+		application.Spec.Source.ComponentParameterOverrides,
+		v1alpha1.ComponentParameter{Name: "name", Value: application.Name, Component: "guestbook-ui"})
 
 	app, err := f.AppClient.ArgoprojV1alpha1().Applications(f.Namespace).Create(application)
 	if err != nil {
@@ -265,8 +277,8 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 	return app
 }
 
-// CreateController creates new controller instance
-func (f *Fixture) CreateController() *controller.ApplicationController {
+// createController creates new controller instance
+func (f *Fixture) createController() *controller.ApplicationController {
 	appStateManager := controller.NewAppStateManager(
 		f.DB, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace)
 
@@ -292,12 +304,21 @@ func (f *Fixture) NewApiClientset() (argocdclient.Client, error) {
 }
 
 func (f *Fixture) RunCli(args ...string) (string, error) {
-	cmd := commands.NewCommand()
-	cmd.SetArgs(append(args, "--server", f.ApiServerAddress, "--plaintext"))
-	output := new(bytes.Buffer)
-	cmd.SetOutput(output)
-	err := cmd.Execute()
-	return output.String(), err
+	args = append([]string{"run", "../../cmd/argocd/main.go"}, args...)
+	cmd := exec.Command("go", append(args, "--server", f.ApiServerAddress, "--plaintext")...)
+	outBytes, err := cmd.Output()
+	if err != nil {
+		exErr, ok := err.(*exec.ExitError)
+		if !ok {
+			return "", err
+		}
+		errOutput := string(exErr.Stderr)
+		if outBytes != nil {
+			errOutput = string(outBytes) + "\n" + errOutput
+		}
+		return "", fmt.Errorf(strings.TrimSpace(errOutput))
+	}
+	return string(outBytes), nil
 }
 
 func waitUntilE(condition wait.ConditionFunc) error {

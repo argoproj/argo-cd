@@ -510,7 +510,7 @@ func (s *Server) setAppOperation(ctx context.Context, appName string, operationC
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
-		_, err = s.Update(ctx, a)
+		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err != nil && apierr.IsConflict(err) {
 			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 		} else {
