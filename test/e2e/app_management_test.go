@@ -165,4 +165,45 @@ func TestAppManagement(t *testing.T) {
 
 		assert.Equal(t, v1alpha1.ComparisonStatusError, app.Status.ComparisonResult.Status)
 	})
+
+	t.Run("TestArgoCDWaitEnsureAppIsNotCrashing", func(t *testing.T) {
+		ctrl := fixture.CreateController()
+		ctx, cancel := context.WithCancel(context.Background())
+		go ctrl.Run(ctx, 1, 1)
+		defer cancel()
+
+		updatedApp := testApp.DeepCopy()
+		updatedApp.Spec.Source.ComponentParameterOverrides = []v1alpha1.ComponentParameter{{Name: "type", Value: "ClusterIP", Component: "guestbook-ui"}}
+
+		// deploy app and make sure it is healthy
+		app := fixture.CreateApp(t, updatedApp)
+		_, err := fixture.RunCli("app", "sync", app.Name)
+		if err != nil {
+			t.Fatalf("Unable to sync app %v", err)
+		}
+
+		WaitUntil(t, func() (done bool, err error) {
+			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.ComparisonStatusSynced && app.Status.Health.Status == v1alpha1.HealthStatusHealthy, err
+		})
+
+		// deploy app which fails and make sure it became unhealthy
+		app.Spec.Source.ComponentParameterOverrides = append(
+			updatedApp.Spec.Source.ComponentParameterOverrides,
+			v1alpha1.ComponentParameter{Name: "command", Value: "wrong-command", Component: "guestbook-ui"})
+		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Update(app)
+		if err != nil {
+			t.Fatalf("Unable to set app parameter %v", err)
+		}
+
+		_, err = fixture.RunCli("app", "sync", app.Name)
+		if err != nil {
+			t.Fatalf("Unable to sync app %v", err)
+		}
+
+		WaitUntil(t, func() (done bool, err error) {
+			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.ComparisonStatusSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
+		})
+	})
 }

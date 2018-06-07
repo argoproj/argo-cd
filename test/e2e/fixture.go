@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,6 +19,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"strings"
 
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
@@ -311,12 +312,18 @@ func (f *Fixture) NewApiClientset() (argocdclient.Client, error) {
 }
 
 func (f *Fixture) RunCli(args ...string) (string, error) {
-	cmd := commands.NewCommand()
-	cmd.SetArgs(append(args, "--server", f.ApiServerAddress, "--plaintext"))
-	output := new(bytes.Buffer)
-	cmd.SetOutput(output)
-	err := cmd.Execute()
-	return output.String(), err
+	args = append([]string{"run", "../../cmd/argocd/main.go"}, args...)
+	cmd := exec.Command("go", append(args, "--server", f.ApiServerAddress, "--plaintext")...)
+	outBytes, err := cmd.Output()
+	if err != nil {
+		exErr, ok := err.(*exec.ExitError)
+		if !ok {
+			return "", err
+		}
+		errOutput := string(exErr.Stderr)
+		return "", fmt.Errorf(strings.TrimSpace(errOutput))
+	}
+	return string(outBytes), nil
 }
 
 func waitUntilE(condition wait.ConditionFunc) error {

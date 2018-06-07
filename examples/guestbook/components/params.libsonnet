@@ -13,6 +13,7 @@
       replicas: 1,
       servicePort: 80,
       type: "LoadBalancer",
+      command: null,
     },
   },
 }

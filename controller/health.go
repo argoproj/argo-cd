@@ -67,22 +67,27 @@ func (ctrl *kubeAppHealthManager) getDeploymentHealth(config *rest.Config, names
 	health := appv1.HealthStatus{
 		Status: appv1.HealthStatusUnknown,
 	}
+
+	isProgressing := true
+	notProgressingReason := ""
 	for _, condition := range deploy.Status.Conditions {
-		// deployment is healthy is it successfully progressed
-		if condition.Type == v1.DeploymentProgressing && condition.Status == "True" {
-			health.Status = appv1.HealthStatusHealthy
-		} else if condition.Type == v1.DeploymentReplicaFailure && condition.Status == "True" {
-			health.Status = appv1.HealthStatusDegraded
-		} else if condition.Type == v1.DeploymentProgressing && condition.Status == "False" {
-			health.Status = appv1.HealthStatusDegraded
-		} else if condition.Type == v1.DeploymentAvailable && condition.Status == "False" {
-			health.Status = appv1.HealthStatusDegraded
-		}
-		if health.Status != appv1.HealthStatusUnknown {
-			health.StatusDetails = fmt.Sprintf("%s:%s", condition.Reason, condition.Message)
-			break
+		if condition.Type == v1.DeploymentProgressing && condition.Status == "False" {
+			isProgressing = false
+			notProgressingReason = fmt.Sprintf("%s:%s", condition.Reason, condition.Message)
 		}
 	}
+
+	if !isProgressing {
+		health.Status = appv1.HealthStatusDegraded
+		health.StatusDetails = notProgressingReason
+	} else if deploy.Status.UnavailableReplicas > 0 {
+		health.Status = appv1.HealthStatusDegraded
+		health.StatusDetails = fmt.Sprintf("Deployment has %v unavailable replicas", deploy.Status.UnavailableReplicas)
+	} else {
+		health.Status = appv1.HealthStatusHealthy
+		health.StatusDetails = ""
+	}
+
 	return &health, nil
 }
 
