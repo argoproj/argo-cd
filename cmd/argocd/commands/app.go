@@ -832,7 +832,7 @@ func printOperationResult(appName string, opState *argoappv1.OperationState) err
 		pruningRequired := 0
 		for _, resDetails := range syncRes.Resources {
 			fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Kind, resDetails.Name, resDetails.Message)
-			if resDetails.Status == ResourceDetailsPruningRequired {
+			if resDetails.Status == argoappv1.ResourceDetailsPruningRequired {
 				pruningRequired++
 			}
 		}
