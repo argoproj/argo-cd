@@ -1,7 +1,7 @@
 import { DropDownMenu, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import * as moment from 'moment';
 import { RouteComponentProps } from 'react-router';
 import { Subscription } from 'rxjs';
 
@@ -76,7 +76,9 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                         <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
                             {this.state.applications.map((app) => (
                                 <div className='column column-block'>
-                                    <div key={app.metadata.name} className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status}`}>
+                                    <div key={app.metadata.name} className={`argo-table-list__row
+                                        applications-list__entry applications-list__entry--health-${app.status.health.status}`
+                                    }>
                                         <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
                                             <div className='columns small-12 applications-list__info'>
                                                 <div className='row'>
@@ -116,9 +118,11 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                 </div>
                                                 <div className='row'>
                                                     <div className='columns applications-list__entry--actions'>
-                                                        <DropDownMenu anchor={() => <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'> </i></button>} items={[
-                                                                { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
-                                                                { title: 'Delete', action: () => this.deleteApplication(app.metadata.name, false) },
+                                                        <DropDownMenu anchor={() =>
+                                                            <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'/></button>
+                                                        } items={[
+                                                            { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
+                                                            { title: 'Delete', action: () => this.deleteApplication(app.metadata.name, false) },
                                                         ]} />
                                                     </div>
                                                 </div>
@@ -170,9 +174,9 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
 
     // DaysBeforeNow returns the delta, in days, between now and a given timestamp.
     private daysBeforeNow(timestamp: string): number {
-        let now = moment();
-        let past = moment(timestamp);
-        let diff = moment.duration(now.diff(past));
+        const now = moment();
+        const past = moment(timestamp);
+        const diff = moment.duration(now.diff(past));
         return Math.round(diff.asDays());
     }
 
@@ -203,7 +207,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                 this.appContext.apis.notifications.show({
                     type: NotificationType.Success,
                     content: `Synced revision`,
-                })
+                });
             });
         } catch (e) {
             this.appContext.apis.notifications.show({
