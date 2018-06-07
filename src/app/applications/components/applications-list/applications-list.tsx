@@ -174,10 +174,10 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
 
     // DaysBeforeNow returns the delta, in days, between now and a given timestamp.
     private daysBeforeNow(timestamp: string): number {
-        const now = moment();
-        const past = moment(timestamp);
-        const diff = moment.duration(now.diff(past));
-        return Math.round(diff.asDays());
+        const end = moment();
+        const start = moment(timestamp);
+        const delta = moment.duration(end.diff(start));
+        return Math.round(delta.asDays());
     }
 
     private async createApplication(params: NewAppParams) {
