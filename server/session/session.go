@@ -2,13 +2,13 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	sessionmgr "github.com/argoproj/argo-cd/util/session"
-	jwt "github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/argoproj/argo-cd/util/jwt"
+	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 
 // Server provides a Session service
@@ -46,7 +46,7 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 		if err != nil {
 			return nil, err
 		}
-		claims, err := MapClaims(claimsIf)
+		claims, err := jwt.MapClaims(claimsIf)
 		if err != nil {
 			return nil, err
 		}
@@ -71,18 +71,4 @@ func (s *Server) Delete(ctx context.Context, q *SessionDeleteRequest) (*SessionR
 // chicken-and-egg situation if we didn't place this here to allow traffic to pass through.
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	return ctx, nil
-}
-
-// MapClaims converts a jwt.Claims to a MapClaims
-func MapClaims(claims jwt.Claims) (jwt.MapClaims, error) {
-	claimsBytes, err := json.Marshal(claims)
-	if err != nil {
-		return nil, err
-	}
-	var mapClaims jwt.MapClaims
-	err = json.Unmarshal(claimsBytes, &mapClaims)
-	if err != nil {
-		return nil, err
-	}
-	return mapClaims, nil
 }

@@ -18,6 +18,8 @@ import (
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
 
 const (
@@ -87,8 +89,7 @@ func (e *Enforcer) Enforce(rvals ...interface{}) bool {
 
 // EnforceClaims checks if the first value is a jwt.Claims and runs enforce against its groups and sub
 func (e *Enforcer) EnforceClaims(rvals ...interface{}) bool {
-
-	// User default claims enforcer if it is nil
+	// Use default claims enforcer if it is nil
 	if e.claimsEnforcerFunc == nil {
 		return e.defaultEnforceClaims(rvals...)
 	}
@@ -105,31 +106,19 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 		}
 		return e.Enforce(rvals...)
 	}
-	var user string
-	var groups []string
-	switch c := claims.(type) {
-	case jwt.MapClaims:
-		if groupsIf, ok := c["groups"]; ok {
-			if groupList, ok := groupsIf.([]string); ok {
-				groups = groupList
-			}
-		}
-		if subIf, ok := c["sub"]; ok {
-			if sub, ok := subIf.(string); ok {
-				user = sub
-			}
-		}
-	case jwt.StandardClaims:
-		user = c.Subject
-	default:
-		return false
+	mapClaims, err := jwtutil.MapClaims(claims)
+	if err != nil {
+		vals := append([]interface{}{""}, rvals[1:]...)
+		return e.Enforce(vals...)
 	}
+	groups := jwtutil.GetGroups(mapClaims)
 	for _, group := range groups {
 		vals := append([]interface{}{group}, rvals[1:]...)
 		if e.Enforcer.Enforce(vals...) {
 			return true
 		}
 	}
+	user := jwtutil.GetField(mapClaims, "sub")
 	vals := append([]interface{}{user}, rvals[1:]...)
 	return e.Enforce(vals...)
 }
