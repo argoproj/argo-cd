@@ -29,7 +29,7 @@ type DiffResultList struct {
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
 func Diff(config, live *unstructured.Unstructured) *DiffResult {
 	orig := getLastAppliedConfigAnnotation(live)
-	if orig != nil {
+	if orig != nil && config != nil {
 		return ThreeWayDiff(orig, config, live)
 	}
 	return TwoWayDiff(config, live)
