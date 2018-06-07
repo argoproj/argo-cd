@@ -77,5 +77,6 @@ for i in ${PROTO_FILES}; do
         -I${GOGO_PROTOBUF_PATH} \
         --${GOPROTOBINARY}_out=plugins=grpc:$GOPATH/src \
         --grpc-gateway_out=logtostderr=true:$GOPATH/src \
+        --swagger_out=logtostderr=true:. \
         $i
 done

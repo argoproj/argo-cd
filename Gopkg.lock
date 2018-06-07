@@ -199,7 +199,11 @@
   packages = [
     "jsonpb",
     "proto",
+    "protoc-gen-go",
     "protoc-gen-go/descriptor",
+    "protoc-gen-go/generator",
+    "protoc-gen-go/grpc",
+    "protoc-gen-go/plugin",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
@@ -267,6 +271,14 @@
 [[projects]]
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
+    "protoc-gen-grpc-gateway",
+    "protoc-gen-grpc-gateway/descriptor",
+    "protoc-gen-grpc-gateway/generator",
+    "protoc-gen-grpc-gateway/gengateway",
+    "protoc-gen-grpc-gateway/httprule",
+    "protoc-gen-swagger",
+    "protoc-gen-swagger/genswagger",
+    "protoc-gen-swagger/options",
     "runtime",
     "runtime/internal",
     "utilities"
@@ -967,6 +979,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "866ac05c71a770ae44aa5d28d5d1844db0b045fa0ab7cecc4650d7db8aa38145"
+  inputs-digest = "94c2ecec9a1d01f2e9c25b85c8ca9ef8b4c1e39e2926f4f7cfc753d0c78fbe6b"
   solver-name = "gps-cdcl"
   solver-version = 1
