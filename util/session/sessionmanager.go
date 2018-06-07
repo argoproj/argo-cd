@@ -197,7 +197,11 @@ func MakeCookieMetadata(key, value string, flags ...string) string {
 	return strings.Join(components, "; ")
 }
 
-// OIDCProvider lazily returns the OIDC provider
+// OIDCProvider lazily initializes and returns the OIDC provider, querying the well known oidc
+// configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration).
+// We have to initialize the proviver lazily since ArgoCD is an OIDC client to itself, which
+// presents a chicken-and-egg problem of (1) serving dex over HTTP, and (2) querying the OIDC
+// provider (ourselves) to initialize the app.
 func (mgr *SessionManager) OIDCProvider() (*oidc.Provider, error) {
 	if mgr.provider != nil {
 		return mgr.provider, nil
