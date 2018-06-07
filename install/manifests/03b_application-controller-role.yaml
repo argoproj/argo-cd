@@ -11,6 +11,9 @@ rules:
   verbs:
   - get
   - watch
+  - list
+  - patch
+  - update
 - apiGroups:
   - argoproj.io
   resources:
