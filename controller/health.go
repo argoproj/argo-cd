@@ -60,30 +60,54 @@ func (ctrl *kubeAppHealthManager) getDeploymentHealth(config *rest.Config, names
 	if err != nil {
 		return nil, err
 	}
-	deploy, err := clientSet.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	deployment, err := clientSet.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	health := appv1.HealthStatus{
-		Status: appv1.HealthStatusUnknown,
-	}
-	for _, condition := range deploy.Status.Conditions {
-		// deployment is healthy is it successfully progressed
-		if condition.Type == v1.DeploymentProgressing && condition.Status == "True" {
-			health.Status = appv1.HealthStatusHealthy
-		} else if condition.Type == v1.DeploymentReplicaFailure && condition.Status == "True" {
-			health.Status = appv1.HealthStatusDegraded
-		} else if condition.Type == v1.DeploymentProgressing && condition.Status == "False" {
-			health.Status = appv1.HealthStatusDegraded
-		} else if condition.Type == v1.DeploymentAvailable && condition.Status == "False" {
-			health.Status = appv1.HealthStatusDegraded
+
+	if deployment.Generation <= deployment.Status.ObservedGeneration {
+		cond := getDeploymentCondition(deployment.Status, v1.DeploymentProgressing)
+		if cond != nil && cond.Reason == "ProgressDeadlineExceeded" {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusDegraded,
+				StatusDetails: fmt.Sprintf("Deployment %q exceeded its progress deadline", name),
+			}, nil
+		} else if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas have been updated...\n", deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas),
+			}, nil
+		} else if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d old replicas are pending termination...\n", deployment.Status.Replicas-deployment.Status.UpdatedReplicas),
+			}, nil
+		} else if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d of %d updated replicas are available...\n", deployment.Status.AvailableReplicas, deployment.Status.UpdatedReplicas),
+			}, nil
 		}
-		if health.Status != appv1.HealthStatusUnknown {
-			health.StatusDetails = fmt.Sprintf("%s:%s", condition.Reason, condition.Message)
-			break
+	} else {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: "Waiting for rollout to finish: observed deployment generation less then desired generation",
+		}, nil
+	}
+
+	return &appv1.HealthStatus{
+		Status: appv1.HealthStatusHealthy,
+	}, nil
+}
+
+func getDeploymentCondition(status v1.DeploymentStatus, condType v1.DeploymentConditionType) *v1.DeploymentCondition {
+	for i := range status.Conditions {
+		c := status.Conditions[i]
+		if c.Type == condType {
+			return &c
 		}
 	}
-	return &health, nil
+	return nil
 }
 
 func (ctrl *kubeAppHealthManager) GetAppHealth(server string, namespace string, comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {

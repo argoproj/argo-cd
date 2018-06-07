@@ -98,10 +98,12 @@ func TestRepo(repo, username, password string, sshPrivateKey string) error {
 	cmd.Env = env
 	_, err = cmd.Output()
 	if err != nil {
-		exErr := err.(*exec.ExitError)
-		errOutput := strings.Split(string(exErr.Stderr), "\n")[0]
-		errOutput = redactPassword(errOutput, password)
-		return fmt.Errorf("%s: %s", repo, errOutput)
+		if exErr, ok := err.(*exec.ExitError); ok {
+			errOutput := strings.Split(string(exErr.Stderr), "\n")[0]
+			errOutput = redactPassword(errOutput, password)
+			return fmt.Errorf("%s: %s", repo, errOutput)
+		}
+		return err
 	}
 	return nil
 }
