@@ -1,9 +1,11 @@
 import * as classNames from 'classnames';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
 import { ConnectionStateIcon, FormField } from '../../../shared/components';
+import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 
 export const AppsList = (props: {apps: models.KsonnetAppSpec[], selectedApp: models.KsonnetAppSpec, onAppSelected: (app: models.KsonnetAppSpec) => any}) => (
@@ -27,7 +29,10 @@ export const AppsList = (props: {apps: models.KsonnetAppSpec[], selectedApp: mod
     </div>
 );
 
-export const RepositoryList = (props: {repos: models.Repository[], selectedRepo: string, onSelectedRepo: (repo: string) => any}) => (
+export const RepositoryList: React.StatelessComponent<
+    {repos: models.Repository[], selectedRepo: string, onSelectedRepo: (repo: string) => any}> = (props, context: AppContext) => (
+
+    props.repos.length > 0 && (
     <div className='argo-table-list argo-table-list--clickable'>
         <div className='argo-table-list__head'>
             <div className='row'>
@@ -48,8 +53,17 @@ export const RepositoryList = (props: {repos: models.Repository[], selectedRepo:
                 </div>
             </div>
         ))}
+    </div>) || (
+    <div>
+        <p>No repositories connected. Connect your first repo to create an application.</p>
+        <button className='argo-button argo-button--base' onClick={() => context.router.history.push('/repositories?addRepo=true')} >Connect Repo</button>
     </div>
+    )
 );
+
+RepositoryList.contextTypes = {
+    router: PropTypes.object,
+};
 
 export const EnvironmentsList = (props: {
     envs: { [key: string]: models.KsonnetEnvironment; },

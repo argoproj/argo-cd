@@ -143,9 +143,10 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                             </button>
                         </div>
                     }>
-                    <ApplicationCreationWizardContainer
+                    {this.showNewAppPanel && <ApplicationCreationWizardContainer
                         createApp={(params) => this.createApplication(params)}
                         onStateChanged={(appWizardStepState) => this.setState({ appWizardStepState })} />
+                    }
                 </SlidingPanel>
             </Page>
         );
