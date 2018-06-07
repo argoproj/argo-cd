@@ -112,7 +112,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                 <div className='row'>
                                                     <div className='columns applications-list__entry--actions'>
                                                         <DropDownMenu anchor={() => <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'> </i></button>} items={[
-                                                                { title: 'Sync', action: () => window.alert('Clicked!'), },
+                                                                { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
                                                                 { title: 'Delete', action: () => window.alert('Clicked!'), },
                                                         ]} />
                                                     </div>
@@ -180,6 +180,22 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
             this.appContext.apis.notifications.show({
                 type: NotificationType.Error,
                 content: `Unable to create application: ${e.response && e.response.text || 'Internal error'}`,
+            });
+        }
+    }
+
+    private async syncApplication(appName: string, revision: string) {
+        try {
+            await services.applications.sync(appName, revision).then(() => {
+                this.appContext.apis.notifications.show({
+                    type: NotificationType.Success,
+                    content: `Synced revision`,
+                })
+	    });
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                type: NotificationType.Error,
+                content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
             });
         }
     }
