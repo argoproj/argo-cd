@@ -12,17 +12,18 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/coreos/dex/api"
 	oidc "github.com/coreos/go-oidc"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -141,15 +142,18 @@ func NewClientApp(settings *settings.ArgoCDSettings, sessionMgr *session.Session
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(scopes []string) *oauth2.Config {
-	provider, _ := a.sessionMgr.OIDCProvider()
+func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
+	provider, err := a.sessionMgr.OIDCProvider()
+	if err != nil {
+		return nil, err
+	}
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
 		Endpoint:     provider.Endpoint(),
 		Scopes:       scopes,
 		RedirectURL:  a.redirectURI,
-	}
+	}, nil
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -196,18 +200,23 @@ func (a *ClientApp) verifyAppState(state string) (*appState, error) {
 }
 
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	var authCodeURL string
+	var opts []oauth2.AuthCodeOption
 	returnURL := r.FormValue("return_url")
 	scopes := []string{"openid", "profile", "email", "groups"}
 	appState := a.generateAppState(returnURL)
 	if r.FormValue("offline_access") != "yes" {
-		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(appState)
+		// no-op
 	} else if a.sessionMgr.OfflineAsScope() {
 		scopes = append(scopes, "offline_access")
-		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(appState)
 	} else {
-		authCodeURL = a.oauth2Config(scopes).AuthCodeURL(appState, oauth2.AccessTypeOffline)
+		opts = append(opts, oauth2.AccessTypeOffline)
 	}
+	oauth2Config, err := a.oauth2Config(scopes)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	authCodeURL := oauth2Config.AuthCodeURL(appState, opts...)
 	http.Redirect(w, r, authCodeURL, http.StatusSeeOther)
 }
 
@@ -219,7 +228,11 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	)
 
 	ctx := oidc.ClientContext(r.Context(), a.client)
-	oauth2Config := a.oauth2Config(nil)
+	oauth2Config, err := a.oauth2Config(nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	switch r.Method {
 	case "GET":
 		// Authorization redirect callback from OAuth2 auth flow.

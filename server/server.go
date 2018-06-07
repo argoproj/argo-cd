@@ -162,7 +162,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 		go func() { a.checkServeErr("httpsS", httpsS.Serve(httpsL)) }()
 		go func() { a.checkServeErr("tlsm", tlsm.Serve()) }()
 	}
-	go a.initializeOIDCClientApp()
 	go a.watchSettings(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 
@@ -232,31 +231,6 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	a.Shutdown()
 	a.settingsMgr.Unsubscribe(updateCh)
 	close(updateCh)
-}
-
-// initializeOIDCClientApp initializes the OIDC Client application, querying the well known oidc
-// configuration path. Because ArgoCD is a OIDC client to itself, we have a chicken-and-egg problem
-// of (1) serving dex over HTTP, and (2) querying the OIDC provider (ourselves) to initialize the
-// app (HTTP GET http://example-argocd.com/api/dex/.well-known/openid-configuration)
-// This method is expected to be invoked right after we start listening over HTTP
-func (a *ArgoCDServer) initializeOIDCClientApp() {
-	if !a.settings.IsSSOConfigured() {
-		return
-	}
-	// wait for dex to become ready
-	dexClient, err := dexutil.NewDexClient()
-	errors.CheckError(err)
-	dexClient.WaitUntilReady()
-	var realErr error
-	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		_, realErr = a.sessionMgr.OIDCProvider()
-		if realErr != nil {
-			a.log.Warnf("failed to initialize client app: %v", realErr)
-			return false, nil
-		}
-		return true, nil
-	})
-	errors.CheckError(realErr)
 }
 
 func (a *ArgoCDServer) useTLS() bool {
