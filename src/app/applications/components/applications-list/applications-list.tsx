@@ -1,6 +1,7 @@
 import { DropDownMenu, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as moment from 'moment';
 import { RouteComponentProps } from 'react-router';
 import { Subscription } from 'rxjs';
 
@@ -94,6 +95,10 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                     <div className='columns small-9'>{app.status.comparisonResult.status}</div>
                                                 </div>
                                                 <div className='row'>
+                                                    <div className='columns small-3'>Age:</div>
+                                                    <div className='columns small-9'>{this.daysBeforeNow(app.metadata.creationTimestamp)} days</div>
+                                                </div>
+                                                <div className='row'>
                                                     <div className='columns small-3'>Repository:</div>
                                                     <div className='columns small-9'>
                                                         <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
@@ -163,6 +168,14 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
         this.changesSubscription = null;
     }
 
+    // DaysBeforeNow returns the delta, in days, between now and a given timestamp.
+    private daysBeforeNow(timestamp: string): number {
+        let now = moment();
+        let past = moment(timestamp);
+        let diff = moment.duration(now.diff(past));
+        return Math.round(diff.asDays());
+    }
+
     private async createApplication(params: NewAppParams) {
         try {
             await services.applications.create(params.applicationName, {
@@ -191,7 +204,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     type: NotificationType.Success,
                     content: `Synced revision`,
                 })
-	    });
+            });
         } catch (e) {
             this.appContext.apis.notifications.show({
                 type: NotificationType.Error,
