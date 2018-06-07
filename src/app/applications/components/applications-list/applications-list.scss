@@ -34,5 +34,9 @@
         &--health-Progressing {
             border-left-color: $argo-running-color;
         }
+
+        &--actions {
+            padding-top: 1em;
+        }
     }
 }

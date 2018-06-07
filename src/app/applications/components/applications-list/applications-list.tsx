@@ -90,19 +90,11 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                     <div className='columns small-9'>{app.spec.destination.server}</div>
                                                 </div>
                                                 <div className='row'>
-                                                    <div className='columns small-3'>k8sVersion:</div>
-                                                    <div className='columns small-9'>{app.spec.destination.server}</div>
-                                                </div>
-                                                <div className='row'>
                                                     <div className='columns small-3'>Status:</div>
                                                     <div className='columns small-9'>{app.status.comparisonResult.status}</div>
                                                 </div>
                                                 <div className='row'>
-                                                    <div className='columns small-3'>Age:</div>
-                                                    <div className='columns small-9'>{app.status.comparisonResult.status}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>REPO URL:</div>
+                                                    <div className='columns small-3'>Repository:</div>
                                                     <div className='columns small-9'>
                                                         <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
                                                             <i className='fa fa-external-link'/> {app.spec.source.repoURL}
@@ -110,17 +102,21 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                     </div>
                                                 </div>
                                                 <div className='row'>
-                                                    <div className='columns small-3'>PATH:</div>
+                                                    <div className='columns small-3'>Path:</div>
                                                     <div className='columns small-9'>{app.spec.source.path}</div>
                                                 </div>
                                                 <div className='row'>
-                                                    <div className='columns small-3'>ENVIRONMENT:</div>
+                                                    <div className='columns small-3'>Environment:</div>
                                                     <div className='columns small-9'>{app.spec.source.environment}</div>
                                                 </div>
-<DropDownMenu anchor={() => <a>Actions</a>} items={[{
-            title: 'menu item 1',
-            action: () => window.alert('Clicked!'),
-}]} />
+                                                <div className='row'>
+                                                    <div className='columns applications-list__entry--actions'>
+                                                        <DropDownMenu anchor={() => <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'> </i></button>} items={[
+                                                                { title: 'Sync', action: () => window.alert('Clicked!'), },
+                                                                { title: 'Delete', action: () => window.alert('Clicked!'), },
+                                                        ]} />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
