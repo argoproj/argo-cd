@@ -1,0 +1,1340 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Application Service",
+    "description": "Application Service API performs CRUD actions against application resources",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/applications": {
+      "get": {
+        "summary": "List returns list of applications",
+        "operationId": "List",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationList"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      },
+      "post": {
+        "summary": "Create creates an application",
+        "operationId": "Create",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{application.metadata.name}": {
+      "put": {
+        "summary": "Update updates an application",
+        "operationId": "Update",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "application.metadata.name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}": {
+      "get": {
+        "summary": "Get returns an application by name",
+        "operationId": "Get",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      },
+      "delete": {
+        "summary": "Delete deletes an application",
+        "operationId": "Delete",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "cascade",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}/events": {
+      "get": {
+        "summary": "ListResourceEvents returns a list of event resources",
+        "operationId": "ListResourceEvents",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "resourceName",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "resourceUID",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}/manifests": {
+      "get": {
+        "summary": "GetManifests returns application manifests",
+        "operationId": "GetManifests",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/repositoryManifestResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}/pods/{podName}": {
+      "delete": {
+        "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
+        "operationId": "DeletePod",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "podName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}/pods/{podName}/logs": {
+      "get": {
+        "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
+        "operationId": "PodLogs",
+        "responses": {
+          "200": {
+            "description": "(streaming responses)",
+            "schema": {
+              "$ref": "#/definitions/applicationLogEntry"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "podName",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "container",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sinceSeconds",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "sinceTime.seconds",
+            "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "sinceTime.nanos",
+            "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "tailLines",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "follow",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}/rollback": {
+      "post": {
+        "summary": "Sync syncs an application to its target state",
+        "operationId": "Rollback",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRollbackRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}/spec": {
+      "put": {
+        "summary": "Update updates an application spec",
+        "operationId": "UpdateSpec",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSpec"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSpec"
+            }
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/applications/{name}/sync": {
+      "post": {
+        "summary": "Sync syncs an application to its target state",
+        "operationId": "Sync",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationSyncRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
+    "/api/v1/stream/applications": {
+      "get": {
+        "summary": "Watch returns stream of application change events.",
+        "operationId": "Watch",
+        "responses": {
+          "200": {
+            "description": "(streaming responses)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationWatchEvent"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "apismetav1ObjectMeta": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
+        },
+        "generateName": {
+          "type": "string",
+          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#idempotency\n+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace defines the space within each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional"
+        },
+        "selfLink": {
+          "type": "string",
+          "title": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
+        },
+        "uid": {
+          "type": "string",
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "generation": {
+          "type": "string",
+          "format": "int64",
+          "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
+        },
+        "creationTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "description": "CreationTimestamp is a timestamp representing the server time when this object was\ncreated. It is not guaranteed to be set in happens-before order across separate operations.\nClients may not set this value. It is represented in RFC3339 form and is in UTC.\n\nPopulated by the system.\nRead-only.\nNull for lists.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata\n+optional"
+        },
+        "deletionTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "description": "DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This\nfield is set by the server when a graceful deletion is requested by the user, and is not\ndirectly settable by a client. The resource is expected to be deleted (no longer visible\nfrom resource lists, and not reachable by name) after the time in this field, once the\nfinalizers list is empty. As long as the finalizers list contains items, deletion is blocked.\nOnce the deletionTimestamp is set, this value may not be unset or be set further into the\nfuture, although it may be shortened or the resource may be deleted prior to this time.\nFor example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react\nby sending a graceful termination signal to the containers in the pod. After that 30 seconds,\nthe Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,\nremove the pod from the API. In the presence of network partitions, this object may still\nexist after this timestamp, until an administrator or automated process can determine the\nresource is fully terminated.\nIf not set, graceful deletion of the object has not been requested.\n\nPopulated by the system when a graceful deletion is requested.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata\n+optional"
+        },
+        "deletionGracePeriodSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional"
+        },
+        "ownerReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1OwnerReference"
+          },
+          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge"
+        },
+        "initializers": {
+          "$ref": "#/definitions/v1Initializers",
+          "description": "An initializer is a controller which enforces some system invariant at object creation time.\nThis field is a list of initializers that have not yet acted on this object. If nil or empty,\nthis object has been completely initialized. Otherwise, the object is considered uninitialized\nand is hidden (in list/watch and get calls) from clients that haven't explicitly asked to\nobserve uninitialized objects.\n\nWhen an object is created, the system will populate this list with the current set of initializers.\nOnly privileged users may set or modify this list. Once it is empty, it may not be modified further\nby any user."
+        },
+        "finalizers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\n+optional\n+patchStrategy=merge"
+        },
+        "clusterName": {
+          "type": "string",
+          "title": "The name of the cluster which the object belongs to.\nThis is used to distinguish resources with same name and namespace in different clusters.\nThis field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.\n+optional"
+        }
+      },
+      "description": "ObjectMeta is metadata that all persisted resources must have, which includes all objects\nusers must create."
+    },
+    "applicationApplicationResponse": {
+      "type": "object"
+    },
+    "applicationApplicationRollbackRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "prune": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "applicationApplicationSyncRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "prune": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      },
+      "title": "ApplicationSyncRequest is a request to apply the config state to live state"
+    },
+    "applicationLogEntry": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "timeStamp": {
+          "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
+    "repositoryManifestResponse": {
+      "type": "object",
+      "properties": {
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "server": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ComponentParameter"
+          }
+        }
+      }
+    },
+    "v1Event": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/apismetav1ObjectMeta",
+          "title": "Standard object's metadata.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+        },
+        "involvedObject": {
+          "$ref": "#/definitions/v1ObjectReference",
+          "description": "The object that this event is about."
+        },
+        "reason": {
+          "type": "string",
+          "title": "This should be a short, machine understandable string that gives the reason\nfor the transition into the object's current status.\nTODO: provide exact specification for format.\n+optional"
+        },
+        "message": {
+          "type": "string",
+          "title": "A human-readable description of the status of this operation.\nTODO: decide on maximum length.\n+optional"
+        },
+        "source": {
+          "$ref": "#/definitions/v1EventSource",
+          "title": "The component reporting this event. Should be a short machine understandable string.\n+optional"
+        },
+        "firstTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "title": "The time at which the event was first recorded. (Time of server receipt is in TypeMeta.)\n+optional"
+        },
+        "lastTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "title": "The time at which the most recent occurrence of this event was recorded.\n+optional"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of times this event has occurred.\n+optional"
+        },
+        "type": {
+          "type": "string",
+          "title": "Type of this event (Normal, Warning), new types could be added in the future\n+optional"
+        },
+        "eventTime": {
+          "$ref": "#/definitions/v1MicroTime",
+          "title": "Time when this Event was first observed.\n+optional"
+        },
+        "series": {
+          "$ref": "#/definitions/v1EventSeries",
+          "title": "Data about the Event series this event represents or nil if it's a singleton Event.\n+optional"
+        },
+        "action": {
+          "type": "string",
+          "title": "What action was taken/failed regarding to the Regarding object.\n+optional"
+        },
+        "related": {
+          "$ref": "#/definitions/v1ObjectReference",
+          "title": "Optional secondary object for more complex actions.\n+optional"
+        },
+        "reportingComponent": {
+          "type": "string",
+          "title": "Name of the controller that emitted this Event, e.g. `kubernetes.io/kubelet`.\n+optional"
+        },
+        "reportingInstance": {
+          "type": "string",
+          "title": "ID of the controller instance, e.g. `kubelet-xyzf`.\n+optional"
+        }
+      },
+      "description": "Event is a report of an event somewhere in the cluster."
+    },
+    "v1EventList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta",
+          "title": "Standard list metadata.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds\n+optional"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Event"
+          },
+          "title": "List of events"
+        }
+      },
+      "description": "EventList is a list of events."
+    },
+    "v1EventSeries": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Number of occurrences in this series up to the last heartbeat time"
+        },
+        "lastObservedTime": {
+          "$ref": "#/definitions/v1MicroTime",
+          "title": "Time of the last occurence observed"
+        },
+        "state": {
+          "type": "string",
+          "title": "State of this Series: Ongoing or Finished"
+        }
+      },
+      "description": "EventSeries contain information on series of events, i.e. thing that was/is happening\ncontinously for some time."
+    },
+    "v1EventSource": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "type": "string",
+          "title": "Component from which the event is generated.\n+optional"
+        },
+        "host": {
+          "type": "string",
+          "title": "Node name on which the event is generated.\n+optional"
+        }
+      },
+      "description": "EventSource contains information for an event."
+    },
+    "v1Initializer": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name of the process that is responsible for initializing this object."
+        }
+      },
+      "description": "Initializer is information about an initializer that has not yet completed."
+    },
+    "v1Initializers": {
+      "type": "object",
+      "properties": {
+        "pending": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Initializer"
+          },
+          "title": "Pending is a list of initializers that must execute in order before this object is visible.\nWhen the last pending initializer is removed, and no failing result is set, the initializers\nstruct will be set to nil and the object is considered as initialized and visible to all\nclients.\n+patchMergeKey=name\n+patchStrategy=merge"
+        },
+        "result": {
+          "$ref": "#/definitions/v1Status",
+          "description": "If result is set with the Failure field, the object will be persisted to storage and then deleted,\nensuring that other clients can observe the deletion."
+        }
+      },
+      "description": "Initializers tracks the progress of initialization."
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "selfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nlist may not be possible if the server configuration has changed or more than a few minutes have\npassed. The resourceVersion field returned when using this continue value will be identical to\nthe value in the first response."
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1MicroTime": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "MicroTime is version of Time with microsecond level precision.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1ObjectReference": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds\n+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/\n+optional"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names\n+optional"
+        },
+        "uid": {
+          "type": "string",
+          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids\n+optional"
+        },
+        "apiVersion": {
+          "type": "string",
+          "title": "API version of the referent.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "Specific resourceVersion to which this reference is made, if any.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "fieldPath": {
+          "type": "string",
+          "title": "If referring to a piece of an object instead of an entire object, this string\nshould contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2].\nFor example, if the object reference is to a container within a pod, this would take on a value like:\n\"spec.containers{name}\" (where \"name\" refers to the name of the container that triggered\nthe event) or if no container name is specified \"spec.containers[2]\" (container with\nindex 2 in this pod). This syntax is chosen only to have some well-defined way of\nreferencing a part of an object.\nTODO: this design is not final and this field is subject to change in the future.\n+optional"
+        }
+      },
+      "title": "ObjectReference contains enough information to let you inspect or modify the referred object.\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object"
+    },
+    "v1OwnerReference": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "type": "string",
+          "description": "API version of the referent."
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names"
+        },
+        "uid": {
+          "type": "string",
+          "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+        },
+        "controller": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "If true, this reference points to the managing controller.\n+optional"
+        },
+        "blockOwnerDeletion": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
+        }
+      },
+      "description": "OwnerReference contains enough information to let you identify an owning\nobject. Currently, an owning object must be in the same namespace, so there\nis no namespace field."
+    },
+    "v1Status": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta",
+          "title": "Standard list metadata.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds\n+optional"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status of the operation.\nOne of: \"Success\" or \"Failure\".\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status\n+optional"
+        },
+        "message": {
+          "type": "string",
+          "title": "A human-readable description of the status of this operation.\n+optional"
+        },
+        "reason": {
+          "type": "string",
+          "title": "A machine-readable description of why this operation is in the\n\"Failure\" status. If this value is empty there\nis no information available. A Reason clarifies an HTTP status\ncode but does not override it.\n+optional"
+        },
+        "details": {
+          "$ref": "#/definitions/v1StatusDetails",
+          "title": "Extended data associated with the reason.  Each reason may define its\nown extended details. This field is optional and the data returned\nis not guaranteed to conform to any schema except that defined by\nthe reason type.\n+optional"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32",
+          "title": "Suggested HTTP return code for this status, 0 if not set.\n+optional"
+        }
+      },
+      "description": "Status is a return value for calls that don't return other objects."
+    },
+    "v1StatusCause": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "title": "A machine-readable description of the cause of the error. If this value is\nempty there is no information available.\n+optional"
+        },
+        "message": {
+          "type": "string",
+          "title": "A human-readable description of the cause of the error.  This field may be\npresented as-is to a reader.\n+optional"
+        },
+        "field": {
+          "type": "string",
+          "description": "The field of the resource that has caused this error, as named by its JSON\nserialization. May include dot and postfix notation for nested attributes.\nArrays are zero-indexed.  Fields may appear more than once in an array of\ncauses due to fields having multiple errors.\nOptional.\n\nExamples:\n  \"name\" - the field \"name\" on the current resource\n  \"items[0].name\" - the field \"name\" on the first array entry in \"items\"\n+optional"
+        }
+      },
+      "description": "StatusCause provides more information about an api.Status failure, including\ncases when multiple errors are encountered."
+    },
+    "v1StatusDetails": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "The name attribute of the resource associated with the status StatusReason\n(when there is a single name which can be described).\n+optional"
+        },
+        "group": {
+          "type": "string",
+          "title": "The group attribute of the resource associated with the status StatusReason.\n+optional"
+        },
+        "kind": {
+          "type": "string",
+          "title": "The kind attribute of the resource associated with the status StatusReason.\nOn some operations may differ from the requested resource Kind.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds\n+optional"
+        },
+        "uid": {
+          "type": "string",
+          "title": "UID of the resource.\n(when there is a single resource which can be described).\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional"
+        },
+        "causes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1StatusCause"
+          },
+          "title": "The Causes array includes more details associated with the StatusReason\nfailure. Not all StatusReasons may provide detailed causes.\n+optional"
+        },
+        "retryAfterSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "title": "If specified, the time in seconds before the operation should be retried. Some errors may indicate\nthe client must take an alternate action - for those errors this field may indicate how long to wait\nbefore taking the alternate action.\n+optional"
+        }
+      },
+      "description": "StatusDetails is a set of additional properties that MAY be set by the\nserver to provide additional information about a response. The Reason\nfield of a Status object defines what attributes will be set. Clients\nmust ignore fields that do not match the defined type of each attribute,\nand should assume that any attribute may be empty, invalid, or under\ndefined."
+    },
+    "v1Time": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1alpha1Application": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/apismetav1ObjectMeta"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1alpha1ApplicationSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1ApplicationStatus"
+        },
+        "operation": {
+          "$ref": "#/definitions/v1alpha1Operation"
+        }
+      },
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object"
+    },
+    "v1alpha1ApplicationCondition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "Type is an application condition type"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human-readable message indicating details about condition"
+        }
+      },
+      "title": "ApplicationCondition contains details about current application condition"
+    },
+    "v1alpha1ApplicationDestination": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "title": "Server overrides the environment server value in the ksonnet app.yaml"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace overrides the environment namespace value in the ksonnet app.yaml"
+        }
+      },
+      "title": "ApplicationDestination contains deployment destination information"
+    },
+    "v1alpha1ApplicationList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Application"
+          }
+        }
+      },
+      "title": "ApplicationList is list of Application resources\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object"
+    },
+    "v1alpha1ApplicationSource": {
+      "type": "object",
+      "properties": {
+        "repoURL": {
+          "type": "string",
+          "description": "RepoURL is the repository URL containing the ksonnet application."
+        },
+        "path": {
+          "type": "string",
+          "description": "Path is a directory path within repository which contains ksonnet application."
+        },
+        "environment": {
+          "type": "string",
+          "description": "Environment is a ksonnet application environment name."
+        },
+        "targetRevision": {
+          "type": "string",
+          "title": "TargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
+        },
+        "componentParameterOverrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ComponentParameter"
+          },
+          "title": "Environment parameter override values"
+        }
+      },
+      "description": "ApplicationSource contains information about github repository, path within repository and target application environment."
+    },
+    "v1alpha1ApplicationSpec": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource",
+          "title": "Source is a reference to the location ksonnet application definition"
+        },
+        "destination": {
+          "$ref": "#/definitions/v1alpha1ApplicationDestination",
+          "title": "Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml"
+        }
+      },
+      "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision."
+    },
+    "v1alpha1ApplicationStatus": {
+      "type": "object",
+      "properties": {
+        "comparisonResult": {
+          "$ref": "#/definitions/v1alpha1ComparisonResult"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1DeploymentInfo"
+          }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ComponentParameter"
+          }
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "operationState": {
+          "$ref": "#/definitions/v1alpha1OperationState"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationCondition"
+          }
+        }
+      },
+      "description": "ApplicationStatus contains information about application status in target environment."
+    },
+    "v1alpha1ApplicationWatchEvent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "application": {
+          "$ref": "#/definitions/v1alpha1Application",
+          "description": "Application is:\n * If Type is Added or Modified: the new state of the object.\n * If Type is Deleted: the state of the object immediately before deletion.\n * If Type is Error: *api.Status is recommended; other types may make sense\n   depending on context."
+        }
+      },
+      "description": "ApplicationWatchEvent contains information about application change."
+    },
+    "v1alpha1ComparisonResult": {
+      "type": "object",
+      "properties": {
+        "comparedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "comparedTo": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "status": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceState"
+          }
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "description": "ComparisonResult is a comparison result of application spec and deployed application."
+    },
+    "v1alpha1ComponentParameter": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "title": "ComponentParameter contains information about component parameter value"
+    },
+    "v1alpha1DeploymentInfo": {
+      "type": "object",
+      "properties": {
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ComponentParameter"
+          }
+        },
+        "revision": {
+          "type": "string"
+        },
+        "componentParameterOverrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ComponentParameter"
+          }
+        },
+        "deployedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "id": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "title": "DeploymentInfo contains information relevant to an application deployment"
+    },
+    "v1alpha1HealthStatus": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "statusDetails": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1Operation": {
+      "type": "object",
+      "properties": {
+        "sync": {
+          "$ref": "#/definitions/v1alpha1SyncOperation"
+        },
+        "rollback": {
+          "$ref": "#/definitions/v1alpha1RollbackOperation"
+        }
+      },
+      "description": "Operation contains requested operation parameters."
+    },
+    "v1alpha1OperationState": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/v1alpha1Operation",
+          "title": "Operation is the original requested operation"
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase is the current phase of the operation"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message hold any pertinent messages when attempting to perform operation (typically errors)."
+        },
+        "syncResult": {
+          "$ref": "#/definitions/v1alpha1SyncOperationResult",
+          "title": "SyncResult is the result of a Sync operation"
+        },
+        "rollbackResult": {
+          "$ref": "#/definitions/v1alpha1SyncOperationResult",
+          "title": "RollbackResult is the result of a Rollback operation"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "StartedAt contains time of operation start"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "FinishedAt contains time of operation completion"
+        }
+      },
+      "description": "OperationState contains information about state of currently performing operation on application."
+    },
+    "v1alpha1ResourceDetails": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceNode": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
+        }
+      },
+      "title": "ResourceNode contains information about live resource and its children"
+    },
+    "v1alpha1ResourceState": {
+      "type": "object",
+      "properties": {
+        "targetState": {
+          "type": "string"
+        },
+        "liveState": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "childLiveResources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        }
+      },
+      "title": "ResourceState holds the target state of a resource and live state of a resource"
+    },
+    "v1alpha1RollbackOperation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "prune": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "v1alpha1SyncOperation": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "string"
+        },
+        "prune": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      },
+      "description": "SyncOperation contains sync operation details."
+    },
+    "v1alpha1SyncOperationResult": {
+      "type": "object",
+      "properties": {
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDetails"
+          }
+        }
+      },
+      "title": "SyncOperationResult represent result of sync operation"
+    }
+  }
+}

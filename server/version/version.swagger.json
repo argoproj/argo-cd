@@ -1,0 +1,69 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Version Service",
+    "description": "Version Service API returns the version of the API server.",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/version": {
+      "get": {
+        "summary": "Version returns version information of the API server",
+        "operationId": "Version",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/versionVersionMessage"
+            }
+          }
+        },
+        "tags": [
+          "VersionService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "versionVersionMessage": {
+      "type": "object",
+      "properties": {
+        "Version": {
+          "type": "string"
+        },
+        "BuildDate": {
+          "type": "string"
+        },
+        "GitCommit": {
+          "type": "string"
+        },
+        "GitTag": {
+          "type": "string"
+        },
+        "GitTreeState": {
+          "type": "string"
+        },
+        "GoVersion": {
+          "type": "string"
+        },
+        "Compiler": {
+          "type": "string"
+        },
+        "Platform": {
+          "type": "string"
+        }
+      },
+      "title": "VersionMessage represents version of the ArgoCD API server"
+    }
+  }
+}

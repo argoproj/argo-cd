@@ -1,0 +1,293 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Cluster Service",
+    "description": "Cluster Service API performs CRUD actions against cluster resources",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/clusters": {
+      "get": {
+        "summary": "List returns list of clusters",
+        "operationId": "List",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ClusterList"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      },
+      "post": {
+        "summary": "Create creates a cluster",
+        "operationId": "Create",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/clusters/{cluster.server}": {
+      "put": {
+        "summary": "Update updates a cluster",
+        "operationId": "Update",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cluster.server",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/clusters/{server}": {
+      "get": {
+        "summary": "Get returns a cluster by server address",
+        "operationId": "Get",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "server",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      },
+      "delete": {
+        "summary": "Delete updates a cluster",
+        "operationId": "Delete",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/clusterClusterResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "server",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "clusterClusterResponse": {
+      "type": "object"
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "selfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nlist may not be possible if the server configuration has changed or more than a few minutes have\npassed. The resourceVersion field returned when using this continue value will be identical to\nthe value in the first response."
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1Time": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1alpha1Cluster": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "title": "Server is the API server URL of the Kubernetes cluster"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the cluster. If omitted, will use the server address"
+        },
+        "config": {
+          "$ref": "#/definitions/v1alpha1ClusterConfig",
+          "title": "Config holds cluster information for connecting to a cluster"
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState",
+          "title": "ConnectionState contains information about cluster connection state"
+        }
+      },
+      "title": "Cluster is the definition of a cluster resource"
+    },
+    "v1alpha1ClusterConfig": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "title": "Server requires Basic authentication"
+        },
+        "password": {
+          "type": "string"
+        },
+        "bearerToken": {
+          "type": "string",
+          "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client."
+        },
+        "tlsClientConfig": {
+          "$ref": "#/definitions/v1alpha1TLSClientConfig",
+          "title": "TLSClientConfig contains settings to enable transport layer security"
+        }
+      },
+      "description": "ClusterConfig is the configuration attributes. This structure is subset of the go-client\nrest.Config with annotations added for marshalling."
+    },
+    "v1alpha1ClusterList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Cluster"
+          }
+        }
+      },
+      "description": "ClusterList is a collection of Clusters."
+    },
+    "v1alpha1ConnectionState": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "attemptedAt": {
+          "$ref": "#/definitions/v1Time"
+        }
+      },
+      "title": "ConnectionState contains information about remote resource connection state"
+    },
+    "v1alpha1TLSClientConfig": {
+      "type": "object",
+      "properties": {
+        "insecure": {
+          "type": "boolean",
+          "format": "boolean",
+          "description": "Server should be accessed without verifying the TLS certificate. For testing only."
+        },
+        "serverName": {
+          "type": "string",
+          "description": "ServerName is passed to the server for SNI and is used in the client to check server\nceritificates against. If ServerName is empty, the hostname used to contact the\nserver is used."
+        },
+        "certData": {
+          "type": "string",
+          "format": "byte",
+          "title": "CertData holds PEM-encoded bytes (typically read from a client certificate file).\nCertData takes precedence over CertFile"
+        },
+        "keyData": {
+          "type": "string",
+          "format": "byte",
+          "title": "KeyData holds PEM-encoded bytes (typically read from a client certificate key file).\nKeyData takes precedence over KeyFile"
+        },
+        "caData": {
+          "type": "string",
+          "format": "byte",
+          "title": "CAData holds PEM-encoded bytes (typically read from a root certificates bundle).\nCAData takes precedence over CAFile"
+        }
+      },
+      "title": "TLSClientConfig contains settings to enable transport layer security"
+    }
+  }
+}
