@@ -81,10 +81,12 @@ for i in ${PROTO_FILES}; do
         $i
 done
 
+# collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
-    /bin/mkdir -p "$1/swagger-ui"
-    /bin/rm -f "$1/swagger-ui/*.swagger.json"
-    /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "$1/swagger-ui" \;
+    SWAGGER_DEST="$1/swagger"
+    /bin/mkdir -p "${SWAGGER_DEST}"
+    /bin/rm -f "${SWAGGER_DEST}/*.swagger.json"
+    /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "${SWAGGER_DEST}" \;
 }
 
 collect_swagger server
