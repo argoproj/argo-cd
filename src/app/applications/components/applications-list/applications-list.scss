@@ -23,16 +23,16 @@
         padding-left: 1em;
         border-left: 5px solid $argo-color-gray-4;
 
-        &--health-Healthy {
+        &--comparison-Synced {
             border-left-color: $argo-success-color;
         }
 
-        &--health-Degraded {
+        &--comparison-Error {
             border-left-color: $argo-failed-color;
         }
 
-        &--health-Progressing {
-            border-left-color: $argo-running-color;
+        &--comparison-OutOfSync {
+            border-left-color: $argo-failed-color;
         }
 
         &--actions {

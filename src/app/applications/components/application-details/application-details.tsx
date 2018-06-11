@@ -26,7 +26,6 @@ export class ApplicationDetails extends React.Component<
         { deployRevision: string, application: appModels.Application }> {
 
     public static contextTypes = {
-        router: PropTypes.object,
         apis: PropTypes.object,
     };
 
@@ -100,7 +99,7 @@ export class ApplicationDetails extends React.Component<
             items: kinds.map((kind) => ({ value: kind, label: kind })),
             selectedValues: kindsFilter,
             selectionChanged: (items) => {
-                this.appContext.router.history.push(`${this.props.match.url}?kinds=${items.join(',')}`);
+                this.appContext.apis.navigation.goto('.', { kinds: `${items.join(',')}`});
             },
         };
 
@@ -220,20 +219,20 @@ export class ApplicationDetails extends React.Component<
     }
 
     private setDeployPanelVisible(isVisible: boolean) {
-        this.appContext.router.history.push(`${this.props.match.url}?deploy=${isVisible}`);
+        this.appContext.apis.navigation.goto('.', { deploy: isVisible });
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
-        this.appContext.router.history.push(`${this.props.match.url}?operation=${isVisible}`);
+        this.appContext.apis.navigation.goto('.', { operation: isVisible });
     }
 
     private setRollbackPanelVisible(selectedDeploymentIndex = 0) {
-        this.appContext.router.history.push(`${this.props.match.url}?rollback=${selectedDeploymentIndex}`);
+        this.appContext.apis.navigation.goto('.', { rollback: selectedDeploymentIndex });
     }
 
     private selectNode(fullName: string, containerIndex = 0) {
-        const node = fullName ? `${fullName}:${containerIndex}` : '';
-        this.appContext.router.history.push(`${this.props.match.url}?node=${node}`);
+        const node = fullName ? `${fullName}:${containerIndex}` : null;
+        this.appContext.apis.navigation.goto('.', { node });
     }
 
     private async syncApplication(revision: string) {
@@ -304,7 +303,7 @@ export class ApplicationDetails extends React.Component<
         if (confirmed) {
             try {
                 await services.applications.delete(this.props.match.params.name, force);
-                this.appContext.router.history.push('/applications');
+                this.appContext.apis.navigation.goto('/applications');
             } catch (e) {
                 this.appContext.apis.notifications.show({
                     type: NotificationType.Error,

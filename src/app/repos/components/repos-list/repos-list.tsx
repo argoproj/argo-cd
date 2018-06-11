@@ -42,7 +42,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
                     <div className='row repos-list__top-panel argo-container'>
 
                         <div className='columns small-7'>
-                            <i className='argo-icon-axcluster'/>
+                            <i className='argo-icon-github'/>
                         </div>
 
                         <div className='columns small-5'>

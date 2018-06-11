@@ -45,6 +45,11 @@ function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.Resou
     });
 }
 
+function sortNodes(nodes: models.ResourceNode[]): models.ResourceNode[] {
+    return nodes.slice().sort(
+        (first, second) => `${first.state.metadata.namespace}/${first.state.metadata.name}`.localeCompare(`${second.state.metadata.namespace}/${second.state.metadata.name}`));
+}
+
 export const ApplicationResourcesTree = (props: {
     app: models.Application,
     kindsFilter: string[],
@@ -60,7 +65,7 @@ export const ApplicationResourcesTree = (props: {
 
     function addChildren<T extends (models.ResourceNode | models.ResourceState) & { fullName: string, children: models.ResourceNode[] }>(node: T) {
         graph.setNode(node.fullName, Object.assign({}, node, { width: NODE_WIDTH, height: NODE_HEIGHT}));
-        for (const child of (node.children || [])) {
+        for (const child of sortNodes(node.children || [])) {
             const fullName = `${child.state.kind}:${child.state.metadata.name}`;
             addChildren({...child, fullName});
             graph.setEdge(node.fullName, fullName);

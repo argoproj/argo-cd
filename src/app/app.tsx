@@ -12,6 +12,7 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import repos from './repos';
+import { NavigationManager } from './shared/navigation';
 
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
     '/login': { component: login.component as any, noLayout: true },
@@ -50,12 +51,14 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
 
     private popupManager: PopupManager;
     private notificationsManager: NotificationsManager;
+    private navigationManager: NavigationManager;
 
     constructor(props: {}) {
         super(props);
         this.state = { notifications: [], popupProps: null };
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
+        this.navigationManager = new NavigationManager(history);
     }
 
     public componentDidMount() {
@@ -95,6 +98,6 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
     }
 
     public getChildContext() {
-        return { history, apis: { popup: this.popupManager, notifications: this.notificationsManager } };
+        return { history, apis: { popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager } };
     }
 }

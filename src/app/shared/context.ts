@@ -1,3 +1,4 @@
-import { AppContext as ArgoAppContext } from 'argo-ui';
+import { AppContext as ArgoAppContext, NotificationsApi, PopupApi } from 'argo-ui';
+import { NavigationApi } from './navigation';
 
-export type AppContext = ArgoAppContext;
+export type AppContext = ArgoAppContext & { apis: { popup: PopupApi; notifications: NotificationsApi; navigation: NavigationApi }; };

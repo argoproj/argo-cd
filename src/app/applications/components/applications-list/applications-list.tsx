@@ -10,6 +10,7 @@ import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
+import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
@@ -75,9 +76,9 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     {this.state.applications ? (
                         <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
                             {this.state.applications.map((app) => (
-                                <div className='column column-block'>
-                                    <div key={app.metadata.name} className={`argo-table-list__row
-                                        applications-list__entry applications-list__entry--health-${app.status.health.status}`
+                                <div key={app.metadata.name} className='column column-block'>
+                                    <div className={`argo-table-list__row
+                                        applications-list__entry applications-list__entry--comparison-${app.status.comparisonResult.status}`
                                     }>
                                         <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
                                             <div className='columns small-12 applications-list__info'>
@@ -94,7 +95,15 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                 </div>
                                                 <div className='row'>
                                                     <div className='columns small-3'>Status:</div>
-                                                    <div className='columns small-9'>{app.status.comparisonResult.status}</div>
+                                                    <div className='columns small-9'>
+                                                        <ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}
+                                                    </div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Health:</div>
+                                                    <div className='columns small-9'>
+                                                        <HealthStatusIcon state={app.status.health}/> {app.status.health.status}
+                                                    </div>
                                                 </div>
                                                 <div className='row'>
                                                     <div className='columns small-3'>Age:</div>
