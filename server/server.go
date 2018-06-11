@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -119,6 +120,13 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 		settingsMgr:      settingsMgr,
 		enf:              enf,
 	}
+}
+
+// ServeSwaggerUI serves the Swagger UI.
+func serveSwaggerUI(mux *http.ServeMux) {
+	fs := http.FileServer(http.Dir(filepath.Join("server", "swagger")))
+	prefix := "/swagger/"
+	mux.Handle(prefix, http.StripPrefix(prefix, fs))
 }
 
 // Run runs the API Server
@@ -357,6 +365,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+
+	serveSwaggerUI(mux)
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
