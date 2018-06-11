@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /usr/bin/env bash
 
 # This script auto-generates protobuf related files. It is intended to be run manually when either
 # API types are added/modified, or server gRPC calls are added. The generated files should then
@@ -80,3 +80,11 @@ for i in ${PROTO_FILES}; do
         --swagger_out=logtostderr=true:. \
         $i
 done
+
+collect_swagger() {
+    mkdir -p "$1/swagger"
+    find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "$1/swagger" \;
+}
+
+collect_swagger server
+collect_swagger reposerver
