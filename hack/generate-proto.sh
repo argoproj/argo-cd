@@ -83,7 +83,7 @@ done
 
 collect_swagger() {
     /bin/mkdir -p "$1/swagger-ui"
-    /usr/bin/find "$1" -name '*.swagger.json' -delete
+    /bin/rm -f "$1/swagger-ui/*.swagger.json"
     /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "$1/swagger-ui" \;
 }
 
