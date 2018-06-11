@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -124,7 +123,7 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 
 // ServeSwaggerUI serves the Swagger UI.
 func serveSwaggerUI(mux *http.ServeMux) {
-	fs := http.FileServer(http.Dir(filepath.Join("server", "swagger")))
+	fs := http.FileServer(http.Dir("swagger"))
 	prefix := "/swagger/"
 	mux.Handle(prefix, http.StripPrefix(prefix, fs))
 }
