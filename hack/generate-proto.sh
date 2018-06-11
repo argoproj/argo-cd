@@ -82,8 +82,9 @@ for i in ${PROTO_FILES}; do
 done
 
 collect_swagger() {
-    mkdir -p "$1/swagger"
-    find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "$1/swagger" \;
+    /bin/mkdir -p "$1/swagger-ui"
+    /usr/bin/find "$1" -name '*.swagger.json' -delete
+    /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "$1/swagger-ui" \;
 }
 
 collect_swagger server
