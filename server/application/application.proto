@@ -154,7 +154,7 @@ service ApplicationService {
 		};
 	}
 
-	// Sync syncs an application to its target state
+	// Rollback syncs an application to its target state
 	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollback"
