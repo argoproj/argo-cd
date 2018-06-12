@@ -256,6 +256,8 @@ message ResourceDetails {
   optional string namespace = 3;
 
   optional string message = 4;
+
+  optional string status = 5;
 }
 
 // ResourceNode contains information about live resource and its children
