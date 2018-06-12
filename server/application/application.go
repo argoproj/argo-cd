@@ -68,6 +68,11 @@ func NewServer(
 	}
 }
 
+// appRBACName formats fully qualified application name for RBAC check
+func appRBACName(app appv1.Application) string {
+	return fmt.Sprintf("%s/%s", git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Name)
+}
+
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.ApplicationList, error) {
 	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
@@ -75,9 +80,9 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 		return nil, err
 	}
 	newItems := make([]appv1.Application, 0)
-	for _, app := range appList.Items {
-		if s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", fmt.Sprintf("*/%s", app.Name)) {
-			newItems = append(newItems, app)
+	for _, a := range appList.Items {
+		if s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(a)) {
+			newItems = append(newItems, a)
 		}
 	}
 	appList.Items = newItems
@@ -86,7 +91,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "create", fmt.Sprintf("*/%s", q.Application.Name)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "create", appRBACName(q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	a := q.Application
@@ -103,7 +108,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 			return nil, status.Errorf(codes.Internal, "unable to check existing application details: %v", err)
 		}
 		if q.Upsert != nil && *q.Upsert {
-			if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", fmt.Sprintf("*/%s", q.Application.Name)) {
+			if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(a)) {
 				return nil, grpc.ErrPermissionDenied
 			}
 			existing.Spec = a.Spec
@@ -121,39 +126,39 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) (*repository.ManifestResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/manifests", "get", fmt.Sprintf("*/%s", *q.Name)) {
-		return nil, grpc.ErrPermissionDenied
-	}
-	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	repo := s.getRepo(ctx, app.Spec.Source.RepoURL)
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/manifests", "get", appRBACName(*a)) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	repo := s.getRepo(ctx, a.Spec.Source.RepoURL)
 
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(conn)
-	overrides := make([]*appv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
-	if app.Spec.Source.ComponentParameterOverrides != nil {
-		for i := range app.Spec.Source.ComponentParameterOverrides {
-			item := app.Spec.Source.ComponentParameterOverrides[i]
+	overrides := make([]*appv1.ComponentParameter, len(a.Spec.Source.ComponentParameterOverrides))
+	if a.Spec.Source.ComponentParameterOverrides != nil {
+		for i := range a.Spec.Source.ComponentParameterOverrides {
+			item := a.Spec.Source.ComponentParameterOverrides[i]
 			overrides[i] = &item
 		}
 	}
 
-	revision := app.Spec.Source.TargetRevision
+	revision := a.Spec.Source.TargetRevision
 	if q.Revision != "" {
 		revision = q.Revision
 	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
-		Environment:                 app.Spec.Source.Environment,
-		Path:                        app.Spec.Source.Path,
+		Environment:                 a.Spec.Source.Environment,
+		Path:                        a.Spec.Source.Path,
 		Revision:                    revision,
 		ComponentParameterOverrides: overrides,
-		AppLabel:                    app.Name,
+		AppLabel:                    a.Name,
 	})
 	if err != nil {
 		return nil, err
@@ -164,15 +169,23 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", fmt.Sprintf("*/%s", *q.Name)) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	return a, nil
 }
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceEventsQuery) (*v1.EventList, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/events", "get", fmt.Sprintf("*/%s", *q.Name)) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/events", "get", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
@@ -198,7 +211,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", fmt.Sprintf("*/%s", q.Application.Name)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(*q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	a := q.Application
@@ -211,10 +224,14 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 
 // UpdateSpec updates an application spec
 func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", fmt.Sprintf("*/%s", *q.Name)) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	err := s.validateApp(ctx, &q.Spec)
+	err = s.validateApp(ctx, &q.Spec)
 	if err != nil {
 		return nil, err
 	}
@@ -230,12 +247,13 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*ApplicationResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", fmt.Sprintf("*/%s", *q.Name)) {
-		return nil, grpc.ErrPermissionDenied
-	}
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
+	}
+
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
+		return nil, grpc.ErrPermissionDenied
 	}
 
 	if q.Cascade != nil && *q.Cascade != a.CascadedDeletion() {
@@ -271,15 +289,15 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	done := make(chan bool)
 	go func() {
 		for next := range w.ResultChan() {
-			app := *next.Object.(*appv1.Application)
-			if q.Name == nil || *q.Name == "" || *q.Name == app.Name {
-				if !s.enf.EnforceClaims(claims, "applications", "get", fmt.Sprintf("*/%s", app.Name)) {
+			a := *next.Object.(*appv1.Application)
+			if q.Name == nil || *q.Name == "" || *q.Name == a.Name {
+				if !s.enf.EnforceClaims(claims, "applications", "get", appRBACName(a)) {
 					// do not emit apps user does not have accessing
 					continue
 				}
 				err = ws.Send(&appv1.ApplicationWatchEvent{
 					Type:        next.Type,
-					Application: app,
+					Application: a,
 				})
 				if err != nil {
 					log.Warnf("Unable to send stream message: %v", err)
@@ -405,9 +423,15 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 }
 
 func (s *Server) DeletePod(ctx context.Context, q *ApplicationDeletePodRequest) (*ApplicationResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/pods", "delete", fmt.Sprintf("*/%s", *q.Name)) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/pods", "delete", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
+
 	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return nil, err
@@ -428,8 +452,11 @@ func (s *Server) DeletePod(ctx context.Context, q *ApplicationDeletePodRequest) 
 }
 
 func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLogsServer) error {
-	claims := ws.Context().Value("claims")
-	if !s.enf.EnforceClaims(claims, "applications/logs", "get", fmt.Sprintf("*/%s", *q.Name)) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if !s.enf.EnforceClaims(ws.Context().Value("claims"), "applications/logs", "get", appRBACName(*a)) {
 		return grpc.ErrPermissionDenied
 	}
 	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
@@ -498,11 +525,11 @@ func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLo
 }
 
 func (s *Server) getApplicationDestination(ctx context.Context, name string) (string, string, error) {
-	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return "", "", err
 	}
-	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
+	server, namespace := a.Spec.Destination.Server, a.Spec.Destination.Namespace
 	return server, namespace, nil
 }
 
@@ -517,7 +544,11 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", fmt.Sprintf("*/%s", *syncReq.Name)) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*syncReq.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.setAppOperation(ctx, *syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
@@ -532,7 +563,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "rollback", fmt.Sprintf("*/%s", *rollbackReq.Name)) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*rollbackReq.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "rollback", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.setAppOperation(ctx, *rollbackReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
