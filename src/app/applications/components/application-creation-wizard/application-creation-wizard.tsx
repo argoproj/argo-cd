@@ -1,3 +1,4 @@
+import { MockupList } from 'argo-ui';
 import * as path from 'path';
 import * as React from 'react';
 import { BehaviorSubject } from 'rxjs';
@@ -77,7 +78,11 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     next: () => this.updateState({ envs: this.state.selectedApp.environments, step: Step.SelectEnvironments}),
                     canPrev: () => true,
                     prev: () => this.updateState({ step: Step.SelectRepo }),
-                    render: () => <AppsList apps={this.state.apps} selectedApp={this.state.selectedApp} onAppSelected={(app) => this.updateState({ selectedApp: app })}/>,
+                    render: () => this.state.apps ? (
+                        <AppsList apps={this.state.apps} selectedApp={this.state.selectedApp} onAppSelected={(app) => this.updateState({ selectedApp: app })}/>
+                    ) : (
+                        <MockupList height={50} marginTop={10}/>
+                    ),
                 };
             case Step.SelectEnvironments:
                 return {
@@ -124,9 +129,9 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     canNext: () => !!this.state.selectedRepo,
                     next: async () => {
                         try {
-                            this.updateState({ loading: true });
+                            this.updateState({ loading: true, step: Step.SelectApp, apps: null });
                             const apps = await services.reposService.ksonnetApps(this.state.selectedRepo);
-                            this.updateState({ apps, step: Step.SelectApp });
+                            this.updateState({ apps, loading: false });
                         } finally {
                             this.updateState({ loading: false });
                         }

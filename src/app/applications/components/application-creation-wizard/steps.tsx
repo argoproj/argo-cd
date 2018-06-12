@@ -9,6 +9,11 @@ import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 
 export const AppsList = (props: {apps: models.KsonnetAppSpec[], selectedApp: models.KsonnetAppSpec, onAppSelected: (app: models.KsonnetAppSpec) => any}) => (
+    props.apps.length === 0 ? (
+    <div>
+        Repository has no applications.
+    </div>
+    ) : (
     <div className='argo-table-list argo-table-list--clickable'>
         <div className='argo-table-list__head'>
             <div className='row'>
@@ -27,6 +32,7 @@ export const AppsList = (props: {apps: models.KsonnetAppSpec[], selectedApp: mod
             </div>
         ))}
     </div>
+    )
 );
 
 export const RepositoryList: React.StatelessComponent<

@@ -63,6 +63,10 @@ const config = {
             '/api': {
                 'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
                 'secure': false,
+            },
+            '/auth': {
+                'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
+                'secure': false,
             }
         }
     }

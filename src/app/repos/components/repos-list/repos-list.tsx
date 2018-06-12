@@ -89,7 +89,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
                 <SlidingPanel isShown={this.showConnectRepo} onClose={() => this.showConnectRepo = false} header={(
                     <div>
                     <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
-                        Create
+                        Connect
                     </button> <button onClick={() => this.showConnectRepo = false} className='argo-button argo-button--base-o'>
                         Cancel
                     </button>
