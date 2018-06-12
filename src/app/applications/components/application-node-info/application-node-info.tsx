@@ -31,6 +31,9 @@ export const ApplicationNodeInfo = (props: { node: models.ResourceNode | models.
         attributes.push({title: 'HEALTH', value: (
             <span><HealthStatusIcon state={resourceState.health}/> {resourceState.health.status}</span>
         )} as any);
+        if (resourceState.health.statusDetails) {
+            attributes.push({title: 'HEALTH DETAILS', value: resourceState.health.statusDetails});
+        }
     }
 
     return (
