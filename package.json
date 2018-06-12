@@ -17,7 +17,7 @@
     "@types/react-form": "^2.16.0",
     "@types/react-router-dom": "^4.2.3",
     "@types/superagent": "^3.5.7",
-    "argo-ui": "^2.1.1-alpha5",
+    "argo-ui": "^2.1.1-alpha6",
     "awesome-typescript-loader": "^3.4.1",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.3",

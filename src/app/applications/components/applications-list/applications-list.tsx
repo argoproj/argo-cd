@@ -5,7 +5,7 @@ import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 import { Subscription } from 'rxjs';
 
-import { Page } from '../../../shared/components';
+import { ErrorNotification, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -205,8 +205,8 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
             this.setNewAppPanelVisible(false);
         } catch (e) {
             this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to create application' e={e}/>,
                 type: NotificationType.Error,
-                content: `Unable to create application: ${e.response && e.response.text || 'Internal error'}`,
             });
         }
     }
@@ -221,8 +221,8 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
             });
         } catch (e) {
             this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
                 type: NotificationType.Error,
-                content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
             });
         }
     }
@@ -235,8 +235,8 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                 this.appContext.router.history.push('/applications');
             } catch (e) {
                 this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to delete application' e={e}/>,
                     type: NotificationType.Error,
-                    content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
                 });
             }
         }

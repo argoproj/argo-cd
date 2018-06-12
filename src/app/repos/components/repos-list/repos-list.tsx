@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 
-import { ConnectionStateIcon, FormField, Page } from '../../../shared/components';
+import { ConnectionStateIcon, ErrorNotification, FormField, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -127,7 +127,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
             this.reloadRepos();
         } catch (e) {
             this.appContext.apis.notifications.show({
-                content: e.response && e.response.text || 'Internal error',
+                content: <ErrorNotification title='Unable to connect repository' e={e}/>,
                 type: NotificationType.Error,
             });
         }

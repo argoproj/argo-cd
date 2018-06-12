@@ -4,7 +4,7 @@ import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 import { Observable, Subscription } from 'rxjs';
 
-import { Page } from '../../../shared/components';
+import { ErrorNotification, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -241,8 +241,8 @@ export class ApplicationDetails extends React.Component<
             this.setDeployPanelVisible(false);
         } catch (e) {
             this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
                 type: NotificationType.Error,
-                content: `Unable to deploy revision: ${e.response && e.response.text || 'Internal error'}`,
             });
         }
     }
@@ -256,8 +256,8 @@ export class ApplicationDetails extends React.Component<
             this.setRollbackPanelVisible(-1);
         } catch (e) {
             this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to rollback application' e={e}/>,
                 type: NotificationType.Error,
-                content: `Unable to rollback application: ${e.response && e.response.text || 'Internal error'}`,
             });
         }
     }
@@ -292,8 +292,8 @@ export class ApplicationDetails extends React.Component<
             await services.applications.deletePod(this.props.match.params.name, podName);
         } catch (e) {
             this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to delete pod' e={e}/>,
                 type: NotificationType.Error,
-                content: `Unable to delete pod: ${e.response && e.response.text || 'Internal error'}`,
             });
         }
     }
@@ -306,8 +306,8 @@ export class ApplicationDetails extends React.Component<
                 this.appContext.apis.navigation.goto('/applications');
             } catch (e) {
                 this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to delete application' e={e}/>,
                     type: NotificationType.Error,
-                    content: `Unable to delete application: ${e.response && e.response.text || 'Internal error'}`,
                 });
             }
         }
