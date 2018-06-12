@@ -25,7 +25,7 @@ export const ApplicationOperationState = ({operationState}: { operationState: mo
         }
         const syncResult = operationState.syncResult || operationState.rollbackResult;
         if (syncResult) {
-            syncResult.resources.forEach((res) => {
+            (syncResult.resources || []).forEach((res) => {
                 resultAttributes.push({
                     title: `${res.namespace}/${res.kind}:${res.name}`,
                     value: res.message,
