@@ -74,13 +74,13 @@ type SyncOperationResult struct {
 	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,1,opt,name=resources"`
 }
 
-type ResourceSyncStatus int
+type ResourceSyncStatus string
 
 const (
-	ResourceDetailsSynced          ResourceSyncStatus = iota
-	ResourceDetailsSyncFailed      ResourceSyncStatus = iota
-	ResourceDetailsSyncedAndPruned ResourceSyncStatus = iota
-	ResourceDetailsPruningRequired ResourceSyncStatus = iota
+	ResourceDetailsSynced          ResourceSyncStatus = "Synced"
+	ResourceDetailsSyncFailed      ResourceSyncStatus = "SyncFailed"
+	ResourceDetailsSyncedAndPruned ResourceSyncStatus = "SyncedAndPruned"
+	ResourceDetailsPruningRequired ResourceSyncStatus = "PruningRequired"
 )
 
 type ResourceDetails struct {
