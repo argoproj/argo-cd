@@ -24,6 +24,6 @@ local appDeployment = deployment
     container
       .new(params.name, params.image)
       .withPorts(containerPort.new(targetPort)) + if params.command != null then { command: [ params.command ] } else {},
-    labels);
+    labels).withProgressDeadlineSeconds(5);
 
 k.core.v1.list.new([appService, appDeployment])
