@@ -85,11 +85,15 @@ done
 collect_swagger() {
     SWAGGER_DEST="$1/swagger"
     EXPECTED_COLLISIONS="$2"
+    PRIMARY_SWAGGER=`mktemp`
+    echo '{}' > "${PRIMARY_SWAGGER}"
+
     /bin/mkdir -p "${SWAGGER_DEST}"
     /bin/rm -f "${SWAGGER_DEST}/*.swagger.json"
     /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "${SWAGGER_DEST}" \;
-    /usr/bin/find "${SWAGGER_DEST}" -name "${SWAGGER_DEST}/*.swagger.json" -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" '{}' \+ > "${SWAGGER_DEST}.json"
+    /usr/bin/find "${SWAGGER_DEST}" -name '*.swagger.json' -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${SWAGGER_DEST}.json"
+    /bin/rm -f "${PRIMARY_SWAGGER}"
 }
 
 collect_swagger server 5
-# collect_swagger reposerver 0
+collect_swagger reposerver 0
