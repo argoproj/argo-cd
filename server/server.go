@@ -124,9 +124,10 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 
 // ServeSwaggerUI serves the Swagger UI.
 func serveSwaggerUI(mux *http.ServeMux) {
-	fs := http.FileServer(http.Dir(filepath.Join("server", "swagger")))
-	prefix := "/swagger/"
-	mux.Handle(prefix, http.StripPrefix(prefix, fs))
+	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		p := filepath.Join("server", r.URL.Path[1:])
+		http.ServeFile(w, r, p)
+	})
 }
 
 // Run runs the API Server
