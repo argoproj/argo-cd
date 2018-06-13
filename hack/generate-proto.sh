@@ -83,15 +83,25 @@ done
 
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
+    SWAGGER_COMBINED="combined.swagger.json"
     SWAGGER_DEST="$1/swagger"
     EXPECTED_COLLISIONS="$2"
     PRIMARY_SWAGGER=`mktemp`
-    echo '{}' > "${PRIMARY_SWAGGER}"
-
+    echo '{
+      "swagger": "2.0",
+      "info": {
+        "title": "Consolidate Services",
+        "description": "Description of all APIs",
+        "version": "version not set"
+      },
+      "paths": {}
+    }
+' > "${PRIMARY_SWAGGER}"
     /bin/mkdir -p "${SWAGGER_DEST}"
-    /bin/rm -f "${SWAGGER_DEST}/*.swagger.json"
+    /bin/rm -f ${SWAGGER_DEST}/*.swagger.json
     /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "${SWAGGER_DEST}" \;
-    /usr/bin/find "${SWAGGER_DEST}" -name '*.swagger.json' -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${SWAGGER_DEST}/swagger.json"
+    /usr/bin/find "${SWAGGER_DEST}" -name '*.swagger.json'  ! -name ${SWAGGER_COMBINED} -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${SWAGGER_DEST}/${SWAGGER_COMBINED}"
+    cat ${SWAGGER_DEST}/${SWAGGER_COMBINED} | jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' > "${SWAGGER_DEST}/cleaned.swagger.json"
     /bin/rm -f "${PRIMARY_SWAGGER}"
 }
 
