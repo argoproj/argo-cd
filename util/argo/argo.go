@@ -21,6 +21,11 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Ap
 				common.AnnotationKeyRefresh: refreshString,
 			},
 		},
+		"status": map[string]interface{}{
+			"comparisonResult": map[string]interface{}{
+				"comparedAt": nil,
+			},
+		},
 	}
 	var err error
 	patch, err := json.Marshal(metadata)

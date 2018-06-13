@@ -3,6 +3,7 @@ package application
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"path"
 	"reflect"
 	"strings"
@@ -69,7 +70,7 @@ func NewServer(
 
 // appRBACName formats fully qualified application name for RBAC check
 func appRBACName(app appv1.Application) string {
-	return path.Join(git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Name)
+	return fmt.Sprintf("%s/%s", git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Name)
 }
 
 // List returns list of applications
