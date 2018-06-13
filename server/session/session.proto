@@ -30,7 +30,7 @@ message SessionResponse {
 // SessionService 
 service SessionService {
 
-  // Create a new JWT for authentication.
+  // Create a new JWT for authentication and set a cookie if using HTTP.
   rpc Create(SessionCreateRequest) returns (SessionResponse) {
     option (google.api.http) = {
       post: "/api/v1/session"
@@ -38,7 +38,7 @@ service SessionService {
     };
   }
 
-  // Create a new JWT for authentication.
+  // Delete an existing JWT cookie if using HTTP.
   rpc Delete(SessionDeleteRequest) returns (SessionResponse) {
     option (google.api.http) = {
       delete: "/api/v1/session"
