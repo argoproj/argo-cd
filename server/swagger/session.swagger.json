@@ -18,7 +18,7 @@
   "paths": {
     "/api/v1/session": {
       "delete": {
-        "summary": "Create a new JWT for authentication.",
+        "summary": "Delete an existing JWT cookie if using HTTP.",
         "operationId": "Delete",
         "responses": {
           "200": {
@@ -33,7 +33,7 @@
         ]
       },
       "post": {
-        "summary": "Create a new JWT for authentication.",
+        "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
         "operationId": "Create",
         "responses": {
           "200": {

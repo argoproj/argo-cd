@@ -224,7 +224,7 @@
     },
     "/api/v1/applications/{name}/pods/{podName}": {
       "delete": {
-        "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
+        "summary": "DeletePod returns stream of log entries for the specified pod. Pod",
         "operationId": "DeletePod",
         "responses": {
           "200": {
@@ -329,7 +329,7 @@
     },
     "/api/v1/applications/{name}/rollback": {
       "post": {
-        "summary": "Sync syncs an application to its target state",
+        "summary": "Rollback syncs an application to its target state",
         "operationId": "Rollback",
         "responses": {
           "200": {
@@ -362,7 +362,7 @@
     },
     "/api/v1/applications/{name}/spec": {
       "put": {
-        "summary": "Update updates an application spec",
+        "summary": "UpdateSpec updates an application spec",
         "operationId": "UpdateSpec",
         "responses": {
           "200": {
@@ -1247,6 +1247,9 @@
           "type": "string"
         },
         "message": {
+          "type": "string"
+        },
+        "status": {
           "type": "string"
         }
       }
