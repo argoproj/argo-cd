@@ -124,7 +124,7 @@
         ]
       },
       "delete": {
-        "summary": "Delete updates a repo",
+        "summary": "Delete deletes a repo",
         "operationId": "Delete",
         "responses": {
           "200": {
