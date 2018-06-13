@@ -29,7 +29,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = { applications: [], appWizardStepState: { next: null, prev: null, nextTitle: 'Next'} };
+        this.state = { applications: null, appWizardStepState: { next: null, prev: null, nextTitle: 'Next'} };
     }
 
     public async componentDidMount() {
@@ -141,7 +141,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                 </div>
                             ))}
                         </div>
-                    ) : <MockupList height={50} marginTop={30}/>}
+                    ) : <MockupList height={300} marginTop={30}/>}
                 </div>
                 <SlidingPanel isShown={this.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} header={
                         <div>
