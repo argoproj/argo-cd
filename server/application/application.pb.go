@@ -493,15 +493,15 @@ type ApplicationServiceClient interface {
 	GetManifests(ctx context.Context, in *ApplicationManifestQuery, opts ...grpc.CallOption) (*repository.ManifestResponse, error)
 	// Update updates an application
 	Update(ctx context.Context, in *ApplicationUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Application, error)
-	// Update updates an application spec
+	// UpdateSpec updates an application spec
 	UpdateSpec(ctx context.Context, in *ApplicationUpdateSpecRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ApplicationSpec, error)
 	// Delete deletes an application
 	Delete(ctx context.Context, in *ApplicationDeleteRequest, opts ...grpc.CallOption) (*ApplicationResponse, error)
 	// Sync syncs an application to its target state
 	Sync(ctx context.Context, in *ApplicationSyncRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Application, error)
-	// Sync syncs an application to its target state
+	// Rollback syncs an application to its target state
 	Rollback(ctx context.Context, in *ApplicationRollbackRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Application, error)
-	// PodLogs returns stream of log entries for the specified pod. Pod
+	// DeletePod returns stream of log entries for the specified pod. Pod
 	DeletePod(ctx context.Context, in *ApplicationDeletePodRequest, opts ...grpc.CallOption) (*ApplicationResponse, error)
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	PodLogs(ctx context.Context, in *ApplicationPodLogsQuery, opts ...grpc.CallOption) (ApplicationService_PodLogsClient, error)
@@ -695,15 +695,15 @@ type ApplicationServiceServer interface {
 	GetManifests(context.Context, *ApplicationManifestQuery) (*repository.ManifestResponse, error)
 	// Update updates an application
 	Update(context.Context, *ApplicationUpdateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Application, error)
-	// Update updates an application spec
+	// UpdateSpec updates an application spec
 	UpdateSpec(context.Context, *ApplicationUpdateSpecRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.ApplicationSpec, error)
 	// Delete deletes an application
 	Delete(context.Context, *ApplicationDeleteRequest) (*ApplicationResponse, error)
 	// Sync syncs an application to its target state
 	Sync(context.Context, *ApplicationSyncRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Application, error)
-	// Sync syncs an application to its target state
+	// Rollback syncs an application to its target state
 	Rollback(context.Context, *ApplicationRollbackRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Application, error)
-	// PodLogs returns stream of log entries for the specified pod. Pod
+	// DeletePod returns stream of log entries for the specified pod. Pod
 	DeletePod(context.Context, *ApplicationDeletePodRequest) (*ApplicationResponse, error)
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	PodLogs(*ApplicationPodLogsQuery, ApplicationService_PodLogsServer) error
