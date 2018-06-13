@@ -91,7 +91,7 @@ collect_swagger() {
     /bin/mkdir -p "${SWAGGER_DEST}"
     /bin/rm -f "${SWAGGER_DEST}/*.swagger.json"
     /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "${SWAGGER_DEST}" \;
-    /usr/bin/find "${SWAGGER_DEST}" -name '*.swagger.json' -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${SWAGGER_DEST}.json"
+    /usr/bin/find "${SWAGGER_DEST}" -name '*.swagger.json' -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${SWAGGER_DEST}/swagger.json"
     /bin/rm -f "${PRIMARY_SWAGGER}"
 }
 
