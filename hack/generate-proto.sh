@@ -104,6 +104,7 @@ EOF
     /bin/rm -f "${SWAGGER_OUT}"
 
     /usr/bin/find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    /usr/bin/find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
     /usr/local/bin/jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
