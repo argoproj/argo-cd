@@ -84,10 +84,12 @@ done
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
     SWAGGER_DEST="$1/swagger"
+    EXPECTED_COLLISIONS="$2"
     /bin/mkdir -p "${SWAGGER_DEST}"
     /bin/rm -f "${SWAGGER_DEST}/*.swagger.json"
     /usr/bin/find "$1" -name '*.swagger.json' -exec /bin/mv '{}' "${SWAGGER_DEST}" \;
+    /usr/bin/find "${SWAGGER_DEST}" -name "${SWAGGER_DEST}/*.swagger.json" -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" '{}' \+ > "${SWAGGER_DEST}.json"
 }
 
-collect_swagger server
-collect_swagger reposerver
+collect_swagger server 5
+# collect_swagger reposerver 0
