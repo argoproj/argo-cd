@@ -56,7 +56,7 @@ service ClusterService {
 		};
 	}
 
-	// Delete updates a cluster
+	// Delete deletes a cluster
 	rpc Delete(ClusterQuery) returns (ClusterResponse) {
 		option (google.api.http).delete = "/api/v1/clusters/{server}";
 	}

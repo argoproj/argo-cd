@@ -97,7 +97,7 @@ service RepositoryService {
 		};
 	}
 
-	// Delete updates a repo
+	// Delete deletes a repo
 	rpc Delete(RepoQuery) returns (RepoResponse) {
 		option (google.api.http).delete = "/api/v1/repositories/{repo}";
 	}

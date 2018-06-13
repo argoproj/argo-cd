@@ -124,7 +124,7 @@
         ]
       },
       "delete": {
-        "summary": "Delete updates a cluster",
+        "summary": "Delete deletes a cluster",
         "operationId": "Delete",
         "responses": {
           "200": {
