@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,9 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-openapi/loads"
 	openapi_middleware "github.com/go-openapi/runtime/middleware"
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
+	gorilla_handlers "github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -126,20 +129,26 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 
 // ServeSwaggerUI serves the Swagger UI.
 func serveSwaggerUI(mux *http.ServeMux) {
-	const basePath = "/"
-	const swaggerPath = "swagger.json"
-	const docsPath = "swagger-ui"
+	const basePath = "/doc/"
 
-	mux.HandleFunc(path.Join(basePath, swaggerPath), func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join("server", r.URL.Path[1:]))
-	})
+	specDoc, err := loads.Spec(filepath.Join("server", "swagger.json"))
+	if err != nil {
+		log.Error(err)
+	}
+
+	b, err := json.MarshalIndent(specDoc.Spec(), "", "  ")
+	if err != nil {
+		log.Error(err)
+	}
 
 	handler := http.NotFoundHandler()
 	handler = openapi_middleware.Redoc(openapi_middleware.RedocOpts{
 		BasePath: basePath,
-		Path:     docsPath,
+		SpecURL:  path.Join(basePath, "swagger.json"),
+		Path:     "swagger.html",
 	}, handler)
-	mux.Handle(path.Join(basePath, docsPath), handler)
+	handler = gorilla_handlers.CORS()(openapi_middleware.Spec(basePath, b, handler))
+	mux.Handle(basePath, handler)
 }
 
 // Run runs the API Server
