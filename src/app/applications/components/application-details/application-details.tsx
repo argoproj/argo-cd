@@ -1,10 +1,11 @@
 import { MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import { Checkbox, Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 import { Observable, Subscription } from 'rxjs';
 
-import { ErrorNotification, Page } from '../../../shared/components';
+import { ErrorNotification, FormField, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -22,19 +23,18 @@ import * as AppUtils from '../utils';
 
 require('./application-details.scss');
 
-export class ApplicationDetails extends React.Component<
-        RouteComponentProps<{ name: string; namespace: string; }>,
-        { deployRevision: string, application: appModels.Application }> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; namespace: string; }>, { application: appModels.Application }> {
 
     public static contextTypes = {
         apis: PropTypes.object,
     };
 
     private changesSubscription: Subscription;
+    private formApi: FormApi;
 
     constructor(props: RouteComponentProps<{ name: string; namespace: string; }>) {
         super(props);
-        this.state = { deployRevision: '', application: null};
+        this.state = { application: null};
     }
 
     private get showOperationState() {
@@ -160,21 +160,29 @@ export class ApplicationDetails extends React.Component<
                 </SlidingPanel>
                 <SlidingPanel isNarrow={true} isShown={this.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
                         <div>
-                        <button className='argo-button argo-button--base' onClick={() => this.syncApplication(this.state.deployRevision)}>
+                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
                             Synchronize
                         </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
                             Cancel
                         </button>
                         </div>
                     )}>
-                    {this.state.application && (
-                        <form>
-                            <h6>Synchronizing application manifests from <a href={this.state.application.spec.source.repoURL}>{this.state.application.spec.source.repoURL}</a></h6>
-                            <h6>Revision:
-                                <input className='argo-field' placeholder='latest' value={this.state.deployRevision}
-                                    onChange={(event) => this.setState({ deployRevision: event.target.value })}/>
-                            </h6>
-                        </form>
+                    {this.state.application && this.showDeployPanel && (
+                        <Form onSubmit={(params: any) => this.syncApplication(params.revision, params.prune)} getApi={(api) => this.formApi = api}>
+                            {(formApi) => (
+                                <form role='form' className='width-control' onSubmit={formApi.submitForm}>
+                                    <h6>Synchronizing application manifests from <a href={this.state.application.spec.source.repoURL}>
+                                        {this.state.application.spec.source.repoURL}</a>
+                                    </h6>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='Revision' field='revision' component={Text}/>
+                                    </div>
+                                    <div className='argo-form-row'>
+                                        <label htmlFor='prune-on-sync-checkbox'>Prune</label> <Checkbox id='prune-on-sync-checkbox' field='prune'/>
+                                    </div>
+                                </form>
+                            )}
+                        </Form>
                     )}
                 </SlidingPanel>
                 <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
@@ -236,9 +244,9 @@ export class ApplicationDetails extends React.Component<
         this.appContext.apis.navigation.goto('.', { node });
     }
 
-    private async syncApplication(revision: string) {
+    private async syncApplication(revision: string, prune: boolean) {
         try {
-            await services.applications.sync(this.props.match.params.name, revision);
+            await services.applications.sync(this.props.match.params.name, revision, prune);
             this.setDeployPanelVisible(false);
         } catch (e) {
             this.appContext.apis.notifications.show({

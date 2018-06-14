@@ -36,8 +36,8 @@ export class ApplicationsService {
         });
     }
 
-    public sync(name: string, revision: string): Promise<boolean> {
-        return requests.post(`/applications/${name}/sync`).send({revision}).then((res) => true);
+    public sync(name: string, revision: string, prune: boolean): Promise<boolean> {
+        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune}).then((res) => true);
     }
 
     public rollback(name: string, id: number): Promise<boolean> {

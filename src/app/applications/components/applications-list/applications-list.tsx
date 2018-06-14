@@ -213,7 +213,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
 
     private async syncApplication(appName: string, revision: string) {
         try {
-            await services.applications.sync(appName, revision).then(() => {
+            await services.applications.sync(appName, revision, false).then(() => {
                 this.appContext.apis.notifications.show({
                     type: NotificationType.Success,
                     content: `Synced revision`,
