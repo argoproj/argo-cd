@@ -125,19 +125,20 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 }
 
 // ServeSwaggerUI serves the Swagger UI and JSON spec.
-func serveSwaggerUI(mux *http.ServeMux, prefix, uiPath string) {
+func serveSwaggerUI(mux *http.ServeMux, uiPath string) {
+	prefix := path.Dir(uiPath)
 	specURL := path.Join(prefix, "swagger.json")
 
 	mux.HandleFunc(specURL, func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join("server", r.URL.Path[1:]))
+		http.ServeFile(w, r, filepath.Join("server", path.Base(r.URL.Path[1:])))
 	})
 
 	handler := openapi_middleware.Redoc(openapi_middleware.RedocOpts{
 		BasePath: prefix,
 		SpecURL:  specURL,
-		Path:     uiPath,
+		Path:     path.Base(uiPath),
 	}, http.NotFoundHandler())
-	mux.Handle(path.Join(prefix, uiPath), handler)
+	mux.Handle(uiPath, handler)
 }
 
 // Run runs the API Server
@@ -377,7 +378,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
-	serveSwaggerUI(mux, "/", "swagger-ui")
+	serveSwaggerUI(mux, "/swagger-ui")
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
