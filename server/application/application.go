@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/argo"
+
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -250,7 +252,47 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 }
 
-// UpdateSpec updates an application spec
+// removeInvalidOverrides removes any prameter overrides that are no longer valid
+// drops old overrides that are invalid
+// throws an error is passed override is invalid
+// if passed override and old overrides are invalid, throws error, old overrides not dropped
+func (s *Server) removeInvalidOverrides(a *appv1.Application, q *ApplicationUpdateSpecRequest) (*ApplicationUpdateSpecRequest, error) {
+	validAppSet := argo.ParamToMap(a.Status.Parameters)
+	invalidOldParams := make(map[string]map[string]bool)
+	var overrideParams []appv1.ComponentParameter
+	for _, unvettedExistingParam := range a.Spec.Source.ComponentParameterOverrides {
+		if argo.CheckValidParam(validAppSet, unvettedExistingParam) {
+			overrideParams = append(overrideParams, unvettedExistingParam)
+		} else {
+			if invalidOldParams[unvettedExistingParam.Component] == nil {
+				invalidOldParams[unvettedExistingParam.Component] = make(map[string]bool)
+			}
+			invalidOldParams[unvettedExistingParam.Component][unvettedExistingParam.Name] = true
+		}
+	}
+	for _, unvettedRequestedParam := range q.Spec.Source.ComponentParameterOverrides {
+		if argo.CheckValidParam(validAppSet, unvettedRequestedParam) {
+			paramExists := false
+			for _, overrideParam := range overrideParams {
+				if unvettedRequestedParam.Component == overrideParam.Component && unvettedRequestedParam.Name == overrideParam.Name && unvettedRequestedParam.Value == overrideParam.Value {
+					paramExists = true
+				}
+			}
+			if !paramExists {
+				overrideParams = append(overrideParams, unvettedRequestedParam)
+			}
+		} else {
+			if !argo.CheckValidParam(invalidOldParams, unvettedRequestedParam) {
+				return nil, status.Errorf(codes.InvalidArgument, "Parameter '%s' in '%s' does not exist in ksonnet", unvettedRequestedParam.Name, unvettedRequestedParam.Component)
+
+			}
+		}
+	}
+	q.Spec.Source.ComponentParameterOverrides = overrideParams
+	return q, nil
+}
+
+// UpdateSpec updates an application spec and filters out any invalid parameter overrides
 func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
 
 	if !q.Spec.BelongsToDefaultProject() {
@@ -266,6 +308,10 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 		return nil, grpc.ErrPermissionDenied
 	}
 	err = s.validateApp(ctx, &q.Spec)
+	if err != nil {
+		return nil, err
+	}
+	q, err = s.removeInvalidOverrides(a, q)
 	if err != nil {
 		return nil, err
 	}

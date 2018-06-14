@@ -29,6 +29,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -312,15 +313,31 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				os.Exit(1)
 			}
 			setParameterOverrides(app, appOpts.parameters)
-			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
+			oldOverrides := app.Spec.Source.ComponentParameterOverrides
+			updatedSpec, err := appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
 			errors.CheckError(err)
+
+			newOverrides := updatedSpec.Source.ComponentParameterOverrides
+			checkDroppedParams(newOverrides, oldOverrides)
 		},
 	}
 	addAppFlags(command, &appOpts)
 	return command
+}
+
+func checkDroppedParams(newOverrides []argoappv1.ComponentParameter, oldOverrides []argoappv1.ComponentParameter) {
+	newOverrideMap := argo.ParamToMap(newOverrides)
+
+	if len(oldOverrides) > len(newOverrides) {
+		for _, oldOverride := range oldOverrides {
+			if !argo.CheckValidParam(newOverrideMap, oldOverride) {
+				log.Warnf("Parameter %s in %s does not exist in ksonnet, parameter override dropped", oldOverride.Name, oldOverride.Component)
+			}
+		}
+	}
 }
 
 type appOptions struct {
