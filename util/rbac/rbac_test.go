@@ -110,6 +110,34 @@ func TestPolicyInformer(t *testing.T) {
 	assert.True(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
 
+// TestResourceActionWildcards verifies the ability to use wildcards in resources and actions
+func TestResourceActionWildcards(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	policy := `
+p, alice, *, get, foo/obj
+p, bob, repositories, *, foo/obj
+p, cathy, *, *, foo/obj
+`
+	enf.SetUserPolicy(policy)
+
+	// Verify the resource wildcard
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("alice", "applications/pods", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+
+	// Verify action wildcards work
+	assert.True(t, enf.Enforce("bob", "repositories", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("bob", "repositories", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
+
+	// Verify resource and action wildcards work in conjunction
+	assert.True(t, enf.Enforce("cathy", "repositories", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("cathy", "repositories", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("cathy", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("cathy", "applications/pods", "delete", "foo/obj"))
+}
+
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
 func TestProjectIsolationEnforcement(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
