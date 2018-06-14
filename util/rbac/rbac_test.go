@@ -118,6 +118,8 @@ func TestResourceActionWildcards(t *testing.T) {
 p, alice, *, get, foo/obj
 p, bob, repositories, *, foo/obj
 p, cathy, *, *, foo/obj
+p, dave, applications, get, foo/obj
+p, dave, applications/*, get, foo/obj
 `
 	enf.SetUserPolicy(policy)
 
@@ -136,6 +138,10 @@ p, cathy, *, *, foo/obj
 	assert.True(t, enf.Enforce("cathy", "repositories", "delete", "foo/obj"))
 	assert.True(t, enf.Enforce("cathy", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("cathy", "applications/pods", "delete", "foo/obj"))
+
+	// Verify wildcards with sub-resources
+	assert.True(t, enf.Enforce("dave", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("dave", "applications/logs", "get", "foo/obj"))
 }
 
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
