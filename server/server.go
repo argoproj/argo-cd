@@ -18,7 +18,6 @@ import (
 	openapi_middleware "github.com/go-openapi/runtime/middleware"
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
-	gorilla_handlers "github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -145,7 +144,7 @@ func serveSwaggerUI(mux *http.ServeMux) {
 	}, http.NotFoundHandler())
 	mux.Handle(path.Join("/", swaggerUIPath), swaggerHtmlHandler)
 
-	swaggerJsonHandler := gorilla_handlers.CORS()(openapi_middleware.Spec("", b, http.NotFoundHandler()))
+	swaggerJsonHandler := openapi_middleware.Spec("", b, http.NotFoundHandler())
 	mux.Handle("/swagger.json", swaggerJsonHandler)
 }
 
