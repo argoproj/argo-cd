@@ -1,0 +1,15 @@
+@import 'node_modules/argo-ui/bundle/app/shared/styles/config';
+
+.application-resource-events {
+    &__event {
+        border-left: 5px solid $argo-color-gray-4;
+
+        &--Warning {
+            border-left-color: $argo-failed-color;
+        }
+
+        &--Normal {
+            border-left-color: $argo-success-color;
+        }
+    }
+}

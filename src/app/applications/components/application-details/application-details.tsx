@@ -12,6 +12,7 @@ import { services } from '../../../shared/services';
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
+import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
 import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
 import { ApplicationSummary } from '../application-summary/application-summary';
@@ -144,7 +145,7 @@ export class ApplicationDetails extends React.Component<
                     <div>
                     {selectedNode && <Tabs
                         navTransparent={true}
-                        tabs={this.getResourceTabs(selectedNode, [{ title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}])} />
+                        tabs={this.getResourceTabs(selectedNode, [{title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}])} />
                     }
                     {isAppSelected && (
                         <Tabs navTransparent={true} tabs={[{
@@ -327,6 +328,9 @@ export class ApplicationDetails extends React.Component<
 
     private getResourceTabs(resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {
         const {resourceNode} = AppUtils.getStateAndNode(resource);
+        tabs.push({
+            title: 'EVENTS', key: 'events', content: <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={resourceNode}/>,
+        });
         if (resourceNode.state.kind === 'Pod') {
             tabs = tabs.concat([{
                 key: 'logs',

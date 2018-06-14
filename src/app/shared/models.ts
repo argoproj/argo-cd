@@ -242,3 +242,46 @@ export interface KsonnetAppSpec {
     path: string;
     environments: { [key: string]: KsonnetEnvironment; };
 }
+
+export interface ObjectReference {
+    kind: string;
+    namespace: string;
+    name: string;
+    uid: string;
+    apiVersion: string;
+    resourceVersion: string;
+    fieldPath: string;
+}
+
+export interface EventSource {
+    component: string;
+    host: string;
+}
+
+export interface EventSeries {
+    count: number;
+    lastObservedTime: models.Time;
+    state: string;
+}
+
+export interface Event {
+    apiVersion?: string;
+    kind?: string;
+    metadata: models.ObjectMeta;
+    involvedObject: ObjectReference;
+    reason: string;
+    message: string;
+    source: EventSource;
+    firstTimestamp: models.Time;
+    lastTimestamp: models.Time;
+    count: number;
+    type: string;
+    eventTime: models.Time;
+    series: EventSeries;
+    action: string;
+    related: ObjectReference;
+    reportingController: string;
+    reportingInstance: string;
+}
+
+export interface EventList extends ItemsList<Event> {}

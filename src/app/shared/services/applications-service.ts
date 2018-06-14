@@ -53,6 +53,10 @@ export class ApplicationsService {
         return requests.delete(`/applications/${applicationName}/pods/${podName}`).send().then((res) => true);
     }
 
+    public resourceEvents(applicationName: string, resourceUID: string, resourceName: string): Promise<models.Event[]> {
+        return requests.get(`/applications/${applicationName}/events`).query({resourceName, resourceUID}).send().then((res) => (res.body as models.EventList).items || []);
+    }
+
     private parseAppFields(data: any): models.Application {
         const app = data as models.Application;
         (app.status.comparisonResult.resources || []).forEach((resource) => {
