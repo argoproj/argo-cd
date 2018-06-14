@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	openapi_middleware "github.com/go-openapi/runtime/middleware"
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -124,13 +126,20 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 
 // ServeSwaggerUI serves the Swagger UI.
 func serveSwaggerUI(mux *http.ServeMux) {
-	mux.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+	const basePath = "/"
+	const swaggerPath = "swagger.json"
+	const docsPath = "swagger-ui"
+
+	mux.HandleFunc(path.Join(basePath, swaggerPath), func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join("server", r.URL.Path[1:]))
 	})
 
-	fs := http.FileServer(http.Dir(filepath.Join("vendor", "github.com", "philips", "grpc-gateway-example", "third_party", "swagger-ui")))
-	prefix := "/swagger-ui/"
-	mux.Handle(prefix, http.StripPrefix(prefix, fs))
+	handler := http.NotFoundHandler()
+	handler = openapi_middleware.Redoc(openapi_middleware.RedocOpts{
+		BasePath: basePath,
+		Path:     docsPath,
+	}, handler)
+	mux.Handle(path.Join(basePath, docsPath), handler)
 }
 
 // Run runs the API Server
