@@ -145,7 +145,7 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 	for i, targetObj := range targetObjs {
 		fullName := getResourceFullName(targetObj)
 		liveObj := liveObjByFullName[fullName]
-		if liveObj == nil {
+		if liveObj == nil && targetObj.GetName() != "" {
 			// If we get here, it indicates we did not find the live resource when querying using
 			// our app label. However, it is possible that the resource was created/modified outside
 			// of ArgoCD. In order to determine that it is truly missing, we fall back to perform a
