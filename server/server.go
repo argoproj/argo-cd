@@ -129,8 +129,6 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 
 // ServeSwaggerUI serves the Swagger UI.
 func serveSwaggerUI(mux *http.ServeMux) {
-	const basePath = "/doc/"
-
 	specDoc, err := loads.Spec(filepath.Join("server", "swagger.json"))
 	if err != nil {
 		log.Error(err)
@@ -141,14 +139,14 @@ func serveSwaggerUI(mux *http.ServeMux) {
 		log.Error(err)
 	}
 
-	handler := http.NotFoundHandler()
-	handler = openapi_middleware.Redoc(openapi_middleware.RedocOpts{
-		BasePath: basePath,
-		SpecURL:  path.Join(basePath, "swagger.json"),
-		Path:     "swagger.html",
-	}, handler)
-	handler = gorilla_handlers.CORS()(openapi_middleware.Spec(basePath, b, handler))
-	mux.Handle(basePath, handler)
+	const swaggerUIPath = "swagger-ui"
+	swaggerHtmlHandler := openapi_middleware.Redoc(openapi_middleware.RedocOpts{
+		Path: swaggerUIPath,
+	}, http.NotFoundHandler())
+	mux.Handle(path.Join("/", swaggerUIPath), swaggerHtmlHandler)
+
+	swaggerJsonHandler := gorilla_handlers.CORS()(openapi_middleware.Spec("", b, http.NotFoundHandler()))
+	mux.Handle("/swagger.json", swaggerJsonHandler)
 }
 
 // Run runs the API Server
