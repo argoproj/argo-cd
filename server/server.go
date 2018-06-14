@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-openapi/loads"
 	openapi_middleware "github.com/go-openapi/runtime/middleware"
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
@@ -126,26 +124,20 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	}
 }
 
-// ServeSwaggerUI serves the Swagger UI.
-func serveSwaggerUI(mux *http.ServeMux) {
-	specDoc, err := loads.Spec(filepath.Join("server", "swagger.json"))
-	if err != nil {
-		log.Error(err)
-	}
+// ServeSwaggerUI serves the Swagger UI and JSON spec.
+func serveSwaggerUI(mux *http.ServeMux, prefix, uiPath string) {
+	specURL := path.Join(prefix, "swagger.json")
 
-	b, err := json.MarshalIndent(specDoc.Spec(), "", "  ")
-	if err != nil {
-		log.Error(err)
-	}
+	mux.HandleFunc(specURL, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join("server", r.URL.Path[1:]))
+	})
 
-	const swaggerUIPath = "swagger-ui"
-	swaggerHtmlHandler := openapi_middleware.Redoc(openapi_middleware.RedocOpts{
-		Path: swaggerUIPath,
+	handler := openapi_middleware.Redoc(openapi_middleware.RedocOpts{
+		BasePath: prefix,
+		SpecURL:  specURL,
+		Path:     uiPath,
 	}, http.NotFoundHandler())
-	mux.Handle(path.Join("/", swaggerUIPath), swaggerHtmlHandler)
-
-	swaggerJsonHandler := openapi_middleware.Spec("", b, http.NotFoundHandler())
-	mux.Handle("/swagger.json", swaggerJsonHandler)
+	mux.Handle(path.Join(prefix, uiPath), handler)
 }
 
 // Run runs the API Server
@@ -385,7 +377,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
-	serveSwaggerUI(mux)
+	serveSwaggerUI(mux, "/", "swagger-ui")
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
