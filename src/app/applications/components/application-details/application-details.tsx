@@ -318,9 +318,9 @@ export class ApplicationDetails extends React.Component<
         const labels: string[] = [];
         const {resourceNode} = AppUtils.getStateAndNode(resource);
         if (resourceNode.state.kind === 'Pod') {
-            const phase = AppUtils.getPodPhase(resourceNode.state);
-            if (phase) {
-                labels.push(phase);
+            const {reason}  = AppUtils.getPodStateReason(resourceNode.state);
+            if (reason) {
+                labels.push(reason);
             }
         }
         return labels;

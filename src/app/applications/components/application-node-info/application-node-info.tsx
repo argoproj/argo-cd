@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
-import { ComparisonStatusIcon, getPodPhase, getStateAndNode, HealthStatusIcon } from '../utils';
+import { ComparisonStatusIcon, getPodStateReason, getStateAndNode, HealthStatusIcon } from '../utils';
 
 require('./application-node-info.scss');
 
@@ -14,7 +14,11 @@ export const ApplicationNodeInfo = (props: { node: models.ResourceNode | models.
         {title: 'NAMESPACE', value: resourceNode.state.metadata.namespace},
     ];
     if (resourceNode.state.kind === 'Pod') {
-        attributes.push({title: 'PHASE', value: getPodPhase(resourceNode.state)});
+        const {reason, message} = getPodStateReason(resourceNode.state);
+        attributes.push({title: 'STATE', value: reason });
+        if (message) {
+            attributes.push({title: 'STATE DETAILS', value: message });
+        }
     } else if (resourceNode.state.kind === 'Service') {
         attributes.push({title: 'TYPE', value: resourceNode.state.spec.type});
         let hostNames = '';
