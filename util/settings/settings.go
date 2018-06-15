@@ -200,9 +200,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		argoCDSecret.StringData[settingsWebhookBitbucketUUIDKey] = settings.WebhookBitbucketUUID
 	}
 	if settings.Certificate != nil {
-		certBytes, keyBytes := tlsutil.EncodeX509KeyPair(*settings.Certificate)
-		argoCDSecret.StringData[settingServerCertificate] = string(certBytes)
-		argoCDSecret.StringData[settingServerPrivateKey] = string(keyBytes)
+		cert, key := tlsutil.EncodeX509KeyPairString(*settings.Certificate)
+		argoCDSecret.StringData[settingServerCertificate] = cert
+		argoCDSecret.StringData[settingServerPrivateKey] = key
 	} else {
 		delete(argoCDSecret.Data, settingServerCertificate)
 		delete(argoCDSecret.Data, settingServerPrivateKey)

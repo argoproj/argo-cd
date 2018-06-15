@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
+	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
 )
 
@@ -228,6 +229,10 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitBucketUUID := a.settings.WebhookBitbucketUUID
+	var prevCert, prevCertKey string
+	if a.settings.Certificate != nil {
+		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+	}
 
 	for {
 		<-updateCh
@@ -247,6 +252,14 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 		}
 		if prevBitBucketUUID != a.settings.WebhookBitbucketUUID {
 			log.Infof("bitbucket uuid modified. restarting")
+			break
+		}
+		var newCert, newCertKey string
+		if a.settings.Certificate != nil {
+			newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+		}
+		if newCert != prevCert || newCertKey != prevCertKey {
+			log.Infof("tls certificate modified. restarting")
 			break
 		}
 	}
