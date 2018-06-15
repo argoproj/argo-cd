@@ -2,7 +2,6 @@ package swagger
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -31,12 +30,9 @@ func TestSwaggerUI(t *testing.T) {
 		// send back the address so that it can be used
 		c <- listener.Addr().String()
 
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			// return the sentinel text at root URL
-			fmt.Fprint(w, sentinel)
-		})
-
-		panic(http.Serve(listener, nil))
+		mux := http.NewServeMux()
+		ServeSwaggerUI(mux, "../../server", "/swagger-ui")
+		panic(http.Serve(listener, mux))
 	}
 
 	c := make(chan string, 1)
@@ -47,13 +43,24 @@ func TestSwaggerUI(t *testing.T) {
 	address := <-c
 	t.Logf("Listening at address: %s", address)
 
-	specDoc, err := loads.Spec("http://" + address)
+	server := "http://" + address
+
+	specDoc, err := loads.Spec(server + "/swagger.json")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	_, err = json.MarshalIndent(specDoc.Spec(), "", "  ")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
+	}
+
+	resp, err := http.Get(server + "/swagger-ui")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
 	}
 }
