@@ -2,7 +2,6 @@ apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
   name: application-controller
-  namespace: argocd
 spec:
   selector:
     matchLabels:

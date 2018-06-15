@@ -3,7 +3,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cm
-  namespace: argocd
 data:
   # url is the externally facing base URL of ArgoCD.
   # This field is required when configuring SSO, which ArgoCD uses as part the redirectURI for the
