@@ -57,29 +57,29 @@ codegen: protogen clientgen
 # NOTE: we use packr to do the build instead of go, since we embed .yaml files into the go binary.
 # This enables ease of maintenance of the yaml files.
 .PHONY: cli
-cli:
+cli: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: cli-linux
-cli-linux:
+cli-linux: clean-debug
 	docker build --iidfile /tmp/argocd-linux-id --target builder --build-arg MAKE_TARGET="cli IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-linux-amd64" -f Dockerfile-argocd .
 	docker create --name tmp-argocd-linux `cat /tmp/argocd-linux-id`
 	docker cp tmp-argocd-linux:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-linux-amd64 dist/
 	docker rm tmp-argocd-linux
 
 .PHONY: cli-darwin
-cli-darwin:
+cli-darwin: clean-debug
 	docker build --iidfile /tmp/argocd-darwin-id --target builder --build-arg MAKE_TARGET="cli GOOS=darwin IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-darwin-amd64" -f Dockerfile-argocd .
 	docker create --name tmp-argocd-darwin `cat /tmp/argocd-darwin-id`
 	docker cp tmp-argocd-darwin:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
 	docker rm tmp-argocd-darwin
 
 .PHONY: argocd-util
-argocd-util:
+argocd-util: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
 .PHONY: server
-server:
+server: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
 
 .PHONY: server-image
@@ -126,8 +126,13 @@ test:
 test-e2e:
 	go test ./test/e2e
 
+# Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
+.PHONY: clean-debug
+clean-debug:
+	-find ${CURRENT_DIR} -name debug.test | xargs rm -f
+
 .PHONY: clean
-clean:
+clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
 .PHONY: precheckin
