@@ -216,14 +216,20 @@ func setAppLabels(target *unstructured.Unstructured, appName string) error {
 	target.SetLabels(labels)
 	// special case for deployment: make sure that derived replicaset and pod has application label
 	if target.GetKind() == kube.DeploymentKind {
-		labels, ok := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
+		labels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
+		if err != nil {
+			return err
+		}
 		if ok {
 			if labels == nil {
 				labels = make(map[string]interface{})
 			}
 			labels[common.LabelApplicationName] = appName
 		}
-		unstructured.SetNestedMap(target.UnstructuredContent(), labels, "spec", "template", "metadata", "labels")
+		err = unstructured.SetNestedMap(target.UnstructuredContent(), labels, "spec", "template", "metadata", "labels")
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

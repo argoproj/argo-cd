@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
+	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
@@ -169,12 +170,23 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 
 // Get returns an application by name
 func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Application, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err := appIf.Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
+	}
+	if q.Refresh {
+		_, err = argoutil.RefreshApp(appIf, *q.Name)
+		if err != nil {
+			return nil, err
+		}
+		a, err = argoutil.WaitForRefresh(appIf, *q.Name, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return a, nil
 }

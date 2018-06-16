@@ -2,6 +2,8 @@ package commands
 
 import (
 	"context"
+	"flag"
+	"strconv"
 
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -19,6 +21,7 @@ func NewCommand() *cobra.Command {
 	var (
 		insecure          bool
 		logLevel          string
+		glogLevel         int
 		clientConfig      clientcmd.ClientConfig
 		staticAssetsDir   string
 		repoServerAddress string
@@ -32,6 +35,11 @@ func NewCommand() *cobra.Command {
 			level, err := log.ParseLevel(logLevel)
 			errors.CheckError(err)
 			log.SetLevel(level)
+
+			// Set the glog level for the k8s go-client
+			_ = flag.CommandLine.Parse([]string{})
+			_ = flag.Lookup("logtostderr").Value.Set("true")
+			_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -67,6 +75,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&insecure, "insecure", false, "Run server without TLS")
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))
