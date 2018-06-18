@@ -132,6 +132,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		showParams bool
+		refresh    bool
 	)
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
@@ -145,7 +146,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
 			errors.CheckError(err)
 			format := "%-15s%s\n"
 			fmt.Printf(format, "Name:", app.Name)
@@ -172,6 +173,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
+	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	return command
 }
 

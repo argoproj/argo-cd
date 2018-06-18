@@ -15,23 +15,23 @@ required = [
 
 # override ksonnet's release-1.8 dependency
 [[override]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/apimachinery"
 
 [[constraint]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/api"
 
 [[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  branch = "release-1.9"
+  branch = "release-1.10"
 
 [[constraint]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/code-generator"
 
 [[constraint]]
-  branch = "release-6.0"
+  branch = "release-7.0"
   name = "k8s.io/client-go"
 
 [[constraint]]
