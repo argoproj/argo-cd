@@ -1,4 +1,4 @@
-FROM golang:1.9.2
+FROM golang:1.10.3
 
 WORKDIR /tmp
 
@@ -15,7 +15,7 @@ RUN curl -o /kubectl -LO https://storage.googleapis.com/kubernetes-release/relea
     chmod +x /kubectl && mv /kubectl /usr/local/bin/kubectl
 
 # Install ksonnet
-env KSONNET_VERSION=0.10.2
+env KSONNET_VERSION=0.11.0
 RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks && \
