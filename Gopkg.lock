@@ -297,6 +297,7 @@
     "pkg/component",
     "pkg/docparser",
     "pkg/lib",
+    "pkg/log",
     "pkg/node",
     "pkg/params",
     "pkg/prototype",
@@ -305,8 +306,8 @@
     "pkg/util/kslib",
     "pkg/util/strings"
   ]
-  revision = "8c44a5b1545d3d03135f610170ef0167129294bc"
-  version = "v0.10.1"
+  revision = "e943ae55d4fe256c8330a047ce8426ad9dac110c"
+  version = "v0.11.0"
 
 [[projects]]
   name = "github.com/ksonnet/ksonnet-lib"
@@ -319,8 +320,8 @@
     "ksonnet-gen/nodemaker",
     "ksonnet-gen/printer"
   ]
-  revision = "d15220fdcdd07fd377894abff6276d86cb2d776d"
-  version = "v0.1.3"
+  revision = "dfcaa3d01d0c4948cb596403c35e966c774f2678"
+  version = "v0.1.8"
 
 [[projects]]
   branch = "master"
@@ -374,8 +375,7 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
-  version = "v1.0.5"
+  revision = "ea8897e79973357ba785ac2533559a6297e83c44"
 
 [[projects]]
   branch = "master"
@@ -933,6 +933,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5871a0c8bda4882a41b2451a45bd8d8bd610f22439c6a795a6f4956bfb0b41cf"
+  inputs-digest = "f2d179e0bbae6ede81f78cf6b0b16cb09fbeb5e97add78bdd97e3051238b86da"
   solver-name = "gps-cdcl"
   solver-version = 1
