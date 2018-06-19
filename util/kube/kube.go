@@ -93,6 +93,34 @@ func MustToUnstructured(obj interface{}) *unstructured.Unstructured {
 	return uObj
 }
 
+// SetLabel sets our app labels against an unstructured object
+func SetLabel(target *unstructured.Unstructured, key, val string) error {
+	labels := target.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	labels[key] = val
+	target.SetLabels(labels)
+	// special case for deployment: make sure that derived replicaset and pod has application label
+	if target.GetKind() == DeploymentKind {
+		labels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
+		if err != nil {
+			return err
+		}
+		if ok {
+			if labels == nil {
+				labels = make(map[string]interface{})
+			}
+			labels[key] = val
+		}
+		err = unstructured.SetNestedMap(target.UnstructuredContent(), labels, "spec", "template", "metadata", "labels")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetCachedServerResources discovers API resources supported by a Kube API server.
 // Caches the results for apiResourceCacheDuration (per host)
 func GetCachedServerResources(host string, disco discovery.DiscoveryInterface) ([]*metav1.APIResourceList, error) {

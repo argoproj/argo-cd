@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -30,6 +31,8 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/ksonnet"
+	kubeutil "github.com/argoproj/argo-cd/util/kube"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -387,6 +390,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		refresh bool
+		local   string
+		env     string
+	)
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
 		Short: "Perform a diff against the target and live state",
@@ -398,30 +406,74 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
-			errors.CheckError(err)
-			targetObjs, err := app.Status.ComparisonResult.TargetObjects()
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
 			errors.CheckError(err)
 			liveObjs, err := app.Status.ComparisonResult.LiveObjects()
 			errors.CheckError(err)
-			diffResults, err := diff.DiffArray(targetObjs, liveObjs)
+
+			var compareObjs []*unstructured.Unstructured
+			if local != "" {
+				if env == "" {
+					log.Fatal("--env required when performing local diff")
+				}
+				ksApp, err := ksonnet.NewKsonnetApp(local)
+				errors.CheckError(err)
+				compareObjs, err = ksApp.Show(env)
+				errors.CheckError(err)
+				if len(app.Spec.Source.ComponentParameterOverrides) > 0 {
+					log.Warnf("Unable to display parameter overrides")
+				}
+				compareObjs, liveObjs = diff.MatchObjectLists(compareObjs, liveObjs)
+			} else {
+				if env != "" {
+					log.Fatal("--env option invalid when performing git diff")
+				}
+				compareObjs, err = app.Status.ComparisonResult.TargetObjects()
+				errors.CheckError(err)
+			}
+
+			// In order for the diff to be clean, need to set our app labels
+			setAppLabels(appName, compareObjs)
+			diffResults, err := diff.DiffArray(compareObjs, liveObjs)
 			errors.CheckError(err)
-			for i := 0; i < len(targetObjs); i++ {
-				targetObj := targetObjs[i]
+			for i := 0; i < len(compareObjs); i++ {
+				kind, name := getObjKindName(compareObjs[i], liveObjs[i])
 				diffRes := diffResults.Diffs[i]
-				fmt.Printf("===== %s %s ======\n", targetObj.GetKind(), targetObj.GetName())
+				fmt.Printf("===== %s %s ======\n", kind, name)
 				if diffRes.Modified {
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 					}
-					out, err := diffResults.Diffs[i].ASCIIFormat(targetObj, formatOpts)
+					out, err := diffResults.Diffs[i].ASCIIFormat(compareObjs[i], formatOpts)
 					errors.CheckError(err)
 					fmt.Println(out)
 				}
 			}
+			if local != "" && len(app.Spec.Source.ComponentParameterOverrides) > 0 {
+				log.Warnf("Unable to display parameter overrides")
+			}
 		},
 	}
+	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
+	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
+	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
 	return command
+}
+
+func getObjKindName(compare, live *unstructured.Unstructured) (string, string) {
+	if compare == nil {
+		return live.GetKind(), live.GetName()
+	}
+	return compare.GetKind(), compare.GetName()
+}
+
+func setAppLabels(appName string, compareObjs []*unstructured.Unstructured) {
+	for _, obj := range compareObjs {
+		if obj == nil {
+			continue
+		}
+		_ = kubeutil.SetLabel(obj, common.LabelApplicationName, appName)
+	}
 }
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command

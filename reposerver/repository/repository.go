@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,15 +10,14 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -177,7 +177,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	manifests := make([]string, len(targetObjs))
 	for i, target := range targetObjs {
 		if q.AppLabel != "" {
-			err = setAppLabels(target, q.AppLabel)
+			err = kube.SetLabel(target, common.LabelApplicationName, q.AppLabel)
 			if err != nil {
 				return nil, err
 			}
@@ -204,34 +204,6 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		log.Warnf("manifest cache set error %s: %v", cacheKey, err)
 	}
 	return &res, nil
-}
-
-// setAppLabels sets our app labels against an unstructured object
-func setAppLabels(target *unstructured.Unstructured, appName string) error {
-	labels := target.GetLabels()
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-	labels[common.LabelApplicationName] = appName
-	target.SetLabels(labels)
-	// special case for deployment: make sure that derived replicaset and pod has application label
-	if target.GetKind() == kube.DeploymentKind {
-		labels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
-		if err != nil {
-			return err
-		}
-		if ok {
-			if labels == nil {
-				labels = make(map[string]interface{})
-			}
-			labels[common.LabelApplicationName] = appName
-		}
-		err = unstructured.SetNestedMap(target.UnstructuredContent(), labels, "spec", "template", "metadata", "labels")
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // tempRepoPath returns a formulated temporary directory location to clone a repository
