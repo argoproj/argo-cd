@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -131,8 +132,10 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		showParams bool
-		refresh    bool
+		output        string
+		showParams    bool
+		showOperation bool
+		refresh       bool
 	)
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
@@ -148,30 +151,70 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
 			errors.CheckError(err)
-			format := "%-15s%s\n"
-			fmt.Printf(format, "Name:", app.Name)
-			fmt.Printf(format, "Server:", app.Spec.Destination.Server)
-			fmt.Printf(format, "Namespace:", app.Spec.Destination.Namespace)
-			fmt.Printf(format, "URL:", appURL(acdClient, app))
-			fmt.Printf(format, "Environment:", app.Spec.Source.Environment)
-			fmt.Printf(format, "Repo:", app.Spec.Source.RepoURL)
-			fmt.Printf(format, "Path:", app.Spec.Source.Path)
-			fmt.Printf(format, "Target:", app.Spec.Source.TargetRevision)
-			if app.Status.ComparisonResult.Error != "" {
-				fmt.Printf(format, "Error:", app.Status.ComparisonResult.Error)
-			}
-			if showParams {
-				printParams(app)
-			}
-			if len(app.Status.ComparisonResult.Resources) > 0 {
-				fmt.Println()
-				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
-				printAppResources(w, app)
-				_ = w.Flush()
+			switch output {
+			case "yaml":
+				yamlBytes, err := yaml.Marshal(app)
+				errors.CheckError(err)
+				fmt.Println(string(yamlBytes))
+			case "json":
+				jsonBytes, err := json.MarshalIndent(app, "", "  ")
+				errors.CheckError(err)
+				fmt.Println(string(jsonBytes))
+			case "":
+				format := "%-15s%s\n"
+				fmt.Printf(format, "Name:", app.Name)
+				fmt.Printf(format, "Server:", app.Spec.Destination.Server)
+				fmt.Printf(format, "Namespace:", app.Spec.Destination.Namespace)
+				fmt.Printf(format, "URL:", appURL(acdClient, app))
+				fmt.Printf(format, "Environment:", app.Spec.Source.Environment)
+				fmt.Printf(format, "Repo:", app.Spec.Source.RepoURL)
+				fmt.Printf(format, "Path:", app.Spec.Source.Path)
+				fmt.Printf(format, "Target:", app.Spec.Source.TargetRevision)
+				if app.Status.ComparisonResult.Error != "" {
+					fmt.Printf(format, "Error:", app.Status.ComparisonResult.Error)
+				}
+				var opState *argoappv1.OperationState
+				if showOperation && app.Status.OperationState != nil {
+					opState = app.Status.OperationState
+					fmt.Println()
+					var opName string
+					if opState.SyncResult != nil {
+						opName = "Sync"
+					} else if opState.RollbackResult != nil {
+						opName = "Rollback"
+					}
+					fmt.Printf(format, "Operation:", opName)
+					fmt.Printf(format, "  Phase:", opState.Phase)
+					fmt.Printf(format, "  Start:", opState.StartedAt)
+					fmt.Printf(format, "  Finished:", opState.FinishedAt)
+					var duration time.Duration
+					if !opState.FinishedAt.IsZero() {
+						duration = time.Second * time.Duration(opState.FinishedAt.Unix()-opState.StartedAt.Unix())
+					} else {
+						duration = time.Second * time.Duration(time.Now().UTC().Unix()-opState.StartedAt.Unix())
+					}
+					fmt.Printf(format, "  Duration:", duration)
+					fmt.Printf(format, "  Phase:", opState.Phase)
+					if opState.Message != "" {
+						fmt.Printf(format, "  Message:", opState.Message)
+					}
+				}
+				if showParams {
+					printParams(app)
+				}
+				if len(app.Status.ComparisonResult.Resources) > 0 {
+					fmt.Println()
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+					printAppResources(w, app, opState)
+					_ = w.Flush()
+				}
+			default:
+				log.Fatalf("Unknown output format: %s", output)
 			}
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
+	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	return command
@@ -429,8 +472,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			var fmtStr string
 			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "STATUS", "HEALTH"}
 			if output == "wide" {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
-				headers = append(headers, "ENV", "REPO", "TARGET")
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				headers = append(headers, "ENV", "REPO", "PATH", "TARGET")
 			} else {
 				fmtStr = "%s\t%s\t%s\t%s\t%s\n"
 			}
@@ -444,7 +487,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app.Status.Health.Status,
 				}
 				if output == "wide" {
-					vals = append(vals, app.Spec.Source.Environment, app.Spec.Source.RepoURL, app.Spec.Source.TargetRevision)
+					vals = append(vals, app.Spec.Source.Environment, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
 				}
 				fmt.Fprintf(w, fmtStr, vals...)
 			}
@@ -491,8 +534,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
-			printAppResources(w, app)
+			printAppResources(w, app, nil)
 			_ = w.Flush()
 			prevCompRes := &app.Status.ComparisonResult
 
@@ -573,7 +615,19 @@ func watchApp(ctx context.Context, appIf application.ApplicationServiceClient, a
 }
 
 // printAppResources prints the resources of an application in a tabwriter table
-func printAppResources(w io.Writer, app *argoappv1.Application) {
+// Optionally prints the message from the operation state
+func printAppResources(w io.Writer, app *argoappv1.Application, opState *argoappv1.OperationState) {
+	messages := make(map[string]string)
+	if opState != nil && opState.SyncResult != nil {
+		for _, resDetails := range opState.SyncResult.Resources {
+			messages[fmt.Sprintf("%s/%s", resDetails.Kind, resDetails.Name)] = resDetails.Message
+		}
+	}
+	if opState != nil {
+		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\tOPERATIONMSG\n")
+	} else {
+		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
+	}
 	for _, res := range app.Status.ComparisonResult.Resources {
 		obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
 		errors.CheckError(err)
@@ -581,7 +635,12 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
 			errors.CheckError(err)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
+		if opState != nil {
+			message := messages[fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())]
+			fmt.Fprintf(w, "\t%s", message)
+		}
+		fmt.Fprint(w, "\n")
 	}
 }
 
@@ -646,9 +705,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
 			err = printOperationResult(appName, status)
-			if err != nil {
-				log.Fatal(err)
-			}
+			errors.CheckError(err)
 			if !status.Phase.Successful() && !dryRun {
 				os.Exit(1)
 			}
@@ -799,9 +856,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
 			err = printOperationResult(appName, status)
-			if err != nil {
-				log.Fatal(err)
-			}
+			errors.CheckError(err)
 			if !status.Phase.Successful() {
 				os.Exit(1)
 			}
