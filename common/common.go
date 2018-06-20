@@ -20,6 +20,9 @@ const (
 	AuthCookieName = "argocd.token"
 	// ResourcesFinalizerName is a number of application CRD finalizer
 	ResourcesFinalizerName = "resources-finalizer." + MetadataPrefix
+
+	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
+	KubernetesInternalAPIServerAddr = "https://kubernetes.default.svc"
 )
 
 const (
