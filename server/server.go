@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
@@ -305,6 +306,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf)
 	sessionService := session.NewServer(a.sessionMgr)
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf)
+	projectService := project.NewServer(a.Namespace, db, a.AppClientset, a.enf)
 	settingsService := settings.NewServer(a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
@@ -312,6 +314,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	repository.RegisterRepositoryServiceServer(grpcS, repoService)
 	session.RegisterSessionServiceServer(grpcS, sessionService)
 	settings.RegisterSettingsServiceServer(grpcS, settingsService)
+	project.RegisterProjectServiceServer(grpcS, projectService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
@@ -370,6 +373,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)

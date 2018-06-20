@@ -286,7 +286,7 @@ type RepositoryServiceClient interface {
 	Get(ctx context.Context, in *RepoQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Repository, error)
 	// Update updates a repo
 	Update(ctx context.Context, in *RepoUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Repository, error)
-	// Delete updates a repo
+	// Delete deletes a repo
 	Delete(ctx context.Context, in *RepoQuery, opts ...grpc.CallOption) (*RepoResponse, error)
 }
 
@@ -365,7 +365,7 @@ type RepositoryServiceServer interface {
 	Get(context.Context, *RepoQuery) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Repository, error)
 	// Update updates a repo
 	Update(context.Context, *RepoUpdateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Repository, error)
-	// Delete updates a repo
+	// Delete deletes a repo
 	Delete(context.Context, *RepoQuery) (*RepoResponse, error)
 }
 

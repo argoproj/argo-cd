@@ -10,6 +10,7 @@ p, role:readonly, applications/logs, get, */*
 p, role:readonly, clusters, get, */*
 p, role:readonly, repositories, get, */*
 p, role:readonly, repositories/apps, get, */*
+p, role:readonly, projects, get, */*
 
 p, role:admin, applications, create, */*
 p, role:admin, applications, update, */*
@@ -23,6 +24,9 @@ p, role:admin, clusters, delete, */*
 p, role:admin, repositories, create, */*
 p, role:admin, repositories, update, */*
 p, role:admin, repositories, delete, */*
+p, role:admin, projects, create, */*
+p, role:admin, projects, update, */*
+p, role:admin, projects, delete, */*
 
 g, role:admin, role:readonly
 g, admin, role:admin

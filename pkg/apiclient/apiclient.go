@@ -13,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
@@ -48,6 +49,8 @@ type Client interface {
 	NewSettingsClientOrDie() (*grpc.ClientConn, settings.SettingsServiceClient)
 	NewVersionClient() (*grpc.ClientConn, version.VersionServiceClient, error)
 	NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServiceClient)
+	NewProjectClient() (*grpc.ClientConn, project.ProjectServiceClient, error)
+	NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServiceClient)
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -291,4 +294,21 @@ func (c *client) NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServi
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, versionIf
+}
+
+func (c *client) NewProjectClient() (*grpc.ClientConn, project.ProjectServiceClient, error) {
+	conn, err := c.NewConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	projIf := project.NewProjectServiceClient(conn)
+	return conn, projIf, nil
+}
+
+func (c *client) NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServiceClient) {
+	conn, projIf, err := c.NewProjectClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, projIf
 }

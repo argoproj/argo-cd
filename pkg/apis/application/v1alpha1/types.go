@@ -332,6 +332,32 @@ type RepositoryList struct {
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// AppProjectList is list of AppProject resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AppProjectList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []AppProject `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// AppProject is a definition of AppProject resource.
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AppProject struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+}
+
+// AppProjectSpec represents
+type AppProjectSpec struct {
+	// Destinations contains list of destinations available for deployment
+	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,1,name=destination"`
+	// Description contains optional project description
+	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
+}
+
 func (app *Application) getFinalizerIndex(name string) int {
 	for i, finalizer := range app.Finalizers {
 		if finalizer == name {
