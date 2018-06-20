@@ -42,6 +42,9 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
+	var (
+		inCluster bool
+	)
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
@@ -71,6 +74,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 			clst := NewCluster(args[0], conf, managerBearerToken)
+			if inCluster {
+				clst.Server = common.KubernetesInternalAPIServerAddr
+			}
 			clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
 			clst, err = clusterIf.Create(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
@@ -78,6 +84,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
+	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates ArgoCD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
 	return command
 }
 
