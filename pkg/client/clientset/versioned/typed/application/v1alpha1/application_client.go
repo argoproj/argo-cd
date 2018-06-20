@@ -9,12 +9,17 @@ import (
 
 type ArgoprojV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AppProjectsGetter
 	ApplicationsGetter
 }
 
 // ArgoprojV1alpha1Client is used to interact with features provided by the argoproj.io group.
 type ArgoprojV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *ArgoprojV1alpha1Client) AppProjects(namespace string) AppProjectInterface {
+	return newAppProjects(c, namespace)
 }
 
 func (c *ArgoprojV1alpha1Client) Applications(namespace string) ApplicationInterface {

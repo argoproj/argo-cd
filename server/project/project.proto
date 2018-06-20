@@ -1,0 +1,64 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/project";
+
+// Project Service
+//
+// Project Service API performs CRUD actions against project resources
+package project;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "k8s.io/api/core/v1/generated.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+
+// ProjectCreateRequest defines project creation parameters.
+message ProjectCreateRequest {
+  github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
+}
+
+// ProjectQuery is a query for Project resources
+message ProjectQuery {
+	string name = 1;
+}
+
+message ProjectUpdateRequest {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
+}
+
+message EmptyResponse {}
+
+// ProjectService
+service ProjectService {
+
+  // Create a new project.
+  rpc Create(ProjectCreateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+    option (google.api.http) = {
+      post: "/api/v1/projects"
+      body: "*"
+    };
+  }
+
+  // List returns list of projects
+  rpc List(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProjectList) {
+      option (google.api.http).get = "/api/v1/projects";
+  }
+
+  // Get returns a project by name
+  rpc Get(ProjectQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+      option (google.api.http).get = "/api/v1/projects/{name}";
+  }
+
+  // Update updates a project
+  rpc Update(ProjectUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject) {
+      option (google.api.http) = {
+          put: "/api/v1/repositories/{project.metadata.name}"
+          body: "*"
+      };
+  }
+
+  // Delete deletes a project
+  rpc Delete(ProjectQuery) returns (EmptyResponse) {
+      option (google.api.http).delete = "/api/v1/repositories/{name}";
+  }
+}

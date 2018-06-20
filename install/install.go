@@ -134,8 +134,13 @@ func (i *Installer) InstallNamespace() {
 
 func (i *Installer) InstallApplicationCRD() {
 	var applicationCRD apiextensionsv1beta1.CustomResourceDefinition
-	i.unmarshalManifest("01_application-crd.yaml", &applicationCRD)
+	i.unmarshalManifest("01a_application-crd.yaml", &applicationCRD)
 	i.MustInstallResource(kube.MustToUnstructured(&applicationCRD))
+
+	var appProjectCRD apiextensionsv1beta1.CustomResourceDefinition
+	i.unmarshalManifest("01b_appproject-crd.yaml", &appProjectCRD)
+	i.MustInstallResource(kube.MustToUnstructured(&appProjectCRD))
+
 }
 
 func (i *Installer) InstallSettings() {
