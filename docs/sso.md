@@ -3,9 +3,9 @@
 ## Overview
 
 ArgoCD embeds and bundles [Dex](https://github.com/coreos/dex) as part of its installation, for the
-purposes of delegating authentication to an external identity provider. Multiple types of identity
+purpose of delegating authentication to an external identity provider. Multiple types of identity
 providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of ArgoCD requires
-editing the `argocd-cm` ConfigMap with a 
+editing the `argocd-cm` ConfigMap with 
 [Dex connector](https://github.com/coreos/dex/tree/master/Documentation/connectors) settings. 
 
 This document describes how to configure ArgoCD SSO using GitHub (OAuth2) as an example, but the
