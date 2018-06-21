@@ -19,12 +19,19 @@ import (
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 )
 
-// FilterByProject returns applications which belongs to the specified project
-func FilterByProject(apps []argoappv1.Application, project string) []argoappv1.Application {
+// FilterByProjects returns applications which belongs to the specified project
+func FilterByProjects(apps []argoappv1.Application, projects []string) []argoappv1.Application {
+	if len(projects) == 0 {
+		return apps
+	}
+	projectsMap := make(map[string]bool)
+	for i := range projects {
+		projectsMap[projects[i]] = true
+	}
 	items := make([]argoappv1.Application, 0)
 	for i := 0; i < len(apps); i++ {
 		a := apps[i]
-		if project == a.Spec.GetProject() {
+		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
 		}
 	}

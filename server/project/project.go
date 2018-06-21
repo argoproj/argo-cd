@@ -32,7 +32,7 @@ func NewServer(ns string, appclientset appclientset.Interface, enf *rbac.Enforce
 
 // Create a new project.
 func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "create", fmt.Sprintf("*/%s", q.Project.Name)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "create", fmt.Sprintf("%s", q.Project.Name)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
@@ -45,7 +45,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 		newItems := make([]v1alpha1.AppProject, 0)
 		for i := range list.Items {
 			project := list.Items[i]
-			if s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", fmt.Sprintf("*/%s", project.Name)) {
+			if s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", fmt.Sprintf("%s", project.Name)) {
 				newItems = append(newItems, project)
 			}
 		}
@@ -56,7 +56,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 
 // Get returns a project by name
 func (s *Server) Get(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", fmt.Sprintf("*/%s", q.Name)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", fmt.Sprintf("%s", q.Name)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
@@ -85,7 +85,7 @@ func getRemovedDestination(oldProj, newProj *v1alpha1.AppProject) map[string]v1a
 
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", fmt.Sprintf("*/%s", q.Project.Name)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", fmt.Sprintf("%s", q.Project.Name)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	s.projectLock.Lock(q.Project.Name)
@@ -103,7 +103,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 		return nil, err
 	}
 	removedUsed := make([]v1alpha1.ApplicationDestination, 0)
-	for _, a := range argo.FilterByProject(appsList.Items, q.Project.Name) {
+	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
 		if dest, ok := removed[fmt.Sprintf("%s/%s", a.Spec.Destination.Server, a.Spec.Destination.Namespace)]; ok {
 			removedUsed = append(removedUsed, dest)
 		}
@@ -122,7 +122,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 
 // Delete deletes a project
 func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", fmt.Sprintf("*/%s", q.Name)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", fmt.Sprintf("%s", q.Name)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -133,7 +133,7 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	if err != nil {
 		return nil, err
 	}
-	apps := argo.FilterByProject(appsList.Items, q.Name)
+	apps := argo.FilterByProjects(appsList.Items, []string{q.Name})
 	if len(apps) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "project is referenced by %d applications", len(apps))
 	}

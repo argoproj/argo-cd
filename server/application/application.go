@@ -75,7 +75,7 @@ func NewServer(
 
 // appRBACName formats fully qualified application name for RBAC check
 func appRBACName(app appv1.Application) string {
-	return fmt.Sprintf("%s/%s", git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Name)
+	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
 // List returns list of applications
@@ -90,9 +90,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 			newItems = append(newItems, a)
 		}
 	}
-	if q.Project != nil {
-		newItems = argoutil.FilterByProject(newItems, *q.Project)
-	}
+	newItems = argoutil.FilterByProjects(newItems, q.Project)
 	appList.Items = newItems
 	return appList, nil
 }
