@@ -540,7 +540,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app.Name,
 					app.Spec.Destination.Server,
 					app.Spec.Destination.Namespace,
-					app.Spec.Project,
+					app.Spec.GetProject(),
 					app.Status.ComparisonResult.Status,
 					app.Status.Health.Status,
 				}
