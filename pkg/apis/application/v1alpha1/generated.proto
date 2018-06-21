@@ -106,6 +106,9 @@ message ApplicationSpec {
 
   // Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
   optional ApplicationDestination destination = 2;
+
+  // Project is a application project name. Empty name means that application belongs to 'default' project.
+  optional string project = 3;
 }
 
 // ApplicationStatus contains information about application status in target environment.

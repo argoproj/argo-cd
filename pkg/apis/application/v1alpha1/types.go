@@ -138,6 +138,8 @@ type ApplicationSpec struct {
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
 	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
+	// Project is a application project name. Empty name means that application belongs to 'default' project.
+	Project string `json:"project" protobuf:"bytes,3,name=project"`
 }
 
 // ComponentParameter contains information about component parameter value
@@ -398,6 +400,26 @@ func (source ApplicationSource) Equals(other ApplicationSource) bool {
 		source.RepoURL == other.RepoURL &&
 		source.Path == other.Path &&
 		source.Environment == other.Environment
+}
+
+func (spec ApplicationSpec) BelongsToDefaultProject() bool {
+	return spec.GetProject() == common.DefaultAppProjectName
+}
+
+func (spec ApplicationSpec) GetProject() string {
+	if spec.Project == "" {
+		return common.DefaultAppProjectName
+	}
+	return spec.Project
+}
+
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+	for _, item := range proj.Spec.Destinations {
+		if item.Server == dst.Server && item.Namespace == dst.Namespace {
+			return true
+		}
+	}
+	return false
 }
 
 // RESTConfig returns a go-client REST config from cluster
