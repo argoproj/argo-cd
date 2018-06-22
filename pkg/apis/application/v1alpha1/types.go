@@ -360,6 +360,15 @@ type AppProjectSpec struct {
 	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
 }
 
+func GetDefaultProject(namespace string) AppProject {
+	return AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.DefaultAppProjectName,
+			Namespace: namespace,
+		},
+	}
+}
+
 func (app *Application) getFinalizerIndex(name string) int {
 	for i, finalizer := range app.Finalizers {
 		if finalizer == name {
