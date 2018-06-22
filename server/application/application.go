@@ -35,7 +35,6 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
-	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Server provides a Application service
@@ -90,7 +89,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 			newItems = append(newItems, a)
 		}
 	}
-	newItems = argoutil.FilterByProjects(newItems, q.Project)
+	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 	appList.Items = newItems
 	return appList, nil
 }
@@ -426,7 +425,7 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 	if !spec.BelongsToDefaultProject() {
 		proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(spec.Project, metav1.GetOptions{})
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierr.IsNotFound(err) {
 				return status.Errorf(codes.InvalidArgument, "application referencing project %s which does not exist", spec.Project)
 			}
 			return err
