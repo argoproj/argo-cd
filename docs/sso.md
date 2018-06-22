@@ -55,6 +55,8 @@ data:
         - name: your-github-org
 ```
 
+After saving, the changes should take affect automatically.
+
 NOTES:
 * Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
   to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
@@ -62,11 +64,3 @@ NOTES:
   ArgoCD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. https://argocd.example.com/api/dex/callback)
 
-### 3. Restart ArgoCD for changes to take effect
-Any changes to the `argocd-cm` ConfigMap or `argocd-secret` Secret, currently require a restart of
-the ArgoCD API server for the settings to take effect. Delete the `argocd-server` pod to force a
-restart. [Issue #174](https://github.com/argoproj/argo-cd/issues/174) will address this limitation.
-
-```
-kubectl delete pod -l app=argocd-server
-```
