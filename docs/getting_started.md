@@ -18,7 +18,7 @@ chmod +x /usr/local/bin/argocd
 
 ## 2. Install ArgoCD
 ```
-argocd install
+argocd-util install
 ```
 This will create a new namespace, `argocd`, where ArgoCD services and application resources will live.
 
