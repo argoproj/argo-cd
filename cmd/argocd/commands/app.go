@@ -98,6 +98,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 						Name: appName,
 					},
 					Spec: argoappv1.ApplicationSpec{
+						Project: appOpts.project,
 						Source: argoappv1.ApplicationSource{
 							RepoURL:        appOpts.repoURL,
 							Path:           appOpts.appPath,
@@ -301,6 +302,8 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					app.Spec.Destination.Server = appOpts.destServer
 				case "dest-namespace":
 					app.Spec.Destination.Namespace = appOpts.destNamespace
+				case "project":
+					app.Spec.Project = appOpts.project
 				}
 			})
 			if visited == 0 {
@@ -328,6 +331,7 @@ type appOptions struct {
 	destServer    string
 	destNamespace string
 	parameters    []string
+	project       string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -338,6 +342,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (overrides the server URL specified in the ksonnet app.yaml)")
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
+	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -522,12 +527,12 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			var fmtStr string
-			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "STATUS", "HEALTH"}
+			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH"}
 			if output == "wide" {
 				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 				headers = append(headers, "ENV", "REPO", "PATH", "TARGET")
 			} else {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\n"
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\n"
 			}
 			fmt.Fprintf(w, fmtStr, headers...)
 			for _, app := range apps.Items {
@@ -535,6 +540,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app.Name,
 					app.Spec.Destination.Server,
 					app.Spec.Destination.Namespace,
+					app.Spec.GetProject(),
 					app.Status.ComparisonResult.Status,
 					app.Status.Health.Status,
 				}

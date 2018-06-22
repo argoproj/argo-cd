@@ -18,6 +18,7 @@ import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
 message ApplicationQuery {
 	optional string name = 1;
 	required bool refresh = 2 [(gogoproto.nullable) = false];
+	repeated string project = 3 [(gogoproto.customname) = "Projects"];
 }
 
 // ApplicationEventsQuery is a query for application resource events

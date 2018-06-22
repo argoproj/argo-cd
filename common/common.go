@@ -51,6 +51,8 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
+	// DefaultAppProjectName contains name of default app project. The default app project allows deploying application to any cluster.
+	DefaultAppProjectName = "default"
 )
 
 var (

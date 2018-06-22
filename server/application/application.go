@@ -46,6 +46,7 @@ type Server struct {
 	db            db.ArgoDB
 	appComparator controller.AppStateManager
 	enf           *rbac.Enforcer
+	projectLock   *util.KeyLock
 }
 
 // NewServer returns a new instance of the Application service
@@ -56,6 +57,7 @@ func NewServer(
 	repoClientset reposerver.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
+	projectLock *util.KeyLock,
 ) ApplicationServiceServer {
 
 	return &Server{
@@ -66,12 +68,13 @@ func NewServer(
 		repoClientset: repoClientset,
 		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
 		enf:           enf,
+		projectLock:   projectLock,
 	}
 }
 
 // appRBACName formats fully qualified application name for RBAC check
 func appRBACName(app appv1.Application) string {
-	return fmt.Sprintf("%s/%s", git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Name)
+	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
 // List returns list of applications
@@ -86,6 +89,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 			newItems = append(newItems, a)
 		}
 	}
+	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 	appList.Items = newItems
 	return appList, nil
 }
@@ -95,6 +99,12 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "create", appRBACName(q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
+
+	if !q.Application.Spec.BelongsToDefaultProject() {
+		s.projectLock.Lock(q.Application.Spec.Project)
+		defer s.projectLock.Unlock(q.Application.Spec.Project)
+	}
+
 	a := q.Application
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
@@ -226,6 +236,12 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(*q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
+
+	if !q.Application.Spec.BelongsToDefaultProject() {
+		s.projectLock.Lock(q.Application.Spec.Project)
+		defer s.projectLock.Unlock(q.Application.Spec.Project)
+	}
+
 	a := q.Application
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
@@ -236,6 +252,12 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 
 // UpdateSpec updates an application spec
 func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
+
+	if !q.Spec.BelongsToDefaultProject() {
+		s.projectLock.Lock(q.Spec.Project)
+		defer s.projectLock.Unlock(q.Spec.Project)
+	}
+
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -262,6 +284,11 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil && !apierr.IsNotFound(err) {
 		return nil, err
+	}
+
+	if !a.Spec.BelongsToDefaultProject() {
+		s.projectLock.Lock(a.Spec.Project)
+		defer s.projectLock.Unlock(a.Spec.Project)
 	}
 
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
@@ -393,6 +420,19 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 	}
 	if spec.Destination.Namespace == "" {
 		spec.Destination.Namespace = envSpec.Destination.Namespace
+	}
+
+	if !spec.BelongsToDefaultProject() {
+		proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(spec.Project, metav1.GetOptions{})
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				return status.Errorf(codes.InvalidArgument, "application referencing project %s which does not exist", spec.Project)
+			}
+			return err
+		}
+		if !proj.IsDestinationPermitted(spec.Destination) {
+			return status.Errorf(codes.PermissionDenied, "application destination %v is not permitted in project %s", spec.Destination, spec.Project)
+		}
 	}
 
 	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD

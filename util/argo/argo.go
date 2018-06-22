@@ -19,6 +19,25 @@ import (
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
 )
 
+// FilterByProjects returns applications which belongs to the specified project
+func FilterByProjects(apps []argoappv1.Application, projects []string) []argoappv1.Application {
+	if len(projects) == 0 {
+		return apps
+	}
+	projectsMap := make(map[string]bool)
+	for i := range projects {
+		projectsMap[projects[i]] = true
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		a := apps[i]
+		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
+			items = append(items, a)
+		}
+	}
+	return items
+}
+
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Application, error) {
 	refreshString := time.Now().UTC().Format(time.RFC3339)
