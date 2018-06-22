@@ -39,7 +39,7 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
-//ParamToMap convers a ComponentParameter list to a map for easy filtering
+//ParamToMap converts a ComponentParameter list to a map for easy filtering
 func ParamToMap(params []argoappv1.ComponentParameter) map[string]map[string]bool {
 	validAppSet := make(map[string]map[string]bool)
 	for _, p := range params {
