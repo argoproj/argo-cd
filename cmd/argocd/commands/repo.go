@@ -7,6 +7,9 @@ import (
 	"os"
 	"text/tabwriter"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -14,8 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/git"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -57,17 +58,21 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 				repo.SSHPrivateKey = string(keyData)
 			}
-			err := git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
+			// First test the repo *without* username/password. This gives us a hint on whether this
+			// is a private repo.
+			// NOTE: it is important not to run git commands to test git credentials on the user's
+			// system since it may mess with their git credential store (e.g. osx keychain).
+			// See issue #315
+			err := git.TestRepo(repo.Repo, "", "", repo.SSHPrivateKey)
 			if err != nil {
-				if repo.Username != "" && repo.Password != "" || git.IsSSHURL(repo.Repo) {
-					// if everything was supplied or repo URL is SSH url, one of the inputs was definitely bad
+				if git.IsSSHURL(repo.Repo) {
+					// If we failed using git SSH credentials, then the repo is automatically bad
 					log.Fatal(err)
 				}
-				// If we can't test the repo, it's probably private. Prompt for credentials and try again.
+				// If we can't test the repo, it's probably private. Prompt for credentials and
+				// let the server test it.
 				repo.Username, repo.Password = cli.PromptCredentials(repo.Username, repo.Password)
-				err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
 			}
-			errors.CheckError(err)
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			repoCreateReq := repository.RepoCreateRequest{Repo: &repo}
