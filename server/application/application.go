@@ -468,17 +468,25 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 		spec.Destination.Namespace = envSpec.Destination.Namespace
 	}
 
-	if !spec.BelongsToDefaultProject() {
-		proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(spec.Project, metav1.GetOptions{})
+	var proj *appv1.AppProject
+	if spec.BelongsToDefaultProject() {
+		defaultProj := appv1.GetDefaultProject(s.ns)
+		proj = &defaultProj
+	} else {
+		proj, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(spec.Project, metav1.GetOptions{})
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				return status.Errorf(codes.InvalidArgument, "application referencing project %s which does not exist", spec.Project)
 			}
 			return err
 		}
-		if !proj.IsDestinationPermitted(spec.Destination) {
-			return status.Errorf(codes.PermissionDenied, "application destination %v is not permitted in project %s", spec.Destination, spec.Project)
-		}
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", proj.Name) {
+		return status.Errorf(codes.PermissionDenied, "permission denied for project %s", proj.Name)
+	}
+
+	if !proj.IsDestinationPermitted(spec.Destination) {
+		return status.Errorf(codes.PermissionDenied, "application destination %v is not permitted in project %s", spec.Destination, spec.Project)
 	}
 
 	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD

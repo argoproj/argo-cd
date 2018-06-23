@@ -6,6 +6,7 @@ import (
 
 	"strings"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util"
@@ -35,12 +36,16 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "create", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
+	if q.Project.Name == common.DefaultAppProjectName {
+		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be used as a project name")
+	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
 }
 
 // List returns list of projects
 func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
+	list.Items = append(list.Items, v1alpha1.GetDefaultProject(s.ns))
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
 		for i := range list.Items {
@@ -85,6 +90,9 @@ func getRemovedDestination(oldProj, newProj *v1alpha1.AppProject) map[string]v1a
 
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+	if q.Project.Name == common.DefaultAppProjectName {
+		return nil, grpc.ErrPermissionDenied
+	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
