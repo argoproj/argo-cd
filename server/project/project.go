@@ -37,7 +37,7 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 		return nil, grpc.ErrPermissionDenied
 	}
 	if q.Project.Name == common.DefaultAppProjectName {
-		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be used as a project name")
+		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be used as a project name", q.Project.Name)
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
 }

@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /usr/bin/env bash
 
 # This script auto-generates protobuf related files. It is intended to be run manually when either
 # API types are added/modified, or server gRPC calls are added. The generated files should then
@@ -77,5 +77,44 @@ for i in ${PROTO_FILES}; do
         -I${GOGO_PROTOBUF_PATH} \
         --${GOPROTOBINARY}_out=plugins=grpc:$GOPATH/src \
         --grpc-gateway_out=logtostderr=true:$GOPATH/src \
+        --swagger_out=logtostderr=true:. \
         $i
 done
+
+# collect_swagger gathers swagger files into a subdirectory
+collect_swagger() {
+    SWAGGER_ROOT="$1"
+    EXPECTED_COLLISIONS="$2"
+    SWAGGER_OUT="${SWAGGER_ROOT}/swagger.json"
+    PRIMARY_SWAGGER=`mktemp`
+    COMBINED_SWAGGER=`mktemp`
+
+    cat <<EOF > "${PRIMARY_SWAGGER}"
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Consolidate Services",
+    "description": "Description of all APIs",
+    "version": "version not set"
+  },
+  "paths": {}
+}
+EOF
+
+    /bin/rm -f "${SWAGGER_OUT}"
+
+    /usr/bin/find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec /usr/local/bin/swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    /usr/local/bin/jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
+
+    /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
+}
+
+# clean up generated swagger files (should come after collect_swagger)
+clean_swagger() {
+    SWAGGER_ROOT="$1"
+    /usr/bin/find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
+}
+
+collect_swagger server 15
+clean_swagger server
+clean_swagger reposerver

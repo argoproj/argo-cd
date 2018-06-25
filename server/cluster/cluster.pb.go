@@ -126,7 +126,7 @@ type ClusterServiceClient interface {
 	Get(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Update updates a cluster
 	Update(ctx context.Context, in *ClusterUpdateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
-	// Delete updates a cluster
+	// Delete deletes a cluster
 	Delete(ctx context.Context, in *ClusterQuery, opts ...grpc.CallOption) (*ClusterResponse, error)
 }
 
@@ -194,7 +194,7 @@ type ClusterServiceServer interface {
 	Get(context.Context, *ClusterQuery) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
 	// Update updates a cluster
 	Update(context.Context, *ClusterUpdateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.Cluster, error)
-	// Delete updates a cluster
+	// Delete deletes a cluster
 	Delete(context.Context, *ClusterQuery) (*ClusterResponse, error)
 }
 

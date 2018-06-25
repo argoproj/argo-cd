@@ -3,6 +3,9 @@ required = [
   "github.com/gogo/protobuf/protoc-gen-gogofast",
   "golang.org/x/sync/errgroup",
   "k8s.io/code-generator/cmd/go-to-protobuf",
+  "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
+  "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
+  "github.com/golang/protobuf/protoc-gen-go",
 ]
 
 [[constraint]]

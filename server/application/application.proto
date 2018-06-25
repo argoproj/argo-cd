@@ -135,7 +135,7 @@ service ApplicationService {
 		};
 	}
 
-	// Update updates an application spec
+	// UpdateSpec updates an application spec
 	rpc UpdateSpec(ApplicationUpdateSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{name}/spec"
@@ -156,7 +156,7 @@ service ApplicationService {
 		};
 	}
 
-	// Sync syncs an application to its target state
+	// Rollback syncs an application to its target state
 	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollback"
@@ -164,7 +164,7 @@ service ApplicationService {
 		};
 	}
 
-	// PodLogs returns stream of log entries for the specified pod. Pod
+	// DeletePod returns stream of log entries for the specified pod. Pod
 	rpc DeletePod(ApplicationDeletePodRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}/pods/{podName}";
 	}
