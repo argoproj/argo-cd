@@ -132,9 +132,10 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 			if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", repoRBACName(*r)) {
 				return nil, grpc.ErrPermissionDenied
 			}
-			existing = r
-			repo, err = s.db.UpdateRepository(ctx, existing)
+			repo, err = s.db.UpdateRepository(ctx, r)
 		} else {
+			// repository ConnectionState may differ, so make consistent before testing
+			r.ConnectionState = existing.ConnectionState
 			if reflect.DeepEqual(existing, r) {
 				repo, err = existing, nil
 			} else {
