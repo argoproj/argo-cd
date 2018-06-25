@@ -127,7 +127,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 			repo, err = s.db.UpdateRepository(ctx, q.Repo)
 		} else {
 			if reflect.DeepEqual(existing, q.Repo) {
-				return existing, nil
+				return redact(existing), nil
 			} else {
 				return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 			}
