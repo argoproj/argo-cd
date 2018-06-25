@@ -50,6 +50,7 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
 )
@@ -376,6 +377,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+
+	swagger.ServeSwaggerUI(mux, "server", "/swagger-ui")
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
