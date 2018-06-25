@@ -129,10 +129,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", err)
 		}
 		if q.Upsert {
-			if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", repoRBACName(r)) {
-				return nil, grpc.ErrPermissionDenied
-			}
-			repo, err = s.db.UpdateRepository(ctx, r)
+			return s.Update(ctx, &RepoUpdateRequest{Repo: r})
 		} else {
 			// repository ConnectionState may differ, so make consistent before testing
 			r.ConnectionState = existing.ConnectionState
