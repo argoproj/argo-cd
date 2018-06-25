@@ -11,10 +11,10 @@ const (
 	ApplicationShortName string = "app"
 	ApplicationFullName  string = ApplicationPlural + "." + Group
 
-	// Cluster constants
-	ClusterKind      string = "Cluster"
-	ClusterSingular  string = "cluster"
-	ClusterPlural    string = "clusters"
-	ClusterShortName string = "cluster"
-	ClusterFullName  string = ClusterPlural + "." + Group
+	// AppProject constants
+	AppProjectKind      string = "AppProject"
+	AppProjectSingular  string = "appproject"
+	AppProjectPlural    string = "appprojects"
+	AppProjectShortName string = "appproject"
+	AppProjectFullName  string = AppProjectPlural + "." + Group
 )

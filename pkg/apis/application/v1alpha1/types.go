@@ -138,6 +138,8 @@ type ApplicationSpec struct {
 	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
 	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
+	// Project is a application project name. Empty name means that application belongs to 'default' project.
+	Project string `json:"project" protobuf:"bytes,3,name=project"`
 }
 
 // ComponentParameter contains information about component parameter value
@@ -332,6 +334,41 @@ type RepositoryList struct {
 	Items           []Repository `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// AppProjectList is list of AppProject resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AppProjectList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []AppProject `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// AppProject is a definition of AppProject resource.
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AppProject struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+}
+
+// AppProjectSpec represents
+type AppProjectSpec struct {
+	// Destinations contains list of destinations available for deployment
+	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,1,name=destination"`
+	// Description contains optional project description
+	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
+}
+
+func GetDefaultProject(namespace string) AppProject {
+	return AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.DefaultAppProjectName,
+			Namespace: namespace,
+		},
+	}
+}
+
 func (app *Application) getFinalizerIndex(name string) int {
 	for i, finalizer := range app.Finalizers {
 		if finalizer == name {
@@ -372,6 +409,26 @@ func (source ApplicationSource) Equals(other ApplicationSource) bool {
 		source.RepoURL == other.RepoURL &&
 		source.Path == other.Path &&
 		source.Environment == other.Environment
+}
+
+func (spec ApplicationSpec) BelongsToDefaultProject() bool {
+	return spec.GetProject() == common.DefaultAppProjectName
+}
+
+func (spec ApplicationSpec) GetProject() string {
+	if spec.Project == "" {
+		return common.DefaultAppProjectName
+	}
+	return spec.Project
+}
+
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+	for _, item := range proj.Spec.Destinations {
+		if item.Server == dst.Server && item.Namespace == dst.Namespace {
+			return true
+		}
+	}
+	return false
 }
 
 // RESTConfig returns a go-client REST config from cluster

@@ -16,25 +16,20 @@ required = [
   name = "github.com/grpc-ecosystem/grpc-gateway"
   version = "v1.3.1"
 
-# override ksonnet's release-1.8 dependency
-[[override]]
-  branch = "release-1.9"
-  name = "k8s.io/apimachinery"
-
 [[constraint]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/api"
 
 [[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  branch = "release-1.9"
+  branch = "release-1.10"
 
 [[constraint]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/code-generator"
 
 [[constraint]]
-  branch = "release-6.0"
+  branch = "release-7.0"
   name = "k8s.io/client-go"
 
 [[constraint]]
@@ -43,7 +38,7 @@ required = [
 
 [[constraint]]
   name = "github.com/ksonnet/ksonnet"
-  version = "v0.10.1"
+  version = "v0.11.0"
 
 [[constraint]]
   name = "github.com/gobuffalo/packr"
@@ -52,4 +47,4 @@ required = [
 # override ksonnet's logrus dependency
 [[override]]
   name = "github.com/sirupsen/logrus"
-  version = "v1.0.3"
+  revision = "ea8897e79973357ba785ac2533559a6297e83c44"

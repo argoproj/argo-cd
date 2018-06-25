@@ -20,6 +20,9 @@ const (
 	AuthCookieName = "argocd.token"
 	// ResourcesFinalizerName is a number of application CRD finalizer
 	ResourcesFinalizerName = "resources-finalizer." + MetadataPrefix
+
+	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
+	KubernetesInternalAPIServerAddr = "https://kubernetes.default.svc"
 )
 
 const (
@@ -48,6 +51,8 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
+	// DefaultAppProjectName contains name of default app project. The default app project allows deploying application to any cluster.
+	DefaultAppProjectName = "default"
 )
 
 var (

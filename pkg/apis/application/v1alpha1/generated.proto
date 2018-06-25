@@ -13,6 +13,33 @@ import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "v1alpha1";
 
+// AppProject is a definition of AppProject resource.
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message AppProject {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  optional AppProjectSpec spec = 2;
+}
+
+// AppProjectList is list of AppProject resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message AppProjectList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated AppProject items = 2;
+}
+
+// AppProjectSpec represents
+message AppProjectSpec {
+  // Destinations contains list of destinations available for deployment
+  repeated ApplicationDestination destinations = 1;
+
+  // Description contains optional project description
+  optional string description = 2;
+}
+
 // Application is a definition of Application resource.
 // +genclient
 // +genclient:noStatus
@@ -79,6 +106,9 @@ message ApplicationSpec {
 
   // Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
   optional ApplicationDestination destination = 2;
+
+  // Project is a application project name. Empty name means that application belongs to 'default' project.
+  optional string project = 3;
 }
 
 // ApplicationStatus contains information about application status in target environment.

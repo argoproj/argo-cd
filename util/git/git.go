@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -100,8 +101,8 @@ func TestRepo(repo, username, password string, sshPrivateKey string) error {
 	if err != nil {
 		if exErr, ok := err.(*exec.ExitError); ok {
 			errOutput := strings.Split(string(exErr.Stderr), "\n")[0]
-			errOutput = redactPassword(errOutput, password)
-			return fmt.Errorf("%s: %s", repo, errOutput)
+			errOutput = fmt.Sprintf("%s: %s", repo, errOutput)
+			return errors.New(redactPassword(errOutput, password))
 		}
 		return err
 	}

@@ -60,11 +60,4 @@ stringData:
 
 ```
 
-### 3. Restart ArgoCD for changes to take effect
-Any changes to the `argocd-cm` ConfigMap or `argocd-secret` Secret, currently require a restart of
-the ArgoCD API server for the settings to take effect. Delete the `argocd-server` pod to force a
-restart. [Issue #174](https://github.com/argoproj/argo-cd/issues/174) will address this limitation.
-
-```
-kubectl delete pod -l app=argocd-server
-```
+After saving, the changes should take affect automatically.
