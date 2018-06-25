@@ -2,9 +2,12 @@ package repository
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -13,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Server provides a Repository service
@@ -113,6 +117,23 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.CreateRepository(ctx, q.Repo)
+	if apierr.IsAlreadyExists(err) {
+		// act idempotent if existing spec matches new spec
+		existing, getErr := s.db.GetRepository(ctx, q.Repo.Repo)
+		if getErr != nil {
+			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", err)
+		}
+		if q.Upsert {
+			repo, err = s.db.UpdateRepository(ctx, q.Repo)
+		} else {
+			if reflect.DeepEqual(existing, q.Repo) {
+				return existing, nil
+			} else {
+				return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
+			}
+		}
+
+	}
 	return redact(repo), err
 }
 
