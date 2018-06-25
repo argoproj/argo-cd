@@ -36,10 +36,12 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
@@ -48,7 +50,7 @@ import (
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	"github.com/argoproj/argo-cd/util/swagger"
+	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
 )
 
@@ -229,6 +231,10 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitBucketUUID := a.settings.WebhookBitbucketUUID
+	var prevCert, prevCertKey string
+	if a.settings.Certificate != nil {
+		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+	}
 
 	for {
 		<-updateCh
@@ -248,6 +254,14 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 		}
 		if prevBitBucketUUID != a.settings.WebhookBitbucketUUID {
 			log.Infof("bitbucket uuid modified. restarting")
+			break
+		}
+		var newCert, newCertKey string
+		if a.settings.Certificate != nil {
+			newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+		}
+		if newCert != prevCert || newCertKey != prevCertKey {
+			log.Infof("tls certificate modified. restarting")
 			break
 		}
 	}
@@ -292,7 +306,9 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	clusterService := cluster.NewServer(db, a.enf)
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf)
 	sessionService := session.NewServer(a.sessionMgr)
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf)
+	projectLock := util.NewKeyLock()
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf, projectLock)
+	projectService := project.NewServer(a.Namespace, a.AppClientset, a.enf, projectLock)
 	settingsService := settings.NewServer(a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
@@ -300,6 +316,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	repository.RegisterRepositoryServiceServer(grpcS, repoService)
 	session.RegisterSessionServiceServer(grpcS, sessionService)
 	settings.RegisterSettingsServiceServer(grpcS, settingsService)
+	project.RegisterProjectServiceServer(grpcS, projectService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
@@ -358,8 +375,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(repository.RegisterRepositoryServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
-
-	swagger.ServeSwaggerUI(mux, "server", "/swagger-ui")
+	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
