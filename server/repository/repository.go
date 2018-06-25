@@ -49,7 +49,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	if repoList != nil {
 		newItems := make([]appsv1.Repository, 0)
 		for _, repo := range repoList.Items {
-			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", fmt.Sprintf("*/%s", repo.Repo)) {
+			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", repoRBACName(&repo)) {
 				newItems = append(newItems, *redact(&repo))
 			}
 		}
@@ -158,7 +158,7 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", fmt.Sprintf("*/%s", q.Repo.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", repoRBACName(q.Repo)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.UpdateRepository(ctx, q.Repo)
