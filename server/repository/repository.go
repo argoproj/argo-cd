@@ -130,14 +130,14 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		}
 		if q.Upsert {
 			return s.Update(ctx, &RepoUpdateRequest{Repo: r})
+		}
+
+		// repository ConnectionState may differ, so make consistent before testing
+		r.ConnectionState = existing.ConnectionState
+		if reflect.DeepEqual(existing, r) {
+			repo, err = existing, nil
 		} else {
-			// repository ConnectionState may differ, so make consistent before testing
-			r.ConnectionState = existing.ConnectionState
-			if reflect.DeepEqual(existing, r) {
-				repo, err = existing, nil
-			} else {
-				return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
-			}
+			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
 
 	}
