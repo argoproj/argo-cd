@@ -22,11 +22,25 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin4",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
             "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "name": "refresh",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "project",
             "in": "query"
           }
         ],
@@ -44,7 +58,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin4",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -71,7 +85,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin4",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -104,13 +118,27 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin4",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "name": "refresh",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "project",
+            "in": "query"
           }
         ],
         "responses": {
@@ -127,7 +155,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin4",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -545,6 +573,80 @@
         }
       }
     },
+    "/api/v1/projects": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "List returns list of projects",
+        "operationId": "ListMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1AppProjectList"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Create a new project.",
+        "operationId": "CreateMixin3",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/projectProjectCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1AppProject"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{name}": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Get returns a project by name",
+        "operationId": "GetMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1AppProject"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories": {
       "get": {
         "tags": [
@@ -589,6 +691,64 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{name}": {
+      "delete": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Delete deletes a project",
+        "operationId": "DeleteMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectEmptyResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{project.metadata.name}": {
+      "put": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Update updates a project",
+        "operationId": "UpdateMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "project.metadata.name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/projectProjectUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1AppProject"
             }
           }
         }
@@ -711,7 +871,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -736,7 +896,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin6",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -775,6 +935,20 @@
           {
             "type": "string",
             "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "format": "boolean",
+            "name": "refresh",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "project",
             "in": "query"
           }
         ],
@@ -978,6 +1152,26 @@
         }
       }
     },
+    "projectEmptyResponse": {
+      "type": "object"
+    },
+    "projectProjectCreateRequest": {
+      "description": "ProjectCreateRequest defines project creation parameters.",
+      "type": "object",
+      "properties": {
+        "project": {
+          "$ref": "#/definitions/v1alpha1AppProject"
+        }
+      }
+    },
+    "projectProjectUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "$ref": "#/definitions/v1alpha1AppProject"
+        }
+      }
+    },
     "repositoryKsonnetAppSpec": {
       "type": "object",
       "title": "KsonnetAppSpec contains Ksonnet app response\nThis roughly reflects: ksonnet/ksonnet/metadata/app/schema.go",
@@ -1170,7 +1364,7 @@
       }
     },
     "v1EventSeries": {
-      "description": "EventSeries contain information on series of events, i.e. thing that was/is happening\ncontinously for some time.",
+      "description": "EventSeries contain information on series of events, i.e. thing that was/is happening\ncontinuously for some time.",
       "type": "object",
       "properties": {
         "count": {
@@ -1424,6 +1618,50 @@
         }
       }
     },
+    "v1alpha1AppProject": {
+      "type": "object",
+      "title": "AppProject is a definition of AppProject resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/apismetav1ObjectMeta"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1alpha1AppProjectSpec"
+        }
+      }
+    },
+    "v1alpha1AppProjectList": {
+      "type": "object",
+      "title": "AppProjectList is list of AppProject resources\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1AppProject"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        }
+      }
+    },
+    "v1alpha1AppProjectSpec": {
+      "type": "object",
+      "title": "AppProjectSpec represents",
+      "properties": {
+        "description": {
+          "type": "string",
+          "title": "Description contains optional project description"
+        },
+        "destinations": {
+          "type": "array",
+          "title": "Destinations contains list of destinations available for deployment",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDestination"
+          }
+        }
+      }
+    },
     "v1alpha1Application": {
       "type": "object",
       "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
@@ -1520,6 +1758,10 @@
       "properties": {
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
+        },
+        "project": {
+          "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
+          "type": "string"
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
