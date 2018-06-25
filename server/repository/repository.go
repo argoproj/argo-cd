@@ -39,6 +39,11 @@ func NewServer(
 	}
 }
 
+// repoRBACName formats fully qualified repository name for RBAC check
+func repoRBACName(repo appsv1.Repository) string {
+	return fmt.Sprintf("*/%s", repo.Repo)
+}
+
 // List returns list of repositories
 func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
 	repoList, err := s.db.ListRepositories(ctx)
@@ -113,20 +118,25 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", fmt.Sprintf("*/%s", q.Repo.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", repoRBACName(*q.Repo)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	repo, err := s.db.CreateRepository(ctx, q.Repo)
+	r := q.Repo
+	repo, err := s.db.CreateRepository(ctx, r)
 	if apierr.IsAlreadyExists(err) {
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetRepository(ctx, q.Repo.Repo)
+		existing, getErr := s.db.GetRepository(ctx, r.Repo)
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", err)
 		}
 		if q.Upsert {
-			repo, err = s.db.UpdateRepository(ctx, q.Repo)
+			if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", repoRBACName(*r)) {
+				return nil, grpc.ErrPermissionDenied
+			}
+			existing = r
+			repo, err = s.db.UpdateRepository(ctx, existing)
 		} else {
-			if reflect.DeepEqual(existing, q.Repo) {
+			if reflect.DeepEqual(existing, r) {
 				repo, err = existing, nil
 			} else {
 				return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
