@@ -39,7 +39,7 @@ func NewServer(
 }
 
 // repoRBACName formats fully qualified repository name for RBAC check
-func repoRBACName(repo appsv1.Repository) string {
+func repoRBACName(repo *appsv1.Repository) string {
 	return fmt.Sprintf("*/%s", repo.Repo)
 }
 
@@ -117,7 +117,7 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", repoRBACName(*q.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", repoRBACName(q.Repo)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	r := q.Repo
@@ -129,7 +129,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", err)
 		}
 		if q.Upsert {
-			if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", repoRBACName(*r)) {
+			if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", repoRBACName(r)) {
 				return nil, grpc.ErrPermissionDenied
 			}
 			repo, err = s.db.UpdateRepository(ctx, r)
