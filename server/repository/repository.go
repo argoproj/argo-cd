@@ -16,7 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Server provides a Repository service
@@ -123,7 +122,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 	}
 	r := q.Repo
 	repo, err := s.db.CreateRepository(ctx, r)
-	if apierr.IsAlreadyExists(err) {
+	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.db.GetRepository(ctx, r.Repo)
 		if getErr != nil {
