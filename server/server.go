@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
@@ -47,6 +48,7 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
@@ -103,16 +105,70 @@ type ArgoCDServerOpts struct {
 	RepoClientset   reposerver.Clientset
 }
 
+//SecretSettings sets secret settings
+func SecretSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (settings *settings_util.ArgoCDSettings) {
+	cdSettings, err := settingsMgr.GetSettings()
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			cdSettings = &settings_util.ArgoCDSettings{}
+		} else {
+			log.Fatal(err)
+		}
+	}
+
+	if cdSettings.ServerSignature == nil {
+		// set JWT signature
+		signature, err := util_session.MakeSignature(32)
+		errors.CheckError(err)
+		cdSettings.ServerSignature = signature
+	}
+
+	if cdSettings.LocalUsers == nil {
+		cdSettings.LocalUsers = make(map[string]string)
+	}
+	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok {
+		//placeholder for when we replace this with get pod
+		passwordRaw := "password"
+		hashedPassword, err := password.HashPassword(passwordRaw)
+		errors.CheckError(err)
+		cdSettings.LocalUsers = map[string]string{
+			common.ArgoCDAdminUsername: hashedPassword,
+		}
+	}
+
+	if cdSettings.Certificate == nil {
+		// generate TLS cert
+		hosts := []string{
+			"localhost",
+			"argocd-server",
+			fmt.Sprintf("argocd-server.%s", opts.Namespace),
+			fmt.Sprintf("argocd-server.%s.svc", opts.Namespace),
+			fmt.Sprintf("argocd-server.%s.svc.cluster.local", opts.Namespace),
+		}
+		certOpts := tlsutil.CertOptions{
+			Hosts:        hosts,
+			Organization: "Argo CD",
+			IsCA:         true,
+		}
+		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
+		errors.CheckError(err)
+		cdSettings.Certificate = cert
+	}
+
+	err = settingsMgr.SaveSettings(cdSettings)
+	errors.CheckError(err)
+	return cdSettings
+}
+
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.GetSettings()
-	errors.CheckError(err)
+	settings := SecretSettings(settingsMgr, opts)
 	sessionMgr := util_session.NewSessionManager(settings)
 
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
-	err = enf.SetBuiltinPolicy(builtinPolicy)
+	err := enf.SetBuiltinPolicy(builtinPolicy)
 	errors.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 	return &ArgoCDServer{

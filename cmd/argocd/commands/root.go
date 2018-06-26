@@ -28,8 +28,6 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewApplicationCommand(&clientOpts))
 	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewRepoCommand(&clientOpts))
-	command.AddCommand(NewInstallCommand())
-	command.AddCommand(NewUninstallCommand())
 	command.AddCommand(NewContextCommand(&clientOpts))
 	command.AddCommand(NewProjectCommand(&clientOpts))
 
