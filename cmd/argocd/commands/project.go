@@ -32,7 +32,7 @@ func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	for _, destStr := range opts.destinations {
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 2 {
-			log.Fatalf("Expected destination of the form: server;namespace. Received: %s", destStr)
+			log.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
 		} else {
 			destinations = append(destinations, v1alpha1.ApplicationDestination{
 				Server:    parts[0],
