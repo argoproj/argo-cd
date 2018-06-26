@@ -44,6 +44,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
 		inCluster bool
+		upsert    bool
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -77,7 +78,10 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
-			clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
+			clstCreateReq := cluster.ClusterCreateRequest{
+				Cluster: clst,
+				Upsert:  upsert,
+			}
 			clst, err = clusterIf.Create(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
@@ -85,6 +89,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates ArgoCD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
+	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
 	return command
 }
 
