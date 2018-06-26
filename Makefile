@@ -58,7 +58,7 @@ codegen: protogen clientgen
 # This enables ease of maintenance of the yaml files.
 .PHONY: cli
 cli: clean-debug
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+	${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: cli-linux
 cli-linux: clean-debug
