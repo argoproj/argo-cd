@@ -2,9 +2,12 @@ package repository
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -112,7 +115,25 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", fmt.Sprintf("*/%s", q.Repo.Repo)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	repo, err := s.db.CreateRepository(ctx, q.Repo)
+	r := q.Repo
+	repo, err := s.db.CreateRepository(ctx, r)
+	if status.Convert(err).Code() == codes.AlreadyExists {
+		// act idempotent if existing spec matches new spec
+		existing, getErr := s.db.GetRepository(ctx, r.Repo)
+		if getErr != nil {
+			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", err)
+		}
+
+		// repository ConnectionState may differ, so make consistent before testing
+		existing.ConnectionState = r.ConnectionState
+		if reflect.DeepEqual(existing, r) {
+			repo, err = existing, nil
+		} else if q.Upsert {
+			return s.Update(ctx, &RepoUpdateRequest{Repo: r})
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
+		}
+	}
 	return redact(repo), err
 }
 

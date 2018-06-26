@@ -40,6 +40,7 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		repo              appsv1.Repository
+		upsert            bool
 		sshPrivateKeyPath string
 	)
 	var command = &cobra.Command{
@@ -75,7 +76,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
-			repoCreateReq := repository.RepoCreateRequest{Repo: &repo}
+			repoCreateReq := repository.RepoCreateRequest{
+				Repo:   &repo,
+				Upsert: upsert,
+			}
 			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("repository '%s' added\n", createdRepo.Repo)
@@ -84,6 +88,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "sshPrivateKeyPath", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
+	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	return command
 }
 
