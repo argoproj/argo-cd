@@ -4,19 +4,25 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/git"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/git"
 )
 
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
+	// Revision is the git revision in which to sync the application to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
-	Prune    bool   `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
-	DryRun   bool   `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
+	// Prune deletes resources that are no longer tracked in git
+	Prune bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
+	// DryRun will perform a `kubectl apply --dry-run` without actually performing the sync
+	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
+	// SyncStrategy describes how to perform the sync
+	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
 }
 
 type RollbackOperation struct {
@@ -68,11 +74,64 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt" protobuf:"bytes,7,opt,name=finishedAt"`
+	// Workflows contains list of workflow statuses associated with this operation
+	Workflows []WorkflowStatus `json:"workflows,omitempty" protobuf:"bytes,8,opt,name=workflows"`
+}
+
+// SyncStrategy indicates the
+type SyncStrategy struct {
+	// Apply wil perform a `kubectl apply` to perform the sync. This is the default strategy
+	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
+	// Workflow will submit any referenced workflows to perform the sync
+	Workflow *SyncStrategyWorkflow `json:"workflow,omitempty" protobuf:"bytes,2,opt,name=workflow"`
+}
+
+// SyncStrategyApply uses `kubectl apply` to perform the apply
+type SyncStrategyApply struct {
+	// Force indicates whether or not to supply the --force flag to `kubectl apply`.
+	// The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+	// retried for 5 times.
+	Force bool `json:"force,omitempty" protobuf:"bytes,1,opt,name=force"`
+}
+
+// SyncStrategyWorkflow will submit workflows referenced in the objects sync-worklow annotation to
+// perform the sync. If no workflows are referenced, falls back to `kubectl apply`
+type SyncStrategyWorkflow struct {
+	// Embed SyncStrategyApply type to inherit any `apply` options
+	SyncStrategyApply `protobuf:"bytes,1,opt,name=syncStrategyApply"`
+	//Parameters []string
+}
+
+type WorkflowPurpose string
+
+const (
+	PurposePreSync  WorkflowPurpose = "PreSync"
+	PurposeSync     WorkflowPurpose = "Sync"
+	PurposePostSync WorkflowPurpose = "PostSync"
+)
+
+// WorkflowStatus contains status about a workflow
+type WorkflowStatus struct {
+	// Name is the workflow name
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Purpose of workflow (PreSync, Sync, PostSync)
+	Purpose WorkflowPurpose `json:"purpose" protobuf:"bytes,2,opt,name=purpose"`
+	// Phase a simple, high-level summary of where the workflow is in its lifecycle.
+	Phase string `json:"phase" protobuf:"bytes,3,opt,name=phase"`
+	// Time at which this workflow started
+	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,4,opt,name=startedAt"`
+	// Time at which this workflow completed
+	FinishedAt metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,5,opt,name=finishedAt"`
+	// A human readable message indicating details about why the workflow is in this condition.
+	Message string `json:"message,omitempty" protobuf:"bytes,6,opt,name=message"`
 }
 
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
+	// Resources holds the sync result of each individual resource
 	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,1,opt,name=resources"`
+	// Revision holds the git commit SHA of the sync
+	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 }
 
 type ResourceSyncStatus string

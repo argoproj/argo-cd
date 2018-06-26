@@ -259,6 +259,9 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+
+  // Workflows contains list of workflow statuses associated with this operation
+  repeated WorkflowStatus workflows = 8;
 }
 
 // Repository is a Git repository holding application configurations
@@ -323,16 +326,50 @@ message RollbackOperation {
 
 // SyncOperation contains sync operation details.
 message SyncOperation {
+  // Revision is the git revision in which to sync the application to
   optional string revision = 1;
 
+  // Prune deletes resources that are no longer tracked in git
   optional bool prune = 2;
 
+  // DryRun will perform a `kubectl apply --dry-run` without actually performing the sync
   optional bool dryRun = 3;
+
+  // SyncStrategy describes how to perform the sync
+  optional SyncStrategy syncStrategy = 4;
 }
 
 // SyncOperationResult represent result of sync operation
 message SyncOperationResult {
+  // Resources holds the sync result of each individual resource
   repeated ResourceDetails resources = 1;
+
+  // Revision holds the git commit SHA of the sync
+  optional string revision = 2;
+}
+
+// SyncStrategy indicates the
+message SyncStrategy {
+  // Apply wil perform a `kubectl apply` to perform the sync. This is the default strategy
+  optional SyncStrategyApply apply = 1;
+
+  // Workflow will submit any referenced workflows to perform the sync
+  optional SyncStrategyWorkflow workflow = 2;
+}
+
+// SyncStrategyApply uses `kubectl apply` to perform the apply
+message SyncStrategyApply {
+  // Force indicates whether or not to supply the --force flag to `kubectl apply`.
+  // The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+  // retried for 5 times.
+  optional bool force = 1;
+}
+
+// SyncStrategyWorkflow will submit workflows referenced in the objects sync-worklow annotation to
+// perform the sync. If no workflows are referenced, falls back to `kubectl apply`
+message SyncStrategyWorkflow {
+  // Embed SyncStrategyApply type to inherit any `apply` options
+  optional SyncStrategyApply syncStrategyApply = 1;
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -356,5 +393,26 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+// WorkflowStatus contains status about a workflow
+message WorkflowStatus {
+  // Name is the workflow name
+  optional string name = 1;
+
+  // Purpose of workflow (PreSync, Sync, PostSync)
+  optional string purpose = 2;
+
+  // Phase a simple, high-level summary of where the workflow is in its lifecycle.
+  optional string phase = 3;
+
+  // Time at which this workflow started
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
+
+  // Time at which this workflow completed
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 5;
+
+  // A human readable message indicating details about why the workflow is in this condition.
+  optional string message = 6;
 }
 

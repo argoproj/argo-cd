@@ -24,6 +24,12 @@ message ManifestResponse {
     string server = 3;
     string revision = 4;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 5;
+    repeated ApplicationWorkflow workflows = 6;
+}
+
+message ApplicationWorkflow {
+    string name = 1;
+    string manifest = 3;
 }
 
 // ListDirRequest requests a repository directory structure

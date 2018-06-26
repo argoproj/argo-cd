@@ -199,9 +199,16 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 						duration = time.Second * time.Duration(time.Now().UTC().Unix()-opState.StartedAt.Unix())
 					}
 					fmt.Printf(format, "  Duration:", duration)
-					fmt.Printf(format, "  Phase:", opState.Phase)
 					if opState.Message != "" {
 						fmt.Printf(format, "  Message:", opState.Message)
+					}
+					if len(opState.Workflows) > 0 {
+						w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+						fmt.Fprintf(w, "WORKFLOW\tPURPOSE\tSTATUS\tMESSAGE\n")
+						for _, wfStatus := range opState.Workflows {
+							fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", wfStatus.Name, wfStatus.Purpose, wfStatus.Phase, wfStatus.Message)
+						}
+						_ = w.Flush()
 					}
 				}
 				if showParams {
@@ -546,7 +553,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			var fmtStr string
 			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH"}
 			if output == "wide" {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 				headers = append(headers, "ENV", "REPO", "PATH", "TARGET")
 			} else {
 				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\n"
@@ -757,6 +764,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		prune    bool
 		dryRun   bool
 		timeout  uint
+		strategy string
+		force    bool
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -775,6 +784,16 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Revision: revision,
 				Prune:    prune,
 			}
+			switch strategy {
+			case "", "apply":
+				syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
+				syncReq.Strategy.Apply.Force = force
+			case "workflow":
+				syncReq.Strategy = &argoappv1.SyncStrategy{Workflow: &argoappv1.SyncStrategyWorkflow{}}
+				syncReq.Strategy.Workflow.Force = force
+			default:
+				log.Fatalf("Unknown sync strategy: '%s'", strategy)
+			}
 			_, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
 			status, err := waitUntilOperationCompleted(appIf, appName, timeout)
@@ -790,6 +809,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|workflow)")
+	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	return command
 }
 

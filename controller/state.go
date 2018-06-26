@@ -6,6 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -14,25 +21,17 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/kube"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
 )
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error)
-	SyncAppState(app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter, dryRun bool, prune bool) *v1alpha1.OperationState
+	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error)
+	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
-// KsonnetAppStateManager allows to compare application using KSonnet CLI
-type KsonnetAppStateManager struct {
+// ksonnetAppStateManager allows to compare application using KSonnet CLI
+type ksonnetAppStateManager struct {
 	db            db.ArgoDB
 	appclientset  appclientset.Interface
 	repoClientset reposerver.Clientset
@@ -41,7 +40,7 @@ type KsonnetAppStateManager struct {
 
 // groupLiveObjects deduplicate list of kubernetes resources and choose correct version of resource: if resource has corresponding expected application resource then method pick
 // kubernetes resource with matching version, otherwise chooses single kubernetes resource with any version
-func (ks *KsonnetAppStateManager) groupLiveObjects(liveObjs []*unstructured.Unstructured, targetObjs []*unstructured.Unstructured) map[string]*unstructured.Unstructured {
+func groupLiveObjects(liveObjs []*unstructured.Unstructured, targetObjs []*unstructured.Unstructured) map[string]*unstructured.Unstructured {
 	targetByFullName := make(map[string]*unstructured.Unstructured)
 	for _, obj := range targetObjs {
 		targetByFullName[getResourceFullName(obj)] = obj
@@ -79,19 +78,36 @@ func (ks *KsonnetAppStateManager) groupLiveObjects(liveObjs []*unstructured.Unst
 	return liveByFullName
 }
 
-// CompareAppState compares application spec and real app state using KSonnet
-func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error) {
-	repo := ks.getRepo(app.Spec.Source.RepoURL)
-	conn, repoClient, err := ks.repoClientset.NewRepositoryClient()
+// CompareAppState compares application git state to the live app state, using the specified
+// revision and supplied overrides. If revision or overrides are empty, then compares against
+// revision and overrides in the app spec.
+func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error) {
+	repo := s.getRepo(app.Spec.Source.RepoURL)
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, nil, err
 	}
 	defer util.Close(conn)
-	overrides := make([]*v1alpha1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
-	if app.Spec.Source.ComponentParameterOverrides != nil {
+
+	if revision == "" {
+		revision = app.Spec.Source.TargetRevision
+	}
+
+	// Decide what overrides to compare with.
+	var mfReqOverrides []*v1alpha1.ComponentParameter
+	if overrides != nil {
+		// If overrides is supplied, use that
+		mfReqOverrides = make([]*v1alpha1.ComponentParameter, len(overrides))
+		for i := range overrides {
+			item := overrides[i]
+			mfReqOverrides[i] = &item
+		}
+	} else {
+		// Otherwise, use the overrides in the app spec
+		mfReqOverrides = make([]*v1alpha1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
 		for i := range app.Spec.Source.ComponentParameterOverrides {
 			item := app.Spec.Source.ComponentParameterOverrides[i]
-			overrides[i] = &item
+			mfReqOverrides[i] = &item
 		}
 	}
 
@@ -99,8 +115,8 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 		Repo:                        repo,
 		Environment:                 app.Spec.Source.Environment,
 		Path:                        app.Spec.Source.Path,
-		Revision:                    app.Spec.Source.TargetRevision,
-		ComponentParameterOverrides: overrides,
+		Revision:                    revision,
+		ComponentParameterOverrides: mfReqOverrides,
 		AppLabel:                    app.Name,
 	})
 	if err != nil {
@@ -120,7 +136,7 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 
 	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, server, namespace)
 	// Get the REST config for the cluster corresponding to the environment
-	clst, err := ks.db.GetCluster(context.Background(), server)
+	clst, err := s.db.GetCluster(context.Background(), server)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,7 +148,7 @@ func (ks *KsonnetAppStateManager) CompareAppState(app *v1alpha1.Application) (*v
 		return nil, nil, err
 	}
 
-	liveObjByFullName := ks.groupLiveObjects(liveObjs, targetObjs)
+	liveObjByFullName := groupLiveObjects(liveObjs, targetObjs)
 
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 
@@ -286,29 +302,7 @@ func getResourceFullName(obj *unstructured.Unstructured) string {
 	return fmt.Sprintf("%s:%s", obj.GetKind(), obj.GetName())
 }
 
-func (s *KsonnetAppStateManager) SyncAppState(
-	app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter, dryRun bool, prune bool) *v1alpha1.OperationState {
-
-	if revision != "" {
-		app.Spec.Source.TargetRevision = revision
-	}
-
-	if overrides != nil {
-		app.Spec.Source.ComponentParameterOverrides = *overrides
-	}
-
-	opRes, manifest := s.syncAppResources(app, dryRun, prune)
-	if !dryRun && opRes.Phase.Successful() {
-		err := s.persistDeploymentInfo(app, manifest.Revision, manifest.Params, nil)
-		if err != nil {
-			opRes.Phase = v1alpha1.OperationError
-			opRes.Message = fmt.Sprintf("failed to record sync to history: %v", err)
-		}
-	}
-	return opRes
-}
-
-func (s *KsonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
+func (s *ksonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	repo, err := s.db.GetRepository(context.Background(), repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
@@ -317,7 +311,7 @@ func (s *KsonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	return repo
 }
 
-func (s *KsonnetAppStateManager) persistDeploymentInfo(
+func (s *ksonnetAppStateManager) persistDeploymentInfo(
 	app *v1alpha1.Application, revision string, envParams []*v1alpha1.ComponentParameter, overrides *[]v1alpha1.ComponentParameter) error {
 
 	params := make([]v1alpha1.ComponentParameter, len(envParams))
@@ -325,16 +319,16 @@ func (s *KsonnetAppStateManager) persistDeploymentInfo(
 		param := *envParams[i]
 		params[i] = param
 	}
-	var nextId int64 = 0
+	var nextID int64 = 0
 	if len(app.Status.History) > 0 {
-		nextId = app.Status.History[len(app.Status.History)-1].ID + 1
+		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
 	}
 	history := append(app.Status.History, v1alpha1.DeploymentInfo{
 		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		Revision:                    revision,
 		Params:                      params,
 		DeployedAt:                  metav1.NewTime(time.Now()),
-		ID:                          nextId,
+		ID:                          nextID,
 	})
 
 	if len(history) > maxHistoryCnt {
@@ -353,137 +347,6 @@ func (s *KsonnetAppStateManager) persistDeploymentInfo(
 	return err
 }
 
-func (s *KsonnetAppStateManager) syncAppResources(
-	app *v1alpha1.Application,
-	dryRun bool,
-	prune bool) (*v1alpha1.OperationState, *repository.ManifestResponse) {
-
-	opRes := v1alpha1.OperationState{
-		SyncResult: &v1alpha1.SyncOperationResult{},
-	}
-
-	comparison, manifestInfo, err := s.CompareAppState(app)
-	if err != nil {
-		opRes.Phase = v1alpha1.OperationError
-		opRes.Message = err.Error()
-		return &opRes, manifestInfo
-	}
-
-	clst, err := s.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		opRes.Phase = v1alpha1.OperationError
-		opRes.Message = err.Error()
-		return &opRes, manifestInfo
-	}
-	config := clst.RESTConfig()
-
-	opRes.SyncResult.Resources = make([]*v1alpha1.ResourceDetails, len(comparison.Resources))
-	liveObjs := make([]*unstructured.Unstructured, len(comparison.Resources))
-	targetObjs := make([]*unstructured.Unstructured, len(comparison.Resources))
-
-	// First perform a `kubectl apply --dry-run` against all the manifests. This will detect most
-	// (but not all) validation issues with the users' manifests (e.g. will detect syntax issues,
-	// but will not not detect if they are mutating immutable fields). If anything fails, we will
-	// refuse to perform the sync.
-	dryRunSuccessful := true
-	for i, resourceState := range comparison.Resources {
-		liveObj, err := resourceState.LiveObject()
-		if err != nil {
-			opRes.Phase = v1alpha1.OperationError
-			opRes.Message = fmt.Sprintf("Failed to unmarshal live object: %v", err)
-			return &opRes, manifestInfo
-		}
-		targetObj, err := resourceState.TargetObject()
-		if err != nil {
-			opRes.Phase = v1alpha1.OperationError
-			opRes.Message = fmt.Sprintf("Failed to unmarshal target object: %v", err)
-			return &opRes, manifestInfo
-		}
-		liveObjs[i] = liveObj
-		targetObjs[i] = targetObj
-		resDetails, successful := syncObject(config, app.Spec.Destination.Namespace, targetObj, liveObj, prune, true)
-		if !successful {
-			dryRunSuccessful = false
-		}
-		opRes.SyncResult.Resources[i] = &resDetails
-	}
-	if !dryRunSuccessful {
-		opRes.Phase = v1alpha1.OperationFailed
-		opRes.Message = "one or more objects failed to apply (dry run)"
-		return &opRes, manifestInfo
-	}
-	if dryRun {
-		opRes.Phase = v1alpha1.OperationSucceeded
-		opRes.Message = "successfully synced (dry run)"
-		return &opRes, manifestInfo
-	}
-	// If we get here, all objects passed their dry-run, so we are now ready to actually perform the
-	// `kubectl apply`. Loop through the resources again, this time without dry-run.
-	syncSuccessful := true
-	for i := range comparison.Resources {
-		resDetails, successful := syncObject(config, app.Spec.Destination.Namespace, targetObjs[i], liveObjs[i], prune, false)
-		if !successful {
-			syncSuccessful = false
-		}
-		opRes.SyncResult.Resources[i] = &resDetails
-	}
-	if !syncSuccessful {
-		opRes.Message = "one or more objects failed to apply"
-		opRes.Phase = v1alpha1.OperationFailed
-	} else {
-		opRes.Message = "successfully synced"
-		opRes.Phase = v1alpha1.OperationSucceeded
-	}
-	return &opRes, manifestInfo
-}
-
-// syncObject performs a sync of a single resource
-func syncObject(config *rest.Config, namespace string, targetObj, liveObj *unstructured.Unstructured, prune, dryRun bool) (v1alpha1.ResourceDetails, bool) {
-	obj := targetObj
-	if obj == nil {
-		obj = liveObj
-	}
-	resDetails := v1alpha1.ResourceDetails{
-		Name:      obj.GetName(),
-		Kind:      obj.GetKind(),
-		Namespace: namespace,
-	}
-	needsDelete := targetObj == nil
-	successful := true
-	if needsDelete {
-		if prune {
-			if dryRun {
-				resDetails.Message = "pruned (dry run)"
-				resDetails.Status = v1alpha1.ResourceDetailsSyncedAndPruned
-			} else {
-				err := kubeutil.DeleteResource(config, liveObj, namespace)
-				if err != nil {
-					resDetails.Message = err.Error()
-					resDetails.Status = v1alpha1.ResourceDetailsSyncFailed
-					successful = false
-				} else {
-					resDetails.Message = "pruned"
-					resDetails.Status = v1alpha1.ResourceDetailsSyncedAndPruned
-				}
-			}
-		} else {
-			resDetails.Message = "ignored (requires pruning)"
-			resDetails.Status = v1alpha1.ResourceDetailsPruningRequired
-		}
-	} else {
-		message, err := kube.ApplyResource(config, targetObj, namespace, dryRun)
-		if err != nil {
-			resDetails.Message = err.Error()
-			resDetails.Status = v1alpha1.ResourceDetailsSyncFailed
-			successful = false
-		} else {
-			resDetails.Message = message
-			resDetails.Status = v1alpha1.ResourceDetailsSynced
-		}
-	}
-	return resDetails, successful
-}
-
 // NewAppStateManager creates new instance of Ksonnet app comparator
 func NewAppStateManager(
 	db db.ArgoDB,
@@ -491,7 +354,7 @@ func NewAppStateManager(
 	repoClientset reposerver.Clientset,
 	namespace string,
 ) AppStateManager {
-	return &KsonnetAppStateManager{
+	return &ksonnetAppStateManager{
 		db:            db,
 		appclientset:  appclientset,
 		repoClientset: repoClientset,

@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/spec"
 )
 
 const (
@@ -61,7 +62,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 	var res FileList
 	err = s.cache.Get(cacheKey, &res)
 	if err == nil {
-		log.Infof("manifest cache hit: %s", cacheKey)
+		log.Infof("listdir cache hit: %s", cacheKey)
 		return &res, nil
 	}
 
@@ -84,7 +85,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		Expiration: DefaultRepoCacheExpiration,
 	})
 	if err != nil {
-		log.Warnf("manifest cache set error %s: %v", cacheKey, err)
+		log.Warnf("listdir cache set error %s: %v", cacheKey, err)
 	}
 	return &res, nil
 }
@@ -188,12 +189,32 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		}
 		manifests[i] = string(manifestStr)
 	}
+
+	// parse workflows
+	appSpecWfs, err := spec.GetApplicationWorkflows(appPath, targetObjs)
+	if err != nil {
+		return nil, err
+	}
+	appWorkflows := make([]*ApplicationWorkflow, len(appSpecWfs))
+	for i, appSpecWf := range appSpecWfs {
+		wfManifestString, err := json.Marshal(appSpecWf.Workflow)
+		if err != nil {
+			return nil, err
+		}
+		appWF := ApplicationWorkflow{
+			Name:     appSpecWf.Name,
+			Manifest: string(wfManifestString),
+		}
+		appWorkflows[i] = &appWF
+	}
+
 	res = ManifestResponse{
 		Revision:  commitSHA,
 		Manifests: manifests,
 		Namespace: env.Destination.Namespace,
 		Server:    env.Destination.Server,
 		Params:    params,
+		Workflows: appWorkflows,
 	}
 	err = s.cache.Set(&cache.Item{
 		Key:        cacheKey,

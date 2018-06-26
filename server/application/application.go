@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/argo"
-
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -32,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
@@ -664,12 +663,14 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.setAppOperation(ctx, *syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
+		syncOp := appv1.SyncOperation{
+			Revision:     syncReq.Revision,
+			Prune:        syncReq.Prune,
+			DryRun:       syncReq.DryRun,
+			SyncStrategy: syncReq.Strategy,
+		}
 		return &appv1.Operation{
-			Sync: &appv1.SyncOperation{
-				Revision: syncReq.Revision,
-				Prune:    syncReq.Prune,
-				DryRun:   syncReq.DryRun,
-			},
+			Sync: &syncOp,
 		}, nil
 	})
 }

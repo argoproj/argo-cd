@@ -53,9 +53,10 @@ message ApplicationDeleteRequest {
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	required string name = 1;
-	required string revision = 2 [(gogoproto.nullable) = false];
-	required bool dryRun = 3 [(gogoproto.nullable) = false];
-	required bool prune = 4 [(gogoproto.nullable) = false];
+	optional string revision = 2 [(gogoproto.nullable) = false];
+	optional bool dryRun = 3 [(gogoproto.nullable) = false];
+	optional bool prune = 4 [(gogoproto.nullable) = false];
+	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec
@@ -67,8 +68,8 @@ message ApplicationUpdateSpecRequest {
 message ApplicationRollbackRequest {
 	required string name = 1;
 	required int64 id = 2 [(gogoproto.customname) = "ID", (gogoproto.nullable) = false];
-	required bool dryRun = 3 [(gogoproto.nullable) = false];
-	required bool prune = 4 [(gogoproto.nullable) = false];
+	optional bool dryRun = 3 [(gogoproto.nullable) = false];
+	optional bool prune = 4 [(gogoproto.nullable) = false];
 }
 
 message ApplicationDeletePodRequest {

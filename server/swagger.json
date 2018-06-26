@@ -1096,6 +1096,9 @@
         },
         "revision": {
           "type": "string"
+        },
+        "strategy": {
+          "$ref": "#/definitions/v1alpha1SyncStrategy"
         }
       }
     },
@@ -1163,6 +1166,17 @@
       "properties": {
         "project": {
           "$ref": "#/definitions/v1alpha1AppProject"
+        }
+      }
+    },
+    "repositoryApplicationWorkflow": {
+      "type": "object",
+      "properties": {
+        "manifest": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
         }
       }
     },
@@ -1240,6 +1254,12 @@
         },
         "server": {
           "type": "string"
+        },
+        "workflows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryApplicationWorkflow"
+          }
         }
       }
     },
@@ -2000,6 +2020,13 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        },
+        "workflows": {
+          "type": "array",
+          "title": "Workflows contains list of workflow statuses associated with this operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1WorkflowStatus"
+          }
         }
       }
     },
@@ -2121,14 +2148,20 @@
       "properties": {
         "dryRun": {
           "type": "boolean",
-          "format": "boolean"
+          "format": "boolean",
+          "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
         },
         "prune": {
           "type": "boolean",
-          "format": "boolean"
+          "format": "boolean",
+          "title": "Prune deletes resources that are no longer tracked in git"
         },
         "revision": {
-          "type": "string"
+          "type": "string",
+          "title": "Revision is the git revision in which to sync the application to"
+        },
+        "syncStrategy": {
+          "$ref": "#/definitions/v1alpha1SyncStrategy"
         }
       }
     },
@@ -2138,9 +2171,46 @@
       "properties": {
         "resources": {
           "type": "array",
+          "title": "Resources holds the sync result of each individual resource",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceDetails"
           }
+        },
+        "revision": {
+          "type": "string",
+          "title": "Revision holds the git commit SHA of the sync"
+        }
+      }
+    },
+    "v1alpha1SyncStrategy": {
+      "type": "object",
+      "title": "SyncStrategy indicates the",
+      "properties": {
+        "apply": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyApply"
+        },
+        "workflow": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyWorkflow"
+        }
+      }
+    },
+    "v1alpha1SyncStrategyApply": {
+      "type": "object",
+      "title": "SyncStrategyApply uses `kubectl apply` to perform the apply",
+      "properties": {
+        "force": {
+          "description": "Force indicates whether or not to supply the --force flag to `kubectl apply`.\nThe --force flag deletes and re-create the resource, when PATCH encounters conflict and has\nretried for 5 times.",
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "v1alpha1SyncStrategyWorkflow": {
+      "type": "object",
+      "title": "SyncStrategyWorkflow will submit workflows referenced in the objects sync-worklow annotation to\nperform the sync. If no workflows are referenced, falls back to `kubectl apply`",
+      "properties": {
+        "syncStrategyApply": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyApply"
         }
       }
     },
@@ -2171,6 +2241,34 @@
         "serverName": {
           "description": "ServerName is passed to the server for SNI and is used in the client to check server\nceritificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1WorkflowStatus": {
+      "type": "object",
+      "title": "WorkflowStatus contains status about a workflow",
+      "properties": {
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "description": "A human readable message indicating details about why the workflow is in this condition.",
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name is the workflow name"
+        },
+        "phase": {
+          "description": "Phase a simple, high-level summary of where the workflow is in its lifecycle.",
+          "type": "string"
+        },
+        "purpose": {
+          "type": "string",
+          "title": "Purpose of workflow (PreSync, Sync, PostSync)"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time"
         }
       }
     },

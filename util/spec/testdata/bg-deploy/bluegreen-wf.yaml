@@ -1,0 +1,19 @@
+# Fake workflow for unit tests
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: k8s-bluegreen-
+spec:
+  entrypoint: k8s-bluegreen
+  arguments:
+    parameters:
+    - name: deployment-name
+    - name: service-name
+    - name: new-deployment-manifest
+    - name: new-service-manifest
+ 
+  templates:
+  - name: k8s-bluegreen
+    container:
+      image: alpine:latest
+      command: [echo, fake workflow]

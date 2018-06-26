@@ -4,16 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"runtime/debug"
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +23,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/argoproj/argo-cd/common"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
@@ -310,22 +312,21 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 }
 
 func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Application) {
-	state := appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
+	var state *appv1.OperationState
 	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-			// TODO: consider adding Error OperationStatus in addition to Failed
 			state.Phase = appv1.OperationError
 			if rerr, ok := r.(error); ok {
 				state.Message = rerr.Error()
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
-			ctrl.setOperationState(app.Name, state, app.Operation)
+			ctrl.setOperationState(app, state, app.Operation)
 		}
 	}()
-	if app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed() {
+	if isOperationRunning(app) {
 		// If we get here, we are about process an operation but we notice it is already Running.
 		// We need to detect if the controller crashed before completing the operation, or if the
 		// the app object we pulled off the informer is simply stale and doesn't reflect the fact
@@ -336,45 +337,23 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			log.Errorf("Failed to retrieve latest application state: %v", err)
 			return
 		}
-		if freshApp.Status.OperationState == nil || freshApp.Status.OperationState.Phase.Completed() {
+		if !isOperationRunning(freshApp) {
 			log.Infof("Skipping operation on stale application state (%s)", app.ObjectMeta.Name)
 			return
 		}
-		log.Warnf("Found interrupted application operation %s %v", app.ObjectMeta.Name, app.Status.OperationState)
+		app = freshApp
+		state = app.Status.OperationState.DeepCopy()
+		log.Infof("Resuming in-progress operation %s %v", app.ObjectMeta.Name, state)
 	} else {
-		ctrl.setOperationState(app.Name, state, app.Operation)
+		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
+		ctrl.setOperationState(app, state, app.Operation)
+		log.Infof("Initialized new operation %s %v", app.ObjectMeta.Name, state)
 	}
-
-	if app.Operation.Sync != nil {
-		opRes := ctrl.appStateManager.SyncAppState(app, app.Operation.Sync.Revision, nil, app.Operation.Sync.DryRun, app.Operation.Sync.Prune)
-		state.Phase = opRes.Phase
-		state.Message = opRes.Message
-		state.SyncResult = opRes.SyncResult
-	} else if app.Operation.Rollback != nil {
-		var deploymentInfo *appv1.DeploymentInfo
-		for _, info := range app.Status.History {
-			if info.ID == app.Operation.Rollback.ID {
-				deploymentInfo = &info
-				break
-			}
-		}
-		if deploymentInfo == nil {
-			state.Phase = appv1.OperationFailed
-			state.Message = fmt.Sprintf("application %s does not have deployment with id %v", app.Name, app.Operation.Rollback.ID)
-		} else {
-			opRes := ctrl.appStateManager.SyncAppState(app, deploymentInfo.Revision, &deploymentInfo.ComponentParameterOverrides, app.Operation.Rollback.DryRun, app.Operation.Rollback.Prune)
-			state.Phase = opRes.Phase
-			state.Message = opRes.Message
-			state.RollbackResult = opRes.SyncResult
-		}
-	} else {
-		state.Phase = appv1.OperationFailed
-		state.Message = "Invalid operation request"
-	}
-	ctrl.setOperationState(app.Name, state, app.Operation)
+	ctrl.appStateManager.SyncAppState(app, state)
+	ctrl.setOperationState(app, state, app.Operation)
 }
 
-func (ctrl *ApplicationController) setOperationState(appName string, state appv1.OperationState, operation *appv1.Operation) {
+func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState, operation *appv1.Operation) {
 	retryUntilSucceed(func() error {
 		var inProgressOpValue *appv1.Operation
 		if state.Phase == "" {
@@ -391,6 +370,11 @@ func (ctrl *ApplicationController) setOperationState(appName string, state appv1
 			state.FinishedAt = &nowTime
 		}
 
+		if reflect.DeepEqual(app.Operation, inProgressOpValue) && reflect.DeepEqual(app.Status.OperationState, state) {
+			log.Infof("no updates necessary to '%s' skipping patch", app.Name)
+			return nil
+		}
+
 		patch, err := json.Marshal(map[string]interface{}{
 			"status": map[string]interface{}{
 				"operationState": state,
@@ -401,11 +385,11 @@ func (ctrl *ApplicationController) setOperationState(appName string, state appv1
 			return err
 		}
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
-		_, err = appClient.Patch(appName, types.MergePatchType, patch)
+		_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
 		if err != nil {
 			return err
 		}
-		log.Infof("updated '%s' operation (phase: %s)", appName, state.Phase)
+		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
 		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
 }
@@ -463,7 +447,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 }
 
 func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthStatus, error) {
-	comparisonResult, manifestInfo, err := ctrl.appStateManager.CompareAppState(app)
+	comparisonResult, manifestInfo, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -557,4 +541,8 @@ func newApplicationInformer(
 		},
 	)
 	return informer
+}
+
+func isOperationRunning(app *appv1.Application) bool {
+	return app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed()
 }

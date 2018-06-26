@@ -69,6 +69,11 @@ var (
 	// AnnotationConnectionModifiedAt contains timestamp when connection state had been modified
 	AnnotationConnectionModifiedAt = MetadataPrefix + "/connection-modified-at"
 
+	AnnotationWorkflowPreSync     = MetadataPrefix + "/workflow-presync"
+	AnnotationWorkflowSync        = MetadataPrefix + "/workflow-sync"
+	AnnotationWorkflowPostSync    = MetadataPrefix + "/workflow-postsync"
+	AnnotationWorkflowParamPrefix = MetadataPrefix + "/workflow-param"
+
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"
 
