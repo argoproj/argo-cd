@@ -88,6 +88,19 @@ func getRemovedDestination(oldProj, newProj *v1alpha1.AppProject) map[string]v1a
 	return removed
 }
 
+func validateProject(p *v1alpha1.AppProject) error {
+	destKeys := make(map[string]bool)
+	for _, dest := range p.Spec.Destinations {
+		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
+		if _, ok := destKeys[key]; !ok {
+			destKeys[key] = true
+		} else {
+			return status.Errorf(codes.InvalidArgument, "destination %s should not be listed more than once.", key)
+		}
+	}
+	return nil
+}
+
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
 	if q.Project.Name == common.DefaultAppProjectName {
@@ -95,6 +108,10 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
+	}
+	err := validateProject(q.Project)
+	if err != nil {
+		return nil, err
 	}
 	s.projectLock.Lock(q.Project.Name)
 	defer s.projectLock.Unlock(q.Project.Name)
