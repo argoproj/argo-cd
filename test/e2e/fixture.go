@@ -89,7 +89,7 @@ func getFreePort() (int, error) {
 }
 
 func (f *Fixture) setup() error {
-	_, err := exec.Command("kubectl apply -f ../../manifests/.").Output()
+	_, err := exec.Command("kubectl", "apply", "-f", "../../manifests/.").Output()
 	if err != nil {
 		return err
 	}
