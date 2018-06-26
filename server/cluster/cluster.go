@@ -2,8 +2,11 @@ package cluster
 
 import (
 	"fmt"
+	"reflect"
 
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
@@ -45,7 +48,25 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", fmt.Sprintf("*/%s", q.Cluster.Server)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	clust, err := s.db.CreateCluster(ctx, q.Cluster)
+	c := q.Cluster
+	clust, err := s.db.CreateCluster(ctx, c)
+	if status.Convert(err).Code() == codes.AlreadyExists {
+		// act idempotent if existing spec matches new spec
+		existing, getErr := s.db.GetCluster(ctx, c.Name)
+		if getErr != nil {
+			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", err)
+		}
+
+		// cluster ConnectionState may differ, so make consistent before testing
+		existing.ConnectionState = c.ConnectionState
+		if reflect.DeepEqual(existing, c) {
+			clust, err = existing, nil
+		} else if q.Upsert {
+			return s.Update(ctx, &ClusterUpdateRequest{Cluster: c})
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "existing cluster spec is different; use upsert flag to force update")
+		}
+	}
 	return redact(clust), err
 }
 
