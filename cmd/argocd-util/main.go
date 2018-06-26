@@ -295,6 +295,8 @@ func NewExportCommand() *cobra.Command {
 				apps.Items[idx].Operation = nil
 			}
 
+			// take a list of exportable objects, marshal them to YAML,
+			// and return a string joined by a delimiter
 			output := func(delimiter string, oo ...interface{}) string {
 				out := make([]string, 0)
 				for _, o := range oo {
