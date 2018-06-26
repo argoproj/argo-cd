@@ -4,8 +4,8 @@ import * as models from '../models';
 import requests from './requests';
 
 export class ApplicationsService {
-    public list(): Promise<models.Application[]> {
-        return requests.get('/applications').then((res) => res.body as models.ApplicationList).then((list) => {
+    public list(projects: string[]): Promise<models.Application[]> {
+        return requests.get('/applications').query({ project: projects }).then((res) => res.body as models.ApplicationList).then((list) => {
             return (list.items || []).map((app) => this.parseAppFields(app));
         });
     }
@@ -59,6 +59,7 @@ export class ApplicationsService {
 
     private parseAppFields(data: any): models.Application {
         const app = data as models.Application;
+        app.spec.project = app.spec.project || 'default';
         (app.status.comparisonResult.resources || []).forEach((resource) => {
             resource.liveState = JSON.parse(resource.liveState as any);
             resource.targetState = JSON.parse(resource.targetState as any);

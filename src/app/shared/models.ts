@@ -117,6 +117,7 @@ export interface ApplicationSource {
 }
 
 export interface ApplicationSpec {
+    project: string;
     source: ApplicationSource;
     destination: ApplicationDestination;
 }
@@ -285,3 +286,18 @@ export interface Event {
 }
 
 export interface EventList extends ItemsList<Event> {}
+
+export interface ProjectSpec {
+    destinations: ApplicationDestination[];
+}
+
+export interface Project {
+    apiVersion?: string;
+    kind?: string;
+    metadata: models.ObjectMeta;
+    spec: ProjectSpec;
+}
+
+export type ProjectList = ItemsList<Project>;
+
+export const DEFAULT_PROJECT_NAME = 'default';

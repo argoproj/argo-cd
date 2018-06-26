@@ -4,6 +4,7 @@ import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 export const ApplicationSummary = ({app}: {app: models.Application}) => {
     const attributes = [
+        {title: 'PROJECT', value: app.spec.project},
         {title: 'CLUSTER', value: app.spec.destination.server},
         {title: 'NAMESPACE', value: app.spec.destination.namespace},
         {title: 'REPO URL', value: (

@@ -1,4 +1,4 @@
-import { DropDownMenu, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import { DropDownMenu, MockupList, NotificationType, SlidingPanel, TopBarFilter } from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -14,12 +14,26 @@ import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
 require('./applications-list.scss');
 
-export class ApplicationsList extends React.Component<RouteComponentProps<{}>, { applications: models.Application[], appWizardStepState: WizardStepState }> {
+type Props = RouteComponentProps<{}>;
+interface State { allProjects: string[]; projectsFilter: string[]; applications: models.Application[]; appWizardStepState: WizardStepState; }
+
+export class ApplicationsList extends React.Component<Props, State> {
 
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
     };
+
+    public static getDerivedStateFromProps(props: Props, state: State): Partial<State> {
+        const projs = new URLSearchParams(props.history.location.search).getAll('proj');
+        if (projs.join(',') !== state.projectsFilter.join(',')) {
+            return {
+                applications: null,
+                projectsFilter: projs,
+            };
+        }
+        return null;
+    }
 
     private changesSubscription: Subscription;
 
@@ -27,33 +41,42 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
         return new URLSearchParams(this.props.location.search).get('new') === 'true';
     }
 
-    constructor(props: RouteComponentProps<{}>) {
+    constructor(props: Props) {
         super(props);
-        this.state = { applications: null, appWizardStepState: { next: null, prev: null, nextTitle: 'Next'} };
+        this.state = { allProjects: [], applications: null, appWizardStepState: { next: null, prev: null, nextTitle: 'Next'}, projectsFilter: [] };
+    }
+
+    public async componentDidUpdate(prevProps: Props, prevState: State) {
+        if (this.state.applications === null) {
+            this.setState({ applications: (await services.applications.list(this.state.projectsFilter)) });
+        }
     }
 
     public async componentDidMount() {
+        this.setState({ applications: (await services.applications.list(this.state.projectsFilter)) });
         this.ensureUnsubscribed();
-        this.setState({ applications: (await services.applications.list()) });
         this.changesSubscription = services.applications.watch().subscribe((applicationChange) => {
-            const applications = this.state.applications.slice();
-            switch (applicationChange.type) {
-                case 'ADDED':
-                case 'MODIFIED':
-                    const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
-                    if (index > -1) {
-                        applications[index] = applicationChange.application;
-                        this.setState({ applications });
-                    } else {
-                        applications.unshift(applicationChange.application);
-                        this.setState({ applications });
-                    }
-                    break;
-                case 'DELETED':
-                    this.setState({ applications: applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name) });
-                    break;
+            if (this.state.applications) {
+                const applications = this.state.applications.slice();
+                switch (applicationChange.type) {
+                    case 'ADDED':
+                    case 'MODIFIED':
+                        const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
+                        if (index > -1) {
+                            applications[index] = applicationChange.application;
+                            this.setState({ applications });
+                        } else {
+                            applications.unshift(applicationChange.application);
+                            this.setState({ applications });
+                        }
+                        break;
+                    case 'DELETED':
+                        this.setState({ applications: applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name) });
+                        break;
+                }
             }
         });
+        this.setState({ allProjects: await services.projects.list().then((items) => items.map((item) => item.metadata.name)) });
     }
 
     public componentWillUnmount() {
@@ -61,8 +84,17 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
     }
 
     public render() {
+        const projectsFilter = new URLSearchParams(this.props.history.location.search).getAll('proj');
+        const filter: TopBarFilter<string> = {
+            items: this.state.allProjects.map((proj) => ({ value: proj, label: proj })),
+            selectedValues: projectsFilter,
+            selectionChanged: (items) => {
+                this.appContext.apis.navigation.goto('.', { proj: items});
+            },
+        };
         return (
         <Page title='Applications' toolbar={{
+                filter,
                 breadcrumbs: [{ title: 'Applications', path: '/applications' }],
                 actionMenu: {
                     className: 'fa fa-plus',
@@ -84,6 +116,10 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                             <div className='columns small-12 applications-list__info'>
                                                 <div className='row'>
                                                     <div className='columns applications-list__title'>{app.metadata.name}</div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className='columns small-3'>Project:</div>
+                                                    <div className='columns small-9'>{app.spec.project}</div>
                                                 </div>
                                                 <div className='row'>
                                                     <div className='columns small-3'>Namespace:</div>
