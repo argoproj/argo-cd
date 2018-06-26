@@ -271,18 +271,12 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			// certificate data is included in secrets that are exported alongside
 			settings.Certificate = nil
-			settingsData, err := yaml.Marshal(settings)
-			errors.CheckError(err)
 
 			db := db.NewDB(namespace, kubeClientset)
 			clusters, err := db.ListClusters(context.Background())
 			errors.CheckError(err)
-			clusterData, err := yaml.Marshal(clusters.Items)
-			errors.CheckError(err)
 
 			repos, err := db.ListRepositories(context.Background())
-			errors.CheckError(err)
-			repoData, err := yaml.Marshal(repos.Items)
 			errors.CheckError(err)
 
 			appClientset := appclientset.NewForConfigOrDie(config)
@@ -300,16 +294,16 @@ func NewExportCommand() *cobra.Command {
 				}
 				apps.Items[idx].Operation = nil
 			}
-			appsData, err := yaml.Marshal(apps.Items)
-			errors.CheckError(err)
 
-			outputStrings := []string{
-				string(settingsData),
-				string(repoData),
-				string(clusterData),
-				string(appsData),
-			}
-			output := strings.Join(outputStrings, yamlSeparator)
+			output := func(delimiter string, oo ...interface{}) string {
+				out := make([]string, 0)
+				for _, o := range oo {
+					data, err := yaml.Marshal(o)
+					errors.CheckError(err)
+					out = append(out, string(data))
+				}
+				return strings.Join(out, delimiter)
+			}(yamlSeparator, settings, repos.Items, clusters.Items, apps.Items)
 
 			if out == "-" {
 				fmt.Println(output)
