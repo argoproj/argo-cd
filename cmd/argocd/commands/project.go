@@ -143,19 +143,17 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 
 // NewProjectAddDestinationCommand returns a new instance of an `argocd proj add-destination` command
 func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		server    string
-		namespace string
-	)
 	var command = &cobra.Command{
-		Use:   "add-destination PROJECT",
+		Use:   "add-destination PROJECT SERVER NAMESPACE",
 		Short: "Add project destination",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
+			server := args[1]
+			namespace := args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
@@ -172,26 +170,22 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringVar(&server, "dest-server", "s", "Destination server")
-	command.Flags().StringVar(&namespace, "dest-namespace", "n", "Destination namespace")
 	return command
 }
 
 // NewProjectRemoveDestinationCommand returns a new instance of an `argocd proj remove-destination` command
 func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		server    string
-		namespace string
-	)
 	var command = &cobra.Command{
-		Use:   "remove-destination PROJECT",
+		Use:   "remove-destination PROJECT SERVER NAMESPACE",
 		Short: "Remove project destination",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
+			server := args[1]
+			namespace := args[2]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
@@ -214,8 +208,6 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			}
 		},
 	}
-	command.Flags().StringVar(&server, "dest-server", "s", "Destination server")
-	command.Flags().StringVar(&namespace, "dest-namespace", "n", "Destination namespace")
 	return command
 }
 

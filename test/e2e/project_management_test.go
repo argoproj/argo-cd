@@ -91,8 +91,8 @@ func TestProjectManagement(t *testing.T) {
 		}
 
 		_, err = fixture.RunCli("proj", "add-destination", projectName,
-			"--dest-server", "https://192.168.99.100:8443",
-			"--dest-namespace", "test1",
+			"https://192.168.99.100:8443",
+			"test1",
 		)
 
 		if err != nil {
@@ -100,8 +100,8 @@ func TestProjectManagement(t *testing.T) {
 		}
 
 		_, err = fixture.RunCli("proj", "add-destination", projectName,
-			"--dest-server", "https://192.168.99.100:8443",
-			"--dest-namespace", "test1",
+			"https://192.168.99.100:8443",
+			"test1",
 		)
 		assert.NotNil(t, err)
 		assert.True(t, strings.Contains(err.Error(), "already defined"))
@@ -134,8 +134,8 @@ func TestProjectManagement(t *testing.T) {
 		}
 
 		_, err = fixture.RunCli("proj", "remove-destination", projectName,
-			"--dest-server", "https://192.168.99.100:8443",
-			"--dest-namespace", "test",
+			"https://192.168.99.100:8443",
+			"test",
 		)
 
 		if err != nil {
@@ -143,8 +143,8 @@ func TestProjectManagement(t *testing.T) {
 		}
 
 		_, err = fixture.RunCli("proj", "remove-destination", projectName,
-			"--dest-server", "https://192.168.99.100:8443",
-			"--dest-namespace", "test1",
+			"https://192.168.99.100:8443",
+			"test1",
 		)
 		assert.NotNil(t, err)
 		assert.True(t, strings.Contains(err.Error(), "does not exist"))
