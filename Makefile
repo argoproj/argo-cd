@@ -9,7 +9,6 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
-IS_LINUX=$(shell if [ "`uname -s`" = 'Linux' ]; then echo '1'; else echo '0'; fi)
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -59,7 +58,7 @@ codegen: protogen clientgen
 # This enables ease of maintenance of the yaml files.
 .PHONY: cli
 cli: clean-debug
-	CGO_ENABLED=${IS_LINUX} ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+	${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: cli-linux
 cli-linux: clean-debug
