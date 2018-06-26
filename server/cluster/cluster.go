@@ -54,7 +54,7 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.db.GetCluster(ctx, c.Name)
 		if getErr != nil {
-			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", err)
+			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
 		}
 
 		// cluster ConnectionState may differ, so make consistent before testing
