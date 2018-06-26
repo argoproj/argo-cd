@@ -15,8 +15,7 @@ import (
 func TestProjectManagement(t *testing.T) {
 	t.Run("TestProjectCreation", func(t *testing.T) {
 		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.RunCli("proj", "create",
-			"--name", projectName,
+		_, err := fixture.RunCli("proj", "create", projectName,
 			"--description", "Test description",
 			"-d", "https://192.168.99.100:8443,default",
 			"-d", "https://192.168.99.100:8443,service")

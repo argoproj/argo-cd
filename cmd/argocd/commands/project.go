@@ -71,15 +71,19 @@ func addProjFlags(command *cobra.Command, opts *projectOpts) {
 // NewProjectCreateCommand returns a new instance of an `argocd proj create` command
 func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		name string
 		opts projectOpts
 	)
 	var command = &cobra.Command{
-		Use:   "create",
+		Use:   "create PROJECT",
 		Short: "Create a project",
 		Run: func(c *cobra.Command, args []string) {
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
 			proj := v1alpha1.AppProject{
-				ObjectMeta: v1.ObjectMeta{Name: name},
+				ObjectMeta: v1.ObjectMeta{Name: projName},
 				Spec: v1alpha1.AppProjectSpec{
 					Description:  opts.description,
 					Destinations: opts.GetDestinations(),
@@ -92,7 +96,6 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringVar(&name, "name", "n", "Project name")
 	addProjFlags(command, &opts)
 	return command
 }
