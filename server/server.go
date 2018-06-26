@@ -131,9 +131,12 @@ func SecretSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServe
 		passwordRaw := "password"
 		hashedPassword, err := password.HashPassword(passwordRaw)
 		errors.CheckError(err)
+		log.Warnf("password set to default, please update")
 		cdSettings.LocalUsers = map[string]string{
 			common.ArgoCDAdminUsername: hashedPassword,
 		}
+	} else if valid, _ := password.VerifyPassword("password", cdSettings.LocalUsers[common.ArgoCDAdminUsername]); valid {
+		log.Warnf("password is still set to default, please update")
 	}
 
 	if cdSettings.Certificate == nil {
