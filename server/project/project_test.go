@@ -24,7 +24,9 @@ func TestProjectServer(t *testing.T) {
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{
 				{Namespace: "ns1", Server: "https://server1"},
-				{Namespace: "ns2", Server: "https://server2"}},
+				{Namespace: "ns2", Server: "https://server2"},
+			},
+			SourceRepos: []string{"https://github.com/argoproj/argo-cd.git"},
 		},
 	}
 
@@ -54,6 +56,39 @@ func TestProjectServer(t *testing.T) {
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
+
+		assert.NotNil(t, err)
+		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+	})
+
+	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
+		existingApp := v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
+		}
+
+		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
+
+		updatedProj := existingProj.DeepCopy()
+		updatedProj.Spec.SourceRepos = []string{}
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
+
+		assert.Nil(t, err)
+	})
+
+	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
+		existingApp := v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+		}
+
+		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
+
+		updatedProj := existingProj.DeepCopy()
+		updatedProj.Spec.SourceRepos = []string{}
 
 		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
 

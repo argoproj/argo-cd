@@ -11,6 +11,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"google.golang.org/grpc/codes"
@@ -38,6 +39,10 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 	}
 	if q.Project.Name == common.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be used as a project name", q.Project.Name)
+	}
+	err := validateProject(q.Project)
+	if err != nil {
+		return nil, err
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
 }
@@ -88,6 +93,25 @@ func getRemovedDestination(oldProj, newProj *v1alpha1.AppProject) map[string]v1a
 	return removed
 }
 
+func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
+	oldSrc := make(map[string]bool)
+	newSrc := make(map[string]bool)
+	for _, src := range oldProj.Spec.SourceRepos {
+		oldSrc[src] = true
+	}
+	for _, src := range newProj.Spec.SourceRepos {
+		newSrc[src] = true
+	}
+
+	removed := make(map[string]bool)
+	for src := range oldSrc {
+		if _, ok := newSrc[src]; !ok {
+			removed[src] = true
+		}
+	}
+	return removed
+}
+
 func validateProject(p *v1alpha1.AppProject) error {
 	destKeys := make(map[string]bool)
 	for _, dest := range p.Spec.Destinations {
@@ -96,6 +120,16 @@ func validateProject(p *v1alpha1.AppProject) error {
 			destKeys[key] = true
 		} else {
 			return status.Errorf(codes.InvalidArgument, "destination %s should not be listed more than once.", key)
+		}
+	}
+	srcRepos := make(map[string]bool)
+	for i, src := range p.Spec.SourceRepos {
+		src = git.NormalizeGitURL(src)
+		p.Spec.SourceRepos[i] = src
+		if _, ok := srcRepos[src]; !ok {
+			srcRepos[src] = true
+		} else {
+			return status.Errorf(codes.InvalidArgument, "source repository %s should not be listed more than once.", src)
 		}
 	}
 	return nil
@@ -121,25 +155,36 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 		return nil, err
 	}
 
-	removed := getRemovedDestination(oldProj, q.Project)
-
 	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
-	removedUsed := make([]v1alpha1.ApplicationDestination, 0)
+
+	removedDst := getRemovedDestination(oldProj, q.Project)
+	removedSrc := getRemovedSources(oldProj, q.Project)
+
+	removedDstUsed := make([]v1alpha1.ApplicationDestination, 0)
+	removedSrcUsed := make([]string, 0)
+
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if dest, ok := removed[fmt.Sprintf("%s/%s", a.Spec.Destination.Server, a.Spec.Destination.Namespace)]; ok {
-			removedUsed = append(removedUsed, dest)
+		if dest, ok := removedDst[fmt.Sprintf("%s/%s", a.Spec.Destination.Server, a.Spec.Destination.Namespace)]; ok {
+			removedDstUsed = append(removedDstUsed, dest)
+		}
+		if _, ok := removedSrc[a.Spec.Source.RepoURL]; ok {
+			removedSrcUsed = append(removedSrcUsed, a.Spec.Source.RepoURL)
 		}
 	}
-	if len(removedUsed) > 0 {
-		formattedRemovedUsedList := make([]string, len(removedUsed))
-		for i := 0; i < len(removedUsed); i++ {
-			formattedRemovedUsedList[i] = fmt.Sprintf("server: %s, namespace: %s", removedUsed[i].Server, removedUsed[i].Namespace)
+	if len(removedDstUsed) > 0 {
+		formattedRemovedUsedList := make([]string, len(removedDstUsed))
+		for i := 0; i < len(removedDstUsed); i++ {
+			formattedRemovedUsedList[i] = fmt.Sprintf("server: %s, namespace: %s", removedDstUsed[i].Server, removedDstUsed[i].Namespace)
 		}
 		return nil, status.Errorf(
 			codes.InvalidArgument, "following destinations are used by one or more application and cannot be removed: %s", strings.Join(formattedRemovedUsedList, ";"))
+	}
+	if len(removedSrcUsed) > 0 {
+		return nil, status.Errorf(
+			codes.InvalidArgument, "following source repos are used by one or more application and cannot be removed: %s", strings.Join(removedSrcUsed, ";"))
 	}
 
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)

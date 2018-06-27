@@ -33,11 +33,14 @@ message AppProjectList {
 
 // AppProjectSpec represents
 message AppProjectSpec {
+  // SourceRepos contains list of git repository URLs which can be used for deployment
+  repeated string sources = 1;
+
   // Destinations contains list of destinations available for deployment
-  repeated ApplicationDestination destinations = 1;
+  repeated ApplicationDestination destinations = 2;
 
   // Description contains optional project description
-  optional string description = 2;
+  optional string description = 3;
 }
 
 // Application is a definition of Application resource.
