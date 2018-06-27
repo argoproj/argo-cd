@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/git"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -354,10 +355,14 @@ type AppProject struct {
 
 // AppProjectSpec represents
 type AppProjectSpec struct {
+	// SourceRepos contains list of git repository URLs which can be used for deployment
+	SourceRepos []string `json:"sources" protobuf:"bytes,1,name=destination"`
+
 	// Destinations contains list of destinations available for deployment
-	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,1,name=destination"`
+	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,2,name=destination"`
+
 	// Description contains optional project description
-	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
+	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 }
 
 func GetDefaultProject(namespace string) AppProject {
@@ -420,6 +425,16 @@ func (spec ApplicationSpec) GetProject() string {
 		return common.DefaultAppProjectName
 	}
 	return spec.Project
+}
+
+func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
+	normalizedURL := git.NormalizeGitURL(src.RepoURL)
+	for _, repoURL := range proj.Spec.SourceRepos {
+		if git.NormalizeGitURL(repoURL) == normalizedURL {
+			return true
+		}
+	}
+	return false
 }
 
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {

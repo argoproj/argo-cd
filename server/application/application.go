@@ -489,6 +489,9 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 		return status.Errorf(codes.PermissionDenied, "application destination %v is not permitted in project %s", spec.Destination, spec.Project)
 	}
 
+	if !proj.IsSourcePermitted(spec.Source) {
+		return status.Errorf(codes.PermissionDenied, "application source %v is not permitted in project %s", spec.Source, spec.Project)
+	}
 	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
 	_, err = s.db.GetCluster(ctx, spec.Destination.Server)
 	if err != nil {

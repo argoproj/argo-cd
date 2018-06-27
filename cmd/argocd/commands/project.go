@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -25,6 +26,7 @@ import (
 type projectOpts struct {
 	description  string
 	destinations []string
+	sources      []string
 }
 
 func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
@@ -59,6 +61,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectSetCommand(clientOpts))
 	command.AddCommand(NewProjectAddDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
+	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveSourceCommand(clientOpts))
 	return command
 }
 
@@ -66,6 +70,7 @@ func addProjFlags(command *cobra.Command, opts *projectOpts) {
 	command.Flags().StringVarP(&opts.description, "description", "", "desc", "Project description")
 	command.Flags().StringArrayVarP(&opts.destinations, "dest", "d", []string{},
 		"Allowed deployment destination. Includes comma separated server url and namespace (e.g. https://192.168.99.100:8443,default")
+	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Allowed deployment source repository URL.")
 }
 
 // NewProjectCreateCommand returns a new instance of an `argocd proj create` command
@@ -87,6 +92,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				Spec: v1alpha1.AppProjectSpec{
 					Description:  opts.description,
 					Destinations: opts.GetDestinations(),
+					SourceRepos:  opts.sources,
 				},
 			}
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -128,6 +134,8 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					proj.Spec.Description = opts.description
 				case "dest":
 					proj.Spec.Destinations = opts.GetDestinations()
+				case "src":
+					proj.Spec.SourceRepos = opts.sources
 				}
 			})
 			if visited == 0 {
@@ -211,6 +219,76 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			}
 		},
 	}
+
+	return command
+}
+
+// NewProjectAddSourceCommand returns a new instance of an `argocd proj add-src` command
+func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "add-source PROJECT URL",
+		Short: "Add project source repository",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			url := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for _, item := range proj.Spec.SourceRepos {
+				if item == git.NormalizeGitURL(url) {
+					log.Fatal("Specified source repository is already defined in project")
+				}
+			}
+			proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, url)
+			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
+func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "remove-source PROJECT URL",
+		Short: "Remove project source repository",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			url := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index := -1
+			for i, item := range proj.Spec.SourceRepos {
+				if item == git.NormalizeGitURL(url) {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				log.Fatal("Specified source repository does not exist in project")
+			} else {
+				proj.Spec.SourceRepos = append(proj.Spec.SourceRepos[:index], proj.Spec.SourceRepos[index+1:]...)
+				_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+
 	return command
 }
 
