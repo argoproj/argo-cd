@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -19,6 +20,7 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -186,6 +188,7 @@ func NewImportCommand() *cobra.Command {
 				newRepos    []*v1alpha1.Repository
 				newClusters []*v1alpha1.Cluster
 				newApps     []*v1alpha1.Application
+				newRBACCM   *apiv1.ConfigMap
 			)
 
 			if in := args[0]; in == "-" {
@@ -209,6 +212,9 @@ func NewImportCommand() *cobra.Command {
 			err = yaml.Unmarshal([]byte(inputStrings[3]), &newApps)
 			errors.CheckError(err)
 
+			err = yaml.Unmarshal([]byte(inputStrings[4]), &newRBACCM)
+			errors.CheckError(err)
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
@@ -219,6 +225,9 @@ func NewImportCommand() *cobra.Command {
 			err = settingsMgr.SaveSettings(newSettings)
 			errors.CheckError(err)
 			db := db.NewDB(namespace, kubeClientset)
+
+			_, err = kubeClientset.CoreV1().ConfigMaps(namespace).Create(newRBACCM)
+			errors.CheckError(err)
 
 			for _, repo := range newRepos {
 				_, err := db.CreateRepository(context.Background(), repo)
@@ -271,23 +280,25 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			// certificate data is included in secrets that are exported alongside
 			settings.Certificate = nil
-			settingsData, err := yaml.Marshal(settings)
-			errors.CheckError(err)
 
 			db := db.NewDB(namespace, kubeClientset)
 			clusters, err := db.ListClusters(context.Background())
 			errors.CheckError(err)
-			clusterData, err := yaml.Marshal(clusters.Items)
-			errors.CheckError(err)
 
 			repos, err := db.ListRepositories(context.Background())
-			errors.CheckError(err)
-			repoData, err := yaml.Marshal(repos.Items)
 			errors.CheckError(err)
 
 			appClientset := appclientset.NewForConfigOrDie(config)
 			apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
 			errors.CheckError(err)
+
+			rbacCM, err := kubeClientset.CoreV1().ConfigMaps(namespace).Get(common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
+			errors.CheckError(err)
+
+			// remove extraneous cruft from output
+			rbacCM.ObjectMeta = metav1.ObjectMeta{
+				Name: rbacCM.ObjectMeta.Name,
+			}
 
 			// remove extraneous cruft from output
 			for idx, app := range apps.Items {
@@ -300,16 +311,18 @@ func NewExportCommand() *cobra.Command {
 				}
 				apps.Items[idx].Operation = nil
 			}
-			appsData, err := yaml.Marshal(apps.Items)
-			errors.CheckError(err)
 
-			outputStrings := []string{
-				string(settingsData),
-				string(repoData),
-				string(clusterData),
-				string(appsData),
-			}
-			output := strings.Join(outputStrings, yamlSeparator)
+			// take a list of exportable objects, marshal them to YAML,
+			// and return a string joined by a delimiter
+			output := func(delimiter string, oo ...interface{}) string {
+				out := make([]string, 0)
+				for _, o := range oo {
+					data, err := yaml.Marshal(o)
+					errors.CheckError(err)
+					out = append(out, string(data))
+				}
+				return strings.Join(out, delimiter)
+			}(yamlSeparator, settings, repos.Items, clusters.Items, apps.Items, rbacCM)
 
 			if out == "-" {
 				fmt.Println(output)
