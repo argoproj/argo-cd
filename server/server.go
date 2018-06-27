@@ -105,8 +105,8 @@ type ArgoCDServerOpts struct {
 	RepoClientset   reposerver.Clientset
 }
 
-//SecretSettings sets secret settings
-func SecretSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
+//defaultSettings sets default secret settings
+func defaultSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
 	defaultString := ""
 	cdSettings, err := settingsMgr.GetSettings()
 	errors.CheckError(err)
@@ -164,7 +164,8 @@ func SecretSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServe
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
-	settings, err := SecretSettings(settingsMgr, opts)
+	settings, err := defaultSettings(settingsMgr, opts)
+	errors.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settings)
 
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
