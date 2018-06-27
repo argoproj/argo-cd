@@ -121,7 +121,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.db.GetRepository(ctx, r.Repo)
 		if getErr != nil {
-			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", err)
+			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
 
 		// repository ConnectionState may differ, so make consistent before testing

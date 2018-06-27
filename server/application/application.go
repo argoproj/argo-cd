@@ -118,7 +118,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 		// act idempotent if existing spec matches new spec
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(a.Name, metav1.GetOptions{})
 		if getErr != nil {
-			return nil, status.Errorf(codes.Internal, "unable to check existing application details: %v", err)
+			return nil, status.Errorf(codes.Internal, "unable to check existing application details: %v", getErr)
 		}
 		if q.Upsert != nil && *q.Upsert {
 			if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(a)) {
