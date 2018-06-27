@@ -113,8 +113,8 @@ func SecretSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServe
 
 	//Double check all secrets set
 	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok || cdSettings.ServerSignature == nil || cdSettings.LocalUsers == nil {
-		log.Fatalf("secrets are not all set, please set secerts or run kubectl apply on secret manifest")
-		return nil, status.Errorf(codes.NotFound, "secrets are not all set, please set secerts")
+		log.Fatalf("secrets are not all set, please set secrets or run kubectl apply on secret manifest")
+		return nil, status.Errorf(codes.NotFound, "secrets are not all set, please set secrets")
 	}
 
 	if bytes.Compare(cdSettings.ServerSignature, []byte(defaultString)) == 0 {

@@ -10,7 +10,7 @@ data:
   # authorization callback URL will be url + /api/dex/callback. For example, if ArgoCD's url is
   # https://example.com, then the auth callback to set in the SSO provider should be:
   # https://example.com/api/dex/callback
-  url: http://localhost:8080
+  url: ""
 
   # dex.config holds the contents of the configuration yaml for the dex OIDC/Oauth2 provider sidecar.
   # Only a subset of a full dex config is required, namely the connectors list. ArgoCD will generate
