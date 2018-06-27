@@ -162,12 +162,6 @@
             "name": "name",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "boolean",
-            "format": "boolean",
-            "name": "cascade",
-            "in": "query"
           }
         ],
         "responses": {
