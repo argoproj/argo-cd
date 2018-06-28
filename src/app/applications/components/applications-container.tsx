@@ -6,6 +6,6 @@ import { ApplicationsList } from './applications-list/applications-list';
 export const ApplicationsContainer = (props: RouteComponentProps<any>) => (
     <Switch>
         <Route exact={true} path={`${props.match.path}`} component={ApplicationsList}/>
-        <Route exact={true} path={`${props.match.path}/:namespace/:name`} component={ApplicationDetails}/>
+        <Route exact={true} path={`${props.match.path}/:name`} component={ApplicationDetails}/>
     </Switch>
 );
