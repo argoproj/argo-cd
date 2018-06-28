@@ -112,7 +112,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                                     <div className={`argo-table-list__row
                                         applications-list__entry applications-list__entry--comparison-${app.status.comparisonResult.status}`
                                     }>
-                                        <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
+                                        <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.name}`)}>
                                             <div className='columns small-12 applications-list__info'>
                                                 <div className='row'>
                                                     <div className='columns applications-list__title'>{app.metadata.name}</div>
