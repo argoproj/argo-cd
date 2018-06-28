@@ -264,7 +264,7 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private async deleteApplication(appName: string, force: boolean) {
-        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are your sure you want to delete application '${appName}'?`);
+        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
         if (confirmed) {
             try {
                 await services.applications.delete(appName, force);
