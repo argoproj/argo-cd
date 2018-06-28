@@ -238,7 +238,7 @@ func appURL(acdClient argocdclient.Client, app *argoappv1.Application) string {
 			server = server[0 : len(server)-4]
 		}
 	}
-	return fmt.Sprintf("%s://%s/applications/%s/%s", scheme, server, app.Namespace, app.Name)
+	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, app.Name)
 }
 
 func truncateString(str string, num int) string {
