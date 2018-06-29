@@ -107,7 +107,7 @@ type ArgoCDServerOpts struct {
 }
 
 //defaultSettings sets default secret settings
-func defaultSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
+func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
 	cdSettings, err := settingsMgr.GetSettings()
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -128,15 +128,14 @@ func defaultSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServ
 
 	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok {
 		//placeholder for when we replace this with get pod
-		passwordRaw := "password"
+		passwordRaw, err := os.Hostname()
+		errors.CheckError(err)
 		hashedPassword, err := password.HashPassword(passwordRaw)
 		errors.CheckError(err)
-		log.Warnf("password set to default, please update")
+		log.Infof("password set to %s", passwordRaw)
 		cdSettings.LocalUsers = map[string]string{
 			common.ArgoCDAdminUsername: hashedPassword,
 		}
-	} else if valid, _ := password.VerifyPassword("password", cdSettings.LocalUsers[common.ArgoCDAdminUsername]); valid {
-		log.Warnf("password is still set to default, please update")
 	}
 
 	if cdSettings.Certificate == nil {
@@ -166,7 +165,7 @@ func defaultSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServ
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
-	settings, err := defaultSettings(settingsMgr, opts)
+	settings, err := initializeSettings(settingsMgr, opts)
 	errors.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settings)
 
