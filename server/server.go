@@ -106,7 +106,7 @@ type ArgoCDServerOpts struct {
 	RepoClientset   reposerver.Clientset
 }
 
-//defaultSettings sets default secret settings
+//initializeSettings sets default secret settings (password set to hostname)
 func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
 	cdSettings, err := settingsMgr.GetSettings()
 	if err != nil {
