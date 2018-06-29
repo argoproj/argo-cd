@@ -18,7 +18,7 @@ export async function deleteApplication(appName: string, force: boolean, success
             });
         }
     }
-};
+}
 
 export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonStatus }) => {
     let className = '';
