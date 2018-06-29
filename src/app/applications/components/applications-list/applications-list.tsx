@@ -264,8 +264,11 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private async deleteApplication(appName: string, force: boolean) {
-        AppUtils.deleteApplication(appName, force, () => {
-            this.appContext.router.history.push('/applications');
-        });
+        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
+        if (confirmed) {
+            AppUtils.deleteApplication(appName, force, () => {
+                this.appContext.router.history.push('/applications');
+            });
+        }
     }
 }

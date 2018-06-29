@@ -6,17 +6,14 @@ import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
 export async function deleteApplication(appName: string, force: boolean, success: () => void) {
-    const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
-    if (confirmed) {
-        try {
-            await services.applications.delete(appName, force);
-            success();
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to delete application' e={e}/>,
-                type: NotificationType.Error,
-            });
-        }
+    try {
+        await services.applications.delete(appName, force);
+        success();
+    } catch (e) {
+        this.appContext.apis.notifications.show({
+            content: <ErrorNotification title='Unable to delete application' e={e}/>,
+            type: NotificationType.Error,
+        });
     }
 }
 
