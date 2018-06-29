@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -32,6 +31,8 @@ import (
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -107,18 +108,25 @@ type ArgoCDServerOpts struct {
 
 //defaultSettings sets default secret settings
 func defaultSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
-	defaultString := ""
 	cdSettings, err := settingsMgr.GetSettings()
-	errors.CheckError(err)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			log.Fatal(err)
+		}
+	}
 
-	if bytes.Compare(cdSettings.ServerSignature, []byte(defaultString)) == 0 {
+	if cdSettings.ServerSignature == nil {
 		// set JWT signature
 		signature, err := util_session.MakeSignature(32)
 		errors.CheckError(err)
 		cdSettings.ServerSignature = signature
 	}
 
-	if cdSettings.LocalUsers[common.ArgoCDAdminUsername] == "" {
+	if cdSettings.LocalUsers == nil {
+		cdSettings.LocalUsers = make(map[string]string)
+	}
+
+	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok {
 		//placeholder for when we replace this with get pod
 		passwordRaw := "password"
 		hashedPassword, err := password.HashPassword(passwordRaw)

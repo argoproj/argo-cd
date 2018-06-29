@@ -92,7 +92,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	}
 	err = updateSettingsFromSecret(&settings, argoCDSecret)
 	if err != nil {
-		return nil, err
+		return &settings, err
 	}
 	return &settings, nil
 }
