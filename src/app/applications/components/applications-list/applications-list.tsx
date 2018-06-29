@@ -168,6 +168,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                                                         } items={[
                                                             { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
                                                             { title: 'Delete', action: () => this.deleteApplication(app.metadata.name, false) },
+                                                            { title: 'Delete (Cascade)', action: () => this.deleteApplication(app.metadata.name, true) },
                                                         ]} />
                                                     </div>
                                                 </div>
@@ -263,10 +264,10 @@ export class ApplicationsList extends React.Component<Props, State> {
         }
     }
 
-    private async deleteApplication(appName: string, force: boolean) {
+    private async deleteApplication(appName: string, cascade: boolean) {
         const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
         if (confirmed) {
-            AppUtils.deleteApplication(appName, force, () => {
+            AppUtils.deleteApplication(appName, cascade, () => {
                 this.appContext.router.history.push('/applications');
             });
         }

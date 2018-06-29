@@ -130,6 +130,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     }, {
                         className: 'icon fa fa-times-circle',
                         title: 'Delete',
+                        action: () => this.deleteApplication(false),
+                    }, {
+                        className: 'icon fa fa-times-circle',
+                        title: 'Delete (Cascade)',
                         action: () => this.deleteApplication(true),
                     }],
                 } }}>
@@ -322,11 +326,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         }
     }
 
-    private async deleteApplication(force: boolean) {
+    private async deleteApplication(cascade: boolean) {
         const appName = this.props.match.params.name;
         const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
         if (confirmed) {
-            AppUtils.deleteApplication(appName, force, () => {
+            AppUtils.deleteApplication(appName, cascade, () => {
                 this.appContext.apis.navigation.goto('/applications');
             });
         }

@@ -5,9 +5,9 @@ import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotific
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
-export async function deleteApplication(appName: string, force: boolean, success: () => void) {
+export async function deleteApplication(appName: string, cascade: boolean, success: () => void) {
     try {
-        await services.applications.delete(appName, force);
+        await services.applications.delete(appName, cascade);
         success();
     } catch (e) {
         this.appContext.apis.notifications.show({
