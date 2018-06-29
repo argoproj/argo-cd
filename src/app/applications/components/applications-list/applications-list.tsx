@@ -10,7 +10,7 @@ import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
-import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
+import * as AppUtils from '../utils';
 
 require('./applications-list.scss');
 
@@ -132,13 +132,13 @@ export class ApplicationsList extends React.Component<Props, State> {
                                                 <div className='row'>
                                                     <div className='columns small-3'>Status:</div>
                                                     <div className='columns small-9'>
-                                                        <ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}
+                                                        <AppUtils.ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}
                                                     </div>
                                                 </div>
                                                 <div className='row'>
                                                     <div className='columns small-3'>Health:</div>
                                                     <div className='columns small-9'>
-                                                        <HealthStatusIcon state={app.status.health}/> {app.status.health.status}
+                                                        <AppUtils.HealthStatusIcon state={app.status.health}/> {app.status.health.status}
                                                     </div>
                                                 </div>
                                                 <div className='row'>
@@ -264,17 +264,8 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private async deleteApplication(appName: string, force: boolean) {
-        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
-        if (confirmed) {
-            try {
-                await services.applications.delete(appName, force);
-                this.appContext.router.history.push('/applications');
-            } catch (e) {
-                this.appContext.apis.notifications.show({
-                    content: <ErrorNotification title='Unable to delete application' e={e}/>,
-                    type: NotificationType.Error,
-                });
-            }
-        }
+        AppUtils.deleteApplication(appName, force, () => {
+            this.appContext.router.history.push('/applications');
+        });
     }
 }

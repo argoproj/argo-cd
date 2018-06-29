@@ -1,7 +1,24 @@
 import * as React from 'react';
 
-import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR } from '../../shared/components';
+import { NotificationType } from 'argo-ui';
+import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
 import * as appModels from '../../shared/models';
+import { services } from '../../shared/services';
+
+export async function deleteApplication(appName: string, force: boolean, success: () => void) {
+    const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
+    if (confirmed) {
+        try {
+            await services.applications.delete(appName, force);
+            success();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to delete application' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
+    }
+};
 
 export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonStatus }) => {
     let className = '';

@@ -323,18 +323,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async deleteApplication(force: boolean) {
-        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are your sure you want to delete application '${this.props.match.params.name}'?`);
-        if (confirmed) {
-            try {
-                await services.applications.delete(this.props.match.params.name, force);
-                this.appContext.apis.navigation.goto('/applications');
-            } catch (e) {
-                this.appContext.apis.notifications.show({
-                    content: <ErrorNotification title='Unable to delete application' e={e}/>,
-                    type: NotificationType.Error,
-                });
-            }
-        }
+        AppUtils.deleteApplication(this.props.match.params.name, force, () => {
+            this.appContext.apis.navigation.goto('/applications');
+        });
     }
 
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
