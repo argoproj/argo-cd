@@ -327,13 +327,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async deleteApplication(cascade: boolean) {
-        const appName = this.props.match.params.name;
-        const confirmed = await this.appContext.apis.popup.confirm('Delete application', `Are you sure you want to delete the application "${appName}"?`);
-        if (confirmed) {
-            AppUtils.deleteApplication(appName, cascade, () => {
-                this.appContext.apis.navigation.goto('/applications');
-            });
-        }
+        AppUtils.deleteApplication(this.props.match.params.name, cascade, this.appContext, () => {
+            this.appContext.apis.navigation.goto('/applications');
+        });
     }
 
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {

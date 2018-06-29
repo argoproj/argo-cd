@@ -2,18 +2,23 @@ import * as React from 'react';
 
 import { NotificationType } from 'argo-ui';
 import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
+import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
-export async function deleteApplication(appName: string, cascade: boolean, success: () => void) {
-    try {
-        await services.applications.delete(appName, cascade);
-        success();
-    } catch (e) {
-        this.appContext.apis.notifications.show({
-            content: <ErrorNotification title='Unable to delete application' e={e}/>,
-            type: NotificationType.Error,
-        });
+export async function deleteApplication(appName: string, cascade: boolean, context: AppContext, success: () => void) {
+    const cascading = cascade ? " with cascading" : "";
+    const confirmed = await context.apis.popup.confirm('Delete application' + cascading, `Are you sure you want to delete the application "${appName}"${cascading}?`);
+    if (confirmed) {
+        try {
+            await services.applications.delete(appName, cascade);
+            success();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to delete application' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
     }
 }
 
