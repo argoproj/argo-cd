@@ -1,17 +1,31 @@
 package test
 
 import (
-	"github.com/argoproj/argo-cd/common"
+	"github.com/gobuffalo/packr"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
 )
 
 const (
 	TestNamespace       = "test-namespace"
 	TestAppInstanceName = "test-app-instance"
 )
+
+var (
+	box           = packr.NewBox("../util/rbac")
+	BuiltinPolicy string
+)
+
+func init() {
+	var err error
+	BuiltinPolicy, err = box.MustString("builtin-policy.csv")
+	errors.CheckError(err)
+}
 
 func DemoService() *apiv1.Service {
 	return &apiv1.Service{

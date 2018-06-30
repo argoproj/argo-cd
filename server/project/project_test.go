@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gobuffalo/packr"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -14,20 +13,14 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
-var (
-	box           = packr.NewBox("../../util/rbac")
-	builtinPolicy string
-)
-
 func TestProjectServer(t *testing.T) {
 	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(), "default", common.ArgoCDRBACConfigMapName, nil)
-	builtinPolicy, err := box.MustString("builtin-policy.csv")
-	assert.Nil(t, err)
-	enforcer.SetBuiltinPolicy(builtinPolicy)
+	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	enforcer.SetDefaultRole("role:admin")
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},

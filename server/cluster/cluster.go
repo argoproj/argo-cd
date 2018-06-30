@@ -11,6 +11,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -49,6 +50,11 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 		return nil, grpc.ErrPermissionDenied
 	}
 	c := q.Cluster
+	err := kube.TestConfig(q.Cluster.RESTConfig())
+	if err != nil {
+		return nil, err
+	}
+
 	clust, err := s.db.CreateCluster(ctx, c)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
@@ -83,6 +89,10 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cluster, error) {
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "update", fmt.Sprintf("*/%s", q.Cluster.Server)) {
 		return nil, grpc.ErrPermissionDenied
+	}
+	err := kube.TestConfig(q.Cluster.RESTConfig())
+	if err != nil {
+		return nil, err
 	}
 	clust, err := s.db.UpdateCluster(ctx, q.Cluster)
 	return redact(clust), err

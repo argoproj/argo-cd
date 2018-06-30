@@ -47,10 +47,6 @@ func (s *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 	r = &shallowCopy
 	r.Repo = git.NormalizeGitURL(r.Repo)
 	r.Username = strings.TrimSpace(r.Username)
-	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
-	if err != nil {
-		return nil, err
-	}
 	secName := repoURLToSecretName(r.Repo)
 	repoSecret := &apiv1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -60,8 +56,8 @@ func (s *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 			},
 		},
 	}
-	repoSecret.StringData = repoToStringData(r)
-	repoSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(repoSecret)
+	repoSecret.Data = repoToData(r)
+	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Create(repoSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
@@ -90,7 +86,7 @@ func (s *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 	if err != nil {
 		return nil, err
 	}
-	repoSecret.StringData = repoToStringData(r)
+	repoSecret.Data = repoToData(r)
 	repoSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Update(repoSecret)
 	if err != nil {
 		return nil, err
@@ -127,13 +123,13 @@ func repoURLToSecretName(repo string) string {
 	return fmt.Sprintf("repo-%s-%v", shortName, h.Sum32())
 }
 
-// repoToStringData converts a repository object to string data for serialization to a secret
-func repoToStringData(r *appsv1.Repository) map[string]string {
-	return map[string]string{
-		"repository":    r.Repo,
-		"username":      r.Username,
-		"password":      r.Password,
-		"sshPrivateKey": r.SSHPrivateKey,
+// repoToData converts a repository object to secret data for serialization to a secret
+func repoToData(r *appsv1.Repository) map[string][]byte {
+	return map[string][]byte{
+		"repository":    []byte(r.Repo),
+		"username":      []byte(r.Username),
+		"password":      []byte(r.Password),
+		"sshPrivateKey": []byte(r.SSHPrivateKey),
 	}
 }
 

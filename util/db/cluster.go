@@ -9,7 +9,6 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -46,10 +45,6 @@ func (s *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 
 // CreateCluster creates a cluster
 func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	err := kube.TestConfig(c.RESTConfig())
-	if err != nil {
-		return nil, err
-	}
 	secName, err := serverToSecretName(c.Server)
 	if err != nil {
 		return nil, err
@@ -62,7 +57,7 @@ func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 			},
 		},
 	}
-	clusterSecret.StringData = clusterToStringData(c)
+	clusterSecret.Data = clusterToData(c)
 	clusterSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
@@ -134,15 +129,11 @@ func (s *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, err
 
 // UpdateCluster updates a cluster
 func (s *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	err := kube.TestConfig(c.RESTConfig())
-	if err != nil {
-		return nil, err
-	}
 	clusterSecret, err := s.getClusterSecret(c.Server)
 	if err != nil {
 		return nil, err
 	}
-	clusterSecret.StringData = clusterToStringData(c)
+	clusterSecret.Data = clusterToData(c)
 	clusterSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Update(clusterSecret)
 	if err != nil {
 		return nil, err
@@ -172,21 +163,21 @@ func serverToSecretName(server string) (string, error) {
 	return fmt.Sprintf("cluster-%s-%v", host, h.Sum32()), nil
 }
 
-// clusterToStringData converts a cluster object to string data for serialization to a secret
-func clusterToStringData(c *appv1.Cluster) map[string]string {
-	stringData := make(map[string]string)
-	stringData["server"] = c.Server
+// clusterToData converts a cluster object to string data for serialization to a secret
+func clusterToData(c *appv1.Cluster) map[string][]byte {
+	data := make(map[string][]byte)
+	data["server"] = []byte(c.Server)
 	if c.Name == "" {
-		stringData["name"] = c.Server
+		data["name"] = []byte(c.Server)
 	} else {
-		stringData["name"] = c.Name
+		data["name"] = []byte(c.Name)
 	}
 	configBytes, err := json.Marshal(c.Config)
 	if err != nil {
 		panic(err)
 	}
-	stringData["config"] = string(configBytes)
-	return stringData
+	data["config"] = configBytes
+	return data
 }
 
 // SecretToCluster converts a secret into a repository object

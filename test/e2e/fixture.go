@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,8 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"strings"
 
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
@@ -34,6 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
@@ -255,6 +255,10 @@ func NewFixture() (*Fixture, error) {
 	}
 	db := db.NewDB(namespace, kubeClient)
 	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName, nil)
+	err = enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
+	if err != nil {
+		return nil, err
+	}
 	enforcer.SetDefaultRole("role:admin")
 
 	fixture := &Fixture{
