@@ -427,7 +427,15 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
+func (proj AppProject) IsDefault() bool {
+	return proj.Name == "" || proj.Name == common.DefaultAppProjectName
+}
+
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
+	if proj.IsDefault() {
+		return true
+	}
+
 	normalizedURL := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
 		if git.NormalizeGitURL(repoURL) == normalizedURL {
@@ -438,6 +446,10 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+	if proj.IsDefault() {
+		return true
+	}
+
 	for _, item := range proj.Spec.Destinations {
 		if item.Server == dst.Server && item.Namespace == dst.Namespace {
 			return true
