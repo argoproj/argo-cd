@@ -35,6 +35,7 @@ type ClaimsEnforcerFunc func(rvals ...interface{}) bool
 
 type Enforcer struct {
 	*casbin.Enforcer
+	adapter            *scas.Adapter
 	clientset          kubernetes.Interface
 	namespace          string
 	configmap          string
@@ -50,10 +51,12 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 	box := packr.NewBox(".")
 	modelConf := box.String(builtinModelFile)
 	model := casbin.NewModel(modelConf)
-	enf := casbin.Enforcer{}
+	adapter := scas.NewAdapter("")
+	enf := casbin.NewEnforcer(model, adapter)
 	enf.EnableLog(false)
 	return &Enforcer{
-		Enforcer:           &enf,
+		Enforcer:           enf,
+		adapter:            adapter,
 		clientset:          clientset,
 		namespace:          namespace,
 		configmap:          configmap,
@@ -125,26 +128,16 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies
 func (e *Enforcer) SetBuiltinPolicy(policy string) error {
-	sa := scas.NewAdapter(fmt.Sprintf("%s\n%s", policy, e.userDefinedPolicy))
-	enf, err := casbin.NewEnforcerSafe(e.model, sa)
-	if err != nil {
-		return fmt.Errorf("failed to update enforcer: %v", err)
-	}
 	e.builtinPolicy = policy
-	e.Enforcer = enf
-	return nil
+	e.adapter.Line = fmt.Sprintf("%s\n%s", e.builtinPolicy, e.userDefinedPolicy)
+	return e.LoadPolicy()
 }
 
 // SetUserPolicy sets a user policy, augmenting the built-in policy
 func (e *Enforcer) SetUserPolicy(policy string) error {
-	sa := scas.NewAdapter(fmt.Sprintf("%s\n%s", e.builtinPolicy, policy))
-	enf, err := casbin.NewEnforcerSafe(e.model, sa)
-	if err != nil {
-		return fmt.Errorf("failed to update enforcer: %v", err)
-	}
 	e.userDefinedPolicy = policy
-	e.Enforcer = enf
-	return nil
+	e.adapter.Line = fmt.Sprintf("%s\n%s", e.builtinPolicy, e.userDefinedPolicy)
+	return e.LoadPolicy()
 }
 
 // newInformers returns an informer which watches updates on the rbac configmap
@@ -182,6 +175,8 @@ func (e *Enforcer) runInformer(ctx context.Context) {
 					err := e.syncUpdate(cm)
 					if err != nil {
 						log.Error(err)
+					} else {
+						log.Infof("RBAC ConfigMap '%s' added", e.configmap)
 					}
 				}
 			},
@@ -191,10 +186,11 @@ func (e *Enforcer) runInformer(ctx context.Context) {
 				if oldCM.ResourceVersion == newCM.ResourceVersion {
 					return
 				}
-				log.Infof("%s updated", e.configmap)
 				err := e.syncUpdate(newCM)
 				if err != nil {
 					log.Error(err)
+				} else {
+					log.Infof("RBAC ConfigMap '%s' updated", e.configmap)
 				}
 			},
 		},

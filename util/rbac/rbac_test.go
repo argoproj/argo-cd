@@ -84,6 +84,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 // TestPolicyInformer verifies the informer will get updated with a new configmap
 func TestPolicyInformer(t *testing.T) {
 	cm := fakeConfigMap()
+	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*"
 	kubeclientset := fake.NewSimpleClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 
@@ -92,7 +93,6 @@ func TestPolicyInformer(t *testing.T) {
 	defer cancel()
 	go enf.runInformer(ctx)
 
-	// wait until the policy loads
 	loaded := false
 	for i := 1; i <= 20; i++ {
 		if enf.Enforce("admin", "applications", "delete", "foo/bar") {
@@ -101,13 +101,13 @@ func TestPolicyInformer(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	assert.True(t, loaded)
+	assert.True(t, loaded, "Policy update failed to load")
 
 	// update the configmap and update policy
-	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*"
+	delete(cm.Data, ConfigMapPolicyCSVKey)
 	err := enf.syncUpdate(cm)
 	assert.Nil(t, err)
-	assert.True(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
+	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
 
 // TestResourceActionWildcards verifies the ability to use wildcards in resources and actions
@@ -255,4 +255,56 @@ func TestEnforceNilClaims(t *testing.T) {
 	assert.False(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
+}
+
+func TestEnableDisableEnforce(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	policy := `
+p, alice, *, get, foo/obj
+`
+	enf.SetUserPolicy(policy)
+
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+
+	enf.EnableEnforce(false)
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+}
+
+func TestUpdatePolicy(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+
+	enf.SetUserPolicy("p, alice, *, get, foo/obj")
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
+
+	enf.SetUserPolicy("p, bob, *, get, foo/obj")
+	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
+
+	enf.SetUserPolicy("")
+	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
+
+	enf.SetBuiltinPolicy("p, alice, *, get, foo/obj")
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
+
+	enf.SetBuiltinPolicy("p, bob, *, get, foo/obj")
+	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
+
+	enf.SetBuiltinPolicy("")
+	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
+}
+
+func TestNoPolicy(t *testing.T) {
+	cm := fakeConfigMap()
+	kubeclientset := fake.NewSimpleClientset(cm)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
