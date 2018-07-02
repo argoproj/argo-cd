@@ -764,6 +764,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
@@ -774,7 +775,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				time.AfterFunc(time.Duration(timeout)*time.Second, cancel)
 			}
 
-			appName := args[0]
 			syncReq := application.ApplicationSyncRequest{
 				Name:     &appName,
 				DryRun:   dryRun,
