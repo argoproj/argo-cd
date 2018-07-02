@@ -580,7 +580,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		healthOnly bool
 		timeout    uint
 	)
-	const defaultCheckTimeoutSeconds = 0
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
 		Short: "Wait for an application to reach a synced and healthy state",
@@ -946,6 +945,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 }
 
 const printOpFmtStr = "%-20s%s\n"
+const defaultCheckTimeoutSeconds = 0
 
 func printOperationResult(appName string, opState *argoappv1.OperationState) error {
 	fmt.Printf(printOpFmtStr, "Application:", appName)
