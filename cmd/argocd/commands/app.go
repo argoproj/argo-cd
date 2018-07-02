@@ -599,9 +599,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer cancel()
 
 			if timeout != 0 {
-				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					cancel()
-				})
+				time.AfterFunc(time.Duration(timeout)*time.Second, cancel)
 			}
 
 			// print the initial components to format the tabwriter columns
@@ -771,6 +769,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			ctx := context.Background()
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
+
+			if timeout != 0 {
+				time.AfterFunc(time.Duration(timeout)*time.Second, cancel)
+			}
+
 			appName := args[0]
 			syncReq := application.ApplicationSyncRequest{
 				Name:     &appName,
@@ -915,6 +918,11 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			ctx := context.Background()
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
+
+			if timeout != 0 {
+				time.AfterFunc(time.Duration(timeout)*time.Second, cancel)
+			}
+
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			var depInfo *argoappv1.DeploymentInfo
