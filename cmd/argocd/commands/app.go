@@ -594,8 +594,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
-			ctx, cancel := context.WithCancel(ctx)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			if timeout != 0 {
@@ -767,8 +766,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
-			ctx, cancel := context.WithCancel(ctx)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			if timeout != 0 {
@@ -915,8 +913,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			errors.CheckError(err)
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
-			ctx, cancel := context.WithCancel(ctx)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			if timeout != 0 {
