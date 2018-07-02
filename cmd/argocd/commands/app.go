@@ -778,20 +778,35 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				})
 			}
 
-			syncReq := application.ApplicationSyncRequest{
+			_, err := appIf.Sync(ctx, &application.ApplicationSyncRequest{
 				Name:     &appName,
 				DryRun:   dryRun,
 				Revision: revision,
 				Prune:    prune,
-			}
-			_, err := appIf.Sync(ctx, &syncReq)
+			})
 			errors.CheckError(err)
-			status, err := waitUntilOperationCompleted(appIf, appName)
+
+			// print the initial components to format the tabwriter columns
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			err = printOperationResult(appName, status)
-			errors.CheckError(err)
-			if !status.Phase.Successful() && !dryRun {
-				os.Exit(1)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			printAppResources(w, app, nil)
+			_ = w.Flush()
+			prevCompRes := &app.Status.ComparisonResult
+
+			appEventCh := watchApp(ctx, appIf, appName)
+			for appEvent := range appEventCh {
+				app := appEvent.Application
+				printAppStateChange(w, prevCompRes, &app)
+				_ = w.Flush()
+				prevCompRes = &app.Status.ComparisonResult
+
+				synced := (app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced)
+				healthy := (app.Status.Health.Status == argoappv1.HealthStatusHealthy)
+				if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
+					log.Printf("App %q matches desired state", appName)
+					return
+				}
 			}
 		},
 	}
@@ -948,12 +963,27 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			status, err := waitUntilOperationCompleted(appIf, appName)
+			// print the initial components to format the tabwriter columns
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			err = printOperationResult(appName, status)
-			errors.CheckError(err)
-			if !status.Phase.Successful() {
-				os.Exit(1)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			printAppResources(w, app, nil)
+			_ = w.Flush()
+			prevCompRes := &app.Status.ComparisonResult
+
+			appEventCh := watchApp(ctx, appIf, appName)
+			for appEvent := range appEventCh {
+				app := appEvent.Application
+				printAppStateChange(w, prevCompRes, &app)
+				_ = w.Flush()
+				prevCompRes = &app.Status.ComparisonResult
+
+				synced := (app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced)
+				healthy := (app.Status.Health.Status == argoappv1.HealthStatusHealthy)
+				if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
+					log.Printf("App %q matches desired state", appName)
+					return
+				}
 			}
 		},
 	}
