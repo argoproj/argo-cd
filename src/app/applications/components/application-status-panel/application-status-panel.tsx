@@ -8,6 +8,7 @@ require('./application-status-panel.scss');
 export const ApplicationStatusPanel = ({application, onClick}: { application: models.Application, onClick?: () => any}) => {
     const today = new Date();
     const creationDate = new Date(application.metadata.creationTimestamp);
+    const conditionsCount = application.status.conditions && application.status.conditions.length || 0;
 
     const daysActive = Math.round(Math.abs((today.getTime() - creationDate.getTime()) / (24 * 60 * 60 * 1000)));
     let daysSinceLastSynchronized = 0;
@@ -36,6 +37,14 @@ export const ApplicationStatusPanel = ({application, onClick}: { application: mo
                 </div>
             </div>
             )}
+            <div className='application-status-panel__item columns small-3'>
+                <div className='application-status-panel__item-value'>
+                    <span className={conditionsCount && "warning"}>{conditionsCount}</span>
+                </div>
+                <div className='application-status-panel__item-name'>
+                    <span className={conditionsCount && "warning"}>Warnings</span>
+                </div>
+            </div>
         </div>
     );
 };
