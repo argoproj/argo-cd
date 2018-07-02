@@ -757,6 +757,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revision string
 		prune    bool
 		dryRun   bool
+		timeout  uint
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -789,6 +790,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
 
@@ -892,7 +894,8 @@ func paramString(params []argoappv1.ComponentParameter) string {
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		prune bool
+		prune   bool
+		timeout uint
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME",
@@ -938,6 +941,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
 
