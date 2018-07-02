@@ -768,6 +768,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
+			ctx := context.Background()
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
 			appName := args[0]
 			syncReq := application.ApplicationSyncRequest{
 				Name:     &appName,
@@ -775,7 +778,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Revision: revision,
 				Prune:    prune,
 			}
-			_, err := appIf.Sync(context.Background(), &syncReq)
+			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 			status, err := waitUntilOperationCompleted(appIf, appName)
 			errors.CheckError(err)
@@ -910,6 +913,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			var depInfo *argoappv1.DeploymentInfo
