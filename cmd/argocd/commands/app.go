@@ -600,7 +600,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if timeout != 0 {
 				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 					cancel()
-					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 				})
 			}
 
@@ -626,6 +625,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					return
 				}
 			}
+			log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 		},
 	}
 	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
@@ -765,48 +765,24 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			if timeout != 0 {
-				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					cancel()
-					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
-				})
-			}
-
-			_, err := appIf.Sync(ctx, &application.ApplicationSyncRequest{
+			appName := args[0]
+			syncReq := application.ApplicationSyncRequest{
 				Name:     &appName,
 				DryRun:   dryRun,
 				Revision: revision,
 				Prune:    prune,
-			})
+			}
+			ctx := context.Background()
+			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
-
-			// print the initial components to format the tabwriter columns
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
+			status, err := waitUntilOperationCompleted(ctx, appIf, appName, timeout)
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			printAppResources(w, app, nil)
-			_ = w.Flush()
-			prevCompRes := &app.Status.ComparisonResult
-
-			appEventCh := watchApp(ctx, appIf, appName)
-			for appEvent := range appEventCh {
-				app := appEvent.Application
-				printAppStateChange(w, prevCompRes, &app)
-				_ = w.Flush()
-				prevCompRes = &app.Status.ComparisonResult
-
-				synced := (app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced)
-				healthy := (app.Status.Health.Status == argoappv1.HealthStatusHealthy)
-				if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
-					log.Printf("App %q matches desired state", appName)
-					return
-				}
+			err = printOperationResult(appName, status)
+			errors.CheckError(err)
+			if !status.Phase.Successful() && !dryRun {
+				os.Exit(1)
 			}
 		},
 	}
@@ -817,7 +793,21 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string) (*argoappv1.OperationState, error) {
+func waitUntilOperationCompleted(ctx context.Context, appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.OperationState, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	if timeout != 0 {
+		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+			cancel()
+			log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
+		})
+	}
+
+	appEventCh := watchApp(ctx, appClient, appName)
+	for appEvent := range appEventCh {
+	}
+
 	wc, err := appClient.Watch(context.Background(), &application.ApplicationQuery{
 		Name: &appName,
 	})
@@ -933,15 +923,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			errors.CheckError(err)
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			if timeout != 0 {
-				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					cancel()
-					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
-				})
-			}
+			ctx := context.Background()
 
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
@@ -963,26 +945,12 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			// print the initial components to format the tabwriter columns
+			status, err := waitUntilOperationCompleted(ctx, appIf, appName, timeout)
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			printAppResources(w, app, nil)
-			_ = w.Flush()
-			prevCompRes := &app.Status.ComparisonResult
-
-			appEventCh := watchApp(ctx, appIf, appName)
-			for appEvent := range appEventCh {
-				app := appEvent.Application
-				printAppStateChange(w, prevCompRes, &app)
-				_ = w.Flush()
-				prevCompRes = &app.Status.ComparisonResult
-
-				synced := (app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced)
-				healthy := (app.Status.Health.Status == argoappv1.HealthStatusHealthy)
-				if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
-					log.Printf("App %q matches desired state", appName)
-					return
-				}
+			err = printOperationResult(appName, status)
+			errors.CheckError(err)
+			if !status.Phase.Successful() {
+				os.Exit(1)
 			}
 		},
 	}
@@ -1045,6 +1013,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
+
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 
