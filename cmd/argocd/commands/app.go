@@ -774,10 +774,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Revision: revision,
 				Prune:    prune,
 			}
-			ctx := context.Background()
-			_, err := appIf.Sync(ctx, &syncReq)
+			_, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
-			status, err := waitUntilOperationCompleted(ctx, appIf, appName, timeout)
+			status, err := waitUntilOperationCompleted(appIf, appName, timeout)
 			errors.CheckError(err)
 			err = printOperationResult(appName, status)
 			errors.CheckError(err)
@@ -793,40 +792,24 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(ctx context.Context, appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.OperationState, error) {
-	ctx, cancel := context.WithCancel(ctx)
+func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.OperationState, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 			cancel()
-			log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 		})
 	}
 
 	appEventCh := watchApp(ctx, appClient, appName)
 	for appEvent := range appEventCh {
-	}
-
-	wc, err := appClient.Watch(context.Background(), &application.ApplicationQuery{
-		Name: &appName,
-	})
-	if err != nil {
-		return nil, err
-	}
-	appEvent, err := wc.Recv()
-	if err != nil {
-		return nil, err
-	}
-	for {
 		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Phase.Completed() {
 			return appEvent.Application.Status.OperationState, nil
 		}
-		appEvent, err = wc.Recv()
-		if err != nil {
-			return nil, err
-		}
 	}
+	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
+
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -945,7 +928,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			status, err := waitUntilOperationCompleted(ctx, appIf, appName, timeout)
+			status, err := waitUntilOperationCompleted(appIf, appName, timeout)
 			errors.CheckError(err)
 			err = printOperationResult(appName, status)
 			errors.CheckError(err)
