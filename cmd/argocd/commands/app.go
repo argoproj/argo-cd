@@ -599,8 +599,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			if timeout != 0 {
 				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 					cancel()
+					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 				})
 			}
 
@@ -752,12 +752,10 @@ func printAppStateChange(w io.Writer, prevComp *argoappv1.ComparisonResult, app 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision   string
-		prune      bool
-		dryRun     bool
-		syncOnly   bool
-		healthOnly bool
-		timeout    uint
+		revision string
+		prune    bool
+		dryRun   bool
+		timeout  uint
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -775,8 +773,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			if timeout != 0 {
 				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 					cancel()
+					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 				})
 			}
 
@@ -815,8 +813,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
-	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
-	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
@@ -921,10 +917,8 @@ func paramString(params []argoappv1.ComponentParameter) string {
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		prune      bool
-		syncOnly   bool
-		healthOnly bool
-		timeout    uint
+		prune   bool
+		timeout uint
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME",
@@ -944,8 +938,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			if timeout != 0 {
 				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 					cancel()
+					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 				})
 			}
 
@@ -993,8 +987,6 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
-	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
-	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
