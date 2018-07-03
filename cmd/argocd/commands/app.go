@@ -600,6 +600,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if timeout != 0 {
 				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 					cancel()
+					log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 				})
 			}
 
@@ -625,7 +626,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					return
 				}
 			}
-			log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 		},
 	}
 	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
