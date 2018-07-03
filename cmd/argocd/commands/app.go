@@ -594,7 +594,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx := context.Background()
+			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
 			if timeout != 0 {
