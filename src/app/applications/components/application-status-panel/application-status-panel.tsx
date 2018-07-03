@@ -5,10 +5,9 @@ import * as utils from '../utils';
 
 require('./application-status-panel.scss');
 
-export const ApplicationStatusPanel = ({application, onClick}: { application: models.Application, onClick?: () => any}) => {
+export const ApplicationStatusPanel = ({application, showOperation, showConditions}: { application: models.Application, showOperation?: () => any, showConditions?: () => any}) => {
     const today = new Date();
     const creationDate = new Date(application.metadata.creationTimestamp);
-    const conditionsCount = application.status.conditions && application.status.conditions.length || 0;
 
     const daysActive = Math.round(Math.abs((today.getTime() - creationDate.getTime()) / (24 * 60 * 60 * 1000)));
     let daysSinceLastSynchronized = 0;
@@ -30,21 +29,20 @@ export const ApplicationStatusPanel = ({application, onClick}: { application: mo
             {application.status.operationState && (
             <div className='application-status-panel__item columns small-3'>
                 <div className='application-status-panel__item-value'>
-                    <a onClick={() => onClick && onClick()}>{utils.getOperationType(application.status.operationState)}</a>
+                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application.status.operationState)}</a>
                 </div>
                 <div className='application-status-panel__item-name'>
                     {application.status.operationState.phase} at {application.status.operationState.finishedAt || application.status.operationState.startedAt}
                 </div>
             </div>
             )}
+            {application.status.conditions && (
             <div className='application-status-panel__item columns small-3'>
                 <div className='application-status-panel__item-value'>
-                    <span className={conditionsCount && "warning"}>{conditionsCount}</span>
-                </div>
-                <div className='application-status-panel__item-name'>
-                    <span className={conditionsCount && "warning"}>Warnings</span>
+                    <a onClick={() => showConditions && showConditions()} className='warning'>{application.status.conditions.length} Warnings</a>
                 </div>
             </div>
+            )}
         </div>
     );
 };

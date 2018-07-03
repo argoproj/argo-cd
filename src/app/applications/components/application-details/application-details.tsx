@@ -13,6 +13,7 @@ import { services } from '../../../shared/services';
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
+import { ApplicationConditions } from '../application-conditions/application-conditions';
 import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
 import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
@@ -39,6 +40,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
+    }
+
+    private get showConditions() {
+        return new URLSearchParams(this.props.history.location.search).get('conditions') === 'true';
     }
 
     private get showDeployPanel() {
@@ -109,6 +114,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         const isAppSelected = this.state.application != null && selectedItem === this.state.application;
         const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
         const operationState = this.state.application && this.state.application.status.operationState;
+        const conditions = this.state.application && this.state.application.status.conditions || [{"message":"hello","type":"nothing"}, {"message":"nobody", "type":"knows"}];
         return (
             <Page
                 title={'Application Details'}
@@ -127,7 +133,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                         action: () => this.deleteApplication(true),
                     }],
                 } }}>
-                {this.state.application && <ApplicationStatusPanel application={this.state.application} onClick={() => this.setOperationStatusVisible(true)}/>}
+                {this.state.application && <ApplicationStatusPanel application={this.state.application}
+		    showOperation={() => this.setOperationStatusVisible(true)}
+		    showConditions={() => this.setConditionsStatusVisible(true)}/>}
                 <div className='argo-container application-details'>
                     {this.state.application ? (
                         <ApplicationResourcesTree
@@ -196,6 +204,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
                     {operationState && <ApplicationOperationState operationState={operationState}/>}
                 </SlidingPanel>
+                <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
+                    {conditions && <ApplicationConditions conditions={conditions}/>}
+                </SlidingPanel>
             </Page>
         );
     }
@@ -233,6 +244,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private setOperationStatusVisible(isVisible: boolean) {
         this.appContext.apis.navigation.goto('.', { operation: isVisible });
+    }
+
+    private setConditionsStatusVisible(isVisible: boolean) {
+        this.appContext.apis.navigation.goto('.', { conditions: isVisible });
     }
 
     private setRollbackPanelVisible(selectedDeploymentIndex = 0) {
