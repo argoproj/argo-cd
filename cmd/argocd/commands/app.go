@@ -580,7 +580,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		healthOnly bool
 		timeout    uint
 	)
-	const defaultCheckTimeoutSeconds = 0
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
 		Short: "Wait for an application to reach a synced and healthy state",
@@ -757,6 +756,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revision string
 		prune    bool
 		dryRun   bool
+		timeout  uint
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -777,7 +777,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			_, err := appIf.Sync(context.Background(), &syncReq)
 			errors.CheckError(err)
-			status, err := waitUntilOperationCompleted(appIf, appName)
+			status, err := waitUntilOperationCompleted(appIf, appName, timeout)
 			errors.CheckError(err)
 			err = printOperationResult(appName, status)
 			errors.CheckError(err)
@@ -789,29 +789,27 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string) (*argoappv1.OperationState, error) {
-	wc, err := appClient.Watch(context.Background(), &application.ApplicationQuery{
-		Name: &appName,
-	})
-	if err != nil {
-		return nil, err
+func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.OperationState, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if timeout != 0 {
+		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+			cancel()
+		})
 	}
-	appEvent, err := wc.Recv()
-	if err != nil {
-		return nil, err
-	}
-	for {
+
+	appEventCh := watchApp(ctx, appClient, appName)
+	for appEvent := range appEventCh {
 		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Phase.Completed() {
 			return appEvent.Application.Status.OperationState, nil
 		}
-		appEvent, err = wc.Recv()
-		if err != nil {
-			return nil, err
-		}
 	}
+	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -892,7 +890,8 @@ func paramString(params []argoappv1.ComponentParameter) string {
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		prune bool
+		prune   bool
+		timeout uint
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME",
@@ -928,7 +927,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			status, err := waitUntilOperationCompleted(appIf, appName)
+			status, err := waitUntilOperationCompleted(appIf, appName, timeout)
 			errors.CheckError(err)
 			err = printOperationResult(appName, status)
 			errors.CheckError(err)
@@ -938,10 +937,12 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
 
 const printOpFmtStr = "%-20s%s\n"
+const defaultCheckTimeoutSeconds = 0
 
 func printOperationResult(appName string, opState *argoappv1.OperationState) error {
 	fmt.Printf(printOpFmtStr, "Application:", appName)
