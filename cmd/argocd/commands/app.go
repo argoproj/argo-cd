@@ -752,10 +752,12 @@ func printAppStateChange(w io.Writer, prevComp *argoappv1.ComparisonResult, app 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision string
-		prune    bool
-		dryRun   bool
-		timeout  uint
+		revision   string
+		prune      bool
+		dryRun     bool
+		syncOnly   bool
+		healthOnly bool
+		timeout    uint
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -813,6 +815,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
+	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
+	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
@@ -917,8 +921,10 @@ func paramString(params []argoappv1.ComponentParameter) string {
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		prune   bool
-		timeout uint
+		prune      bool
+		syncOnly   bool
+		healthOnly bool
+		timeout    uint
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME",
@@ -964,7 +970,6 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			errors.CheckError(err)
 
 			// print the initial components to format the tabwriter columns
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			printAppResources(w, app, nil)
@@ -988,6 +993,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
+	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
+	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
