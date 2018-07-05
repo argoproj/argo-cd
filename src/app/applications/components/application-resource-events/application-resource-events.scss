@@ -11,5 +11,15 @@
         &--Normal {
             border-left-color: $argo-success-color;
         }
+
+        .row {
+            line-height: 2;
+            padding-top: 15px;
+            padding-bottom: 15px;
+        }
+
+        .columns {
+            white-space: normal;
+        }
     }
 }
