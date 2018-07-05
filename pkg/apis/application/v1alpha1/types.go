@@ -230,6 +230,7 @@ const (
 	HealthStatusProgressing = "Progressing"
 	HealthStatusHealthy     = "Healthy"
 	HealthStatusDegraded    = "Degraded"
+	HealthStatusMissing     = "Missing"
 )
 
 // ResourceNode contains information about live resource and its children
