@@ -42,7 +42,7 @@ func (ctrl *kubeAppHealthManager) getServiceHealth(config *rest.Config, namespac
 	if err != nil {
 		return nil, err
 	}
-	health := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
+	health := appv1.HealthStatus{Status: appv1.HealthStatusMissing}
 	if service.Spec.Type == coreV1.ServiceTypeLoadBalancer {
 		health.Status = appv1.HealthStatusProgressing
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
@@ -117,7 +117,7 @@ func (ctrl *kubeAppHealthManager) GetAppHealth(server string, namespace string, 
 	}
 	restConfig := clst.RESTConfig()
 
-	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
+	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusMissing}
 	for i := range comparisonResult.Resources {
 		resource := comparisonResult.Resources[i]
 		if resource.LiveState == "null" {
