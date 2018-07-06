@@ -709,9 +709,6 @@ func printAppResources(w io.Writer, app *argoappv1.Application, opState *argoapp
 			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
 			errors.CheckError(err)
 		}
-		if res.Health.Status == "" {
-			res.Health.Status = argoappv1.HealthStatusMissing
-		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
 		if opState != nil {
 			message := messages[fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())]
