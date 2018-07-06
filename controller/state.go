@@ -123,13 +123,16 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		return nil, nil, err
 	}
 
-	targetObjs := make([]*unstructured.Unstructured, len(manifestInfo.Manifests))
-	for i, manifest := range manifestInfo.Manifests {
+	targetObjs := make([]*unstructured.Unstructured, 0)
+	for _, manifest := range manifestInfo.Manifests {
 		obj, err := v1alpha1.UnmarshalToUnstructured(manifest)
 		if err != nil {
 			return nil, nil, err
 		}
-		targetObjs[i] = obj
+		if !isSyncedResource(obj) {
+			continue
+		}
+		targetObjs = append(targetObjs, obj)
 	}
 
 	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
@@ -142,10 +145,17 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 	}
 	restConfig := clst.RESTConfig()
 
-	// Retrieve the live versions of the objects
-	liveObjs, err := kubeutil.GetResourcesWithLabel(restConfig, namespace, common.LabelApplicationName, app.Name)
+	// Retrieve the live versions of the objects. exclude any hook objects
+	labeledObjs, err := kubeutil.GetResourcesWithLabel(restConfig, namespace, common.LabelApplicationName, app.Name)
 	if err != nil {
 		return nil, nil, err
+	}
+	liveObjs := make([]*unstructured.Unstructured, 0)
+	for _, obj := range labeledObjs {
+		if !isSyncedResource(obj) {
+			continue
+		}
+		liveObjs = append(liveObjs, obj)
 	}
 
 	liveObjByFullName := groupLiveObjects(liveObjs, targetObjs)

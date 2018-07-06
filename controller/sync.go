@@ -8,13 +8,15 @@ import (
 	"sync"
 
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
-	wfclientset "github.com/argoproj/argo/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/apis/batch"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -23,20 +25,22 @@ import (
 )
 
 type syncContext struct {
-	comparison   *appv1.ComparisonResult
-	config       *rest.Config
-	namespace    string
-	syncOp       *appv1.SyncOperation
-	opState      *appv1.OperationState
-	manifestInfo *repository.ManifestResponse
-	log          *log.Entry
+	comparison    *appv1.ComparisonResult
+	config        *rest.Config
+	dynClientPool dynamic.ClientPool
+	disco         *discovery.DiscoveryClient
+	namespace     string
+	syncOp        *appv1.SyncOperation
+	opState       *appv1.OperationState
+	manifestInfo  *repository.ManifestResponse
+	log           *log.Entry
 	// lock to protect concurrent updates of the result list
 	lock sync.Mutex
 }
 
 func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
 	// Sync requests are usually requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
-	// This can change meaning when resuming operations (e.g a workflow sync). After calculating a
+	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA remembered in the status.operationState.syncResult and
 	// rollbackResult fields. This ensures that when resuming an operation, we sync to the same
 	// revision that we initially started with.
@@ -110,14 +114,25 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		return
 	}
 
+	restConfig := clst.RESTConfig()
+	dynClientPool := dynamic.NewDynamicClientPool(restConfig)
+	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		state.Phase = appv1.OperationError
+		state.Message = fmt.Sprintf("Failed to initialize dynamic client: %v", err)
+		return
+	}
+
 	syncCtx := syncContext{
-		comparison:   comparison,
-		config:       clst.RESTConfig(),
-		namespace:    app.Spec.Destination.Namespace,
-		syncOp:       &syncOp,
-		opState:      state,
-		manifestInfo: manifestInfo,
-		log:          log.WithFields(log.Fields{"application": app.Name}),
+		comparison:    comparison,
+		config:        restConfig,
+		dynClientPool: dynClientPool,
+		disco:         disco,
+		namespace:     app.Spec.Destination.Namespace,
+		syncOp:        &syncOp,
+		opState:       state,
+		manifestInfo:  manifestInfo,
+		log:           log.WithFields(log.Fields{"application": app.Name}),
 	}
 
 	syncCtx.sync()
@@ -138,7 +153,7 @@ type syncTask struct {
 	targetObj *unstructured.Unstructured
 }
 
-// sync has performs the actual apply or workflow based sync
+// sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
 	syncTasks, successful := sc.generateSyncTasks()
 	if !successful {
@@ -149,9 +164,9 @@ func (sc *syncContext) sync() {
 	// will not not detect if they are mutating immutable fields). If anything fails, we will refuse
 	// to perform the sync.
 	if len(sc.opState.SyncResult.Resources) == 0 {
-		// NOTE: we only need to do this once per operation. The indicator we use to detect if we
-		// have already performed the dry-run for this operation, is if the SyncResult resource
-		// list is empty.
+		// Optimization: we only wish to do this once per operation, performing additional dry-runs
+		// is harmless, but redundant. The indicator we use to detect if we have already performed
+		// the dry-run for this operation, is if the SyncResult resource list is empty.
 		successful = sc.doApplySync(syncTasks, true, false)
 		if !successful {
 			return
@@ -163,14 +178,19 @@ func (sc *syncContext) sync() {
 	}
 
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
-	if sc.syncOp.SyncStrategy == nil || sc.syncOp.SyncStrategy.Apply != nil {
+	if sc.syncOp.SyncStrategy.Apply != nil {
 		forceApply := false
 		if sc.syncOp.SyncStrategy != nil && sc.syncOp.SyncStrategy.Apply != nil {
 			forceApply = sc.syncOp.SyncStrategy.Apply.Force
 		}
 		sc.doApplySync(syncTasks, false, forceApply)
-	} else if sc.syncOp.SyncStrategy.Workflow != nil {
-		sc.doWorkflowSync(syncTasks, sc.manifestInfo.Workflows)
+	} else if sc.syncOp.SyncStrategy.Hook != nil || sc.syncOp.SyncStrategy == nil {
+		hooks, err := sc.getHooks()
+		if err != nil {
+			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to generate hooks resources: %v", err))
+			return
+		}
+		sc.doHookSync(syncTasks, hooks)
 	} else {
 		sc.setOperationPhase(appv1.OperationFailed, "Unknown sync strategy")
 		return
@@ -267,6 +287,9 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force bool) boo
 			if t.targetObj == nil {
 				resDetails, successful = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			} else {
+				if !isSyncedResource(t.targetObj) {
+					return
+				}
 				resDetails, successful = sc.applyObject(t.targetObj, dryRun, force)
 			}
 			if !successful {
@@ -290,155 +313,187 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force bool) boo
 	return true
 }
 
-// doWorkflowSync will initiate or continue a workflow based sync. This method will be invoked when
-// there are already in-flight workflows, and should be idempotent.
-func (sc *syncContext) doWorkflowSync(syncTasks []syncTask, workflows []*repository.ApplicationWorkflow) {
-	wfcs, err := wfclientset.NewForConfig(sc.config)
-	if err != nil {
-		sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to initialize workflow client: %v", err))
-		return
-	}
-	wfIf := wfcs.Workflows(sc.namespace)
-
-	// TODO: Validate all workflows before starting the process
-
-	for _, purpose := range []appv1.WorkflowPurpose{appv1.PurposePreSync, appv1.PurposeSync, appv1.PurposePostSync} {
-		switch purpose {
-		case appv1.PurposeSync:
-			sc.syncNonWorkflowTasks(syncTasks)
-		case appv1.PurposePostSync:
+// doHookSync initiates or continues a hook-based sync. This method will be invoked when there may
+// already be in-flight jobs/workflows, and should be idempotent.
+func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Unstructured) {
+	for _, hookType := range []appv1.HookType{appv1.HookTypePreSync, appv1.HookTypeSync, appv1.HookTypePostSync} {
+		switch hookType {
+		case appv1.HookTypeSync:
+			// before performing the sync via hook, apply any manifests which are missing the hook annotation
+			sc.syncNonHookTasks(syncTasks)
+		case appv1.HookTypePostSync:
 			// TODO: don't run post-sync workflows until we are in sync and progressed
 		}
-		err = sc.runWorkflows(wfIf, purpose, syncTasks, workflows)
+		err := sc.runHooks(hooks, hookType)
 		if err != nil {
-			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("%s workflow error: %v", purpose, err))
+			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("%s hook error: %v", hookType, err))
 			return
 		}
-		completed, successful := areWorkflowsCompletedSuccessful(purpose, sc.opState.Workflows)
+		completed, successful := areHooksCompletedSuccessful(hookType, sc.opState.HookResources)
 		if !completed {
 			return
 		}
 		if !successful {
-			sc.setOperationPhase(appv1.OperationFailed, fmt.Sprintf("%s workflow failed", purpose))
+			sc.setOperationPhase(appv1.OperationFailed, fmt.Sprintf("%s hook failed", hookType))
 			return
 		}
 	}
-	// if we get here, all workflows successfully completed
+	// if we get here, all hooks successfully completed
 	sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced")
 }
 
-// runWorkflows iterates & filters the target manifests for resources that desire to be synced using
-// a workflow. If any of them are of the specified purpose, then submit the workflow or retrieve the
-// running workflow. Updates the sc.opRes.workflows with the current workflow status
-func (sc *syncContext) runWorkflows(wfIf wfclientset.WorkflowInterface, purpose appv1.WorkflowPurpose, syncTasks []syncTask, workflows []*repository.ApplicationWorkflow) error {
-	processedWorkflow := make(map[string]*appv1.WorkflowStatus)
-	for _, task := range syncTasks {
-		if task.targetObj == nil {
+func (sc *syncContext) getHooks() ([]*unstructured.Unstructured, error) {
+	var hooks []*unstructured.Unstructured
+	for _, manifest := range sc.manifestInfo.Manifests {
+		var hook unstructured.Unstructured
+		err := json.Unmarshal([]byte(manifest), &hook)
+		if err != nil {
+			return nil, err
+		}
+		hooks = append(hooks, &hook)
+	}
+	return hooks, nil
+}
+
+// runHooks iterates & filters the target manifests for resources of the specified hook type, then
+// creates the resource. Updates the sc.opRes.hooks with the current status
+func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType appv1.HookType) error {
+	for _, hook := range hooks {
+		if hookType == appv1.HookTypeSync && isHookType(hook, appv1.HookTypeSkip) {
+			// If we get here, we are invoking all sync hooks and reached a resource that is
+			// annotated with the Skip hook. This will update the resource details to indicate it
+			// was skipped due to annotation
+			sc.setResourceDetails(&appv1.ResourceDetails{
+				Name:      hook.GetName(),
+				Kind:      hook.GetKind(),
+				Namespace: sc.namespace,
+				Message:   "Skipped",
+			})
 			continue
 		}
-		annotations := task.targetObj.GetAnnotations()
-		if annotations == nil {
+		if !isHookType(hook, hookType) {
 			continue
 		}
-		var annotationKey string
-		switch purpose {
-		case appv1.PurposePreSync:
-			annotationKey = common.AnnotationWorkflowPreSync
-		case appv1.PurposeSync:
-			annotationKey = common.AnnotationWorkflowSync
-		case appv1.PurposePostSync:
-			annotationKey = common.AnnotationWorkflowPostSync
-		default:
-			continue
-		}
-		wfRefName := annotations[annotationKey]
-		if wfRefName == "" {
-			continue
-		}
-		wf, err := getWorkflowByRefName(wfRefName, workflows)
+		err := sc.runHook(hook, hookType)
 		if err != nil {
 			return err
 		}
-		if wf == nil {
-			return fmt.Errorf("annotation '%s' references undefined workflow: '%s'", annotationKey, wfRefName)
-		}
-		// use a deterministic name for the workflow so that it is idempotent
-		wfName := strings.ToLower(fmt.Sprintf("%s-%s-%s-%d", purpose, wfRefName, sc.opState.SyncResult.Revision[0:7], sc.opState.StartedAt.UTC().Unix()))
-		wf.Name = wfName
-		wfStatus := processedWorkflow[wfName]
-		if wfStatus == nil {
-			sc.log.Infof("%s %s/%s via workflow %s", purpose, task.targetObj.GetKind(), task.targetObj.GetName(), wfName)
-			existing, err := wfIf.Get(wfName, metav1.GetOptions{})
-			if err != nil {
-				if !apierr.IsNotFound(err) {
-					return fmt.Errorf("Failed to get status of %s workflow '%s': %v", purpose, wfName, err)
-				}
-				created, err := wfIf.Create(wf)
-				if err != nil {
-					return fmt.Errorf("Failed to create %s workflow '%s': %v", purpose, wfName, err)
-				}
-				wf = created
-				sc.log.Infof("Workflow '%s' submitted", wf.Name)
-				sc.setOperationPhase(appv1.OperationRunning, fmt.Sprintf("Running %s workflows", purpose))
-				yamlBytes, _ := yaml.Marshal(wf)
-				sc.log.Debug("%s\n%s", string(yamlBytes))
-			} else {
-				wf = existing
-			}
-			wfStatus = &appv1.WorkflowStatus{
-				Name:       wf.Name,
-				Purpose:    purpose,
-				Phase:      string(wf.Status.Phase),
-				StartedAt:  wf.Status.StartedAt,
-				FinishedAt: wf.Status.FinishedAt,
-				Message:    wf.Status.Message,
-			}
-			processedWorkflow[wfName] = wfStatus
-		}
-		sc.setWorkflowStatus(wfStatus)
-
-		resDetails := appv1.ResourceDetails{
-			Name:      task.targetObj.GetName(),
-			Kind:      task.targetObj.GetKind(),
-			Namespace: sc.namespace,
-			Message:   fmt.Sprintf("%s workflow '%s' %s", purpose, wfName, wfStatus.Phase),
-			//Status:    ResourceSyncStatus,
-		}
-		sc.setResourceDetails(&resDetails)
-
 	}
 	return nil
 }
 
-// syncNonWorkflowTasks syncs or prunes the objects that are not handled by workflow.
-func (sc *syncContext) syncNonWorkflowTasks(syncTasks []syncTask) {
+func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.HookType) error {
+	// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
+	// or formulated at the time of the operation (metadata.generateName). If user specifies
+	// metadata.generateName, then we will generate a formulated metadata.name before submission.
+	if hook.GetName() == "" {
+		postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", hookType, sc.opState.SyncResult.Revision[0:7], sc.opState.StartedAt.UTC().Unix()))
+		generatedName := hook.GetGenerateName()
+		hook = hook.DeepCopy()
+		hook.SetName(fmt.Sprintf("%s%s", generatedName, postfix))
+	}
+	// Check our hook statuses to see if we already completed this hook.
+	// If so, this method is a noop
+	prevStatus := sc.getHookStatus(hook, hookType)
+	if prevStatus != nil && prevStatus.Status.Completed() {
+		return nil
+	}
+
+	gvk := hook.GroupVersionKind()
+	dclient, err := sc.dynClientPool.ClientForGroupVersionKind(gvk)
+	if err != nil {
+		return err
+	}
+	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+	if err != nil {
+		return err
+	}
+	resIf := dclient.Resource(apiResource, sc.namespace)
+
+	var liveObj *unstructured.Unstructured
+	existing, err := resIf.Get(hook.GetName(), metav1.GetOptions{})
+	if err != nil {
+		if !apierr.IsNotFound(err) {
+			return fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
+		}
+		_, err := kube.ApplyResource(sc.config, hook, sc.namespace, false, false)
+		if err != nil {
+			return fmt.Errorf("Failed to create %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
+		}
+		created, err := resIf.Get(hook.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
+		}
+		sc.log.Infof("%s hook %s '%s' created", hookType, gvk, created.GetName())
+		sc.setOperationPhase(appv1.OperationRunning, fmt.Sprintf("Running %s hooks", hookType))
+		liveObj = created
+	} else {
+		liveObj = existing
+	}
+	sc.setHookStatus(liveObj, hookType)
+	return nil
+}
+
+// isHookType tells whether or not the supplied object is a hook of the specified type
+func isHookType(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
+	annotations := hook.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	resHookTypes := strings.Split(annotations[common.AnnotationHook], ",")
+	for _, ht := range resHookTypes {
+		if string(hookType) == strings.TrimSpace(ht) {
+			return true
+		}
+	}
+	return false
+}
+
+// isSyncedResource tells whether or not the supplied object is a normal, synced resource,
+// and not a lifecycle hook.
+func isSyncedResource(obj *unstructured.Unstructured) bool {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		return true
+	}
+	resHookTypes := strings.Split(annotations[common.AnnotationHook], ",")
+	for _, hookType := range resHookTypes {
+		hookType = strings.TrimSpace(hookType)
+		switch appv1.HookType(hookType) {
+		case appv1.HookTypePreSync, appv1.HookTypeSync, appv1.HookTypePostSync:
+			return false
+		}
+	}
+	return true
+}
+
+// syncNonHookTasks syncs or prunes the objects that are not handled by hooks
+func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) {
 	// We need to make sure we only do the `kubectl apply` at most once per operation.
-	// Because we perform the apply before scheduling workflows, if we see any Sync or PostSync
-	// workflows recorded in the list, we can safely assume we've already performed the apply.
-	for _, wf := range sc.opState.Workflows {
-		if wf.Purpose == appv1.PurposeSync || wf.Purpose == appv1.PurposePostSync {
+	// Because we perform the apply before immediately before creating sync hooks, if we see any
+	// Sync or PostSync hooks recorded in the list, we can safely assume we've already performed
+	// the apply.
+	for _, hr := range sc.opState.HookResources {
+		if hr.Type == appv1.HookTypeSync || hr.Type == appv1.HookTypePostSync {
 			return
 		}
 	}
-	var nonWfSyncTasks []syncTask
+	var nonHookTasks []syncTask
 	for _, task := range syncTasks {
 		if task.targetObj == nil {
-			nonWfSyncTasks = append(nonWfSyncTasks, task)
+			nonHookTasks = append(nonHookTasks, task)
 		} else {
 			annotations := task.targetObj.GetAnnotations()
-			if annotations != nil {
-				if annotations[common.AnnotationWorkflowSync] != "" {
-					// we are doing a workflow sync and this resource is annotated with the
-					// 'workflow-sync' annotation
-					continue
-				}
+			if annotations != nil && annotations[common.AnnotationHook] != "" {
+				// we are doing a hook sync and this resource is annotated with a hook annotation
+				continue
 			}
-			// if we get here, this resource does not have the workflow sync annotation so we
-			// should perform an apply sync
-			nonWfSyncTasks = append(nonWfSyncTasks, task)
+			// if we get here, this resource does not have any hook annotation so we
+			// should perform an `kubectl apply`
+			nonHookTasks = append(nonHookTasks, task)
 		}
 	}
-	sc.doApplySync(nonWfSyncTasks, false, sc.syncOp.SyncStrategy.Workflow.Force)
+	sc.doApplySync(nonHookTasks, false, sc.syncOp.SyncStrategy.Hook.Force)
 }
 
 // setResourceDetails sets a resource details in the SyncResult.Resources list
@@ -456,51 +511,105 @@ func (sc *syncContext) setResourceDetails(details *appv1.ResourceDetails) {
 	sc.opState.SyncResult.Resources = append(sc.opState.SyncResult.Resources, details)
 }
 
-func (sc *syncContext) setWorkflowStatus(wfStatus *appv1.WorkflowStatus) {
+func (sc *syncContext) getHookStatus(hookObj *unstructured.Unstructured, hookType appv1.HookType) *appv1.HookStatus {
+	for _, hr := range sc.opState.HookResources {
+		if hr.Name == hookObj.GetName() && hr.Kind == hookObj.GetKind() && hr.Type == hookType {
+			return &hr
+		}
+	}
+	return nil
+}
+
+func (sc *syncContext) setHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
-	sc.log.Infof("Set workflow status: %v", wfStatus)
-	for i, wfs := range sc.opState.Workflows {
-		if wfs.Name == wfStatus.Name {
-			sc.opState.Workflows[i] = *wfStatus
+	// TODO: how to handle situation when resource is part of multiple hooks?
+	hookStatus := appv1.HookStatus{
+		Name:       hook.GetName(),
+		Kind:       hook.GetKind(),
+		APIVersion: hook.GetAPIVersion(),
+		Type:       hookType,
+	}
+	switch hookStatus.Kind {
+	case "Job":
+		var job batch.Job
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &job)
+		if err != nil {
+			hookStatus.Status = appv1.OperationError
+			hookStatus.Message = err.Error()
+		} else {
+			failed := false
+			var failMsg string
+			complete := false
+			var message string
+			for _, condition := range job.Status.Conditions {
+				switch condition.Type {
+				case batch.JobFailed:
+					failed = true
+					failMsg = condition.Message
+				case batch.JobComplete:
+					complete = true
+					message = condition.Message
+				}
+			}
+			if !complete {
+				hookStatus.Status = appv1.OperationRunning
+				hookStatus.Message = message
+			} else if failed {
+				hookStatus.Status = appv1.OperationFailed
+				hookStatus.Message = failMsg
+			} else {
+				hookStatus.Status = appv1.OperationSucceeded
+				hookStatus.Message = message
+			}
+		}
+	case "Workflow":
+		var wf wfv1.Workflow
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
+		if err != nil {
+			hookStatus.Status = appv1.OperationError
+			hookStatus.Message = err.Error()
+		} else {
+			switch wf.Status.Phase {
+			case wfv1.NodeRunning:
+				hookStatus.Status = appv1.OperationRunning
+			case wfv1.NodeSucceeded:
+				hookStatus.Status = appv1.OperationSucceeded
+			case wfv1.NodeFailed:
+				hookStatus.Status = appv1.OperationFailed
+			case wfv1.NodeError:
+				hookStatus.Status = appv1.OperationError
+			}
+			hookStatus.Message = wf.Status.Message
+		}
+	default:
+		hookStatus.Status = appv1.OperationSucceeded
+		hookStatus.Message = fmt.Sprintf("%s created", hook.GetName())
+	}
+
+	sc.log.Infof("Set hook status: %v", hookStatus)
+	for i, hr := range sc.opState.HookResources {
+		if hr.Name == hookStatus.Name && hr.Kind == hookStatus.Kind && hr.Type == hookType {
+			sc.opState.HookResources[i] = hookStatus
 			return
 		}
 	}
-	sc.opState.Workflows = append(sc.opState.Workflows, *wfStatus)
+	sc.opState.HookResources = append(sc.opState.HookResources, hookStatus)
 }
 
-func getWorkflowByRefName(name string, workflows []*repository.ApplicationWorkflow) (*wfv1.Workflow, error) {
-	for _, appWf := range workflows {
-		if appWf.Name == name {
-			var wf wfv1.Workflow
-			err := json.Unmarshal([]byte(appWf.Manifest), &wf)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to unmarshal workflow '%s': %v", name, err)
-			}
-			return &wf, nil
-		}
-	}
-	return nil, nil
-}
-
-// areWorkflowsCompletedSuccessful checks if all the workflows of the specified purpose are completed
-// and successful
-func areWorkflowsCompletedSuccessful(purpose appv1.WorkflowPurpose, wfStatuses []appv1.WorkflowStatus) (bool, bool) {
-	isCompleted := true
+// areHooksCompletedSuccessful checks if all the hooks of the specified type are completed and successful
+func areHooksCompletedSuccessful(hookType appv1.HookType, hookStatuses []appv1.HookStatus) (bool, bool) {
 	isSuccessful := true
-	for _, wfStatus := range wfStatuses {
-		if wfStatus.Purpose != purpose {
+	for _, hookStatus := range hookStatuses {
+		if hookStatus.Type != hookType {
 			continue
 		}
-		phase := wfv1.NodePhase(wfStatus.Phase)
-		switch phase {
-		case wfv1.NodeSucceeded:
-			continue
-		case wfv1.NodeFailed, wfv1.NodeError:
+		if !hookStatus.Status.Completed() {
+			return false, false
+		}
+		if !hookStatus.Status.Successful() {
 			isSuccessful = false
-		default:
-			isCompleted = false
 		}
 	}
-	return isCompleted, isSuccessful
+	return true, isSuccessful
 }

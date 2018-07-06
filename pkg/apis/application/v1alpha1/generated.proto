@@ -230,6 +230,27 @@ message HealthStatus {
   optional string statusDetails = 2;
 }
 
+// HookStatus contains status about a hook invocation
+message HookStatus {
+  // Name is the resource name
+  optional string name = 1;
+
+  // Name is the resource name
+  optional string kind = 2;
+
+  // Name is the resource name
+  optional string apiVersion = 3;
+
+  // Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)
+  optional string type = 4;
+
+  // Status a simple, high-level summary of where the resource is in its lifecycle
+  optional string status = 5;
+
+  // A human readable message indicating details about why the resource is in this condition.
+  optional string message = 6;
+}
+
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
@@ -260,8 +281,8 @@ message OperationState {
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 
-  // Workflows contains list of workflow statuses associated with this operation
-  repeated WorkflowStatus workflows = 8;
+  // HookResources contains list of hook resource statuses associated with this operation
+  repeated HookStatus hookResources = 8;
 }
 
 // Repository is a Git repository holding application configurations
@@ -353,8 +374,8 @@ message SyncStrategy {
   // Apply wil perform a `kubectl apply` to perform the sync. This is the default strategy
   optional SyncStrategyApply apply = 1;
 
-  // Workflow will submit any referenced workflows to perform the sync
-  optional SyncStrategyWorkflow workflow = 2;
+  // Hook will submit any referenced resources to perform the sync
+  optional SyncStrategyHook hook = 2;
 }
 
 // SyncStrategyApply uses `kubectl apply` to perform the apply
@@ -365,9 +386,9 @@ message SyncStrategyApply {
   optional bool force = 1;
 }
 
-// SyncStrategyWorkflow will submit workflows referenced in the objects sync-worklow annotation to
-// perform the sync. If no workflows are referenced, falls back to `kubectl apply`
-message SyncStrategyWorkflow {
+// SyncStrategyHook will perform a sync using hooks annotations.
+// If no hook annotation is specified falls back to `kubectl apply`.
+message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
   optional SyncStrategyApply syncStrategyApply = 1;
 }
@@ -393,26 +414,5 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
-}
-
-// WorkflowStatus contains status about a workflow
-message WorkflowStatus {
-  // Name is the workflow name
-  optional string name = 1;
-
-  // Purpose of workflow (PreSync, Sync, PostSync)
-  optional string purpose = 2;
-
-  // Phase a simple, high-level summary of where the workflow is in its lifecycle.
-  optional string phase = 3;
-
-  // Time at which this workflow started
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 4;
-
-  // Time at which this workflow completed
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 5;
-
-  // A human readable message indicating details about why the workflow is in this condition.
-  optional string message = 6;
 }
 

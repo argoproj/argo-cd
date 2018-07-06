@@ -202,14 +202,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					if opState.Message != "" {
 						fmt.Printf(format, "  Message:", opState.Message)
 					}
-					if len(opState.Workflows) > 0 {
-						w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-						fmt.Fprintf(w, "WORKFLOW\tPURPOSE\tSTATUS\tMESSAGE\n")
-						for _, wfStatus := range opState.Workflows {
-							fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", wfStatus.Name, wfStatus.Purpose, wfStatus.Phase, wfStatus.Message)
-						}
-						_ = w.Flush()
-					}
+					printHooks(opState)
 				}
 				if showParams {
 					printParams(app)
@@ -788,9 +781,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			case "", "apply":
 				syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
 				syncReq.Strategy.Apply.Force = force
-			case "workflow":
-				syncReq.Strategy = &argoappv1.SyncStrategy{Workflow: &argoappv1.SyncStrategyWorkflow{}}
-				syncReq.Strategy.Workflow.Force = force
+			case "hook":
+				syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
+				syncReq.Strategy.Hook.Force = force
 			default:
 				log.Fatalf("Unknown sync strategy: '%s'", strategy)
 			}
@@ -809,7 +802,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
-	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|workflow)")
+	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	return command
 }
@@ -980,6 +973,8 @@ func printOperationResult(appName string, opState *argoappv1.OperationState) err
 		fmt.Printf(printOpFmtStr, "Message:", opState.Message)
 	}
 	if syncRes != nil {
+		printHooks(opState)
+
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Printf("\n")
 		fmt.Fprintf(w, "KIND\tNAME\tMESSAGE\n")
@@ -996,6 +991,18 @@ func printOperationResult(appName string, opState *argoappv1.OperationState) err
 		}
 	}
 	return nil
+}
+
+func printHooks(opState *argoappv1.OperationState) {
+	if len(opState.HookResources) > 0 {
+		fmt.Printf("\n")
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintf(w, "HOOK\tKIND\tNAME\tSTATUS\tMESSAGE\n")
+		for _, hookStatus := range opState.HookResources {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", hookStatus.Type, hookStatus.Kind, hookStatus.Name, hookStatus.Status, hookStatus.Message)
+		}
+		_ = w.Flush()
+	}
 }
 
 // NewApplicationManifestsCommand returns a new instance of an `argocd app manifests` command

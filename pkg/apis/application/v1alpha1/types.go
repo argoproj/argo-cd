@@ -74,16 +74,16 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt" protobuf:"bytes,7,opt,name=finishedAt"`
-	// Workflows contains list of workflow statuses associated with this operation
-	Workflows []WorkflowStatus `json:"workflows,omitempty" protobuf:"bytes,8,opt,name=workflows"`
+	// HookResources contains list of hook resource statuses associated with this operation
+	HookResources []HookStatus `json:"hookResources,omitempty" protobuf:"bytes,8,opt,name=hookResources"`
 }
 
 // SyncStrategy indicates the
 type SyncStrategy struct {
 	// Apply wil perform a `kubectl apply` to perform the sync. This is the default strategy
 	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
-	// Workflow will submit any referenced workflows to perform the sync
-	Workflow *SyncStrategyWorkflow `json:"workflow,omitempty" protobuf:"bytes,2,opt,name=workflow"`
+	// Hook will submit any referenced resources to perform the sync
+	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
 }
 
 // SyncStrategyApply uses `kubectl apply` to perform the apply
@@ -94,35 +94,40 @@ type SyncStrategyApply struct {
 	Force bool `json:"force,omitempty" protobuf:"bytes,1,opt,name=force"`
 }
 
-// SyncStrategyWorkflow will submit workflows referenced in the objects sync-worklow annotation to
-// perform the sync. If no workflows are referenced, falls back to `kubectl apply`
-type SyncStrategyWorkflow struct {
+// SyncStrategyHook will perform a sync using hooks annotations.
+// If no hook annotation is specified falls back to `kubectl apply`.
+type SyncStrategyHook struct {
 	// Embed SyncStrategyApply type to inherit any `apply` options
 	SyncStrategyApply `protobuf:"bytes,1,opt,name=syncStrategyApply"`
-	//Parameters []string
 }
 
-type WorkflowPurpose string
+type HookType string
 
 const (
-	PurposePreSync  WorkflowPurpose = "PreSync"
-	PurposeSync     WorkflowPurpose = "Sync"
-	PurposePostSync WorkflowPurpose = "PostSync"
+	HookTypePreSync  HookType = "PreSync"
+	HookTypeSync     HookType = "Sync"
+	HookTypePostSync HookType = "PostSync"
+	HookTypeSkip     HookType = "Skip"
+
+	// NOTE: we may consider adding SyncFail hook. With a SyncFail hook, finalizer-like logic could
+	// be implemented by specifying both PostSync,SyncFail in the hook annotation:
+	// (e.g.: argocd.argoproj.io/hook: PostSync,SyncFail)
+	//HookTypeSyncFail     HookType = "SyncFail"
 )
 
-// WorkflowStatus contains status about a workflow
-type WorkflowStatus struct {
-	// Name is the workflow name
+// HookStatus contains status about a hook invocation
+type HookStatus struct {
+	// Name is the resource name
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// Purpose of workflow (PreSync, Sync, PostSync)
-	Purpose WorkflowPurpose `json:"purpose" protobuf:"bytes,2,opt,name=purpose"`
-	// Phase a simple, high-level summary of where the workflow is in its lifecycle.
-	Phase string `json:"phase" protobuf:"bytes,3,opt,name=phase"`
-	// Time at which this workflow started
-	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,4,opt,name=startedAt"`
-	// Time at which this workflow completed
-	FinishedAt metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,5,opt,name=finishedAt"`
-	// A human readable message indicating details about why the workflow is in this condition.
+	// Name is the resource name
+	Kind string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	// Name is the resource name
+	APIVersion string `json:"apiVersion" protobuf:"bytes,3,opt,name=apiVersion"`
+	// Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)
+	Type HookType `json:"type" protobuf:"bytes,4,opt,name=type"`
+	// Status a simple, high-level summary of where the resource is in its lifecycle
+	Status OperationPhase `json:"status" protobuf:"bytes,5,opt,name=status"`
+	// A human readable message indicating details about why the resource is in this condition.
 	Message string `json:"message,omitempty" protobuf:"bytes,6,opt,name=message"`
 }
 
