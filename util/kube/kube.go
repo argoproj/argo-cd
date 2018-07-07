@@ -453,7 +453,7 @@ func DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespa
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun bool) (string, error) {
+func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
 	f, err := ioutil.TempFile(kubectlTempDir, "")
 	if err != nil {
@@ -472,6 +472,9 @@ func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespac
 	applyArgs := []string{"--kubeconfig", f.Name(), "-n", namespace, "apply", "-f", "-"}
 	if dryRun {
 		applyArgs = append(applyArgs, "--dry-run")
+	}
+	if force {
+		applyArgs = append(applyArgs, "--force")
 	}
 	cmd := exec.Command("kubectl", applyArgs...)
 	log.Info(cmd.Args)

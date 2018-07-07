@@ -4,19 +4,25 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/git"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/git"
 )
 
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
+	// Revision is the git revision in which to sync the application to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
-	Prune    bool   `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
-	DryRun   bool   `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
+	// Prune deletes resources that are no longer tracked in git
+	Prune bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
+	// DryRun will perform a `kubectl apply --dry-run` without actually performing the sync
+	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
+	// SyncStrategy describes how to perform the sync
+	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
 }
 
 type RollbackOperation struct {
@@ -68,11 +74,69 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt" protobuf:"bytes,7,opt,name=finishedAt"`
+	// HookResources contains list of hook resource statuses associated with this operation
+	HookResources []HookStatus `json:"hookResources,omitempty" protobuf:"bytes,8,opt,name=hookResources"`
+}
+
+// SyncStrategy indicates the
+type SyncStrategy struct {
+	// Apply wil perform a `kubectl apply` to perform the sync. This is the default strategy
+	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
+	// Hook will submit any referenced resources to perform the sync
+	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
+}
+
+// SyncStrategyApply uses `kubectl apply` to perform the apply
+type SyncStrategyApply struct {
+	// Force indicates whether or not to supply the --force flag to `kubectl apply`.
+	// The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+	// retried for 5 times.
+	Force bool `json:"force,omitempty" protobuf:"bytes,1,opt,name=force"`
+}
+
+// SyncStrategyHook will perform a sync using hooks annotations.
+// If no hook annotation is specified falls back to `kubectl apply`.
+type SyncStrategyHook struct {
+	// Embed SyncStrategyApply type to inherit any `apply` options
+	SyncStrategyApply `protobuf:"bytes,1,opt,name=syncStrategyApply"`
+}
+
+type HookType string
+
+const (
+	HookTypePreSync  HookType = "PreSync"
+	HookTypeSync     HookType = "Sync"
+	HookTypePostSync HookType = "PostSync"
+	HookTypeSkip     HookType = "Skip"
+
+	// NOTE: we may consider adding SyncFail hook. With a SyncFail hook, finalizer-like logic could
+	// be implemented by specifying both PostSync,SyncFail in the hook annotation:
+	// (e.g.: argocd.argoproj.io/hook: PostSync,SyncFail)
+	//HookTypeSyncFail     HookType = "SyncFail"
+)
+
+// HookStatus contains status about a hook invocation
+type HookStatus struct {
+	// Name is the resource name
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Name is the resource name
+	Kind string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	// Name is the resource name
+	APIVersion string `json:"apiVersion" protobuf:"bytes,3,opt,name=apiVersion"`
+	// Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)
+	Type HookType `json:"type" protobuf:"bytes,4,opt,name=type"`
+	// Status a simple, high-level summary of where the resource is in its lifecycle
+	Status OperationPhase `json:"status" protobuf:"bytes,5,opt,name=status"`
+	// A human readable message indicating details about why the resource is in this condition.
+	Message string `json:"message,omitempty" protobuf:"bytes,6,opt,name=message"`
 }
 
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
+	// Resources holds the sync result of each individual resource
 	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,1,opt,name=resources"`
+	// Revision holds the git commit SHA of the sync
+	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 }
 
 type ResourceSyncStatus string

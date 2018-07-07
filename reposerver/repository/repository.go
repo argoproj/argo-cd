@@ -61,7 +61,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 	var res FileList
 	err = s.cache.Get(cacheKey, &res)
 	if err == nil {
-		log.Infof("manifest cache hit: %s", cacheKey)
+		log.Infof("listdir cache hit: %s", cacheKey)
 		return &res, nil
 	}
 
@@ -84,7 +84,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		Expiration: DefaultRepoCacheExpiration,
 	})
 	if err != nil {
-		log.Warnf("manifest cache set error %s: %v", cacheKey, err)
+		log.Warnf("listdir cache set error %s: %v", cacheKey, err)
 	}
 	return &res, nil
 }
@@ -188,6 +188,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		}
 		manifests[i] = string(manifestStr)
 	}
+
 	res = ManifestResponse{
 		Revision:  commitSHA,
 		Manifests: manifests,

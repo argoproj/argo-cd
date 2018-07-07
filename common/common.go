@@ -69,6 +69,9 @@ var (
 	// AnnotationConnectionModifiedAt contains timestamp when connection state had been modified
 	AnnotationConnectionModifiedAt = MetadataPrefix + "/connection-modified-at"
 
+	// AnnotationHook contains the hook type of a resource
+	AnnotationHook = MetadataPrefix + "/hook"
+
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"
 

@@ -33,6 +33,15 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
+  name = "github.com/argoproj/argo"
+  packages = [
+    "pkg/apis/workflow",
+    "pkg/apis/workflow/v1alpha1"
+  ]
+  revision = "ac241c95c13f08e868cd6f5ee32c9ce273e239ff"
+  version = "v2.1.1"
+
+[[projects]]
   name = "github.com/asaskevich/govalidator"
   packages = ["."]
   revision = "ccb8e960c48f04d6935e72476ae4a51028f9e22f"
@@ -89,6 +98,15 @@
   packages = ["."]
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
   version = "v3.2.0"
+
+[[projects]]
+  name = "github.com/emicklei/go-restful"
+  packages = [
+    ".",
+    "log"
+  ]
+  revision = "3658237ded108b4134956c1b3050349d93e7b895"
+  version = "v2.7.1"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -995,12 +1013,16 @@
 [[projects]]
   branch = "master"
   name = "k8s.io/kube-openapi"
-  packages = ["pkg/util/proto"]
+  packages = [
+    "pkg/common",
+    "pkg/util/proto"
+  ]
   revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
 
 [[projects]]
   name = "k8s.io/kubernetes"
   packages = [
+    "pkg/apis/batch",
     "pkg/apis/core",
     "pkg/kubectl/scheme"
   ]
@@ -1010,6 +1032,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "38ccdbf0eaabe461fdf17a5d12463b3db0b61aab4daf9937f2e813d2ae2d2eb5"
+  inputs-digest = "d07a9d8641579e64a9780c8ed8f89c727b7ea8e7806f81d9263498f1b925da33"
   solver-name = "gps-cdcl"
   solver-version = 1

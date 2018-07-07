@@ -96,7 +96,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Ap
 	return nil, err
 }
 
-// WaitForRefresh watches a workflow until its comparison timestamp is after the refresh timestamp
+// WaitForRefresh watches an application until its comparison timestamp is after the refresh timestamp
 func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *time.Duration) (*argoappv1.Application, error) {
 	ctx := context.Background()
 	var cancel context.CancelFunc
