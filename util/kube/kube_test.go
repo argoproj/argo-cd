@@ -2,11 +2,12 @@ package kube
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"testing"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
@@ -19,6 +20,8 @@ import (
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 func resourceList() []*metav1.APIResourceList {
@@ -141,4 +144,26 @@ func TestListResources(t *testing.T) {
 	resList, err := ListResources(&fakeDynClient, apiResource, test.TestNamespace, metav1.ListOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(resList))
+}
+
+func TestConvertToVersion(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/nginx.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	// convert an extensions/v1beta1 object into an apps/v1
+	newObj, err := ConvertToVersion(&obj, "apps", "v1")
+	assert.Nil(t, err)
+	gvk := newObj.GroupVersionKind()
+	assert.Equal(t, "apps", gvk.Group)
+	assert.Equal(t, "v1", gvk.Version)
+
+	// converting it again should not have any affect
+	newObj, err = ConvertToVersion(&obj, "apps", "v1")
+	assert.Nil(t, err)
+	gvk = newObj.GroupVersionKind()
+	assert.Equal(t, "apps", gvk.Group)
+	assert.Equal(t, "v1", gvk.Version)
 }

@@ -75,7 +75,6 @@ func newCommand() *cobra.Command {
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			repoClientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
 			appStateManager := controller.NewAppStateManager(db, appClient, repoClientset, namespace)
-			appHealthManager := controller.NewAppHealthManager(db, namespace)
 
 			appController := controller.NewApplicationController(
 				namespace,
@@ -83,7 +82,6 @@ func newCommand() *cobra.Command {
 				appClient,
 				db,
 				appStateManager,
-				appHealthManager,
 				resyncDuration,
 				&controllerConfig)
 			secretController := controller.NewSecretController(kubeClient, repoClientset, resyncDuration, namespace)

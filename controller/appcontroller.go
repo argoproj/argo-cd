@@ -29,6 +29,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -46,7 +47,6 @@ type ApplicationController struct {
 	appOperationQueue     workqueue.RateLimitingInterface
 	appInformer           cache.SharedIndexInformer
 	appStateManager       AppStateManager
-	appHealthManager      AppHealthManager
 	statusRefreshTimeout  time.Duration
 	db                    db.ArgoDB
 	forceRefreshApps      map[string]bool
@@ -65,7 +65,6 @@ func NewApplicationController(
 	applicationClientset appclientset.Interface,
 	db db.ArgoDB,
 	appStateManager AppStateManager,
-	appHealthManager AppHealthManager,
 	appResyncPeriod time.Duration,
 	config *ApplicationControllerConfig,
 ) *ApplicationController {
@@ -78,7 +77,6 @@ func NewApplicationController(
 		appRefreshQueue:       appRefreshQueue,
 		appOperationQueue:     appOperationQueue,
 		appStateManager:       appStateManager,
-		appHealthManager:      appHealthManager,
 		appInformer:           newApplicationInformer(applicationClientset, appRefreshQueue, appOperationQueue, appResyncPeriod, config),
 		db:                    db,
 		statusRefreshTimeout:  appResyncPeriod,
@@ -457,11 +455,38 @@ func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (
 	for i := range manifestInfo.Params {
 		parameters[i] = *manifestInfo.Params[i]
 	}
-	healthState, err := ctrl.appHealthManager.GetAppHealth(app.Spec.Destination.Server, app.Spec.Destination.Namespace, comparisonResult)
+
+	healthState, err := ctrl.setApplicationHealth(comparisonResult)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return comparisonResult, &parameters, healthState, nil
+}
+
+// setApplicationHealth updates the health statuses of all resources performed in the comparison
+func (ctrl *ApplicationController) setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
+	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
+	for i, resource := range comparisonResult.Resources {
+		if resource.LiveState == "null" {
+			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusMissing}
+		} else {
+			var obj unstructured.Unstructured
+			err := json.Unmarshal([]byte(resource.LiveState), &obj)
+			if err != nil {
+				return nil, err
+			}
+			healthState, err := health.GetAppHealth(&obj)
+			if err != nil {
+				return nil, err
+			}
+			resource.Health = *healthState
+		}
+		comparisonResult.Resources[i] = resource
+		if health.IsWorse(appHealth.Status, resource.Health.Status) {
+			appHealth.Status = resource.Health.Status
+		}
+	}
+	return &appHealth, nil
 }
 
 func (ctrl *ApplicationController) updateAppStatus(
