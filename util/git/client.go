@@ -181,7 +181,7 @@ func (m *nativeGitClient) Reset() error {
 			return err
 		}
 	}
-	if _, err := m.runCmd("git", "clean", "-f"); err != nil {
+	if _, err := m.runCmd("git", "clean", "-fd"); err != nil {
 		return err
 	}
 	return nil
