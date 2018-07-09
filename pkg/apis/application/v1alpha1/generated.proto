@@ -189,8 +189,6 @@ message ComparisonResult {
   optional string status = 5;
 
   repeated ResourceState resources = 6;
-
-  optional string error = 7;
 }
 
 // ComponentParameter contains information about component parameter value

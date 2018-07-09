@@ -433,26 +433,36 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
 		app := app.DeepCopy()
 
-		conditions, hasCritical := ctrl.refreshAppConditions(app)
+		conditions, hasErrors := ctrl.refreshAppConditions(app)
 
-		if !hasCritical {
-			comparisonResult, parameters, healthState, err := ctrl.tryRefreshAppStatus(app)
+		if !hasErrors {
+			patch := make(map[string]interface{})
+			comparisonResult, manifestInfo, compConditions, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 			if err != nil {
-				comparisonResult = &appv1.ComparisonResult{
-					Status:     appv1.ComparisonStatusError,
-					Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
-					ComparedTo: app.Spec.Source,
-					ComparedAt: metav1.Time{Time: time.Now().UTC()},
-				}
-				parameters = nil
-				healthState = &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}
+				conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
+			} else {
+				log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
+				patch["comparisonResult"] = comparisonResult
+				conditions = append(conditions, compConditions...)
 			}
-			ctrl.updateAppStatus(app.Name, app.Namespace, map[string]interface{}{
-				"comparisonResult": comparisonResult,
-				"parameters":       parameters,
-				"health":           healthState,
-				"conditions":       conditions,
-			})
+
+			if manifestInfo != nil {
+				parameters := make([]appv1.ComponentParameter, len(manifestInfo.Params))
+				for i := range manifestInfo.Params {
+					parameters[i] = *manifestInfo.Params[i]
+				}
+				patch["parameters"] = parameters
+			}
+
+			healthState, err := ctrl.setApplicationHealth(comparisonResult)
+			if err != nil {
+				conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
+			} else {
+				patch["health"] = healthState
+			}
+
+			patch["conditions"] = conditions
+			ctrl.updateAppStatus(app.Name, app.Namespace, patch)
 		} else {
 			ctrl.updateAppStatus(app.Name, app.Namespace, map[string]interface{}{"conditions": conditions})
 		}
@@ -462,60 +472,55 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
-	errorConditions := make(map[appv1.ApplicationConditionType]string)
+	conditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := argo.GetAppProject(&app.Spec, ctrl.applicationClientset, ctrl.namespace)
 	if err != nil {
-		errorConditions[appv1.ApplicationConditionControllerError] = err.Error()
-	} else {
-		newErrorConditions, err := argo.GetErrorConditions(context.Background(), &app.Spec, proj, ctrl.repoClientset, ctrl.db)
-		if err != nil {
-			errorConditions[appv1.ApplicationConditionControllerError] = err.Error()
+		if errors.IsNotFound(err) {
+			conditions = append(conditions, appv1.ApplicationCondition{
+				Type:    appv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
+			})
 		} else {
-			for condType, message := range newErrorConditions {
-				errorConditions[condType] = message
-			}
+			conditions = append(conditions, appv1.ApplicationCondition{
+				Type:    appv1.ApplicationConditionUnknownError,
+				Message: err.Error(),
+			})
+		}
+	} else {
+		specConditions, err := argo.GetSpecErrors(context.Background(), &app.Spec, proj, ctrl.repoClientset, ctrl.db)
+		if err != nil {
+			conditions = append(conditions, appv1.ApplicationCondition{
+				Type:    appv1.ApplicationConditionUnknownError,
+				Message: err.Error(),
+			})
+		} else {
+			conditions = append(conditions, specConditions...)
 		}
 	}
 
-	conditions := make([]appv1.ApplicationCondition, 0)
+	// List of condition types which have to be reevaluated by controller; all remaining conditions should stay as is.
+	reevaluateTypes := map[appv1.ApplicationConditionType]bool{
+		appv1.ApplicationConditionInvalidSpecError: true,
+		appv1.ApplicationConditionUnknownError:     true,
+		appv1.ApplicationConditionComparisonError:  true,
+	}
+	appConditions := make([]appv1.ApplicationCondition, 0)
 	for i := 0; i < len(app.Status.Conditions); i++ {
 		condition := app.Status.Conditions[i]
-		if !condition.IsCritical() {
-			conditions = append(conditions, condition)
+		if _, ok := reevaluateTypes[condition.Type]; !ok {
+			appConditions = append(appConditions, condition)
 		}
 	}
-	hasCritical := false
-	for condType, message := range errorConditions {
-		condition := appv1.ApplicationCondition{
-			Type:    condType,
-			Message: message,
-		}
-		conditions = append(conditions, condition)
-		if condition.IsCritical() {
-			hasCritical = true
+	hasErrors := false
+	for i := range conditions {
+		condition := conditions[i]
+		appConditions = append(appConditions, condition)
+		if condition.IsError() {
+			hasErrors = true
 		}
 
 	}
-	return conditions, hasCritical
-}
-
-func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthStatus, error) {
-	comparisonResult, manifestInfo, err := ctrl.appStateManager.CompareAppState(app, "", nil)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
-
-	parameters := make([]appv1.ComponentParameter, len(manifestInfo.Params))
-	for i := range manifestInfo.Params {
-		parameters[i] = *manifestInfo.Params[i]
-	}
-
-	healthState, err := ctrl.setApplicationHealth(comparisonResult)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return comparisonResult, &parameters, healthState, nil
+	return appConditions, hasErrors
 }
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison

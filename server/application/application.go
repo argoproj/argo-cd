@@ -397,21 +397,20 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) error {
 	proj, err := argo.GetAppProject(spec, s.appclientset, s.ns)
 	if err != nil {
+		if apierr.IsNotFound(err) {
+			return status.Errorf(codes.InvalidArgument, "application referencing project %s which does not exist", spec.Project)
+		}
 		return err
 	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", proj.Name) {
 		return status.Errorf(codes.PermissionDenied, "permission denied for project %s", proj.Name)
 	}
-	conditions, err := argo.GetErrorConditions(ctx, spec, proj, s.repoClientset, s.db)
+	conditions, err := argo.GetSpecErrors(ctx, spec, proj, s.repoClientset, s.db)
 	if err != nil {
 		return err
 	}
 	if len(conditions) > 0 {
-		formattedConditions := make([]string, 0)
-		for key, message := range conditions {
-			formattedConditions = append(formattedConditions, fmt.Sprintf("%s: %s", key, message))
-		}
-		return status.Errorf(codes.InvalidArgument, "application spec is invalid: \n%s", strings.Join(formattedConditions, "\n"))
+		return status.Errorf(codes.InvalidArgument, "application spec is invalid: \n%s", argo.FormatAppConditions(conditions))
 	}
 	return nil
 }

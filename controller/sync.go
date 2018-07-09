@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -97,10 +98,15 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		// Take the value in the requested operation. We will resolve this to a SHA later.
 		revision = syncOp.Revision
 	}
-	comparison, manifestInfo, err := s.CompareAppState(app, revision, overrides)
+	comparison, manifestInfo, errConditions, err := s.CompareAppState(app, revision, overrides)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
+		return
+	}
+	if len(errConditions) > 0 {
+		state.Phase = appv1.OperationError
+		state.Message = argo.FormatAppConditions(errConditions)
 		return
 	}
 	// We now have a concrete commit SHA. Set this in the sync result revision so that we remember

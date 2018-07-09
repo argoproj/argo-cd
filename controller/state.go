@@ -30,7 +30,8 @@ const (
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error)
+	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
+		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -82,10 +83,7 @@ func groupLiveObjects(liveObjs []*unstructured.Unstructured, targetObjs []*unstr
 	return liveByFullName
 }
 
-// CompareAppState compares application git state to the live app state, using the specified
-// revision and supplied overrides. If revision or overrides are empty, then compares against
-// revision and overrides in the app spec.
-func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error) {
+func (s *ksonnetAppStateManager) getTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	repo := s.getRepo(app.Spec.Source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
@@ -138,19 +136,21 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		}
 		targetObjs = append(targetObjs, obj)
 	}
+	return targetObjs, manifestInfo, nil
+}
 
-	server, namespace := app.Spec.Destination.Server, app.Spec.Destination.Namespace
+func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (
+	[]*unstructured.Unstructured, map[string]*unstructured.Unstructured, error) {
 
-	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, server, namespace)
 	// Get the REST config for the cluster corresponding to the environment
-	clst, err := s.db.GetCluster(context.Background(), server)
+	clst, err := s.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, err
 	}
 	restConfig := clst.RESTConfig()
 
 	// Retrieve the live versions of the objects. exclude any hook objects
-	labeledObjs, err := kubeutil.GetResourcesWithLabel(restConfig, namespace, common.LabelApplicationName, app.Name)
+	labeledObjs, err := kubeutil.GetResourcesWithLabel(restConfig, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -189,13 +189,36 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 			if err != nil {
 				return nil, nil, err
 			}
-			liveObj, err = kubeutil.GetLiveResource(dclient, targetObj, apiResource, namespace)
+			liveObj, err = kubeutil.GetLiveResource(dclient, targetObj, apiResource, app.Spec.Destination.Namespace)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 		controlledLiveObj[i] = liveObj
 		delete(liveObjByFullName, fullName)
+	}
+
+	return controlledLiveObj, liveObjByFullName, nil
+}
+
+// CompareAppState compares application git state to the live app state, using the specified
+// revision and supplied overrides. If revision or overrides are empty, then compares against
+// revision and overrides in the app spec.
+func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
+	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error) {
+
+	conditions := make([]v1alpha1.ApplicationCondition, 0)
+	targetObjs, manifestInfo, err := s.getTargetObjs(app, revision, overrides)
+	if err != nil {
+		targetObjs = make([]*unstructured.Unstructured, 0)
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	}
+
+	controlledLiveObj, liveObjByFullName, err := s.getLiveObjs(app, targetObjs)
+	if err != nil {
+		controlledLiveObj = make([]*unstructured.Unstructured, len(targetObjs))
+		liveObjByFullName = make(map[string]*unstructured.Unstructured)
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
 
 	// Move root level live resources to controlledLiveObj and add nil to targetObjs to indicate that target object is missing
@@ -207,11 +230,14 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		}
 	}
 
+	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+
 	// Do the actual comparison
 	diffResults, err := diff.DiffArray(targetObjs, controlledLiveObj)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+
 	comparisonStatus := v1alpha1.ComparisonStatusSynced
 
 	resources := make([]v1alpha1.ResourceState, len(targetObjs))
@@ -236,7 +262,7 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		} else {
 			targetObjBytes, err := json.Marshal(targetObjs[i].Object)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			resState.TargetState = string(targetObjBytes)
 		}
@@ -249,7 +275,7 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		} else {
 			liveObjBytes, err := json.Marshal(controlledLiveObj[i].Object)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			resState.LiveState = string(liveObjBytes)
 		}
@@ -262,7 +288,7 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		if liveResource != nil {
 			childResources, err := getChildren(liveResource, liveObjByFullName)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			resource.ChildLiveResources = childResources
 			resources[i] = resource
@@ -274,7 +300,7 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		Resources:  resources,
 		Status:     comparisonStatus,
 	}
-	return &compResult, manifestInfo, nil
+	return &compResult, manifestInfo, conditions, nil
 }
 
 func hasParent(obj *unstructured.Unstructured) bool {

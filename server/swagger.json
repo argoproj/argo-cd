@@ -1882,9 +1882,6 @@
         "comparedTo": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
-        "error": {
-          "type": "string"
-        },
         "resources": {
           "type": "array",
           "items": {
