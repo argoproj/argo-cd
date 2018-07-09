@@ -311,6 +311,7 @@ func (f *Fixture) createController() *controller.ApplicationController {
 		f.Namespace,
 		f.KubeClient,
 		f.AppClient,
+		reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
 		f.DB,
 		appStateManager,
 		appHealthManager,
