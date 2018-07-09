@@ -188,7 +188,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 					printAppResources(w, app, showOperation)
-					w.Flush()
+					_ = w.Flush()
 				}
 			default:
 				log.Fatalf("Unknown output format: %s", output)
@@ -805,7 +805,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				fmt.Println()
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				printAppResources(w, app, true)
-				w.Flush()
+				_ = w.Flush()
 			}
 
 			pruningRequired := 0
@@ -1019,18 +1019,6 @@ func printOperationResult(opState *argoappv1.OperationState) {
 	fmt.Printf(printOpFmtStr, "Duration:", duration)
 	if opState.Message != "" {
 		fmt.Printf(printOpFmtStr, "Message:", opState.Message)
-	}
-}
-
-func printHooks(opState *argoappv1.OperationState) {
-	if len(opState.HookResources) > 0 {
-		fmt.Printf("\n")
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintf(w, "HOOK\tKIND\tNAME\tSTATUS\tMESSAGE\n")
-		for _, hookStatus := range opState.HookResources {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", hookStatus.Type, hookStatus.Kind, hookStatus.Name, hookStatus.Status, hookStatus.Message)
-		}
-		_ = w.Flush()
 	}
 }
 
