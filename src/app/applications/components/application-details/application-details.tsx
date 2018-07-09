@@ -10,10 +10,10 @@ import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import { services } from '../../../shared/services';
 
+import { ApplicationConditions } from '../application-conditions/application-conditions';
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
-import { ApplicationConditions } from '../application-conditions/application-conditions';
 import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
 import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
 import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
@@ -134,8 +134,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     }],
                 } }}>
                 {this.state.application && <ApplicationStatusPanel application={this.state.application}
-		    showOperation={() => this.setOperationStatusVisible(true)}
-		    showConditions={() => this.setConditionsStatusVisible(true)}/>}
+                    showOperation={() => this.setOperationStatusVisible(true)}
+                    showConditions={() => this.setConditionsStatusVisible(true)}/>}
                 <div className='argo-container application-details'>
                     {this.state.application ? (
                         <ApplicationResourcesTree

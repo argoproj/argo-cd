@@ -7,7 +7,7 @@ export const ApplicationConditions = ({conditions}: { conditions: models.Applica
     return (
         <div className='application-conditions'>
             <h4>Application conditions</h4>
-            {conditions.length == 0 && (
+            {conditions.length === 0 && (
                 <p>No conditions to report!</p>
             )}
             {conditions.length > 0 && conditions.map((condition, index) => (
