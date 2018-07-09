@@ -14,8 +14,11 @@ export const ApplicationConditions = ({conditions}: { conditions: models.Applica
                 <div className='white-box__details'>
                 {conditions.map((condition, index) => (
                     <div className='row white-box__details-row' key={index}>
-                        <div className='columns small-12'>
-                            {condition.message} ({condition.type})
+                        <div className='columns small-2'>
+                            {condition.type}
+                        </div>
+                        <div className='columns small-10'>
+                            {condition.message}
                         </div>
                     </div>
                 ))}
