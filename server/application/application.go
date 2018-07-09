@@ -107,7 +107,6 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 	if err != nil {
 		return nil, err
 	}
-	a.SetCascadedDeletion(true)
 	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Create(&a)
 	if apierr.IsAlreadyExists(err) {
 		// act idempotent if existing spec matches new spec
@@ -336,8 +335,23 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	if q.Cascade != nil && *q.Cascade != a.CascadedDeletion() {
-		a.SetCascadedDeletion(*q.Cascade)
+	patchFinalizer := false
+	if q.Cascade == nil || *q.Cascade {
+		if !a.CascadedDeletion() {
+			a.SetCascadedDeletion(true)
+			patchFinalizer = true
+		}
+	} else {
+		if a.CascadedDeletion() {
+			a.SetCascadedDeletion(false)
+			patchFinalizer = true
+		}
+	}
+
+	if patchFinalizer {
+		// Prior to v0.6, the cascaded deletion finalizer was set during app creation.
+		// For backward compatibility, we always calculate the patch to see if we need to
+		// set/unset the finalizer (in case we are dealing with an app created prior to v0.6)
 		patch, err := json.Marshal(map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"finalizers": a.Finalizers,
