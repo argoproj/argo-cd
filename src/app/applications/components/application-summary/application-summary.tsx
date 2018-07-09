@@ -13,7 +13,6 @@ export const ApplicationSummary = ({app}: {app: models.Application}) => {
             </a> )},
         {title: 'PATH', value: app.spec.source.path},
         {title: 'ENVIRONMENT', value: app.spec.source.environment},
-        {title: 'CONDITIONS', value: app.status.conditions || []},
         {title: 'STATUS', value: (
             <span><ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}</span>
         )},
