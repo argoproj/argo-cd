@@ -181,8 +181,14 @@ export interface ComparisonResult {
     server: string;
 }
 
+export interface ApplicationCondition {
+    type: string;
+    message: string;
+}
+
 export interface ApplicationStatus {
     comparisonResult: ComparisonResult;
+    conditions?: ApplicationCondition[];
     history: DeploymentInfo[];
     parameters: ComponentParameter[];
     health: HealthStatus;
