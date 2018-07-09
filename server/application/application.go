@@ -4,13 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"path"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/ghodss/yaml"
-	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -33,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
@@ -398,109 +394,24 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	return nil
 }
 
-// validateApp will ensure:
-// * the git repository is accessible
-// * the git path contains a valid app.yaml
-// * the specified environment exists
-// * the referenced cluster has been added to ArgoCD
 func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) error {
-	// Test the repo
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	proj, err := argo.GetAppProject(spec, s.appclientset, s.ns)
 	if err != nil {
 		return err
-	}
-	defer util.Close(conn)
-	repoRes, err := s.db.GetRepository(ctx, spec.Source.RepoURL)
-	if err != nil {
-		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-			// The repo has not been added to ArgoCD so we do not have credentials to access it.
-			// We support the mode where apps can be created from public repositories. Test the
-			// repo to make sure it is publicly accessible
-			err = git.TestRepo(spec.Source.RepoURL, "", "", "")
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	// Verify app.yaml is functional
-	req := repository.GetFileRequest{
-		Repo: &appv1.Repository{
-			Repo: spec.Source.RepoURL,
-		},
-		Revision: spec.Source.TargetRevision,
-		Path:     path.Join(spec.Source.Path, "app.yaml"),
-	}
-	if repoRes != nil {
-		req.Repo.Username = repoRes.Username
-		req.Repo.Password = repoRes.Password
-		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
-	}
-	getRes, err := repoClient.GetFile(ctx, &req)
-	if err != nil {
-		return err
-	}
-	var appSpec app.Spec
-	err = yaml.Unmarshal(getRes.Data, &appSpec)
-	if err != nil {
-		return status.Errorf(codes.InvalidArgument, "app.yaml is not a valid ksonnet app spec")
-	}
-
-	// Default revision to HEAD if unspecified
-	if spec.Source.TargetRevision == "" {
-		spec.Source.TargetRevision = "HEAD"
-	}
-
-	// Verify the specified environment is defined in it
-	envSpec, ok := appSpec.Environments[spec.Source.Environment]
-	if !ok || envSpec == nil {
-		return status.Errorf(codes.InvalidArgument, "environment '%s' does not exist in ksonnet app", spec.Source.Environment)
-	}
-
-	// If server and namespace are not supplied, pull it from the app.yaml
-	if spec.Destination.Server == "" {
-		spec.Destination.Server = envSpec.Destination.Server
-	}
-	if spec.Destination.Namespace == "" {
-		spec.Destination.Namespace = envSpec.Destination.Namespace
-	}
-
-	if spec.Project == "" {
-		spec.Project = common.DefaultAppProjectName
-	}
-	var proj *appv1.AppProject
-	if spec.BelongsToDefaultProject() {
-		defaultProj := appv1.GetDefaultProject(s.ns)
-		proj = &defaultProj
-	} else {
-		proj, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(spec.Project, metav1.GetOptions{})
-		if err != nil {
-			if apierr.IsNotFound(err) {
-				return status.Errorf(codes.InvalidArgument, "application referencing project %s which does not exist", spec.Project)
-			}
-			return err
-		}
 	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", proj.Name) {
 		return status.Errorf(codes.PermissionDenied, "permission denied for project %s", proj.Name)
 	}
-
-	if !proj.IsDestinationPermitted(spec.Destination) {
-		return status.Errorf(codes.PermissionDenied, "application destination %v is not permitted in project '%s'", spec.Destination, spec.Project)
-	}
-
-	if !proj.IsSourcePermitted(spec.Source) {
-		return status.Errorf(codes.PermissionDenied, "application source %v is not permitted in project '%s'", spec.Source, spec.Project)
-	}
-	// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
-	_, err = s.db.GetCluster(ctx, spec.Destination.Server)
+	conditions, err := argo.GetErrorConditions(ctx, spec, proj, s.repoClientset, s.db)
 	if err != nil {
-		if apierr.IsNotFound(err) {
-			return status.Errorf(codes.InvalidArgument, "cluster '%s' has not been configured", spec.Destination.Server)
-		}
 		return err
+	}
+	if len(conditions) > 0 {
+		formattedConditions := make([]string, 0)
+		for key, message := range conditions {
+			formattedConditions = append(formattedConditions, fmt.Sprintf("%s: %s", key, message))
+		}
+		return status.Errorf(codes.InvalidArgument, "application spec is invalid: \n%s", strings.Join(formattedConditions, "\n"))
 	}
 	return nil
 }

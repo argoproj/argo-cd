@@ -263,7 +263,17 @@ type ApplicationConditionType = string
 const (
 	// ApplicationConditionDeletionError indicates that controller failed to delete application
 	ApplicationConditionDeletionError = "DeletionError"
+	// ApplicationConditionInvalidSource indicates that application source is invalid
+	ApplicationConditionInvalidSource = "InvalidSource"
+	// ApplicationConditionInvalidDestination indicates that application destination is invalid
+	ApplicationConditionInvalidDestination = "InvalidDestination"
+	// ApplicationConditionControllerError indicates internal controller error
+	ApplicationConditionControllerError = "ControllerError"
 )
+
+// ApplicationCriticalConditionsTypes contains list of condition types representing critical app error
+var ApplicationCriticalConditionsTypes = []ApplicationConditionType{
+	ApplicationConditionInvalidSource, ApplicationConditionInvalidDestination, ApplicationConditionControllerError}
 
 // ApplicationCondition contains details about current application condition
 type ApplicationCondition struct {
@@ -471,6 +481,15 @@ func (app *Application) NeedRefreshAppStatus(statusRefreshTimeout time.Duration)
 	return app.Status.ComparisonResult.Status == ComparisonStatusUnknown ||
 		!app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) ||
 		app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now())
+}
+
+func (condition *ApplicationCondition) IsCritical() bool {
+	for _, criticalType := range ApplicationCriticalConditionsTypes {
+		if condition.Type == criticalType {
+			return true
+		}
+	}
+	return false
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.

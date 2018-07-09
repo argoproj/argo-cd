@@ -80,6 +80,7 @@ func newCommand() *cobra.Command {
 				namespace,
 				kubeClient,
 				appClient,
+				repoClientset,
 				db,
 				appStateManager,
 				resyncDuration,

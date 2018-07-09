@@ -28,6 +28,8 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -48,6 +50,7 @@ type ApplicationController struct {
 	appInformer           cache.SharedIndexInformer
 	appStateManager       AppStateManager
 	statusRefreshTimeout  time.Duration
+	repoClientset         reposerver.Clientset
 	db                    db.ArgoDB
 	forceRefreshApps      map[string]bool
 	forceRefreshAppsMutex *sync.Mutex
@@ -63,6 +66,7 @@ func NewApplicationController(
 	namespace string,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
+	repoClientset reposerver.Clientset,
 	db db.ArgoDB,
 	appStateManager AppStateManager,
 	appResyncPeriod time.Duration,
@@ -74,6 +78,7 @@ func NewApplicationController(
 		namespace:             namespace,
 		kubeClientset:         kubeClientset,
 		applicationClientset:  applicationClientset,
+		repoClientset:         repoClientset,
 		appRefreshQueue:       appRefreshQueue,
 		appOperationQueue:     appOperationQueue,
 		appStateManager:       appStateManager,
@@ -426,22 +431,72 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	isForceRefreshed := ctrl.isRefreshForced(app.Name)
 	if isForceRefreshed || app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
 		log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
+		app := app.DeepCopy()
 
-		comparisonResult, parameters, healthState, err := ctrl.tryRefreshAppStatus(app.DeepCopy())
-		if err != nil {
-			comparisonResult = &appv1.ComparisonResult{
-				Status:     appv1.ComparisonStatusError,
-				Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
-				ComparedTo: app.Spec.Source,
-				ComparedAt: metav1.Time{Time: time.Now().UTC()},
+		conditions, hasCritical := ctrl.refreshAppConditions(app)
+
+		if !hasCritical {
+			comparisonResult, parameters, healthState, err := ctrl.tryRefreshAppStatus(app)
+			if err != nil {
+				comparisonResult = &appv1.ComparisonResult{
+					Status:     appv1.ComparisonStatusError,
+					Error:      fmt.Sprintf("Failed to get application status for application '%s': %v", app.Name, err),
+					ComparedTo: app.Spec.Source,
+					ComparedAt: metav1.Time{Time: time.Now().UTC()},
+				}
+				parameters = nil
+				healthState = &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}
 			}
-			parameters = nil
-			healthState = &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}
+			ctrl.updateAppStatus(app.Name, app.Namespace, map[string]interface{}{
+				"comparisonResult": comparisonResult,
+				"parameters":       parameters,
+				"health":           healthState,
+				"conditions":       conditions,
+			})
+		} else {
+			ctrl.updateAppStatus(app.Name, app.Namespace, map[string]interface{}{"conditions": conditions})
 		}
-		ctrl.updateAppStatus(app.Name, app.Namespace, comparisonResult, parameters, *healthState)
 	}
 
 	return
+}
+
+func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
+	errorConditions := make(map[appv1.ApplicationConditionType]string)
+	proj, err := argo.GetAppProject(&app.Spec, ctrl.applicationClientset, ctrl.namespace)
+	if err != nil {
+		errorConditions[appv1.ApplicationConditionControllerError] = err.Error()
+	} else {
+		newErrorConditions, err := argo.GetErrorConditions(context.Background(), &app.Spec, proj, ctrl.repoClientset, ctrl.db)
+		if err != nil {
+			errorConditions[appv1.ApplicationConditionControllerError] = err.Error()
+		} else {
+			for condType, message := range newErrorConditions {
+				errorConditions[condType] = message
+			}
+		}
+	}
+
+	conditions := make([]appv1.ApplicationCondition, 0)
+	for i := 0; i < len(app.Status.Conditions); i++ {
+		condition := app.Status.Conditions[i]
+		if !condition.IsCritical() {
+			conditions = append(conditions, condition)
+		}
+	}
+	hasCritical := false
+	for condType, message := range errorConditions {
+		condition := appv1.ApplicationCondition{
+			Type:    condType,
+			Message: message,
+		}
+		conditions = append(conditions, condition)
+		if condition.IsCritical() {
+			hasCritical = true
+		}
+
+	}
+	return conditions, hasCritical
 }
 
 func (ctrl *ApplicationController) tryRefreshAppStatus(app *appv1.Application) (*appv1.ComparisonResult, *[]appv1.ComponentParameter, *appv1.HealthStatus, error) {
@@ -490,11 +545,7 @@ func (ctrl *ApplicationController) setApplicationHealth(comparisonResult *appv1.
 }
 
 func (ctrl *ApplicationController) updateAppStatus(
-	appName string, namespace string, comparisonResult *appv1.ComparisonResult, parameters *[]appv1.ComponentParameter, healthState appv1.HealthStatus) {
-	statusPatch := make(map[string]interface{})
-	statusPatch["comparisonResult"] = comparisonResult
-	statusPatch["parameters"] = parameters
-	statusPatch["health"] = healthState
+	appName string, namespace string, statusPatch map[string]interface{}) {
 	patch, err := json.Marshal(map[string]interface{}{
 		"status": statusPatch,
 	})
