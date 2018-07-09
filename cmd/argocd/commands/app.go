@@ -166,43 +166,20 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				errors.CheckError(err)
 				fmt.Println(string(jsonBytes))
 			case "":
-				format := "%-15s%s\n"
-				fmt.Printf(format, "Name:", app.Name)
-				fmt.Printf(format, "Server:", app.Spec.Destination.Server)
-				fmt.Printf(format, "Namespace:", app.Spec.Destination.Namespace)
-				fmt.Printf(format, "URL:", appURL(acdClient, app))
-				fmt.Printf(format, "Environment:", app.Spec.Source.Environment)
-				fmt.Printf(format, "Repo:", app.Spec.Source.RepoURL)
-				fmt.Printf(format, "Path:", app.Spec.Source.Path)
-				fmt.Printf(format, "Target:", app.Spec.Source.TargetRevision)
+				fmt.Printf(printOpFmtStr, "Name:", app.Name)
+				fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
+				fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
+				fmt.Printf(printOpFmtStr, "URL:", appURL(acdClient, app))
+				fmt.Printf(printOpFmtStr, "Environment:", app.Spec.Source.Environment)
+				fmt.Printf(printOpFmtStr, "Repo:", app.Spec.Source.RepoURL)
+				fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
+				fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
 				if app.Status.ComparisonResult.Error != "" {
-					fmt.Printf(format, "Error:", app.Status.ComparisonResult.Error)
+					fmt.Printf(printOpFmtStr, "Error:", app.Status.ComparisonResult.Error)
 				}
-				var opState *argoappv1.OperationState
 				if showOperation && app.Status.OperationState != nil {
-					opState = app.Status.OperationState
 					fmt.Println()
-					var opName string
-					if opState.SyncResult != nil {
-						opName = "Sync"
-					} else if opState.RollbackResult != nil {
-						opName = "Rollback"
-					}
-					fmt.Printf(format, "Operation:", opName)
-					fmt.Printf(format, "  Phase:", opState.Phase)
-					fmt.Printf(format, "  Start:", opState.StartedAt)
-					fmt.Printf(format, "  Finished:", opState.FinishedAt)
-					var duration time.Duration
-					if !opState.FinishedAt.IsZero() {
-						duration = time.Second * time.Duration(opState.FinishedAt.Unix()-opState.StartedAt.Unix())
-					} else {
-						duration = time.Second * time.Duration(time.Now().UTC().Unix()-opState.StartedAt.Unix())
-					}
-					fmt.Printf(format, "  Duration:", duration)
-					if opState.Message != "" {
-						fmt.Printf(format, "  Message:", opState.Message)
-					}
-					printHooks(opState)
+					printOperationResult(app.Status.OperationState)
 				}
 				if showParams {
 					printParams(app)
@@ -210,8 +187,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if len(app.Status.ComparisonResult.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-					printAppResources(w, app, opState)
-					_ = w.Flush()
+					printAppResources(w, app, showOperation)
+					w.Flush()
 				}
 			default:
 				log.Fatalf("Unknown output format: %s", output)
@@ -608,7 +585,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			printAppResources(w, app, nil)
+			printAppResources(w, app, false)
 			_ = w.Flush()
 			prevCompRes := &app.Status.ComparisonResult
 
@@ -690,15 +667,30 @@ func watchApp(ctx context.Context, appIf application.ApplicationServiceClient, a
 
 // printAppResources prints the resources of an application in a tabwriter table
 // Optionally prints the message from the operation state
-func printAppResources(w io.Writer, app *argoappv1.Application, opState *argoappv1.OperationState) {
+func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bool) {
 	messages := make(map[string]string)
-	if opState != nil && opState.SyncResult != nil {
-		for _, resDetails := range opState.SyncResult.Resources {
-			messages[fmt.Sprintf("%s/%s", resDetails.Kind, resDetails.Name)] = resDetails.Message
+	opState := app.Status.OperationState
+
+	if showOperation {
+		fmt.Fprintf(w, "HOOK\tKIND\tNAME\tSTATUS\tHEALTH\tOPERATIONMSG\n")
+		if opState != nil {
+			for _, hook := range opState.HookResources {
+				if hook.Type == argoappv1.HookTypePreSync {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Type, hook.Kind, hook.Name, hook.Status, "", hook.Message)
+				}
+			}
 		}
-	}
-	if opState != nil {
-		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\tOPERATIONMSG\n")
+		var syncRes *argoappv1.SyncOperationResult
+		if opState.SyncResult != nil {
+			syncRes = opState.SyncResult
+		} else if opState.RollbackResult != nil {
+			syncRes = opState.RollbackResult
+		}
+		if syncRes != nil {
+			for _, resDetails := range syncRes.Resources {
+				messages[fmt.Sprintf("%s/%s", resDetails.Kind, resDetails.Name)] = resDetails.Message
+			}
+		}
 	} else {
 		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
 	}
@@ -709,12 +701,21 @@ func printAppResources(w io.Writer, app *argoappv1.Application, opState *argoapp
 			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
 			errors.CheckError(err)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
-		if opState != nil {
+		if showOperation {
 			message := messages[fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())]
-			fmt.Fprintf(w, "\t%s", message)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", "", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, message)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
 		}
 		fmt.Fprint(w, "\n")
+	}
+	if showOperation && opState != nil {
+		for _, hook := range opState.HookResources {
+			if hook.Type == argoappv1.HookTypeSync || hook.Type == argoappv1.HookTypePostSync {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Type, hook.Kind, hook.Name, hook.Status, "", hook.Message)
+			}
+		}
+
 	}
 }
 
@@ -787,13 +788,37 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			default:
 				log.Fatalf("Unknown sync strategy: '%s'", strategy)
 			}
-			_, err := appIf.Sync(context.Background(), &syncReq)
+			ctx := context.Background()
+			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
-			status, err := waitUntilOperationCompleted(appIf, appName, timeout)
+			app, err := waitUntilOperationCompleted(appIf, appName, timeout)
 			errors.CheckError(err)
-			err = printOperationResult(appName, status)
+
+			// get refreshed app before printing to show accurate sync/health status
+			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
 			errors.CheckError(err)
-			if !status.Phase.Successful() && !dryRun {
+
+			fmt.Printf(printOpFmtStr, "Application:", appName)
+			printOperationResult(app.Status.OperationState)
+
+			if len(app.Status.ComparisonResult.Resources) > 0 {
+				fmt.Println()
+				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+				printAppResources(w, app, true)
+				w.Flush()
+			}
+
+			pruningRequired := 0
+			for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
+				if resDetails.Status == argoappv1.ResourceDetailsPruningRequired {
+					pruningRequired++
+				}
+			}
+			if pruningRequired > 0 {
+				log.Fatalf("%d resources require pruning", pruningRequired)
+			}
+
+			if !app.Status.OperationState.Phase.Successful() && !dryRun {
 				os.Exit(1)
 			}
 		},
@@ -807,7 +832,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.OperationState, error) {
+func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -820,7 +845,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	appEventCh := watchApp(ctx, appClient, appName)
 	for appEvent := range appEventCh {
 		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Phase.Completed() {
-			return appEvent.Application.Status.OperationState, nil
+			return &appEvent.Application, nil
 		}
 	}
 	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
@@ -865,6 +890,9 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 
 // NewApplicationHistoryCommand returns a new instance of an `argocd app history` command
 func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		output string
+	)
 	var command = &cobra.Command{
 		Use:   "history APPNAME",
 		Short: "Show application deployment history",
@@ -879,14 +907,25 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ID\tDATE\tCOMMIT\tPARAMETERS\n")
+			switch output {
+			case "wide":
+				fmt.Fprintf(w, "ID\tDATE\tCOMMIT\tPARAMETERS\n")
+			default:
+				fmt.Fprintf(w, "ID\tDATE\tCOMMIT\n")
+			}
 			for _, depInfo := range app.Status.History {
-				paramStr := paramString(depInfo.Params)
-				fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision, paramStr)
+				switch output {
+				case "wide":
+					paramStr := paramString(depInfo.Params)
+					fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision, paramStr)
+				default:
+					fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision)
+				}
 			}
 			_ = w.Flush()
 		},
 	}
+	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
 	return command
 }
 
@@ -941,11 +980,15 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			status, err := waitUntilOperationCompleted(appIf, appName, timeout)
+			app, err = waitUntilOperationCompleted(appIf, appName, timeout)
 			errors.CheckError(err)
-			err = printOperationResult(appName, status)
+
+			// get refreshed app before printing to show accurate sync/health status
+			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
 			errors.CheckError(err)
-			if !status.Phase.Successful() {
+			fmt.Printf(printOpFmtStr, "Application:", appName)
+			printOperationResult(app.Status.OperationState)
+			if !app.Status.OperationState.Phase.Successful() {
 				os.Exit(1)
 			}
 		},
@@ -958,39 +1001,25 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 const printOpFmtStr = "%-20s%s\n"
 const defaultCheckTimeoutSeconds = 0
 
-func printOperationResult(appName string, opState *argoappv1.OperationState) error {
-	fmt.Printf(printOpFmtStr, "Application:", appName)
-	var syncRes *argoappv1.SyncOperationResult
+func printOperationResult(opState *argoappv1.OperationState) {
 	if opState.SyncResult != nil {
-		syncRes = opState.SyncResult
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
 	} else if opState.RollbackResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Rollback")
-		syncRes = opState.RollbackResult
 	}
 	fmt.Printf(printOpFmtStr, "Phase:", opState.Phase)
+	fmt.Printf(printOpFmtStr, "Start:", opState.StartedAt)
+	fmt.Printf(printOpFmtStr, "Finished:", opState.FinishedAt)
+	var duration time.Duration
+	if !opState.FinishedAt.IsZero() {
+		duration = time.Second * time.Duration(opState.FinishedAt.Unix()-opState.StartedAt.Unix())
+	} else {
+		duration = time.Second * time.Duration(time.Now().UTC().Unix()-opState.StartedAt.Unix())
+	}
+	fmt.Printf(printOpFmtStr, "Duration:", duration)
 	if opState.Message != "" {
 		fmt.Printf(printOpFmtStr, "Message:", opState.Message)
 	}
-	if syncRes != nil {
-		printHooks(opState)
-
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Printf("\n")
-		fmt.Fprintf(w, "KIND\tNAME\tMESSAGE\n")
-		pruningRequired := 0
-		for _, resDetails := range syncRes.Resources {
-			fmt.Fprintf(w, "%s\t%s\t%s\n", resDetails.Kind, resDetails.Name, resDetails.Message)
-			if resDetails.Status == argoappv1.ResourceDetailsPruningRequired {
-				pruningRequired++
-			}
-		}
-		_ = w.Flush()
-		if pruningRequired > 0 {
-			return fmt.Errorf("Some resources (%d) require pruning", pruningRequired)
-		}
-	}
-	return nil
 }
 
 func printHooks(opState *argoappv1.OperationState) {
