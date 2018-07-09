@@ -114,7 +114,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         const isAppSelected = this.state.application != null && selectedItem === this.state.application;
         const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
         const operationState = this.state.application && this.state.application.status.operationState;
-        const conditions = this.state.application && this.state.application.status.conditions || [{"message":"hello","type":"nothing"}, {"message":"nobody", "type":"knows"}];
+        const conditions = this.state.application && this.state.application.status.conditions || [];
         return (
             <Page
                 title={'Application Details'}
