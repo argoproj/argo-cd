@@ -16,6 +16,14 @@
         &:not(:first-child) {
             border-left: 1px solid $argo-color-gray-3;
         }
+
+        &.warning {
+            border-left-color: $argo-failed-color;
+
+            a {
+                color: $argo-failed-color;
+            }
+        }
     }
 
     &__item-value {
@@ -38,9 +46,5 @@
             position: relative;
             top: -2px;
         }
-    }
-
-    .warning {
-        color: $argo-failed-color;
     }
 }

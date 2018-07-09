@@ -37,9 +37,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             </div>
             )}
             {application.status.conditions && (
-            <div className='application-status-panel__item columns small-3'>
+            <div className='application-status-panel__item warning columns small-3'>
                 <div className='application-status-panel__item-value'>
-                    <a onClick={() => showConditions && showConditions()} className='warning'>{application.status.conditions.length} Warnings</a>
+                    <a onClick={() => showConditions && showConditions()}>{application.status.conditions.length} Warnings</a>
                 </div>
             </div>
             )}
