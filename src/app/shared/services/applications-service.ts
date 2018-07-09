@@ -22,7 +22,7 @@ export class ApplicationsService {
     }
 
     public delete(name: string, cascade: boolean): Promise<boolean> {
-        return requests.delete(`/applications/${name}?cascade=${cascade}`).send({}).then(() => true);
+        return requests.delete(`/applications/${name}`).query({cascade}).send({}).then(() => true);
     }
 
     public watch(query?: {name: string}): Observable<models.ApplicationWatchEvent> {
