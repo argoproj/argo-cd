@@ -24,6 +24,10 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 )
 
+const (
+	maxHistoryCnt = 5
+)
+
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (*v1alpha1.ComparisonResult, *repository.ManifestResponse, error)

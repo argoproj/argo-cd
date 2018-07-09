@@ -305,15 +305,12 @@ func (f *Fixture) createController() *controller.ApplicationController {
 	appStateManager := controller.NewAppStateManager(
 		f.DB, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace)
 
-	appHealthManager := controller.NewAppHealthManager(f.DB, f.Namespace)
-
 	return controller.NewApplicationController(
 		f.Namespace,
 		f.KubeClient,
 		f.AppClient,
 		f.DB,
 		appStateManager,
-		appHealthManager,
 		10*time.Second,
 		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
 }

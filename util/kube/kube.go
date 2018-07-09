@@ -545,3 +545,33 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 	}
 	return clientcmd.WriteToFile(kubeConfig, filename)
 }
+
+// ConvertToVersion converts an unstructured object into the specified group/version
+func ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
+	gvk := obj.GroupVersionKind()
+	if gvk.Group == group && gvk.Version == version {
+		return obj.DeepCopy(), nil
+	}
+	manifestBytes, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	outputVersion := fmt.Sprintf("%s/%s", group, version)
+	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", "-")
+	cmd.Stdin = bytes.NewReader(manifestBytes)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	// NOTE: when kubectl convert runs against stdin (i.e. kubectl convert -f -), the output is
+	// a unstructured list instead of an unstructured object
+	var objList unstructured.UnstructuredList
+	err = json.Unmarshal(out, &objList)
+	if err != nil {
+		return nil, err
+	}
+	if len(objList.Items) != 1 {
+		return nil, fmt.Errorf("kubectl convert produced unexpected list size: %d", len(objList.Items))
+	}
+	return &objList.Items[0], nil
+}
