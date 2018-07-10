@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 
+	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
@@ -166,4 +167,68 @@ func TestConvertToVersion(t *testing.T) {
 	gvk = newObj.GroupVersionKind()
 	assert.Equal(t, "apps", gvk.Group)
 	assert.Equal(t, "v1", gvk.Version)
+}
+
+const depWithoutSelector = `
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx:1.7.9
+        name: nginx
+        ports:
+        - containerPort: 80
+`
+
+const depWithSelector = `
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx:1.7.9
+        name: nginx
+        ports:
+        - containerPort: 80
+`
+
+func TestSetLabels(t *testing.T) {
+	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
+		var obj unstructured.Unstructured
+		err := yaml.Unmarshal([]byte(yamlStr), &obj)
+		assert.Nil(t, err)
+
+		err = SetLabel(&obj, common.LabelApplicationName, "my-app")
+		assert.Nil(t, err)
+
+		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+		assert.Nil(t, err)
+		log.Println(string(manifestBytes))
+
+		var depV1Beta1 extv1beta1.Deployment
+		err = json.Unmarshal(manifestBytes, &depV1Beta1)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, len(depV1Beta1.Spec.Selector.MatchLabels))
+		assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
+		assert.Equal(t, 2, len(depV1Beta1.Spec.Template.Labels))
+		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
+		assert.Equal(t, "my-app", depV1Beta1.Spec.Template.Labels[common.LabelApplicationName])
+	}
+
 }

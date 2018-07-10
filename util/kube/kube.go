@@ -39,9 +39,12 @@ const (
 )
 
 const (
-	ServiceKind    = "Service"
-	EndpointsKind  = "Endpoints"
-	DeploymentKind = "Deployment"
+	ServiceKind     = "Service"
+	EndpointsKind   = "Endpoints"
+	DeploymentKind  = "Deployment"
+	ReplicaSetKind  = "ReplicaSet"
+	StatefulSetKind = "StatefulSet"
+	DaemonSetKind   = "DaemonSet"
 )
 
 const (
@@ -101,21 +104,43 @@ func SetLabel(target *unstructured.Unstructured, key, val string) error {
 	}
 	labels[key] = val
 	target.SetLabels(labels)
-	// special case for deployment: make sure that derived replicaset and pod has application label
-	if target.GetKind() == DeploymentKind {
-		labels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
+
+	// special case for deployment types: make sure that derived replicaset and pod has application label
+	switch target.GetKind() {
+	case DeploymentKind, ReplicaSetKind, StatefulSetKind, DaemonSetKind:
+		templateLabels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
 		if err != nil {
 			return err
 		}
-		if ok {
-			if labels == nil {
-				labels = make(map[string]interface{})
+		if !ok || templateLabels == nil {
+			templateLabels = make(map[string]interface{})
+		}
+		templateLabels[key] = val
+		err = unstructured.SetNestedMap(target.UnstructuredContent(), templateLabels, "spec", "template", "metadata", "labels")
+		if err != nil {
+			return err
+		}
+		// The following is a workaround for issue #335. In API version extensions/v1beta1 or
+		// apps/v1beta1, if a spec omits spec.selector then k8s will default the
+		// spec.selector.matchLabels to match spec.template.metadata.labels. This means ArgoCD
+		// labels can potentially make their way into spec.selector.matchLabels, which is a bad
+		// thing. The following logic prevents this behavior.
+		switch target.GetAPIVersion() {
+		case "apps/v1beta1", "extensions/v1beta1":
+			selector, _, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "selector")
+			if err != nil {
+				return err
 			}
-			labels[key] = val
-		}
-		err = unstructured.SetNestedMap(target.UnstructuredContent(), labels, "spec", "template", "metadata", "labels")
-		if err != nil {
-			return err
+			if len(selector) == 0 {
+				// If we get here, user did not set spec.selector in their manifest. We do not want
+				// our ArgoCD labels to get defaulted by kubernetes, so we explicitly set the labels
+				// for them (minus the ArgoCD labels).
+				delete(templateLabels, key)
+				err = unstructured.SetNestedMap(target.UnstructuredContent(), templateLabels, "spec", "selector", "matchLabels")
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
