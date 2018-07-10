@@ -45,14 +45,35 @@ data:
 
   dex.config: |
     connectors:
-    - type: github
-      id: github
-      name: GitHub
-      config:
-        clientID: 5aae0fcec2c11634be8c
-        clientSecret: c6fcb18177869174bd09be2c51259fb049c9d4e5
-        orgs:
-        - name: your-github-org
+      # GitHub example
+      - type: github
+        id: github
+        name: GitHub
+        config:
+          clientID: aabbccddeeff00112233
+          clientSecret: $dex.github.clientSecret
+          orgs:
+          - name: your-github-org
+
+      # GitHub enterprise example
+      - type: github
+        id: acme-github
+        name: Acme GitHub
+        config:
+          hostName: github.acme.com
+          clientID: abcdefghijklmnopqrst
+          clientSecret: $dex.acme.clientSecret
+          orgs:
+          - name: your-github-org
+
+      # OIDC example (e.g. Okta)
+      - type: oidc
+        id: okta
+        name: Okta
+        config:
+          issuer: https://dev-123456.oktapreview.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.okta.clientSecret
 ```
 
 After saving, the changes should take affect automatically.

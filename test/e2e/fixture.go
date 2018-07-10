@@ -24,7 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/install"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -90,12 +89,10 @@ func getFreePort() (int, error) {
 }
 
 func (f *Fixture) setup() error {
-	installer, err := install.NewInstaller(f.Config, install.InstallOptions{})
+	_, err := exec.Command("kubectl", "apply", "-f", "../../manifests/01a_application-crd.yaml", "-f", "../../manifests/01b_appproject-crd.yaml").Output()
 	if err != nil {
 		return err
 	}
-	installer.InstallApplicationCRD()
-
 	cm := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: common.ArgoCDRBACConfigMapName,

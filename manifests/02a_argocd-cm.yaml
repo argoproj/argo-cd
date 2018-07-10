@@ -1,0 +1,9 @@
+# NOTE: the values here are just a example and are not the values used during an install.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # please see https://github.com/argoproj/argo-cd/blob/master/docs/sso.md#2-configure-argocd-for-sso 
+  # for more details about how to setup data config needed for sso
+  
