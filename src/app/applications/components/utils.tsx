@@ -1,24 +1,19 @@
 import * as React from 'react';
 
-import { NotificationType } from 'argo-ui';
-import { Checkbox } from 'react-form';
+import { Checkbox, NotificationType } from 'argo-ui';
 import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
 import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
 export async function deleteApplication(appName: string, context: AppContext, success: () => void) {
-
     let cascade = false;
     const confirmed = await context.apis.popup.confirm('Delete application', () => (
-            <div>
-                    Are you sure you want to delete the application "${appName}"?
-                    Cascade <Checkbox checked={false} onChange={(val) => { cascade = val ? true : false }} />
-            </div>
+        <div>
+            <p>Are you sure you want to delete the application "{appName}"?</p>
+            <p><Checkbox checked={false} onChange={(val) => { cascade = val ? true : false }} /> Cascade</p>
+        </div>
     ));
-
-alert("CASCADE = "+ cascade);
-return;
     if (confirmed) {
         try {
             await services.applications.delete(appName, cascade);
