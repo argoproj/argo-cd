@@ -178,13 +178,13 @@ func (sc *syncContext) sync() {
 	}
 
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
+	if sc.syncOp.SyncStrategy == nil {
+		// default sync strategy to hook if no strategy
+		sc.syncOp.SyncStrategy = &appv1.SyncStrategy{Hook: &appv1.SyncStrategyHook{}}
+	}
 	if sc.syncOp.SyncStrategy.Apply != nil {
-		forceApply := false
-		if sc.syncOp.SyncStrategy != nil && sc.syncOp.SyncStrategy.Apply != nil {
-			forceApply = sc.syncOp.SyncStrategy.Apply.Force
-		}
-		sc.doApplySync(syncTasks, false, forceApply)
-	} else if sc.syncOp.SyncStrategy.Hook != nil || sc.syncOp.SyncStrategy == nil {
+		sc.doApplySync(syncTasks, false, sc.syncOp.SyncStrategy.Apply.Force)
+	} else if sc.syncOp.SyncStrategy.Hook != nil {
 		hooks, err := sc.getHooks()
 		if err != nil {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to generate hooks resources: %v", err))

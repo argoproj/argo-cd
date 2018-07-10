@@ -779,10 +779,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Prune:    prune,
 			}
 			switch strategy {
-			case "", "apply":
+			case "apply":
 				syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
 				syncReq.Strategy.Apply.Force = force
-			case "hook":
+			case "", "hook":
 				syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
 				syncReq.Strategy.Hook.Force = force
 			default:
