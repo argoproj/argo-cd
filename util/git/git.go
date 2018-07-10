@@ -52,7 +52,7 @@ func IsSSHURL(url string) bool {
 	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
 }
 
-const gitSSHCommand = "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20"
+const gitSSHCommand = "ssh -q -F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20"
 
 // GetGitCommandEnvAndURL returns URL and env options for git operation
 func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey string) (string, []string, error) {
