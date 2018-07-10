@@ -167,8 +167,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                                                             <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'/></button>
                                                         } items={[
                                                             { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
-                                                            { title: 'Delete', action: () => this.deleteApplication(app.metadata.name, false) },
-                                                            { title: 'Delete (Cascade)', action: () => this.deleteApplication(app.metadata.name, true) },
+                                                            { title: 'Delete', action: () => this.deleteApplication(app.metadata.name) },
                                                         ]} />
                                                     </div>
                                                 </div>
@@ -264,8 +263,8 @@ export class ApplicationsList extends React.Component<Props, State> {
         }
     }
 
-    private async deleteApplication(appName: string, cascade: boolean) {
-        AppUtils.deleteApplication(appName, cascade, this.appContext, () => {
+    private async deleteApplication(appName: string) {
+        AppUtils.deleteApplication(appName, this.appContext, () => {
             this.appContext.router.history.push('/applications');
         });
     }

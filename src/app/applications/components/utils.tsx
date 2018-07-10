@@ -6,9 +6,18 @@ import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
-export async function deleteApplication(appName: string, cascade: boolean, context: AppContext, success: () => void) {
-    const cascading = cascade ? " with cascading" : "";
-    const confirmed = await context.apis.popup.confirm('Delete application' + cascading, `Are you sure you want to delete the application "${appName}"${cascading}?`);
+export async function deleteApplication(appName: string, context: AppContext, success: () => void) {
+
+    let cascade = false;
+    const confirmed = await popupApi.confirm('Delete application', () => (
+                            <div>
+                            Are you sure you want to delete the application "${appName}"?
+                            Cascade <Checkbox checked={false} onChange={(val) => { cascade = val}} />
+                            </div>
+                            ));
+
+alert("CASCADE = ", cascade);
+return;
     if (confirmed) {
         try {
             await services.applications.delete(appName, cascade);
