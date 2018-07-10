@@ -42,12 +42,12 @@ export const ApplicationDeploymentHistory = ({
                             <div className='columns small-10'>
                                 {info.revision}
                                 <div className='application-deployment-history__item-menu'>
-                                    {info.nextDeployedAt && <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                    <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                         <i className='fa fa-ellipsis-v'/>
                                     </button>} items={[{
-                                        title: 'Rollback',
+                                        title: info.nextDeployedAt && 'Rollback' || 'Redeploy',
                                         action: () => rollbackApp(info),
-                                    }]}/>}
+                                    }]}/>
                                 </div>
                             </div>
                         </div>
