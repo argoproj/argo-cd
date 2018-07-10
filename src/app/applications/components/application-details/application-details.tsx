@@ -24,18 +24,19 @@ import * as AppUtils from '../utils';
 
 require('./application-details.scss');
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; namespace: string; }>, { application: appModels.Application }> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { application: appModels.Application; defaultKindFilter: string[]}> {
 
     public static contextTypes = {
         apis: PropTypes.object,
     };
 
     private changesSubscription: Subscription;
+    private viewPrefSubscription: Subscription;
     private formApi: FormApi;
 
-    constructor(props: RouteComponentProps<{ name: string; namespace: string; }>) {
+    constructor(props: RouteComponentProps<{ name: string; }>) {
         super(props);
-        this.state = { application: null};
+        this.state = { application: null, defaultKindFilter: [] };
     }
 
     private get showOperationState() {
@@ -82,6 +83,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.changesSubscription = appUpdates.subscribe((application) => {
             this.setState({ application });
         });
+        this.viewPrefSubscription = services.viewPreferences.getPreferences()
+            .map((preferences) => preferences.appDetails.defaultKindFilter)
+            .subscribe((filter) => {
+                this.setState({ defaultKindFilter: filter });
+            });
     }
 
     public componentWillUnmount() {
@@ -106,6 +112,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             selectedValues: kindsFilter,
             selectionChanged: (items) => {
                 this.appContext.apis.navigation.goto('.', { kinds: `${items.join(',')}`});
+                services.viewPreferences.updatePreferences({
+                    appDetails: {
+                        defaultKindFilter: items,
+                    },
+                });
             },
         };
 
@@ -233,7 +244,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private getKindsFilter() {
         let kinds = new URLSearchParams(this.props.history.location.search).get('kinds');
         if (kinds === null) {
-            kinds = 'Deployment,Service,Pod,StatefulSet';
+            kinds = this.state.defaultKindFilter.join(',');
         }
         return kinds.split(',').filter((item) => !!item);
     }
@@ -387,5 +398,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             this.changesSubscription.unsubscribe();
         }
         this.changesSubscription = null;
+        if (this.viewPrefSubscription) {
+            this.viewPrefSubscription.unsubscribe();
+            this.viewPrefSubscription = null;
+        }
     }
 }

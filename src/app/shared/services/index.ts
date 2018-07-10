@@ -4,6 +4,7 @@ import { ClustersService } from './clusters-service';
 import { ProjectsService } from './projects-service';
 import { RepositoriesService } from './repo-service';
 import { UserService } from './user-service';
+import { ViewPreferencesService } from './view-preferences-service';
 
 export interface Services {
     applications: ApplicationsService;
@@ -12,6 +13,7 @@ export interface Services {
     reposService: RepositoriesService;
     clustersService: ClustersService;
     projects: ProjectsService;
+    viewPreferences: ViewPreferencesService;
 }
 
 export const services: Services = {
@@ -21,4 +23,5 @@ export const services: Services = {
     userService: new UserService(),
     reposService: new RepositoriesService(),
     projects: new ProjectsService(),
+    viewPreferences: new ViewPreferencesService(),
 };

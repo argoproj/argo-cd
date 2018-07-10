@@ -4,8 +4,10 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
+import { services } from './shared/services';
 import requests from './shared/services/requests';
 
+services.viewPreferences.init();
 export const history = createHistory();
 
 import applications from './applications';
