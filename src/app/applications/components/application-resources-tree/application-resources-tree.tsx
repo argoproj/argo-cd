@@ -9,7 +9,7 @@ require('./application-resources-tree.scss');
 
 interface Line { x1: number; y1: number; x2: number; y2: number; }
 
-const NODE_WIDTH = 182;
+const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
 
 const ICON_CLASS_BY_KIND = {
@@ -162,7 +162,7 @@ export const ApplicationResourcesTree = (props: {
                     const angle = Math.atan2(line.y1 - line.y2, line.x1 - line.x2) * 180 / Math.PI;
                     return (
                         <div className='application-resources-tree__line' key={i}
-                            style={{ width: distance, left: xMid - (distance / 2), top: yMid, transform: `translate(100px, 35px) rotate(${angle}deg)`}} />
+                            style={{ width: distance, left: xMid - (distance / 2), top: yMid, transform: `translate(150px, 35px) rotate(${angle}deg)`}} />
                     );
                 })}</div>
             ))}
