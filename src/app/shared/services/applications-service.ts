@@ -21,8 +21,8 @@ export class ApplicationsService {
         }).then((res) => this.parseAppFields(res.body));
     }
 
-    public delete(name: string, force: boolean): Promise<boolean> {
-        return requests.delete(`/applications/${name}?force=${force}`).send({}).then(() => true);
+    public delete(name: string, cascade: boolean): Promise<boolean> {
+        return requests.delete(`/applications/${name}`).query({cascade}).send({}).then(() => true);
     }
 
     public watch(query?: {name: string}): Observable<models.ApplicationWatchEvent> {

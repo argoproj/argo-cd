@@ -1,7 +1,43 @@
 import * as React from 'react';
 
-import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR } from '../../shared/components';
+import { Checkbox, NotificationType } from 'argo-ui';
+import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
+import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
+import { services } from '../../shared/services';
+
+export async function deleteApplication(appName: string, context: AppContext, success: () => void) {
+    let cascade = false;
+    const confirmationForm = class extends React.Component<{}, { cascade: boolean } > {
+        constructor(props: any) {
+            super(props);
+            this.state = {cascade: false};
+        }
+        public render() {
+            return (
+                <div>
+                    <p>Are you sure you want to delete the application "{appName}"?</p>
+                    <p><Checkbox checked={this.state.cascade} onChange={(val) => this.setState({ cascade: val })} /> Cascade</p>
+                </div>
+            )
+        }
+        componentWillUnmount() {
+            cascade = this.state.cascade;
+        }
+    };
+    const confirmed = await context.apis.popup.confirm('Delete application', confirmationForm);
+    if (confirmed) {
+        try {
+            await services.applications.delete(appName, cascade);
+            success();
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to delete application' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
+    }
+}
 
 export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonStatus }) => {
     let className = '';
