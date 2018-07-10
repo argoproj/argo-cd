@@ -18,8 +18,6 @@
         }
 
         &.warning {
-            border-left-color: $argo-failed-color;
-
             a {
                 color: $argo-failed-color;
             }
