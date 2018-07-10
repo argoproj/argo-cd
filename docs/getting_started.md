@@ -22,7 +22,6 @@ kubectl apply -f manifests/. --namespace argocd
 ```
 This will create a new namespace, `argocd`, where ArgoCD services and application resources will live.
 
-
 ## 3. Open access to ArgoCD API server
 
 By default, the ArgoCD API server is not exposed with an external IP. To expose the API server,
