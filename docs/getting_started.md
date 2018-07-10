@@ -20,7 +20,7 @@ chmod +x /usr/local/bin/argocd
 ```
 kubectl apply -f manifests/. --namespace argocd
 ```
-This will create a new namespace, `argocd`, where ArgoCD services and application resources will live.
+This will create a new namespace, `argocd`; where ArgoCD services and application resources will live.
 
 ## 3. Open access to ArgoCD API server
 
