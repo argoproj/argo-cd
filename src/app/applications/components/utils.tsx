@@ -8,12 +8,24 @@ import { services } from '../../shared/services';
 
 export async function deleteApplication(appName: string, context: AppContext, success: () => void) {
     let cascade = false;
-    const confirmed = await context.apis.popup.confirm('Delete application', () => (
-        <div>
-            <p>Are you sure you want to delete the application "{appName}"?</p>
-            <p><Checkbox checked={false} onChange={(val) => { cascade = val ? true : false }} /> Cascade</p>
-        </div>
-    ));
+    const confirmationForm = class extends React.Component<{}, { cascade: boolean } > {
+        constructor(props: any) {
+            super(props);
+            this.state = {cascade: false};
+        }
+        public render() {
+            return (
+                <div>
+                    <p>Are you sure you want to delete the application "{appName}"?</p>
+                    <p><Checkbox checked={this.state.cascade} onChange={(val) => this.setState({ cascade: val })} /> Cascade</p>
+                </div>
+            )
+        }
+        componentWillUnmount() {
+            cascade = this.state.cascade;
+        }
+    };
+    const confirmed = await context.apis.popup.confirm('Delete application', confirmationForm);
     if (confirmed) {
         try {
             await services.applications.delete(appName, cascade);
