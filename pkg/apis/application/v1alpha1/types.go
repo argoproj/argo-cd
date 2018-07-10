@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -242,8 +243,7 @@ type ComparisonStatus string
 
 // Possible comparison results
 const (
-	ComparisonStatusUnknown   ComparisonStatus = ""
-	ComparisonStatusError     ComparisonStatus = "Error"
+	ComparisonStatusUnknown   ComparisonStatus = "Unknown"
 	ComparisonStatusSynced    ComparisonStatus = "Synced"
 	ComparisonStatusOutOfSync ComparisonStatus = "OutOfSync"
 )
@@ -258,22 +258,22 @@ type ApplicationStatus struct {
 	Conditions       []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,6,opt,name=conditions"`
 }
 
+// ApplicationConditionType represents type of application condition. Type name has following convention:
+// prefix "Error" means error condition
+// prefix "Warning" means warning condition
+// prefix "Info" means informational condition
 type ApplicationConditionType = string
 
 const (
 	// ApplicationConditionDeletionError indicates that controller failed to delete application
 	ApplicationConditionDeletionError = "DeletionError"
-	// ApplicationConditionInvalidSource indicates that application source is invalid
-	ApplicationConditionInvalidSource = "InvalidSource"
-	// ApplicationConditionInvalidDestination indicates that application destination is invalid
-	ApplicationConditionInvalidDestination = "InvalidDestination"
-	// ApplicationConditionControllerError indicates internal controller error
-	ApplicationConditionControllerError = "ControllerError"
+	// ApplicationConditionInvalidSpecError indicates that application source is invalid
+	ApplicationConditionInvalidSpecError = "InvalidSpecError"
+	// ApplicationComparisonError indicates controller failed to compare application state
+	ApplicationConditionComparisonError = "ComparisonError"
+	// ApplicationConditionUnknownError indicates an unknown controller error
+	ApplicationConditionUnknownError = "UnknownError"
 )
-
-// ApplicationCriticalConditionsTypes contains list of condition types representing critical app error
-var ApplicationCriticalConditionsTypes = []ApplicationConditionType{
-	ApplicationConditionInvalidSource, ApplicationConditionInvalidDestination, ApplicationConditionControllerError}
 
 // ApplicationCondition contains details about current application condition
 type ApplicationCondition struct {
@@ -289,7 +289,6 @@ type ComparisonResult struct {
 	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
 	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
 	Resources  []ResourceState   `json:"resources" protobuf:"bytes,6,opt,name=resources"`
-	Error      string            `json:"error" protobuf:"bytes,7,opt,name=error"`
 }
 
 type HealthStatus struct {
@@ -483,13 +482,21 @@ func (app *Application) NeedRefreshAppStatus(statusRefreshTimeout time.Duration)
 		app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now())
 }
 
-func (condition *ApplicationCondition) IsCritical() bool {
-	for _, criticalType := range ApplicationCriticalConditionsTypes {
-		if condition.Type == criticalType {
-			return true
+// GetErrorConditions returns list of application error conditions
+func (status *ApplicationStatus) GetErrorConditions() []ApplicationCondition {
+	result := make([]ApplicationCondition, 0)
+	for i := range status.Conditions {
+		condition := status.Conditions[i]
+		if condition.IsError() {
+			result = append(result, condition)
 		}
 	}
-	return false
+	return result
+}
+
+// IsError returns true if condition is error condition
+func (condition *ApplicationCondition) IsError() bool {
+	return strings.HasSuffix(condition.Type, "Error")
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.

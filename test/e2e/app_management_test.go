@@ -139,7 +139,7 @@ func TestAppManagement(t *testing.T) {
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status != v1alpha1.ComparisonStatusUnknown, err
+			return err == nil && app.Status.ComparisonResult.Status != v1alpha1.ComparisonStatusUnknown && len(app.Status.Conditions) > 0, err
 		})
 
 		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
@@ -147,7 +147,7 @@ func TestAppManagement(t *testing.T) {
 			t.Fatalf("Unable to get app %v", err)
 		}
 
-		assert.Equal(t, v1alpha1.ComparisonStatusError, app.Status.ComparisonResult.Status)
+		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 	})
 
 	t.Run("TestArgoCDWaitEnsureAppIsNotCrashing", func(t *testing.T) {

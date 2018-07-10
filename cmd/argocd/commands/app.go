@@ -174,8 +174,9 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Printf(printOpFmtStr, "Repo:", app.Spec.Source.RepoURL)
 				fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 				fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
-				if app.Status.ComparisonResult.Error != "" {
-					fmt.Printf(printOpFmtStr, "Error:", app.Status.ComparisonResult.Error)
+				errorConditions := app.Status.GetErrorConditions()
+				if len(errorConditions) > 0 {
+					fmt.Printf(printOpFmtStr, "Error:", argo.FormatAppConditions(errorConditions))
 				}
 				if showOperation && app.Status.OperationState != nil {
 					fmt.Println()
