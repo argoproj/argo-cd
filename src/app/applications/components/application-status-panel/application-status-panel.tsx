@@ -5,7 +5,7 @@ import * as utils from '../utils';
 
 require('./application-status-panel.scss');
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions}: { application: models.Application, showOperation?: () => any, showConditions?: () => any}) => {
+export const ApplicationStatusPanel = ({application, showOperation, showConditions}: {application: models.Application, showOperation?: () => any, showConditions?: () => any}) =>{
     const today = new Date();
     const creationDate = new Date(application.metadata.creationTimestamp);
 
@@ -16,6 +16,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         const deployDate = new Date(history[history.length - 1].deployedAt);
         daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
+    const cntByCategory = application.status.conditions.reduce(
+        (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
+        new Map<string, number>());
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item columns small-3'>
@@ -37,9 +40,11 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             </div>
             )}
             {application.status.conditions && (
-            <div className='application-status-panel__item warning columns small-3'>
-                <div className='application-status-panel__item-value'>
-                    <a onClick={() => showConditions && showConditions()}>{application.status.conditions.length} Warnings</a>
+            <div className={`application-status-panel__item columns small-3`}>
+                <div className='application-status-panel__item-value' onClick={() => showConditions && showConditions()}>
+                    {cntByCategory.get('info') && <a className='info'>{cntByCategory.get('info')} Info</a>}
+                    {cntByCategory.get('warning') && <a className='warning'>{cntByCategory.get('warning')} Warnings</a>}
+                    {cntByCategory.get('error') && <a className='error'>{cntByCategory.get('error')} Errors</a>}
                 </div>
             </div>
             )}

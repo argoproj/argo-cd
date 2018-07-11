@@ -178,3 +178,13 @@ export function getPodStateReason(pod: appModels.State): { message: string; reas
 
     return {reason, message};
 }
+
+export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
+    if (condition.type.endsWith('Error')) {
+        return 'error';
+    } else if (condition.type.endsWith('Warning')) {
+        return 'warning';
+    } else {
+        return 'info';
+    }
+}
