@@ -129,8 +129,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return (
             <Page
                 title={'Application Details'}
-                toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
+                toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: this.state.application && {
                     items: [{
+                        className: 'icon fa fa-refresh',
+                        title: 'Refresh',
+                        action: async () => {
+                            this.setState({ application: null });
+                            const application = await services.applications.get(this.props.match.params.name, true);
+                            this.setState({ application });
+                        },
+                    }, {
                         className: 'icon argo-icon-deploy',
                         title: 'Sync',
                         action: () => this.setDeployPanelVisible(true),

@@ -10,8 +10,8 @@ export class ApplicationsService {
         });
     }
 
-    public get(name: string): Promise<models.Application> {
-        return requests.get(`/applications/${name}`).then((res) => this.parseAppFields(res.body));
+    public get(name: string, refresh = false): Promise<models.Application> {
+        return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
     }
 
     public create(name: string, source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {
