@@ -98,11 +98,17 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		// Take the value in the requested operation. We will resolve this to a SHA later.
 		revision = syncOp.Revision
 	}
-	comparison, manifestInfo, errConditions, err := s.CompareAppState(app, revision, overrides)
+	comparison, manifestInfo, conditions, err := s.CompareAppState(app, revision, overrides)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
 		return
+	}
+	errConditions := make([]appv1.ApplicationCondition, 0)
+	for i := range conditions {
+		if conditions[i].IsError() {
+			errConditions = append(errConditions, conditions[i])
+		}
 	}
 	if len(errConditions) > 0 {
 		state.Phase = appv1.OperationError

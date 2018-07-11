@@ -273,6 +273,8 @@ const (
 	ApplicationConditionComparisonError = "ComparisonError"
 	// ApplicationConditionUnknownError indicates an unknown controller error
 	ApplicationConditionUnknownError = "UnknownError"
+	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
+	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
 )
 
 // ApplicationCondition contains details about current application condition
