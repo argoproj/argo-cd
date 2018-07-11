@@ -16,7 +16,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         const deployDate = new Date(history[history.length - 1].deployedAt);
         daysSinceLastSynchronized = Math.round(Math.abs((today.getTime() - deployDate.getTime()) / (24 * 60 * 60 * 1000)));
     }
-    const cntByCategory = application.status.conditions.reduce(
+    const cntByCategory = (application.status.conditions || []).reduce(
         (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
         new Map<string, number>());
     return (
