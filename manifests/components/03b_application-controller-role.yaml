@@ -1,21 +1,19 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: argocd-server-role
+  name: application-controller-role
 rules:
 - apiGroups:
   - ""
   resources:
   - secrets
-  - configmaps
   verbs:
-  - create
   - get
-  - list
   - watch
-  - update
+  - list
   - patch
-  - delete
+  - update
 - apiGroups:
   - argoproj.io
   resources:
@@ -26,5 +24,5 @@ rules:
   - list
   - watch
   - update
-  - delete
   - patch
+  - delete
