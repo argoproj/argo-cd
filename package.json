@@ -18,7 +18,7 @@
     "@types/react-router": "^4.0.27",
     "@types/react-router-dom": "^4.2.3",
     "@types/superagent": "^3.5.7",
-    "argo-ui": "^2.1.1-alpha7",
+    "argo-ui": "^2.1.1-alpha8",
     "awesome-typescript-loader": "^3.4.1",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.3",

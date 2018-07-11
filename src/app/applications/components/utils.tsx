@@ -168,10 +168,10 @@ export function getPodStateReason(pod: appModels.State): { message: string; reas
         }
     }
 
-    if ((pod as any).deletionTimestamp && pod.status.reason === 'NodeLost') {
+    if ((pod as any).metadata.deletionTimestamp && pod.status.reason === 'NodeLost') {
         reason = 'Unknown';
         message = '';
-    } else if ((pod as any).deletionTimestamp) {
+    } else if ((pod as any).metadata.deletionTimestamp) {
         reason = 'Terminating';
         message = '';
     }
