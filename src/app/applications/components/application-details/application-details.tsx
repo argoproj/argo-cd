@@ -279,15 +279,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async syncApplication(revision: string, prune: boolean) {
-        try {
-            await services.applications.sync(this.props.match.params.name, revision, prune);
+        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, this.appContext).then(() => {
             this.setDeployPanelVisible(false);
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
-                type: NotificationType.Error,
-            });
-        }
+        });
     }
 
     private async rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
@@ -342,7 +336,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async deleteApplication() {
-        AppUtils.deleteApplication(this.props.match.params.name, this.appContext, () => {
+        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext).then(() => {
             this.appContext.apis.navigation.goto('/applications');
         });
     }

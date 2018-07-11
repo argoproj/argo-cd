@@ -6,7 +6,20 @@ import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
-export async function deleteApplication(appName: string, context: AppContext, success: () => void) {
+export async function syncApplication(appName: string, revision: string, prune: boolean, context: AppContext) {
+    try {
+        await services.applications.sync(appName, revision, prune);
+    } catch (e) {
+        context.apis.notifications.show({
+            content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
+            type: NotificationType.Error,
+        });
+    } finally {
+        await services.applications.get(appName, true);
+    }
+}
+
+export async function deleteApplication(appName: string, context: AppContext) {
     let cascade = false;
     const confirmationForm = class extends React.Component<{}, { cascade: boolean } > {
         constructor(props: any) {
@@ -29,7 +42,6 @@ export async function deleteApplication(appName: string, context: AppContext, su
     if (confirmed) {
         try {
             await services.applications.delete(appName, cascade);
-            success();
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to delete application' e={e}/>,
