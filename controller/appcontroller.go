@@ -354,6 +354,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ctrl.appStateManager.SyncAppState(app, state)
 	ctrl.setOperationState(app, state, app.Operation)
+	ctrl.forceAppRefresh(app.ObjectMeta.Name)
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState, operation *appv1.Operation) {
