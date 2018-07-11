@@ -5,7 +5,7 @@ import * as utils from '../utils';
 
 require('./application-status-panel.scss');
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions}: {application: models.Application, showOperation?: () => any, showConditions?: () => any}) =>{
+export const ApplicationStatusPanel = ({application, showOperation, showConditions}: {application: models.Application, showOperation?: () => any, showConditions?: () => any}) => {
     const today = new Date();
     const creationDate = new Date(application.metadata.creationTimestamp);
 
