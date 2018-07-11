@@ -174,9 +174,13 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Printf(printOpFmtStr, "Repo:", app.Spec.Source.RepoURL)
 				fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
 				fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
-				errorConditions := app.Status.GetErrorConditions()
-				if len(errorConditions) > 0 {
-					fmt.Printf(printOpFmtStr, "Error:", argo.FormatAppConditions(errorConditions))
+
+				if len(app.Status.Conditions) > 0 {
+					fmt.Println()
+					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+					printAppConditions(w, app)
+					_ = w.Flush()
+					fmt.Println()
 				}
 				if showOperation && app.Status.OperationState != nil {
 					fmt.Println()
@@ -201,6 +205,13 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	return command
+}
+
+func printAppConditions(w io.Writer, app *argoappv1.Application) {
+	fmt.Fprintf(w, "CONDITION\tMESSAGE\n")
+	for _, item := range app.Status.Conditions {
+		fmt.Fprintf(w, "%s\t%s", item.Type, item.Message)
+	}
 }
 
 // appURL returns the URL of an application
@@ -522,12 +533,12 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			var fmtStr string
-			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH"}
+			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "CONDITIONS"}
 			if output == "wide" {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 				headers = append(headers, "ENV", "REPO", "PATH", "TARGET")
 			} else {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\n"
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 			}
 			fmt.Fprintf(w, fmtStr, headers...)
 			for _, app := range apps.Items {
@@ -538,6 +549,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app.Spec.GetProject(),
 					app.Status.ComparisonResult.Status,
 					app.Status.Health.Status,
+					formatConditionsSummary(app),
 				}
 				if output == "wide" {
 					vals = append(vals, app.Spec.Source.Environment, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
@@ -549,6 +561,31 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
 	return command
+}
+
+func formatConditionsSummary(app argoappv1.Application) string {
+	typeToCnt := make(map[string]int)
+	for i := range app.Status.Conditions {
+		condition := app.Status.Conditions[i]
+		if cnt, ok := typeToCnt[condition.Type]; ok {
+			typeToCnt[condition.Type] = cnt + 1
+		} else {
+			typeToCnt[condition.Type] = 1
+		}
+	}
+	items := make([]string, 0)
+	for cndType, cnt := range typeToCnt {
+		if cnt > 1 {
+			items = append(items, fmt.Sprintf("%s(%d)", cndType, cnt))
+		} else {
+			items = append(items, cndType)
+		}
+	}
+	summary := "No conditions"
+	if len(items) > 0 {
+		summary = strings.Join(items, ",")
+	}
+	return summary
 }
 
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
@@ -597,9 +634,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				_ = w.Flush()
 				prevCompRes = &app.Status.ComparisonResult
 
-				synced := (app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced)
-				healthy := (app.Status.Health.Status == argoappv1.HealthStatusHealthy)
-				if (synced && healthy) || (synced && syncOnly) || (healthy && healthOnly) {
+				synced := app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
+				healthy := app.Status.Health.Status == argoappv1.HealthStatusHealthy
+				if len(app.Status.GetErrorConditions()) == 0 && ((synced && healthy) || (synced && syncOnly) || (healthy && healthOnly)) {
 					log.Printf("App %q matches desired state", appName)
 					return
 				}
