@@ -13,13 +13,13 @@ export const history = createHistory();
 import applications from './applications';
 import help from './help';
 import login from './login';
-import repos from './repos';
+import settings from './settings';
 import { NavigationManager } from './shared/navigation';
 
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
     '/login': { component: login.component as any, noLayout: true },
     '/applications': { component: applications.component },
-    '/repositories': { component: repos.component },
+    '/settings': { component: settings.component },
     '/help': { component: help.component },
 };
 
@@ -28,9 +28,9 @@ const navItems = [{
     path: '/applications',
     iconClassName: 'argo-icon-application',
 }, {
-    title: 'Repositories',
-    path: '/repositories',
-    iconClassName: 'argo-icon-git',
+    title: 'Settings',
+    path: '/settings',
+    iconClassName: 'argo-icon-settings',
 }, {
     title: 'Help',
     path: '/help',
@@ -93,6 +93,7 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
                                 )
                             )}/>;
                         })}
+                        <Redirect path='*' to='/'/>
                     </Switch>
                 </Router>
             </div>

@@ -37,7 +37,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
 
     public render() {
         return (
-            <Page title='Repositories' toolbar={{ breadcrumbs: [{title: 'Repositories'}] }}>
+            <Page title='Repositories' toolbar={{ breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Repositories'}] }}>
                 <div className='repos-list'>
                     <div className='row repos-list__top-panel argo-container'>
 

@@ -232,6 +232,7 @@ export interface Repository {
 export interface RepositoryList extends ItemsList<Repository> {}
 
 export interface Cluster {
+    name: string;
     server: string;
     connectionState: ConnectionState;
 }
