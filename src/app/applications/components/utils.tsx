@@ -19,9 +19,9 @@ export async function deleteApplication(appName: string, context: AppContext, su
                     <p>Are you sure you want to delete the application "{appName}"?</p>
                     <p><Checkbox checked={this.state.cascade} onChange={(val) => this.setState({ cascade: val })} /> Cascade</p>
                 </div>
-            )
+            );
         }
-        componentWillUnmount() {
+        public componentWillUnmount() {
             cascade = this.state.cascade;
         }
     };
