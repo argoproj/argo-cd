@@ -583,7 +583,7 @@ func formatConditionsSummary(app argoappv1.Application) string {
 	}
 	summary := "No conditions"
 	if len(items) > 0 {
-		summary = strings.Join(items, "; ")
+		summary = strings.Join(items, ";")
 	}
 	return summary
 }
