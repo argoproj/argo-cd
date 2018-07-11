@@ -279,9 +279,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async syncApplication(revision: string, prune: boolean) {
-        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, this.appContext).then(() => {
-            this.setDeployPanelVisible(false);
-        });
+        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, this.appContext);
+        this.setDeployPanelVisible(false);
     }
 
     private async rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
@@ -336,9 +335,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async deleteApplication() {
-        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext).then(() => {
-            this.appContext.apis.navigation.goto('/applications');
-        });
+        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext);
+        this.appContext.apis.navigation.goto('/applications');
     }
 
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
