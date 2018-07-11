@@ -75,8 +75,6 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt" protobuf:"bytes,7,opt,name=finishedAt"`
-	// HookResources contains list of hook resource statuses associated with this operation
-	HookResources []HookStatus `json:"hookResources,omitempty" protobuf:"bytes,8,opt,name=hookResources"`
 }
 
 // SyncStrategy indicates the
@@ -135,9 +133,11 @@ type HookStatus struct {
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources holds the sync result of each individual resource
-	Resources []*ResourceDetails `json:"resources" protobuf:"bytes,1,opt,name=resources"`
+	Resources []*ResourceDetails `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	// Revision holds the git commit SHA of the sync
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	// Hooks contains list of hook resource statuses associated with this operation
+	Hooks []*HookStatus `json:"hooks,omitempty" protobuf:"bytes,3,opt,name=hooks"`
 }
 
 type ResourceSyncStatus string
@@ -477,7 +477,8 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 	}
 }
 
-// NeedRefreshAppStatus answers if application status needs to be refreshed. Returns true if application never been compared, has changed or comparison result has expired.
+// NeedRefreshAppStatus answers if application status needs to be refreshed.
+// Returns true if application never been compared, has changed or comparison result has expired.
 func (app *Application) NeedRefreshAppStatus(statusRefreshTimeout time.Duration) bool {
 	return app.Status.ComparisonResult.Status == ComparisonStatusUnknown ||
 		!app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) ||

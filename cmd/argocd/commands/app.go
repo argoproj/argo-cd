@@ -581,7 +581,7 @@ func formatConditionsSummary(app argoappv1.Application) string {
 			items = append(items, cndType)
 		}
 	}
-	summary := "No conditions"
+	summary := "<none>"
 	if len(items) > 0 {
 		summary = strings.Join(items, ",")
 	}
@@ -708,25 +708,25 @@ func watchApp(ctx context.Context, appIf application.ApplicationServiceClient, a
 func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bool) {
 	messages := make(map[string]string)
 	opState := app.Status.OperationState
+	var syncRes *argoappv1.SyncOperationResult
 
 	if showOperation {
-		fmt.Fprintf(w, "HOOK\tKIND\tNAME\tSTATUS\tHEALTH\tOPERATIONMSG\n")
+		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG\n")
 		if opState != nil {
-			for _, hook := range opState.HookResources {
-				if hook.Type == argoappv1.HookTypePreSync {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Type, hook.Kind, hook.Name, hook.Status, "", hook.Message)
-				}
+			if opState.SyncResult != nil {
+				syncRes = opState.SyncResult
+			} else if opState.RollbackResult != nil {
+				syncRes = opState.RollbackResult
 			}
-		}
-		var syncRes *argoappv1.SyncOperationResult
-		if opState.SyncResult != nil {
-			syncRes = opState.SyncResult
-		} else if opState.RollbackResult != nil {
-			syncRes = opState.RollbackResult
 		}
 		if syncRes != nil {
 			for _, resDetails := range syncRes.Resources {
 				messages[fmt.Sprintf("%s/%s", resDetails.Kind, resDetails.Name)] = resDetails.Message
+			}
+			for _, hook := range syncRes.Hooks {
+				if hook.Type == argoappv1.HookTypePreSync {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.Type, hook.Message)
+				}
 			}
 		}
 	} else {
@@ -741,16 +741,16 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 		}
 		if showOperation {
 			message := messages[fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", "", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, message)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", message)
 		} else {
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
 		}
 		fmt.Fprint(w, "\n")
 	}
-	if showOperation && opState != nil {
-		for _, hook := range opState.HookResources {
+	if showOperation && syncRes != nil {
+		for _, hook := range syncRes.Hooks {
 			if hook.Type == argoappv1.HookTypeSync || hook.Type == argoappv1.HookTypePostSync {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Type, hook.Kind, hook.Name, hook.Status, "", hook.Message)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.Type, hook.Message)
 			}
 		}
 
@@ -833,8 +833,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			// get refreshed app before printing to show accurate sync/health status
-			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			errors.CheckError(err)
+			// app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
+			// errors.CheckError(err)
 
 			fmt.Printf(printOpFmtStr, "Application:", appName)
 			printOperationResult(app.Status.OperationState)
@@ -1022,8 +1022,9 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			errors.CheckError(err)
 
 			// get refreshed app before printing to show accurate sync/health status
-			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			errors.CheckError(err)
+			// app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
+			// errors.CheckError(err)
+
 			fmt.Printf(printOpFmtStr, "Application:", appName)
 			printOperationResult(app.Status.OperationState)
 			if !app.Status.OperationState.Phase.Successful() {

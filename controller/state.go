@@ -131,7 +131,7 @@ func (s *ksonnetAppStateManager) getTargetObjs(app *v1alpha1.Application, revisi
 		if err != nil {
 			return nil, nil, err
 		}
-		if !isSyncedResource(obj) {
+		if isHook(obj) {
 			continue
 		}
 		targetObjs = append(targetObjs, obj)
@@ -156,7 +156,7 @@ func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetOb
 	}
 	liveObjs := make([]*unstructured.Unstructured, 0)
 	for _, obj := range labeledObjs {
-		if !isSyncedResource(obj) {
+		if isHook(obj) {
 			continue
 		}
 		liveObjs = append(liveObjs, obj)
