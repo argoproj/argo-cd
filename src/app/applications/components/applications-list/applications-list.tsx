@@ -248,24 +248,15 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private async syncApplication(appName: string, revision: string) {
-        try {
-            await services.applications.sync(appName, revision, false).then(() => {
-                this.appContext.apis.notifications.show({
-                    type: NotificationType.Success,
-                    content: `Synced revision`,
-                });
-            });
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
-                type: NotificationType.Error,
-            });
-        }
+        await AppUtils.syncApplication(appName, revision, false, this.appContext);
+        this.appContext.apis.notifications.show({
+            type: NotificationType.Success,
+            content: `Synced revision`,
+        });
     }
 
     private async deleteApplication(appName: string) {
-        AppUtils.deleteApplication(appName, this.appContext, () => {
-            this.appContext.router.history.push('/applications');
-        });
+        await AppUtils.deleteApplication(appName, this.appContext);
+        this.appContext.router.history.push('/applications');
     }
 }
