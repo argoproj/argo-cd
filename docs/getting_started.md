@@ -18,7 +18,8 @@ chmod +x /usr/local/bin/argocd
 
 ## 2. Install ArgoCD
 ```
-kubectl apply -f manifests/. --namespace argocd
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://github.com/argoproj/argo-cd/blob/master/manifests/install.yaml
 ```
 This will create a new namespace, `argocd`; where ArgoCD services and application resources will live.
 
