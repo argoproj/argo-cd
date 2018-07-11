@@ -1,0 +1,288 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: applications.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: Application
+    plural: applications
+    shortNames:
+    - app
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: appprojects.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: AppProject
+    plural: appprojects
+    shortNames:
+    - appproj
+    - appprojs
+  scope: Namespaced
+  version: v1alpha1
+---
+# NOTE: the values here are just a example and are not the values used during an install.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # please see https://github.com/argoproj/argo-cd/blob/master/docs/sso.md#2-configure-argocd-for-sso 
+  # for more details about how to setup data config needed for sso
+---
+# NOTE: the values in this secret are provided as working manifest example and are not the values
+# used during an install. New values will be generated as part of `argocd install`
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+type: Opaque
+  # bcrypt hash of the string "password"
+  # random server signature key for session validation
+
+  # The following keys hold the shared secret for authenticating GitHub/GitLab/BitBucket webhook
+  # events. To enable webhooks, configure one or more of the following keys with the shared git
+  # provider webhook secret. The payload URL configured in the git provider should use the 
+  # /api/webhook endpoint of your ArgoCD instance (e.g. https://argocd.example.com/api/webhook)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  # policy.csv holds the CSV file policy file which contains additional policy and role definitions.
+  # ArgoCD defines two built-in roles:
+  # * role:readonly - readonly access to all objects
+  # * role:admin - admin access to all objects
+  # The built-in policy can be seen under util/rbac/builtin-policy.csv
+  #
+  # The policy definition format is:
+  # p, <user/group>, <resource>, <action>, <project>/<object>
+  # For example, the following rule gives all members of 'my-org:team1' the ability to sync
+  # applications in the project named: my-project
+  # p, my-org:team1, applications, sync, my-project/*
+  #
+  # The role definition format is:
+  # g, <user/group>, <group>
+  # For example, the following rule makes all members of 'my-org:team2' have the role:admin role:
+  # g, my-org:team2, role:admin
+  policy.csv: ""
+
+  # policy.default holds the default policy which will ArgoCD will fall back to, when authorizing
+  # a user for API requests.
+  policy.default: role:readonly
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: application-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: application-controller-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+  - patch
+  - update
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: application-controller-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: application-controller-role
+subjects:
+- kind: ServiceAccount
+  name: application-controller
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: application-controller
+spec:
+  selector:
+    matchLabels:
+      app: application-controller
+  template:
+    metadata:
+      labels:
+        app: application-controller
+    spec:
+      containers:
+      - command: [/argocd-application-controller, --repo-server, 'argocd-repo-server:8081']
+        image: argoproj/argocd-application-controller:latest
+        name: application-controller
+      serviceAccountName: application-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-server-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-server-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-server-role
+subjects:
+- kind: ServiceAccount
+  name: argocd-server
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: argocd-server
+spec:
+  selector:
+    matchLabels:
+      app: argocd-server
+  template:
+    metadata:
+      labels:
+        app: argocd-server
+    spec:
+      serviceAccountName: argocd-server
+      initContainers:
+      - name: copyutil
+        image: argoproj/argocd-server:latest
+        command: [cp, /argocd-util, /shared]
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      - name: ui
+        image: argoproj/argocd-ui:latest
+        command: [cp, -r, /app, /shared]
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      containers:
+      - name: argocd-server
+        image: argoproj/argocd-server:latest
+        command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      - name: dex
+        image: quay.io/coreos/dex:v2.10.0
+        command: [/shared/argocd-util, rundex]
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      volumes:
+      - emptyDir: {}
+        name: static-files
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server
+spec:
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8080
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: 8080
+  selector:
+    app: argocd-server
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  selector:
+    matchLabels:
+      app: argocd-repo-server
+  template:
+    metadata:
+      labels:
+        app: argocd-repo-server
+    spec:
+      containers:
+      - name: argocd-repo-server
+        image: argoproj/argocd-repo-server:latest
+        command: [/argocd-repo-server]
+        ports:
+          - containerPort: 8081
+      - name: redis
+        image: redis:3.2.11
+        ports:
+          - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-repo-server
+spec:
+  ports:
+  - port: 8081
+    targetPort: 8081
+  selector:
+    app: argocd-repo-server
