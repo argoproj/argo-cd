@@ -222,11 +222,13 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 	}
 
 	for _, liveObj := range controlledLiveObj {
-		if appLabelVal, ok := liveObj.GetLabels()[common.LabelApplicationName]; ok && appLabelVal != "" && appLabelVal != app.Name {
-			conditions = append(conditions, v1alpha1.ApplicationCondition{
-				Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
-				Message: fmt.Sprintf("Resource %s/%s is controller by applications '%s' and '%s'", liveObj.GetKind(), liveObj.GetName(), app.Name, appLabelVal),
-			})
+		if liveObj != nil && liveObj.GetLabels() != nil {
+			if appLabelVal, ok := liveObj.GetLabels()[common.LabelApplicationName]; ok && appLabelVal != "" && appLabelVal != app.Name {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
+					Message: fmt.Sprintf("Resource %s/%s is controller by applications '%s' and '%s'", liveObj.GetKind(), liveObj.GetName(), app.Name, appLabelVal),
+				})
+			}
 		}
 	}
 
