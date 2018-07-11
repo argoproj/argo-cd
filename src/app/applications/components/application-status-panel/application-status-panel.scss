@@ -17,9 +17,19 @@
             border-left: 1px solid $argo-color-gray-3;
         }
 
-        &.warning {
-            a {
-                color: $argo-failed-color;
+        & {
+            a.error {
+                color: $argo-failed-color-dark;
+            }
+        }
+        & {
+            a.warning {
+                color: $argo-failed-color-light;
+            }
+        }
+        & {
+            a.info {
+                color: $argo-success-color;
             }
         }
     }
