@@ -221,6 +221,17 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
 
+	for _, liveObj := range controlledLiveObj {
+		if liveObj != nil && liveObj.GetLabels() != nil {
+			if appLabelVal, ok := liveObj.GetLabels()[common.LabelApplicationName]; ok && appLabelVal != "" && appLabelVal != app.Name {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
+					Message: fmt.Sprintf("Resource %s/%s is controller by applications '%s' and '%s'", liveObj.GetKind(), liveObj.GetName(), app.Name, appLabelVal),
+				})
+			}
+		}
+	}
+
 	// Move root level live resources to controlledLiveObj and add nil to targetObjs to indicate that target object is missing
 	for fullName := range liveObjByFullName {
 		liveObj := liveObjByFullName[fullName]
