@@ -14,8 +14,6 @@ export async function syncApplication(appName: string, revision: string, prune: 
             content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
             type: NotificationType.Error,
         });
-    } finally {
-        await services.applications.get(appName, true);
     }
 }
 
