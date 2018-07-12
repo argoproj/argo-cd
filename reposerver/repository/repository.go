@@ -114,6 +114,15 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
+	var res ManifestResponse
+	if git.IsCommitSHA(q.Revision) {
+		cacheKey := manifestCacheKey(q.Revision, q)
+		err := s.cache.Get(cacheKey, &res)
+		if err == nil {
+			log.Infof("manifest cache hit: %s", cacheKey)
+			return &res, nil
+		}
+	}
 	appRepoPath := tempRepoPath(q.Repo.Repo)
 	s.repoLock.Lock(appRepoPath)
 	defer s.repoLock.Unlock(appRepoPath)
@@ -128,7 +137,6 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, err
 	}
 	cacheKey := manifestCacheKey(commitSHA, q)
-	var res ManifestResponse
 	err = s.cache.Get(cacheKey, &res)
 	if err == nil {
 		log.Infof("manifest cache hit: %s", cacheKey)

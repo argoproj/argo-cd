@@ -27,6 +27,13 @@ func ensureSuffix(s, suffix string) string {
 	return s
 }
 
+var commitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{40}$")
+
+// IsCommitSHA returns whether or not a string is a 40 character SHA-1
+func IsCommitSHA(sha string) bool {
+	return commitSHARegex.MatchString(sha)
+}
+
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
 	// preprocess
