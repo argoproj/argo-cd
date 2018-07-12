@@ -12,6 +12,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
+	"k8s.io/kubernetes/pkg/apis/apps"
 )
 
 func GetAppHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
@@ -22,6 +23,12 @@ func GetAppHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 		return getServiceHealth(obj)
 	case kube.IngressKind:
 		return getIngressHealth(obj)
+	case kube.StatefulSetKind:
+		return getStatefulSetHealth(obj)
+	case kube.ReplicaSetKind:
+		return getReplicaSetHealth(obj)
+	case kube.DaemonSetKind:
+		return getDaemonSetHealth(obj)
 	default:
 		return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}, nil
 	}
@@ -105,6 +112,7 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 	if err != nil {
 		return nil, err
 	}
+	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L80
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := getDeploymentCondition(deployment.Status, v1.DeploymentProgressing)
 		if cond != nil && cond.Reason == "ProgressDeadlineExceeded" {
@@ -115,17 +123,17 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 		} else if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
 			return &appv1.HealthStatus{
 				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas have been updated...\n", deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas),
+				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas have been updated...", deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas),
 			}, nil
 		} else if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
 			return &appv1.HealthStatus{
 				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d old replicas are pending termination...\n", deployment.Status.Replicas-deployment.Status.UpdatedReplicas),
+				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d old replicas are pending termination...", deployment.Status.Replicas-deployment.Status.UpdatedReplicas),
 			}, nil
 		} else if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
 			return &appv1.HealthStatus{
 				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d of %d updated replicas are available...\n", deployment.Status.AvailableReplicas, deployment.Status.UpdatedReplicas),
+				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d of %d updated replicas are available...", deployment.Status.AvailableReplicas, deployment.Status.UpdatedReplicas),
 			}, nil
 		}
 	} else {
@@ -140,7 +148,143 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 	}, nil
 }
 
+func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	if err != nil {
+		return nil, err
+	}
+	var daemon appsv1.DaemonSet
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &daemon)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L110
+	if daemon.Generation <= daemon.Status.ObservedGeneration {
+		if daemon.Status.UpdatedNumberScheduled < daemon.Status.DesiredNumberScheduled {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: fmt.Sprintf("Waiting for daemon set %q rollout to finish: %d out of %d new pods have been updated...", daemon.Name, daemon.Status.UpdatedNumberScheduled, daemon.Status.DesiredNumberScheduled),
+			}, nil
+		}
+		if daemon.Status.NumberAvailable < daemon.Status.DesiredNumberScheduled {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: fmt.Sprintf("Waiting for daemon set %q rollout to finish: %d of %d updated pods are available...", daemon.Name, daemon.Status.NumberAvailable, daemon.Status.DesiredNumberScheduled),
+			}, nil
+		}
+
+	} else {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: "Waiting for rollout to finish: observed daemon set generation less then desired generation",
+		}, nil
+	}
+	return &appv1.HealthStatus{
+		Status: appv1.HealthStatusHealthy,
+	}, nil
+}
+
+func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	if err != nil {
+		return nil, err
+	}
+	var sts appsv1.StatefulSet
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &sts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L131
+	if sts.Status.ObservedGeneration == 0 || sts.Generation > sts.Status.ObservedGeneration {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: "Waiting for statefulset spec update to be observed...",
+		}, nil
+	}
+	if sts.Spec.Replicas != nil && sts.Status.ReadyReplicas < *sts.Spec.Replicas {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: fmt.Sprintf("Waiting for %d pods to be ready...", *sts.Spec.Replicas-sts.Status.ReadyReplicas),
+		}, nil
+	}
+	if sts.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType && sts.Spec.UpdateStrategy.RollingUpdate != nil {
+		if sts.Spec.Replicas != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+			if sts.Status.UpdatedReplicas < (*sts.Spec.Replicas - *sts.Spec.UpdateStrategy.RollingUpdate.Partition) {
+				return &appv1.HealthStatus{
+					Status: appv1.HealthStatusProgressing,
+					StatusDetails: fmt.Sprintf("Waiting for partitioned roll out to finish: %d out of %d new pods have been updated...",
+						sts.Status.UpdatedReplicas, (*sts.Spec.Replicas - *sts.Spec.UpdateStrategy.RollingUpdate.Partition)),
+				}, nil
+			}
+		}
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusHealthy,
+			StatusDetails: fmt.Sprintf("partitioned roll out complete: %d new pods have been updated...", sts.Status.UpdatedReplicas),
+		}, nil
+	}
+	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: fmt.Sprintf("waiting for statefulset rolling update to complete %d pods at revision %s...", sts.Status.UpdatedReplicas, sts.Status.UpdateRevision),
+		}, nil
+	}
+	return &appv1.HealthStatus{
+		Status:        appv1.HealthStatusHealthy,
+		StatusDetails: fmt.Sprintf("statefulset rolling update complete %d pods at revision %s...", sts.Status.CurrentReplicas, sts.Status.CurrentRevision),
+	}, nil
+}
+
+func getReplicaSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	if err != nil {
+		return nil, err
+	}
+	var replicaSet appsv1.ReplicaSet
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &replicaSet)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if replicaSet.Generation <= replicaSet.Status.ObservedGeneration {
+		cond := getReplicaSetCondition(replicaSet.Status, v1.ReplicaSetReplicaFailure)
+		if cond != nil && cond.Status == coreV1.ConditionTrue {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusDegraded,
+				StatusDetails: cond.Message,
+			}, nil
+		} else if replicaSet.Spec.Replicas != nil && replicaSet.Status.AvailableReplicas < *replicaSet.Spec.Replicas {
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas are available...", replicaSet.Status.AvailableReplicas, *replicaSet.Spec.Replicas),
+			}, nil
+		}
+	} else {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: "Waiting for rollout to finish: observed replica set generation less then desired generation",
+		}, nil
+	}
+
+	return &appv1.HealthStatus{
+		Status: appv1.HealthStatusHealthy,
+	}, nil
+}
+
 func getDeploymentCondition(status v1.DeploymentStatus, condType v1.DeploymentConditionType) *v1.DeploymentCondition {
+	for i := range status.Conditions {
+		c := status.Conditions[i]
+		if c.Type == condType {
+			return &c
+		}
+	}
+	return nil
+}
+
+func getReplicaSetCondition(status v1.ReplicaSetStatus, condType v1.ReplicaSetConditionType) *v1.ReplicaSetCondition {
 	for i := range status.Conditions {
 		c := status.Conditions[i]
 		if c.Type == condType {
