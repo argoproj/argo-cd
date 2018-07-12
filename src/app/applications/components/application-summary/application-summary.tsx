@@ -11,6 +11,7 @@ export const ApplicationSummary = ({app}: {app: models.Application}) => {
             <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
                 <i className='fa fa-external-link'/> {app.spec.source.repoURL}
             </a> )},
+        {title: 'REVISION', value: app.spec.source.targetRevision || 'HEAD'},
         {title: 'PATH', value: app.spec.source.path},
         {title: 'ENVIRONMENT', value: app.spec.source.environment},
         {title: 'STATUS', value: (

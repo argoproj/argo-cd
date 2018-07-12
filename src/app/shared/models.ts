@@ -49,8 +49,38 @@ export interface OperationState {
     finishedAt: models.Time;
 }
 
+export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
+
+export interface HookStatus {
+    /**
+     * Name is the resource name
+     */
+    name: string;
+    /**
+     * Name is the resource name
+     */
+    kind: string;
+    /**
+     * Name is the resource name
+     */
+    apiVersion: string;
+    /**
+     * Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)
+     */
+    type: HookType;
+    /**
+     * Status a simple, high-level summary of where the resource is in its lifecycle
+     */
+    status: OperationPhase;
+    /**
+     * A human readable message indicating details about why the resource is in this condition.
+     */
+    message: string;
+}
+
 export interface SyncOperationResult {
     resources: ResourceDetails[];
+    hooks?: HookStatus[];
 }
 
 export interface ResourceDetails {
