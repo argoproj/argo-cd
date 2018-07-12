@@ -538,6 +538,9 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
+	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
+		appHealth.Status = appv1.HealthStatusUnknown
+	}
 	for i, resource := range comparisonResult.Resources {
 		if resource.LiveState == "null" {
 			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusMissing}
