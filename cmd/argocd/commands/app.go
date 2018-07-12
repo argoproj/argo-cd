@@ -881,10 +881,23 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 		})
 	}
 
+	// print the initial components to format the tabwriter columns
+	app, err := appClient.Get(ctx, &application.ApplicationQuery{Name: &appName})
+	errors.CheckError(err)
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	printAppResources(w, app, false)
+	_ = w.Flush()
+	prevCompRes := &app.Status.ComparisonResult
+
 	appEventCh := watchApp(ctx, appClient, appName)
 	for appEvent := range appEventCh {
-		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Phase.Completed() {
-			return &appEvent.Application, nil
+		app := appEvent.Application
+		printAppStateChange(w, prevCompRes, &app)
+		_ = w.Flush()
+
+		prevCompRes = &app.Status.ComparisonResult
+		if app.Status.OperationState != nil && app.Status.OperationState.Phase.Completed() {
+			return &app, nil
 		}
 	}
 	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
