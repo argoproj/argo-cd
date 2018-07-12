@@ -405,9 +405,17 @@ func readAndConfirmPassword() string {
 	}
 }
 
-func UpdateSettings(defaultPassword string, cdSettings *ArgoCDSettings, UpdateSignature bool, UpdateSuperuser bool, Namespace string) *ArgoCDSettings {
+//UpdateSettings is used to update the admin password, signature, certificate etc
+func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, updateSignature bool, updateSuperuser bool, Namespace string) *ArgoCDSettings {
 
-	if cdSettings.ServerSignature == nil || UpdateSignature {
+	cdSettings, err := settingsMgr.GetSettings()
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			log.Fatal(err)
+		}
+	}
+
+	if cdSettings.ServerSignature == nil || updateSignature {
 		// set JWT signature
 		signature, err := util.MakeSignature(32)
 		errors.CheckError(err)
@@ -417,7 +425,7 @@ func UpdateSettings(defaultPassword string, cdSettings *ArgoCDSettings, UpdateSi
 	if cdSettings.LocalUsers == nil {
 		cdSettings.LocalUsers = make(map[string]string)
 	}
-	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok || UpdateSuperuser {
+	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok || updateSuperuser {
 		passwordRaw := defaultPassword
 		if passwordRaw == "" {
 			passwordRaw = readAndConfirmPassword()
@@ -449,5 +457,7 @@ func UpdateSettings(defaultPassword string, cdSettings *ArgoCDSettings, UpdateSi
 		cdSettings.Certificate = cert
 	}
 
+	err = settingsMgr.SaveSettings(cdSettings)
+	errors.CheckError(err)
 	return cdSettings
 }

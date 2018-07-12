@@ -31,7 +31,6 @@ import (
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -107,19 +106,12 @@ type ArgoCDServerOpts struct {
 
 //initializeSettings sets default secret settings (password set to hostname)
 func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
-	cdSettings, err := settingsMgr.GetSettings()
-	if err != nil {
-		if apierr.IsNotFound(err) {
-			log.Fatal(err)
-		}
-	}
+
 	defaultPassword, err := os.Hostname()
 	errors.CheckError(err)
 
-	cdSettings = settings_util.UpdateSettings(defaultPassword, cdSettings, false, false, opts.Namespace)
+	cdSettings := settings_util.UpdateSettings(defaultPassword, settingsMgr, false, false, opts.Namespace)
 
-	err = settingsMgr.SaveSettings(cdSettings)
-	errors.CheckError(err)
 	return cdSettings, nil
 }
 

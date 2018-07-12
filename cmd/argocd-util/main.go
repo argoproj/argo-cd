@@ -21,7 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -346,9 +345,9 @@ func NewExportCommand() *cobra.Command {
 func NewSettingsCommand() *cobra.Command {
 	var (
 		clientConfig      clientcmd.ClientConfig
-		UpdateSuperuser   bool
-		SuperuserPassword string
-		UpdateSignature   bool
+		updateSuperuser   bool
+		superuserPassword string
+		updateSignature   bool
 	)
 	var command = &cobra.Command{
 		Use:   "settings",
@@ -366,23 +365,13 @@ func NewSettingsCommand() *cobra.Command {
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 			settingsMgr := settings.NewSettingsManager(kubeclientset, namespace)
-			cdSettings, err := settingsMgr.GetSettings()
-			if err != nil {
-				if apierr.IsNotFound(err) {
-					cdSettings = &settings.ArgoCDSettings{}
-				} else {
-					log.Fatal(err)
-				}
-			}
 
-			cdSettings = settings.UpdateSettings(SuperuserPassword, cdSettings, UpdateSignature, UpdateSuperuser, namespace)
-			err = settingsMgr.SaveSettings(cdSettings)
-			errors.CheckError(err)
+			_ = settings.UpdateSettings(superuserPassword, settingsMgr, updateSignature, updateSuperuser, namespace)
 		},
 	}
-	command.Flags().BoolVar(&UpdateSuperuser, "update-superuser", false, "force updating the  superuser password")
-	command.Flags().StringVar(&SuperuserPassword, "superuser-password", "", "password for super user")
-	command.Flags().BoolVar(&UpdateSignature, "update-signature", false, "force updating the server-side token signing signature")
+	command.Flags().BoolVar(&updateSuperuser, "update-superuser", false, "force updating the  superuser password")
+	command.Flags().StringVar(&superuserPassword, "superuser-password", "", "password for super user")
+	command.Flags().BoolVar(&updateSignature, "update-signature", false, "force updating the server-side token signing signature")
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	return command
 }
