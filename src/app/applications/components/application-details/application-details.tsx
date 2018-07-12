@@ -155,7 +155,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 {this.state.application && <ApplicationStatusPanel application={this.state.application}
                     showOperation={() => this.setOperationStatusVisible(true)}
                     showConditions={() => this.setConditionsStatusVisible(true)}/>}
-                <div className='argo-container application-details'>
+                <div className='application-details'>
                     {this.state.application ? (
                         <ApplicationResourcesTree
                             kindsFilter={kindsFilter}

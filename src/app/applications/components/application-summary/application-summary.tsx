@@ -20,9 +20,6 @@ export const ApplicationSummary = ({app}: {app: models.Application}) => {
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
-    if (app.status.comparisonResult.error) {
-        attributes.push({title: 'COMPARISON ERROR', value: app.status.comparisonResult.error});
-    }
     return (
         <div className='white-box'>
             <div className='white-box__details'>

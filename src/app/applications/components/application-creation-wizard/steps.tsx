@@ -62,7 +62,7 @@ export const RepositoryList: React.StatelessComponent<
     </div>) || (
     <div>
         <p>No repositories connected. Connect your first repo to create an application.</p>
-        <button className='argo-button argo-button--base' onClick={() => context.router.history.push('/repositories?addRepo=true')} >Connect Repo</button>
+        <button className='argo-button argo-button--base' onClick={() => context.router.history.push('/settings/repos?addRepo=true')} >Connect Repo</button>
     </div>
     )
 );

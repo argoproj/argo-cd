@@ -4,6 +4,7 @@
     &__manifest {
         background: white;
         padding: 1em;
+        overflow-x: auto;
 
         &--raw {
             font-family: 'Bitstream Vera Sans Mono', 'DejaVu Sans Mono', Monaco, Courier, monospace;

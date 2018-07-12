@@ -59,7 +59,7 @@ export const ApplicationResourcesTree = (props: {
     nodeLabels?: (node: models.ResourceNode | models.ResourceState) => string[];
 }) => {
     const graph = new dagre.graphlib.Graph();
-    graph.setGraph({ rankdir: 'LR' });
+    graph.setGraph({ rankdir: 'LR', marginx: -100 });
     graph.setDefaultEdgeLabel(() => ({}));
     graph.setNode(`${props.app.kind}:${props.app.metadata.name}`, { state: props.app, width: NODE_WIDTH, height: NODE_HEIGHT });
 

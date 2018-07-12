@@ -111,7 +111,7 @@ export interface ApplicationSource {
     environment: string;
 
     /**
-     * Overriden component parameters.
+     * Overridden component parameters.
      */
     componentParameterOverrides: ComponentParameter[];
 }
@@ -133,19 +133,18 @@ export interface DeploymentInfo {
     deployedAt: models.Time;
 }
 
-export type ComparisonStatus = '' | 'Error' | 'Synced' | 'OutOfSync';
+export type ComparisonStatus = 'Unknown' | 'Synced' | 'OutOfSync';
 
 export const ComparisonStatuses = {
-    Unknown: '',
-    Error: 'Error' ,
+    Unknown: 'Unknown',
     Synced: 'Synced' ,
     OutOfSync: 'OutOfSync',
 };
 
-export type HealthStatusCode = '' | 'Progressing' | 'Healthy' | 'Degraded';
+export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Degraded';
 
 export const HealthStatuses = {
-    Unknown: '',
+    Unknown: 'Unknown',
     Progressing: 'Progressing',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
@@ -176,7 +175,6 @@ export interface ComparisonResult {
     comparedTo: ApplicationSource;
     status: ComparisonStatus;
     resources: ResourceState[];
-    error: string;
     namespace: string;
     server: string;
 }
