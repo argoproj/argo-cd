@@ -617,14 +617,20 @@ func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) bool {
 func (sc *syncContext) setResourceDetails(details *appv1.ResourceDetails) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
-	sc.log.Infof("Set sync result: %v", details)
 	for i, res := range sc.syncRes.Resources {
 		if res.Kind == details.Kind && res.Name == details.Name {
 			// update existing value
+			if res.Status != details.Status {
+				sc.log.Infof("updated resource %s/%s status: %s -> %s", res.Kind, res.Name, res.Status, details.Status)
+			}
+			if res.Message != details.Message {
+				sc.log.Infof("updated resource %s/%s message: %s -> %s", res.Kind, res.Name, res.Message, details.Message)
+			}
 			sc.syncRes.Resources[i] = details
 			return
 		}
 	}
+	sc.log.Infof("added resource %s/%s status: %s, message: %s", details.Kind, details.Name, details.Status, details.Message)
 	sc.syncRes.Resources = append(sc.syncRes.Resources, details)
 }
 
@@ -709,13 +715,18 @@ func (sc *syncContext) updateHookStatus(hook *unstructured.Unstructured, hookTyp
 			if reflect.DeepEqual(prev, hookStatus) {
 				return false
 			}
+			if prev.Status != hookStatus.Status {
+				sc.log.Infof("Hook %s %s/%s status: %s -> %s", hookType, prev.Kind, prev.Name, prev.Status, hookStatus.Status)
+			}
+			if prev.Message != hookStatus.Message {
+				sc.log.Infof("Hook %s %s/%s message: '%s' -> '%s'", hookType, prev.Kind, prev.Name, prev.Message, hookStatus.Message)
+			}
 			sc.syncRes.Hooks[i] = &hookStatus
-			sc.log.Infof("Updated hook status: previous: %v, current: %v", prev, hookStatus)
 			return true
 		}
 	}
 	sc.syncRes.Hooks = append(sc.syncRes.Hooks, &hookStatus)
-	sc.log.Infof("Added new hook status: %v", hookStatus)
+	sc.log.Infof("Set new hook %s %s/%s. status: %s, message: %s", hookStatus.Type, hookStatus.Kind, hookStatus.Name, hookStatus.Status, hookStatus.Message)
 	return true
 }
 

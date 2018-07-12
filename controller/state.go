@@ -378,7 +378,7 @@ func (s *ksonnetAppStateManager) persistDeploymentInfo(
 		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		Revision:                    revision,
 		Params:                      params,
-		DeployedAt:                  metav1.NewTime(time.Now()),
+		DeployedAt:                  metav1.NewTime(time.Now().UTC()),
 		ID:                          nextID,
 	})
 

@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	"encoding/json"
 	"strings"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -475,14 +474,6 @@ func (app *Application) SetCascadedDeletion(prune bool) {
 			app.Finalizers = append(app.Finalizers, common.ResourcesFinalizerName)
 		}
 	}
-}
-
-// NeedRefreshAppStatus answers if application status needs to be refreshed.
-// Returns true if application never been compared, has changed or comparison result has expired.
-func (app *Application) NeedRefreshAppStatus(statusRefreshTimeout time.Duration) bool {
-	return app.Status.ComparisonResult.Status == ComparisonStatusUnknown ||
-		!app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) ||
-		app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now())
 }
 
 // GetErrorConditions returns list of application error conditions

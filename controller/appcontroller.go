@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -346,15 +347,19 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 		app = freshApp
 		state = app.Status.OperationState.DeepCopy()
-		log.Infof("Resuming in-progress operation %s %v", app.ObjectMeta.Name, state)
+		log.Infof("Resuming in-progress operation. app: %s, phase: %s, message: %s", app.ObjectMeta.Name, state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 		ctrl.setOperationState(app, state, app.Operation)
-		log.Infof("Initialized new operation %s %v", app.ObjectMeta.Name, state)
+		log.Infof("Initialized new operation. app: %s, operation: %v", app.ObjectMeta.Name, *app.Operation)
 	}
 	ctrl.appStateManager.SyncAppState(app, state)
 	ctrl.setOperationState(app, state, app.Operation)
-	ctrl.forceAppRefresh(app.ObjectMeta.Name)
+	if state.Phase.Completed() {
+		// if we just completed an operation, force a refresh so that UI will report up-to-date
+		// sync/health information
+		ctrl.forceAppRefresh(app.ObjectMeta.Name)
+	}
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState, operation *appv1.Operation) {
@@ -375,7 +380,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 
 		if reflect.DeepEqual(app.Operation, inProgressOpValue) && reflect.DeepEqual(app.Status.OperationState, state) {
-			log.Infof("no updates necessary to '%s' skipping patch", app.Name)
+			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.Name)
 			return nil
 		}
 
@@ -403,10 +408,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if shutdown {
 		processNext = false
 		return
-	} else {
-		processNext = true
 	}
-
+	processNext = true
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -428,49 +431,55 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	isForceRefreshed := ctrl.isRefreshForced(app.Name)
-	if !isForceRefreshed && !app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
+	if !ctrl.needRefreshAppStatus(app, ctrl.statusRefreshTimeout) {
 		return
 	}
 
-	log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
 	app = app.DeepCopy()
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
-		if !reflect.DeepEqual(app.Status.Conditions, conditions) {
-			ctrl.updateAppStatus(app.Name, app.Namespace, map[string]interface{}{"conditions": conditions})
-		}
+		ctrl.updateAppStatus(app, nil, nil, nil, conditions)
 		return
 	}
 
-	patch := make(map[string]interface{})
 	comparisonResult, manifestInfo, compConditions, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
-		log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
-		patch["comparisonResult"] = comparisonResult
 		conditions = append(conditions, compConditions...)
 	}
 
+	var parameters []*appv1.ComponentParameter
 	if manifestInfo != nil {
-		parameters := make([]appv1.ComponentParameter, len(manifestInfo.Params))
-		for i := range manifestInfo.Params {
-			parameters[i] = *manifestInfo.Params[i]
-		}
-		patch["parameters"] = parameters
+		parameters = manifestInfo.Params
 	}
 
 	healthState, err := setApplicationHealth(comparisonResult)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
-	} else {
-		patch["health"] = healthState
 	}
-
-	patch["conditions"] = conditions
-	ctrl.updateAppStatus(app.Name, app.Namespace, patch)
+	ctrl.updateAppStatus(app, comparisonResult, healthState, parameters, conditions)
 	return
+}
+
+// needRefreshAppStatus answers if application status needs to be refreshed.
+// Returns true if application never been compared, has changed or comparison result has expired.
+func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) bool {
+	var reason string
+	if ctrl.isRefreshForced(app.Name) {
+		reason = "force refresh"
+	} else if app.Status.ComparisonResult.Status == appv1.ComparisonStatusUnknown {
+		reason = "comparison status unknown"
+	} else if !app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) {
+		reason = "spec.source differs"
+	} else if app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now().UTC()) {
+		reason = fmt.Sprintf("comparison expired. comparedAt: %v, expiry: %v", app.Status.ComparisonResult.ComparedAt, statusRefreshTimeout)
+	}
+	if reason != "" {
+		log.Infof("Refreshing application '%s' status (%s)", app.Name, reason)
+		return true
+	}
+	return false
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
@@ -552,23 +561,56 @@ func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.Heal
 	return &appHealth, nil
 }
 
-// updateAppStatus persists updates to application status
-// TODO: improve this so that we do not make a PATCH call if nothing changes, otherwise we may
-// cause a feedback loop in the workqueue
+// updateAppStatus persists updates to application status. Detects if there patch
 func (ctrl *ApplicationController) updateAppStatus(
-	appName string, namespace string, statusPatch map[string]interface{}) {
-	patch, err := json.Marshal(map[string]interface{}{
-		"status": statusPatch,
-	})
-
-	if err == nil {
-		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(namespace)
-		_, err = appClient.Patch(appName, types.MergePatchType, patch)
+	app *appv1.Application,
+	comparisonResult *appv1.ComparisonResult,
+	healthState *appv1.HealthStatus,
+	parameters []*appv1.ComponentParameter,
+	conditions []appv1.ApplicationCondition,
+) {
+	modifiedApp := app.DeepCopy()
+	if comparisonResult != nil {
+		modifiedApp.Status.ComparisonResult = *comparisonResult
+		log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
 	}
+	if healthState != nil {
+		modifiedApp.Status.Health = *healthState
+	}
+	if parameters != nil {
+		modifiedApp.Status.Parameters = make([]appv1.ComponentParameter, len(parameters))
+		for i := range parameters {
+			modifiedApp.Status.Parameters[i] = *parameters[i]
+		}
+	}
+	if conditions != nil {
+		modifiedApp.Status.Conditions = conditions
+	}
+	origBytes, err := json.Marshal(app)
 	if err != nil {
-		log.Warnf("Error updating application: %v", err)
+		log.Errorf("Error updating application %s (marshal orig app): %v", app.Name, err)
+		return
+	}
+	modifiedBytes, err := json.Marshal(modifiedApp)
+	if err != nil {
+		log.Errorf("Error updating application %s (marshal modified app): %v", app.Name, err)
+		return
+	}
+	patch, err := strategicpatch.CreateTwoWayMergePatch(origBytes, modifiedBytes, appv1.Application{})
+	if err != nil {
+		log.Errorf("Error calculating patch for app %s update: %v", app.Name, err)
+		return
+	}
+	if string(patch) == "{}" {
+		log.Infof("No status changes to %s. Skipping patch", app.Name)
+		return
+	}
+	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+	_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
+	if err != nil {
+		log.Warnf("Error updating application %s: %v", app.Name, err)
 	} else {
-		log.Info("Application update successful")
+		log.Infof("Application %s update successful", app.Name)
 	}
 }
 
