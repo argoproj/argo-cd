@@ -2011,13 +2011,6 @@
         "finishedAt": {
           "$ref": "#/definitions/v1Time"
         },
-        "hookResources": {
-          "type": "array",
-          "title": "HookResources contains list of hook resource statuses associated with this operation",
-          "items": {
-            "$ref": "#/definitions/v1alpha1HookStatus"
-          }
-        },
         "message": {
           "description": "Message hold any pertinent messages when attempting to perform operation (typically errors).",
           "type": "string"
@@ -2179,6 +2172,13 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
+        "hooks": {
+          "type": "array",
+          "title": "Hooks contains list of hook resource statuses associated with this operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HookStatus"
+          }
+        },
         "resources": {
           "type": "array",
           "title": "Resources holds the sync result of each individual resource",

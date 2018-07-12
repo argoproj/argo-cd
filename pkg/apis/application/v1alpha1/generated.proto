@@ -278,9 +278,6 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
-
-  // HookResources contains list of hook resource statuses associated with this operation
-  repeated HookStatus hookResources = 8;
 }
 
 // Repository is a Git repository holding application configurations
@@ -365,6 +362,9 @@ message SyncOperationResult {
 
   // Revision holds the git commit SHA of the sync
   optional string revision = 2;
+
+  // Hooks contains list of hook resource statuses associated with this operation
+  repeated HookStatus hooks = 3;
 }
 
 // SyncStrategy indicates the

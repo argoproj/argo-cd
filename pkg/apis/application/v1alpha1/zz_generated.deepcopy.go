@@ -547,11 +547,6 @@ func (in *OperationState) DeepCopyInto(out *OperationState) {
 			(*in).DeepCopyInto(*out)
 		}
 	}
-	if in.HookResources != nil {
-		in, out := &in.HookResources, &out.HookResources
-		*out = make([]HookStatus, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 
@@ -721,6 +716,18 @@ func (in *SyncOperationResult) DeepCopyInto(out *SyncOperationResult) {
 				(*out)[i] = nil
 			} else {
 				(*out)[i] = new(ResourceDetails)
+				(*in)[i].DeepCopyInto((*out)[i])
+			}
+		}
+	}
+	if in.Hooks != nil {
+		in, out := &in.Hooks, &out.Hooks
+		*out = make([]*HookStatus, len(*in))
+		for i := range *in {
+			if (*in)[i] == nil {
+				(*out)[i] = nil
+			} else {
+				(*out)[i] = new(HookStatus)
 				(*in)[i].DeepCopyInto((*out)[i])
 			}
 		}

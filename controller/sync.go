@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -32,6 +33,7 @@ type syncContext struct {
 	disco         *discovery.DiscoveryClient
 	namespace     string
 	syncOp        *appv1.SyncOperation
+	syncRes       *appv1.SyncOperationResult
 	opState       *appv1.OperationState
 	manifestInfo  *repository.ManifestResponse
 	log           *log.Entry
@@ -42,7 +44,7 @@ type syncContext struct {
 func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
 	// Sync requests are usually requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
-	// concrete git commit SHA, the SHA remembered in the status.operationState.syncResult and
+	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult and
 	// rollbackResult fields. This ensures that when resuming an operation, we sync to the same
 	// revision that we initially started with.
 	var revision string
@@ -74,9 +76,10 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		}
 		// Rollback is just a convenience around Sync
 		syncOp = appv1.SyncOperation{
-			Revision: deploymentInfo.Revision,
-			DryRun:   state.Operation.Rollback.DryRun,
-			Prune:    state.Operation.Rollback.Prune,
+			Revision:     deploymentInfo.Revision,
+			DryRun:       state.Operation.Rollback.DryRun,
+			Prune:        state.Operation.Rollback.Prune,
+			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 		}
 		overrides = deploymentInfo.ComponentParameterOverrides
 		if state.RollbackResult != nil {
@@ -142,6 +145,7 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		disco:         disco,
 		namespace:     app.Spec.Destination.Namespace,
 		syncOp:        &syncOp,
+		syncRes:       syncRes,
 		opState:       state,
 		manifestInfo:  manifestInfo,
 		log:           log.WithFields(log.Fields{"application": app.Name}),
@@ -175,18 +179,18 @@ func (sc *syncContext) sync() {
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
 	// will not not detect if they are mutating immutable fields). If anything fails, we will refuse
 	// to perform the sync.
-	if len(sc.opState.SyncResult.Resources) == 0 {
+	if !sc.startedPreSyncPhase() {
 		// Optimization: we only wish to do this once per operation, performing additional dry-runs
 		// is harmless, but redundant. The indicator we use to detect if we have already performed
-		// the dry-run for this operation, is if the SyncResult resource list is empty.
-		successful = sc.doApplySync(syncTasks, true, false)
-		if !successful {
+		// the dry-run for this operation, is if the resource or hook list is empty.
+		if !sc.doApplySync(syncTasks, true, false, sc.syncOp.DryRun) {
+			sc.setOperationPhase(appv1.OperationFailed, "one or more objects failed to apply (dry run)")
 			return
 		}
-	}
-	if sc.syncOp.DryRun {
-		sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced (dry run)")
-		return
+		if sc.syncOp.DryRun {
+			sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced (dry run)")
+			return
+		}
 	}
 
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
@@ -195,7 +199,17 @@ func (sc *syncContext) sync() {
 		sc.syncOp.SyncStrategy = &appv1.SyncStrategy{Hook: &appv1.SyncStrategyHook{}}
 	}
 	if sc.syncOp.SyncStrategy.Apply != nil {
-		sc.doApplySync(syncTasks, false, sc.syncOp.SyncStrategy.Apply.Force)
+		if !sc.startedSyncPhase() {
+			if !sc.doApplySync(syncTasks, false, sc.syncOp.SyncStrategy.Apply.Force, true) {
+				sc.setOperationPhase(appv1.OperationFailed, "one or more objects failed to apply")
+				return
+			}
+			// If apply was successful, return here and force an app refresh. This is so the app
+			// will become requeued into the workqueue, to force a new sync/health assessment before
+			// marking the operation as completed
+			return
+		}
+		sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced")
 	} else if sc.syncOp.SyncStrategy.Hook != nil {
 		hooks, err := sc.getHooks()
 		if err != nil {
@@ -207,6 +221,10 @@ func (sc *syncContext) sync() {
 		sc.setOperationPhase(appv1.OperationFailed, "Unknown sync strategy")
 		return
 	}
+}
+
+func (sc *syncContext) forceAppRefresh() {
+	sc.comparison.ComparedAt = metav1.Time{}
 }
 
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
@@ -232,7 +250,47 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	return syncTasks, true
 }
 
+// startedPreSyncPhase detects if we already started the PreSync stage of a sync operation.
+// This is equal to if we have anything in our resource or hook list
+func (sc *syncContext) startedPreSyncPhase() bool {
+	if len(sc.syncRes.Resources) > 0 {
+		return true
+	}
+	if len(sc.syncRes.Hooks) > 0 {
+		return true
+	}
+	return false
+}
+
+// startedSyncPhase detects if we have already started the Sync stage of a sync operation.
+// This is equal to if the resource list is non-empty, or we we see Sync/PostSync hooks
+func (sc *syncContext) startedSyncPhase() bool {
+	if len(sc.syncRes.Resources) > 0 {
+		return true
+	}
+	for _, hookStatus := range sc.syncRes.Hooks {
+		if hookStatus.Type == appv1.HookTypeSync || hookStatus.Type == appv1.HookTypePostSync {
+			return true
+		}
+	}
+	return false
+}
+
+// startedPostSyncPhase detects if we have already started the PostSync stage. This is equal to if
+// we see any PostSync hooks
+func (sc *syncContext) startedPostSyncPhase() bool {
+	for _, hookStatus := range sc.syncRes.Hooks {
+		if hookStatus.Type == appv1.HookTypePostSync {
+			return true
+		}
+	}
+	return false
+}
+
 func (sc *syncContext) setOperationPhase(phase appv1.OperationPhase, message string) {
+	if sc.opState.Phase != phase || sc.opState.Message != message {
+		sc.log.Infof("Updating operation state. phase: %s -> %s, message: '%s' -> '%s'", sc.opState.Phase, phase, sc.opState.Message, message)
+	}
 	sc.opState.Phase = phase
 	sc.opState.Message = message
 }
@@ -285,8 +343,9 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	return resDetails, successful
 }
 
-// performs an apply of the given sync tasks.
-func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force bool) bool {
+// performs a apply based sync of the given sync tasks (possibly pruning the objects).
+// Optionally updates the resource details with the result
+func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update bool) bool {
 	syncSuccessful := true
 	// apply all resources in parallel
 	var wg sync.WaitGroup
@@ -299,7 +358,7 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force bool) boo
 			if t.targetObj == nil {
 				resDetails, successful = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			} else {
-				if !isSyncedResource(t.targetObj) {
+				if isHook(t.targetObj) {
 					return
 				}
 				resDetails, successful = sc.applyObject(t.targetObj, dryRun, force)
@@ -307,54 +366,67 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force bool) boo
 			if !successful {
 				syncSuccessful = false
 			}
-			sc.setResourceDetails(&resDetails)
+			if update {
+				sc.setResourceDetails(&resDetails)
+			}
 		}(task)
 	}
 	wg.Wait()
-	if !syncSuccessful {
-		errMsg := "one or more objects failed to apply"
-		if dryRun {
-			errMsg += " (dry run)"
-		}
-		sc.setOperationPhase(appv1.OperationFailed, errMsg)
-		return false
-	}
-	if !dryRun {
-		sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced")
-	}
-	return true
+	return syncSuccessful
 }
 
-// doHookSync initiates or continues a hook-based sync. This method will be invoked when there may
-// already be in-flight jobs/workflows, and should be idempotent.
+// doHookSync initiates (or continues) a hook-based sync. This method will be invoked when there may
+// already be in-flight (potentially incomplete) jobs/workflows, and should be idempotent.
 func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Unstructured) {
-	for _, hookType := range []appv1.HookType{appv1.HookTypePreSync, appv1.HookTypeSync, appv1.HookTypePostSync} {
-		switch hookType {
-		case appv1.HookTypeSync:
-			// before performing the sync via hook, apply any manifests which are missing the hook annotation
-			sc.syncNonHookTasks(syncTasks)
-		case appv1.HookTypePostSync:
-			// TODO: don't run post-sync workflows until we are in sync and progressed
+	// 1. Run PreSync hooks
+	if !sc.runHooks(hooks, appv1.HookTypePreSync) {
+		return
+	}
+
+	// 2. Run Sync hooks (e.g. blue-green sync workflow)
+	// Before performing Sync hooks, apply any normal manifests which aren't annotated with a hook.
+	// We only want to do this once per operation.
+	shouldContinue := true
+	if !sc.startedSyncPhase() {
+		if !sc.syncNonHookTasks(syncTasks) {
+			sc.setOperationPhase(appv1.OperationFailed, "one or more objects failed to apply")
+			return
 		}
-		err := sc.runHooks(hooks, hookType)
+		shouldContinue = false
+	}
+	if !sc.runHooks(hooks, appv1.HookTypeSync) {
+		shouldContinue = false
+	}
+	if !shouldContinue {
+		return
+	}
+
+	// 3. Run PostSync hooks
+	// Before running PostSync hooks, we want to make rollout is complete (app is healthy). If we
+	// already started the post-sync phase, then we do not need to perform the health check.
+	postSyncHooks, _ := sc.getHooks(appv1.HookTypePostSync)
+	if len(postSyncHooks) > 0 && !sc.startedPostSyncPhase() {
+		healthState, err := setApplicationHealth(sc.comparison)
+		sc.log.Infof("PostSync application health check: %s", healthState.Status)
 		if err != nil {
-			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("%s hook error: %v", hookType, err))
+			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to check application health: %v", err))
 			return
 		}
-		completed, successful := areHooksCompletedSuccessful(hookType, sc.opState.HookResources)
-		if !completed {
-			return
-		}
-		if !successful {
-			sc.setOperationPhase(appv1.OperationFailed, fmt.Sprintf("%s hook failed", hookType))
+		if healthState.Status != appv1.HealthStatusHealthy {
+			sc.setOperationPhase(appv1.OperationRunning, fmt.Sprintf("waiting for %s state to run %s hooks (current health: %s)", appv1.HealthStatusHealthy, appv1.HookTypePostSync, healthState.Status))
 			return
 		}
 	}
+	if !sc.runHooks(hooks, appv1.HookTypePostSync) {
+		return
+	}
+
 	// if we get here, all hooks successfully completed
 	sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced")
 }
 
-func (sc *syncContext) getHooks() ([]*unstructured.Unstructured, error) {
+// getHooks returns all hooks, or ones of the specific type(s)
+func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Unstructured, error) {
 	var hooks []*unstructured.Unstructured
 	for _, manifest := range sc.manifestInfo.Manifests {
 		var hook unstructured.Unstructured
@@ -362,14 +434,31 @@ func (sc *syncContext) getHooks() ([]*unstructured.Unstructured, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !isHook(&hook) {
+			continue
+		}
+		if len(hookTypes) > 0 {
+			match := false
+			for _, desiredType := range hookTypes {
+				if isHookType(&hook, desiredType) {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
 		hooks = append(hooks, &hook)
 	}
 	return hooks, nil
 }
 
 // runHooks iterates & filters the target manifests for resources of the specified hook type, then
-// creates the resource. Updates the sc.opRes.hooks with the current status
-func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType appv1.HookType) error {
+// creates the resource. Updates the sc.opRes.hooks with the current status. Returns whether or not
+// we should continue to the next hook phase.
+func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType appv1.HookType) bool {
+	shouldContinue := true
 	for _, hook := range hooks {
 		if hookType == appv1.HookTypeSync && isHookType(hook, appv1.HookTypeSkip) {
 			// If we get here, we are invoking all sync hooks and reached a resource that is
@@ -386,20 +475,45 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 		if !isHookType(hook, hookType) {
 			continue
 		}
-		err := sc.runHook(hook, hookType)
+		updated, err := sc.runHook(hook, hookType)
 		if err != nil {
-			return err
+			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("%s hook error: %v", hookType, err))
+			return false
+		}
+		if updated {
+			// If the result of running a hook, caused us to modify hook resource state, we should
+			// not proceed to the next hook phase. This is because before proceeding to the next
+			// phase, we want a full health assessment to happen. By returning early, we allow
+			// the application to get requeued into the controller workqueue, and on the next
+			// process iteration, a new CompareAppState() will be performed to get the most
+			// up-to-date live state. This enables us to accurately wait for an application to
+			// become Healthy before proceeding to run PostSync tasks.
+			shouldContinue = false
 		}
 	}
-	return nil
+	if !shouldContinue {
+		sc.log.Infof("Stopping after %s phase due to modifications to hook resource state", hookType)
+		return false
+	}
+	completed, successful := areHooksCompletedSuccessful(hookType, sc.syncRes.Hooks)
+	if !completed {
+		return false
+	}
+	if !successful {
+		sc.setOperationPhase(appv1.OperationFailed, fmt.Sprintf("%s hook failed", appv1.HookTypePreSync))
+		return false
+	}
+	return true
 }
 
-func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.HookType) error {
+// runHook runs the supplied hook and updates the hook status. Returns true if the result of
+// invoking this method resulted in changes to any hook status
+func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.HookType) (bool, error) {
 	// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
 	// or formulated at the time of the operation (metadata.generateName). If user specifies
 	// metadata.generateName, then we will generate a formulated metadata.name before submission.
 	if hook.GetName() == "" {
-		postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", hookType, sc.opState.SyncResult.Revision[0:7], sc.opState.StartedAt.UTC().Unix()))
+		postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", hookType, sc.syncRes.Revision[0:7], sc.opState.StartedAt.UTC().Unix()))
 		generatedName := hook.GetGenerateName()
 		hook = hook.DeepCopy()
 		hook.SetName(fmt.Sprintf("%s%s", generatedName, postfix))
@@ -408,17 +522,17 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	// If so, this method is a noop
 	prevStatus := sc.getHookStatus(hook, hookType)
 	if prevStatus != nil && prevStatus.Status.Completed() {
-		return nil
+		return false, nil
 	}
 
 	gvk := hook.GroupVersionKind()
 	dclient, err := sc.dynClientPool.ClientForGroupVersionKind(gvk)
 	if err != nil {
-		return err
+		return false, err
 	}
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
 	if err != nil {
-		return err
+		return false, err
 	}
 	resIf := dclient.Resource(apiResource, sc.namespace)
 
@@ -426,24 +540,23 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	existing, err := resIf.Get(hook.GetName(), metav1.GetOptions{})
 	if err != nil {
 		if !apierr.IsNotFound(err) {
-			return fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
+			return false, fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
 		}
 		_, err := kube.ApplyResource(sc.config, hook, sc.namespace, false, false)
 		if err != nil {
-			return fmt.Errorf("Failed to create %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
+			return false, fmt.Errorf("Failed to create %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
 		}
 		created, err := resIf.Get(hook.GetName(), metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
+			return true, fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
 		}
 		sc.log.Infof("%s hook %s '%s' created", hookType, gvk, created.GetName())
-		sc.setOperationPhase(appv1.OperationRunning, fmt.Sprintf("Running %s hooks", hookType))
+		sc.setOperationPhase(appv1.OperationRunning, fmt.Sprintf("running %s hooks", hookType))
 		liveObj = created
 	} else {
 		liveObj = existing
 	}
-	sc.setHookStatus(liveObj, hookType)
-	return nil
+	return sc.updateHookStatus(liveObj, hookType), nil
 }
 
 // isHookType tells whether or not the supplied object is a hook of the specified type
@@ -461,35 +574,27 @@ func isHookType(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
 	return false
 }
 
-// isSyncedResource tells whether or not the supplied object is a normal, synced resource,
-// and not a lifecycle hook.
-func isSyncedResource(obj *unstructured.Unstructured) bool {
+// isHook tells whether or not the supplied object is a application lifecycle hook, or a normal,
+// synced application resource
+func isHook(obj *unstructured.Unstructured) bool {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
-		return true
+		return false
 	}
 	resHookTypes := strings.Split(annotations[common.AnnotationHook], ",")
 	for _, hookType := range resHookTypes {
 		hookType = strings.TrimSpace(hookType)
 		switch appv1.HookType(hookType) {
 		case appv1.HookTypePreSync, appv1.HookTypeSync, appv1.HookTypePostSync:
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
-// syncNonHookTasks syncs or prunes the objects that are not handled by hooks
-func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) {
-	// We need to make sure we only do the `kubectl apply` at most once per operation.
-	// Because we perform the apply before immediately before creating sync hooks, if we see any
-	// Sync or PostSync hooks recorded in the list, we can safely assume we've already performed
-	// the apply.
-	for _, hr := range sc.opState.HookResources {
-		if hr.Type == appv1.HookTypeSync || hr.Type == appv1.HookTypePostSync {
-			return
-		}
-	}
+// syncNonHookTasks syncs or prunes the objects that are not handled by hooks using an apply sync.
+// returns true if the sync was successful
+func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) bool {
 	var nonHookTasks []syncTask
 	for _, task := range syncTasks {
 		if task.targetObj == nil {
@@ -505,7 +610,7 @@ func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) {
 			nonHookTasks = append(nonHookTasks, task)
 		}
 	}
-	sc.doApplySync(nonHookTasks, false, sc.syncOp.SyncStrategy.Hook.Force)
+	return sc.doApplySync(nonHookTasks, false, sc.syncOp.SyncStrategy.Hook.Force, true)
 }
 
 // setResourceDetails sets a resource details in the SyncResult.Resources list
@@ -513,29 +618,29 @@ func (sc *syncContext) setResourceDetails(details *appv1.ResourceDetails) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	sc.log.Infof("Set sync result: %v", details)
-	for i, res := range sc.opState.SyncResult.Resources {
+	for i, res := range sc.syncRes.Resources {
 		if res.Kind == details.Kind && res.Name == details.Name {
 			// update existing value
-			sc.opState.SyncResult.Resources[i] = details
+			sc.syncRes.Resources[i] = details
 			return
 		}
 	}
-	sc.opState.SyncResult.Resources = append(sc.opState.SyncResult.Resources, details)
+	sc.syncRes.Resources = append(sc.syncRes.Resources, details)
 }
 
 func (sc *syncContext) getHookStatus(hookObj *unstructured.Unstructured, hookType appv1.HookType) *appv1.HookStatus {
-	for _, hr := range sc.opState.HookResources {
+	for _, hr := range sc.syncRes.Hooks {
 		if hr.Name == hookObj.GetName() && hr.Kind == hookObj.GetKind() && hr.Type == hookType {
-			return &hr
+			return hr
 		}
 	}
 	return nil
 }
 
-func (sc *syncContext) setHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) {
+// updateHookStatus updates the status of a hook. Returns whether or not the hook was changed or not
+func (sc *syncContext) updateHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
-	// TODO: how to handle situation when resource is part of multiple hooks?
 	hookStatus := appv1.HookStatus{
 		Name:       hook.GetName(),
 		Kind:       hook.GetKind(),
@@ -599,18 +704,23 @@ func (sc *syncContext) setHookStatus(hook *unstructured.Unstructured, hookType a
 		hookStatus.Message = fmt.Sprintf("%s created", hook.GetName())
 	}
 
-	sc.log.Infof("Set hook status: %v", hookStatus)
-	for i, hr := range sc.opState.HookResources {
-		if hr.Name == hookStatus.Name && hr.Kind == hookStatus.Kind && hr.Type == hookType {
-			sc.opState.HookResources[i] = hookStatus
-			return
+	for i, prev := range sc.syncRes.Hooks {
+		if prev.Name == hookStatus.Name && prev.Kind == hookStatus.Kind && prev.Type == hookType {
+			if reflect.DeepEqual(prev, hookStatus) {
+				return false
+			}
+			sc.syncRes.Hooks[i] = &hookStatus
+			sc.log.Infof("Updated hook status: previous: %v, current: %v", prev, hookStatus)
+			return true
 		}
 	}
-	sc.opState.HookResources = append(sc.opState.HookResources, hookStatus)
+	sc.syncRes.Hooks = append(sc.syncRes.Hooks, &hookStatus)
+	sc.log.Infof("Added new hook status: %v", hookStatus)
+	return true
 }
 
 // areHooksCompletedSuccessful checks if all the hooks of the specified type are completed and successful
-func areHooksCompletedSuccessful(hookType appv1.HookType, hookStatuses []appv1.HookStatus) (bool, bool) {
+func areHooksCompletedSuccessful(hookType appv1.HookType, hookStatuses []*appv1.HookStatus) (bool, bool) {
 	isSuccessful := true
 	for _, hookStatus := range hookStatuses {
 		if hookStatus.Type != hookType {

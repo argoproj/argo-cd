@@ -428,47 +428,48 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-
 	isForceRefreshed := ctrl.isRefreshForced(app.Name)
-	if isForceRefreshed || app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
-		log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
-		app := app.DeepCopy()
-
-		conditions, hasErrors := ctrl.refreshAppConditions(app)
-
-		if !hasErrors {
-			patch := make(map[string]interface{})
-			comparisonResult, manifestInfo, compConditions, err := ctrl.appStateManager.CompareAppState(app, "", nil)
-			if err != nil {
-				conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
-			} else {
-				log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
-				patch["comparisonResult"] = comparisonResult
-				conditions = append(conditions, compConditions...)
-			}
-
-			if manifestInfo != nil {
-				parameters := make([]appv1.ComponentParameter, len(manifestInfo.Params))
-				for i := range manifestInfo.Params {
-					parameters[i] = *manifestInfo.Params[i]
-				}
-				patch["parameters"] = parameters
-			}
-
-			healthState, err := ctrl.setApplicationHealth(comparisonResult)
-			if err != nil {
-				conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
-			} else {
-				patch["health"] = healthState
-			}
-
-			patch["conditions"] = conditions
-			ctrl.updateAppStatus(app.Name, app.Namespace, patch)
-		} else {
-			ctrl.updateAppStatus(app.Name, app.Namespace, map[string]interface{}{"conditions": conditions})
-		}
+	if !isForceRefreshed && !app.NeedRefreshAppStatus(ctrl.statusRefreshTimeout) {
+		return
 	}
 
+	log.Infof("Refreshing application '%s' status (force refreshed: %v)", app.Name, isForceRefreshed)
+	app = app.DeepCopy()
+	conditions, hasErrors := ctrl.refreshAppConditions(app)
+	if hasErrors {
+		if !reflect.DeepEqual(app.Status.Conditions, conditions) {
+			ctrl.updateAppStatus(app.Name, app.Namespace, map[string]interface{}{"conditions": conditions})
+		}
+		return
+	}
+
+	patch := make(map[string]interface{})
+	comparisonResult, manifestInfo, compConditions, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	if err != nil {
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
+	} else {
+		log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
+		patch["comparisonResult"] = comparisonResult
+		conditions = append(conditions, compConditions...)
+	}
+
+	if manifestInfo != nil {
+		parameters := make([]appv1.ComponentParameter, len(manifestInfo.Params))
+		for i := range manifestInfo.Params {
+			parameters[i] = *manifestInfo.Params[i]
+		}
+		patch["parameters"] = parameters
+	}
+
+	healthState, err := setApplicationHealth(comparisonResult)
+	if err != nil {
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
+	} else {
+		patch["health"] = healthState
+	}
+
+	patch["conditions"] = conditions
+	ctrl.updateAppStatus(app.Name, app.Namespace, patch)
 	return
 }
 
@@ -526,7 +527,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func (ctrl *ApplicationController) setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
+func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	for i, resource := range comparisonResult.Resources {
 		if resource.LiveState == "null" {
@@ -551,6 +552,9 @@ func (ctrl *ApplicationController) setApplicationHealth(comparisonResult *appv1.
 	return &appHealth, nil
 }
 
+// updateAppStatus persists updates to application status
+// TODO: improve this so that we do not make a PATCH call if nothing changes, otherwise we may
+// cause a feedback loop in the workqueue
 func (ctrl *ApplicationController) updateAppStatus(
 	appName string, namespace string, statusPatch map[string]interface{}) {
 	patch, err := json.Marshal(map[string]interface{}{
