@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/util/adminsettings"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -21,6 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -58,6 +60,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewGenDexConfigCommand())
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
+	command.AddCommand(NewSettingsCommand())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
@@ -338,6 +341,51 @@ func NewExportCommand() *cobra.Command {
 	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
 
 	return &command
+}
+
+// NewSettingsCommand returns a new instance of `argocd-util settings` command
+func NewSettingsCommand() *cobra.Command {
+	var (
+		clientConfig      clientcmd.ClientConfig
+		UpdateSuperuser   bool
+		SuperuserPassword string
+		UpdateSignature   bool
+	)
+	var command = &cobra.Command{
+		Use:   "settings",
+		Short: "Creates or updates ArgoCD settings",
+		Long:  "Creates or updates ArgoCD settings",
+		Run: func(c *cobra.Command, args []string) {
+			conf, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			namespace, wasSpecified, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			if !(wasSpecified) {
+				namespace = "argocd"
+			}
+
+			kubeclientset, err := kubernetes.NewForConfig(conf)
+			errors.CheckError(err)
+			settingsMgr := settings.NewSettingsManager(kubeclientset, namespace)
+			cdSettings, err := settingsMgr.GetSettings()
+			if err != nil {
+				if apierr.IsNotFound(err) {
+					cdSettings = &settings.ArgoCDSettings{}
+				} else {
+					log.Fatal(err)
+				}
+			}
+
+			cdSettings = adminsettings.UpdateSettings(SuperuserPassword, cdSettings, UpdateSignature, UpdateSuperuser, namespace)
+			err = settingsMgr.SaveSettings(cdSettings)
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().BoolVar(&UpdateSuperuser, "update-superuser", false, "force updating the  superuser password")
+	command.Flags().StringVar(&SuperuserPassword, "superuser-password", "", "password for super user")
+	command.Flags().BoolVar(&UpdateSignature, "update-signature", false, "force updating the server-side token signing signature")
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	return command
 }
 
 func main() {

@@ -44,12 +44,12 @@ import (
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/adminsettings"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
-	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
@@ -114,48 +114,10 @@ func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDS
 			log.Fatal(err)
 		}
 	}
+	defaultPassword, err := os.Hostname()
+	errors.CheckError(err)
 
-	if cdSettings.ServerSignature == nil {
-		// set JWT signature
-		signature, err := util_session.MakeSignature(32)
-		errors.CheckError(err)
-		cdSettings.ServerSignature = signature
-	}
-
-	if cdSettings.LocalUsers == nil {
-		cdSettings.LocalUsers = make(map[string]string)
-	}
-
-	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok {
-		//placeholder for when we replace this with get pod
-		passwordRaw, err := os.Hostname()
-		errors.CheckError(err)
-		hashedPassword, err := password.HashPassword(passwordRaw)
-		errors.CheckError(err)
-		log.Infof("password set to %s", passwordRaw)
-		cdSettings.LocalUsers = map[string]string{
-			common.ArgoCDAdminUsername: hashedPassword,
-		}
-	}
-
-	if cdSettings.Certificate == nil {
-		// generate TLS cert
-		hosts := []string{
-			"localhost",
-			"argocd-server",
-			fmt.Sprintf("argocd-server.%s", opts.Namespace),
-			fmt.Sprintf("argocd-server.%s.svc", opts.Namespace),
-			fmt.Sprintf("argocd-server.%s.svc.cluster.local", opts.Namespace),
-		}
-		certOpts := tlsutil.CertOptions{
-			Hosts:        hosts,
-			Organization: "Argo CD",
-			IsCA:         true,
-		}
-		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
-		errors.CheckError(err)
-		cdSettings.Certificate = cert
-	}
+	cdSettings = adminsettings.UpdateSettings(defaultPassword, cdSettings, false, false, opts.Namespace)
 
 	err = settingsMgr.SaveSettings(cdSettings)
 	errors.CheckError(err)
