@@ -207,11 +207,13 @@ func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetOb
 func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
 	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error) {
 
+	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	targetObjs, manifestInfo, err := s.getTargetObjs(app, revision, overrides)
 	if err != nil {
 		targetObjs = make([]*unstructured.Unstructured, 0)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+		failedToLoadObjs = true
 	}
 
 	controlledLiveObj, liveObjByFullName, err := s.getLiveObjs(app, targetObjs)
@@ -219,6 +221,7 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		controlledLiveObj = make([]*unstructured.Unstructured, len(targetObjs))
 		liveObjByFullName = make(map[string]*unstructured.Unstructured)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+		failedToLoadObjs = true
 	}
 
 	for _, liveObj := range controlledLiveObj {
@@ -304,6 +307,9 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 			resource.ChildLiveResources = childResources
 			resources[i] = resource
 		}
+	}
+	if failedToLoadObjs {
+		comparisonStatus = v1alpha1.ComparisonStatusUnknown
 	}
 	compResult := v1alpha1.ComparisonResult{
 		ComparedTo: app.Spec.Source,

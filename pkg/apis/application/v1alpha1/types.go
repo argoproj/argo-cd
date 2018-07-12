@@ -301,7 +301,7 @@ type HealthStatus struct {
 type HealthStatusCode = string
 
 const (
-	HealthStatusUnknown     = ""
+	HealthStatusUnknown     = "Unknown"
 	HealthStatusProgressing = "Progressing"
 	HealthStatusHealthy     = "Healthy"
 	HealthStatusDegraded    = "Degraded"
