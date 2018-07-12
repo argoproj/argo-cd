@@ -262,7 +262,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		}
 		t := &oauth2.Token{
 			RefreshToken: refresh,
-			Expiry:       time.Now().Add(-time.Hour),
+			Expiry:       time.Now().UTC().Add(-time.Hour),
 		}
 		token, err = oauth2Config.TokenSource(ctx, t).Token()
 	default:

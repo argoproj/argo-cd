@@ -833,8 +833,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			// get refreshed app before printing to show accurate sync/health status
-			// app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			// errors.CheckError(err)
+			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
+			errors.CheckError(err)
 
 			fmt.Printf(printOpFmtStr, "Application:", appName)
 			printOperationResult(app.Status.OperationState)
@@ -1022,8 +1022,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			errors.CheckError(err)
 
 			// get refreshed app before printing to show accurate sync/health status
-			// app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			// errors.CheckError(err)
+			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
+			errors.CheckError(err)
 
 			fmt.Printf(printOpFmtStr, "Application:", appName)
 			printOperationResult(app.Status.OperationState)
