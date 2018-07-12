@@ -33,13 +33,3 @@ func TestSessionManager(t *testing.T) {
 		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, defaultSubject)
 	}
 }
-
-func TestMakeSignature(t *testing.T) {
-	for size := 1; size <= 64; size++ {
-		s, err := MakeSignature(size)
-		if err != nil {
-			t.Errorf("Could not generate signature of size %d: %v", size, err)
-		}
-		t.Logf("Generated token: %v", s)
-	}
-}
