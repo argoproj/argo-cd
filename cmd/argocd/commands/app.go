@@ -611,8 +611,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			_, err := waitUntilOperationCompleted(appIf, appName, timeout, func(iterApp *argoappv1.Application) bool {
-				appStatus := iterApp.Status
+			_, err := waitUntilOperationCompleted(appIf, appName, timeout, func(checkApp *argoappv1.Application) bool {
+				appStatus := checkApp.Status
 				synced := appStatus.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
 				healthy := appStatus.Health.Status == argoappv1.HealthStatusHealthy
 				if len(appStatus.GetErrorConditions()) == 0 && ((synced && healthy) || (synced && syncOnly) || (healthy && healthOnly)) {
@@ -810,11 +810,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitUntilOperationCompleted(appIf, appName, timeout, func(iterApp *argoappv1.Application) bool {
-				if iterApp.Status.OperationState != nil && iterApp.Status.OperationState.Phase.Completed() {
-					return true
-				}
-				return false
+			app, err := waitUntilOperationCompleted(appIf, appName, timeout, func(checkApp *argoappv1.Application) bool {
+				return checkApp.Status.OperationState != nil && checkApp.Status.OperationState.Phase.Completed()
 			})
 			errors.CheckError(err)
 
@@ -1017,11 +1014,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitUntilOperationCompleted(appIf, appName, timeout, func(iterApp *argoappv1.Application) bool {
-				if iterApp.Status.OperationState != nil && iterApp.Status.OperationState.Phase.Completed() {
-					return true
-				}
-				return false
+			_, err = waitUntilOperationCompleted(appIf, appName, timeout, func(checkApp *argoappv1.Application) bool {
+				return checkApp.Status.OperationState != nil && checkApp.Status.OperationState.Phase.Completed()
 			})
 			errors.CheckError(err)
 		},
