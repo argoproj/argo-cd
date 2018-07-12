@@ -41,7 +41,7 @@ export async function deleteApplication(appName: string, context: AppContext) {
         try {
             await services.applications.delete(appName, cascade);
         } catch (e) {
-            this.appContext.apis.notifications.show({
+            context.apis.notifications.show({
                 content: <ErrorNotification title='Unable to delete application' e={e}/>,
                 type: NotificationType.Error,
             });
@@ -60,10 +60,6 @@ export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonSta
             break;
         case appModels.ComparisonStatuses.OutOfSync:
             className = 'fa fa-times';
-            color = ARGO_FAILED_COLOR;
-            break;
-        case appModels.ComparisonStatuses.Error:
-            className = 'fa fa-exclamation-circle';
             color = ARGO_FAILED_COLOR;
             break;
         case appModels.ComparisonStatuses.Unknown:
