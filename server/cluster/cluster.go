@@ -55,6 +55,7 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 		return nil, err
 	}
 
+	c.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 	clust, err := s.db.CreateCluster(ctx, c)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
