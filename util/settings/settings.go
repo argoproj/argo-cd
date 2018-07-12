@@ -421,7 +421,6 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 		errors.CheckError(err)
 		cdSettings.ServerSignature = signature
 	}
-
 	if cdSettings.LocalUsers == nil {
 		cdSettings.LocalUsers = make(map[string]string)
 	}
