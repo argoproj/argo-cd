@@ -45,6 +45,7 @@ const (
 	ReplicaSetKind  = "ReplicaSet"
 	StatefulSetKind = "StatefulSet"
 	DaemonSetKind   = "DaemonSet"
+	IngressKind     = "Ingress"
 )
 
 const (

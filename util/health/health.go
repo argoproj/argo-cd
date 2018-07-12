@@ -6,6 +6,7 @@ import (
 	"k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -19,6 +20,8 @@ func GetAppHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 		return getDeploymentHealth(obj)
 	case kube.ServiceKind:
 		return getServiceHealth(obj)
+	case kube.IngressKind:
+		return getIngressHealth(obj)
 	default:
 		return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}, nil
 	}
@@ -46,6 +49,27 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 		}
 	}
 	return newIndex > currentIndex
+}
+
+func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	if err != nil {
+		return nil, err
+	}
+	var ingress v1beta1.Ingress
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &ingress)
+	if err != nil {
+		return nil, err
+	}
+
+	health := appv1.HealthStatus{Status: appv1.HealthStatusProgressing}
+	for _, ingress := range ingress.Status.LoadBalancer.Ingress {
+		if ingress.Hostname != "" || ingress.IP != "" {
+			health.Status = appv1.HealthStatusHealthy
+			break
+		}
+	}
+	return &health, nil
 }
 
 func getServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
