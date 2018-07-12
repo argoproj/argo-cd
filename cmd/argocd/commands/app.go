@@ -610,39 +610,18 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
 
-			if timeout != 0 {
-				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					cancel()
-				})
-			}
-
-			// print the initial components to format the tabwriter columns
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
-			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			printAppResources(w, app, false)
-			_ = w.Flush()
-			prevCompRes := &app.Status.ComparisonResult
-
-			appEventCh := watchApp(ctx, appIf, appName)
-			for appEvent := range appEventCh {
-				app := appEvent.Application
-				printAppStateChange(w, prevCompRes, &app)
-				_ = w.Flush()
-				prevCompRes = &app.Status.ComparisonResult
-
-				synced := app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
-				healthy := app.Status.Health.Status == argoappv1.HealthStatusHealthy
-				if len(app.Status.GetErrorConditions()) == 0 && ((synced && healthy) || (synced && syncOnly) || (healthy && healthOnly)) {
+			_, err := waitUntilOperationCompleted(appIf, appName, timeout, func(iterApp *argoappv1.Application) bool {
+				appStatus := iterApp.Status
+				synced := appStatus.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
+				healthy := appStatus.Health.Status == argoappv1.HealthStatusHealthy
+				if len(appStatus.GetErrorConditions()) == 0 && ((synced && healthy) || (synced && syncOnly) || (healthy && healthOnly)) {
 					log.Printf("App %q matches desired state", appName)
-					return
+					return true
 				}
-			}
-			log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
+				return false
+			})
+			errors.CheckError(err)
 		},
 	}
 	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
@@ -830,7 +809,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			ctx := context.Background()
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
-			app, err := waitUntilOperationCompleted(appIf, appName, timeout)
+
+			app, err := waitUntilOperationCompleted(appIf, appName, timeout, func(iterApp *argoappv1.Application) bool {
+				if iterApp.Status.OperationState != nil && iterApp.Status.OperationState.Phase.Completed() {
+					return true
+				}
+				return false
+			})
 			errors.CheckError(err)
 
 			// get refreshed app before printing to show accurate sync/health status
@@ -871,7 +856,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.Application, error) {
+func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint, statusCheck func(*argoappv1.Application) bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -894,9 +879,9 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 		app := appEvent.Application
 		printAppStateChange(w, prevCompRes, &app)
 		_ = w.Flush()
-
 		prevCompRes = &app.Status.ComparisonResult
-		if app.Status.OperationState != nil && app.Status.OperationState.Phase.Completed() {
+
+		if statusCheck(&app) {
 			return &app, nil
 		}
 	}
@@ -1032,18 +1017,13 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			app, err = waitUntilOperationCompleted(appIf, appName, timeout)
+			_, err = waitUntilOperationCompleted(appIf, appName, timeout, func(iterApp *argoappv1.Application) bool {
+				if iterApp.Status.OperationState != nil && iterApp.Status.OperationState.Phase.Completed() {
+					return true
+				}
+				return false
+			})
 			errors.CheckError(err)
-
-			// get refreshed app before printing to show accurate sync/health status
-			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			errors.CheckError(err)
-
-			fmt.Printf(printOpFmtStr, "Application:", appName)
-			printOperationResult(app.Status.OperationState)
-			if !app.Status.OperationState.Phase.Successful() {
-				os.Exit(1)
-			}
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
