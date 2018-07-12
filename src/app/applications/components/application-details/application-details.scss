@@ -2,6 +2,9 @@
 
 .application-details {
     padding: 1em;
+    overflow-x: auto;
+    overflow-y: auto;
+    min-height: calc(100vh - 2 * 50px - 115px);
 
     &__tab-content-full-height {
         height: calc(100vh - 2 * 50px);
@@ -30,5 +33,9 @@
         span {
             color: $argo-color-teal-5;
         }
+    }
+
+    .application-resources-tree {
+        margin: 0 auto;
     }
 }
