@@ -27,6 +27,7 @@ import (
 )
 
 type syncContext struct {
+	appName       string
 	comparison    *appv1.ComparisonResult
 	config        *rest.Config
 	dynClientPool dynamic.ClientPool
@@ -139,6 +140,7 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 	}
 
 	syncCtx := syncContext{
+		appName:       app.Name,
 		comparison:    comparison,
 		config:        restConfig,
 		dynClientPool: dynClientPool,
@@ -541,6 +543,11 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return false, fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
+		}
+		hook = hook.DeepCopy()
+		err = kube.SetLabel(hook, common.LabelApplicationName, sc.appName)
+		if err != nil {
+			sc.log.Warnf("Failed to set application label on hook %v: %v", hook, err)
 		}
 		_, err := kube.ApplyResource(sc.config, hook, sc.namespace, false, false)
 		if err != nil {
