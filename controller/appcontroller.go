@@ -438,7 +438,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app = app.DeepCopy()
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
-		ctrl.updateAppStatus(app, nil, nil, nil, conditions)
+		comparisonResult := app.Status.ComparisonResult.DeepCopy()
+		comparisonResult.Status = appv1.ComparisonStatusUnknown
+		health := app.Status.Health.DeepCopy()
+		health.Status = appv1.HealthStatusUnknown
+		ctrl.updateAppStatus(app, comparisonResult, health, nil, conditions)
 		return
 	}
 
