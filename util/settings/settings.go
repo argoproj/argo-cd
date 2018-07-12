@@ -8,12 +8,17 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh/terminal"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -381,4 +386,68 @@ func (mgr *SettingsManager) notifySubscribers() {
 	for _, sub := range mgr.subscribers {
 		sub <- struct{}{}
 	}
+}
+
+func readAndConfirmPassword() string {
+	for {
+		fmt.Print("*** Enter an admin password: ")
+		password, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		fmt.Print("\n")
+		fmt.Print("*** Confirm the admin password: ")
+		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
+		errors.CheckError(err)
+		fmt.Print("\n")
+		if string(password) == string(confirmPassword) {
+			return string(password)
+		}
+		log.Error("Passwords do not match")
+	}
+}
+
+func UpdateSettings(defaultPassword string, cdSettings *ArgoCDSettings, UpdateSignature bool, UpdateSuperuser bool, Namespace string) *ArgoCDSettings {
+
+	if cdSettings.ServerSignature == nil || UpdateSignature {
+		// set JWT signature
+		signature, err := util.MakeSignature(32)
+		errors.CheckError(err)
+		cdSettings.ServerSignature = signature
+	}
+
+	if cdSettings.LocalUsers == nil {
+		cdSettings.LocalUsers = make(map[string]string)
+	}
+	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok || UpdateSuperuser {
+		passwordRaw := defaultPassword
+		if passwordRaw == "" {
+			passwordRaw = readAndConfirmPassword()
+		}
+		log.Infof("password set to %s", passwordRaw)
+		hashedPassword, err := password.HashPassword(passwordRaw)
+		errors.CheckError(err)
+		cdSettings.LocalUsers = map[string]string{
+			common.ArgoCDAdminUsername: hashedPassword,
+		}
+	}
+
+	if cdSettings.Certificate == nil {
+		// generate TLS cert
+		hosts := []string{
+			"localhost",
+			"argocd-server",
+			fmt.Sprintf("argocd-server.%s", Namespace),
+			fmt.Sprintf("argocd-server.%s.svc", Namespace),
+			fmt.Sprintf("argocd-server.%s.svc.cluster.local", Namespace),
+		}
+		certOpts := tlsutil.CertOptions{
+			Hosts:        hosts,
+			Organization: "Argo CD",
+			IsCA:         true,
+		}
+		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
+		errors.CheckError(err)
+		cdSettings.Certificate = cert
+	}
+
+	return cdSettings
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util/adminsettings"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -376,7 +375,7 @@ func NewSettingsCommand() *cobra.Command {
 				}
 			}
 
-			cdSettings = adminsettings.UpdateSettings(SuperuserPassword, cdSettings, UpdateSignature, UpdateSuperuser, namespace)
+			cdSettings = settings.UpdateSettings(SuperuserPassword, cdSettings, UpdateSignature, UpdateSuperuser, namespace)
 			err = settingsMgr.SaveSettings(cdSettings)
 			errors.CheckError(err)
 		},

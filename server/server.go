@@ -44,7 +44,6 @@ import (
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/adminsettings"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
@@ -117,7 +116,7 @@ func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDS
 	defaultPassword, err := os.Hostname()
 	errors.CheckError(err)
 
-	cdSettings = adminsettings.UpdateSettings(defaultPassword, cdSettings, false, false, opts.Namespace)
+	cdSettings = settings_util.UpdateSettings(defaultPassword, cdSettings, false, false, opts.Namespace)
 
 	err = settingsMgr.SaveSettings(cdSettings)
 	errors.CheckError(err)
