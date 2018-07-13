@@ -1,20 +1,27 @@
 package swagger
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"path"
-	"path/filepath"
 
 	"github.com/go-openapi/runtime/middleware"
+	"github.com/gobuffalo/packr"
 )
 
 // ServeSwaggerUI serves the Swagger UI and JSON spec.
-func ServeSwaggerUI(mux *http.ServeMux, component, uiPath string) {
+func ServeSwaggerUI(mux *http.ServeMux, box packr.Box, uiPath string) {
 	prefix := path.Dir(uiPath)
 	specURL := path.Join(prefix, "swagger.json")
 
+	swaggerJSON, err := box.MustString("swagger.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	mux.HandleFunc(specURL, func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(component, "swagger.json"))
+		fmt.Fprintf(w, swaggerJSON)
 	})
 
 	mux.Handle(uiPath, middleware.Redoc(middleware.RedocOpts{
