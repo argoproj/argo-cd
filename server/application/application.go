@@ -246,43 +246,27 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 }
 
-// removeInvalidOverrides removes any prameter overrides that are no longer valid
+// removeInvalidOverrides removes any parameter overrides that are no longer valid
 // drops old overrides that are invalid
 // throws an error is passed override is invalid
 // if passed override and old overrides are invalid, throws error, old overrides not dropped
 func (s *Server) removeInvalidOverrides(a *appv1.Application, q *ApplicationUpdateSpecRequest) (*ApplicationUpdateSpecRequest, error) {
+	oldParams := argo.ParamToMap(a.Spec.Source.ComponentParameterOverrides)
 	validAppSet := argo.ParamToMap(a.Status.Parameters)
-	invalidOldParams := make(map[string]map[string]bool)
-	var overrideParams []appv1.ComponentParameter
-	for _, unvettedExistingParam := range a.Spec.Source.ComponentParameterOverrides {
-		if argo.CheckValidParam(validAppSet, unvettedExistingParam) {
-			overrideParams = append(overrideParams, unvettedExistingParam)
-		} else {
-			if invalidOldParams[unvettedExistingParam.Component] == nil {
-				invalidOldParams[unvettedExistingParam.Component] = make(map[string]bool)
-			}
-			invalidOldParams[unvettedExistingParam.Component][unvettedExistingParam.Name] = true
-		}
-	}
-	for _, unvettedRequestedParam := range q.Spec.Source.ComponentParameterOverrides {
-		if argo.CheckValidParam(validAppSet, unvettedRequestedParam) {
-			paramExists := false
-			for _, overrideParam := range overrideParams {
-				if unvettedRequestedParam.Component == overrideParam.Component && unvettedRequestedParam.Name == overrideParam.Name && unvettedRequestedParam.Value == overrideParam.Value {
-					paramExists = true
-				}
-			}
-			if !paramExists {
-				overrideParams = append(overrideParams, unvettedRequestedParam)
-			}
-		} else {
-			if !argo.CheckValidParam(invalidOldParams, unvettedRequestedParam) {
-				return nil, status.Errorf(codes.InvalidArgument, "Parameter '%s' in '%s' does not exist in ksonnet", unvettedRequestedParam.Name, unvettedRequestedParam.Component)
 
+	params := make([]appv1.ComponentParameter, 0)
+	for i := range q.Spec.Source.ComponentParameterOverrides {
+		param := q.Spec.Source.ComponentParameterOverrides[i]
+		if !argo.CheckValidParam(validAppSet, param) {
+			alreadySet := argo.CheckValidParam(oldParams, param)
+			if !alreadySet {
+				return nil, status.Errorf(codes.InvalidArgument, "Parameter '%s' in '%s' does not exist in ksonnet", param.Name, param.Component)
 			}
+		} else {
+			params = append(params, param)
 		}
 	}
-	q.Spec.Source.ComponentParameterOverrides = overrideParams
+	q.Spec.Source.ComponentParameterOverrides = params
 	return q, nil
 }
 
