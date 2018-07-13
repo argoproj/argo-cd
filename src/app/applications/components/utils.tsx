@@ -6,6 +6,24 @@ import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
+export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[], overrides: appModels.ComponentParameter[]) {
+    const componentParams = new Map<string, (appModels.ComponentParameter & {original: string})[]>();
+    (params || []).map((param) => {
+        const override = (overrides || []).find((item) => item.component === param.component && item.name === param.name);
+        const res = {...param, original: ''};
+        if (override) {
+            res.original = res.value;
+            res.value = override.value;
+        }
+        return res;
+    }).forEach((param) => {
+        const items = componentParams.get(param.component) || [];
+        items.push(param);
+        componentParams.set(param.component, items);
+    });
+    return componentParams;
+}
+
 export async function syncApplication(appName: string, revision: string, prune: boolean, context: AppContext) {
     try {
         await services.applications.sync(appName, revision, prune);
