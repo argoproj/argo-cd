@@ -4,6 +4,8 @@ import * as React from 'react';
 
 import * as models from '../../../shared/models';
 
+import { getParamsWithOverridesInfo } from '../utils';
+
 require('./application-deployment-history.scss');
 
 export const ApplicationDeploymentHistory = ({
@@ -19,10 +21,14 @@ export const ApplicationDeploymentHistory = ({
 }) => {
     const deployments = (app.status.history || []).slice().reverse();
     const recentDeployments = deployments.map((info, i) => {
-        const params = info.params || [];
         const nextDeployedAt = i === 0 ? null : deployments[i - 1].deployedAt;
         const runEnd = nextDeployedAt ? moment(nextDeployedAt) : moment();
-        return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000, params: selectedRollbackDeploymentIndex === i ? params : params.slice(0, 3)};
+        let params = info.params || [];
+        if (selectedRollbackDeploymentIndex !== i) {
+            params = params.slice(0, 3);
+        }
+        const componentParams = getParamsWithOverridesInfo(params, info.componentParameterOverrides || []);
+        return {...info, componentParams, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
 
     return (
@@ -51,15 +57,20 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                        {info.params.map((param, i) => (
-                            <div className='row' key={i}>
-                                <div className='columns small-2 application-deployment-history__param-name'>
-                                    <span>{param.component}.{param.name}:</span>
+                        {Array.from(info.componentParams.keys()).map((component) => (
+                            info.componentParams.get(component).map((param) => (
+                                <div className='row' key={component + param.name}>
+                                    <div className='columns small-2 application-deployment-history__param-name'>
+                                        <span>{param.component}.{param.name}:</span>
+                                    </div>
+                                    <div className='columns small-10'>
+                                        <span title={param.value}>
+                                            {param.original && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>}
+                                            {param.value}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className='columns small-10'>
-                                    {param.value}
-                                </div>
-                            </div>
+                            ))
                         ))}
                     </div>
                 </div>
