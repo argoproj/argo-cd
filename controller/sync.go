@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -153,7 +154,12 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		log:           log.WithFields(log.Fields{"application": app.Name}),
 	}
 
-	syncCtx.sync()
+	if state.Phase == appv1.OperationTerminating {
+		syncCtx.terminate()
+	} else {
+		syncCtx.sync()
+	}
+
 	if !syncOp.DryRun && syncCtx.opState.Phase.Successful() {
 		err := s.persistDeploymentInfo(app, manifestInfo.Revision, manifestInfo.Params, nil)
 		if err != nil {
@@ -561,7 +567,8 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	} else {
 		liveObj = existing
 	}
-	return sc.updateHookStatus(liveObj, hookType), nil
+	hookStatus := newHookStatus(liveObj, hookType)
+	return sc.updateHookStatus(hookStatus), nil
 }
 
 // isHookType tells whether or not the supplied object is a hook of the specified type
@@ -648,10 +655,7 @@ func (sc *syncContext) getHookStatus(hookObj *unstructured.Unstructured, hookTyp
 	return nil
 }
 
-// updateHookStatus updates the status of a hook. Returns whether or not the hook was changed or not
-func (sc *syncContext) updateHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
-	sc.lock.Lock()
-	defer sc.lock.Unlock()
+func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) appv1.HookStatus {
 	hookStatus := appv1.HookStatus{
 		Name:       hook.GetName(),
 		Kind:       hook.GetKind(),
@@ -714,17 +718,23 @@ func (sc *syncContext) updateHookStatus(hook *unstructured.Unstructured, hookTyp
 		hookStatus.Status = appv1.OperationSucceeded
 		hookStatus.Message = fmt.Sprintf("%s created", hook.GetName())
 	}
+	return hookStatus
+}
 
+// updateHookStatus updates the status of a hook. Returns whether or not the hook was changed or not
+func (sc *syncContext) updateHookStatus(hookStatus appv1.HookStatus) bool {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
 	for i, prev := range sc.syncRes.Hooks {
-		if prev.Name == hookStatus.Name && prev.Kind == hookStatus.Kind && prev.Type == hookType {
+		if prev.Name == hookStatus.Name && prev.Kind == hookStatus.Kind && prev.Type == hookStatus.Type {
 			if reflect.DeepEqual(prev, hookStatus) {
 				return false
 			}
 			if prev.Status != hookStatus.Status {
-				sc.log.Infof("Hook %s %s/%s status: %s -> %s", hookType, prev.Kind, prev.Name, prev.Status, hookStatus.Status)
+				sc.log.Infof("Hook %s %s/%s status: %s -> %s", hookStatus.Type, prev.Kind, prev.Name, prev.Status, hookStatus.Status)
 			}
 			if prev.Message != hookStatus.Message {
-				sc.log.Infof("Hook %s %s/%s message: '%s' -> '%s'", hookType, prev.Kind, prev.Name, prev.Message, hookStatus.Message)
+				sc.log.Infof("Hook %s %s/%s message: '%s' -> '%s'", hookStatus.Type, prev.Kind, prev.Name, prev.Message, hookStatus.Message)
 			}
 			sc.syncRes.Hooks[i] = &hookStatus
 			return true
@@ -750,4 +760,53 @@ func areHooksCompletedSuccessful(hookType appv1.HookType, hookStatuses []*appv1.
 		}
 	}
 	return true, isSuccessful
+}
+
+// terminate looks for any running jobs/workflow hooks and deletes the resource
+func (sc *syncContext) terminate() {
+	terminateSuccessful := true
+	for _, hookStatus := range sc.syncRes.Hooks {
+		if hookStatus.Status.Completed() {
+			continue
+		}
+		switch hookStatus.Kind {
+		case "Job", "Workflow":
+			hookStatus.Status = appv1.OperationFailed
+			err := sc.deleteHook(hookStatus.Name, hookStatus.Kind, hookStatus.APIVersion)
+			if err != nil {
+				hookStatus.Message = fmt.Sprintf("Failed to delete %s hook %s/%s: %v", hookStatus.Type, hookStatus.Kind, hookStatus.Name, err)
+				terminateSuccessful = false
+			} else {
+				hookStatus.Message = fmt.Sprintf("Deleted %s hook %s/%s", hookStatus.Type, hookStatus.Kind, hookStatus.Name)
+			}
+			sc.updateHookStatus(*hookStatus)
+		}
+	}
+	if terminateSuccessful {
+		sc.setOperationPhase(appv1.OperationFailed, "Application terminated")
+	} else {
+		sc.setOperationPhase(appv1.OperationError, "Termination had errors")
+	}
+}
+
+func (sc *syncContext) deleteHook(name, kind, apiVersion string) error {
+	groupVersion := strings.Split(apiVersion, "/")
+	if len(groupVersion) != 2 {
+		return fmt.Errorf("Failed to terminate app. Unrecognized group/version: %s", apiVersion)
+	}
+	gvk := schema.GroupVersionKind{
+		Group:   groupVersion[0],
+		Version: groupVersion[1],
+		Kind:    kind,
+	}
+	dclient, err := sc.dynClientPool.ClientForGroupVersionKind(gvk)
+	if err != nil {
+		return err
+	}
+	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+	if err != nil {
+		return err
+	}
+	resIf := dclient.Resource(apiResource, sc.namespace)
+	return resIf.Delete(name, &metav1.DeleteOptions{})
 }

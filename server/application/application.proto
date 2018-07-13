@@ -92,6 +92,13 @@ message LogEntry {
 	required k8s.io.apimachinery.pkg.apis.meta.v1.Time timeStamp = 2 [(gogoproto.nullable) = false];
 }
 
+message OperationTerminateRequest {
+	required string name = 1;
+}
+
+message OperationTerminateResponse {
+}
+
 // ApplicationService
 service ApplicationService {
 
@@ -162,6 +169,13 @@ service ApplicationService {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollback"
 			body: "*"
+		};
+	}
+
+	// TerminateOperation terminates the currently running operation
+	rpc TerminateOperation(OperationTerminateRequest) returns (OperationTerminateResponse) {
+		option (google.api.http) = {
+			delete: "/api/v1/applications/{name}/operation";
 		};
 	}
 

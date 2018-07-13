@@ -17,6 +17,7 @@ p, role:admin, applications, update, */*
 p, role:admin, applications, delete, */*
 p, role:admin, applications, sync, */*
 p, role:admin, applications, rollback, */*
+p, role:admin, applications, terminateop, */*
 p, role:admin, applications/pods, delete, */*
 p, role:admin, clusters, create, */*
 p, role:admin, clusters, update, */*

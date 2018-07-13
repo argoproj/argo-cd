@@ -233,10 +233,10 @@ message HookStatus {
   // Name is the resource name
   optional string name = 1;
 
-  // Name is the resource name
+  // Kind is the resource kind
   optional string kind = 2;
 
-  // Name is the resource name
+  // APIVersion is the resource API version
   optional string apiVersion = 3;
 
   // Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)

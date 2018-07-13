@@ -327,21 +327,20 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
-			ctrl.setOperationState(app, state, app.Operation)
+			ctrl.setOperationState(app, state)
 		}
 	}()
-	if isOperationRunning(app) {
-		// If we get here, we are about process an operation but we notice it is already Running.
-		// We need to detect if the controller crashed before completing the operation, or if the
-		// the app object we pulled off the informer is simply stale and doesn't reflect the fact
-		// that the operation is completed. We don't want to perform the operation again. To detect
-		// this, always retrieve the latest version to ensure it is not stale.
+	if isOperationInProgress(app) {
+		// If we get here, we are about process an operation but we notice it is already in progress.
+		// We need to detect if the app object we pulled off the informer is stale and doesn't
+		// reflect the fact that the operation is completed. We don't want to perform the operation
+		// again. To detect this, always retrieve the latest version to ensure it is not stale.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("Failed to retrieve latest application state: %v", err)
 			return
 		}
-		if !isOperationRunning(freshApp) {
+		if !isOperationInProgress(freshApp) {
 			log.Infof("Skipping operation on stale application state (%s)", app.ObjectMeta.Name)
 			return
 		}
@@ -350,11 +349,27 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		log.Infof("Resuming in-progress operation. app: %s, phase: %s, message: %s", app.ObjectMeta.Name, state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
-		ctrl.setOperationState(app, state, app.Operation)
+		ctrl.setOperationState(app, state)
 		log.Infof("Initialized new operation. app: %s, operation: %v", app.ObjectMeta.Name, *app.Operation)
 	}
 	ctrl.appStateManager.SyncAppState(app, state)
-	ctrl.setOperationState(app, state, app.Operation)
+
+	if state.Phase == appv1.OperationRunning {
+		// It's possible for an app to be terminated while we were operating on it. We do not want
+		// to clobber the Terminated state with Running. Get the latest app state to check for this.
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		if err == nil {
+			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == appv1.OperationTerminating {
+				state.Phase = appv1.OperationTerminating
+				state.Message = "operation is terminating"
+				// after this, we will get requeued to the workqueue, but next time the
+				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
+				// cleanup (e.g. delete jobs, workflows, etc...)
+			}
+		}
+	}
+
+	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
@@ -362,39 +377,36 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 }
 
-func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState, operation *appv1.Operation) {
+func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
 	retryUntilSucceed(func() error {
-		var inProgressOpValue *appv1.Operation
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")
 		}
-		if !state.Phase.Completed() {
-			// If operation is still running, we populate the app.operation field, which prevents
-			// any other operation from running at the same time. Otherwise, it is cleared by setting
-			// it to nil which indicates no operation is in progress.
-			inProgressOpValue = operation
-		} else {
-			nowTime := metav1.Now()
-			state.FinishedAt = &nowTime
+		if state.Phase.Completed() {
+			now := metav1.Now()
+			state.FinishedAt = &now
 		}
-
-		if reflect.DeepEqual(app.Operation, inProgressOpValue) && reflect.DeepEqual(app.Status.OperationState, state) {
-			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.Name)
-			return nil
-		}
-
-		patch, err := json.Marshal(map[string]interface{}{
+		patch := map[string]interface{}{
 			"status": map[string]interface{}{
 				"operationState": state,
 			},
-			"operation": inProgressOpValue,
-		})
+		}
+		if state.Phase.Completed() {
+			// If operation is completed, clear the operation field to indicate no operation is
+			// in progress.
+			patch["operation"] = nil
+		}
+		if reflect.DeepEqual(app.Status.OperationState, state) {
+			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.Name)
+			return nil
+		}
+		patchJSON, err := json.Marshal(patch)
 		if err != nil {
 			return err
 		}
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace)
-		_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
+		_, err = appClient.Patch(app.Name, types.MergePatchType, patchJSON)
 		if err != nil {
 			return err
 		}
@@ -679,6 +691,6 @@ func newApplicationInformer(
 	return informer
 }
 
-func isOperationRunning(app *appv1.Application) bool {
+func isOperationInProgress(app *appv1.Application) bool {
 	return app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed()
 }
