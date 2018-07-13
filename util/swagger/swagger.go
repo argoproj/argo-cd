@@ -11,11 +11,10 @@ import (
 )
 
 // ServeSwaggerUI serves the Swagger UI and JSON spec.
-func ServeSwaggerUI(mux *http.ServeMux, component, uiPath string) {
+func ServeSwaggerUI(mux *http.ServeMux, box packr.Box, uiPath string) {
 	prefix := path.Dir(uiPath)
 	specURL := path.Join(prefix, "swagger.json")
 
-	box := packr.NewBox(path.Join("..", "..", component))
 	swaggerJSON, err := box.MustString("swagger.json")
 	if err != nil {
 		log.Fatal(err)
