@@ -148,6 +148,10 @@ const (
 	ResourceDetailsPruningRequired ResourceSyncStatus = "PruningRequired"
 )
 
+func (s ResourceSyncStatus) Successful() bool {
+	return s != ResourceDetailsSyncFailed
+}
+
 type ResourceDetails struct {
 	Name      string             `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Kind      string             `json:"kind" protobuf:"bytes,2,opt,name=kind"`

@@ -508,13 +508,22 @@ func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespac
 	out, err := cmd.Output()
 	if err != nil {
 		if exErr, ok := err.(*exec.ExitError); ok {
-			// this makes the output a little better to read
-			errMsg := strings.Replace(strings.TrimSpace(string(exErr.Stderr)), ": error when creating \"STDIN\"", "", -1)
+			errMsg := cleanKubectlOutput(string(exErr.Stderr))
 			return "", errors.New(errMsg)
 		}
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+// cleanKubectlOutput makes the error output of kubectl a little better to read
+func cleanKubectlOutput(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.Replace(s, ": error validating \"STDIN\"", "", -1)
+	s = strings.Replace(s, ": error when creating \"STDIN\"", "", -1)
+	s = strings.Replace(s, "; if you choose to ignore these errors, turn validation off with --validate=false", "", -1)
+	s = strings.Replace(s, "error: error", "error", -1)
+	return s
 }
 
 // WriteKubeConfig takes a rest.Config and writes it as a kubeconfig at the specified path

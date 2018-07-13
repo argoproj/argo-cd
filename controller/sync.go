@@ -298,7 +298,7 @@ func (sc *syncContext) setOperationPhase(phase appv1.OperationPhase, message str
 }
 
 // applyObject performs a `kubectl apply` of a single resource
-func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (appv1.ResourceDetails, bool) {
+func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) appv1.ResourceDetails {
 	resDetails := appv1.ResourceDetails{
 		Name:      targetObj.GetName(),
 		Kind:      targetObj.GetKind(),
@@ -308,21 +308,20 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 	if err != nil {
 		resDetails.Message = err.Error()
 		resDetails.Status = appv1.ResourceDetailsSyncFailed
-		return resDetails, false
+		return resDetails
 	}
 	resDetails.Message = message
 	resDetails.Status = appv1.ResourceDetailsSynced
-	return resDetails, true
+	return resDetails
 }
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
-func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (appv1.ResourceDetails, bool) {
+func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) appv1.ResourceDetails {
 	resDetails := appv1.ResourceDetails{
 		Name:      liveObj.GetName(),
 		Kind:      liveObj.GetKind(),
 		Namespace: liveObj.GetNamespace(),
 	}
-	successful := true
 	if prune {
 		if dryRun {
 			resDetails.Message = "pruned (dry run)"
@@ -332,7 +331,6 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			if err != nil {
 				resDetails.Message = err.Error()
 				resDetails.Status = appv1.ResourceDetailsSyncFailed
-				successful = false
 			} else {
 				resDetails.Message = "pruned"
 				resDetails.Status = appv1.ResourceDetailsSyncedAndPruned
@@ -342,33 +340,33 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 		resDetails.Message = "ignored (requires pruning)"
 		resDetails.Status = appv1.ResourceDetailsPruningRequired
 	}
-	return resDetails, successful
+	return resDetails
 }
 
 // performs a apply based sync of the given sync tasks (possibly pruning the objects).
-// Optionally updates the resource details with the result
+// If update is true, will updates the resource details with the result.
+// Or if the prune/apply failed, will also update the result.
 func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update bool) bool {
 	syncSuccessful := true
 	// apply all resources in parallel
 	var wg sync.WaitGroup
 	for _, task := range syncTasks {
-		defer func(t syncTask) {
-			wg.Add(1)
+		wg.Add(1)
+		go func(t syncTask) {
 			defer wg.Done()
 			var resDetails appv1.ResourceDetails
-			var successful bool
 			if t.targetObj == nil {
-				resDetails, successful = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
+				resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			} else {
 				if isHook(t.targetObj) {
 					return
 				}
-				resDetails, successful = sc.applyObject(t.targetObj, dryRun, force)
+				resDetails = sc.applyObject(t.targetObj, dryRun, force)
 			}
-			if !successful {
+			if !resDetails.Status.Successful() {
 				syncSuccessful = false
 			}
-			if update {
+			if update || !resDetails.Status.Successful() {
 				sc.setResourceDetails(&resDetails)
 			}
 		}(task)
