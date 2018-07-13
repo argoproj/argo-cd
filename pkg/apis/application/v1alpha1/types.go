@@ -117,9 +117,9 @@ const (
 type HookStatus struct {
 	// Name is the resource name
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// Name is the resource name
+	// Kind is the resource kind
 	Kind string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	// Name is the resource name
+	// APIVersion is the resource API version
 	APIVersion string `json:"apiVersion" protobuf:"bytes,3,opt,name=apiVersion"`
 	// Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)
 	Type HookType `json:"type" protobuf:"bytes,4,opt,name=type"`

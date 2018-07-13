@@ -596,7 +596,11 @@ func ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*u
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		if exErr, ok := err.(*exec.ExitError); ok {
+			errMsg := cleanKubectlOutput(string(exErr.Stderr))
+			return nil, errors.New(errMsg)
+		}
+		return nil, fmt.Errorf("failed to convert %s/%s to %s/%s", obj.GetKind(), obj.GetName(), group, version)
 	}
 	// NOTE: when kubectl convert runs against stdin (i.e. kubectl convert -f -), the output is
 	// a unstructured list instead of an unstructured object

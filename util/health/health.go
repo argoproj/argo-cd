@@ -6,7 +6,7 @@ import (
 	"k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -59,11 +59,11 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 }
 
 func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	obj, err := kube.ConvertToVersion(obj, "extensions", "v1beta1")
 	if err != nil {
 		return nil, err
 	}
-	var ingress v1beta1.Ingress
+	var ingress extv1beta1.Ingress
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &ingress)
 	if err != nil {
 		return nil, err
