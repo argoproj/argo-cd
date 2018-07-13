@@ -232,3 +232,8 @@ func TestSetLabels(t *testing.T) {
 	}
 
 }
+
+func TestCleanKubectlOutput(t *testing.T) {
+	testString := `error: error validating "STDIN": error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec; if you choose to ignore these errors, turn validation off with --validate=false`
+	assert.Equal(t, cleanKubectlOutput(testString), `error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec`)
+}
