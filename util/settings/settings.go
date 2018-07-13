@@ -414,7 +414,6 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 			log.Fatal(err)
 		}
 	}
-
 	if cdSettings.ServerSignature == nil || updateSignature {
 		// set JWT signature
 		signature, err := util.MakeSignature(32)
