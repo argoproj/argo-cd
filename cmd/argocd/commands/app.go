@@ -592,9 +592,10 @@ func formatConditionsSummary(app argoappv1.Application) string {
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		syncOnly   bool
-		healthOnly bool
-		timeout    uint
+		watchSync       bool
+		watchHealth     bool
+		watchOperations bool
+		timeout         uint
 	)
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
@@ -604,28 +605,22 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if syncOnly && healthOnly {
-				log.Fatalln("Please specify at most one of --sync-only or --health-only.")
+			if !watchSync && !watchHealth && !watchOperations {
+				watchSync = true
+				watchHealth = true
+				watchOperations = true
 			}
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			_, err := waitUntilOperationCompleted(appIf, appName, timeout, func(checkApp *argoappv1.Application) bool {
-				appStatus := checkApp.Status
-				synced := appStatus.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
-				healthy := appStatus.Health.Status == argoappv1.HealthStatusHealthy
-				if len(appStatus.GetErrorConditions()) == 0 && ((synced && healthy) || (synced && syncOnly) || (healthy && healthOnly)) {
-					log.Printf("App %q matches desired state", appName)
-					return true
-				}
-				return false
-			})
+			_, err := waitUntilOperationCompleted(appIf, appName, timeout, watchSync, watchHealth, watchOperations)
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
-	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
+	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
+	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
+	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
@@ -810,9 +805,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitUntilOperationCompleted(appIf, appName, timeout, func(checkApp *argoappv1.Application) bool {
-				return checkApp.Status.OperationState != nil && checkApp.Status.OperationState.Phase.Completed()
-			})
+			app, err := waitUntilOperationCompleted(appIf, appName, timeout, false, false, true)
 			errors.CheckError(err)
 
 			// get refreshed app before printing to show accurate sync/health status
@@ -853,7 +846,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint, statusCheck func(*argoappv1.Application) bool) (*argoappv1.Application, error) {
+func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -878,7 +871,12 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 		_ = w.Flush()
 		prevCompRes = &app.Status.ComparisonResult
 
-		if statusCheck(&app) {
+		// consider skipped checks successful
+		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
+		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
+		operational := !watchOperations || appEvent.Application.Operation == nil
+		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {
+			log.Printf("App %q matches desired state", appName)
 			return &app, nil
 		}
 	}
@@ -1014,9 +1012,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitUntilOperationCompleted(appIf, appName, timeout, func(checkApp *argoappv1.Application) bool {
-				return checkApp.Status.OperationState != nil && checkApp.Status.OperationState.Phase.Completed()
-			})
+			_, err = waitUntilOperationCompleted(appIf, appName, timeout, false, false, true)
 			errors.CheckError(err)
 		},
 	}
