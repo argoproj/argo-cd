@@ -14,7 +14,8 @@ func ServeSwaggerUI(mux *http.ServeMux, component, uiPath string) {
 	specURL := path.Join(prefix, "swagger.json")
 
 	mux.HandleFunc(specURL, func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(component, "swagger.json"))
+		fp := filepath.Join(component, "swagger.json")
+		http.ServeFile(w, r, fp)
 	})
 
 	mux.Handle(uiPath, middleware.Redoc(middleware.RedocOpts{
