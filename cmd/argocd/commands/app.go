@@ -836,9 +836,26 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	printFinalStatus := func() {
+		// get refreshed app before printing to show accurate sync/health status
+		app, err := appClient.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
+		errors.CheckError(err)
+
+		fmt.Printf(printOpFmtStr, "Application:", appName)
+		printOperationResult(app.Status.OperationState)
+
+		if len(app.Status.ComparisonResult.Resources) > 0 {
+			fmt.Println()
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			printAppResources(w, app, true)
+			_ = w.Flush()
+		}
+	}
+
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 			cancel()
+			printFinalStatus()
 		})
 	}
 
@@ -863,22 +880,9 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 		operational := !watchOperations || appEvent.Application.Operation == nil
 		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {
 			log.Printf("App %q matches desired state", appName)
+			printFinalStatus()
 			return &app, nil
 		}
-	}
-
-	// get refreshed app before printing to show accurate sync/health status
-	app, err = appClient.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-	errors.CheckError(err)
-
-	fmt.Printf(printOpFmtStr, "Application:", appName)
-	printOperationResult(app.Status.OperationState)
-
-	if len(app.Status.ComparisonResult.Resources) > 0 {
-		fmt.Println()
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		printAppResources(w, app, true)
-		_ = w.Flush()
 	}
 
 	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
