@@ -252,13 +252,17 @@ func GetSpecErrors(
 						Message: fmt.Sprintf("environment '%s' does not exist in ksonnet app", spec.Source.Environment),
 					})
 				}
-				// If server and namespace are not supplied, pull it from the app.yaml
-				if spec.Destination.Server == "" {
-					spec.Destination.Server = envSpec.Destination.Server
+
+				if envSpec != nil {
+					// If server and namespace are not supplied, pull it from the app.yaml
+					if spec.Destination.Server == "" {
+						spec.Destination.Server = envSpec.Destination.Server
+					}
+					if spec.Destination.Namespace == "" {
+						spec.Destination.Namespace = envSpec.Destination.Namespace
+					}
 				}
-				if spec.Destination.Namespace == "" {
-					spec.Destination.Namespace = envSpec.Destination.Namespace
-				}
+
 			}
 		}
 	}
