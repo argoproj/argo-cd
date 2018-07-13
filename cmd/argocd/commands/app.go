@@ -808,20 +808,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			app, err := waitUntilOperationCompleted(appIf, appName, timeout, false, false, true)
 			errors.CheckError(err)
 
-			// get refreshed app before printing to show accurate sync/health status
-			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			errors.CheckError(err)
-
-			fmt.Printf(printOpFmtStr, "Application:", appName)
-			printOperationResult(app.Status.OperationState)
-
-			if len(app.Status.ComparisonResult.Resources) > 0 {
-				fmt.Println()
-				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				printAppResources(w, app, true)
-				_ = w.Flush()
-			}
-
 			pruningRequired := 0
 			for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
 				if resDetails.Status == argoappv1.ResourceDetailsPruningRequired {
@@ -880,6 +866,21 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 			return &app, nil
 		}
 	}
+
+	// get refreshed app before printing to show accurate sync/health status
+	app, err = appClient.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
+	errors.CheckError(err)
+
+	fmt.Printf(printOpFmtStr, "Application:", appName)
+	printOperationResult(app.Status.OperationState)
+
+	if len(app.Status.ComparisonResult.Resources) > 0 {
+		fmt.Println()
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		printAppResources(w, app, true)
+		_ = w.Flush()
+	}
+
 	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
