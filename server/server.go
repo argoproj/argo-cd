@@ -31,7 +31,6 @@ import (
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -49,7 +48,6 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
-	"github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
@@ -108,57 +106,12 @@ type ArgoCDServerOpts struct {
 
 //initializeSettings sets default secret settings (password set to hostname)
 func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
-	cdSettings, err := settingsMgr.GetSettings()
-	if err != nil {
-		if apierr.IsNotFound(err) {
-			log.Fatal(err)
-		}
-	}
 
-	if cdSettings.ServerSignature == nil {
-		// set JWT signature
-		signature, err := util_session.MakeSignature(32)
-		errors.CheckError(err)
-		cdSettings.ServerSignature = signature
-	}
-
-	if cdSettings.LocalUsers == nil {
-		cdSettings.LocalUsers = make(map[string]string)
-	}
-
-	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok {
-		//placeholder for when we replace this with get pod
-		passwordRaw, err := os.Hostname()
-		errors.CheckError(err)
-		hashedPassword, err := password.HashPassword(passwordRaw)
-		errors.CheckError(err)
-		log.Infof("password set to %s", passwordRaw)
-		cdSettings.LocalUsers = map[string]string{
-			common.ArgoCDAdminUsername: hashedPassword,
-		}
-	}
-
-	if cdSettings.Certificate == nil {
-		// generate TLS cert
-		hosts := []string{
-			"localhost",
-			"argocd-server",
-			fmt.Sprintf("argocd-server.%s", opts.Namespace),
-			fmt.Sprintf("argocd-server.%s.svc", opts.Namespace),
-			fmt.Sprintf("argocd-server.%s.svc.cluster.local", opts.Namespace),
-		}
-		certOpts := tlsutil.CertOptions{
-			Hosts:        hosts,
-			Organization: "Argo CD",
-			IsCA:         true,
-		}
-		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
-		errors.CheckError(err)
-		cdSettings.Certificate = cert
-	}
-
-	err = settingsMgr.SaveSettings(cdSettings)
+	defaultPassword, err := os.Hostname()
 	errors.CheckError(err)
+
+	cdSettings := settings_util.UpdateSettings(defaultPassword, settingsMgr, false, false, opts.Namespace)
+
 	return cdSettings, nil
 }
 
