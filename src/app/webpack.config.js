@@ -6,6 +6,11 @@ const webpack = require('webpack');
 
 const isProd = process.env.NODE_ENV === 'production';
 
+const proxyConf = {
+    'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
+    'secure': false,
+};
+
 const config = {
     entry: './src/app/index.tsx',
     output: {
@@ -60,14 +65,10 @@ const config = {
         historyApiFallback: true,
         port: 4000,
         proxy: {
-            '/api': {
-                'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
-                'secure': false,
-            },
-            '/auth': {
-                'target': process.env.ARGOCD_API_URL || 'http://localhost:8080',
-                'secure': false,
-            }
+            '/api': proxyConf,
+            '/auth': proxyConf,
+            '/swagger-ui': proxyConf,
+            '/swagger.json': proxyConf,
         }
     }
 };

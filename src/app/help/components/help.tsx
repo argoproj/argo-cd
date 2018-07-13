@@ -7,7 +7,15 @@ require('./help.scss');
 export const Help = () => (
     <Page title='Help'>
         <div className='row'>
-            <div className='columns large-6 medium-12'>
+            <div className='columns large-4 medium-12'>
+                <div className='help-box'>
+                    <div className='help-box__ico help-box__ico--manual'/>
+                    <h3>Documentation</h3>
+                    <a href='https://github.com/argoproj/argo-cd/tree/master/docs' target='_blank' className='help-box__link'>ArgoCD Docs</a>
+                    <a href='/swagger-ui' target='_blank' className='help-box__link'>Swagger UI</a>
+                </div>
+            </div>
+            <div className='columns large-4 medium-12'>
                 <div className='help-box'>
                     <div className='help-box__ico help-box__ico--email'/>
                     <h3>Contact</h3>
@@ -15,7 +23,7 @@ export const Help = () => (
                     <a className='help-box__link' target='_blank' href='https://argoproj.slack.com'>Slack Channel</a>
                 </div>
             </div>
-            <div className='columns large-6 medium-12'>
+            <div className='columns large-4 medium-12'>
                 <div className='help-box'>
                     <div className='help-box__ico help-box__ico--download'/>
                     <h3>ArgoCD CLI</h3>
