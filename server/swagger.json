@@ -983,7 +983,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/usersUserResponse"
+              "$ref": "#/definitions/usersUpdatePasswordResponse"
             }
           }
         }
@@ -1329,7 +1329,7 @@
         }
       }
     },
-    "usersUserResponse": {
+    "usersUpdatePasswordResponse": {
       "type": "object"
     },
     "v1Event": {
