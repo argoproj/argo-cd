@@ -16,7 +16,7 @@ message Body {
     string currentPassword = 2;
     string newPassword = 3; 
 }
-message UsersPasswordRequest {
+message UpdatePasswordRequest {
     string name = 1;
     Body body = 2;
 }
@@ -27,7 +27,7 @@ service UsersService {
 
 
    	// Update updates an application
-	rpc UpdatePassword(UsersPasswordRequest) returns (UserResponse) {
+	rpc UpdatePassword(UpdatePasswordRequest) returns (UserResponse) {
 		option (google.api.http) = {
 			put: "/api/v1/users/{name}/password"
 			body: "body"

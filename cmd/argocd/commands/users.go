@@ -52,14 +52,14 @@ func NewUsersChangePasswordCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				CurrentPassword: CurrentPassword,
 				NewPassword:     NewPassword,
 			}
-			userPasswordRequest := users.UsersPasswordRequest{
+			UpdatePasswordRequest := users.UpdatePasswordRequest{
 				Name: userName,
 				Body: &body,
 			}
 
 			conn, usrIf := argocdclient.NewClientOrDie(clientOpts).NewUsersClientOrDie()
 			defer util.Close(conn)
-			_, err := usrIf.UpdatePassword(context.Background(), &userPasswordRequest)
+			_, err := usrIf.UpdatePassword(context.Background(), &UpdatePasswordRequest)
 			errors.CheckError(err)
 			fmt.Printf("password for user %s updated to %s \n", userName, NewPassword)
 		},
