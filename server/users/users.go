@@ -22,7 +22,7 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 }
 
-//This Function is used to Update User Passwords \
+//UpdatePassword is used to Update a User's Passwords
 func (s *Server) UpdatePassword(ctx context.Context, q *UpdatePasswordRequest) (*UpdatePasswordResponse, error) {
 
 	cdSettings, err := s.settingsMgr.GetSettings()

@@ -388,13 +388,13 @@ func (mgr *SettingsManager) notifySubscribers() {
 	}
 }
 
-func ReadAndConfirmPassword(types string) string {
+func ReadAndConfirmPassword() string {
 	for {
-		fmt.Printf("*** Enter an %s password: ", types)
+		fmt.Print("*** Enter a new password ")
 		password, err := terminal.ReadPassword(syscall.Stdin)
 		errors.CheckError(err)
 		fmt.Print("\n")
-		fmt.Printf("*** Confirm the %s password: ", types)
+		fmt.Print("*** Confirm the new password ")
 		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
 		errors.CheckError(err)
 		fmt.Print("\n")
@@ -426,7 +426,7 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok || updateSuperuser {
 		passwordRaw := defaultPassword
 		if passwordRaw == "" {
-			passwordRaw = ReadAndConfirmPassword("admin")
+			passwordRaw = ReadAndConfirmPassword()
 		}
 		log.Infof("password set to %s", passwordRaw)
 		hashedPassword, err := password.HashPassword(passwordRaw)

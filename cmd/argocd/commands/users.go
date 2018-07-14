@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -11,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func NewUsersCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -41,10 +43,14 @@ func NewUsersChangePasswordCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			}
 
 			if CurrentPassword == "" {
-				CurrentPassword = settings.ReadAndConfirmPassword("Current Password")
+				fmt.Print("*** Enter your Current Password password ")
+				password, err := terminal.ReadPassword(syscall.Stdin)
+				errors.CheckError(err)
+				CurrentPassword = string(password)
+				fmt.Print("\n")
 			}
 			if NewPassword == "" {
-				NewPassword = settings.ReadAndConfirmPassword("New Password")
+				NewPassword = settings.ReadAndConfirmPassword()
 			}
 
 			userName := args[0]
