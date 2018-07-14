@@ -41,7 +41,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli server-image controller-image repo-server-image argocd-util
+all: cli server-image controller-image repo-server-image argocd-util install-manifest
 
 .PHONY: protogen
 protogen:
@@ -78,10 +78,14 @@ cli-darwin: clean-debug
 argocd-util: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
+.PHONY: install-manifest
+install-manifest: clean-debug
+	cat manifests/components/*.yaml > manifests/install.yaml
+
 .PHONY: server
 server: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
-
+	
 .PHONY: server-image
 server-image:
 	docker build --build-arg BINARY=argocd-server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .

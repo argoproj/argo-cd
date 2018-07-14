@@ -1,11 +1,12 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: argocd-server-role-binding
+  name: application-controller-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: argocd-server-role
+  name: application-controller-role
 subjects:
 - kind: ServiceAccount
-  name: argocd-server
+  name: application-controller

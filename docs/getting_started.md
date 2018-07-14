@@ -18,9 +18,11 @@ chmod +x /usr/local/bin/argocd
 
 ## 2. Install ArgoCD
 ```
-argocd install
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://github.com/argoproj/argo-cd/blob/master/manifests/install.yaml
 ```
-This will create a new namespace, `argocd`, where ArgoCD services and application resources will live.
+This will create a new namespace, `argocd` where ArgoCD services and application resources will live.
+This will also create key replicasets, deployments and services needed for ArgoCD
 
 ## 3. Open access to ArgoCD API server
 
