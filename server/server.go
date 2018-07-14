@@ -41,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
+	"github.com/argoproj/argo-cd/server/users"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
@@ -323,6 +324,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf, projectLock)
 	projectService := project.NewServer(a.Namespace, a.AppClientset, a.enf, projectLock)
 	settingsService := settings.NewServer(a.settingsMgr)
+	usersService := users.NewServer(a.sessionMgr, a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
 	application.RegisterApplicationServiceServer(grpcS, applicationService)
@@ -330,7 +332,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	session.RegisterSessionServiceServer(grpcS, sessionService)
 	settings.RegisterSettingsServiceServer(grpcS, settingsService)
 	project.RegisterProjectServiceServer(grpcS, projectService)
-
+	users.RegisterUsersServiceServer(grpcS, usersService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	return grpcS

@@ -22,7 +22,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin5",
+        "operationId": "ListMixin6",
         "parameters": [
           {
             "type": "string",
@@ -58,7 +58,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin5",
+        "operationId": "CreateMixin6",
         "parameters": [
           {
             "name": "body",
@@ -85,7 +85,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin5",
+        "operationId": "UpdateMixin6",
         "parameters": [
           {
             "type": "string",
@@ -118,7 +118,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin5",
+        "operationId": "GetMixin6",
         "parameters": [
           {
             "type": "string",
@@ -155,7 +155,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin5",
+        "operationId": "DeleteMixin6",
         "parameters": [
           {
             "type": "string",
@@ -865,7 +865,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin6",
+        "operationId": "CreateMixin7",
         "parameters": [
           {
             "name": "body",
@@ -890,7 +890,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin6",
+        "operationId": "DeleteMixin7",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -951,6 +951,39 @@
             "description": "(streaming responses)",
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationWatchEvent"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{name}/password": {
+      "put": {
+        "tags": [
+          "UsersService"
+        ],
+        "summary": "Update updates an application",
+        "operationId": "UpdatePassword",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/usersBody"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/usersUserResponse"
             }
           }
         }
@@ -1284,6 +1317,20 @@
           "type": "string"
         }
       }
+    },
+    "usersBody": {
+      "type": "object",
+      "properties": {
+        "currentPassword": {
+          "type": "string"
+        },
+        "newPassword": {
+          "type": "string"
+        }
+      }
+    },
+    "usersUserResponse": {
+      "type": "object"
     },
     "v1Event": {
       "description": "Event is a report of an event somewhere in the cluster.",
@@ -1968,11 +2015,11 @@
       "properties": {
         "apiVersion": {
           "type": "string",
-          "title": "Name is the resource name"
+          "title": "APIVersion is the resource API version"
         },
         "kind": {
           "type": "string",
-          "title": "Name is the resource name"
+          "title": "Kind is the resource kind"
         },
         "message": {
           "description": "A human readable message indicating details about why the resource is in this condition.",

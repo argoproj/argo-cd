@@ -1,0 +1,37 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/users";
+
+//Users Service 
+//
+//
+//Users Service API updates ArgoCD users settings
+
+package users;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+
+message Body {
+    string currentPassword = 2;
+    string newPassword = 3; 
+}
+message UsersPasswordRequest {
+    string name = 1;
+    Body body = 2;
+}
+
+message UserResponse {}
+
+service UsersService {
+
+
+   	// Update updates an application
+	rpc UpdatePassword(UsersPasswordRequest) returns (UserResponse) {
+		option (google.api.http) = {
+			put: "/api/v1/users/{name}/password"
+			body: "body"
+		};
+	}
+
+}
