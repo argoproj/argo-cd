@@ -40,10 +40,11 @@ type Operation struct {
 type OperationPhase string
 
 const (
-	OperationRunning   OperationPhase = "Running"
-	OperationFailed    OperationPhase = "Failed"
-	OperationError     OperationPhase = "Error"
-	OperationSucceeded OperationPhase = "Succeeded"
+	OperationRunning     OperationPhase = "Running"
+	OperationTerminating OperationPhase = "Terminating"
+	OperationFailed      OperationPhase = "Failed"
+	OperationError       OperationPhase = "Error"
+	OperationSucceeded   OperationPhase = "Succeeded"
 )
 
 func (os OperationPhase) Completed() bool {

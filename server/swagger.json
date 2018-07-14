@@ -239,6 +239,31 @@
         }
       }
     },
+    "/api/v1/applications/{name}/operation": {
+      "delete": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "TerminateOperation terminates the currently running operation",
+        "operationId": "TerminateOperation",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationOperationTerminateResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/pods/{podName}": {
       "delete": {
         "tags": [
@@ -1113,6 +1138,9 @@
         }
       }
     },
+    "applicationOperationTerminateResponse": {
+      "type": "object"
+    },
     "clusterClusterResponse": {
       "type": "object"
     },
@@ -1968,11 +1996,11 @@
       "properties": {
         "apiVersion": {
           "type": "string",
-          "title": "Name is the resource name"
+          "title": "APIVersion is the resource API version"
         },
         "kind": {
           "type": "string",
-          "title": "Name is the resource name"
+          "title": "Kind is the resource kind"
         },
         "message": {
           "description": "A human readable message indicating details about why the resource is in this condition.",

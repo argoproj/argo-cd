@@ -625,3 +625,34 @@ func (s *Server) setAppOperation(ctx context.Context, appName string, operationC
 		}
 	}
 }
+
+func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTerminateRequest) (*OperationTerminateResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*termOpReq.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "terminateop", appRBACName(*a)) {
+		return nil, grpc.ErrPermissionDenied
+	}
+
+	for i := 0; i < 10; i++ {
+		if a.Operation == nil || a.Status.OperationState == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
+		}
+		a.Status.OperationState.Phase = appv1.OperationTerminating
+		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
+		if err == nil {
+			return &OperationTerminateResponse{}, nil
+		}
+		if !apierr.IsConflict(err) {
+			return nil, err
+		}
+		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", termOpReq.Name)
+		time.Sleep(100 * time.Millisecond)
+		a, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*termOpReq.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
+}

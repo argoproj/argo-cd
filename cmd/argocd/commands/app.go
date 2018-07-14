@@ -58,6 +58,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
 	command.AddCommand(NewApplicationWaitCommand(clientOpts))
 	command.AddCommand(NewApplicationManifestsCommand(clientOpts))
+	command.AddCommand(NewApplicationTerminateOpCommand(clientOpts))
 	return command
 }
 
@@ -1120,5 +1121,27 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
+	return command
+}
+
+// NewApplicationTerminateOpCommand returns a new instance of an `argocd app terminate-op` command
+func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "terminate-op APPNAME",
+		Short: "Terminate running operation of an application",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			ctx := context.Background()
+			_, err := appIf.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &appName})
+			errors.CheckError(err)
+			fmt.Printf("Application '%s' operation terminating\n", appName)
+		},
+	}
 	return command
 }
