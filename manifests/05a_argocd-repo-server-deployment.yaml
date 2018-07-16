@@ -17,7 +17,3 @@ spec:
         command: [/argocd-repo-server]
         ports:
           - containerPort: 8081
-      - name: redis
-        image: redis:3.2.11
-        ports:
-          - containerPort: 6379

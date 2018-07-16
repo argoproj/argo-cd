@@ -8,23 +8,23 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo-cd"
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/errors"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo/util/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
-
-	"github.com/argoproj/argo-cd/reposerver"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+
+	"github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/errors"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/db"
 )
 
 const (
@@ -91,6 +91,8 @@ func newCommand() *cobra.Command {
 			defer cancel()
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
+			stats.RegisterStackDumper()
+			stats.StartStatsTicker(10 * time.Minute)
 
 			go secretController.Run(ctx)
 			go appController.Run(ctx, statusProcessors, operationProcessors)
