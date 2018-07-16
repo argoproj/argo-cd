@@ -390,11 +390,11 @@ func (mgr *SettingsManager) notifySubscribers() {
 
 func ReadAndConfirmPassword() string {
 	for {
-		fmt.Print("*** Enter a new password ")
+		fmt.Print("*** Enter new password: ")
 		password, err := terminal.ReadPassword(syscall.Stdin)
 		errors.CheckError(err)
 		fmt.Print("\n")
-		fmt.Print("*** Confirm the new password ")
+		fmt.Print("*** Confirm new password: ")
 		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
 		errors.CheckError(err)
 		fmt.Print("\n")

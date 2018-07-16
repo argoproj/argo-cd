@@ -1,0 +1,30 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/account";
+
+// Account Service 
+//
+// Account Service API updates ArgoCD account settings
+
+package account;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+message UpdatePasswordRequest {
+	string newPassword = 1;
+	string currentPassword = 2;
+}
+
+message UpdatePasswordResponse {}
+
+service AccountService {
+
+   	// UpdatePassword updates an account's password to a new value
+	rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse) {
+		option (google.api.http) = {
+			put: "/api/v1/account/password"
+			body: "*"
+		};
+	}
+
+}
