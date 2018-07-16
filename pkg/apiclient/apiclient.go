@@ -11,13 +11,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
-	"github.com/argoproj/argo-cd/server/users"
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
@@ -52,8 +52,8 @@ type Client interface {
 	NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServiceClient)
 	NewProjectClient() (*grpc.ClientConn, project.ProjectServiceClient, error)
 	NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServiceClient)
-	NewUsersClient() (*grpc.ClientConn, users.UsersServiceClient, error)
-	NewUsersClientOrDie() (*grpc.ClientConn, users.UsersServiceClient)
+	NewAccountClient() (*grpc.ClientConn, account.AccountServiceClient, error)
+	NewAccountClientOrDie() (*grpc.ClientConn, account.AccountServiceClient)
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -316,17 +316,17 @@ func (c *client) NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServi
 	return conn, projIf
 }
 
-func (c *client) NewUsersClient() (*grpc.ClientConn, users.UsersServiceClient, error) {
+func (c *client) NewAccountClient() (*grpc.ClientConn, account.AccountServiceClient, error) {
 	conn, err := c.NewConn()
 	if err != nil {
 		return nil, nil, err
 	}
-	usrIf := users.NewUsersServiceClient(conn)
+	usrIf := account.NewAccountServiceClient(conn)
 	return conn, usrIf, nil
 }
 
-func (c *client) NewUsersClientOrDie() (*grpc.ClientConn, users.UsersServiceClient) {
-	conn, usrIf, err := c.NewUsersClient()
+func (c *client) NewAccountClientOrDie() (*grpc.ClientConn, account.AccountServiceClient) {
+	conn, usrIf, err := c.NewAccountClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}

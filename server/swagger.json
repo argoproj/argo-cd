@@ -16,13 +16,40 @@
     "version": "version not set"
   },
   "paths": {
+    "/api/v1/account/password": {
+      "put": {
+        "tags": [
+          "AccountService"
+        ],
+        "summary": "UpdatePassword updates an account's password to a new value",
+        "operationId": "UpdatePassword",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/accountUpdatePasswordRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/accountUpdatePasswordResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "tags": [
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin6",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
@@ -58,7 +85,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin6",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -85,7 +112,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin6",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -118,7 +145,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin6",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
@@ -155,7 +182,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin6",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -981,39 +1008,6 @@
         }
       }
     },
-    "/api/v1/users/{name}/password": {
-      "put": {
-        "tags": [
-          "UsersService"
-        ],
-        "summary": "Update updates an application",
-        "operationId": "UpdatePassword",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/usersBody"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/usersUpdatePasswordResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/version": {
       "get": {
         "tags": [
@@ -1033,6 +1027,20 @@
     }
   },
   "definitions": {
+    "accountUpdatePasswordRequest": {
+      "type": "object",
+      "properties": {
+        "currentPassword": {
+          "type": "string"
+        },
+        "newPassword": {
+          "type": "string"
+        }
+      }
+    },
+    "accountUpdatePasswordResponse": {
+      "type": "object"
+    },
     "apismetav1ObjectMeta": {
       "description": "ObjectMeta is metadata that all persisted resources must have, which includes all objects\nusers must create.",
       "type": "object",
@@ -1345,20 +1353,6 @@
           "type": "string"
         }
       }
-    },
-    "usersBody": {
-      "type": "object",
-      "properties": {
-        "currentPassword": {
-          "type": "string"
-        },
-        "newPassword": {
-          "type": "string"
-        }
-      }
-    },
-    "usersUpdatePasswordResponse": {
-      "type": "object"
     },
     "v1Event": {
       "description": "Event is a report of an event somewhere in the cluster.",
