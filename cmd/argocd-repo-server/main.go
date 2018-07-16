@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
+
+	"github.com/argoproj/argo/util/stats"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/errors"
@@ -12,9 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
-	"github.com/go-redis/redis"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -45,6 +47,8 @@ func newCommand() *cobra.Command {
 
 			log.Infof("argocd-repo-server %s serving on %s", argocd.GetVersion(), listener.Addr())
 			log.Infof("ksonnet version: %s", ksVers)
+			stats.RegisterStackDumper()
+			stats.StartStatsTicker(10 * time.Minute)
 			err = grpc.Serve(listener)
 			errors.CheckError(err)
 			return nil
@@ -56,13 +60,13 @@ func newCommand() *cobra.Command {
 }
 
 func newCache() cache.Cache {
-	//return cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-	})
-	return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
+	return cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
+	// client := redis.NewClient(&redis.Options{
+	// 	Addr:     "localhost:6379",
+	// 	Password: "",
+	// 	DB:       0,
+	// })
+	// return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
 }
 
 func main() {

@@ -4,16 +4,19 @@ import (
 	"context"
 	"flag"
 	"strconv"
+	"time"
+
+	"github.com/argoproj/argo/util/stats"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/util/cli"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -60,6 +63,9 @@ func NewCommand() *cobra.Command {
 				RepoClientset:   repoclientset,
 				DisableAuth:     disableAuth,
 			}
+
+			stats.RegisterStackDumper()
+			stats.StartStatsTicker(10 * time.Minute)
 
 			for {
 				argocd := server.NewServer(argoCDOpts)
