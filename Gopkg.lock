@@ -1022,8 +1022,12 @@
 [[projects]]
   name = "k8s.io/kubernetes"
   packages = [
+    "pkg/apis/apps",
+    "pkg/apis/autoscaling",
     "pkg/apis/batch",
     "pkg/apis/core",
+    "pkg/apis/extensions",
+    "pkg/apis/networking",
     "pkg/kubectl/scheme"
   ]
   revision = "81753b10df112992bf51bbc2c2f85208aad78335"
@@ -1032,6 +1036,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "839d26383e983bd1388439f67b8ba360e3479b14c4a731f48413fa6ed78f6485"
+  inputs-digest = "2eaad7537e4d4bc23be336a9e96c3e589cefccf6913125a37bf9b069bf02b5e9"
   solver-name = "gps-cdcl"
   solver-version = 1
