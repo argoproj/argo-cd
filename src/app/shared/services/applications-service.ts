@@ -57,7 +57,7 @@ export class ApplicationsService {
         return requests.get(`/applications/${applicationName}/events`).query({resourceName, resourceUID}).send().then((res) => (res.body as models.EventList).items || []);
     }
 
-    public terminateOperation(applicationName: string) {
+    public terminateOperation(applicationName: string): Promise<boolean> {
         return requests.delete(`/applications/${applicationName}/operation`).send().then(() => true);
     }
 
