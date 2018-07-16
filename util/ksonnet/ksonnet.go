@@ -9,9 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	"github.com/ksonnet/ksonnet/pkg/component"
@@ -22,6 +19,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1ExtBeta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/diff"
 )
 
 var (
@@ -127,7 +128,7 @@ func (k *ksonnetApp) Spec() *app.Spec {
 func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {
 	out, err := k.ksCmd("show", environment)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
 	parts := diffSeparator.Split(out, -1)
 	objs := make([]*unstructured.Unstructured, 0)
@@ -150,8 +151,9 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	return objs, nil
 }
 
-// remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller. This ensures that expected resource state is formatter same as actual
-// resource state in kubernetes and allows to find differences between actual and target states more accurate.
+// remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller.
+// This ensures that expected resource state is formatter same as actualresource state in kubernetes
+// and allows to find differences between actual and target states more accurately.
 func remarshal(obj *unstructured.Unstructured) error {
 	var newObj interface{}
 	switch obj.GetAPIVersion() + ":" + obj.GetKind() {
