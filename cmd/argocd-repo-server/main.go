@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo/util/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/stats"
 )
 
 const (
@@ -49,6 +49,7 @@ func newCommand() *cobra.Command {
 			log.Infof("ksonnet version: %s", ksVers)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
+			stats.RegisterHeapDumper("memprofile")
 			err = grpc.Serve(listener)
 			errors.CheckError(err)
 			return nil
