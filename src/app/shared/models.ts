@@ -34,7 +34,7 @@ export interface Operation {
     rollback: RollbackOperation;
 }
 
-export type OperationPhase = 'InProgress' | 'Failed' | 'Succeeded';
+export type OperationPhase = 'InProgress' | 'Failed' | 'Succeeded' | 'Terminating';
 
 /**
  * OperationState contains information about state of currently performing operation on application.

@@ -1,12 +1,17 @@
-import { Duration } from 'argo-ui';
+import { Duration, NotificationType } from 'argo-ui';
 import * as moment from 'moment';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
-import { Ticker } from '../../../shared/components';
+import { ErrorNotification, Ticker } from '../../../shared/components';
+import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
+import { services } from '../../../shared/services';
 import * as utils from '../utils';
 
-export const ApplicationOperationState = ({operationState}: { operationState: models.OperationState }) => {
+interface Props { application: models.Application; operationState: models.OperationState; }
+
+export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
 
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(operationState)},
@@ -18,8 +23,30 @@ export const ApplicationOperationState = ({operationState}: { operationState: mo
                 {(time) => <Duration durationMs={(operationState.finishedAt && moment(operationState.finishedAt) || time).diff(moment(operationState.startedAt)) / 1000}/>}
             </Ticker>
         )},
-        ...(operationState.finishedAt ? [{title: 'FINISHED AT', value: operationState.finishedAt}] : []),
     ];
+
+    if (operationState.finishedAt) {
+        operationAttributes.push({ title: 'FINISHED AT', value: operationState.finishedAt});
+    } else if (operationState.phase !== 'Terminating') {
+        operationAttributes.push({
+            title: '',
+            value: (
+                <button className='argo-button argo-button--base' onClick={async () => {
+                    const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
+                    if (confirmed) {
+                        try {
+                            services.applications.terminateOperation(application.metadata.name);
+                        } catch (e) {
+                            ctx.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to terminate operation' e={e}/>,
+                                type: NotificationType.Error,
+                            });
+                        }
+                    }
+                }}>Terminate</button>
+            ),
+        });
+    }
 
     const resultAttributes: {title: string, value: string}[] = [];
     const syncResult = operationState.syncResult || operationState.rollbackResult;
@@ -114,4 +141,8 @@ export const ApplicationOperationState = ({operationState}: { operationState: mo
             )}
         </div>
     );
+};
+
+ApplicationOperationState.contextTypes = {
+    apis: PropTypes.object,
 };
