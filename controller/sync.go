@@ -506,7 +506,7 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 		return false
 	}
 	if !successful {
-		sc.setOperationPhase(appv1.OperationFailed, fmt.Sprintf("%s hook failed", appv1.HookTypePreSync))
+		sc.setOperationPhase(appv1.OperationFailed, fmt.Sprintf("%s hook failed", hookType))
 		return false
 	}
 	return true
@@ -519,7 +519,7 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	// or formulated at the time of the operation (metadata.generateName). If user specifies
 	// metadata.generateName, then we will generate a formulated metadata.name before submission.
 	if hook.GetName() == "" {
-		postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", hookType, sc.syncRes.Revision[0:7], sc.opState.StartedAt.UTC().Unix()))
+		postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], hookType, sc.opState.StartedAt.UTC().Unix()))
 		generatedName := hook.GetGenerateName()
 		hook = hook.DeepCopy()
 		hook.SetName(fmt.Sprintf("%s%s", generatedName, postfix))
@@ -568,7 +568,35 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 		liveObj = existing
 	}
 	hookStatus := newHookStatus(liveObj, hookType)
+	if hookStatus.Status.Completed() {
+		if enforceDeletePolicy(hook, hookStatus.Status) {
+			err = sc.deleteHook(hook.GetName(), hook.GetKind(), hook.GetAPIVersion())
+			if err != nil {
+				hookStatus.Status = appv1.OperationFailed
+				hookStatus.Message = fmt.Sprintf("failed to delete %s hook: %v", hookStatus.Status, err)
+			}
+		}
+	}
 	return sc.updateHookStatus(hookStatus), nil
+}
+
+// enforceDeletePolicy examines the hook deletion policy of a object and deletes it based on the status
+func enforceDeletePolicy(hook *unstructured.Unstructured, phase appv1.OperationPhase) bool {
+	annotations := hook.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	deletePolicies := strings.Split(annotations[common.AnnotationHookDeletePolicy], ",")
+	for _, dp := range deletePolicies {
+		policy := appv1.HookDeletePolicy(strings.TrimSpace(dp))
+		if policy == appv1.HookDeletePolicyHookSucceeded && phase == appv1.OperationSucceeded {
+			return true
+		}
+		if policy == appv1.HookDeletePolicyHookFailed && phase == appv1.OperationFailed {
+			return true
+		}
+	}
+	return false
 }
 
 // isHookType tells whether or not the supplied object is a hook of the specified type
@@ -678,6 +706,7 @@ func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) app
 				switch condition.Type {
 				case batch.JobFailed:
 					failed = true
+					complete = true
 					failMsg = condition.Message
 				case batch.JobComplete:
 					complete = true
@@ -721,7 +750,7 @@ func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) app
 	return hookStatus
 }
 
-// updateHookStatus updates the status of a hook. Returns whether or not the hook was changed or not
+// updateHookStatus updates the status of a hook. Returns true if the hook was modified
 func (sc *syncContext) updateHookStatus(hookStatus appv1.HookStatus) bool {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
@@ -783,9 +812,9 @@ func (sc *syncContext) terminate() {
 		}
 	}
 	if terminateSuccessful {
-		sc.setOperationPhase(appv1.OperationFailed, "Application terminated")
+		sc.setOperationPhase(appv1.OperationFailed, "Operation terminated")
 	} else {
-		sc.setOperationPhase(appv1.OperationError, "Termination had errors")
+		sc.setOperationPhase(appv1.OperationError, "Operation termination had errors")
 	}
 }
 

@@ -114,6 +114,13 @@ const (
 	//HookTypeSyncFail     HookType = "SyncFail"
 )
 
+type HookDeletePolicy string
+
+const (
+	HookDeletePolicyHookSucceeded HookDeletePolicy = "HookSucceeded"
+	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
+)
+
 // HookStatus contains status about a hook invocation
 type HookStatus struct {
 	// Name is the resource name

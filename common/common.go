@@ -71,6 +71,8 @@ var (
 
 	// AnnotationHook contains the hook type of a resource
 	AnnotationHook = MetadataPrefix + "/hook"
+	// AnnotationHookDeletePolicy is the policy of deleting a hook
+	AnnotationHookDeletePolicy = MetadataPrefix + "/hook-delete-policy"
 
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"

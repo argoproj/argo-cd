@@ -160,7 +160,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 
 	params, err := ksApp.ListEnvParams(q.Environment)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to list ksonnet app params: %v", err)
 	}
 
 	if q.ComponentParameterOverrides != nil {
