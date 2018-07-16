@@ -37,11 +37,11 @@ export class ApplicationsService {
     }
 
     public sync(name: string, revision: string, prune: boolean): Promise<boolean> {
-        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune}).then((res) => true);
+        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune}).then(() => true);
     }
 
     public rollback(name: string, id: number): Promise<boolean> {
-        return requests.post(`/applications/${name}/rollback`).send({id}).then((res) => true);
+        return requests.post(`/applications/${name}/rollback`).send({id}).then(() => true);
     }
 
     public getContainerLogs(applicationName: string, podName: string, containerName: string): Observable<models.LogEntry> {
@@ -50,11 +50,15 @@ export class ApplicationsService {
     }
 
     public deletePod(applicationName: string, podName: string): Promise<any> {
-        return requests.delete(`/applications/${applicationName}/pods/${podName}`).send().then((res) => true);
+        return requests.delete(`/applications/${applicationName}/pods/${podName}`).send().then(() => true);
     }
 
     public resourceEvents(applicationName: string, resourceUID: string, resourceName: string): Promise<models.Event[]> {
         return requests.get(`/applications/${applicationName}/events`).query({resourceName, resourceUID}).send().then((res) => (res.body as models.EventList).items || []);
+    }
+
+    public terminateOperation(applicationName: string) {
+        return requests.delete(`/applications/${applicationName}/operation`).send().then(() => true);
     }
 
     private parseAppFields(data: any): models.Application {

@@ -221,7 +221,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                         />}
                 </SlidingPanel>
                 <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
-                    {operationState && <ApplicationOperationState operationState={operationState}/>}
+                    {operationState && <ApplicationOperationState  application={this.state.application} operationState={operationState}/>}
                 </SlidingPanel>
                 <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                     {conditions && <ApplicationConditions conditions={conditions}/>}
