@@ -1,16 +1,19 @@
 # Built-in policy which defines two roles: role:readonly and role:admin,
 # and additionally assigns the admin user to the role:admin role.
-# The policy format is:
+# There are two policy formats:
+# 1. Applications (which belong to a project):
 # p, <user/group>, <resource>, <action>, <project>/<object>
+# 2. All other resources:
+# p, <user/group>, <resource>, <action>, <object>
 
 p, role:readonly, applications, get, */*
 p, role:readonly, applications/events, get, */*
 p, role:readonly, applications/manifests, get, */*
 p, role:readonly, applications/logs, get, */*
-p, role:readonly, clusters, get, */*
-p, role:readonly, repositories, get, */*
-p, role:readonly, repositories/apps, get, */*
-p, role:readonly, projects, get, */*
+p, role:readonly, clusters, get, *
+p, role:readonly, repositories, get, *
+p, role:readonly, repositories/apps, get, *
+p, role:readonly, projects, get, *
 
 p, role:admin, applications, create, */*
 p, role:admin, applications, update, */*
@@ -19,15 +22,15 @@ p, role:admin, applications, sync, */*
 p, role:admin, applications, rollback, */*
 p, role:admin, applications, terminateop, */*
 p, role:admin, applications/pods, delete, */*
-p, role:admin, clusters, create, */*
-p, role:admin, clusters, update, */*
-p, role:admin, clusters, delete, */*
-p, role:admin, repositories, create, */*
-p, role:admin, repositories, update, */*
-p, role:admin, repositories, delete, */*
-p, role:admin, projects, create, */*
-p, role:admin, projects, update, */*
-p, role:admin, projects, delete, */*
+p, role:admin, clusters, create, *
+p, role:admin, clusters, update, *
+p, role:admin, clusters, delete, *
+p, role:admin, repositories, create, *
+p, role:admin, repositories, update, *
+p, role:admin, repositories, delete, *
+p, role:admin, projects, create, *
+p, role:admin, projects, update, *
+p, role:admin, projects, delete, *
 
 g, role:admin, role:readonly
 g, admin, role:admin
