@@ -110,8 +110,15 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	sort.Strings(contextNames)
 
 	for _, name := range contextNames {
+		// ignore malformed kube config entries
 		context := config.Contexts[name]
+		if context == nil {
+			continue
+		}
 		cluster := config.Clusters[context.Cluster]
+		if cluster == nil {
+			continue
+		}
 		prefix := " "
 		if config.CurrentContext == name {
 			prefix = "*"
