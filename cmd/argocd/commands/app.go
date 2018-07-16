@@ -614,7 +614,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			_, err := waitUntilOperationCompleted(appIf, appName, timeout, watchSync, watchHealth, watchOperations)
+			_, err := waitUntilOperationCompleted(appIf, appName, timeout, watchSync, watchHealth, watchOperations, false, false)
 			errors.CheckError(err)
 		},
 	}
@@ -733,7 +733,7 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 }
 
 // printAppStateChange prints a component state change if it was different from the last time we saw it
-func printAppStateChange(w io.Writer, prevComp *argoappv1.ComparisonResult, app *argoappv1.Application) {
+func printAppStateChange(w io.Writer, prevComp *argoappv1.ComparisonResult, app *argoappv1.Application, forSync, forRollback bool) {
 	getPrevResState := func(kind, name string) (argoappv1.ComparisonStatus, argoappv1.HealthStatusCode) {
 		for _, res := range prevComp.Resources {
 			obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
@@ -756,9 +756,36 @@ func printAppStateChange(w io.Writer, prevComp *argoappv1.ComparisonResult, app 
 				obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
 				errors.CheckError(err)
 			}
+
 			prevSync, prevHealth := getPrevResState(obj.GetKind(), obj.GetName())
 			if prevSync != res.Status || prevHealth != res.Health.Status {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", "")
+			}
+		}
+		if app.Status.OperationState != nil && (forSync || forRollback) {
+			var opResult *argoappv1.SyncOperationResult
+			if forSync {
+				opResult = app.Status.OperationState.SyncResult
+			} else {
+				opResult = app.Status.OperationState.RollbackResult
+			}
+			if opResult != nil {
+				var prevHook *argoappv1.HookStatus
+				var prevRsrc *argoappv1.ResourceDetails
+
+				for _, res := range opResult.Hooks {
+					if prevHook.Status != res.Status || prevHook.Message != res.Message {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", res.Kind, res.Name, res.Status, "", res.Type, res.Message)
+					}
+					prevHook = res
+				}
+
+				for _, res := range opResult.Resources {
+					if prevRsrc.Status != res.Status || prevRsrc.Message != res.Message {
+						fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", res.Kind, res.Name, res.Status, "", "", res.Message)
+					}
+					prevRsrc = res
+				}
 			}
 		}
 	}
@@ -805,7 +832,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitUntilOperationCompleted(appIf, appName, timeout, false, false, true)
+			app, err := waitUntilOperationCompleted(appIf, appName, timeout, false, false, true, true, false)
 			errors.CheckError(err)
 
 			pruningRequired := 0
@@ -832,7 +859,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations bool) (*argoappv1.Application, error) {
+func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations, isSync, isRollback bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -863,14 +890,14 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	app, err := appClient.Get(ctx, &application.ApplicationQuery{Name: &appName})
 	errors.CheckError(err)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	printAppResources(w, app, false)
+	printAppResources(w, app, true)
 	_ = w.Flush()
 	prevCompRes := &app.Status.ComparisonResult
 
 	appEventCh := watchApp(ctx, appClient, appName)
 	for appEvent := range appEventCh {
 		app := appEvent.Application
-		printAppStateChange(w, prevCompRes, &app)
+		printAppStateChange(w, prevCompRes, &app, isSync, isRollback)
 		_ = w.Flush()
 		prevCompRes = &app.Status.ComparisonResult
 
@@ -1017,7 +1044,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitUntilOperationCompleted(appIf, appName, timeout, false, false, true)
+			_, err = waitUntilOperationCompleted(appIf, appName, timeout, false, false, true, false, true)
 			errors.CheckError(err)
 		},
 	}
