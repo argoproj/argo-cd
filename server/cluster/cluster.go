@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"reflect"
 
 	"golang.org/x/net/context"
@@ -35,7 +34,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 	if clusterList != nil {
 		newItems := make([]appv1.Cluster, 0)
 		for _, clust := range clusterList.Items {
-			if s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "get", fmt.Sprintf("*/%s", clust.Server)) {
+			if s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "get", clust.Server) {
 				newItems = append(newItems, *redact(&clust))
 			}
 		}
@@ -46,7 +45,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cluster, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", fmt.Sprintf("*/%s", q.Cluster.Server)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", q.Cluster.Server) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	c := q.Cluster
@@ -79,7 +78,7 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 
 // Get returns a cluster from a query
 func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "get", fmt.Sprintf("*/%s", q.Server)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "get", q.Server) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	clust, err := s.db.GetCluster(ctx, q.Server)
@@ -88,7 +87,7 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 
 // Update updates a cluster
 func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cluster, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "update", fmt.Sprintf("*/%s", q.Cluster.Server)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "update", q.Cluster.Server) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := kube.TestConfig(q.Cluster.RESTConfig())
@@ -101,7 +100,7 @@ func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cl
 
 // Delete deletes a cluster by name
 func (s *Server) Delete(ctx context.Context, q *ClusterQuery) (*ClusterResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "delete", fmt.Sprintf("*/%s", q.Server)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "delete", q.Server) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := s.db.DeleteCluster(ctx, q.Server)

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/ghodss/yaml"
@@ -45,7 +44,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	if repoList != nil {
 		newItems := make([]appsv1.Repository, 0)
 		for _, repo := range repoList.Items {
-			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", fmt.Sprintf("*/%s", repo.Repo)) {
+			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", repo.Repo) {
 				newItems = append(newItems, *redact(&repo))
 			}
 		}
@@ -56,7 +55,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
 func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*RepoKsonnetResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories/apps", "get", fmt.Sprintf("*/%s", q.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories/apps", "get", q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -113,7 +112,7 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", fmt.Sprintf("*/%s", q.Repo.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	r := q.Repo
@@ -146,7 +145,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 
 // Get returns a repository by URL
 func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", fmt.Sprintf("*/%s", q.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -155,7 +154,7 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", fmt.Sprintf("*/%s", q.Repo.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.UpdateRepository(ctx, q.Repo)
@@ -164,7 +163,7 @@ func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repo
 
 // Delete updates a repository
 func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "delete", fmt.Sprintf("*/%s", q.Repo)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "delete", q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := s.db.DeleteRepository(ctx, q.Repo)
