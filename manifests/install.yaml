@@ -1,3 +1,4 @@
+# This is an auto-generated file. DO NOT EDIT
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -138,7 +139,7 @@ subjects:
 - kind: ServiceAccount
   name: application-controller
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: application-controller
@@ -153,7 +154,7 @@ spec:
     spec:
       containers:
       - command: [/argocd-application-controller, --repo-server, 'argocd-repo-server:8081']
-        image: argoproj/argocd-application-controller:latest
+        image: argoproj/argocd-application-controller:v0.6.0
         name: application-controller
       serviceAccountName: application-controller
 ---
@@ -206,7 +207,7 @@ subjects:
 - kind: ServiceAccount
   name: argocd-server
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argocd-server
@@ -222,20 +223,20 @@ spec:
       serviceAccountName: argocd-server
       initContainers:
       - name: copyutil
-        image: argoproj/argocd-server:latest
+        image: argoproj/argocd-server:v0.6.0
         command: [cp, /argocd-util, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files
       - name: ui
-        image: argoproj/argocd-ui:latest
+        image: argoproj/argocd-ui:v0.6.0
         command: [cp, -r, /app, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files
       containers:
       - name: argocd-server
-        image: argoproj/argocd-server:latest
+        image: argoproj/argocd-server:v0.6.0
         command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
         volumeMounts:
         - mountPath: /shared
@@ -267,7 +268,7 @@ spec:
   selector:
     app: argocd-server
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argocd-repo-server
@@ -282,7 +283,7 @@ spec:
     spec:
       containers:
       - name: argocd-repo-server
-        image: argoproj/argocd-repo-server:latest
+        image: argoproj/argocd-repo-server:v0.6.0
         command: [/argocd-repo-server]
         ports:
           - containerPort: 8081

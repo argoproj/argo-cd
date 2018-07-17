@@ -405,7 +405,7 @@ func ReadAndConfirmPassword() string {
 	}
 }
 
-//UpdateSettings is used to update the admin password, signature, certificate etc
+// UpdateSettings is used to update the admin password, signature, certificate etc
 func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, updateSignature bool, updateSuperuser bool, Namespace string) *ArgoCDSettings {
 
 	cdSettings, err := settingsMgr.GetSettings()
@@ -413,6 +413,9 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 		if apierr.IsNotFound(err) {
 			log.Fatal(err)
 		}
+	}
+	if cdSettings == nil {
+		cdSettings = &ArgoCDSettings{}
 	}
 	if cdSettings.ServerSignature == nil || updateSignature {
 		// set JWT signature
@@ -428,7 +431,6 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 		if passwordRaw == "" {
 			passwordRaw = ReadAndConfirmPassword()
 		}
-		log.Infof("password set to %s", passwordRaw)
 		hashedPassword, err := password.HashPassword(passwordRaw)
 		errors.CheckError(err)
 		cdSettings.LocalUsers = map[string]string{

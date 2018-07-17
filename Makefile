@@ -41,7 +41,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli server-image controller-image repo-server-image argocd-util install-manifest
+all: cli server-image controller-image repo-server-image argocd-util
 
 .PHONY: protogen
 protogen:
@@ -79,8 +79,10 @@ argocd-util: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
 .PHONY: install-manifest
-install-manifest: clean-debug
-	cat manifests/components/*.yaml > manifests/install.yaml
+install-manifest:
+	if [ "${IMAGE_NAMESPACE}" = "" ] ; then echo "IMAGE_NAMESPACE must be set to build install manifest" ; exit 1 ; fi
+	echo "# This is an auto-generated file. DO NOT EDIT" > manifests/install.yaml
+	cat manifests/components/*.yaml | sed 's@\( image: argoproj/\(.*\):latest\)@ image: '"${IMAGE_NAMESPACE}"'/\2:'"${IMAGE_TAG}"'@g' >> manifests/install.yaml
 
 .PHONY: server
 server: clean-debug
@@ -143,7 +145,7 @@ clean: clean-debug
 precheckin: test lint
 
 .PHONY: release-precheck
-release-precheck:
+release-precheck: install-manifest
 	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
 	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
 
