@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/coreos/dex/api"
@@ -18,13 +22,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-
-	"io/ioutil"
-	"strconv"
-
-	"regexp"
-
-	"html"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -41,6 +38,8 @@ const (
 	DexgRPCAPIAddr = "localhost:5557"
 )
 
+var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
+
 type DexAPIClient struct {
 	api.DexClient
 }
@@ -50,8 +49,6 @@ type DexAPIClient struct {
 // ArgoCD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy() func(writer http.ResponseWriter, request *http.Request) {
-	messageRe, err := regexp.Compile(`<p>(.*)([\s\S]*?)<\/p>`)
-	errors.CheckError(err)
 	target, err := url.Parse(DexReverseProxyAddr)
 	errors.CheckError(err)
 	proxy := httputil.NewSingleHostReverseProxy(target)
