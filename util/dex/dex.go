@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/coreos/dex/api"
@@ -34,6 +38,8 @@ const (
 	DexgRPCAPIAddr = "localhost:5557"
 )
 
+var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
+
 type DexAPIClient struct {
 	api.DexClient
 }
@@ -46,6 +52,31 @@ func NewDexHTTPReverseProxy() func(writer http.ResponseWriter, request *http.Req
 	target, err := url.Parse(DexReverseProxyAddr)
 	errors.CheckError(err)
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		if resp.StatusCode == 500 {
+			b, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+			err = resp.Body.Close()
+			if err != nil {
+				return err
+			}
+			var message string
+			matches := messageRe.FindSubmatch(b)
+			if len(matches) > 1 {
+				message = html.UnescapeString(string(matches[1]))
+			} else {
+				message = "Unknown error"
+			}
+			resp.ContentLength = 0
+			resp.Header.Set("Content-Length", strconv.Itoa(0))
+			resp.Header.Set("Location", fmt.Sprintf("/login?sso_error=%s", url.QueryEscape(message)))
+			resp.StatusCode = http.StatusSeeOther
+			return nil
+		}
+		return nil
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		proxy.ServeHTTP(w, r)
 	}
