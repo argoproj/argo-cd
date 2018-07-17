@@ -18,6 +18,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - appprojects
   verbs:
   - create
   - get

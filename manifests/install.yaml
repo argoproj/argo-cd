@@ -28,29 +28,43 @@ spec:
   scope: Namespaced
   version: v1alpha1
 ---
-# NOTE: the values here are just a example and are not the values used during an install.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cm
 data:
-  # please see https://github.com/argoproj/argo-cd/blob/master/docs/sso.md#2-configure-argocd-for-sso 
+  # See https://github.com/argoproj/argo-cd/blob/master/docs/sso.md#2-configure-argocd-for-sso 
   # for more details about how to setup data config needed for sso
+
+  # URL is the external URL of ArgoCD
+  #url: 
+
+  # A dex connector configuration
+  #dex.config:
 ---
-# NOTE: the values in this secret are provided as working manifest example and are not the values
-# used during an install. New values will be generated as part of `argocd install`
+# NOTE: the values in this secret will be populated by the initial startup of the API
 apiVersion: v1
 kind: Secret
 metadata:
   name: argocd-secret
 type: Opaque
-  # bcrypt hash of the string "password"
+  # bcrypt hash of the admin password
+  #admin.password: 
+
   # random server signature key for session validation
+  #server.secretkey:
+
+  # TLS certificate and private key for API server
+  #server.crt: 
+  #server.key:
 
   # The following keys hold the shared secret for authenticating GitHub/GitLab/BitBucket webhook
   # events. To enable webhooks, configure one or more of the following keys with the shared git
   # provider webhook secret. The payload URL configured in the git provider should use the 
   # /api/webhook endpoint of your ArgoCD instance (e.g. https://argocd.example.com/api/webhook)
+  #github.webhook.secret: 
+  #gitlab.webhook.secret:
+  #bitbucket.webhook.uuid: 
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -62,21 +76,20 @@ data:
   # * role:readonly - readonly access to all objects
   # * role:admin - admin access to all objects
   # The built-in policy can be seen under util/rbac/builtin-policy.csv
-  #
-  # The policy definition format is:
+  #policy.csv: ""
+
+  # There are two policy formats:
+  # 1. Applications (which belong to a project):
   # p, <user/group>, <resource>, <action>, <project>/<object>
+  # 2. All other resources:
+  # p, <user/group>, <resource>, <action>, <object>
+
   # For example, the following rule gives all members of 'my-org:team1' the ability to sync
   # applications in the project named: my-project
   # p, my-org:team1, applications, sync, my-project/*
-  #
-  # The role definition format is:
-  # g, <user/group>, <group>
-  # For example, the following rule makes all members of 'my-org:team2' have the role:admin role:
-  # g, my-org:team2, role:admin
-  policy.csv: ""
 
   # policy.default holds the default policy which will ArgoCD will fall back to, when authorizing
-  # a user for API requests.
+  # a user for API requests
   policy.default: role:readonly
 ---
 apiVersion: v1
@@ -103,6 +116,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - appprojects
   verbs:
   - create
   - get
@@ -170,6 +184,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - appprojects
   verbs:
   - create
   - get
@@ -271,10 +286,6 @@ spec:
         command: [/argocd-repo-server]
         ports:
           - containerPort: 8081
-      - name: redis
-        image: redis:3.2.11
-        ports:
-          - containerPort: 6379
 ---
 apiVersion: v1
 kind: Service
