@@ -36,8 +36,7 @@
   name = "github.com/argoproj/argo"
   packages = [
     "pkg/apis/workflow",
-    "pkg/apis/workflow/v1alpha1",
-    "util/stats"
+    "pkg/apis/workflow/v1alpha1"
   ]
   revision = "ac241c95c13f08e868cd6f5ee32c9ce273e239ff"
   version = "v2.1.1"
@@ -1037,6 +1036,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5e81fc283a0f5288421e4db14372b1921fb812837f44efec608ca4ab23005877"
+  inputs-digest = "2eaad7537e4d4bc23be336a9e96c3e589cefccf6913125a37bf9b069bf02b5e9"
   solver-name = "gps-cdcl"
   solver-version = 1
