@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,19 +9,18 @@ data:
   # * role:readonly - readonly access to all objects
   # * role:admin - admin access to all objects
   # The built-in policy can be seen under util/rbac/builtin-policy.csv
-  #
-  # The policy definition format is:
+  #policy.csv: ""
+
+  # There are two policy formats:
+  # 1. Applications (which belong to a project):
   # p, <user/group>, <resource>, <action>, <project>/<object>
+  # 2. All other resources:
+  # p, <user/group>, <resource>, <action>, <object>
+
   # For example, the following rule gives all members of 'my-org:team1' the ability to sync
   # applications in the project named: my-project
   # p, my-org:team1, applications, sync, my-project/*
-  #
-  # The role definition format is:
-  # g, <user/group>, <group>
-  # For example, the following rule makes all members of 'my-org:team2' have the role:admin role:
-  # g, my-org:team2, role:admin
-  policy.csv: ""
 
   # policy.default holds the default policy which will ArgoCD will fall back to, when authorizing
-  # a user for API requests.
+  # a user for API requests
   policy.default: role:readonly

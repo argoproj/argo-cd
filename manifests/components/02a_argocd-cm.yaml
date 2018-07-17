@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # See https://github.com/argoproj/argo-cd/blob/master/docs/sso.md#2-configure-argocd-for-sso 
+  # for more details about how to setup data config needed for sso
+
+  # URL is the external URL of ArgoCD
+  #url: 
+
+  # A dex connector configuration
+  #dex.config:
