@@ -1,8 +1,10 @@
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Form, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 
 import { FormField } from '../../shared/components';
+import { AppContext } from '../../shared/context';
 import { AuthSettings } from '../../shared/models';
 import { services } from '../../shared/services';
 
@@ -13,15 +15,23 @@ export interface LoginForm {
     password: string;
 }
 
-export class Login extends React.Component<RouteComponentProps<{}>, {authSettings: AuthSettings, loginError: string}> {
+interface State {authSettings: AuthSettings; loginError: string; returnUrl: string; ssoLoginError: string; }
 
-    private get returnUrl() {
-        return new URLSearchParams(this.props.location.search).get('return_url') || '';
+export class Login extends React.Component<RouteComponentProps<{}>, State> {
+    public static contextTypes = {
+        apis: PropTypes.object,
+    };
+
+    public static getDerivedStateFromProps(props: RouteComponentProps<{}>): Partial<State> {
+        const search = new URLSearchParams(props.history.location.search);
+        const returnUrl = search.get('return_url') || '';
+        const ssoLoginError = search.get('sso_error') || '';
+        return { ssoLoginError, returnUrl };
     }
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = { authSettings: null, loginError: null };
+        this.state = { authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null };
     }
 
     public async componentDidMount() {
@@ -46,7 +56,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, {authSetting
                     </div>
                     {authSettings && authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0 && (
                         <div className='login__box_saml width-control'>
-                            <a href={`/auth/login?return_url=${encodeURIComponent(this.returnUrl)}`}>
+                            <a href={`/auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {authSettings.dexConfig.connectors.length === 1 && (
                                         <span>Login via {authSettings.dexConfig.connectors[0].name}</span>
@@ -55,11 +65,12 @@ export class Login extends React.Component<RouteComponentProps<{}>, {authSetting
                                     )}
                                 </button>
                             </a>
+                            {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
                             <div className='login__saml-separator'><span>or</span></div>
                         </div>
                     )}
                     <Form
-                        onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.returnUrl)}
+                        onSubmit={(params: LoginForm) => this.login(params.username, params.password, this.state.returnUrl)}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required',
@@ -71,7 +82,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, {authSetting
                             </div>
                             <div className='argo-form-row'>
                                 <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}}/>
-                                <div className='argo-form-row__error-msg'>{this.state.loginError}</div>
+                                {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
                             </div>
                             <div className='login__form-row'>
                                 <button className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
@@ -94,15 +105,20 @@ export class Login extends React.Component<RouteComponentProps<{}>, {authSetting
     private async login(username: string, password: string, returnURL: string) {
         try {
             this.setState({loginError: ''});
+            this.appContext.apis.navigation.goto('.', { sso_error: null });
             await services.userService.login(username, password);
             if (returnURL) {
                 const url = new URL(returnURL);
-                this.props.history.push(url.pathname + url.search);
+                this.appContext.apis.navigation.goto(url.pathname + url.search);
             } else {
-                this.props.history.push('/applications');
+                this.appContext.apis.navigation.goto('/applications');
             }
         } catch (e) {
             this.setState({loginError: e.response.body.error});
         }
+    }
+
+    private get appContext(): AppContext {
+        return this.context as AppContext;
     }
 }
