@@ -109,7 +109,7 @@ After connecting a git repository, select the guestbook application for creation
 Applications can be also be created using the ArgoCD CLI:
 
 ```
-argocd app create --name guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path examples/guestbook --env minikube
+argocd app create --name guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
 ```
 
 ## 7. Sync (deploy) the application
