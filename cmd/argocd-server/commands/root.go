@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo/util/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -17,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/stats"
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -66,6 +66,7 @@ func NewCommand() *cobra.Command {
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
+			stats.RegisterHeapDumper("memprofile")
 
 			for {
 				argocd := server.NewServer(argoCDOpts)

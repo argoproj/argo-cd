@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo/util/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -25,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/stats"
 )
 
 const (
@@ -93,6 +93,7 @@ func newCommand() *cobra.Command {
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
+			stats.RegisterHeapDumper("memprofile")
 
 			go secretController.Run(ctx)
 			go appController.Run(ctx, statusProcessors, operationProcessors)
