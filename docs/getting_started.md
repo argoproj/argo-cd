@@ -14,6 +14,12 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/ma
 ```
 This will create a new namespace, `argocd`, where ArgoCD services and application resources will live.
 
+NOTE:
+* On GKE with RBAC enabled, you may need to grant your account the ability to create new cluster roles
+```
+$ kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
+```
+
 ## 2. Download ArgoCD CLI
 
 Download the latest ArgoCD version:
