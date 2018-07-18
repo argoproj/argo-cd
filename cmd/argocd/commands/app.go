@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -732,61 +733,6 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 	}
 }
 
-// printAppStateChange prints a component state change if it was different from the last time we saw it
-func printAppStateChange(w io.Writer, prevComp *argoappv1.ComparisonResult, prevState *argoappv1.OperationState, app *argoappv1.Application) {
-	getPrevResState := func(kind, name string) (argoappv1.ComparisonStatus, argoappv1.HealthStatusCode) {
-		for _, res := range prevComp.Resources {
-			obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-			errors.CheckError(err)
-			if obj == nil {
-				obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-				errors.CheckError(err)
-			}
-			if obj.GetKind() == kind && obj.GetName() == name {
-				return res.Status, res.Health.Status
-			}
-		}
-		return "", ""
-	}
-	if len(app.Status.ComparisonResult.Resources) > 0 {
-		for _, res := range app.Status.ComparisonResult.Resources {
-			obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-			errors.CheckError(err)
-			if obj == nil {
-				obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-				errors.CheckError(err)
-			}
-
-			prevSync, prevHealth := getPrevResState(obj.GetKind(), obj.GetName())
-			if prevSync != res.Status || prevHealth != res.Health.Status {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", "")
-			}
-		}
-		if app.Status.OperationState != nil {
-			printOpResults := func(opResult *argoappv1.SyncOperationResult) {
-				if opResult != nil {
-					var prevHook *argoappv1.HookStatus
-					var prevRsrc *argoappv1.ResourceDetails
-
-					for _, res := range opResult.Hooks {
-						if prevHook.Status != res.Status || prevHook.Message != res.Message {
-							fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", res.Kind, res.Name, res.Status, "", res.Type, res.Message)
-						}
-					}
-
-					for _, res := range opResult.Resources {
-						if prevRsrc.Status != res.Status || prevRsrc.Message != res.Message {
-							fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", res.Kind, res.Name, res.Status, "", "", res.Message)
-						}
-					}
-				}
-			}
-			printOpResults(app.Status.OperationState.SyncResult)
-			printOpResults(app.Status.OperationState.RollbackResult)
-		}
-	}
-}
-
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -888,16 +834,70 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	printAppResources(w, app, true)
 	_ = w.Flush()
-	prevCompRes := &app.Status.ComparisonResult
-	prevOpState := app.Status.OperationState
+
+	hashStruct := func(o interface{}) string {
+		rep := fmt.Sprintf("%+v", o)
+		sum := sha256.Sum256([]byte(rep))
+		return fmt.Sprintf("%x", sum)
+	}
+
+	prevStates := make(map[string]string)
+	conditionallyPrintOutput := func(w io.Writer, stateKey, currentState string) {
+		if prevState, found := prevStates[stateKey]; !found || prevState != currentState {
+			fmt.Fprintln(w, currentState)
+			prevStates[stateKey] = currentState
+		}
+	}
+
+	printCompResults := func(compResult *argoappv1.ComparisonResult) {
+		if compResult != nil {
+			for _, res := range compResult.Resources {
+				obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
+				errors.CheckError(err)
+				if obj == nil {
+					obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
+					errors.CheckError(err)
+				}
+
+				stateKey := hashStruct(res)
+				currentState := fmt.Sprintf("%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", "")
+				conditionallyPrintOutput(w, stateKey, currentState)
+			}
+		}
+	}
+
+	printOpResults := func(opResult *argoappv1.SyncOperationResult) {
+		if opResult != nil {
+			if opResult.Hooks != nil {
+				for _, res := range opResult.Hooks {
+					stateKey := hashStruct(res)
+					currentState := fmt.Sprintf("%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", res.Type, res.Message)
+					conditionallyPrintOutput(w, stateKey, currentState)
+				}
+			}
+
+			if opResult.Resources != nil {
+				for _, res := range opResult.Resources {
+					stateKey := hashStruct(res)
+					currentState := fmt.Sprintf("%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", "", res.Message)
+					conditionallyPrintOutput(w, stateKey, currentState)
+				}
+			}
+		}
+	}
 
 	appEventCh := watchApp(ctx, appClient, appName)
 	for appEvent := range appEventCh {
 		app := appEvent.Application
-		printAppStateChange(w, prevCompRes, prevOpState, &app)
+
+		printCompResults(&app.Status.ComparisonResult)
+
+		if opState := app.Status.OperationState; opState != nil {
+			printOpResults(opState.SyncResult)
+			printOpResults(opState.RollbackResult)
+		}
+
 		_ = w.Flush()
-		prevCompRes = &app.Status.ComparisonResult
-		prevOpState = app.Status.OperationState
 
 		// consider skipped checks successful
 		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
