@@ -860,7 +860,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 				}
 
 				stateKey := hashStruct(res)
-				currentState := fmt.Sprintf("%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", "")
+				currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", "")
 				conditionallyPrintOutput(w, stateKey, currentState)
 			}
 		}
@@ -871,7 +871,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 			if opResult.Hooks != nil {
 				for _, res := range opResult.Hooks {
 					stateKey := hashStruct(res)
-					currentState := fmt.Sprintf("%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", res.Type, res.Message)
+					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", res.Type, res.Message)
 					conditionallyPrintOutput(w, stateKey, currentState)
 				}
 			}
@@ -879,7 +879,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 			if opResult.Resources != nil {
 				for _, res := range opResult.Resources {
 					stateKey := hashStruct(res)
-					currentState := fmt.Sprintf("%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", "", res.Message)
+					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", "", res.Message)
 					conditionallyPrintOutput(w, stateKey, currentState)
 				}
 			}
