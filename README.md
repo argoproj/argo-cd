@@ -1,9 +1,11 @@
 
-# Argo CD - GitOps Continuous Delivery for Kubernetes
+# Argo CD - Declarative Continuous Delivery for Kubernetes
 
 ## What is Argo CD?
 
-Argo CD is a declarative, continuous delivery service based on ksonnet for Kubernetes.
+Argo CD is a declarative, continuous delivery service based on **ksonnet** for Kubernetes.
+
+![Argo CD UI](docs/argocd-ui.gif)
 
 ## Why Argo CD?
 
@@ -12,13 +14,14 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 ## Getting Started
 
-Follow our [getting started guide](docs/getting_started.md).
+Follow our [getting started guide](docs/getting_started.md). Further [documentation](docs/)
+is provided for additional features.
 
 ## How it works
 
-Argo CD uses git repositories as the source of truth for defining the desired application state as
-well as the target deployment environments. Kubernetes manifests are specified as
-[ksonnet](https://ksonnet.io) applications. Argo CD automates the deployment of the desired
+Argo CD follows the **GitOps** pattern of using git repositories as the source of truth for defining the
+desired application state. Kubernetes manifests are specified as [ksonnet](https://ksonnet.io)
+applications. Argo CD automates the deployment of the desired
 application states in the specified target environments.
 
 ![Argo CD Architecture](docs/argocd_architecture.png)
@@ -41,11 +44,13 @@ For additional details, see [architecture overview](docs/architecture.md).
 
 * Automated deployment of applications to specified target environments
 * Continuous monitoring of deployed applications
-* Automated or manual syncing of applications to its target state
-* Web and CLI based visualization of applications and differences between live vs. target state
+* Automated or manual syncing of applications to its desired state
+* Web and CLI based visualization of applications and differences between live vs. desired state
 * Rollback/Roll-anywhere to any application state committed in the git repository
-* SSO Integration (OIDC, LDAP, SAML 2.0, GitLab, Microsoft, LinkedIn)
+* Health assessment statuses on all components of the application
+* SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitLab, Microsoft, LinkedIn)
 * Webhook Integration (GitHub, BitBucket, GitLab)
+* PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
 
 ## What is ksonnet?
 
@@ -69,10 +74,10 @@ Imagine we have a single guestbook application deployed in following environment
 | Environment   | K8s Version | Application Image      | DB Connection String  | Environment Vars | Sidecars      |
 |---------------|-------------|------------------------|-----------------------|------------------|---------------|
 | minikube      | 1.10.0      | jesse/guestbook:latest | sql://locahost/db     | DEBUG=true       |               |
-| dev           | 1.9.0       | app/guestbook:latest   | sql://dev-test/db     | DEBUG=true       |               |
-| staging       | 1.8.0       | app/guestbook:e3c0263  | sql://staging/db      |                  | istio,dnsmasq |
-| us-west-1     | 1.8.0       | app/guestbook:abc1234  | sql://prod/db         | FOO_FEATURE=true | istio,dnsmasq |
-| us-west-2     | 1.8.0       | app/guestbook:abc1234  | sql://prod/db         |                  | istio,dnsmasq |
+| dev           | 1.11.0      | app/guestbook:latest   | sql://dev-test/db     | DEBUG=true       |               |
+| staging       | 1.10.0      | app/guestbook:e3c0263  | sql://staging/db      |                  | istio,dnsmasq |
+| us-west-1     | 1.9.0       | app/guestbook:abc1234  | sql://prod/db         | FOO_FEATURE=true | istio,dnsmasq |
+| us-west-2     | 1.10.0      | app/guestbook:abc1234  | sql://prod/db         |                  | istio,dnsmasq |
 | us-east-1     | 1.9.0       | app/guestbook:abc1234  | sql://prod/db         | BAR_FEATURE=true | istio,dnsmasq |
 
 Ksonnet:
@@ -83,9 +88,10 @@ Ksonnet:
 concise definition of kubernetes manifests
 
 ## Development Status
-* Argo CD is in early development
+* Argo CD is being used in production to deploy SaaS services at Intuit
 
 ## Roadmap
-* PreSync, PostSync, OutOfSync hooks
-* Customized application actions as Argo workflows
-* Blue/Green & canary upgrades
+* Audit trails for application events and API calls
+* Service account/access key management for CI pipelines
+* Revamped UI
+* Customizable application actions
