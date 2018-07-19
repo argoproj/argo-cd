@@ -120,6 +120,7 @@ func (s *ksonnetAppStateManager) getTargetObjs(app *v1alpha1.Application, revisi
 		Revision:                    revision,
 		ComponentParameterOverrides: mfReqOverrides,
 		AppLabel:                    app.Name,
+		ValueFiles:                  app.Spec.Source.ValuesFiles,
 	})
 	if err != nil {
 		return nil, nil, err

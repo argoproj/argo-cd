@@ -1800,26 +1800,33 @@
       "properties": {
         "componentParameterOverrides": {
           "type": "array",
-          "title": "Environment parameter override values",
+          "title": "ComponentParameterOverrides are a list of parameter override values",
           "items": {
             "$ref": "#/definitions/v1alpha1ComponentParameter"
           }
         },
         "environment": {
-          "description": "Environment is a ksonnet application environment name.",
-          "type": "string"
+          "type": "string",
+          "title": "Environment is a ksonnet application environment name"
         },
         "path": {
-          "description": "Path is a directory path within repository which contains ksonnet application.",
-          "type": "string"
+          "type": "string",
+          "title": "Path is a directory path within the repository containing a"
         },
         "repoURL": {
-          "description": "RepoURL is the repository URL containing the ksonnet application.",
-          "type": "string"
+          "type": "string",
+          "title": "RepoURL is the git repository URL of the application manifests"
         },
         "targetRevision": {
           "type": "string",
           "title": "TargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
+        },
+        "valuesFiles": {
+          "type": "array",
+          "title": "ValuesFiles is a list of Helm values files to use when generating a template",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -2341,6 +2348,9 @@
           "type": "string"
         },
         "GoVersion": {
+          "type": "string"
+        },
+        "KsonnetVersion": {
           "type": "string"
         },
         "Platform": {

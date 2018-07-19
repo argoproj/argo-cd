@@ -9,13 +9,20 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
+	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	appsv1beta2 "k8s.io/api/apps/v1beta2"
+	corev1 "k8s.io/api/core/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	extv1beta2 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +36,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/argoproj/argo-cd/util/cache"
+	jsonutil "github.com/argoproj/argo-cd/util/json"
 )
 
 const (
@@ -619,4 +629,100 @@ func ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*u
 		return nil, err
 	}
 	return &convertedObj, nil
+}
+
+var diffSeparator = regexp.MustCompile(`\n---`)
+
+// SplitYAML splits a YAML file into unstructured objects. Returns list of all unstructured objects
+// found in the yaml. If any errors occurred, returns the first one
+func SplitYAML(out string) ([]*unstructured.Unstructured, error) {
+	parts := diffSeparator.Split(out, -1)
+	var objs []*unstructured.Unstructured
+	var firstErr error
+	for _, part := range parts {
+		var objMap map[string]interface{}
+		err := yaml.Unmarshal([]byte(part), &objMap)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("Failed to unmarshal manifest: %v", err)
+			}
+			continue
+		}
+		if len(objMap) == 0 {
+			// handles case where theres no content between `---`
+			continue
+		}
+		var obj unstructured.Unstructured
+		err = yaml.Unmarshal([]byte(part), &obj)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("Failed to unmarshal manifest: %v", err)
+			}
+			continue
+		}
+		err = remarshal(&obj)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("Failed to remarshal manifest: %v", err)
+			}
+			continue
+		}
+		objs = append(objs, &obj)
+	}
+	return objs, firstErr
+}
+
+// remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller.
+// This ensures that expected resource state is formatter same as actualresource state in kubernetes
+// and allows to find differences between actual and target states more accurately.
+func remarshal(obj *unstructured.Unstructured) error {
+	var newObj interface{}
+	switch obj.GetAPIVersion() + ":" + obj.GetKind() {
+	case "apps/v1beta1:Deployment":
+		newObj = &appsv1beta1.Deployment{}
+	case "apps/v1beta2:Deployment":
+		newObj = &appsv1beta2.Deployment{}
+	case "apps/v1:Deployment":
+		newObj = &appsv1.Deployment{}
+	case "extensions/v1beta1:Deployment":
+		newObj = &extv1beta1.Deployment{}
+	case "extensions/v1beta2:Deployment":
+		newObj = &extv1beta2.Deployment{}
+	case "apps/v1beta1:StatefulSet":
+		newObj = &appsv1beta1.StatefulSet{}
+	case "apps/v1beta2:StatefulSet":
+		newObj = &appsv1beta2.StatefulSet{}
+	case "apps/v1:StatefulSet":
+		newObj = &appsv1.StatefulSet{}
+	case "extensions/v1beta1:DaemonSet":
+		newObj = &extv1beta1.DaemonSet{}
+	case "apps/v1beta2:DaemonSet":
+		newObj = &appsv1beta2.DaemonSet{}
+	case "apps/v1:DaemonSet":
+		newObj = &appsv1.DaemonSet{}
+	case "v1:Service":
+		newObj = &corev1.Service{}
+	}
+	if newObj != nil {
+		oldObj := obj.Object
+		data, err := json.Marshal(obj)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(data, newObj)
+		if err != nil {
+			return err
+		}
+		data, err = json.Marshal(newObj)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(data, obj)
+		if err != nil {
+			return err
+		}
+		// remove all default values specified by custom formatter
+		obj.Object = jsonutil.RemoveMapFields(oldObj, obj.Object)
+	}
+	return nil
 }

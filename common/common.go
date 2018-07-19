@@ -73,6 +73,8 @@ var (
 	AnnotationHook = MetadataPrefix + "/hook"
 	// AnnotationHookDeletePolicy is the policy of deleting a hook
 	AnnotationHookDeletePolicy = MetadataPrefix + "/hook-delete-policy"
+	// AnnotationHelmHook is the helm hook annotation
+	AnnotationHelmHook = "helm.sh/hook"
 
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"

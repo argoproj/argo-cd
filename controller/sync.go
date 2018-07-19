@@ -431,7 +431,7 @@ func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Un
 	sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced")
 }
 
-// getHooks returns all hooks, or ones of the specific type(s)
+// getHooks returns all ArgoCD hooks, optionally filtered by ones of the specific type(s)
 func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Unstructured, error) {
 	var hooks []*unstructured.Unstructured
 	for _, manifest := range sc.manifestInfo.Manifests {
@@ -440,7 +440,9 @@ func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Un
 		if err != nil {
 			return nil, err
 		}
-		if !isHook(&hook) {
+		if !isArgoHook(&hook) {
+			// TODO: in the future, if we want to map helm hooks to ArgoCD lifecycles, we should
+			// include helm hooks in the returned list
 			continue
 		}
 		if len(hookTypes) > 0 {
@@ -614,9 +616,24 @@ func isHookType(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
 	return false
 }
 
-// isHook tells whether or not the supplied object is a application lifecycle hook, or a normal,
-// synced application resource
+// isHook indicates if the object is either a ArgoCD or Helm hook
 func isHook(obj *unstructured.Unstructured) bool {
+	return isArgoHook(obj) || isHelmHook(obj)
+}
+
+// isHelmHook indicates if the supplied object is a helm hook
+func isHelmHook(obj *unstructured.Unstructured) bool {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	_, ok := annotations[common.AnnotationHook]
+	return ok
+}
+
+// isArgoHook indicates if the supplied object is an ArgoCD application lifecycle hook
+// (vs. a normal, synced application resource)
+func isArgoHook(obj *unstructured.Unstructured) bool {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		return false

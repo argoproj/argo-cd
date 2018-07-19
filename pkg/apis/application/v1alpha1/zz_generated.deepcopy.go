@@ -205,6 +205,11 @@ func (in *ApplicationSource) DeepCopyInto(out *ApplicationSource) {
 		*out = make([]ComponentParameter, len(*in))
 		copy(*out, *in)
 	}
+	if in.ValuesFiles != nil {
+		in, out := &in.ValuesFiles, &out.ValuesFiles
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

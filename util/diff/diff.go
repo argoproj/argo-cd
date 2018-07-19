@@ -13,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
+
+	jsonutil "github.com/argoproj/argo-cd/util/json"
 )
 
 type DiffResult struct {
@@ -43,7 +45,7 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 		configObj = config.Object
 	}
 	if live != nil {
-		liveObj = RemoveMapFields(configObj, live.Object)
+		liveObj = jsonutil.RemoveMapFields(configObj, live.Object)
 	}
 	gjDiff := gojsondiff.New().CompareObjects(configObj, liveObj)
 	dr := DiffResult{
@@ -58,7 +60,7 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) *DiffResult {
 	orig = removeNamespaceAnnotation(orig)
 	// remove extra fields in the live, that were not in the original object
-	liveObj := RemoveMapFields(orig.Object, live.Object)
+	liveObj := jsonutil.RemoveMapFields(orig.Object, live.Object)
 	// now we have a pruned live object
 	gjDiff := gojsondiff.New().CompareObjects(config.Object, liveObj)
 	dr := DiffResult{
@@ -227,43 +229,4 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 	}
 	asciiFmt := formatter.NewAsciiFormatter(left.Object, formatOpts)
 	return asciiFmt.Format(d.Diff)
-}
-
-// https://github.com/ksonnet/ksonnet/blob/master/pkg/kubecfg/diff.go
-func removeFields(config, live interface{}) interface{} {
-	switch c := config.(type) {
-	case map[string]interface{}:
-		return RemoveMapFields(c, live.(map[string]interface{}))
-	case []interface{}:
-		return removeListFields(c, live.([]interface{}))
-	default:
-		return live
-	}
-}
-
-// RemoveMapFields remove all non-existent fields in the live that don't exist in the config
-func RemoveMapFields(config, live map[string]interface{}) map[string]interface{} {
-	result := map[string]interface{}{}
-	for k, v1 := range config {
-		v2, ok := live[k]
-		if !ok {
-			continue
-		}
-		result[k] = removeFields(v1, v2)
-	}
-	return result
-}
-
-func removeListFields(config, live []interface{}) []interface{} {
-	// If live is longer than config, then the extra elements at the end of the
-	// list will be returned as-is so they appear in the diff.
-	result := make([]interface{}, 0, len(live))
-	for i, v2 := range live {
-		if len(config) > i {
-			result = append(result, removeFields(config[i], v2))
-		} else {
-			result = append(result, v2)
-		}
-	}
-	return result
 }

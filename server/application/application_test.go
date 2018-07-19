@@ -64,6 +64,14 @@ version: 0.0.1
 	}
 }
 
+func fakeListDirResponse() *repository.FileList {
+	return &repository.FileList{
+		Items: []string{
+			"some/path/app.yaml",
+		},
+	}
+}
+
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer() ApplicationServiceServer {
 	kubeclientset := fake.NewSimpleClientset()
@@ -80,6 +88,7 @@ func newTestAppServer() ApplicationServiceServer {
 
 	mockRepoServiceClient := mockreposerver.RepositoryServiceClient{}
 	mockRepoServiceClient.On("GetFile", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
+	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
 
 	mockRepoClient := &mockrepo.Clientset{}
 	mockRepoClient.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
@@ -102,7 +111,7 @@ func TestCreateApp(t *testing.T) {
 			Spec: appsv1.ApplicationSpec{
 				Source: appsv1.ApplicationSource{
 					RepoURL:        fakeRepoURL,
-					Path:           ".",
+					Path:           "some/path",
 					Environment:    "default",
 					TargetRevision: "HEAD",
 				},

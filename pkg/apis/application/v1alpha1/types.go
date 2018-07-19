@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -221,24 +222,26 @@ type ApplicationSpec struct {
 
 // ComponentParameter contains information about component parameter value
 type ComponentParameter struct {
-	Component string `json:"component" protobuf:"bytes,1,opt,name=component"`
+	Component string `json:"component,omitempty" protobuf:"bytes,1,opt,name=component"`
 	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
-	// RepoURL is the repository URL containing the ksonnet application.
+	// RepoURL is the git repository URL of the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
-	// Path is a directory path within repository which contains ksonnet application.
+	// Path is a directory path within the repository containing a
 	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
-	// Environment is a ksonnet application environment name.
-	Environment string `json:"environment" protobuf:"bytes,3,opt,name=environment"`
+	// Environment is a ksonnet application environment name
+	Environment string `json:"environment,omitempty" protobuf:"bytes,3,opt,name=environment"`
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
-	// Environment parameter override values
+	// ComponentParameterOverrides are a list of parameter override values
 	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
+	// ValuesFiles is a list of Helm values files to use when generating a template
+	ValuesFiles []string `json:"valuesFiles,omitempty" protobuf:"bytes,6,opt,name=valuesFiles"`
 }
 
 // ApplicationDestination contains deployment destination information
@@ -507,10 +510,7 @@ func (condition *ApplicationCondition) IsError() bool {
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
 func (source ApplicationSource) Equals(other ApplicationSource) bool {
-	return source.TargetRevision == other.TargetRevision &&
-		source.RepoURL == other.RepoURL &&
-		source.Path == other.Path &&
-		source.Environment == other.Environment
+	return reflect.DeepEqual(source, other)
 }
 
 func (spec ApplicationSpec) BelongsToDefaultProject() bool {
