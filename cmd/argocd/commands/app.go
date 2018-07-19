@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -835,12 +834,6 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	printAppResources(w, app, true)
 	_ = w.Flush()
 
-	hashStruct := func(o interface{}) string {
-		rep := fmt.Sprintf("%+v", o)
-		sum := sha256.Sum256([]byte(rep))
-		return fmt.Sprintf("%x", sum)
-	}
-
 	prevStates := make(map[string]string)
 	conditionallyPrintOutput := func(w io.Writer, stateKey, currentState string) {
 		if prevState, found := prevStates[stateKey]; !found || prevState != currentState {
@@ -859,7 +852,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 					errors.CheckError(err)
 				}
 
-				stateKey := hashStruct(res)
+				stateKey := fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())
 				currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", "")
 				conditionallyPrintOutput(w, stateKey, currentState)
 			}
@@ -870,7 +863,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 		if opResult != nil {
 			if opResult.Hooks != nil {
 				for _, res := range opResult.Hooks {
-					stateKey := hashStruct(res)
+					stateKey := fmt.Sprintf("%s/%s", res.Kind, res.Name)
 					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", res.Type, res.Message)
 					conditionallyPrintOutput(w, stateKey, currentState)
 				}
@@ -878,7 +871,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 
 			if opResult.Resources != nil {
 				for _, res := range opResult.Resources {
-					stateKey := hashStruct(res)
+					stateKey := fmt.Sprintf("%s/%s", res.Kind, res.Name)
 					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", "", res.Message)
 					conditionallyPrintOutput(w, stateKey, currentState)
 				}
