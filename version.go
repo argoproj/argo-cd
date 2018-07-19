@@ -3,6 +3,8 @@ package argocd
 import (
 	"fmt"
 	"runtime"
+
+	"github.com/argoproj/argo-cd/util/ksonnet"
 )
 
 // Version information set by link flags during build. We fall back to these sane
@@ -17,14 +19,15 @@ var (
 
 // Version contains Argo version information
 type Version struct {
-	Version      string
-	BuildDate    string
-	GitCommit    string
-	GitTag       string
-	GitTreeState string
-	GoVersion    string
-	Compiler     string
-	Platform     string
+	Version        string
+	BuildDate      string
+	GitCommit      string
+	GitTag         string
+	GitTreeState   string
+	GoVersion      string
+	Compiler       string
+	Platform       string
+	KsonnetVersion string
 }
 
 func (v Version) String() string {
@@ -34,6 +37,11 @@ func (v Version) String() string {
 // GetVersion returns the version information
 func GetVersion() Version {
 	var versionStr string
+	ksVers, err := ksonnet.KsonnetVersion()
+	if err != nil {
+		ksVers = err.Error()
+	}
+
 	if gitCommit != "" && gitTag != "" && gitTreeState == "clean" {
 		// if we have a clean tree state and the current commit is tagged,
 		// this is an official release.
@@ -52,13 +60,14 @@ func GetVersion() Version {
 		}
 	}
 	return Version{
-		Version:      versionStr,
-		BuildDate:    buildDate,
-		GitCommit:    gitCommit,
-		GitTag:       gitTag,
-		GitTreeState: gitTreeState,
-		GoVersion:    runtime.Version(),
-		Compiler:     runtime.Compiler,
-		Platform:     fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		Version:        versionStr,
+		BuildDate:      buildDate,
+		GitCommit:      gitCommit,
+		GitTag:         gitTag,
+		GitTreeState:   gitTreeState,
+		GoVersion:      runtime.Version(),
+		Compiler:       runtime.Compiler,
+		Platform:       fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		KsonnetVersion: ksVers,
 	}
 }

@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 )
 
@@ -81,7 +81,7 @@ func NewKsonnetApp(path string) (KsonnetApp, error) {
 	ksApp.app = a
 
 	var spec app.Spec
-	err = cli.UnmarshalLocalFile(filepath.Join(a.Root(), "app.yaml"), &spec)
+	err = config.UnmarshalLocalFile(filepath.Join(a.Root(), "app.yaml"), &spec)
 	if err != nil {
 		return nil, err
 	}

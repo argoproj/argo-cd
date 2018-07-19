@@ -12,14 +12,15 @@ type Server struct{}
 func (s *Server) Version(context.Context, *empty.Empty) (*VersionMessage, error) {
 	vers := argocd.GetVersion()
 	return &VersionMessage{
-		Version:      vers.Version,
-		BuildDate:    vers.BuildDate,
-		GitCommit:    vers.GitCommit,
-		GitTag:       vers.GitTag,
-		GitTreeState: vers.GitTreeState,
-		GoVersion:    vers.GoVersion,
-		Compiler:     vers.Compiler,
-		Platform:     vers.Platform,
+		Version:        vers.Version,
+		BuildDate:      vers.BuildDate,
+		GitCommit:      vers.GitCommit,
+		GitTag:         vers.GitTag,
+		GitTreeState:   vers.GitTreeState,
+		GoVersion:      vers.GoVersion,
+		Compiler:       vers.Compiler,
+		Platform:       vers.Platform,
+		KsonnetVersion: vers.KsonnetVersion,
 	}, nil
 }
 

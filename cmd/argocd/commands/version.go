@@ -54,6 +54,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				fmt.Printf("  GoVersion: %s\n", serverVers.GoVersion)
 				fmt.Printf("  Compiler: %s\n", serverVers.Compiler)
 				fmt.Printf("  Platform: %s\n", serverVers.Platform)
+				fmt.Printf("  Ksonnet Version: %s\n", serverVers.KsonnetVersion)
 			}
 
 		},
