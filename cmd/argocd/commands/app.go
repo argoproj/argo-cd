@@ -829,7 +829,7 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 
 	// print the initial components to format the tabwriter columns
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG\n")
+	fmt.Fprintln(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG")
 	_ = w.Flush()
 
 	prevStates := make(map[string]string)
