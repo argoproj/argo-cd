@@ -862,9 +862,9 @@ func waitUntilOperationCompleted(appClient application.ApplicationServiceClient,
 	printOpResults := func(opResult *argoappv1.SyncOperationResult) {
 		if opResult != nil {
 			if opResult.Hooks != nil {
-				for _, res := range opResult.Hooks {
-					stateKey := fmt.Sprintf("%s/%s", res.Kind, res.Name)
-					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", res.Type, res.Message)
+				for _, hook := range opResult.Hooks {
+					stateKey := fmt.Sprintf("%s/%s", hook.Kind, hook.Name)
+					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", hook.Kind, hook.Name, hook.Status, "", hook.Type, hook.Message)
 					conditionallyPrintOutput(w, stateKey, currentState)
 				}
 			}
