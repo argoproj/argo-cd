@@ -13,9 +13,9 @@ import (
 
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
-	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 
@@ -55,6 +55,7 @@ import (
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
+	netCtx "golang.org/x/net/context"
 )
 
 var (
@@ -299,11 +300,15 @@ func (a *ArgoCDServer) useTLS() bool {
 
 func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	var sOpts []grpc.ServerOption
+	loginMethodName := "/session.SessionService/Create"
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_auth.StreamServerInterceptor(a.authenticate),
+		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
+			return fullMethodName != loginMethodName
+		}),
 		grpc_util.ErrorCodeStreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
 	)))
@@ -311,6 +316,9 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		bug21955WorkaroundInterceptor,
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_auth.UnaryServerInterceptor(a.authenticate),
+		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
+			return fullMethodName != loginMethodName
+		}),
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
