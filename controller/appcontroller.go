@@ -553,7 +553,6 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
-	var err error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
 		appHealth.Status = appv1.HealthStatusUnknown
@@ -567,10 +566,7 @@ func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.Heal
 			if err != nil {
 				return nil, err
 			}
-			healthState, erre := health.GetAppHealth(&obj)
-			if erre != nil {
-				err = erre
-			}
+			healthState, _ := health.GetAppHealth(&obj)
 			resource.Health = *healthState
 		}
 		comparisonResult.Resources[i] = resource
@@ -578,7 +574,7 @@ func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.Heal
 			appHealth.Status = resource.Health.Status
 		}
 	}
-	return &appHealth, err
+	return &appHealth, nil
 }
 
 // updateAppStatus persists updates to application status. Detects if there patch
