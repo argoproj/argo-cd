@@ -567,9 +567,6 @@ func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.Heal
 				return nil, err
 			}
 			healthState, err := health.GetAppHealth(&obj)
-			if err != nil {
-				return nil, err
-			}
 			resource.Health = *healthState
 		}
 		comparisonResult.Resources[i] = resource

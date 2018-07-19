@@ -59,17 +59,21 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 }
 
 func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	health := appv1.HealthStatus{Status: appv1.HealthStatusProgressing}
 	obj, err := kube.ConvertToVersion(obj, "extensions", "v1beta1")
 	if err != nil {
-		return nil, err
+		health.Status = appv1.HealthStatusUnknown
+		health.StatusDetails = err.Error()
+		return &health, err
 	}
 	var ingress extv1beta1.Ingress
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &ingress)
 	if err != nil {
-		return nil, err
+		health.Status = appv1.HealthStatusUnknown
+		health.StatusDetails = err.Error()
+		return &health, err
 	}
 
-	health := appv1.HealthStatus{Status: appv1.HealthStatusProgressing}
 	for _, ingress := range ingress.Status.LoadBalancer.Ingress {
 		if ingress.Hostname != "" || ingress.IP != "" {
 			health.Status = appv1.HealthStatusHealthy
@@ -80,16 +84,20 @@ func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, erro
 }
 
 func getServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	health := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	obj, err := kube.ConvertToVersion(obj, "", "v1")
 	if err != nil {
-		return nil, err
+		health.Status = appv1.HealthStatusUnknown
+		health.StatusDetails = err.Error()
+		return &health, err
 	}
 	var service coreV1.Service
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &service)
 	if err != nil {
-		return nil, err
+		health.Status = appv1.HealthStatusUnknown
+		health.StatusDetails = err.Error()
+		return &health, err
 	}
-	health := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if service.Spec.Type == coreV1.ServiceTypeLoadBalancer {
 		health.Status = appv1.HealthStatusProgressing
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
@@ -105,12 +113,18 @@ func getServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, erro
 func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 	var deployment appsv1.Deployment
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &deployment)
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L80
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
@@ -151,13 +165,19 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	obj, err := kube.ConvertToVersion(obj, "", "v1")
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 	var daemon appsv1.DaemonSet
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &daemon)
 
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L110
@@ -189,12 +209,18 @@ func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, er
 func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	obj, err := kube.ConvertToVersion(obj, "", "v1")
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 	var sts appsv1.StatefulSet
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &sts)
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L131
@@ -240,13 +266,19 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, 
 func getReplicaSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	obj, err := kube.ConvertToVersion(obj, "", "v1")
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 	var replicaSet appsv1.ReplicaSet
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &replicaSet)
 
 	if err != nil {
-		return nil, err
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}, err
 	}
 
 	if replicaSet.Generation <= replicaSet.Status.ObservedGeneration {
