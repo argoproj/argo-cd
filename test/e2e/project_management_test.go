@@ -7,12 +7,34 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 )
 
 func TestProjectManagement(t *testing.T) {
+	assertProjHasEvent := func(a *v1alpha1.AppProject, action string, reason string) {
+		list, err := fixture.KubeClient.CoreV1().Events(fixture.Namespace).List(metav1.ListOptions{
+			FieldSelector: fields.SelectorFromSet(map[string]string{
+				"involvedObject.name":      a.Name,
+				"involvedObject.uid":       string(a.UID),
+				"involvedObject.namespace": fixture.Namespace,
+			}).String(),
+		})
+		if err != nil {
+			t.Fatalf("Unable to get app events %v", err)
+		}
+		for i := range list.Items {
+			event := list.Items[i]
+			if event.Reason == reason && event.Action == action {
+				return
+			}
+		}
+		t.Errorf("Unable to find event with reason=%s; action=%s", reason, action)
+	}
+
 	t.Run("TestProjectCreation", func(t *testing.T) {
 		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 		_, err := fixture.RunCli("proj", "create", projectName,
@@ -39,11 +61,13 @@ func TestProjectManagement(t *testing.T) {
 
 		assert.Equal(t, 1, len(proj.Spec.SourceRepos))
 		assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
+
+		assertProjHasEvent(proj, "create", argo.EventReasonResourceCreated)
 	})
 
 	t.Run("TestProjectDeletion", func(t *testing.T) {
 		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
+		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
 		if err != nil {
 			t.Fatalf("Unable to create project %v", err)
 		}
@@ -55,6 +79,7 @@ func TestProjectManagement(t *testing.T) {
 
 		_, err = fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
 		assert.True(t, errors.IsNotFound(err))
+		assertProjHasEvent(proj, "delete", argo.EventReasonResourceDeleted)
 	})
 
 	t.Run("TestSetProject", func(t *testing.T) {
@@ -84,6 +109,7 @@ func TestProjectManagement(t *testing.T) {
 
 		assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
 		assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
+		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
 	})
 
 	t.Run("TestAddProjectDestination", func(t *testing.T) {
@@ -118,6 +144,7 @@ func TestProjectManagement(t *testing.T) {
 
 		assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 		assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
+		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
 	})
 
 	t.Run("TestRemoveProjectDestination", func(t *testing.T) {
@@ -158,6 +185,7 @@ func TestProjectManagement(t *testing.T) {
 		}
 		assert.Equal(t, projectName, proj.Name)
 		assert.Equal(t, 0, len(proj.Spec.Destinations))
+		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
 	})
 
 	t.Run("TestAddProjectSource", func(t *testing.T) {
@@ -216,5 +244,6 @@ func TestProjectManagement(t *testing.T) {
 		}
 		assert.Equal(t, projectName, proj.Name)
 		assert.Equal(t, 0, len(proj.Spec.SourceRepos))
+		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
 	})
 }

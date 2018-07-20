@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -46,6 +47,7 @@ type ApplicationController struct {
 	namespace             string
 	kubeClientset         kubernetes.Interface
 	applicationClientset  appclientset.Interface
+	auditLogger           *argo.AuditLogger
 	appRefreshQueue       workqueue.RateLimitingInterface
 	appOperationQueue     workqueue.RateLimitingInterface
 	appInformer           cache.SharedIndexInformer
@@ -88,6 +90,7 @@ func NewApplicationController(
 		statusRefreshTimeout:  appResyncPeriod,
 		forceRefreshApps:      make(map[string]bool),
 		forceRefreshAppsMutex: &sync.Mutex{},
+		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "appcontroller"),
 	}
 }
 
@@ -283,6 +286,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			Type:    appv1.ApplicationConditionDeletionError,
 			Message: err.Error(),
 		})
+		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Message: "Controller has failed to clean app resources"}, v1.EventTypeWarning)
 	} else {
 		log.Infof("Successfully deleted resources for application %s", app.Name)
 	}
@@ -396,6 +400,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			// If operation is completed, clear the operation field to indicate no operation is
 			// in progress.
 			patch["operation"] = nil
+			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Message: "Operation has been completed"}, v1.EventTypeNormal)
 		}
 		if reflect.DeepEqual(app.Status.OperationState, state) {
 			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.Name)

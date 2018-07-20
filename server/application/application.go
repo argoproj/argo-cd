@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/session"
 )
 
 // Server provides a Application service
@@ -44,6 +45,7 @@ type Server struct {
 	appComparator controller.AppStateManager
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
+	auditLogger   *argo.AuditLogger
 }
 
 // NewServer returns a new instance of the Application service
@@ -66,6 +68,7 @@ func NewServer(
 		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
 		enf:           enf,
 		projectLock:   projectLock,
+		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argo-server"),
 	}
 }
 
@@ -127,6 +130,10 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 				return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 			}
 		}
+	}
+
+	if err == nil {
+		s.logEvent(out, ctx, argo.EventReasonResourceCreated, "create")
 	}
 	return out, err
 }
@@ -215,11 +222,20 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 		return nil, err
 	}
 
-	fieldSelector := fields.SelectorFromSet(map[string]string{
-		"involvedObject.name":      q.ResourceName,
-		"involvedObject.uid":       q.ResourceUID,
-		"involvedObject.namespace": namespace,
-	}).String()
+	var fieldSelector string
+	if q.ResourceName == "" && q.ResourceUID == "" {
+		fieldSelector = fields.SelectorFromSet(map[string]string{
+			"involvedObject.name":      a.Name,
+			"involvedObject.uid":       string(a.UID),
+			"involvedObject.namespace": namespace,
+		}).String()
+	} else {
+		fieldSelector = fields.SelectorFromSet(map[string]string{
+			"involvedObject.name":      q.ResourceName,
+			"involvedObject.uid":       q.ResourceUID,
+			"involvedObject.namespace": namespace,
+		}).String()
+	}
 
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
@@ -300,6 +316,9 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 		return nil, err
 	}
 	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(*q.Name, types.MergePatchType, patch)
+	if err != nil {
+		s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "update")
+	}
 	return &q.Spec, err
 }
 
@@ -355,6 +374,7 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 		return nil, err
 	}
 
+	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, "delete")
 	return &ApplicationResponse{}, nil
 }
 
@@ -570,7 +590,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	return s.setAppOperation(ctx, *syncReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
+	return s.setAppOperation(ctx, *syncReq.Name, "sync", func(app *appv1.Application) (*appv1.Operation, error) {
 		syncOp := appv1.SyncOperation{
 			Revision:     syncReq.Revision,
 			Prune:        syncReq.Prune,
@@ -591,7 +611,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "rollback", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	return s.setAppOperation(ctx, *rollbackReq.Name, func(app *appv1.Application) (*appv1.Operation, error) {
+	return s.setAppOperation(ctx, *rollbackReq.Name, "rollback", func(app *appv1.Application) (*appv1.Operation, error) {
 		return &appv1.Operation{
 			Rollback: &appv1.RollbackOperation{
 				ID:     rollbackReq.ID,
@@ -602,7 +622,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	})
 }
 
-func (s *Server) setAppOperation(ctx context.Context, appName string, operationCreator func(app *appv1.Application) (*appv1.Operation, error)) (*appv1.Application, error) {
+func (s *Server) setAppOperation(ctx context.Context, appName string, operationName string, operationCreator func(app *appv1.Application) (*appv1.Operation, error)) (*appv1.Application, error) {
 	for {
 		a, err := s.Get(ctx, &ApplicationQuery{Name: &appName})
 		if err != nil {
@@ -621,6 +641,9 @@ func (s *Server) setAppOperation(ctx context.Context, appName string, operationC
 		if err != nil && apierr.IsConflict(err) {
 			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 		} else {
+			if err == nil {
+				s.logEvent(a, ctx, argo.EventReasonResourceUpdated, operationName)
+			}
 			return a, err
 		}
 	}
@@ -652,7 +675,20 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 		a, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*termOpReq.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
+		} else {
+			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "terminateop")
 		}
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
+}
+
+func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
+	username := session.Username(ctx)
+	var message string
+	if username != "" {
+		message = fmt.Sprintf("User %s executed action %s", username, action)
+	} else {
+		message = fmt.Sprintf("Unknown user executed action %s", action)
+	}
+	s.auditLogger.LogAppEvent(a, argo.EventInfo{Reason: reason, Action: action, Username: username, Message: message}, v1.EventTypeNormal)
 }

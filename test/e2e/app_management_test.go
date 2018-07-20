@@ -11,12 +11,34 @@ import (
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// load the oidc plugin (required to authenticate with OpenID Connect).
+
+	"github.com/argoproj/argo-cd/util/argo"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 func TestAppManagement(t *testing.T) {
+	assertAppHasEvent := func(a *v1alpha1.Application, action string, reason string) {
+		list, err := fixture.KubeClient.CoreV1().Events(fixture.Namespace).List(metav1.ListOptions{
+			FieldSelector: fields.SelectorFromSet(map[string]string{
+				"involvedObject.name":      a.Name,
+				"involvedObject.uid":       string(a.UID),
+				"involvedObject.namespace": fixture.Namespace,
+			}).String(),
+		})
+		if err != nil {
+			t.Fatalf("Unable to get app events %v", err)
+		}
+		for i := range list.Items {
+			event := list.Items[i]
+			if event.Reason == reason && event.Action == action {
+				return
+			}
+		}
+		t.Errorf("Unable to find event with reason=%s; action=%s", reason, action)
+	}
+
 	testApp := &v1alpha1.Application{
 		Spec: v1alpha1.ApplicationSpec{
 			Source: v1alpha1.ApplicationSource{
@@ -52,6 +74,7 @@ func TestAppManagement(t *testing.T) {
 		assert.Equal(t, ".", app.Spec.Source.Path)
 		assert.Equal(t, fixture.Namespace, app.Spec.Destination.Namespace)
 		assert.Equal(t, fixture.Config.Host, app.Spec.Destination.Server)
+		assertAppHasEvent(app, "create", argo.EventReasonResourceCreated)
 	})
 
 	t.Run("TestAppDeletion", func(t *testing.T) {
@@ -66,6 +89,7 @@ func TestAppManagement(t *testing.T) {
 
 		assert.NotNil(t, err)
 		assert.True(t, errors.IsNotFound(err))
+		assertAppHasEvent(app, "delete", argo.EventReasonResourceDeleted)
 	})
 
 	t.Run("TestTrackAppStateAndSyncApp", func(t *testing.T) {
@@ -80,6 +104,7 @@ func TestAppManagement(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unable to sync app %v", err)
 		}
+		assertAppHasEvent(app, "sync", argo.EventReasonResourceUpdated)
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
@@ -119,6 +144,8 @@ func TestAppManagement(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unable to sync app %v", err)
 		}
+
+		assertAppHasEvent(app, "rollback", argo.EventReasonResourceUpdated)
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})

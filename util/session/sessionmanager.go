@@ -174,6 +174,19 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	}
 }
 
+func Username(ctx context.Context) string {
+	if claims, ok := ctx.Value("claims").(*jwt.MapClaims); ok {
+		mapClaims := *claims
+		switch mapClaims["iss"] {
+		case SessionManagerClaimsIssuer:
+			return mapClaims["sub"].(string)
+		default:
+			return mapClaims["email"].(string)
+		}
+	}
+	return ""
+}
+
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
 func MakeCookieMetadata(key, value string, flags ...string) string {
 	components := []string{

@@ -14,9 +14,12 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/session"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Server provides a Project service
@@ -24,12 +27,14 @@ type Server struct {
 	ns           string
 	enf          *rbac.Enforcer
 	appclientset appclientset.Interface
+	auditLogger  *argo.AuditLogger
 	projectLock  *util.KeyLock
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock) *Server {
-	return &Server{enf: enf, appclientset: appclientset, ns: ns, projectLock: projectLock}
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock) *Server {
+	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argo-server")
+	return &Server{enf: enf, appclientset: appclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger}
 }
 
 // Create a new project.
@@ -44,7 +49,11 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 	if err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
+	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
+	if err == nil {
+		s.logEvent(res, ctx, argo.EventReasonResourceCreated, "create")
+	}
+	return res, err
 }
 
 // List returns list of projects
@@ -187,7 +196,11 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 			codes.InvalidArgument, "following source repos are used by one or more application and cannot be removed: %s", strings.Join(removedSrcUsed, ";"))
 	}
 
-	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
+	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
+	if err == nil {
+		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "update")
+	}
+	return res, err
 }
 
 // Delete deletes a project
@@ -199,6 +212,11 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	s.projectLock.Lock(q.Name)
 	defer s.projectLock.Unlock(q.Name)
 
+	p, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
 	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -207,5 +225,20 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	if len(apps) > 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "project is referenced by %d applications", len(apps))
 	}
-	return &EmptyResponse{}, s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
+	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
+	if err == nil {
+		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "delete")
+	}
+	return &EmptyResponse{}, err
+}
+
+func (s *Server) logEvent(p *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
+	username := session.Username(ctx)
+	var message string
+	if username != "" {
+		message = fmt.Sprintf("User %s executed action %s", username, action)
+	} else {
+		message = fmt.Sprintf("Unknown user executed action %s", action)
+	}
+	s.auditLogger.LogAppProjEvent(p, argo.EventInfo{Reason: reason, Action: action, Username: username, Message: message}, v1.EventTypeNormal)
 }
