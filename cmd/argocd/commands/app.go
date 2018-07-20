@@ -30,7 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
@@ -82,9 +82,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if fileURL != "" {
 				parsedURL, err := url.ParseRequestURI(fileURL)
 				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-					err = cli.UnmarshalLocalFile(fileURL, &app)
+					err = config.UnmarshalLocalFile(fileURL, &app)
 				} else {
-					err = cli.UnmarshalRemoteFile(fileURL, &app)
+					err = config.UnmarshalRemoteFile(fileURL, &app)
 				}
 				if err != nil {
 					log.Fatal(err)

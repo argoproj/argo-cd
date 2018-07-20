@@ -1,4 +1,4 @@
-package cli
+package config
 
 import (
 	"encoding/json"

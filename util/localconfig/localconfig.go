@@ -6,7 +6,7 @@ import (
 	"os/user"
 	"path"
 
-	"github.com/argoproj/argo-cd/util/cli"
+	configUtil "github.com/argoproj/argo-cd/util/config"
 )
 
 // LocalConfig is a local ArgoCD config file
@@ -54,7 +54,7 @@ type User struct {
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
 	var config LocalConfig
-	err = cli.UnmarshalLocalFile(path, &config)
+	err = configUtil.UnmarshalLocalFile(path, &config)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -81,7 +81,7 @@ func WriteLocalConfig(config LocalConfig, configPath string) error {
 	if err != nil {
 		return err
 	}
-	return cli.MarshalLocalYAMLFile(configPath, config)
+	return configUtil.MarshalLocalYAMLFile(configPath, config)
 }
 
 // ResolveContext resolves the specified context. If unspecified, resolves the current context

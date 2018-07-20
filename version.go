@@ -34,6 +34,7 @@ func (v Version) String() string {
 // GetVersion returns the version information
 func GetVersion() Version {
 	var versionStr string
+
 	if gitCommit != "" && gitTag != "" && gitTreeState == "clean" {
 		// if we have a clean tree state and the current commit is tagged,
 		// this is an official release.

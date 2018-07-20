@@ -19,6 +19,7 @@ message VersionMessage {
 	string GoVersion = 6;
 	string Compiler = 7;
 	string Platform = 8;
+	string KsonnetVersion = 9;
 }
 
 // VersionService returns the version of the API server.
