@@ -2,6 +2,7 @@ package version
 
 import (
 	argocd "github.com/argoproj/argo-cd"
+	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 )
@@ -11,6 +12,10 @@ type Server struct{}
 // Version returns the version of the API server
 func (s *Server) Version(context.Context, *empty.Empty) (*VersionMessage, error) {
 	vers := argocd.GetVersion()
+	ksonnetVersion, err := ksutil.KsonnetVersion()
+	if err != nil {
+		return nil, err
+	}
 	return &VersionMessage{
 		Version:        vers.Version,
 		BuildDate:      vers.BuildDate,
@@ -20,7 +25,7 @@ func (s *Server) Version(context.Context, *empty.Empty) (*VersionMessage, error)
 		GoVersion:      vers.GoVersion,
 		Compiler:       vers.Compiler,
 		Platform:       vers.Platform,
-		KsonnetVersion: vers.KsonnetVersion,
+		KsonnetVersion: ksonnetVersion,
 	}, nil
 }
 
