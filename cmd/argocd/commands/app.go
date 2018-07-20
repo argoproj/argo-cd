@@ -614,7 +614,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			_, err := waitUntilOperationCompleted(appIf, appName, timeout, watchSync, watchHealth, watchOperations)
+			_, err := waitOnApplicationStatus(appIf, appName, timeout, watchSync, watchHealth, watchOperations)
 			errors.CheckError(err)
 		},
 	}
@@ -773,7 +773,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitUntilOperationCompleted(appIf, appName, timeout, false, false, true)
+			app, err := waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
 			errors.CheckError(err)
 
 			pruningRequired := 0
@@ -800,7 +800,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations bool) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1033,7 +1033,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitUntilOperationCompleted(appIf, appName, timeout, false, false, true)
+			_, err = waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
 			errors.CheckError(err)
 		},
 	}
