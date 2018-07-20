@@ -149,7 +149,7 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 }
 
 func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, er
 }
 
 func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, 
 }
 
 func getReplicaSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
 		return nil, err
 	}

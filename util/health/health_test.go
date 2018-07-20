@@ -17,7 +17,7 @@ func TestDeploymentHealth(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := getDeploymentHealth(&obj)
+	health, err := GetAppHealth(&obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusHealthy, health.Status)
@@ -29,7 +29,7 @@ func TestDeploymentProgressing(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := getDeploymentHealth(&obj)
+	health, err := GetAppHealth(&obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusProgressing, health.Status)
@@ -41,8 +41,20 @@ func TestDeploymentDegraded(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := getDeploymentHealth(&obj)
+	health, err := GetAppHealth(&obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusDegraded, health.Status)
+}
+
+func TestStatefulSetHealth(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("./testdata/statefulset.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	health, err := GetAppHealth(&obj)
+	assert.Nil(t, err)
+	assert.NotNil(t, health)
+	assert.Equal(t, appv1.HealthStatusHealthy, health.Status)
 }
