@@ -24,7 +24,7 @@ $ kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole
 
 Download the latest ArgoCD version:
 ```
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.6.0/argocd-darwin-amd64
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.6.2/argocd-darwin-amd64
 chmod +x /usr/local/bin/argocd
 ```
 
