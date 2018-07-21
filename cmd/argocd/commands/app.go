@@ -800,6 +800,69 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
+// ResourceState tracks the state of a resource when waiting on an application status.
+type resourceState struct {
+	Kind         string
+	Name         string
+	Status       string
+	HealthStatus string
+	Type         string
+	Message      string
+	Updated      bool
+}
+
+func newResourceState(kind, name, status, healthStatus, resType, message string) *resourceState {
+	return &resourceState{
+		Kind:         kind,
+		Name:         name,
+		Status:       status,
+		HealthStatus: healthStatus,
+		Type:         resType,
+		Message:      message,
+	}
+}
+
+// Key returns a unique-ish key for the resource.
+func (rs *resourceState) Key() string {
+	return fmt.Sprintf("%s/%s", rs.Kind, rs.Name)
+}
+
+func (rs *resourceState) String() string {
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Status, rs.HealthStatus, rs.Type, rs.Message)
+}
+
+func (rs *resourceState) Update(newState *resourceState) {
+	if newState.Kind != "" && newState.Kind != rs.Kind {
+		rs.Kind = newState.Kind
+		rs.Updated = true
+	}
+
+	if newState.Name != "" && newState.Name != rs.Name {
+		rs.Name = newState.Name
+		rs.Updated = true
+	}
+
+	if newState.Status != "" && newState.Status != rs.Status {
+		rs.Status = newState.Status
+		rs.Updated = true
+	}
+
+	if newState.HealthStatus != "" && newState.HealthStatus != rs.HealthStatus {
+		rs.HealthStatus = newState.HealthStatus
+		rs.Updated = true
+	}
+
+	if newState.Type != "" && newState.Type != rs.Type {
+		rs.Type = newState.Type
+		rs.Updated = true
+	}
+
+	if newState.Message != "" && newState.Message != rs.Message {
+		rs.Message = newState.Message
+		rs.Updated = true
+	}
+}
+
 func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -832,11 +895,13 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 	fmt.Fprintln(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG")
 	_ = w.Flush()
 
-	prevStates := make(map[string]string)
-	conditionallyPrintOutput := func(w io.Writer, stateKey, currentState string) {
-		if prevState, found := prevStates[stateKey]; !found || prevState != currentState {
-			fmt.Fprintln(w, currentState)
-			prevStates[stateKey] = currentState
+	prevStates := make(map[string]*resourceState)
+	conditionallyPrintOutput := func(w io.Writer, newState *resourceState) {
+		stateKey := newState.Key()
+		if prevState, found := prevStates[stateKey]; found {
+			prevState.Update(newState)
+		} else {
+			prevStates[stateKey] = newState
 		}
 	}
 
@@ -850,9 +915,8 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 					errors.CheckError(err)
 				}
 
-				stateKey := fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())
-				currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", "")
-				conditionallyPrintOutput(w, stateKey, currentState)
+				newState := newResourceState(obj.GetKind(), obj.GetName(), string(res.Status), res.Health.Status, "", "")
+				conditionallyPrintOutput(w, newState)
 			}
 		}
 	}
@@ -861,17 +925,15 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 		if opResult != nil {
 			if opResult.Hooks != nil {
 				for _, hook := range opResult.Hooks {
-					stateKey := fmt.Sprintf("%s/%s", hook.Kind, hook.Name)
-					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", hook.Kind, hook.Name, hook.Status, "", hook.Type, hook.Message)
-					conditionallyPrintOutput(w, stateKey, currentState)
+					newState := newResourceState(hook.Kind, hook.Name, string(hook.Status), "", string(hook.Type), hook.Message)
+					conditionallyPrintOutput(w, newState)
 				}
 			}
 
 			if opResult.Resources != nil {
 				for _, res := range opResult.Resources {
-					stateKey := fmt.Sprintf("%s/%s", res.Kind, res.Name)
-					currentState := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, "", "", res.Message)
-					conditionallyPrintOutput(w, stateKey, currentState)
+					newState := newResourceState(res.Kind, res.Name, string(res.Status), "", "", res.Message)
+					conditionallyPrintOutput(w, newState)
 				}
 			}
 		}
@@ -886,6 +948,13 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 		if opState := app.Status.OperationState; opState != nil {
 			printOpResults(opState.SyncResult)
 			printOpResults(opState.RollbackResult)
+		}
+
+		for _, v := range prevStates {
+			if v.Updated {
+				fmt.Fprintln(w, v)
+				v.Updated = false
+			}
 		}
 
 		_ = w.Flush()
