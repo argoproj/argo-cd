@@ -819,6 +819,7 @@ func newResourceState(kind, name, status, healthStatus, resType, message string)
 		HealthStatus: healthStatus,
 		Type:         resType,
 		Message:      message,
+		Updated:      true,
 	}
 }
 
