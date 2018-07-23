@@ -235,13 +235,14 @@ func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace
 			go func() {
 				defer wg.Done()
 				watch, err := resource.Watch(metav1.ListOptions{LabelSelector: labelName})
-				go func() {
-					select {
-					case <-ctx.Done():
-						watch.Stop()
-					}
-				}()
 				if err == nil {
+					defer watch.Stop()
+					go func() {
+						select {
+						case <-ctx.Done():
+							watch.Stop()
+						}
+					}()
 					for event := range watch.ResultChan() {
 						ch <- event
 					}

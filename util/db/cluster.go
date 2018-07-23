@@ -92,6 +92,7 @@ func (s *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) er
 		<-ctx.Done()
 		w.Stop()
 	}()
+	defer w.Stop()
 	for next := range w.ResultChan() {
 		secret := next.Object.(*apiv1.Secret)
 		cluster := SecretToCluster(secret)
