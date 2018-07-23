@@ -33,10 +33,11 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach ArgoCD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
+	// Admin superuser password storage
+	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
+	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
 	// DexConfig is contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
-	// LocalUsers holds users local to (stored on) the server.  This is to be distinguished from any potential alternative future login providers (LDAP, SAML, etc.) that might ever be added.
-	LocalUsers map[string]string `json:"localUsers,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
 	ServerSignature []byte `json:"serverSignature,omitempty"`
 	// Certificate holds the certificate/private key for the ArgoCD API server.
@@ -53,8 +54,10 @@ type ArgoCDSettings struct {
 }
 
 const (
-	// settingAdminPasswordKey designates the key for a root password inside a Kubernetes secret.
-	settingAdminPasswordKey = "admin.password"
+	// settingAdminPasswordHashKey designates the key for a root password hash inside a Kubernetes secret.
+	settingAdminPasswordHashKey = "admin.password"
+	// settingAdminPasswordMtimeKey designates the key for a root password mtime inside a Kubernetes secret.
+	settingAdminPasswordMtimeKey = "admin.passwordMtime"
 	// settingServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
 	settingServerSignatureKey = "server.secretkey"
 	// settingServerCertificate designates the key for the public cert used in TLS
@@ -107,13 +110,17 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.URL = argoCDCM.Data[settingURLKey]
 }
 
+// UpdateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
 func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
-	adminPasswordHash, ok := argoCDSecret.Data[settingAdminPasswordKey]
+	adminPasswordHash, ok := argoCDSecret.Data[settingAdminPasswordHashKey]
 	if !ok {
 		return fmt.Errorf("admin user not found")
 	}
-	settings.LocalUsers = map[string]string{
-		common.ArgoCDAdminUsername: string(adminPasswordHash),
+	settings.AdminPasswordHash = string(adminPasswordHash)
+	if adminPasswordMtimeBytes, ok := argoCDSecret.Data[settingAdminPasswordMtimeKey]; ok {
+		settings.AdminPasswordMtime = time.Parse(time.RFC3339, string(adminPasswordMtimeBytes))
+	} else {
+		settings.AdminPasswordMtime = time.Now()
 	}
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if !ok {
@@ -194,7 +201,8 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	}
 	argoCDSecret.StringData = make(map[string]string)
 	argoCDSecret.StringData[settingServerSignatureKey] = string(settings.ServerSignature)
-	argoCDSecret.StringData[settingAdminPasswordKey] = settings.LocalUsers[common.ArgoCDAdminUsername]
+	argoCDSecret.StringData[settingAdminPasswordHashKey] = settings.AdminPasswordHash
+	argoCDSecret.StringData[settingAdminPasswordMtimeKey] = settings.AdminPasswordMtime.Format(time.RFC3339)
 	if settings.WebhookGitHubSecret != "" {
 		argoCDSecret.StringData[settingsWebhookGitHubSecretKey] = settings.WebhookGitHubSecret
 	}
@@ -423,19 +431,15 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 		errors.CheckError(err)
 		cdSettings.ServerSignature = signature
 	}
-	if cdSettings.LocalUsers == nil {
-		cdSettings.LocalUsers = make(map[string]string)
-	}
-	if _, ok := cdSettings.LocalUsers[common.ArgoCDAdminUsername]; !ok || updateSuperuser {
+	if cdSettings.AdminPasswordHash == "" || updateSuperuser {
 		passwordRaw := defaultPassword
 		if passwordRaw == "" {
 			passwordRaw = ReadAndConfirmPassword()
 		}
 		hashedPassword, err := password.HashPassword(passwordRaw)
 		errors.CheckError(err)
-		cdSettings.LocalUsers = map[string]string{
-			common.ArgoCDAdminUsername: hashedPassword,
-		}
+		cdSettings.AdminPasswordHash = hashedPassword
+		cdSettings.AdminPasswordMtime = time.Now()
 	}
 
 	if cdSettings.Certificate == nil {
