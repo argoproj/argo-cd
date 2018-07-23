@@ -36,7 +36,7 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 		if err != nil {
 			return nil, err
 		}
-		tokenString, err = s.mgr.Create(q.Username)
+		tokenString, err = s.mgr.Create(q.Username, 0)
 		if err != nil {
 			return nil, err
 		}
