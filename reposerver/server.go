@@ -9,7 +9,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -35,16 +34,10 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_logrus.StreamServerInterceptor(a.log),
-			grpc_util.PayloadStreamServerInterceptor(a.log, false, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
-				return true
-			}),
 			grpc_util.PanicLoggerStreamServerInterceptor(a.log),
 		)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_logrus.UnaryServerInterceptor(a.log),
-			grpc_util.PayloadUnaryServerInterceptor(a.log, false, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
-				return true
-			}),
 			grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 		)),
 	)
