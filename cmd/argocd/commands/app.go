@@ -802,24 +802,23 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // ResourceState tracks the state of a resource when waiting on an application status.
 type resourceState struct {
-	Kind         string
-	Name         string
-	Status       string
-	HealthStatus string
-	Type         string
-	Message      string
-	Updated      bool
+	Kind    string
+	Name    string
+	Fields  map[string]string
+	Updated bool
 }
 
 func newResourceState(kind, name, status, healthStatus, resType, message string) *resourceState {
 	return &resourceState{
-		Kind:         kind,
-		Name:         name,
-		Status:       status,
-		HealthStatus: healthStatus,
-		Type:         resType,
-		Message:      message,
-		Updated:      true,
+		Kind: kind,
+		Name: name,
+		Fields: map[string]string{
+			"status":       status,
+			"healthStatus": healthStatus,
+			"type":         resType,
+			"message":      message,
+		},
+		Updated: true,
 	}
 }
 
@@ -829,38 +828,15 @@ func (rs *resourceState) Key() string {
 }
 
 func (rs *resourceState) String() string {
-	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Status, rs.HealthStatus, rs.Type, rs.Message)
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Fields["status"], rs.Fields["healthStatus"], rs.Fields["type"], rs.Fields["message"])
 }
 
 func (rs *resourceState) Update(newState *resourceState) {
-	if newState.Kind != "" && newState.Kind != rs.Kind {
-		rs.Kind = newState.Kind
-		rs.Updated = true
-	}
-
-	if newState.Name != "" && newState.Name != rs.Name {
-		rs.Name = newState.Name
-		rs.Updated = true
-	}
-
-	if newState.Status != "" && newState.Status != rs.Status {
-		rs.Status = newState.Status
-		rs.Updated = true
-	}
-
-	if newState.HealthStatus != "" && newState.HealthStatus != rs.HealthStatus {
-		rs.HealthStatus = newState.HealthStatus
-		rs.Updated = true
-	}
-
-	if newState.Type != "" && newState.Type != rs.Type {
-		rs.Type = newState.Type
-		rs.Updated = true
-	}
-
-	if newState.Message != "" && newState.Message != rs.Message {
-		rs.Message = newState.Message
-		rs.Updated = true
+	for k, v := range newState.Fields {
+		if v != "" && v != rs.Fields[k] {
+			rs.Fields[k] = v
+			rs.Updated = true
+		}
 	}
 }
 
