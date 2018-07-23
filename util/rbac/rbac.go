@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/casbin/casbin"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
 
@@ -45,12 +47,17 @@ type Enforcer struct {
 	defaultRole       string
 	builtinPolicy     string
 	userDefinedPolicy string
+	appclientset      appclientset.Interface
 }
 
-func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
+func loadModel() model.Model {
 	box := packr.NewBox(".")
 	modelConf := box.String(builtinModelFile)
-	model := casbin.NewModel(modelConf)
+	return casbin.NewModel(modelConf)
+}
+
+func NewEnforcer(clientset kubernetes.Interface, appclientset appclientset.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
+	model := loadModel()
 	adapter := scas.NewAdapter("")
 	enf := casbin.NewEnforcer(model, adapter)
 	enf.EnableLog(false)
@@ -62,6 +69,7 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 		configmap:          configmap,
 		model:              model,
 		claimsEnforcerFunc: claimsEnforcer,
+		appclientset:       appclientset,
 	}
 }
 
@@ -109,6 +117,7 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 		}
 		return e.Enforce(rvals...)
 	}
+
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		vals := append([]interface{}{""}, rvals[1:]...)
@@ -122,8 +131,33 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 		}
 	}
 	user := jwtutil.GetField(mapClaims, "sub")
+	if strings.HasPrefix(user, "proj:") {
+		model := loadModel()
+		tokenPolicies, err := e.getProjectTokenPolices(user)
+		if err != nil {
+			return false
+		}
+		//TODO: Add verification of created at time
+		adapter := scas.NewAdapter(tokenPolicies)
+		enf := casbin.NewEnforcer(model, adapter)
+		enf.EnableLog(false)
+		vals := append([]interface{}{user}, rvals[1:]...)
+		return enf.Enforce(vals...)
+
+	}
 	vals := append([]interface{}{user}, rvals[1:]...)
 	return e.Enforce(vals...)
+}
+
+//TODO: Add tests for method
+func (e *Enforcer) getProjectTokenPolices(user string) (string, error) {
+	projName := strings.Split(user, ":")[1]
+	proj, err := e.appclientset.ArgoprojV1alpha1().AppProjects(e.namespace).Get(projName, metav1.GetOptions{})
+	if err != nil {
+		fmt.Print(err)
+		return "", err
+	}
+	return proj.TokenPoliciesString(), nil
 }
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies

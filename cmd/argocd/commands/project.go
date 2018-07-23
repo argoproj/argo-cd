@@ -2,6 +2,7 @@ package commands
 
 import (
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -27,6 +28,12 @@ type projectOpts struct {
 	description  string
 	destinations []string
 	sources      []string
+}
+
+type policyOpts struct {
+	action     string
+	permission string
+	object     string
 }
 
 func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
@@ -55,6 +62,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			os.Exit(1)
 		},
 	}
+	//TODO: Refector into token sub-command
+	command.AddCommand(NewProjectCreateTokenCommand(clientOpts))
 	command.AddCommand(NewProjectCreateCommand(clientOpts))
 	command.AddCommand(NewProjectDeleteCommand(clientOpts))
 	command.AddCommand(NewProjectListCommand(clientOpts))
@@ -63,6 +72,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveSourceCommand(clientOpts))
+	command.AddCommand(NewProjectCreateTokenPolicyCommand(clientOpts))
 	return command
 }
 
@@ -71,6 +81,83 @@ func addProjFlags(command *cobra.Command, opts *projectOpts) {
 	command.Flags().StringArrayVarP(&opts.destinations, "dest", "d", []string{},
 		"Allowed deployment destination. Includes comma separated server url and namespace (e.g. https://192.168.99.100:8443,default")
 	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Allowed deployment source repository URL.")
+}
+
+func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
+	command.Flags().StringVarP(&opts.action, "action", "a", "", "Action to grant/deny permission on")
+	command.Flags().StringVarP(&opts.permission, "permission", "p", "allow", "Whether to allow or deny access to object with the action.  This can only be 'allow' or 'deny'")
+	command.Flags().StringVarP(&opts.object, "object", "o", "", "Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'")
+}
+
+// NewProjectCreateTokenPolicyCommand returns a new instance of an `argocd proj token create-policy` command
+func NewProjectCreateTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		opts policyOpts
+	)
+	var command = &cobra.Command{
+		//TODO: Change to `token add-policy`
+		Use:   "create-token-policy PROJECT TOKEN-NAME",
+		Short: "Create a policy for a project token",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			//TODO: Check if this logic can be pushed into the flags library
+			if opts.permission != "allow" && opts.permission != "deny" {
+				log.Fatal("Permission flag can only have the values 'allow' or 'deny'")
+			}
+
+			projName := args[0]
+			tokenName := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			//TODO: Check if this project has token
+
+			//TODO: Change to input an array of policies instead of just one?
+			_, err = projIf.CreateTokenPolicy(context.Background(), &project.ProjectTokenPolicyCreateRequest{Project: proj, Token: tokenName, Action: opts.action, Permission: opts.permission, Object: opts.object})
+			errors.CheckError(err)
+		},
+	}
+	addPolicyFlags(command, &opts)
+	return command
+}
+
+// NewProjectCreateTokenCommand returns a new instance of an `argocd proj token create` command
+func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		//TODO: Change to `token create`
+		Use:   "create-token PROJECT TOKEN-NAME",
+		Short: "Create a project token",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			//TODO: Make validUntil configuriable
+			validUntil := time.Now().Add(time.Hour * 24).Unix()
+			projName := args[0]
+			tokenName := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: proj, Token: &v1alpha1.ProjectToken{Name: tokenName, ValidUntil: validUntil}})
+			errors.CheckError(err)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			//TODO: Clean up message and think about how it should formatted
+			fmt.Fprintf(w, "New token for %s-%s:'%s'", projName, tokenName, token)
+			fmt.Fprintf(w, "Make sure to save token as it is not stored.")
+			_ = w.Flush()
+		},
+	}
+	return command
 }
 
 // NewProjectCreateCommand returns a new instance of an `argocd proj create` command

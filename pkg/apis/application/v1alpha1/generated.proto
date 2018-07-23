@@ -41,6 +41,8 @@ message AppProjectSpec {
 
   // Description contains optional project description
   optional string description = 3;
+
+  repeated ProjectToken tokens = 4;
 }
 
 // Application is a definition of Application resource.
@@ -281,6 +283,16 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+}
+
+// ProjectToken TODO: Check if everything should be capitalized
+// ProjectToken contains metadata of a token for a project
+message ProjectToken {
+  optional string name = 1;
+
+  repeated string policies = 2;
+
+  optional int64 validUntil = 3;
 }
 
 // Repository is a Git repository holding application configurations

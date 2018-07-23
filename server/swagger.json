@@ -695,6 +695,60 @@
         }
       }
     },
+    "/api/v1/projects/token": {
+      "post": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Create a new project token.",
+        "operationId": "CreateToken",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/token/policy": {
+      "post": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "TODO: Is this the best endpoint for this?\nCreate a new project token.",
+        "operationId": "CreateTokenPolicy",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenPolicyCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenPolicyCreateResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}": {
       "get": {
         "tags": [
@@ -1335,6 +1389,50 @@
         }
       }
     },
+    "projectProjectTokenCreateRequest": {
+      "description": "ProjectTokenCreateRequest defines project token creation parameters.",
+      "type": "object",
+      "properties": {
+        "project": {
+          "$ref": "#/definitions/v1alpha1AppProject"
+        },
+        "token": {
+          "$ref": "#/definitions/v1alpha1ProjectToken"
+        }
+      }
+    },
+    "projectProjectTokenPolicyCreateRequest": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "object": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "string"
+        },
+        "project": {
+          "$ref": "#/definitions/v1alpha1AppProject"
+        },
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "projectProjectTokenPolicyCreateResponse": {
+      "type": "object"
+    },
+    "projectProjectTokenResponse": {
+      "description": "ProjectTokenResponse wraps the created token or returns an empty string if deleted.",
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
     "projectProjectUpdateRequest": {
       "type": "object",
       "properties": {
@@ -1485,6 +1583,9 @@
       "type": "object",
       "properties": {
         "password": {
+          "type": "string"
+        },
+        "project": {
           "type": "string"
         },
         "token": {
@@ -1882,6 +1983,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ProjectToken"
+          }
         }
       }
     },
@@ -2256,6 +2363,25 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        }
+      }
+    },
+    "v1alpha1ProjectToken": {
+      "type": "object",
+      "title": "ProjectToken TODO: Check if everything should be capitalized\nProjectToken contains metadata of a token for a project",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "validUntil": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },

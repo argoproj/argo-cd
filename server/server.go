@@ -131,7 +131,7 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	errors.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settings)
 
-	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
+	enf := rbac.NewEnforcer(opts.KubeClientset, opts.AppClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(builtinPolicy)
 	errors.CheckError(err)
@@ -340,7 +340,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf, projectLock)
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})

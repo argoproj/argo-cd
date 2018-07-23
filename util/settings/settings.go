@@ -123,6 +123,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 			settings.AdminPasswordMtime = adminPasswordMtime
 		}
 	}
+
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if !ok {
 		return fmt.Errorf("server secret key not found")
@@ -200,6 +201,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		createSecret = true
 	}
+
 	argoCDSecret.StringData = make(map[string]string)
 	argoCDSecret.StringData[settingServerSignatureKey] = string(settings.ServerSignature)
 	argoCDSecret.StringData[settingAdminPasswordHashKey] = settings.AdminPasswordHash

@@ -183,7 +183,7 @@ type DeploymentInfo struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Application struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta   `json:",inline" protobuf:"bytes,5,opt,name=typeMeta"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 	Status            ApplicationStatus `json:"status" protobuf:"bytes,3,opt,name=status"`
@@ -205,7 +205,7 @@ type ApplicationWatchEvent struct {
 // ApplicationList is list of Application resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type ApplicationList struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:",inline" protobuf:"bytes,3,opt,name=typeMeta"`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Application `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
@@ -428,7 +428,7 @@ type RepositoryList struct {
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:",inline" protobuf:"bytes,3,opt,name=typeMeta"`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []AppProject `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
@@ -438,9 +438,18 @@ type AppProjectList struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProject struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta   `json:",inline" protobuf:"bytes,3,opt,name=typeMeta"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+}
+
+//TokenPoliciesString returns Casabin formated string of all the policies for each string
+func (proj *AppProject) TokenPoliciesString() string {
+	var tokenPolicies []string
+	for _, token := range proj.Spec.Tokens {
+		tokenPolicies = append(tokenPolicies, token.Policies...)
+	}
+	return strings.Join(tokenPolicies, "\n")
 }
 
 // AppProjectSpec represents
@@ -453,6 +462,17 @@ type AppProjectSpec struct {
 
 	// Description contains optional project description
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
+
+	Tokens []ProjectToken `protobuf:"bytes,4,rep,name=tokens"`
+}
+
+// ProjectToken TODO: Check if everything should be capitalized
+// ProjectToken contains metadata of a token for a project
+type ProjectToken struct {
+	Name       string   `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Policies   []string `protobuf:"bytes,2,rep,name=policies"`
+	ValidUntil int64    `json:"validUntil" protobuf:"int64,3,opt,name=validUntil"`
+	// ValidUntil timestamp.Timestamp `json:"validUntil" protobuf:"bytes,3,opt,name=validUntil"`
 }
 
 func GetDefaultProject(namespace string) AppProject {

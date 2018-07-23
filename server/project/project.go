@@ -31,12 +31,91 @@ type Server struct {
 	kubeclientset kubernetes.Interface
 	auditLogger   *argo.AuditLogger
 	projectLock   *util.KeyLock
+	sessionMgr    *session.SessionManager
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger}
+	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
+}
+
+// CreateTokenPolicy creates a new policy for a specifc project token
+func (s *Server) CreateTokenPolicy(ctx context.Context, q *ProjectTokenPolicyCreateRequest) (*ProjectTokenPolicyCreateResponse, error) {
+	//TODO: Grab the project here instead of the CLI. Do this everywhere else too
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	//TODO: Verify inputs (i.e. verify project has token) (i.e. <project>/ is prepended )
+	err := validateProject(q.Project)
+	if err != nil {
+		return nil, err
+	}
+	//TODO: Confirm lock shouldn't be just before update
+	s.projectLock.Lock(q.Project.Name)
+	defer s.projectLock.Unlock(q.Project.Name)
+	//TODO: add check for action to be allow or deny
+	object := q.Object
+	if !strings.HasPrefix(object, q.Project.Name+"/") {
+		object = fmt.Sprintf("%s/%s", q.Project.Name, object)
+	}
+	//p, role:readonly, applications, get, */*
+	policy := fmt.Sprintf("p, proj:%s:%s, projects, %s, %s", q.Project.Name, q.Token, q.Action, object)
+
+	for i, projectToken := range q.Project.Spec.Tokens {
+		if projectToken.Name == q.Token {
+			//TODO: Add check for confirming existing policy doesn't exist (what does this mean though?)
+			q.Project.Spec.Tokens[i].Policies = append(q.Project.Spec.Tokens[i].Policies, policy)
+			break
+		}
+	}
+	//TODO: Add exit if condition never turns true
+
+	//TODO: Autoupdate RBAC Enforcer
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectTokenPolicyCreateResponse{}, nil
+
+}
+
+// CreateToken TODO: Add logging
+// CreateToken TODO: Confirm deleting and recreating token doesn't work with old token
+// CreateToken creates a new token to access a project
+func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	err := validateProject(q.Project)
+	if err != nil {
+		return nil, err
+	}
+	s.projectLock.Lock(q.Project.Name)
+	defer s.projectLock.Unlock(q.Project.Name)
+	//TODO: Verify inputs
+
+	for _, projectToken := range q.Project.Spec.Tokens {
+		if projectToken.Name == q.Token.Name {
+			return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token.Name, q.Project.Name)
+		}
+	}
+	//TODO: Move string somewhere common
+	roleName := fmt.Sprintf("proj:%s:%s", q.Project.Name, q.Token.Name)
+	//TODO: Confirm expired token doesn't work
+	token, err := s.sessionMgr.CreateToken(roleName, q.Token.ValidUntil)
+	if err != nil {
+		return nil, err
+	}
+
+	q.Project.Spec.Tokens = append(q.Project.Spec.Tokens, *q.Token)
+
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectTokenResponse{Token: token}, nil
+
 }
 
 // Create a new project.
