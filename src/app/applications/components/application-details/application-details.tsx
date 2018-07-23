@@ -181,6 +181,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             title: 'PARAMETERS', key: 'parameters', content: <ParametersPanel
                                 params={this.state.application.status.parameters || []}
                                 overrides={this.state.application.spec.source.componentParameterOverrides}/>,
+                        }, {
+                            title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={this.state.application.metadata.name}/>,
                         }]}/>
                     )}
                     </div>
