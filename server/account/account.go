@@ -34,7 +34,7 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 func (s *Server) UpdatePassword(ctx context.Context, q *UpdatePasswordRequest) (*UpdatePasswordResponse, error) {
 	username := getAuthenticatedUser(ctx)
 	if username != common.ArgoCDAdminUsername {
-		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users")
+		return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
 	}
 
 	cdSettings, err := s.settingsMgr.GetSettings()
