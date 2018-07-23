@@ -38,6 +38,7 @@ const (
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
+	badUserError       = "Bad local superuser username"
 )
 
 // NewSessionManager creates a new session manager from ArgoCD settings
@@ -133,10 +134,13 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username, password string) error {
+	if username != common.ArgoCDAdminUsername {
+		return status.Errorf(codes.Unauthenticated, badUserError)
+	}
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
-	passwordHash, ok := mgr.settings.LocalUsers[username]
+	passwordHash, ok := mgr.settings.AdminPasswordHash
 	if !ok {
 		// Username was not found in local user store.
 		// Ensure we still send password to hashing algorithm for comparison.
