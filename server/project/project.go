@@ -233,12 +233,5 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 }
 
 func (s *Server) logEvent(p *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
-	username := session.Username(ctx)
-	var message string
-	if username != "" {
-		message = fmt.Sprintf("User %s executed action %s", username, action)
-	} else {
-		message = fmt.Sprintf("Unknown user executed action %s", action)
-	}
-	s.auditLogger.LogAppProjEvent(p, argo.EventInfo{Reason: reason, Action: action, Username: username, Message: message}, v1.EventTypeNormal)
+	s.auditLogger.LogAppProjEvent(p, argo.EventInfo{Reason: reason, Action: action, Username: session.Username(ctx)}, v1.EventTypeNormal)
 }

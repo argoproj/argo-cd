@@ -22,7 +22,6 @@ type AuditLogger struct {
 type EventInfo struct {
 	Action   string
 	Reason   string
-	Message  string
 	Username string
 }
 
@@ -34,6 +33,12 @@ const (
 )
 
 func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersionKind, info EventInfo, eventType string) {
+	var message string
+	if info.Username != "" {
+		message = fmt.Sprintf("User %s executed action %s", info.Username, info.Action)
+	} else {
+		message = fmt.Sprintf("Unknown user executed action %s", info.Action)
+	}
 	t := metav1.Time{Time: time.Now()}
 	_, err := l.kIf.CoreV1().Events(l.ns).Create(&v1.Event{
 		ObjectMeta: metav1.ObjectMeta{
@@ -50,17 +55,16 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 			APIVersion:      gvk.Version,
 			UID:             objMeta.UID,
 		},
-		FirstTimestamp:    t,
-		LastTimestamp:     t,
-		Count:             1,
-		Message:           info.Message,
-		Type:              eventType,
-		Action:            info.Action,
-		Reason:            info.Reason,
-		ReportingInstance: info.Username,
+		FirstTimestamp: t,
+		LastTimestamp:  t,
+		Count:          1,
+		Message:        message,
+		Type:           eventType,
+		Action:         info.Action,
+		Reason:         info.Reason,
 	})
 	if err != nil {
-		log.Error("Unable to create audit event: %v", err)
+		log.Errorf("Unable to create audit event: %v", err)
 	}
 }
 

@@ -683,12 +683,5 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 }
 
 func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
-	username := session.Username(ctx)
-	var message string
-	if username != "" {
-		message = fmt.Sprintf("User %s executed action %s", username, action)
-	} else {
-		message = fmt.Sprintf("Unknown user executed action %s", action)
-	}
-	s.auditLogger.LogAppEvent(a, argo.EventInfo{Reason: reason, Action: action, Username: username, Message: message}, v1.EventTypeNormal)
+	s.auditLogger.LogAppEvent(a, argo.EventInfo{Reason: reason, Action: action, Username: session.Username(ctx)}, v1.EventTypeNormal)
 }

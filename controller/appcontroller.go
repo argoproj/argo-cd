@@ -286,7 +286,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			Type:    appv1.ApplicationConditionDeletionError,
 			Message: err.Error(),
 		})
-		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Message: "Controller has failed to clean app resources"}, v1.EventTypeWarning)
+		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Action: "refresh_status"}, v1.EventTypeWarning)
 	} else {
 		log.Infof("Successfully deleted resources for application %s", app.Name)
 	}
@@ -400,7 +400,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			// If operation is completed, clear the operation field to indicate no operation is
 			// in progress.
 			patch["operation"] = nil
-			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Message: "Operation has been completed"}, v1.EventTypeNormal)
+			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Action: "refresh_status"}, v1.EventTypeNormal)
 		}
 		if reflect.DeepEqual(app.Status.OperationState, state) {
 			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.Name)
