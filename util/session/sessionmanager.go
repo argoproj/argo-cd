@@ -94,16 +94,20 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 }
 
 // ReissueClaims re-issues and re-signs a new token signed by us, while preserving most of the claim values
-func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims) (string, error) {
-	now := time.Now().UTC().Unix()
+func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims, secondsBeforeExpiry int) (string, error) {
+	now := time.Now().UTC()
 	newClaims := make(jwt.MapClaims)
 	for k, v := range claims {
 		newClaims[k] = v
 	}
 	newClaims["iss"] = SessionManagerClaimsIssuer
-	newClaims["iat"] = now
-	newClaims["nbf"] = now
+	newClaims["iat"] = now.Unix()
+	newClaims["nbf"] = now.Unix()
 	delete(newClaims, "exp")
+	if secondsBeforeExpiry > 0 {
+		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
+		claims["exp"] = expires.Unix()
+	}
 	return mgr.signClaims(newClaims)
 }
 
