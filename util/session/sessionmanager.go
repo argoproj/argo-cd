@@ -68,7 +68,8 @@ func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
-func (mgr *SessionManager) Create(subject string, expires int) (string, error) {
+// Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
+func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().Unix()
@@ -78,8 +79,8 @@ func (mgr *SessionManager) Create(subject string, expires int) (string, error) {
 		NotBefore: now,
 		Subject:   subject,
 	}
-	if expires > 0 {
-		claims.ExpiresAt = time.Now().Add(time.Duration(expires) * time.Second).Unix()
+	if secondsBeforeExpiry > 0 {
+		claims.ExpiresAt = time.Now().Add(time.Duration(secondsBeforeExpiry) * time.Second).Unix()
 	}
 	return mgr.signClaims(claims)
 }
