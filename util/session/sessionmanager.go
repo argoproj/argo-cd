@@ -72,15 +72,15 @@ func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
-	now := time.Now().Unix()
+	now := time.Now()
 	claims := jwt.StandardClaims{
-		IssuedAt:  now,
+		IssuedAt:  now.Unix(),
 		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: now,
+		NotBefore: now.Unix(),
 		Subject:   subject,
 	}
 	if secondsBeforeExpiry > 0 {
-		claims.ExpiresAt = time.Now().Add(time.Duration(secondsBeforeExpiry) * time.Second).Unix()
+		claims.ExpiresAt = now.Add(time.Duration(secondsBeforeExpiry) * time.Second).Unix()
 	}
 	return mgr.signClaims(claims)
 }
