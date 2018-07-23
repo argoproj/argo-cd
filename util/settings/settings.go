@@ -117,7 +117,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		return fmt.Errorf("admin user not found")
 	}
 	settings.AdminPasswordHash = string(adminPasswordHash)
-	settings.AdminPasswordMtime = time.Now()
+	settings.AdminPasswordMtime = time.Now().UTC()
 	if adminPasswordMtimeBytes, ok := argoCDSecret.Data[settingAdminPasswordMtimeKey]; ok {
 		if adminPasswordMtime, err := time.Parse(time.RFC3339, string(adminPasswordMtimeBytes)); err == nil {
 			settings.AdminPasswordMtime = adminPasswordMtime
@@ -440,7 +440,7 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 		hashedPassword, err := password.HashPassword(passwordRaw)
 		errors.CheckError(err)
 		cdSettings.AdminPasswordHash = hashedPassword
-		cdSettings.AdminPasswordMtime = time.Now()
+		cdSettings.AdminPasswordMtime = time.Now().UTC()
 	}
 
 	if cdSettings.Certificate == nil {
