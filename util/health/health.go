@@ -16,22 +16,32 @@ import (
 )
 
 func GetAppHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+
+	var err error
+	var health *appv1.HealthStatus
+
 	switch obj.GetKind() {
 	case kube.DeploymentKind:
-		return getDeploymentHealth(obj)
+		health, err = getDeploymentHealth(obj)
 	case kube.ServiceKind:
-		return getServiceHealth(obj)
+		health, err = getServiceHealth(obj)
 	case kube.IngressKind:
-		return getIngressHealth(obj)
+		health, err = getIngressHealth(obj)
 	case kube.StatefulSetKind:
-		return getStatefulSetHealth(obj)
+		health, err = getStatefulSetHealth(obj)
 	case kube.ReplicaSetKind:
-		return getReplicaSetHealth(obj)
+		health, err = getReplicaSetHealth(obj)
 	case kube.DaemonSetKind:
-		return getDaemonSetHealth(obj)
+		health, err = getDaemonSetHealth(obj)
 	default:
-		return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}, nil
+		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	}
+
+	if err != nil {
+		health.Status = appv1.HealthStatusUnknown
+		health.StatusDetails = err.Error()
+	}
+	return health, err
 }
 
 // healthOrder is a list of health codes in order of most healthy to least healthy
