@@ -73,7 +73,7 @@ func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
-	now := time.Now()
+	now := time.Now().UTC()
 	claims := jwt.StandardClaims{
 		IssuedAt:  now.Unix(),
 		Issuer:    SessionManagerClaimsIssuer,
@@ -95,7 +95,7 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 
 // ReissueClaims re-issues and re-signs a new token signed by us, while preserving most of the claim values
 func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims) (string, error) {
-	now := time.Now().Unix()
+	now := time.Now().UTC().Unix()
 	newClaims := make(jwt.MapClaims)
 	for k, v := range claims {
 		newClaims[k] = v
@@ -107,7 +107,7 @@ func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims) (string, error) {
 	return mgr.signClaims(newClaims)
 }
 
-// Parse tries to parse the provided string and returns the token claims.
+// Parse tries to parse the provided string and returns the token claims for local superuser login.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
@@ -119,15 +119,15 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		// CHECK CLAIMS HERE
-		// d := passwordUtil.LastChange(username)
-		// if d > iat {
-		// 	return nil, fmt.Errorf("Password for user %q has changed since token issued", username)
-		// }
 		return mgr.settings.ServerSignature, nil
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	issuedAt := time.Unix(claims["iat"].(int64), 0)
+	if issuedAt.Before(mgr.settings.AdminPasswordMtime) {
+		return nil, fmt.Errorf("Password for superuser has changed since token issued")
 	}
 	return token.Claims, nil
 }
