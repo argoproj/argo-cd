@@ -118,6 +118,11 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
+		// CHECK CLAIMS HERE
+		// d := passwordUtil.LastChange(username)
+		// if d > iat {
+		// 	return nil, fmt.Errorf("Password for user %q has changed since token issued", username)
+		// }
 		return mgr.settings.ServerSignature, nil
 	})
 	if err != nil {
