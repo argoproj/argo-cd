@@ -80,7 +80,8 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (stri
 		Subject:   subject,
 	}
 	if secondsBeforeExpiry > 0 {
-		claims.ExpiresAt = now.Add(time.Duration(secondsBeforeExpiry) * time.Second).Unix()
+		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
+		claims.ExpiresAt = expires.Unix()
 	}
 	return mgr.signClaims(claims)
 }
