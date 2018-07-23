@@ -140,15 +140,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username, password string) err
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
-	passwordHash, ok := mgr.settings.AdminPasswordHash
-	if !ok {
-		// Username was not found in local user store.
-		// Ensure we still send password to hashing algorithm for comparison.
-		// This mitigates potential for timing attacks that benefit from short-circuiting,
-		// provided the hashing library/algorithm in use doesn't itself short-circuit.
-		passwordHash = ""
-	}
-	valid, _ := passwordutil.VerifyPassword(password, passwordHash)
+	valid, _ := passwordutil.VerifyPassword(password, mgr.settings.AdminPasswordHash)
 	if !valid {
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)
 	}
