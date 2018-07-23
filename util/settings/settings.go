@@ -117,10 +117,11 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 		return fmt.Errorf("admin user not found")
 	}
 	settings.AdminPasswordHash = string(adminPasswordHash)
+	settings.AdminPasswordMtime = time.Now()
 	if adminPasswordMtimeBytes, ok := argoCDSecret.Data[settingAdminPasswordMtimeKey]; ok {
-		settings.AdminPasswordMtime = time.Parse(time.RFC3339, string(adminPasswordMtimeBytes))
-	} else {
-		settings.AdminPasswordMtime = time.Now()
+		if adminPasswordMtime, err := time.Parse(time.RFC3339, string(adminPasswordMtimeBytes)); err == nil {
+			settings.AdminPasswordMtime = adminPasswordMtime
+		}
 	}
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if !ok {
