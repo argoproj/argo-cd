@@ -691,6 +691,62 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Delete deletes a project",
+        "operationId": "DeleteMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectEmptyResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project.metadata.name}": {
+      "put": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Update updates a project",
+        "operationId": "UpdateMixin3",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "project.metadata.name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/projectProjectUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1AppProject"
+            }
+          }
+        }
       }
     },
     "/api/v1/repositories": {
@@ -737,64 +793,6 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/repositories/{name}": {
-      "delete": {
-        "tags": [
-          "ProjectService"
-        ],
-        "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin3",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/projectEmptyResponse"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/repositories/{project.metadata.name}": {
-      "put": {
-        "tags": [
-          "ProjectService"
-        ],
-        "summary": "Update updates a project",
-        "operationId": "UpdateMixin3",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "project.metadata.name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/projectProjectUpdateRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1AppProject"
             }
           }
         }

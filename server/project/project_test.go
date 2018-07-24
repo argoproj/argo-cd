@@ -39,7 +39,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 		}
 
-		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -55,7 +55,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns1", Server: "https://server1"}},
 		}
 
-		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -72,7 +72,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
 		}
 
-		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
@@ -88,7 +88,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
-		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
@@ -100,7 +100,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestDeleteProjectSuccessful", func(t *testing.T) {
-		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj), enforcer, util.NewKeyLock())
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, util.NewKeyLock())
 
 		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: "test"})
 
@@ -113,7 +113,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
 		}
 
-		projectServer := NewServer("default", apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock())
 
 		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: "test"})
 
