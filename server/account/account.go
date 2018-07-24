@@ -53,7 +53,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *UpdatePasswordRequest) (
 	}
 
 	cdSettings.AdminPasswordHash = hashedPassword
-	cdSettings.AdminPasswordMtime = time.Now()
+	cdSettings.AdminPasswordMtime = time.Now().UTC()
 
 	err = s.settingsMgr.SaveSettings(cdSettings)
 	if err != nil {
