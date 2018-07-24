@@ -53,7 +53,7 @@ spec:
     outputs:
       artifacts:
       - name: argo-cd-ci-test
-        path: /tmp/argo-cd-ci-test-`r format(Sys.time(), '%d %B, %Y')`.txt
+        path: /tmp/argo-cd-ci-test.txt
 
   - name: ci-dind
     inputs:
@@ -86,5 +86,5 @@ spec:
     outputs:
       artifacts:
       - name: argo-cd-ci-build
-        path: /tmp/argo-cd-ci-build-`r format(Sys.time(), '%d %B, %Y')`.txt
+        path: /tmp/argo-cd-ci-build.txt
 
