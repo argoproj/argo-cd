@@ -16,6 +16,7 @@ message ManifestRequest {
     string environment = 4;
     string appLabel = 5;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 6;
+    repeated string valueFiles = 7;
 }
 
 message ManifestResponse {

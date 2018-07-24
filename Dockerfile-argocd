@@ -66,6 +66,10 @@ RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION
 RUN curl -o /kubectl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
     chmod +x /kubectl
 
+env HELM_VERSION=2.9.1
+RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
+    tar -C /tmp/ -xf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
+    mv /tmp/linux-amd64/helm /helm
 
 ##############################################################
 FROM debian:9.3
@@ -74,6 +78,7 @@ RUN apt-get update && apt-get install -y git && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=cli-tooling /ks /usr/local/bin/ks
+COPY --from=cli-tooling /helm /usr/local/bin/helm
 COPY --from=cli-tooling /kubectl /usr/local/bin/kubectl
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=root

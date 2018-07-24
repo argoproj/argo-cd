@@ -29,7 +29,13 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - dep ensure && make cli lint test test-e2e
+        - dep ensure && make cli lint test
+      - name: test-e2e
+        template: ci-builder
+        arguments:
+          parameters:
+          - name: cmd
+            value: "dep ensure && make test-e2e"
 
   - name: ci-builder
     inputs:

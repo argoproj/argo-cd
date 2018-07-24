@@ -1,32 +1,21 @@
 package ksonnet
 
 import (
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	"github.com/ksonnet/ksonnet/pkg/component"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"k8s.io/api/apps/v1beta1"
-	"k8s.io/api/apps/v1beta2"
-	corev1 "k8s.io/api/core/v1"
-	v1ExtBeta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/diff"
-)
-
-var (
-	diffSeparator = regexp.MustCompile(`\n---`)
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 // KsonnetApp represents a ksonnet application directory and provides wrapper functionality around
@@ -130,68 +119,7 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
-	parts := diffSeparator.Split(out, -1)
-	objs := make([]*unstructured.Unstructured, 0)
-	for _, part := range parts {
-		if strings.TrimSpace(part) == "" {
-			continue
-		}
-		var obj unstructured.Unstructured
-		err = yaml.Unmarshal([]byte(part), &obj)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal manifest from `ks show`")
-		}
-		err = remarshal(&obj)
-		if err != nil {
-			return nil, err
-		}
-		objs = append(objs, &obj)
-	}
-	// TODO(jessesuen): we need to sort objects based on their dependency order of creation
-	return objs, nil
-}
-
-// remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller.
-// This ensures that expected resource state is formatter same as actualresource state in kubernetes
-// and allows to find differences between actual and target states more accurately.
-func remarshal(obj *unstructured.Unstructured) error {
-	var newObj interface{}
-	switch obj.GetAPIVersion() + ":" + obj.GetKind() {
-	case "apps/v1beta1:Deployment":
-		newObj = &v1beta1.Deployment{}
-	case "apps/v1beta2:Deployment":
-		newObj = &v1beta2.Deployment{}
-	case "extensions/v1beta1":
-		newObj = &v1ExtBeta1.Deployment{}
-	case "apps/v1beta1:StatefulSet":
-		newObj = &v1beta1.StatefulSet{}
-	case "apps/v1beta2:StatefulSet":
-		newObj = &v1beta2.StatefulSet{}
-	case "v1:Service":
-		newObj = &corev1.Service{}
-	}
-	if newObj != nil {
-		oldObj := obj.Object
-		data, err := json.Marshal(obj)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(data, newObj)
-		if err != nil {
-			return err
-		}
-		data, err = json.Marshal(newObj)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(data, obj)
-		if err != nil {
-			return err
-		}
-		// remove all default values specified by custom formatter
-		obj.Object = diff.RemoveMapFields(oldObj, obj.Object)
-	}
-	return nil
+	return kube.SplitYAML(out)
 }
 
 // ListEnvParams returns list of environment parameters
