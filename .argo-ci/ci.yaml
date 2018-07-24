@@ -21,7 +21,7 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - make controller-image server-image repo-server-image
+        - " make controller-image server-image repo-server-image | tee /tmp/argo-cd-ci-build.txt "
       - name: test
         template: ci-builder
         arguments:
@@ -29,7 +29,7 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - dep ensure && make cli lint test test-e2e
+        - " dep ensure && make cli lint test test-e2e | tee /tmp/argo-cd-ci-test.txt "
 
   - name: ci-builder
     inputs:
@@ -50,6 +50,10 @@ spec:
         requests:
           memory: 1024Mi
           cpu: 200m
+    outputs:
+      artifacts:
+      - name: argo-cd-ci-test
+        path: /tmp/argo-cd-ci-test.txt
 
   - name: ci-dind
     inputs:
@@ -79,4 +83,8 @@ spec:
       securityContext:
         privileged: true
       mirrorVolumeMounts: true
+    outputs:
+      artifacts:
+      - name: argo-cd-ci-build
+        path: /tmp/argo-cd-ci-build.txt
 
