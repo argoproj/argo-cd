@@ -804,17 +804,16 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 type resourceState struct {
 	Kind      string
 	Name      string
-	PrevState map[string]string
-	NewState  map[string]string
+	PrevState string
+	Fields    map[string]string
 	Updated   bool
 }
 
 func newResourceState(kind, name, status, healthStatus, resType, message string) *resourceState {
 	return &resourceState{
-		Kind:      kind,
-		Name:      name,
-		PrevState: make(map[string]string),
-		NewState: map[string]string{
+		Kind: kind,
+		Name: name,
+		Fields: map[string]string{
 			"status":       status,
 			"healthStatus": healthStatus,
 			"type":         resType,
@@ -831,29 +830,24 @@ func (rs *resourceState) Key() string {
 // Merge merges the new state into the previous state, returning whether the
 // new state contains any additional keys or different values from the old state.
 func (rs *resourceState) Merge() bool {
-	updated := false
-	for k, v := range rs.NewState {
-		if v != "" {
-			if prevValue, found := rs.PrevState[k]; !found || v != prevValue {
-				rs.PrevState[k] = v
-				updated = true
-			}
-		}
+	if out := rs.String(); out != rs.PrevState {
+		rs.PrevState = out
+		return true
 	}
-	return updated
+	return false
 }
 
 func (rs *resourceState) String() string {
-	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.NewState["status"], rs.NewState["healthStatus"], rs.NewState["type"], rs.NewState["message"])
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Fields["status"], rs.Fields["healthStatus"], rs.Fields["type"], rs.Fields["message"])
 }
 
 // Update a resourceState with any different contents from another resourceState.
 // Blank fields in the receiver state will be updated to non-blank.
 // Non-blank fields in the receiver state will never be updated to blank.
 func (rs *resourceState) Update(newState *resourceState) {
-	for k, v := range newState.NewState {
+	for k, v := range newState.Fields {
 		if v != "" {
-			rs.NewState[k] = v
+			rs.Fields[k] = v
 		}
 	}
 }
