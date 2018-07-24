@@ -154,7 +154,7 @@ spec:
     spec:
       containers:
       - command: [/argocd-application-controller, --repo-server, 'argocd-repo-server:8081']
-        image: argoproj/argocd-application-controller:v0.6.1
+        image: argoproj/argocd-application-controller:v0.6.2
         name: application-controller
       serviceAccountName: application-controller
 ---
@@ -223,20 +223,20 @@ spec:
       serviceAccountName: argocd-server
       initContainers:
       - name: copyutil
-        image: argoproj/argocd-server:v0.6.1
+        image: argoproj/argocd-server:v0.6.2
         command: [cp, /argocd-util, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files
       - name: ui
-        image: argoproj/argocd-ui:v0.6.1
+        image: argoproj/argocd-ui:v0.6.2
         command: [cp, -r, /app, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files
       containers:
       - name: argocd-server
-        image: argoproj/argocd-server:v0.6.1
+        image: argoproj/argocd-server:v0.6.2
         command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
         volumeMounts:
         - mountPath: /shared
@@ -283,7 +283,7 @@ spec:
     spec:
       containers:
       - name: argocd-repo-server
-        image: argoproj/argocd-repo-server:v0.6.1
+        image: argoproj/argocd-repo-server:v0.6.2
         command: [/argocd-repo-server]
         ports:
           - containerPort: 8081
