@@ -802,23 +802,24 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // ResourceState tracks the state of a resource when waiting on an application status.
 type resourceState struct {
-	Kind    string
-	Name    string
-	Fields  map[string]string
-	Updated bool
+	Kind      string
+	Name      string
+	PrevState map[string]string
+	NewState  map[string]string
+	Updated   bool
 }
 
 func newResourceState(kind, name, status, healthStatus, resType, message string) *resourceState {
 	return &resourceState{
-		Kind: kind,
-		Name: name,
-		Fields: map[string]string{
+		Kind:      kind,
+		Name:      name,
+		PrevState: make(map[string]string),
+		NewState: map[string]string{
 			"status":       status,
 			"healthStatus": healthStatus,
 			"type":         resType,
 			"message":      message,
 		},
-		Updated: true,
 	}
 }
 
@@ -827,15 +828,32 @@ func (rs *resourceState) Key() string {
 	return fmt.Sprintf("%s/%s", rs.Kind, rs.Name)
 }
 
-func (rs *resourceState) String() string {
-	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Fields["status"], rs.Fields["healthStatus"], rs.Fields["type"], rs.Fields["message"])
+// Merge merges the new state into the previous state, returning whether the
+// new state contains any additional keys or different values from the old state.
+func (rs *resourceState) Merge() bool {
+	updated := false
+	for k, v := range rs.NewState {
+		if v != "" {
+			if prevValue, found := rs.PrevState[k]; !found || v != prevValue {
+				rs.PrevState[k] = v
+				updated = true
+			}
+		}
+	}
+	return updated
 }
 
+func (rs *resourceState) String() string {
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.NewState["status"], rs.NewState["healthStatus"], rs.NewState["type"], rs.NewState["message"])
+}
+
+// Update a resourceState with any different contents from another resourceState.
+// Blank fields in the receiver state will be updated to non-blank.
+// Non-blank fields in the receiver state will never be updated to blank.
 func (rs *resourceState) Update(newState *resourceState) {
-	for k, v := range newState.Fields {
-		if v != "" && v != rs.Fields[k] {
-			rs.Fields[k] = v
-			rs.Updated = true
+	for k, v := range newState.NewState {
+		if v != "" {
+			rs.NewState[k] = v
 		}
 	}
 }
@@ -928,9 +946,8 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 		}
 
 		for _, v := range prevStates {
-			if v.Updated {
+			if v.Merge() {
 				fmt.Fprintln(w, v)
-				v.Updated = false
 			}
 		}
 
