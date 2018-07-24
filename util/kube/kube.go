@@ -234,18 +234,10 @@ func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace
 			resource := resources[i]
 			go func() {
 				defer wg.Done()
-				watch, err := resource.Watch(metav1.ListOptions{LabelSelector: labelName})
+				w, err := resource.Watch(metav1.ListOptions{LabelSelector: labelName})
 				if err == nil {
-					defer watch.Stop()
-					go func() {
-						select {
-						case <-ctx.Done():
-							watch.Stop()
-						}
-					}()
-					for event := range watch.ResultChan() {
-						ch <- event
-					}
+					defer w.Stop()
+					copyEventsChannel(ctx, w.ResultChan(), ch)
 				}
 			}()
 		}
@@ -254,6 +246,20 @@ func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace
 		log.Infof("Stop watching for resources changes with label %s in cluster %s", labelName, config.ServerName)
 	}()
 	return ch, nil
+}
+
+func copyEventsChannel(ctx context.Context, src <-chan watch.Event, dst chan watch.Event) {
+	done := make(chan bool)
+	go func() {
+		for event := range src {
+			dst <- event
+		}
+		done <- true
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }
 
 // GetResourcesWithLabel returns all kubernetes resources with specified label
