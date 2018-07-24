@@ -53,6 +53,10 @@ export class ApplicationsService {
         return requests.delete(`/applications/${applicationName}/pods/${podName}`).send().then(() => true);
     }
 
+    public events(applicationName: string): Promise<models.Event[]> {
+        return this.resourceEvents(applicationName, null, null);
+    }
+
     public resourceEvents(applicationName: string, resourceUID: string, resourceName: string): Promise<models.Event[]> {
         return requests.get(`/applications/${applicationName}/events`).query({resourceName, resourceUID}).send().then((res) => (res.body as models.EventList).items || []);
     }
