@@ -300,14 +300,17 @@ func (a *ArgoCDServer) useTLS() bool {
 
 func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	var sOpts []grpc.ServerOption
-	loginMethodName := "/session.SessionService/Create"
+	sensitiveMethods := map[string]bool{
+		"/session.SessionService/Create":         true,
+		"/account.AccountService/UpdatePassword": true,
+	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_auth.StreamServerInterceptor(a.authenticate),
 		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
-			return fullMethodName != loginMethodName
+			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeStreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
@@ -317,7 +320,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_auth.UnaryServerInterceptor(a.authenticate),
 		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
-			return fullMethodName != loginMethodName
+			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
