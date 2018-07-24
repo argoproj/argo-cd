@@ -68,7 +68,7 @@ func NewServer(
 		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
 		enf:           enf,
 		projectLock:   projectLock,
-		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argo-server"),
+		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 	}
 }
 

@@ -174,14 +174,23 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	}
 }
 
+func stringFromMap(input map[string]interface{}, key string) string {
+	if val, ok := input[key]; ok {
+		if res, ok := val.(string); ok {
+			return res
+		}
+	}
+	return ""
+}
+
 func Username(ctx context.Context) string {
 	if claims, ok := ctx.Value("claims").(*jwt.MapClaims); ok {
 		mapClaims := *claims
-		switch mapClaims["iss"] {
+		switch stringFromMap(mapClaims, "iss") {
 		case SessionManagerClaimsIssuer:
-			return mapClaims["sub"].(string)
+			return stringFromMap(mapClaims, "sub")
 		default:
-			return mapClaims["email"].(string)
+			return stringFromMap(mapClaims, "email")
 		}
 	}
 	return ""
