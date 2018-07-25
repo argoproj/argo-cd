@@ -528,7 +528,7 @@ type bug21955Workaround struct {
 
 func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	paths := map[string][]string{
-		"/api/v1/repositories/": {"ksonnet"},
+		"/api/v1/repositories/": {"apps"},
 		"/api/v1/clusters/":     {},
 	}
 	for path, subPaths := range paths {
@@ -555,7 +555,7 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 			return nil, err
 		}
 		rq.Repo = repo
-	} else if rk, ok := req.(*repository.RepoKsonnetQuery); ok {
+	} else if rk, ok := req.(*repository.RepoAppsQuery); ok {
 		repo, err := url.QueryUnescape(rk.Repo)
 		if err != nil {
 			return nil, err

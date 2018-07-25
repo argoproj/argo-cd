@@ -11,15 +11,16 @@ import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
 
-// RepoKsonnetQuery is a query for Repository contents matching a particular path
-message RepoKsonnetQuery {
+// RepoAppsQuery is a query for Repository apps
+message RepoAppsQuery {
 	string repo = 1;
 	string revision = 2;
 }
 
-// RepoKsonnetResponse is a response for Repository contents matching a particular path
-message RepoKsonnetResponse {
-	repeated KsonnetAppSpec items = 1;
+// RepoAppsResponse contains applications of specified repository
+message RepoAppsResponse {
+	repeated KsonnetAppSpec ksonnetApps = 1;
+	repeated HelmAppSpec helmApps = 2;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
@@ -28,6 +29,12 @@ message KsonnetAppSpec {
 	string name = 1;
 	string path = 2;
 	map<string, KsonnetEnvironment> environments = 3;
+}
+
+// HelmAppSpec contains helm app name and path in source repo
+message HelmAppSpec {
+	string name = 1;
+	string path = 2;
 }
 
 message KsonnetEnvironment {
@@ -73,8 +80,8 @@ service RepositoryService {
 	}
 
 	// ListKsonnetApps returns list of Ksonnet apps in the repo
-	rpc ListKsonnetApps(RepoKsonnetQuery) returns (RepoKsonnetResponse) {
-		option (google.api.http).get = "/api/v1/repositories/{repo}/ksonnet";
+	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
 	}
 
 	// Create creates a repo
