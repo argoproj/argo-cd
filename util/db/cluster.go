@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"net/url"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -202,4 +204,89 @@ func SecretToCluster(s *apiv1.Secret) *appv1.Cluster {
 		ConnectionState: ConnectionStateFromAnnotations(s.Annotations),
 	}
 	return &cluster
+}
+
+// CreateServiceAccount creates a service account
+func (s *db) CreateServiceAccount(serviceAccountName string, namespace string) {
+	serviceAccount := apiv1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ServiceAccount",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccountName,
+			Namespace: namespace,
+		},
+	}
+	_, err := s.kubeclientset.CoreV1().ServiceAccounts(namespace).Create(&serviceAccount)
+	if err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			log.Fatalf("Failed to create service account '%s': %v\n", serviceAccountName, err)
+		}
+		fmt.Printf("ServiceAccount '%s' already exists\n", serviceAccountName)
+		return
+	}
+	fmt.Printf("ServiceAccount '%s' created\n", serviceAccountName)
+}
+
+// CreateClusterRole creates a cluster role
+func (s *db) CreateClusterRole(clusterRoleName string, rules []rbacv1.PolicyRule) {
+	clusterRole := rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterRoleName,
+		},
+		Rules: rules,
+	}
+	crclient := s.kubeclientset.RbacV1().ClusterRoles()
+	_, err := crclient.Create(&clusterRole)
+	if err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			log.Fatalf("Failed to create ClusterRole '%s': %v\n", clusterRoleName, err)
+		}
+		_, err = crclient.Update(&clusterRole)
+		if err != nil {
+			log.Fatalf("Failed to update ClusterRole '%s': %v\n", clusterRoleName, err)
+		}
+		fmt.Printf("ClusterRole '%s' updated\n", clusterRoleName)
+	} else {
+		fmt.Printf("ClusterRole '%s' created\n", clusterRoleName)
+	}
+}
+
+// CreateClusterRoleBinding create a ClusterRoleBinding
+func (s *db) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccountName, clusterRoleName string, namespace string) {
+	roleBinding := rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterBindingRoleName,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clusterRoleName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      serviceAccountName,
+				Namespace: namespace,
+			},
+		},
+	}
+	_, err := s.kubeclientset.RbacV1().ClusterRoleBindings().Create(&roleBinding)
+	if err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			log.Fatalf("Failed to create ClusterRoleBinding %s: %v\n", clusterBindingRoleName, err)
+		}
+		fmt.Printf("ClusterRoleBinding '%s' already exists\n", clusterBindingRoleName)
+		return
+	}
+	fmt.Printf("ClusterRoleBinding '%s' created, bound '%s' to '%s'\n", clusterBindingRoleName, serviceAccountName, clusterRoleName)
 }
