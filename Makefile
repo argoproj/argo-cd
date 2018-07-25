@@ -130,7 +130,7 @@ test:
 
 .PHONY: test-e2e
 test-e2e:
-	go test -v -timeout 20m ./test/e2e
+	go test -v -failfast -timeout 20m ./test/e2e
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
