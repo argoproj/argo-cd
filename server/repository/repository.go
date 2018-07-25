@@ -54,7 +54,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 }
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
-func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*RepoKsonnetResponse, error) {
+func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories/apps", "get", q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
@@ -75,7 +75,55 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 		revision = "HEAD"
 	}
 
-	// Verify app.yaml is functional
+	ksonnetApps, err := s.listKsonnetApps(ctx, repo, revision, repoClient)
+	if err != nil {
+		return nil, err
+	}
+
+	helmApps, err := s.listHelmApps(ctx, repo, revision, repoClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RepoAppsResponse{
+		KsonnetApps: ksonnetApps,
+		HelmApps:    helmApps,
+	}, nil
+}
+
+func (s *Server) listHelmApps(ctx context.Context, repo *appsv1.Repository, revision string, repoClient repository.RepositoryServiceClient) ([]*HelmAppSpec, error) {
+	req := repository.ListDirRequest{
+		Repo:     repo,
+		Revision: revision,
+		Path:     "*Chart.yaml",
+	}
+	getRes, err := repoClient.ListDir(ctx, &req)
+	if err != nil {
+		return nil, err
+	}
+
+	helmApps := make([]*HelmAppSpec, 0)
+	for _, path := range getRes.Items {
+		getFileRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
+			Repo:     repo,
+			Revision: revision,
+			Path:     path,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var appSpec HelmAppSpec
+		appSpec.Path = path
+		err = yaml.Unmarshal(getFileRes.Data, &appSpec)
+		if err == nil && appSpec.Name != "" {
+			helmApps = append(helmApps, &appSpec)
+		}
+	}
+	return helmApps, nil
+}
+
+func (s *Server) listKsonnetApps(ctx context.Context, repo *appsv1.Repository, revision string, repoClient repository.RepositoryServiceClient) ([]*KsonnetAppSpec, error) {
 	req := repository.ListDirRequest{
 		Repo:     repo,
 		Revision: revision,
@@ -86,7 +134,7 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 		return nil, err
 	}
 
-	out := make([]*KsonnetAppSpec, 0)
+	ksonnetApps := make([]*KsonnetAppSpec, 0)
 	for _, path := range getRes.Items {
 		getFileRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
 			Repo:     repo,
@@ -101,13 +149,10 @@ func (s *Server) ListKsonnetApps(ctx context.Context, q *RepoKsonnetQuery) (*Rep
 		appSpec.Path = path
 		err = yaml.Unmarshal(getFileRes.Data, &appSpec)
 		if err == nil && appSpec.Name != "" && len(appSpec.Environments) > 0 {
-			out = append(out, &appSpec)
+			ksonnetApps = append(ksonnetApps, &appSpec)
 		}
 	}
-
-	return &RepoKsonnetResponse{
-		Items: out,
-	}, nil
+	return ksonnetApps, nil
 }
 
 // Create creates a repository

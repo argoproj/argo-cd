@@ -879,13 +879,13 @@
         }
       }
     },
-    "/api/v1/repositories/{repo}/ksonnet": {
+    "/api/v1/repositories/{repo}/apps": {
       "get": {
         "tags": [
           "RepositoryService"
         ],
         "summary": "ListKsonnetApps returns list of Ksonnet apps in the repo",
-        "operationId": "ListKsonnetApps",
+        "operationId": "ListApps",
         "parameters": [
           {
             "type": "string",
@@ -903,7 +903,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/repositoryRepoKsonnetResponse"
+              "$ref": "#/definitions/repositoryRepoAppsResponse"
             }
           }
         }
@@ -1236,6 +1236,18 @@
         }
       }
     },
+    "repositoryHelmAppSpec": {
+      "type": "object",
+      "title": "HelmAppSpec contains helm app name and path in source repo",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
     "repositoryKsonnetAppSpec": {
       "type": "object",
       "title": "KsonnetAppSpec contains Ksonnet app response\nThis roughly reflects: ksonnet/ksonnet/metadata/app/schema.go",
@@ -1313,11 +1325,17 @@
         }
       }
     },
-    "repositoryRepoKsonnetResponse": {
+    "repositoryRepoAppsResponse": {
       "type": "object",
-      "title": "RepoKsonnetResponse is a response for Repository contents matching a particular path",
+      "title": "RepoAppsResponse contains applications of specified repository",
       "properties": {
-        "items": {
+        "helmApps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryHelmAppSpec"
+          }
+        },
+        "ksonnetApps": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/repositoryKsonnetAppSpec"
