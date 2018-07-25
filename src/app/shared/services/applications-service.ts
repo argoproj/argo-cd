@@ -14,10 +14,10 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
     }
 
-    public create(name: string, source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {
+    public create(name: string, project: string, source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {
         return requests.post(`/applications`).send({
             metadata: { name },
-            spec: { source, destination },
+            spec: { source, destination, project },
         }).then((res) => this.parseAppFields(res.body));
     }
 

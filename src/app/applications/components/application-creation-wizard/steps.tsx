@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
-import { ConnectionStateIcon, FormField } from '../../../shared/components';
+import { ConnectionStateIcon, FormField, Select } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 
@@ -117,9 +117,11 @@ export interface NewAppParams {
     environment: string;
     clusterURL: string;
     namespace: string;
+    project: string;
 }
 
 export class AppParams extends React.Component<{
+        projects: string[],
         appParams: NewAppParams,
         submitForm: Observable<any>,
         onValidationChanged: (isValid: boolean) => any,
@@ -144,6 +146,7 @@ export class AppParams extends React.Component<{
         return (
             <Form
                 validateError={(params: NewAppParams) => ({
+                    project: !params.project && 'Project is required',
                     applicationName: !params.applicationName && 'Application name is required',
                     repoURL: !params.repoURL && 'Repository URL is required',
                     path: !params.path && 'Path is required',
@@ -158,6 +161,9 @@ export class AppParams extends React.Component<{
 
                 {(api) => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
+                        <div className='argo-form-row'>
+                            <FormField formApi={api} label='Project' field='project' component={Select} componentProps={{options: this.props.projects}} />
+                        </div>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Application Name' field='applicationName' component={Text}/>
                         </div>
