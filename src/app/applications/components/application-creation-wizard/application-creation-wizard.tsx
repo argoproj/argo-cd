@@ -25,6 +25,7 @@ interface State {
     appParamsValid: boolean;
     step: Step;
     loading: boolean;
+    projects: string[];
 }
 
 export interface WizardProps { onStateChanged: (state: WizardStepState) => any; createApp: (params: NewAppParams) => any; }
@@ -49,13 +50,26 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             step: Step.SelectRepo,
             loading: false,
             appParams: null,
+            projects: [],
         };
         this.notifyStepStateChanged();
     }
 
     public async componentDidMount() {
-        const [repos, clusters] = await Promise.all([services.reposService.list(), services.clustersService.list()]);
-        this.setState({repos, clusters});
+        const [repos, clusters, projects] = await Promise.all([
+            services.reposService.list(),
+            services.clustersService.list(),
+            (await services.projects.list()).map((proj) => proj.metadata.name).sort((a, b) => {
+                if (a === 'default') {
+                    return -1;
+                }
+                if (b === 'default') {
+                    return 1;
+                }
+                return a.localeCompare(b);
+            }),
+        ]);
+        this.setState({repos, clusters, projects});
     }
 
     public render() {
@@ -98,6 +112,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                 clusterURL: selectedEnv.destination.server,
                                 namespace: selectedEnv.destination.namespace,
                                 path: path.dirname(this.state.selectedApp.path),
+                                project: this.state.projects[0],
                             }, step: Step.SetParams,
                         });
                     },
@@ -116,6 +131,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     prev: () => this.updateState({ step: Step.SelectEnvironments }),
                     render: () => (
                         <AppParams
+                            projects={this.state.projects}
                             appParams={this.state.appParams}
                             submitForm={this.submitAppParamsForm}
                             onSubmit={this.props.createApp}

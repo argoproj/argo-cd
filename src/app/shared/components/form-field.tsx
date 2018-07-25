@@ -1,14 +1,17 @@
+import { Select as ArgoSelect, SelectOption, SelectProps } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import { FieldProps, FormApi } from 'react-form';
+import * as ReactForm from 'react-form';
 
-export const FormField = (props: React.Props<any> & {
+export const FormField: <E, T extends ReactForm.FieldProps & {className?: string}>(
+    props: React.Props<E> & {
     label: string,
     field: string,
-    formApi: FormApi,
-    component: React.StatelessComponent<FieldProps & React.InputHTMLAttributes<any>>,
-    componentProps?: React.InputHTMLAttributes<any>,
-}) => {
+    formApi: ReactForm.FormApi,
+    component: React.ComponentType<T>,
+    componentProps?: T,
+}) => React.ReactElement<E> = (props) => {
+
     return (
         <div>
             <props.component
@@ -23,3 +26,18 @@ export const FormField = (props: React.Props<any> & {
         </div>
     );
 };
+
+export const Select = ReactForm.FormField((props: SelectProps & { fieldApi: ReactForm.FieldApi, placeholder?: string, className?: string }) => {
+    const { fieldApi: {getValue, setValue}, onChange, ...rest } = props;
+    const value = getValue();
+
+    return (
+        <div className={props.className} style={{borderBottom: 'none'}}>
+            <ArgoSelect {...rest} value={!value && value !== 0 ? '' : value} placeholder={props.placeholder}
+                onChange={(option) => {
+                    setValue(option.value);
+                }
+            }/>
+        </div>
+    );
+}) as React.ComponentType<ReactForm.FieldProps & { options: (SelectOption | string)[], placeholder?: string, className?: string }>;

@@ -228,7 +228,7 @@ export class ApplicationsList extends React.Component<Props, State> {
 
     private async createApplication(params: NewAppParams) {
         try {
-            await services.applications.create(params.applicationName, {
+            await services.applications.create(params.applicationName, params.project, {
                 environment: params.environment,
                 path: params.path,
                 repoURL: params.repoURL,

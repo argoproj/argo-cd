@@ -184,9 +184,9 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-argo-ui@^2.1.1-alpha8:
-  version "2.1.1-alpha8"
-  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.1.1-alpha8.tgz#b22a8fb43147203e458d4c057cb93a6b6d20ccb1"
+argo-ui@^2.1.1-alpha9:
+  version "2.1.1-alpha9"
+  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.1.1-alpha9.tgz#c5e08cb244049a6ab18b59a16e4646179365a976"
   dependencies:
     aws-sdk "^2.188.0"
     body-parser "^1.18.2"
@@ -201,8 +201,8 @@ argo-ui@^2.1.1-alpha8:
     kubernetes-client "3.17.1"
     moment "^2.20.1"
     prop-types "^15.6.0"
-    react "^16.2.0"
-    react-dom "^16.2.0"
+    react "^16.4.1"
+    react-dom "^16.4.1"
     react-router-dom "^4.2.2"
     rxjs "^5.5.6"
     superagent "^3.8.2"
@@ -4497,7 +4497,7 @@ react-deep-force-update@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/react-deep-force-update/-/react-deep-force-update-2.1.1.tgz#8ea4263cd6455a050b37445b3f08fd839d86e909"
 
-react-dom@^16.2.0, react-dom@^16.4.1:
+react-dom@^16.4.1:
   version "16.4.1"
   resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-16.4.1.tgz#7f8b0223b3a5fbe205116c56deb85de32685dad6"
   dependencies:
@@ -4569,7 +4569,7 @@ react-router@^4.3.1:
     prop-types "^15.6.1"
     warning "^4.0.1"
 
-react@^16.2.0, react@^16.4.1:
+react@^16.4.1:
   version "16.4.1"
   resolved "https://registry.yarnpkg.com/react/-/react-16.4.1.tgz#de51ba5764b5dbcd1f9079037b862bd26b82fe32"
   dependencies:
