@@ -279,6 +279,11 @@ export interface KsonnetAppSpec {
     environments: { [key: string]: KsonnetEnvironment; };
 }
 
+export interface HelmAppSpec {
+    name: string;
+    path: string;
+}
+
 export interface ObjectReference {
     kind: string;
     namespace: string;
