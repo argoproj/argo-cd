@@ -21,6 +21,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"path"
+	"path/filepath"
+
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
@@ -410,7 +413,14 @@ func (c *FakeGitClient) LsRemote(s string) (string, error) {
 }
 
 func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
-	return []string{"abcdef123456890"}, nil
+	matches, err := filepath.Glob(path.Join(c.root, s))
+	if err != nil {
+		return nil, err
+	}
+	for i := range matches {
+		matches[i] = strings.TrimPrefix(matches[i], c.root)
+	}
+	return matches, nil
 }
 
 func (c *FakeGitClient) CommitSHA() (string, error) {
