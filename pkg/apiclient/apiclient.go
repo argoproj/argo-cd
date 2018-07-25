@@ -8,9 +8,20 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	oidc "github.com/coreos/go-oidc"
+	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
@@ -21,9 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -68,11 +76,12 @@ type ClientOptions struct {
 }
 
 type client struct {
-	ServerAddr  string
-	PlainText   bool
-	Insecure    bool
-	CertPEMData []byte
-	AuthToken   string
+	ServerAddr   string
+	PlainText    bool
+	Insecure     bool
+	CertPEMData  []byte
+	AuthToken    string
+	RefreshToken string
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -82,6 +91,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	var ctxName string
 	if localCfg != nil {
 		configCtx, err := localCfg.ResolveContext(opts.Context)
 		if err != nil {
@@ -98,6 +108,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			c.PlainText = configCtx.Server.PlainText
 			c.Insecure = configCtx.Server.Insecure
 			c.AuthToken = configCtx.User.AuthToken
+			c.RefreshToken = configCtx.User.RefreshToken
+			ctxName = configCtx.Name
 		}
 	}
 	// Override server address if specified in env or CLI flag
@@ -137,7 +149,95 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.Insecure {
 		c.Insecure = true
 	}
+	if localCfg != nil {
+		err = c.refreshAuthToken(localCfg, ctxName, opts.ConfigPath)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &c, nil
+}
+
+// refreshAuthToken refreshes a JWT auth token if it is invalid (e.g. expired)
+func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, configPath string) error {
+	configCtx, err := localCfg.ResolveContext(ctxName)
+	if err != nil {
+		return err
+	}
+	if c.RefreshToken == "" {
+		// If we have no refresh token, there's no point in doing anything
+		return nil
+	}
+	parser := &jwt.Parser{
+		SkipClaimsValidation: true,
+	}
+	var claims jwt.StandardClaims
+	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
+	if err != nil {
+		return err
+	}
+	if claims.Valid() == nil {
+		// token is still valid
+		return nil
+	}
+
+	log.Debug("Auth token no longer valid. Refreshing")
+	tlsConfig, err := c.tlsConfig()
+	if err != nil {
+		return err
+	}
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	ctx := oidc.ClientContext(context.Background(), httpClient)
+	var scheme string
+	if c.PlainText {
+		scheme = "http"
+	} else {
+		scheme = "https"
+	}
+	conf := &oauth2.Config{
+		ClientID: common.ArgoCDCLIClientAppID,
+		Scopes:   []string{"openid", "profile", "email", "groups", "offline_access"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  fmt.Sprintf("%s://%s%s/auth", scheme, c.ServerAddr, common.DexAPIEndpoint),
+			TokenURL: fmt.Sprintf("%s://%s%s/token", scheme, c.ServerAddr, common.DexAPIEndpoint),
+		},
+		RedirectURL: fmt.Sprintf("%s://%s/auth/callback", scheme, c.ServerAddr),
+	}
+	t := &oauth2.Token{
+		RefreshToken: c.RefreshToken,
+	}
+	token, err := conf.TokenSource(ctx, t).Token()
+	if err != nil {
+		return err
+	}
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		return errors.New("no id_token in token response")
+	}
+	refreshToken, _ := token.Extra("refresh_token").(string)
+	c.AuthToken = rawIDToken
+	c.RefreshToken = refreshToken
+	localCfg.UpsertUser(localconfig.User{
+		Name:         ctxName,
+		AuthToken:    c.AuthToken,
+		RefreshToken: c.RefreshToken,
+	})
+	err = localconfig.WriteLocalConfig(*localCfg, configPath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
@@ -162,30 +262,37 @@ func (c jwtCredentials) RequireTransportSecurity() bool {
 func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
 	return map[string]string{
 		MetaDataTokenKey: c.Token,
-		"tokens":         c.Token, // legacy key. delete eventually
 	}, nil
 }
 
 func (c *client) NewConn() (*grpc.ClientConn, error) {
 	var creds credentials.TransportCredentials
 	if !c.PlainText {
-		var tlsConfig tls.Config
-		if len(c.CertPEMData) > 0 {
-			cp := x509.NewCertPool()
-			if !cp.AppendCertsFromPEM(c.CertPEMData) {
-				return nil, fmt.Errorf("credentials: failed to append certificates")
-			}
-			tlsConfig.RootCAs = cp
+		tlsConfig, err := c.tlsConfig()
+		if err != nil {
+			return nil, err
 		}
-		if c.Insecure {
-			tlsConfig.InsecureSkipVerify = true
-		}
-		creds = credentials.NewTLS(&tlsConfig)
+		creds = credentials.NewTLS(tlsConfig)
 	}
 	endpointCredentials := jwtCredentials{
 		Token: c.AuthToken,
 	}
 	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials))
+}
+
+func (c *client) tlsConfig() (*tls.Config, error) {
+	var tlsConfig tls.Config
+	if len(c.CertPEMData) > 0 {
+		cp := x509.NewCertPool()
+		if !cp.AppendCertsFromPEM(c.CertPEMData) {
+			return nil, fmt.Errorf("credentials: failed to append certificates")
+		}
+		tlsConfig.RootCAs = cp
+	}
+	if c.Insecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return &tlsConfig, nil
 }
 
 func (c *client) ClientOptions() ClientOptions {

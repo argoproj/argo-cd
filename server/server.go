@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
-
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -500,11 +499,6 @@ func (a *ArgoCDServer) authenticate(ctx context.Context) (context.Context, error
 func getToken(md metadata.MD) string {
 	// check the "token" metadata
 	tokens, ok := md[apiclient.MetaDataTokenKey]
-	if ok && len(tokens) > 0 {
-		return tokens[0]
-	}
-	// check the legacy key (v0.3.2 and below). 'tokens' was renamed to 'token'
-	tokens, ok = md["tokens"]
 	if ok && len(tokens) > 0 {
 		return tokens[0]
 	}

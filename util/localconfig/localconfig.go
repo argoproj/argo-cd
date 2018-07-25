@@ -46,8 +46,9 @@ type Server struct {
 
 // User contains user authentication information
 type User struct {
-	Name      string `json:"name"`
-	AuthToken string `json:"auth-token,omitempty"`
+	Name         string `json:"name"`
+	AuthToken    string `json:"auth-token,omitempty"`
+	RefreshToken string `json:"refresh-token,omitempty"`
 }
 
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
