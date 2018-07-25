@@ -22,6 +22,7 @@ message ClusterResponse {}
 message ClusterCreateRequest {
 	github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 	bool upsert = 2;
+	string kubeconfig = 3;
 }
 
 message ClusterUpdateRequest {
