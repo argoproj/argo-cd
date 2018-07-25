@@ -36,7 +36,7 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 		if err != nil {
 			return nil, err
 		}
-		tokenString, err = s.mgr.Create(q.Username)
+		tokenString, err = s.mgr.Create(q.Username, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -50,7 +50,7 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 		if err != nil {
 			return nil, err
 		}
-		tokenString, err = s.mgr.ReissueClaims(claims)
+		tokenString, err = s.mgr.ReissueClaims(claims, 0)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to resign claims: %v", err)
 		}

@@ -17,7 +17,7 @@ func TestSessionManager(t *testing.T) {
 	}
 	mgr := NewSessionManager(&set)
 
-	token, err := mgr.Create(defaultSubject)
+	token, err := mgr.Create(defaultSubject, 0)
 	if err != nil {
 		t.Errorf("Could not create token: %v", err)
 	}

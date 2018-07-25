@@ -637,9 +637,10 @@ func formatConditionsSummary(app argoappv1.Application) string {
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		syncOnly   bool
-		healthOnly bool
-		timeout    uint
+		watchSync       bool
+		watchHealth     bool
+		watchOperations bool
+		timeout         uint
 	)
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
@@ -649,49 +650,22 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if syncOnly && healthOnly {
-				log.Fatalln("Please specify at most one of --sync-only or --health-only.")
+			if !watchSync && !watchHealth && !watchOperations {
+				watchSync = true
+				watchHealth = true
+				watchOperations = true
 			}
 			appName := args[0]
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
-			ctx := context.Background()
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
 
-			if timeout != 0 {
-				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					cancel()
-				})
-			}
-
-			// print the initial components to format the tabwriter columns
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
+			_, err := waitOnApplicationStatus(appIf, appName, timeout, watchSync, watchHealth, watchOperations)
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			printAppResources(w, app, false)
-			_ = w.Flush()
-			prevCompRes := &app.Status.ComparisonResult
-
-			appEventCh := watchApp(ctx, appIf, appName)
-			for appEvent := range appEventCh {
-				app := appEvent.Application
-				printAppStateChange(w, prevCompRes, &app)
-				_ = w.Flush()
-				prevCompRes = &app.Status.ComparisonResult
-
-				synced := app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
-				healthy := app.Status.Health.Status == argoappv1.HealthStatusHealthy
-				if len(app.Status.GetErrorConditions()) == 0 && ((synced && healthy) || (synced && syncOnly) || (healthy && healthOnly)) {
-					log.Printf("App %q matches desired state", appName)
-					return
-				}
-			}
-			log.Fatalf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 		},
 	}
-	command.Flags().BoolVar(&syncOnly, "sync-only", false, "Wait only for sync")
-	command.Flags().BoolVar(&healthOnly, "health-only", false, "Wait only for health")
+	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
+	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
+	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
 }
@@ -803,38 +777,6 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 	}
 }
 
-// printAppStateChange prints a component state change if it was different from the last time we saw it
-func printAppStateChange(w io.Writer, prevComp *argoappv1.ComparisonResult, app *argoappv1.Application) {
-	getPrevResState := func(kind, name string) (argoappv1.ComparisonStatus, argoappv1.HealthStatusCode) {
-		for _, res := range prevComp.Resources {
-			obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-			errors.CheckError(err)
-			if obj == nil {
-				obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-				errors.CheckError(err)
-			}
-			if obj.GetKind() == kind && obj.GetName() == name {
-				return res.Status, res.Health.Status
-			}
-		}
-		return "", ""
-	}
-	if len(app.Status.ComparisonResult.Resources) > 0 {
-		for _, res := range app.Status.ComparisonResult.Resources {
-			obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-			errors.CheckError(err)
-			if obj == nil {
-				obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-				errors.CheckError(err)
-			}
-			prevSync, prevHealth := getPrevResState(obj.GetKind(), obj.GetName())
-			if prevSync != res.Status || prevHealth != res.Health.Status {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
-			}
-		}
-	}
-}
-
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -875,22 +817,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			ctx := context.Background()
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
-			app, err := waitUntilOperationCompleted(appIf, appName, timeout)
+
+			app, err := waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
 			errors.CheckError(err)
-
-			// get refreshed app before printing to show accurate sync/health status
-			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			errors.CheckError(err)
-
-			fmt.Printf(printOpFmtStr, "Application:", appName)
-			printOperationResult(app.Status.OperationState)
-
-			if len(app.Status.ComparisonResult.Resources) > 0 {
-				fmt.Println()
-				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				printAppResources(w, app, true)
-				_ = w.Flush()
-			}
 
 			pruningRequired := 0
 			for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
@@ -916,22 +845,164 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func waitUntilOperationCompleted(appClient application.ApplicationServiceClient, appName string, timeout uint) (*argoappv1.Application, error) {
+// ResourceState tracks the state of a resource when waiting on an application status.
+type resourceState struct {
+	Kind      string
+	Name      string
+	PrevState string
+	Fields    map[string]string
+	Updated   bool
+}
+
+func newResourceState(kind, name, status, healthStatus, resType, message string) *resourceState {
+	return &resourceState{
+		Kind: kind,
+		Name: name,
+		Fields: map[string]string{
+			"status":       status,
+			"healthStatus": healthStatus,
+			"type":         resType,
+			"message":      message,
+		},
+	}
+}
+
+// Key returns a unique-ish key for the resource.
+func (rs *resourceState) Key() string {
+	return fmt.Sprintf("%s/%s", rs.Kind, rs.Name)
+}
+
+// Merge merges the new state into the previous state, returning whether the
+// new state contains any additional keys or different values from the old state.
+func (rs *resourceState) Merge() bool {
+	if out := rs.String(); out != rs.PrevState {
+		rs.PrevState = out
+		return true
+	}
+	return false
+}
+
+func (rs *resourceState) String() string {
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Fields["status"], rs.Fields["healthStatus"], rs.Fields["type"], rs.Fields["message"])
+}
+
+// Update a resourceState with any different contents from another resourceState.
+// Blank fields in the receiver state will be updated to non-blank.
+// Non-blank fields in the receiver state will never be updated to blank.
+func (rs *resourceState) Update(newState *resourceState) {
+	for k, v := range newState.Fields {
+		if v != "" {
+			rs.Fields[k] = v
+		}
+	}
+}
+
+func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	printFinalStatus := func() {
+		// get refreshed app before printing to show accurate sync/health status
+		app, err := appClient.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
+		errors.CheckError(err)
+
+		fmt.Printf(printOpFmtStr, "Application:", appName)
+		printOperationResult(app.Status.OperationState)
+
+		if len(app.Status.ComparisonResult.Resources) > 0 {
+			fmt.Println()
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			printAppResources(w, app, true)
+			_ = w.Flush()
+		}
+	}
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 			cancel()
+			printFinalStatus()
 		})
+	}
+
+	// print the initial components to format the tabwriter columns
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG")
+	_ = w.Flush()
+
+	prevStates := make(map[string]*resourceState)
+	conditionallyPrintOutput := func(w io.Writer, newState *resourceState) {
+		stateKey := newState.Key()
+		if prevState, found := prevStates[stateKey]; found {
+			prevState.Update(newState)
+		} else {
+			prevStates[stateKey] = newState
+		}
+	}
+
+	printCompResults := func(compResult *argoappv1.ComparisonResult) {
+		if compResult != nil {
+			for _, res := range compResult.Resources {
+				obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
+				errors.CheckError(err)
+				if obj == nil {
+					obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
+					errors.CheckError(err)
+				}
+
+				newState := newResourceState(obj.GetKind(), obj.GetName(), string(res.Status), res.Health.Status, "", "")
+				conditionallyPrintOutput(w, newState)
+			}
+		}
+	}
+
+	printOpResults := func(opResult *argoappv1.SyncOperationResult) {
+		if opResult != nil {
+			if opResult.Hooks != nil {
+				for _, hook := range opResult.Hooks {
+					newState := newResourceState(hook.Kind, hook.Name, string(hook.Status), "", string(hook.Type), hook.Message)
+					conditionallyPrintOutput(w, newState)
+				}
+			}
+
+			if opResult.Resources != nil {
+				for _, res := range opResult.Resources {
+					newState := newResourceState(res.Kind, res.Name, string(res.Status), "", "", res.Message)
+					conditionallyPrintOutput(w, newState)
+				}
+			}
+		}
 	}
 
 	appEventCh := watchApp(ctx, appClient, appName)
 	for appEvent := range appEventCh {
-		if appEvent.Application.Status.OperationState != nil && appEvent.Application.Status.OperationState.Phase.Completed() {
-			return &appEvent.Application, nil
+		app := appEvent.Application
+
+		printCompResults(&app.Status.ComparisonResult)
+
+		if opState := app.Status.OperationState; opState != nil {
+			printOpResults(opState.SyncResult)
+			printOpResults(opState.RollbackResult)
+		}
+
+		for _, v := range prevStates {
+			if v.Merge() {
+				fmt.Fprintln(w, v)
+			}
+		}
+
+		_ = w.Flush()
+
+		// consider skipped checks successful
+		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
+		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
+		operational := !watchOperations || appEvent.Application.Operation == nil
+		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {
+			log.Printf("App %q matches desired state", appName)
+			printFinalStatus()
+			return &app, nil
 		}
 	}
+
 	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
@@ -1080,18 +1151,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			app, err = waitUntilOperationCompleted(appIf, appName, timeout)
+			_, err = waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
 			errors.CheckError(err)
-
-			// get refreshed app before printing to show accurate sync/health status
-			app, err = appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-			errors.CheckError(err)
-
-			fmt.Printf(printOpFmtStr, "Application:", appName)
-			printOperationResult(app.Status.OperationState)
-			if !app.Status.OperationState.Phase.Successful() {
-				os.Exit(1)
-			}
 		},
 	}
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")

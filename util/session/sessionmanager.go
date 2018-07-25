@@ -38,6 +38,7 @@ const (
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
 	invalidLoginError  = "Invalid username or password"
 	blankPasswordError = "Blank passwords are not allowed"
+	badUserError       = "Bad local superuser username"
 )
 
 // NewSessionManager creates a new session manager from ArgoCD settings
@@ -68,16 +69,20 @@ func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
-func (mgr *SessionManager) Create(subject string) (string, error) {
+// Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
+func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (string, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
-	now := time.Now().Unix()
+	now := time.Now().UTC()
 	claims := jwt.StandardClaims{
-		//ExpiresAt: time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
-		IssuedAt:  now,
+		IssuedAt:  now.Unix(),
 		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: now,
+		NotBefore: now.Unix(),
 		Subject:   subject,
+	}
+	if secondsBeforeExpiry > 0 {
+		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
+		claims.ExpiresAt = expires.Unix()
 	}
 	return mgr.signClaims(claims)
 }
@@ -89,20 +94,24 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 }
 
 // ReissueClaims re-issues and re-signs a new token signed by us, while preserving most of the claim values
-func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims) (string, error) {
-	now := time.Now().Unix()
+func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims, secondsBeforeExpiry int) (string, error) {
+	now := time.Now().UTC()
 	newClaims := make(jwt.MapClaims)
 	for k, v := range claims {
 		newClaims[k] = v
 	}
 	newClaims["iss"] = SessionManagerClaimsIssuer
-	newClaims["iat"] = now
-	newClaims["nbf"] = now
+	newClaims["iat"] = now.Unix()
+	newClaims["nbf"] = now.Unix()
 	delete(newClaims, "exp")
+	if secondsBeforeExpiry > 0 {
+		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
+		claims["exp"] = expires.Unix()
+	}
 	return mgr.signClaims(newClaims)
 }
 
-// Parse tries to parse the provided string and returns the token claims.
+// Parse tries to parse the provided string and returns the token claims for local superuser login.
 func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// Parse takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
@@ -119,23 +128,23 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
+	if issuedAt.Before(mgr.settings.AdminPasswordMtime) {
+		return nil, fmt.Errorf("Password for superuser has changed since token issued")
+	}
 	return token.Claims, nil
 }
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username, password string) error {
+	if username != common.ArgoCDAdminUsername {
+		return status.Errorf(codes.Unauthenticated, badUserError)
+	}
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
-	passwordHash, ok := mgr.settings.LocalUsers[username]
-	if !ok {
-		// Username was not found in local user store.
-		// Ensure we still send password to hashing algorithm for comparison.
-		// This mitigates potential for timing attacks that benefit from short-circuiting,
-		// provided the hashing library/algorithm in use doesn't itself short-circuit.
-		passwordHash = ""
-	}
-	valid, _ := passwordutil.VerifyPassword(password, passwordHash)
+	valid, _ := passwordutil.VerifyPassword(password, mgr.settings.AdminPasswordHash)
 	if !valid {
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)
 	}
