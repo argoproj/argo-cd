@@ -25,3 +25,5 @@ export const services: Services = {
     projects: new ProjectsService(),
     viewPreferences: new ViewPreferencesService(),
 };
+
+export { ArgoApp } from './repo-service';

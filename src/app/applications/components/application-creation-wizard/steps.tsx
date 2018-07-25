@@ -7,8 +7,13 @@ import { Observable, Subscription } from 'rxjs';
 import { ConnectionStateIcon, FormField, Select } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
+import { ArgoApp } from '../../../shared/services';
 
-export const AppsList = (props: {apps: models.KsonnetAppSpec[], selectedApp: models.KsonnetAppSpec, onAppSelected: (app: models.KsonnetAppSpec) => any}) => (
+export const AppsList = (props: {
+    apps: ArgoApp[],
+    selectedApp: ArgoApp,
+    onAppSelected: (app: ArgoApp) => any,
+}) => (
     props.apps.length === 0 ? (
     <div>
         Repository has no applications.
@@ -17,17 +22,19 @@ export const AppsList = (props: {apps: models.KsonnetAppSpec[], selectedApp: mod
     <div className='argo-table-list argo-table-list--clickable'>
         <div className='argo-table-list__head'>
             <div className='row'>
+                <div className='columns small-2'>TYPE</div>
                 <div className='columns small-4'>APPLICATION NAME</div>
-                <div className='columns small-6'>PATH</div>
+                <div className='columns small-4'>PATH</div>
                 <div className='columns small-2'>ENVIRONMENTS COUNT</div>
             </div>
         </div>
-        {props.apps.map((app, i) => (
-            <div className={classNames('argo-table-list__row', { selected: app === props.selectedApp })} key={i} onClick={() => props.onAppSelected(app)}>
+        {props.apps.map((item, i) => (
+            <div className={classNames('argo-table-list__row', { selected: item === props.selectedApp })} key={i} onClick={() => props.onAppSelected(item)}>
                 <div className='row'>
-                    <div className='columns small-4'>{app.name}</div>
-                    <div className='columns small-6'>{app.path}</div>
-                    <div className='columns small-2'>{Object.keys(app.environments).length}</div>
+                    <div className='columns small-2'>{item.ksonnet && 'Ksonnet' || 'Helm'}</div>
+                    <div className='columns small-4'>{(item.ksonnet || item.helm).name}</div>
+                    <div className='columns small-4'>{(item.ksonnet || item.helm).path}</div>
+                    <div className='columns small-2'>{item.ksonnet ? Object.keys(item.ksonnet.environments).length : 0}</div>
                 </div>
             </div>
         ))}
@@ -121,6 +128,7 @@ export interface NewAppParams {
 }
 
 export class AppParams extends React.Component<{
+        needEnvironment: boolean,
         projects: string[],
         appParams: NewAppParams,
         submitForm: Observable<any>,
@@ -150,7 +158,7 @@ export class AppParams extends React.Component<{
                     applicationName: !params.applicationName && 'Application name is required',
                     repoURL: !params.repoURL && 'Repository URL is required',
                     path: !params.path && 'Path is required',
-                    environment: !params.environment && 'Environment is required',
+                    environment: this.props.needEnvironment && !params.environment && 'Environment is required',
                     clusterURL: !params.clusterURL && 'Cluster URL is required',
                     namespace: !params.namespace && 'Namespace URL is required',
                 })}
@@ -173,9 +181,11 @@ export class AppParams extends React.Component<{
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Path' field='path' component={Text}/>
                         </div>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Environment' field='environment' component={Text}/>
-                        </div>
+                        {this.props.needEnvironment && (
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Environment' field='environment' component={Text}/>
+                            </div>
+                        )}
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Cluster URL' field='clusterURL' component={Text}/>
                         </div>
