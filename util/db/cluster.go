@@ -229,6 +229,19 @@ func (s *db) CreateServiceAccount(serviceAccountName string, namespace string) {
 	fmt.Printf("ServiceAccount '%s' created\n", serviceAccountName)
 }
 
+// DeleteServiceAccount deletes a service account
+func (s *db) DeleteServiceAccount(serviceAccountName string, namespace string) {
+	err := s.kubeclientset.CoreV1().ServiceAccounts(namespace).Delete(serviceAccountName, &metav1.DeleteOptions{})
+	if err != nil {
+		if !apierr.IsNotFound(err) {
+			log.Fatalf("Failed to delete service account '%s': %v\n", serviceAccountName, err)
+		}
+		fmt.Printf("ServiceAccount '%s' not found\n", serviceAccountName)
+		return
+	}
+	fmt.Printf("ServiceAccount '%s' deleted\n", serviceAccountName)
+}
+
 // CreateClusterRole creates a cluster role
 func (s *db) CreateClusterRole(clusterRoleName string, rules []rbacv1.PolicyRule) {
 	clusterRole := rbacv1.ClusterRole{
