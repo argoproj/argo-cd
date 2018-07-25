@@ -88,17 +88,24 @@ func (s *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) er
 	if err != nil {
 		return err
 	}
+
+	defer w.Stop()
+	done := make(chan bool)
 	go func() {
-		<-ctx.Done()
-		w.Stop()
+		for next := range w.ResultChan() {
+			secret := next.Object.(*apiv1.Secret)
+			cluster := SecretToCluster(secret)
+			callback(&ClusterEvent{
+				Type:    next.Type,
+				Cluster: cluster,
+			})
+		}
+		done <- true
 	}()
-	for next := range w.ResultChan() {
-		secret := next.Object.(*apiv1.Secret)
-		cluster := SecretToCluster(secret)
-		callback(&ClusterEvent{
-			Type:    next.Type,
-			Cluster: cluster,
-		})
+
+	select {
+	case <-done:
+	case <-ctx.Done():
 	}
 	return nil
 }

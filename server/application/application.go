@@ -419,6 +419,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	case <-ws.Context().Done():
 		w.Stop()
 	case <-done:
+		w.Stop()
 	}
 	return nil
 }
