@@ -10,14 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	passwordutil "github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/coreos/go-oidc"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/argoproj/argo-cd/common"
+	passwordutil "github.com/argoproj/argo-cd/util/password"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // SessionManager generates and validates JWT tokens for login sessions.
@@ -91,24 +92,6 @@ func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(mgr.settings.ServerSignature)
-}
-
-// ReissueClaims re-issues and re-signs a new token signed by us, while preserving most of the claim values
-func (mgr *SessionManager) ReissueClaims(claims jwt.MapClaims, secondsBeforeExpiry int) (string, error) {
-	now := time.Now().UTC()
-	newClaims := make(jwt.MapClaims)
-	for k, v := range claims {
-		newClaims[k] = v
-	}
-	newClaims["iss"] = SessionManagerClaimsIssuer
-	newClaims["iat"] = now.Unix()
-	newClaims["nbf"] = now.Unix()
-	delete(newClaims, "exp")
-	if secondsBeforeExpiry > 0 {
-		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims["exp"] = expires.Unix()
-	}
-	return mgr.signClaims(newClaims)
 }
 
 // Parse tries to parse the provided string and returns the token claims for local superuser login.
@@ -216,7 +199,7 @@ func MakeCookieMetadata(key, value string, flags ...string) string {
 
 // OIDCProvider lazily initializes and returns the OIDC provider, querying the well known oidc
 // configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration).
-// We have to initialize the proviver lazily since ArgoCD is an OIDC client to itself, which
+// We have to initialize the provider lazily since ArgoCD is an OIDC client to itself, which
 // presents a chicken-and-egg problem of (1) serving dex over HTTP, and (2) querying the OIDC
 // provider (ourselves) to initialize the app.
 func (mgr *SessionManager) OIDCProvider() (*oidc.Provider, error) {

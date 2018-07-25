@@ -77,6 +77,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 			// Perform the login
 			var tokenString string
+			var refreshToken string
 			if !sso {
 				tokenString = passwordLogin(acdClient, username, password)
 			} else {
@@ -85,15 +86,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				if !ssoConfigured(acdSet) {
 					log.Fatalf("ArgoCD instance is not configured with SSO")
 				}
-				tokenString = oauth2Login(server, clientOpts.PlainText)
-				// The token which we just received from the OAuth2 flow, was from dex. ArgoCD
-				// currently does not back dex with any kind of persistent storage (it is run
-				// in-memory). As a result, this token cannot be used in any permanent capacity.
-				// Restarts of dex will result in a different signing key, and sessions becoming
-				// invalid. Instead we turn-around and ask ArgoCD to re-sign the token (who *does*
-				// have persistence of signing keys), and is what we store in the config. Should we
-				// ever decide to have a database layer for dex, the next line can be removed.
-				tokenString = tokenLogin(acdClient, tokenString)
+				tokenString, refreshToken = oauth2Login(server, clientOpts.PlainText)
 			}
 
 			parser := &jwt.Parser{
@@ -116,8 +109,9 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				Insecure:  globalClientOpts.Insecure,
 			})
 			localCfg.UpsertUser(localconfig.User{
-				Name:      ctxName,
-				AuthToken: tokenString,
+				Name:         ctxName,
+				AuthToken:    tokenString,
+				RefreshToken: refreshToken,
 			})
 			if ctxName == "" {
 				ctxName = server
@@ -163,8 +157,9 @@ func getFreePort() (int, error) {
 	return ln.Addr().(*net.TCPAddr).Port, ln.Close()
 }
 
-// oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and returns the JWT token
-func oauth2Login(host string, plaintext bool) string {
+// oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
+// returns the JWT token and a refresh token (if supported)
+func oauth2Login(host string, plaintext bool) (string, string) {
 	ctx := context.Background()
 	port, err := getFreePort()
 	errors.CheckError(err)
@@ -183,6 +178,7 @@ func oauth2Login(host string, plaintext bool) string {
 	}
 	srv := &http.Server{Addr: ":" + strconv.Itoa(port)}
 	var tokenString string
+	var refreshToken string
 	loginCompleted := make(chan struct{})
 
 	callbackHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -215,8 +211,9 @@ func oauth2Login(host string, plaintext bool) string {
 			log.Fatal(errMsg)
 			return
 		}
-
+		refreshToken, _ = tok.Extra("refresh_token").(string)
 		log.Debugf("Token: %s", tokenString)
+		log.Debugf("Refresh Token: %s", tokenString)
 		successPage := `
 		<div style="height:100px; width:100%!; display:flex; flex-direction: column; justify-content: center; align-items:center; background-color:#2ecc71; color:white; font-size:22"><div>Authentication successful!</div></div>
 		<p style="margin-top:20px; font-size:18; text-align:center">Authentication was successful, you can now return to CLI. This page will close automatically</p>
@@ -248,7 +245,7 @@ func oauth2Login(host string, plaintext bool) string {
 	}()
 	<-loginCompleted
 	_ = srv.Shutdown(ctx)
-	return tokenString
+	return tokenString, refreshToken
 }
 
 func passwordLogin(acdClient argocdclient.Client, username, password string) string {
@@ -258,17 +255,6 @@ func passwordLogin(acdClient argocdclient.Client, username, password string) str
 	sessionRequest := session.SessionCreateRequest{
 		Username: username,
 		Password: password,
-	}
-	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
-	errors.CheckError(err)
-	return createdSession.Token
-}
-
-func tokenLogin(acdClient argocdclient.Client, token string) string {
-	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer util.Close(sessConn)
-	sessionRequest := session.SessionCreateRequest{
-		Token: token,
 	}
 	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
 	errors.CheckError(err)

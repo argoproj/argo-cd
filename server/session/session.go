@@ -2,12 +2,10 @@ package session
 
 import (
 	"context"
-	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/util/jwt"
 	sessionmgr "github.com/argoproj/argo-cd/util/session"
 )
 
@@ -23,39 +21,22 @@ func NewServer(mgr *sessionmgr.SessionManager) *Server {
 	}
 }
 
-// Create generates a non-expiring JWT token signed by ArgoCD. This endpoint is used in two circumstances:
-// 1. Web/CLI logins for local users (i.e. admin), for when SSO is not configured. In this case,
-//    username/password.
-// 2. CLI login which completed an OAuth2 login flow but wish to store a permanent token in their config
+// Create generates a JWT token signed by ArgoCD intended for web/CLI logins of the admin user
+// using username/password
 func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionResponse, error) {
-	var tokenString string
-	var err error
-	if q.Password != "" {
-		// first case
-		err = s.mgr.VerifyUsernamePassword(q.Username, q.Password)
-		if err != nil {
-			return nil, err
-		}
-		tokenString, err = s.mgr.Create(q.Username, 0)
-		if err != nil {
-			return nil, err
-		}
-	} else if q.Token != "" {
-		// second case
-		claimsIf, err := s.mgr.VerifyToken(q.Token)
-		if err != nil {
-			return nil, err
-		}
-		claims, err := jwt.MapClaims(claimsIf)
-		if err != nil {
-			return nil, err
-		}
-		tokenString, err = s.mgr.ReissueClaims(claims, 0)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to resign claims: %v", err)
-		}
-	} else {
+	if q.Token != "" {
+		return nil, status.Errorf(codes.Unauthenticated, "token-based session creation no longer supported. please upgrade argocd cli to v0.7+")
+	}
+	if q.Username == "" || q.Password == "" {
 		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
+	}
+	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password)
+	if err != nil {
+		return nil, err
+	}
+	tokenString, err := s.mgr.Create(q.Username, 0)
+	if err != nil {
+		return nil, err
 	}
 	return &SessionResponse{Token: tokenString}, nil
 }
