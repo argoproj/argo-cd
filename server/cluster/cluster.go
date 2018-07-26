@@ -62,10 +62,11 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 				log.Errorf("Error occurred uninstalling cluster manager: %s", err)
 			}
 		}()
-		_, err = s.db.InstallClusterManagerRBAC(ctx)
+		bearerToken, err := s.db.InstallClusterManagerRBAC(ctx)
 		if err != nil {
 			return nil, err
 		}
+		c.Config.BearerToken = bearerToken
 	}
 
 	c.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
