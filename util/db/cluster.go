@@ -309,11 +309,17 @@ func (s *db) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccountName
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func (s *db) InstallClusterManagerRBAC() string {
+func (s *db) InstallClusterManagerRBAC() (string, error) {
 	const ns = "kube-system"
-	s.CreateServiceAccount(common.ArgoCDManagerServiceAccount, ns)
-	s.CreateClusterRole(common.ArgoCDManagerClusterRole, common.ArgoCDManagerPolicyRules)
-	s.CreateClusterRoleBinding(common.ArgoCDManagerClusterRoleBinding, common.ArgoCDManagerServiceAccount, common.ArgoCDManagerClusterRole, ns)
+	if err := s.CreateServiceAccount(common.ArgoCDManagerServiceAccount, ns); err != nil {
+		return "", err
+	}
+	if err := s.CreateClusterRole(common.ArgoCDManagerClusterRole, common.ArgoCDManagerPolicyRules); err != nil {
+		return "", err
+	}
+	if err := s.CreateClusterRoleBinding(common.ArgoCDManagerClusterRoleBinding, common.ArgoCDManagerServiceAccount, common.ArgoCDManagerClusterRole, ns); err != nil {
+		return "", err
+	}
 
 	var serviceAccount *apiv1.ServiceAccount
 	var secretName string
@@ -329,17 +335,17 @@ func (s *db) InstallClusterManagerRBAC() string {
 		return true, nil
 	})
 	if err != nil {
-		log.Fatalf("Failed to wait for service account secret: %v", err)
+		return "", status.Errorf(codes.DeadlineExceeded, "Failed to wait for service account secret: %v", err)
 	}
 	secret, err := s.kubeclientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		log.Fatalf("Failed to retrieve secret %q: %v", secretName, err)
+		return "", status.Errorf(codes.FailedPrecondition, "Failed to retrieve secret %q: %v", secretName, err)
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		log.Fatalf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
+		return "", status.Errorf(codes.FailedPrecondition, "Secret %q for service account %q did not have a token", secretName, serviceAccount)
 	}
-	return string(token)
+	return string(token), nil
 }
 
 // UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster
