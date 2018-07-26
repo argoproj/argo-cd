@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"log"
 	"net/url"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -64,7 +65,7 @@ func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 	clusterSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
-			return nil, status.Errorf(codes.AlreadyExists, "cluster '%s' already exists", c.Server)
+			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)
 		}
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func (s *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "cluster '%s' not found", server)
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 		}
 		return nil, err
 	}
@@ -207,7 +208,7 @@ func SecretToCluster(s *apiv1.Secret) *appv1.Cluster {
 }
 
 // CreateServiceAccount creates a service account
-func (s *db) CreateServiceAccount(serviceAccountName string, namespace string) {
+func (s *db) CreateServiceAccount(serviceAccountName string, namespace string) error {
 	serviceAccount := apiv1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -221,29 +222,29 @@ func (s *db) CreateServiceAccount(serviceAccountName string, namespace string) {
 	_, err := s.kubeclientset.CoreV1().ServiceAccounts(namespace).Create(&serviceAccount)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create service account '%s': %v\n", serviceAccountName, err)
+			return status.Errorf(codes.FailedPrecondition, "Failed to create service account %q: %v", serviceAccountName, err)
 		}
-		fmt.Printf("ServiceAccount '%s' already exists\n", serviceAccountName)
-		return
+		return status.Errorf(codes.AlreadyExists, "ServiceAccount %q already exists", serviceAccountName)
 	}
-	fmt.Printf("ServiceAccount '%s' created\n", serviceAccountName)
+	log.Infof("ServiceAccount %q created", serviceAccountName)
+	return nil
 }
 
 // DeleteServiceAccount deletes a service account
-func (s *db) DeleteServiceAccount(serviceAccountName string, namespace string) {
+func (s *db) DeleteServiceAccount(serviceAccountName string, namespace string) error {
 	err := s.kubeclientset.CoreV1().ServiceAccounts(namespace).Delete(serviceAccountName, &metav1.DeleteOptions{})
 	if err != nil {
 		if !apierr.IsNotFound(err) {
-			log.Fatalf("Failed to delete service account '%s': %v\n", serviceAccountName, err)
+			return status.Errorf(codes.FailedPrecondition, "Failed to delete service account %q: %v", serviceAccountName, err)
 		}
-		fmt.Printf("ServiceAccount '%s' not found\n", serviceAccountName)
-		return
+		return status.Errorf(codes.NotFound, "ServiceAccount %q not found", serviceAccountName)
 	}
-	fmt.Printf("ServiceAccount '%s' deleted\n", serviceAccountName)
+	log.Infof("ServiceAccount %q deleted", serviceAccountName)
+	return nil
 }
 
 // CreateClusterRole creates a cluster role
-func (s *db) CreateClusterRole(clusterRoleName string, rules []rbacv1.PolicyRule) {
+func (s *db) CreateClusterRole(clusterRoleName string, rules []rbacv1.PolicyRule) error {
 	clusterRole := rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -258,20 +259,21 @@ func (s *db) CreateClusterRole(clusterRoleName string, rules []rbacv1.PolicyRule
 	_, err := crclient.Create(&clusterRole)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create ClusterRole '%s': %v\n", clusterRoleName, err)
+			return status.Errorf(codes.FailedPrecondition, "Failed to create ClusterRole %q: %v", clusterRoleName, err)
 		}
 		_, err = crclient.Update(&clusterRole)
 		if err != nil {
-			log.Fatalf("Failed to update ClusterRole '%s': %v\n", clusterRoleName, err)
+			return status.Errorf(codes.FailedPrecondition, "Failed to update ClusterRole %q: %v", clusterRoleName, err)
 		}
-		fmt.Printf("ClusterRole '%s' updated\n", clusterRoleName)
+		log.Infof("ClusterRole %q updated", clusterRoleName)
 	} else {
-		fmt.Printf("ClusterRole '%s' created\n", clusterRoleName)
+		log.Infof("ClusterRole %q created", clusterRoleName)
 	}
+	return nil
 }
 
 // CreateClusterRoleBinding create a ClusterRoleBinding
-func (s *db) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccountName, clusterRoleName string, namespace string) {
+func (s *db) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccountName, clusterRoleName string, namespace string) error {
 	roleBinding := rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -296,10 +298,10 @@ func (s *db) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccountName
 	_, err := s.kubeclientset.RbacV1().ClusterRoleBindings().Create(&roleBinding)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create ClusterRoleBinding %s: %v\n", clusterBindingRoleName, err)
+			return status.Errorf(codes.FailedPrecondition, "Failed to create ClusterRoleBinding %q: %v", clusterBindingRoleName, err)
 		}
-		fmt.Printf("ClusterRoleBinding '%s' already exists\n", clusterBindingRoleName)
-		return
+		return status.Errorf(codes.AlreadyExists, "ClusterRoleBinding %q already exists", clusterBindingRoleName)
 	}
-	fmt.Printf("ClusterRoleBinding '%s' created, bound '%s' to '%s'\n", clusterBindingRoleName, serviceAccountName, clusterRoleName)
+	log.Infof("ClusterRoleBinding %q created, bound %q to %q", clusterBindingRoleName, serviceAccountName, clusterRoleName)
+	return nil
 }
