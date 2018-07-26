@@ -342,7 +342,7 @@ func (s *db) InstallClusterManagerRBAC(ctx context.Context) (string, error) {
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		return "", status.Errorf(codes.FailedPrecondition, "Secret %q for service account %q did not have a token", secretName, serviceAccount)
+		return "", status.Errorf(codes.InvalidArgument, "Secret %q for service account %q did not have a token", secretName, serviceAccount)
 	}
 	return string(token), nil
 }
