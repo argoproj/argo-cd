@@ -1,10 +1,18 @@
 ## Requirements
-Make sure you have following tools installed [docker](https://docs.docker.com/install/#supported-platforms), [golang](https://golang.org/), [dep](https://github.com/golang/dep), [protobuf](https://developers.google.com/protocol-buffers/), [ksonnet](https://github.com/ksonnet/ksonnet#install), [go-swagger](https://github.com/go-swagger/go-swagger/blob/master/docs/install.md), and [jq](https://stedolan.github.io/jq/)
-[kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
+Make sure you have following tools installed
+* [docker](https://docs.docker.com/install/#supported-platforms)
+* [golang](https://golang.org/)
+* [dep](https://github.com/golang/dep)
+* [protobuf](https://developers.google.com/protocol-buffers/)
+* [ksonnet](https://github.com/ksonnet/ksonnet#install)
+* [helm](https://github.com/helm/helm/releases)
+* [go-swagger](https://github.com/go-swagger/go-swagger/blob/master/docs/install.md)
+* [jq](https://stedolan.github.io/jq/)
+* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
 
 ```
 $ brew tap go-swagger/go-swagger
-$ brew install go dep protobuf kubectl ksonnet/tap/ks jq go-swagger
+$ brew install go dep protobuf kubectl ksonnet/tap/ks kubernetes-helm jq go-swagger
 $ go get -u github.com/golang/protobuf/protoc-gen-go
 $ go get -u github.com/go-swagger/go-swagger/cmd/swagger
 $ go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway

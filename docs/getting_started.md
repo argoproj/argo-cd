@@ -1,6 +1,6 @@
 # ArgoCD Getting Started
 
-An example Ksonnet guestbook application is provided to demonstrates how ArgoCD works.
+An example guestbook application is provided to demonstrate how ArgoCD works.
 
 ## Requirements
 * Installed [minikube](https://github.com/kubernetes/minikube#installation)
@@ -157,17 +157,13 @@ Service     guestbook-ui  service "guestbook-ui" created
 Deployment  guestbook-ui  deployment.apps "guestbook-ui" created
 ```
 
-This command retrieves the manifests from the ksonnet app in the git repository and performs a 
-`kubectl apply` of the manifests. The guestbook app is now running and you can now view its resource
+This command retrieves the manifests from git repository and performs a `kubectl apply` of the 
+manifests. The guestbook app is now running and you can now view its resource
 components, logs, events, and assessed health:
 
 ![view app](assets/guestbook-tree.png)
 
-
 ## 8. Next Steps
 
-ArgoCD supports additional features such as SSO, WebHooks, RBAC. See the following guides on setting
-these up:
-* [Configuring SSO](sso.md)
-* [Configuring RBAC](rbac.md)
-* [Configuring WebHooks](webhook.md)
+ArgoCD supports additional features such as SSO, WebHooks, RBAC, Projects. See the rest of 
+the [documentation](./) for details.

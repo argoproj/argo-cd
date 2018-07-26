@@ -22,15 +22,31 @@ manifests when provided the following inputs:
 * repository URL
 * git revision (commit, tag, branch)
 * application path
-* application environment
+* template specific settings: parameters, ksonnet environments, helm values.yaml
 
 ### Application Controller
 The application controller is a Kubernetes controller which continuously monitors running
 applications and compares the current, live state against the desired target state (as specified in
-the git repo). It detects out-of-sync application state and optionally takes corrective action. It
-is responsible for invoking any user-defined handlers (argo workflows) for Sync, OutOfSync events
+the git repo). It detects `OutOfSync` application state and optionally takes corrective action. It
+is responsible for invoking any user-defined hooks for lifcecycle events (PreSync, Sync, PostSync)
 
 ### Application CRD (Custom Resource Definition)
 The Application CRD is the Kubernetes resource object representing a deployed application instance
-in an environment. It holds a reference to the desired target state (repo, revision, app, environment)
-of which the application controller will enforce state against.
+in an environment. It is defined by two key pieces of information:
+* `source` reference to the desired state in git (repository, revision, path, environment)
+* `destination` reference to the target cluster and namespace.
+
+An example spec is as follows:
+
+```
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+    environment: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```

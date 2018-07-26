@@ -44,15 +44,19 @@ Kubernetes clusters which can be used by applications belonging to the project.
 
 ### 1. Create new project
 
-Following command creates project `myproject` which can deploy applications to namespace `default` of cluster `https://kubernetes.default.svc`. The source ksonnet application
-should be defined in `https://github.com/argoproj/argocd-example-apps.git` repository.
+Following command creates project `myproject` which can deploy applications to namespace `default` of cluster `https://kubernetes.default.svc`. The valid application source is defined in the `https://github.com/argoproj/argocd-example-apps.git` repository.
 
 ```
 argocd proj create myproject -d https://kubernetes.default.svc,default -s https://github.com/argoproj/argocd-example-apps.git
 ```
 
-Project sources and destinations can be managed using commands `argocd project add-destination`, `argocd project remove-destination`, `argocd project add-source`
-and `argocd project remove-source`.
+Project sources and destinations can be managed using commands
+```
+argocd project add-destination
+argocd project remove-destination
+argocd project add-source
+argocd project remove-source
+```
 
 ### 2. Assign application to a project
 
