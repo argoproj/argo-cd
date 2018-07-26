@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
+	log "github.com/sirupsen/logrus"
 )
 
 // Server provides a Cluster service
@@ -52,6 +53,19 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 	err := kube.TestConfig(q.Cluster.RESTConfig())
 	if err != nil {
 		return nil, err
+	}
+
+	if q.Kubeconfig != "" {
+		defer func() {
+			err := s.db.UninstallClusterManagerRBAC(ctx)
+			if err != nil {
+				log.Errorf("Error occurred uninstalling cluster manager: %s", err)
+			}
+		}()
+		_, err = s.db.InstallClusterManagerRBAC(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	c.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}

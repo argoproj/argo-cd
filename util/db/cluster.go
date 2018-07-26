@@ -8,10 +8,9 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -309,7 +308,7 @@ func (s *db) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccountName
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func (s *db) InstallClusterManagerRBAC() (string, error) {
+func (s *db) InstallClusterManagerRBAC(ctx context.Context) (string, error) {
 	const ns = "kube-system"
 	if err := s.CreateServiceAccount(common.ArgoCDManagerServiceAccount, ns); err != nil {
 		return "", err
@@ -349,7 +348,7 @@ func (s *db) InstallClusterManagerRBAC() (string, error) {
 }
 
 // UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster
-func (s *db) UninstallClusterManagerRBAC() error {
+func (s *db) UninstallClusterManagerRBAC(ctx context.Context) error {
 	return s.UninstallRBAC("kube-system", common.ArgoCDManagerClusterRoleBinding, common.ArgoCDManagerClusterRole, common.ArgoCDManagerServiceAccount)
 }
 
