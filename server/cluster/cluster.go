@@ -68,12 +68,12 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 	if q.Kubeconfig != "" {
 		// Temporarily install RBAC resources for managing the cluster
 		defer func() {
-			err := s.UninstallClusterManagerRBAC(ctx)
+			err := s.UninstallClusterManagerRBAC()
 			if err != nil {
 				log.Errorf("Error occurred uninstalling cluster manager: %s", err)
 			}
 		}()
-		bearerToken, err := s.InstallClusterManagerRBAC(ctx)
+		bearerToken, err := s.InstallClusterManagerRBAC()
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +243,7 @@ func (s *Server) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccount
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func (s *Server) InstallClusterManagerRBAC(ctx context.Context) (string, error) {
+func (s *Server) InstallClusterManagerRBAC() (string, error) {
 	const ns = "kube-system"
 	if err := s.CreateServiceAccount(common.ArgoCDManagerServiceAccount, ns); err != nil {
 		return "", err
@@ -283,7 +283,7 @@ func (s *Server) InstallClusterManagerRBAC(ctx context.Context) (string, error) 
 }
 
 // UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster
-func (s *Server) UninstallClusterManagerRBAC(ctx context.Context) error {
+func (s *Server) UninstallClusterManagerRBAC() error {
 	return s.UninstallRBAC("kube-system", common.ArgoCDManagerClusterRoleBinding, common.ArgoCDManagerClusterRole, common.ArgoCDManagerServiceAccount)
 }
 
