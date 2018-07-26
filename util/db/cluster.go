@@ -333,11 +333,47 @@ func (s *db) InstallClusterManagerRBAC() string {
 	}
 	secret, err := s.kubeclientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		log.Fatalf("Failed to retrieve secret '%s': %v", secretName, err)
+		log.Fatalf("Failed to retrieve secret %q: %v", secretName, err)
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		log.Fatalf("Secret '%s' for service account '%s' did not have a token", secretName, serviceAccount)
+		log.Fatalf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
 	}
 	return string(token)
+}
+
+// UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster
+func (s *db) UninstallClusterManagerRBAC() error {
+	return s.UninstallRBAC("kube-system", common.ArgoCDManagerClusterRoleBinding, common.ArgoCDManagerClusterRole, common.ArgoCDManagerServiceAccount)
+}
+
+// UninstallRBAC uninstalls RBAC related resources for a binding, role, and service account
+func (s *db) UninstallRBAC(namespace, bindingName, roleName, serviceAccount string) error {
+	if err := s.kubeclientset.RbacV1().ClusterRoleBindings().Delete(bindingName, &metav1.DeleteOptions{}); err != nil {
+		if !apierr.IsNotFound(err) {
+			return status.Errorf(codes.FailedPrecondition, "Failed to delete ClusterRoleBinding: %v", err)
+		}
+		return status.Errorf(codes.NotFound, "ClusterRoleBinding %q not found", bindingName)
+	} else {
+		log.Infof("ClusterRoleBinding %q deleted", bindingName)
+	}
+
+	if err := s.kubeclientset.RbacV1().ClusterRoles().Delete(roleName, &metav1.DeleteOptions{}); err != nil {
+		if !apierr.IsNotFound(err) {
+			return status.Errorf(codes.FailedPrecondition, "Failed to delete ClusterRole: %v", err)
+		}
+		return status.Errorf(codes.NotFound, "ClusterRole %q not found", roleName)
+	} else {
+		log.Infof("ClusterRole %q deleted", roleName)
+	}
+
+	if err := s.kubeclientset.CoreV1().ServiceAccounts(namespace).Delete(serviceAccount, &metav1.DeleteOptions{}); err != nil {
+		if !apierr.IsNotFound(err) {
+			return status.Errorf(codes.FailedPrecondition, "Failed to delete ServiceAccount: %v", err)
+		}
+		return status.Errorf(codes.NotFound, "ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
+	} else {
+		log.Infof("ServiceAccount %q deleted", serviceAccount)
+	}
+	return nil
 }
