@@ -71,13 +71,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		upsert  bool
 	)
 	var command = &cobra.Command{
-		Use:   "create",
+		Use:   "create APPNAME",
 		Short: "Create an application from a git location",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 0 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
 			var app argoappv1.Application
 			if fileURL != "" {
 				parsedURL, err := url.ParseRequestURI(fileURL)
@@ -86,14 +82,16 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				} else {
 					err = config.UnmarshalRemoteFile(fileURL, &app)
 				}
-				if err != nil {
-					log.Fatal(err)
-				}
-
+				errors.CheckError(err)
 			} else {
+				if len(args) == 1 {
+					if appName != "" && appName != args[0] {
+						log.Fatalf("--name argument '%s' does not match app name %s", appName, args[0])
+					}
+					appName = args[0]
+				}
 				if appOpts.repoURL == "" || appOpts.appPath == "" || appName == "" {
 					log.Fatal("name, repo, path are required")
-					os.Exit(1)
 				}
 				app = argoappv1.Application{
 					ObjectMeta: metav1.ObjectMeta{
@@ -132,7 +130,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		},
 	}
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
-	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set")
+	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
 	addAppFlags(command, &appOpts)
 	return command
