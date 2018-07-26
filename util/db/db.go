@@ -24,10 +24,6 @@ type ArgoDB interface {
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
 	DeleteCluster(ctx context.Context, name string) error
-	// InstallClusterManagerRBAC installs RBAC resources for a cluster manager
-	InstallClusterManagerRBAC(ctx context.Context) (string, error)
-	// UninstallClusterManagerRBAC removes RBAC resources for a cluster manager
-	UninstallClusterManagerRBAC(ctx context.Context) error
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) (*appv1.RepositoryList, error)
