@@ -56,6 +56,7 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 	}
 
 	if q.Kubeconfig != "" {
+		// Temporarily install RBAC resources for managing the cluster
 		defer func() {
 			err := s.db.UninstallClusterManagerRBAC(ctx)
 			if err != nil {

@@ -69,12 +69,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
-			// Install RBAC resources for managing the cluster
-			managerBearerToken := common.InstallClusterManagerRBAC(conf)
-
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clst := NewCluster(args[0], conf, managerBearerToken)
+			clst := NewCluster(args[0], conf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
@@ -132,7 +129,7 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, conf *rest.Config, managerBearerToken string) *argoappv1.Cluster {
+func NewCluster(name string, conf *rest.Config) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -159,7 +156,6 @@ func NewCluster(name string, conf *rest.Config, managerBearerToken string) *argo
 		Server: conf.Host,
 		Name:   name,
 		Config: argoappv1.ClusterConfig{
-			BearerToken:     managerBearerToken,
 			TLSClientConfig: tlsClientConfig,
 		},
 	}
