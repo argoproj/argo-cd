@@ -57,6 +57,7 @@ func (s *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv
 		},
 	}
 	repoSecret.Data = repoToData(r)
+	repoSecret.Annotations = AnnotationsFromConnectionState(&r.ConnectionState)
 	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Create(repoSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {

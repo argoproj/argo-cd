@@ -58,6 +58,7 @@ func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 		},
 	}
 	clusterSecret.Data = clusterToData(c)
+	clusterSecret.Annotations = AnnotationsFromConnectionState(&c.ConnectionState)
 	clusterSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
