@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"net/url"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -20,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -304,4 +306,38 @@ func (s *db) CreateClusterRoleBinding(clusterBindingRoleName, serviceAccountName
 	}
 	log.Infof("ClusterRoleBinding %q created, bound %q to %q", clusterBindingRoleName, serviceAccountName, clusterRoleName)
 	return nil
+}
+
+// InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
+func (s *db) InstallClusterManagerRBAC() string {
+	const ns = "kube-system"
+	s.CreateServiceAccount(common.ArgoCDManagerServiceAccount, ns)
+	s.CreateClusterRole(common.ArgoCDManagerClusterRole, common.ArgoCDManagerPolicyRules)
+	s.CreateClusterRoleBinding(common.ArgoCDManagerClusterRoleBinding, common.ArgoCDManagerServiceAccount, common.ArgoCDManagerClusterRole, ns)
+
+	var serviceAccount *apiv1.ServiceAccount
+	var secretName string
+	err := wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+		serviceAccount, err := s.kubeclientset.CoreV1().ServiceAccounts(ns).Get(common.ArgoCDManagerServiceAccount, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		if len(serviceAccount.Secrets) == 0 {
+			return false, nil
+		}
+		secretName = serviceAccount.Secrets[0].Name
+		return true, nil
+	})
+	if err != nil {
+		log.Fatalf("Failed to wait for service account secret: %v", err)
+	}
+	secret, err := s.kubeclientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("Failed to retrieve secret '%s': %v", secretName, err)
+	}
+	token, ok := secret.Data["token"]
+	if !ok {
+		log.Fatalf("Secret '%s' for service account '%s' did not have a token", secretName, serviceAccount)
+	}
+	return string(token)
 }
