@@ -7,6 +7,8 @@
 * [Tracking Strategies](tracking_strategies.md)
 
 ## Features
+* [Application Sources](application_sources.md)
+* [Application Parameters](parameters.md)
 * [Resource Health](health.md)
 * [Resource Hooks](resource_hooks.md)
 * [Single Sign On](sso.md)
