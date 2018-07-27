@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +32,7 @@ func CreateServiceAccount(
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(&serviceAccount)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create service account %q: %v", serviceAccountName, err)
+			return fmt.Errorf("Failed to create service account %q: %v", serviceAccountName, err)
 		}
 		fmt.Printf("ServiceAccount %q already exists", serviceAccountName)
 		return
@@ -62,11 +61,11 @@ func CreateClusterRole(
 	_, err := crclient.Create(&clusterRole)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create ClusterRole %q: %v", clusterRoleName, err)
+			return fmt.Errorf("Failed to create ClusterRole %q: %v", clusterRoleName, err)
 		}
 		_, err = crclient.Update(&clusterRole)
 		if err != nil {
-			log.Fatalf("Failed to update ClusterRole %q: %v", clusterRoleName, err)
+			return fmt.Errorf("Failed to update ClusterRole %q: %v", clusterRoleName, err)
 		}
 		fmt.Printf("ClusterRole %q updated", clusterRoleName)
 	} else {
@@ -107,7 +106,7 @@ func CreateClusterRoleBinding(
 	_, err := clientset.RbacV1().ClusterRoleBindings().Create(&roleBinding)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create ClusterRoleBinding %s: %v", clusterBindingRoleName, err)
+			return fmt.Errorf("Failed to create ClusterRoleBinding %s: %v", clusterBindingRoleName, err)
 		}
 		fmt.Printf("ClusterRoleBinding %q already exists", clusterBindingRoleName)
 		return
@@ -153,15 +152,15 @@ func InstallClusterManagerRBAC(conf *rest.Config) (string, error) {
 		return true, nil
 	})
 	if err != nil {
-		log.Fatalf("Failed to wait for service account secret: %v", err)
+		return fmt.Errorf("Failed to wait for service account secret: %v", err)
 	}
 	secret, err := clientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		log.Fatalf("Failed to retrieve secret %q: %v", secretName, err)
+		return fmt.Errorf("Failed to retrieve secret %q: %v", secretName, err)
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		log.Fatalf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
+		return fmt.Errorf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
 	}
 	return string(token), nil
 }
@@ -179,7 +178,7 @@ func UninstallClusterManagerRBAC(conf *rest.Config) error {
 func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleName, serviceAccount string) error {
 	if err := clientset.RbacV1().ClusterRoleBindings().Delete(bindingName, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			log.Fatalf("Failed to delete ClusterRoleBinding: %v", err)
+			return fmt.Errorf("Failed to delete ClusterRoleBinding: %v", err)
 		}
 		fmt.Printf("ClusterRoleBinding %q not found", bindingName)
 	} else {
@@ -188,7 +187,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 
 	if err := clientset.RbacV1().ClusterRoles().Delete(roleName, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			log.Fatalf("Failed to delete ClusterRole: %v", err)
+			return fmt.Errorf("Failed to delete ClusterRole: %v", err)
 		}
 		fmt.Printf("ClusterRole %q not found", roleName)
 	} else {
@@ -197,7 +196,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 
 	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(serviceAccount, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			log.Fatalf("Failed to delete ServiceAccount: %v", err)
+			return fmt.Errorf("Failed to delete ServiceAccount: %v", err)
 		}
 		fmt.Printf("ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
 	} else {
