@@ -13,10 +13,10 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // Server provides a Cluster service
@@ -85,10 +85,21 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 
 // Create creates a cluster
 func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
-	var kubeconfig *clientcmdapi.Config
+	var kubeconfig *localconfig.LocalConfig
 	err := yaml.Unmarshal([]byte(q.Kubeconfig), &kubeconfig)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmarshal kubeconfig: %v", err)
+	}
+
+	var clusterServer string
+	for _, contextRef := range kubeconfig.Contexts {
+		if contextRef.Name == q.Context {
+			clusterServer = contextRef.Server
+			break
+		}
+	}
+	if clusterServer == "" {
+		return nil, status.Errorf(codes.Internal, "Context %s does not exist in kubeconfig", q.Context)
 	}
 
 	// Temporarily install RBAC resources for managing the cluster
@@ -103,9 +114,8 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
 	}
 
-	contextInfo := kubeconfig.Clusters[q.Context]
 	c := &appv1.Cluster{
-		Server: contextInfo.Server,
+		Server: clusterServer,
 		Name:   q.Context,
 		Config: appv1.ClusterConfig{
 			BearerToken: bearerToken,
