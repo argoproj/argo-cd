@@ -77,10 +77,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			}
 
 			kubeconfig, err := yaml.Marshal(clst)
+			errors.CheckError(err)
 			clstCreateReq := cluster.ClusterCreateFromKubeConfigRequest{
 				Kubeconfig: string(kubeconfig),
+				Context:    args[0],
 				Upsert:     upsert,
-				Context:    "",
 			}
 			clst, err = clusterIf.CreateFromKubeConfig(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
