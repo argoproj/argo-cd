@@ -75,11 +75,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
-			clstCreateReq := cluster.ClusterCreateRequest{
-				Cluster: clst,
-				Upsert:  upsert,
+
+			kubeconfig, err := yaml.Marshal(clst)
+			clstCreateReq := cluster.ClusterCreateFromKubeConfigRequest{
+				Kubeconfig: string(kubeconfig),
+				Upsert:     upsert,
+				Context:    "",
 			}
-			clst, err = clusterIf.Create(context.Background(), &clstCreateReq)
+			clst, err = clusterIf.CreateFromKubeConfig(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
 		},
