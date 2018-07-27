@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/appengine/log"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -34,10 +35,10 @@ func CreateServiceAccount(
 		if !apierr.IsAlreadyExists(err) {
 			return fmt.Errorf("Failed to create service account %q: %v", serviceAccountName, err)
 		}
-		fmt.Printf("ServiceAccount %q already exists", serviceAccountName)
+		log.Infof("ServiceAccount %q already exists", serviceAccountName)
 		return nil
 	}
-	fmt.Printf("ServiceAccount %q created", serviceAccountName)
+	log.Infof("ServiceAccount %q created", serviceAccountName)
 	return nil
 }
 
@@ -67,9 +68,9 @@ func CreateClusterRole(
 		if err != nil {
 			return fmt.Errorf("Failed to update ClusterRole %q: %v", clusterRoleName, err)
 		}
-		fmt.Printf("ClusterRole %q updated", clusterRoleName)
+		log.Infof("ClusterRole %q updated", clusterRoleName)
 	} else {
-		fmt.Printf("ClusterRole %q created", clusterRoleName)
+		log.Infof("ClusterRole %q created", clusterRoleName)
 	}
 	return nil
 }
@@ -108,10 +109,10 @@ func CreateClusterRoleBinding(
 		if !apierr.IsAlreadyExists(err) {
 			return fmt.Errorf("Failed to create ClusterRoleBinding %s: %v", clusterBindingRoleName, err)
 		}
-		fmt.Printf("ClusterRoleBinding %q already exists", clusterBindingRoleName)
+		log.Infof("ClusterRoleBinding %q already exists", clusterBindingRoleName)
 		return nil
 	}
-	fmt.Printf("ClusterRoleBinding %q created, bound %q to %q", clusterBindingRoleName, serviceAccountName, clusterRoleName)
+	log.Infof("ClusterRoleBinding %q created, bound %q to %q", clusterBindingRoleName, serviceAccountName, clusterRoleName)
 	return nil
 }
 
@@ -180,27 +181,27 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 		if !apierr.IsNotFound(err) {
 			return fmt.Errorf("Failed to delete ClusterRoleBinding: %v", err)
 		}
-		fmt.Printf("ClusterRoleBinding %q not found", bindingName)
+		log.Infof("ClusterRoleBinding %q not found", bindingName)
 	} else {
-		fmt.Printf("ClusterRoleBinding %q deleted", bindingName)
+		log.Infof("ClusterRoleBinding %q deleted", bindingName)
 	}
 
 	if err := clientset.RbacV1().ClusterRoles().Delete(roleName, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
 			return fmt.Errorf("Failed to delete ClusterRole: %v", err)
 		}
-		fmt.Printf("ClusterRole %q not found", roleName)
+		log.Infof("ClusterRole %q not found", roleName)
 	} else {
-		fmt.Printf("ClusterRole %q deleted", roleName)
+		log.Infof("ClusterRole %q deleted", roleName)
 	}
 
 	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(serviceAccount, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
 			return fmt.Errorf("Failed to delete ServiceAccount: %v", err)
 		}
-		fmt.Printf("ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
+		log.Infof("ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
 	} else {
-		fmt.Printf("ServiceAccount %q deleted", serviceAccount)
+		log.Infof("ServiceAccount %q deleted", serviceAccount)
 	}
 	return nil
 }
