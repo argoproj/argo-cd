@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"reflect"
 
 	"golang.org/x/net/context"
@@ -80,15 +79,12 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 }
 
 // Create creates a cluster
-func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cluster, error) {
+func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", q.Cluster.Server) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	c := q.Cluster
-	err := kube.TestConfig(q.Cluster.RESTConfig())
-	if err != nil {
-		return nil, err
-	}
+
+	c, err := appv1.UnmarshalToUnstructured(q.Kubeconfig).(*appv1.Cluster)
 
 	// Temporarily install RBAC resources for managing the cluster
 	defer func() {
@@ -103,30 +99,10 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateReque
 	}
 	c.Config.BearerToken = bearerToken
 
-	if q.Kubeconfig != "" {
-		fmt.Println("Received Kube config: ", q.Kubeconfig)
-	}
-
-	c.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
-	clust, err := s.db.CreateCluster(ctx, c)
-	if status.Convert(err).Code() == codes.AlreadyExists {
-		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetCluster(ctx, c.Server)
-		if getErr != nil {
-			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
-		}
-
-		// cluster ConnectionState may differ, so make consistent before testing
-		existing.ConnectionState = c.ConnectionState
-		if reflect.DeepEqual(existing, c) {
-			clust, err = existing, nil
-		} else if q.Upsert {
-			return s.Update(ctx, &ClusterUpdateRequest{Cluster: c})
-		} else {
-			return nil, status.Errorf(codes.InvalidArgument, "existing cluster spec is different; use upsert flag to force update")
-		}
-	}
-	return redact(clust), err
+	return s.Create(q.Context, &ClusterCreateRequest{
+		Cluster: c,
+		Upsert:  q.Upsert,
+	})
 }
 
 // Get returns a cluster from a query
