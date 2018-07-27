@@ -35,7 +35,7 @@ func CreateServiceAccount(
 			return fmt.Errorf("Failed to create service account %q: %v", serviceAccountName, err)
 		}
 		fmt.Printf("ServiceAccount %q already exists", serviceAccountName)
-		return
+		return nil
 	}
 	fmt.Printf("ServiceAccount %q created", serviceAccountName)
 	return nil
@@ -109,7 +109,7 @@ func CreateClusterRoleBinding(
 			return fmt.Errorf("Failed to create ClusterRoleBinding %s: %v", clusterBindingRoleName, err)
 		}
 		fmt.Printf("ClusterRoleBinding %q already exists", clusterBindingRoleName)
-		return
+		return nil
 	}
 	fmt.Printf("ClusterRoleBinding %q created, bound %q to %q", clusterBindingRoleName, serviceAccountName, clusterRoleName)
 	return nil
@@ -152,15 +152,15 @@ func InstallClusterManagerRBAC(conf *rest.Config) (string, error) {
 		return true, nil
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to wait for service account secret: %v", err)
+		return "", fmt.Errorf("Failed to wait for service account secret: %v", err)
 	}
 	secret, err := clientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve secret %q: %v", secretName, err)
+		return "", fmt.Errorf("Failed to retrieve secret %q: %v", secretName, err)
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		return fmt.Errorf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
+		return "", fmt.Errorf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
 	}
 	return string(token), nil
 }
