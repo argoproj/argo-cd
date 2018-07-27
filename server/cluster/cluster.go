@@ -7,8 +7,8 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
@@ -19,10 +19,8 @@ import (
 
 // Server provides a Cluster service
 type Server struct {
-	ns            string
-	kubeclientset kubernetes.Interface
-	db            db.ArgoDB
-	enf           *rbac.Enforcer
+	db  db.ArgoDB
+	enf *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Cluster service
@@ -92,22 +90,22 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateReque
 		return nil, err
 	}
 
-	if q.Kubeconfig != "" {
-		fmt.Println("Received Kube config: ", q.Kubeconfig)
-	}
-
 	// Temporarily install RBAC resources for managing the cluster
 	defer func() {
-		err := s.UninstallClusterManagerRBAC()
+		err := common.UninstallClusterManagerRBAC(q.Cluster.RESTConfig())
 		if err != nil {
 			log.Errorf("Error occurred uninstalling cluster manager: %s", err)
 		}
 	}()
-	bearerToken, err := s.InstallClusterManagerRBAC()
+	bearerToken, err := common.InstallClusterManagerRBAC(q.Cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
 	c.Config.BearerToken = bearerToken
+
+	if q.Kubeconfig != "" {
+		fmt.Println("Received Kube config: ", q.Kubeconfig)
+	}
 
 	c.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 	clust, err := s.db.CreateCluster(ctx, c)
