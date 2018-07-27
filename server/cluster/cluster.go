@@ -81,7 +81,10 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 
 // Create creates a cluster
 func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
-	var c *appv1.Cluster
+	var (
+		c             *appv1.Cluster
+		targetContext context.Context
+	)
 
 	err := yaml.Unmarshal([]byte(q.Kubeconfig), &c)
 	if err != nil {
@@ -92,7 +95,10 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	targetContext := ctx
+	err = yaml.Unmarshal([]byte(q.Context), &targetContext)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not unmarshal cluster context: %v", err)
+	}
 
 	// Temporarily install RBAC resources for managing the cluster
 	defer func() {
