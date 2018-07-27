@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -80,26 +81,32 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 
 // Create creates a cluster
 func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", q.Cluster.Server) {
+	var c *appv1.Cluster
+
+	err := yaml.Unmarshal([]byte(q.Kubeconfig), &c)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not unmarshal cluster spec: %v", err)
+	}
+
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", c.Server) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	c, err := appv1.UnmarshalToUnstructured(q.Kubeconfig).(*appv1.Cluster)
+	targetContext := ctx
 
 	// Temporarily install RBAC resources for managing the cluster
 	defer func() {
-		err := common.UninstallClusterManagerRBAC(q.Cluster.RESTConfig())
+		err := common.UninstallClusterManagerRBAC(c.RESTConfig())
 		if err != nil {
-			log.Errorf("Error occurred uninstalling cluster manager: %s", err)
+			log.Errorf("Error occurred uninstalling cluster manager: %v", err)
 		}
 	}()
-	bearerToken, err := common.InstallClusterManagerRBAC(q.Cluster.RESTConfig())
+	c.Config.BearerToken, err = common.InstallClusterManagerRBAC(c.RESTConfig())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
 	}
-	c.Config.BearerToken = bearerToken
 
-	return s.Create(q.Context, &ClusterCreateRequest{
+	return s.Create(targetContext, &ClusterCreateRequest{
 		Cluster: c,
 		Upsert:  q.Upsert,
 	})
