@@ -91,10 +91,6 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		return nil, status.Errorf(codes.Internal, "Could not unmarshal cluster spec: %v", err)
 	}
 
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", c.Server) {
-		return nil, grpc.ErrPermissionDenied
-	}
-
 	err = yaml.Unmarshal([]byte(q.Context), &targetContext)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmarshal cluster context: %v", err)
@@ -110,6 +106,10 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 	c.Config.BearerToken, err = common.InstallClusterManagerRBAC(c.RESTConfig())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
+	}
+
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", c.Server) {
+		return nil, grpc.ErrPermissionDenied
 	}
 
 	return s.Create(targetContext, &ClusterCreateRequest{
