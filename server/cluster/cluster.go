@@ -99,7 +99,7 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateReque
 	}()
 	bearerToken, err := common.InstallClusterManagerRBAC(q.Cluster.RESTConfig())
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
 	}
 	c.Config.BearerToken = bearerToken
 
