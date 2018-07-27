@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/errors"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -20,7 +19,7 @@ func CreateServiceAccount(
 	clientset kubernetes.Interface,
 	serviceAccountName string,
 	namespace string,
-) {
+) error {
 	serviceAccount := apiv1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -34,12 +33,13 @@ func CreateServiceAccount(
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(&serviceAccount)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create service account %q: %v\n", serviceAccountName, err)
+			log.Fatalf("Failed to create service account %q: %v", serviceAccountName, err)
 		}
-		fmt.Printf("ServiceAccount %q already exists\n", serviceAccountName)
+		fmt.Printf("ServiceAccount %q already exists", serviceAccountName)
 		return
 	}
-	fmt.Printf("ServiceAccount %q created\n", serviceAccountName)
+	fmt.Printf("ServiceAccount %q created", serviceAccountName)
+	return nil
 }
 
 // CreateClusterRole creates a cluster role
@@ -47,7 +47,7 @@ func CreateClusterRole(
 	clientset kubernetes.Interface,
 	clusterRoleName string,
 	rules []rbacv1.PolicyRule,
-) {
+) error {
 	clusterRole := rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -62,16 +62,17 @@ func CreateClusterRole(
 	_, err := crclient.Create(&clusterRole)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create ClusterRole %q: %v\n", clusterRoleName, err)
+			log.Fatalf("Failed to create ClusterRole %q: %v", clusterRoleName, err)
 		}
 		_, err = crclient.Update(&clusterRole)
 		if err != nil {
-			log.Fatalf("Failed to update ClusterRole %q: %v\n", clusterRoleName, err)
+			log.Fatalf("Failed to update ClusterRole %q: %v", clusterRoleName, err)
 		}
-		fmt.Printf("ClusterRole %q updated\n", clusterRoleName)
+		fmt.Printf("ClusterRole %q updated", clusterRoleName)
 	} else {
-		fmt.Printf("ClusterRole %q created\n", clusterRoleName)
+		fmt.Printf("ClusterRole %q created", clusterRoleName)
 	}
+	return nil
 }
 
 // CreateClusterRoleBinding create a ClusterRoleBinding
@@ -81,7 +82,7 @@ func CreateClusterRoleBinding(
 	serviceAccountName,
 	clusterRoleName string,
 	namespace string,
-) {
+) error {
 	roleBinding := rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -106,22 +107,37 @@ func CreateClusterRoleBinding(
 	_, err := clientset.RbacV1().ClusterRoleBindings().Create(&roleBinding)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create ClusterRoleBinding %s: %v\n", clusterBindingRoleName, err)
+			log.Fatalf("Failed to create ClusterRoleBinding %s: %v", clusterBindingRoleName, err)
 		}
-		fmt.Printf("ClusterRoleBinding %q already exists\n", clusterBindingRoleName)
+		fmt.Printf("ClusterRoleBinding %q already exists", clusterBindingRoleName)
 		return
 	}
-	fmt.Printf("ClusterRoleBinding %q created, bound %q to %q\n", clusterBindingRoleName, serviceAccountName, clusterRoleName)
+	fmt.Printf("ClusterRoleBinding %q created, bound %q to %q", clusterBindingRoleName, serviceAccountName, clusterRoleName)
+	return nil
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(conf *rest.Config) string {
+func InstallClusterManagerRBAC(conf *rest.Config) (string, error) {
 	const ns = "kube-system"
 	clientset, err := kubernetes.NewForConfig(conf)
-	errors.CheckError(err)
-	CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
-	CreateClusterRole(clientset, ArgoCDManagerClusterRole, ArgoCDManagerPolicyRules)
-	CreateClusterRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerServiceAccount, ArgoCDManagerClusterRole, ns)
+	if err != nil {
+		return "", err
+	}
+
+	err = CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
+	if err != nil {
+		return "", err
+	}
+
+	err = CreateClusterRole(clientset, ArgoCDManagerClusterRole, ArgoCDManagerPolicyRules)
+	if err != nil {
+		return "", err
+	}
+
+	err = CreateClusterRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerServiceAccount, ArgoCDManagerClusterRole, ns)
+	if err != nil {
+		return "", err
+	}
 
 	var serviceAccount *apiv1.ServiceAccount
 	var secretName string
@@ -147,42 +163,45 @@ func InstallClusterManagerRBAC(conf *rest.Config) string {
 	if !ok {
 		log.Fatalf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
 	}
-	return string(token)
+	return string(token), nil
 }
 
 // UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster
-func UninstallClusterManagerRBAC(conf *rest.Config) {
+func UninstallClusterManagerRBAC(conf *rest.Config) error {
 	clientset, err := kubernetes.NewForConfig(conf)
-	errors.CheckError(err)
-	UninstallRBAC(clientset, "kube-system", ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, ArgoCDManagerServiceAccount)
+	if err != nil {
+		return err
+	}
+	return UninstallRBAC(clientset, "kube-system", ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, ArgoCDManagerServiceAccount)
 }
 
 // UninstallRBAC uninstalls RBAC related resources  for a binding, role, and service account
-func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleName, serviceAccount string) {
+func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleName, serviceAccount string) error {
 	if err := clientset.RbacV1().ClusterRoleBindings().Delete(bindingName, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			log.Fatalf("Failed to delete ClusterRoleBinding: %v\n", err)
+			log.Fatalf("Failed to delete ClusterRoleBinding: %v", err)
 		}
-		fmt.Printf("ClusterRoleBinding %q not found\n", bindingName)
+		fmt.Printf("ClusterRoleBinding %q not found", bindingName)
 	} else {
-		fmt.Printf("ClusterRoleBinding %q deleted\n", bindingName)
+		fmt.Printf("ClusterRoleBinding %q deleted", bindingName)
 	}
 
 	if err := clientset.RbacV1().ClusterRoles().Delete(roleName, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			log.Fatalf("Failed to delete ClusterRole: %v\n", err)
+			log.Fatalf("Failed to delete ClusterRole: %v", err)
 		}
-		fmt.Printf("ClusterRole %q not found\n", roleName)
+		fmt.Printf("ClusterRole %q not found", roleName)
 	} else {
-		fmt.Printf("ClusterRole %q deleted\n", roleName)
+		fmt.Printf("ClusterRole %q deleted", roleName)
 	}
 
 	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(serviceAccount, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			log.Fatalf("Failed to delete ServiceAccount: %v\n", err)
+			log.Fatalf("Failed to delete ServiceAccount: %v", err)
 		}
-		fmt.Printf("ServiceAccount %q in namespace %q not found\n", serviceAccount, namespace)
+		fmt.Printf("ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
 	} else {
-		fmt.Printf("ServiceAccount %q deleted\n", serviceAccount)
+		fmt.Printf("ServiceAccount %q deleted", serviceAccount)
 	}
+	return nil
 }
