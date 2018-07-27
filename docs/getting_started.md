@@ -3,7 +3,6 @@
 An example guestbook application is provided to demonstrate how ArgoCD works.
 
 ## Requirements
-* Installed [minikube](https://github.com/kubernetes/minikube#installation)
 * Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool
 * Have a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file (default location is `~/.kube/config`).
 
@@ -24,7 +23,7 @@ $ kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole
 
 Download the latest ArgoCD version:
 ```
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.6.2/argocd-darwin-amd64
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.7.0/argocd-darwin-amd64
 chmod +x /usr/local/bin/argocd
 ```
 
@@ -53,7 +52,7 @@ argocd login $(minikube service argocd-server -n argocd --url | cut -d'/' -f 3) 
 ```
 Other clusters:
 ```
-kubectl get svc argocd-server
+kubectl get svc -n argocd argocd-server
 argocd login <EXTERNAL-IP>
 ```
 
@@ -115,7 +114,7 @@ After connecting a git repository, select the guestbook application for creation
 Applications can be also be created using the ArgoCD CLI:
 
 ```
-argocd app create --name guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
+argocd app create guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
 ```
 
 ## 7. Sync (deploy) the application

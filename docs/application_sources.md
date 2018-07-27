@@ -16,7 +16,7 @@ app directory, an environment must be specified. For example, the following comm
 "guestbook-default" app, which points to the `default` environment:
 
 ```
-argocd app create --name guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
+argocd app create guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
 ```
 
 ### Parameters

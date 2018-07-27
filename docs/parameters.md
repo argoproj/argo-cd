@@ -35,5 +35,5 @@ forking the repository to make the changes. For example, to install redis from t
 repository and customize the the database password, you would run:
 
 ```
-argocd app create --name redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p password=abc123
+argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p password=abc123
 ```
