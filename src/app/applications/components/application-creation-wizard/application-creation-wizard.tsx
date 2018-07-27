@@ -88,7 +88,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             case Step.SelectApp:
                 return {
                     title: (
-                        <div>Select application or <a onClick={() => this.updateState({ appParams: {
+                        <div>Select application or <a onClick={() => !this.state.loading && this.updateState({ appParams: {
                             applicationName: '',
                             repoURL: this.state.selectedRepo,
                             environment: '',
@@ -141,7 +141,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                         });
                     },
                     canPrev: () => true,
-                    prev: () => this.updateState({ step: Step.SelectRepo }),
+                    prev: () => this.updateState({ step: Step.SelectApp }),
                     render: () => (
                         <EnvironmentsList envs={this.state.envs} selectedEnv={this.state.selectedEnv} onEnvsSelectionChanged={(env) => this.updateState({ selectedEnv: env })}/>
                     ),
@@ -152,7 +152,13 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     canNext: () => this.state.appParamsValid,
                     next: async () => this.submitAppParamsForm.next({}),
                     canPrev: () => true,
-                    prev: () => this.updateState({ step: Step.SelectEnvironments }),
+                    prev: async () => {
+                        if (this.state.selectedApp && this.state.selectedApp.ksonnet) {
+                            this.updateState({ step: Step.SelectEnvironments });
+                        } else {
+                            this.updateState({ step: Step.SelectApp });
+                        }
+                    },
                     render: () => (
                         <AppParams
                             needEnvironment={!!(this.state.selectedApp && this.state.selectedApp.ksonnet)}
