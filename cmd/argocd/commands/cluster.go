@@ -76,10 +76,13 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
 
-			kubeconfig, err := yaml.Marshal(clst)
+			kubeconfig, err := argoappv1.UnmarshalToUnstructured(clientOpts.ConfigPath)
 			errors.CheckError(err)
+			marshaledCfg, err := kubeconfig.MarshalJSON()
+			errors.CheckError(err)
+
 			clstCreateReq := cluster.ClusterCreateFromKubeConfigRequest{
-				Kubeconfig: string(kubeconfig),
+				Kubeconfig: string(marshaledCfg),
 				Context:    args[0],
 				Upsert:     upsert,
 			}

@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 // CreateServiceAccount creates a service account
@@ -117,12 +116,9 @@ func CreateClusterRoleBinding(
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(conf *rest.Config) (string, error) {
+func InstallClusterManagerRBAC(clientset kubernetes.Interface) (string, error) {
 	const ns = "kube-system"
-	clientset, err := kubernetes.NewForConfig(conf)
-	if err != nil {
-		return "", err
-	}
+	var err error
 
 	err = CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
@@ -167,11 +163,7 @@ func InstallClusterManagerRBAC(conf *rest.Config) (string, error) {
 }
 
 // UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster
-func UninstallClusterManagerRBAC(conf *rest.Config) error {
-	clientset, err := kubernetes.NewForConfig(conf)
-	if err != nil {
-		return err
-	}
+func UninstallClusterManagerRBAC(clientset kubernetes.Interface) error {
 	return UninstallRBAC(clientset, "kube-system", ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, ArgoCDManagerServiceAccount)
 }
 

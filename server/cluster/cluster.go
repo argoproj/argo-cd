@@ -6,7 +6,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	yaml "gopkg.in/yaml.v2"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -14,20 +14,24 @@ import (
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // Server provides a Cluster service
 type Server struct {
-	db  db.ArgoDB
-	enf *rbac.Enforcer
+	kubeclientset kubernetes.Interface
+	db            db.ArgoDB
+	enf           *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer) *Server {
+func NewServer(kubeclientset kubernetes.Interface, db db.ArgoDB, enf *rbac.Enforcer) *Server {
 	return &Server{
-		db:  db,
-		enf: enf,
+		kubeclientset: kubeclientset,
+		db:            db,
+		enf:           enf,
 	}
 }
 
@@ -81,38 +85,34 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 
 // Create creates a cluster
 func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
-	var (
-		c             *appv1.Cluster
-		targetContext context.Context
-	)
-
-	err := yaml.Unmarshal([]byte(q.Kubeconfig), &c)
+	var kubeconfig *clientcmdapi.Config
+	err := yaml.Unmarshal([]byte(q.Kubeconfig), &kubeconfig)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not unmarshal cluster spec: %v", err)
-	}
-
-	err = yaml.Unmarshal([]byte(q.Context), &targetContext)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not unmarshal cluster context: %v", err)
+		return nil, status.Errorf(codes.Internal, "Could not unmarshal kubeconfig: %v", err)
 	}
 
 	// Temporarily install RBAC resources for managing the cluster
 	defer func() {
-		err := common.UninstallClusterManagerRBAC(c.RESTConfig())
+		err := common.UninstallClusterManagerRBAC(s.kubeclientset)
 		if err != nil {
 			log.Errorf("Error occurred uninstalling cluster manager: %v", err)
 		}
 	}()
-	c.Config.BearerToken, err = common.InstallClusterManagerRBAC(c.RESTConfig())
+	bearerToken, err := common.InstallClusterManagerRBAC(s.kubeclientset)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
 	}
 
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "create", c.Server) {
-		return nil, grpc.ErrPermissionDenied
+	contextInfo := kubeconfig.Clusters[q.Context]
+	c := &appv1.Cluster{
+		Server: contextInfo.Server,
+		Name:   q.Context,
+		Config: appv1.ClusterConfig{
+			BearerToken: bearerToken,
+		},
 	}
 
-	return s.Create(targetContext, &ClusterCreateRequest{
+	return s.Create(ctx, &ClusterCreateRequest{
 		Cluster: c,
 		Upsert:  q.Upsert,
 	})
