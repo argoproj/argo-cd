@@ -34,12 +34,12 @@ func CreateServiceAccount(
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(&serviceAccount)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create service account '%s': %v\n", serviceAccountName, err)
+			log.Fatalf("Failed to create service account %q: %v\n", serviceAccountName, err)
 		}
-		fmt.Printf("ServiceAccount '%s' already exists\n", serviceAccountName)
+		fmt.Printf("ServiceAccount %q already exists\n", serviceAccountName)
 		return
 	}
-	fmt.Printf("ServiceAccount '%s' created\n", serviceAccountName)
+	fmt.Printf("ServiceAccount %q created\n", serviceAccountName)
 }
 
 // CreateClusterRole creates a cluster role
@@ -62,15 +62,15 @@ func CreateClusterRole(
 	_, err := crclient.Create(&clusterRole)
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			log.Fatalf("Failed to create ClusterRole '%s': %v\n", clusterRoleName, err)
+			log.Fatalf("Failed to create ClusterRole %q: %v\n", clusterRoleName, err)
 		}
 		_, err = crclient.Update(&clusterRole)
 		if err != nil {
-			log.Fatalf("Failed to update ClusterRole '%s': %v\n", clusterRoleName, err)
+			log.Fatalf("Failed to update ClusterRole %q: %v\n", clusterRoleName, err)
 		}
-		fmt.Printf("ClusterRole '%s' updated\n", clusterRoleName)
+		fmt.Printf("ClusterRole %q updated\n", clusterRoleName)
 	} else {
-		fmt.Printf("ClusterRole '%s' created\n", clusterRoleName)
+		fmt.Printf("ClusterRole %q created\n", clusterRoleName)
 	}
 }
 
@@ -108,10 +108,10 @@ func CreateClusterRoleBinding(
 		if !apierr.IsAlreadyExists(err) {
 			log.Fatalf("Failed to create ClusterRoleBinding %s: %v\n", clusterBindingRoleName, err)
 		}
-		fmt.Printf("ClusterRoleBinding '%s' already exists\n", clusterBindingRoleName)
+		fmt.Printf("ClusterRoleBinding %q already exists\n", clusterBindingRoleName)
 		return
 	}
-	fmt.Printf("ClusterRoleBinding '%s' created, bound '%s' to '%s'\n", clusterBindingRoleName, serviceAccountName, clusterRoleName)
+	fmt.Printf("ClusterRoleBinding %q created, bound %q to %q\n", clusterBindingRoleName, serviceAccountName, clusterRoleName)
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
@@ -141,11 +141,11 @@ func InstallClusterManagerRBAC(conf *rest.Config) string {
 	}
 	secret, err := clientset.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		log.Fatalf("Failed to retrieve secret '%s': %v", secretName, err)
+		log.Fatalf("Failed to retrieve secret %q: %v", secretName, err)
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		log.Fatalf("Secret '%s' for service account '%s' did not have a token", secretName, serviceAccount)
+		log.Fatalf("Secret %q for service account %q did not have a token", secretName, serviceAccount)
 	}
 	return string(token)
 }
@@ -163,26 +163,26 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 		if !apierr.IsNotFound(err) {
 			log.Fatalf("Failed to delete ClusterRoleBinding: %v\n", err)
 		}
-		fmt.Printf("ClusterRoleBinding '%s' not found\n", bindingName)
+		fmt.Printf("ClusterRoleBinding %q not found\n", bindingName)
 	} else {
-		fmt.Printf("ClusterRoleBinding '%s' deleted\n", bindingName)
+		fmt.Printf("ClusterRoleBinding %q deleted\n", bindingName)
 	}
 
 	if err := clientset.RbacV1().ClusterRoles().Delete(roleName, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
 			log.Fatalf("Failed to delete ClusterRole: %v\n", err)
 		}
-		fmt.Printf("ClusterRole '%s' not found\n", roleName)
+		fmt.Printf("ClusterRole %q not found\n", roleName)
 	} else {
-		fmt.Printf("ClusterRole '%s' deleted\n", roleName)
+		fmt.Printf("ClusterRole %q deleted\n", roleName)
 	}
 
 	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(serviceAccount, &metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
 			log.Fatalf("Failed to delete ServiceAccount: %v\n", err)
 		}
-		fmt.Printf("ServiceAccount '%s' in namespace '%s' not found\n", serviceAccount, namespace)
+		fmt.Printf("ServiceAccount %q in namespace %q not found\n", serviceAccount, namespace)
 	} else {
-		fmt.Printf("ServiceAccount '%s' deleted\n", serviceAccount)
+		fmt.Printf("ServiceAccount %q deleted\n", serviceAccount)
 	}
 }
