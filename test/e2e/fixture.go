@@ -190,7 +190,7 @@ func (f *Fixture) ensureClusterRegistered() error {
 	}
 	clst := commands.NewCluster(f.Config.Host, conf)
 	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
-	_, err = cluster.NewServer(f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
+	_, err = cluster.NewServer(f.KubeClient, f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
 	return err
 }
 
