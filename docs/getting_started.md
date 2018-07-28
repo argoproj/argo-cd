@@ -59,6 +59,7 @@ argocd login <EXTERNAL-IP>
 After logging in, change the password using the command:
 ```
 argocd account update-password
+argocd relogin
 ```
 
 
