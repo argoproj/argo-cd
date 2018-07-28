@@ -22,6 +22,7 @@ message ProjectCreateRequest {
 message ProjectTokenCreateRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ProjectToken token = 2;
+    int32 secondsBeforeExpiry = 3;
 }
 
 message ProjectTokenPolicyCreateRequest {

@@ -469,10 +469,9 @@ type AppProjectSpec struct {
 // ProjectToken TODO: Check if everything should be capitalized
 // ProjectToken contains metadata of a token for a project
 type ProjectToken struct {
-	Name       string   `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Policies   []string `protobuf:"bytes,2,rep,name=policies"`
-	ValidUntil int64    `json:"validUntil" protobuf:"int64,3,opt,name=validUntil"`
-	// ValidUntil timestamp.Timestamp `json:"validUntil" protobuf:"bytes,3,opt,name=validUntil"`
+	Name      string   `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Policies  []string `protobuf:"bytes,2,rep,name=policies"`
+	CreatedAt int64    `json:"createdAt" protobuf:"int64,3,opt,name=createdAt"`
 }
 
 func GetDefaultProject(namespace string) AppProject {

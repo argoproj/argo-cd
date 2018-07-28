@@ -34,11 +34,11 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 	if err != nil {
 		return nil, err
 	}
-	tokenString, err := s.mgr.Create(q.Username, 0)
+	jwtToken, err := s.mgr.Create(q.Username, 0)
 	if err != nil {
 		return nil, err
 	}
-	return &SessionResponse{Token: tokenString}, nil
+	return &SessionResponse{Token: jwtToken.Token}, nil
 }
 
 // Delete an authentication cookie from the client.  This makes sense only for the Web client.

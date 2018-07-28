@@ -1396,6 +1396,10 @@
         "project": {
           "$ref": "#/definitions/v1alpha1AppProject"
         },
+        "secondsBeforeExpiry": {
+          "type": "integer",
+          "format": "int32"
+        },
         "token": {
           "$ref": "#/definitions/v1alpha1ProjectToken"
         }
@@ -1583,9 +1587,6 @@
       "type": "object",
       "properties": {
         "password": {
-          "type": "string"
-        },
-        "project": {
           "type": "string"
         },
         "token": {
@@ -2370,6 +2371,10 @@
       "type": "object",
       "title": "ProjectToken TODO: Check if everything should be capitalized\nProjectToken contains metadata of a token for a project",
       "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
+        },
         "name": {
           "type": "string"
         },
@@ -2378,10 +2383,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "validUntil": {
-          "type": "string",
-          "format": "int64"
         }
       }
     },

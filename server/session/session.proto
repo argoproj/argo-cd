@@ -17,7 +17,6 @@ message SessionCreateRequest {
   string username = 1;
   string password = 2;
   string token = 3;
-  string project = 4;
 }
 
 // SessionDeleteRequest is for logging out.

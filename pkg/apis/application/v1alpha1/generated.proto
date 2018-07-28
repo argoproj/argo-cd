@@ -292,7 +292,7 @@ message ProjectToken {
 
   repeated string policies = 2;
 
-  optional int64 validUntil = 3;
+  optional int64 createdAt = 3;
 }
 
 // Repository is a Git repository holding application configurations

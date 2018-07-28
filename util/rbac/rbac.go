@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -133,12 +134,17 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 	user := jwtutil.GetField(mapClaims, "sub")
 	if strings.HasPrefix(user, "proj:") {
 		model := loadModel()
-		tokenPolicies, err := e.getProjectTokenPolices(user)
+		projPolicy, tokenCreationTime, err := e.getProjectTokenInfo(user)
 		if err != nil {
+			log.Error(err)
+			return false
+		}
+		iat := jwtutil.GetInt64Field(mapClaims, "iat")
+		if tokenCreationTime != iat {
 			return false
 		}
 		//TODO: Add verification of created at time
-		adapter := scas.NewAdapter(tokenPolicies)
+		adapter := scas.NewAdapter(projPolicy)
 		enf := casbin.NewEnforcer(model, adapter)
 		enf.EnableLog(false)
 		vals := append([]interface{}{user}, rvals[1:]...)
@@ -150,14 +156,25 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 }
 
 //TODO: Add tests for method
-func (e *Enforcer) getProjectTokenPolices(user string) (string, error) {
-	projName := strings.Split(user, ":")[1]
+// Returns all the policies for a project and when the token was created.
+func (e *Enforcer) getProjectTokenInfo(user string) (string, int64, error) {
+	userSplit := strings.Split(user, ":")
+	if len(userSplit) != 3 {
+		return "", -1, errors.New("incorrectly formated sub. Should follow proj:<proj>:<token> format")
+	}
+	projName := userSplit[1]
+	tokenName := userSplit[2]
 	proj, err := e.appclientset.ArgoprojV1alpha1().AppProjects(e.namespace).Get(projName, metav1.GetOptions{})
 	if err != nil {
 		fmt.Print(err)
-		return "", err
+		return "", -1, err
 	}
-	return proj.TokenPoliciesString(), nil
+	for _, token := range proj.Spec.Tokens {
+		if token.Name == tokenName {
+			return proj.TokenPoliciesString(), token.CreatedAt, nil
+		}
+	}
+	return "", -1, errors.New("project doesn't have token")
 }
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies

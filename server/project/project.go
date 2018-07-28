@@ -102,19 +102,20 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	}
 	//TODO: Move string somewhere common
 	roleName := fmt.Sprintf("proj:%s:%s", q.Project.Name, q.Token.Name)
-	//TODO: Confirm expired token doesn't work
-	token, err := s.sessionMgr.CreateToken(roleName, q.Token.ValidUntil)
+	//Protobufforces SecondsBeforeExpiry to be a int32 instead of an int. We are converting it to a regular int here.
+	jwtToken, err := s.sessionMgr.Create(roleName, int(q.SecondsBeforeExpiry))
 	if err != nil {
 		return nil, err
 	}
 
+	q.Token.CreatedAt = jwtToken.IssuedAt
 	q.Project.Spec.Tokens = append(q.Project.Spec.Tokens, *q.Token)
 
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
 	if err != nil {
 		return nil, err
 	}
-	return &ProjectTokenResponse{Token: token}, nil
+	return &ProjectTokenResponse{Token: jwtToken.Token}, nil
 
 }
 

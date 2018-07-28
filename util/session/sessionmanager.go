@@ -43,6 +43,12 @@ const (
 	badUserError       = "Bad local superuser username"
 )
 
+// JwtToken the metadata of a token
+type JwtToken struct {
+	Token    string
+	IssuedAt int64
+}
+
 // NewSessionManager creates a new session manager from ArgoCD settings
 func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 	s := SessionManager{
@@ -70,24 +76,9 @@ func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 	return &s
 }
 
-// CreateToken creates a new token for a given subject (user) and returns it as a string.
-func (mgr *SessionManager) CreateToken(subject string, validUntil int64) (string, error) {
-	// Create a new token object, specifying signing method and the claims
-	// you would like it to contain.
-	now := time.Now().Unix()
-	claims := jwt.StandardClaims{
-		ExpiresAt: validUntil,
-		IssuedAt:  now,
-		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: now,
-		Subject:   subject,
-	}
-	return mgr.signClaims(claims)
-}
-
 // Create creates a new token for a given subject (user) and returns it as a string.
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
-func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (string, error) {
+func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (*JwtToken, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
@@ -101,7 +92,12 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (stri
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
 		claims.ExpiresAt = expires.Unix()
 	}
-	return mgr.signClaims(claims)
+
+	token, err := mgr.signClaims(claims)
+	if err != nil {
+		return nil, err
+	}
+	return &JwtToken{Token: token, IssuedAt: now.Unix()}, nil
 }
 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {

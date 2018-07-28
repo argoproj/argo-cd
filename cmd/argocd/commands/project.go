@@ -2,7 +2,6 @@ package commands
 
 import (
 	"os"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -35,6 +34,9 @@ type policyOpts struct {
 	permission string
 	object     string
 }
+
+//Default expiration time to 3 months
+const defaultSecondsBeforeExpiry = 60 * 60 * 24 * 3
 
 func (opts *projectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	destinations := make([]v1alpha1.ApplicationDestination, 0)
@@ -129,17 +131,18 @@ func NewProjectCreateTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) 
 
 // NewProjectCreateTokenCommand returns a new instance of an `argocd proj token create` command
 func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		secondsBeforeExpiry int32
+	)
 	var command = &cobra.Command{
 		//TODO: Change to `token create`
-		Use:   "create-token PROJECT TOKEN-NAME",
+		Use:   "create-token PROJECT TOKEN-NAME [--seconds seconds]",
 		Short: "Create a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			//TODO: Make validUntil configuriable
-			validUntil := time.Now().Add(time.Hour * 24).Unix()
 			projName := args[0]
 			tokenName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
@@ -148,7 +151,7 @@ func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: proj, Token: &v1alpha1.ProjectToken{Name: tokenName, ValidUntil: validUntil}})
+			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: proj, Token: &v1alpha1.ProjectToken{Name: tokenName}, SecondsBeforeExpiry: secondsBeforeExpiry})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			//TODO: Clean up message and think about how it should formatted
@@ -157,6 +160,8 @@ func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			_ = w.Flush()
 		},
 	}
+	command.Flags().Int32VarP(&secondsBeforeExpiry, "secondsBeforeExpiry", "s", defaultSecondsBeforeExpiry, "Number of seconds before the token will expire (Default: 3 months)")
+
 	return command
 }
 
