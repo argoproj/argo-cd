@@ -64,8 +64,17 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			os.Exit(1)
 		},
 	}
-	//TODO: Refector into token sub-command
-	command.AddCommand(NewProjectCreateTokenCommand(clientOpts))
+	var tokenCommand = &cobra.Command{
+		Use:   "token",
+		Short: "Manage a project's token",
+		Run: func(c *cobra.Command, args []string) {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		},
+	}
+	tokenCommand.AddCommand(NewProjectCreateTokenCommand(clientOpts))
+	tokenCommand.AddCommand(NewProjectAddTokenPolicyCommand(clientOpts))
+	command.AddCommand(tokenCommand)
 	command.AddCommand(NewProjectCreateCommand(clientOpts))
 	command.AddCommand(NewProjectDeleteCommand(clientOpts))
 	command.AddCommand(NewProjectListCommand(clientOpts))
@@ -74,7 +83,6 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveSourceCommand(clientOpts))
-	command.AddCommand(NewProjectCreateTokenPolicyCommand(clientOpts))
 	return command
 }
 
@@ -91,21 +99,19 @@ func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
 	command.Flags().StringVarP(&opts.object, "object", "o", "", "Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'")
 }
 
-// NewProjectCreateTokenPolicyCommand returns a new instance of an `argocd proj token create-policy` command
-func NewProjectCreateTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+// NewProjectAddTokenPolicyCommand returns a new instance of an `argocd proj token add-policy` command
+func NewProjectAddTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		opts policyOpts
 	)
 	var command = &cobra.Command{
-		//TODO: Change to `token add-policy`
-		Use:   "create-token-policy PROJECT TOKEN-NAME",
-		Short: "Create a policy for a project token",
+		Use:   "add-policy PROJECT TOKEN-NAME",
+		Short: "Add a policy to a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			//TODO: Check if this logic can be pushed into the flags library
 			if opts.permission != "allow" && opts.permission != "deny" {
 				log.Fatal("Permission flag can only have the values 'allow' or 'deny'")
 			}
@@ -135,8 +141,7 @@ func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		secondsBeforeExpiry int32
 	)
 	var command = &cobra.Command{
-		//TODO: Change to `token create`
-		Use:   "create-token PROJECT TOKEN-NAME [--seconds seconds]",
+		Use:   "create PROJECT TOKEN-NAME [--seconds seconds]",
 		Short: "Create a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
