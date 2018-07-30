@@ -20,9 +20,9 @@ message ProjectCreateRequest {
 
 // ProjectTokenCreateRequest defines project token creation parameters.
 message ProjectTokenCreateRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ProjectToken token = 2;
-    int32 secondsBeforeExpiry = 3;
+    string project = 1;
+    string token = 2;
+    int64 secondsBeforeExpiry = 3;
 }
 
 message ProjectTokenPolicyCreateRequest {

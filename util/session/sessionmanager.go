@@ -78,7 +78,7 @@ func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 
 // Create creates a new token for a given subject (user) and returns it as a string.
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
-func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int) (*JwtToken, error) {
+func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (*JwtToken, error) {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()

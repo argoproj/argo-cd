@@ -138,7 +138,7 @@ func NewProjectAddTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *co
 // NewProjectCreateTokenCommand returns a new instance of an `argocd proj token create` command
 func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		secondsBeforeExpiry int32
+		secondsBeforeExpiry int64
 	)
 	var command = &cobra.Command{
 		Use:   "create PROJECT TOKEN-NAME [--seconds seconds]",
@@ -153,19 +153,15 @@ func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-
-			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: proj, Token: &v1alpha1.ProjectToken{Name: tokenName}, SecondsBeforeExpiry: secondsBeforeExpiry})
+			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Token: tokenName, SecondsBeforeExpiry: secondsBeforeExpiry})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			//TODO: Clean up message and think about how it should formatted
-			fmt.Fprintf(w, "New token for %s-%s:'%s'", projName, tokenName, token)
+			fmt.Fprintf(w, "New token for %s-%s:\n'%s'\n", projName, tokenName, token)
 			fmt.Fprintf(w, "Make sure to save token as it is not stored.")
 			_ = w.Flush()
 		},
 	}
-	command.Flags().Int32VarP(&secondsBeforeExpiry, "secondsBeforeExpiry", "s", defaultSecondsBeforeExpiry, "Number of seconds before the token will expire (Default: 3 months)")
+	command.Flags().Int64VarP(&secondsBeforeExpiry, "secondsBeforeExpiry", "s", defaultSecondsBeforeExpiry, "Number of seconds before the token will expire (Default: 3 months)")
 
 	return command
 }

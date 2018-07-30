@@ -1394,14 +1394,14 @@
       "type": "object",
       "properties": {
         "project": {
-          "$ref": "#/definitions/v1alpha1AppProject"
+          "type": "string"
         },
         "secondsBeforeExpiry": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "int64"
         },
         "token": {
-          "$ref": "#/definitions/v1alpha1ProjectToken"
+          "type": "string"
         }
       }
     },

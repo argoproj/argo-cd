@@ -87,37 +87,40 @@ func (s *Server) CreateTokenPolicy(ctx context.Context, q *ProjectTokenPolicyCre
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	err := validateProject(q.Project)
+	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	err = validateProject(project)
 	if err != nil {
 		return nil, err
 	}
 
-	s.projectLock.Lock(q.Project.Name)
-	defer s.projectLock.Unlock(q.Project.Name)
+	s.projectLock.Lock(q.Project)
+	defer s.projectLock.Unlock(q.Project)
 	//TODO: Verify inputs
 
-	for _, projectToken := range q.Project.Spec.Tokens {
-		if projectToken.Name == q.Token.Name {
-			return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token.Name, q.Project.Name)
+	for _, projectToken := range project.Spec.Tokens {
+		if projectToken.Name == q.Token {
+			return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token, q.Project)
 		}
 	}
 	//TODO: Move string somewhere common
-	roleName := fmt.Sprintf("proj:%s:%s", q.Project.Name, q.Token.Name)
-	//Protobuf forces SecondsBeforeExpiry to be a int32 instead of an int. We are converting it to a regular int here.
-	jwtToken, err := s.sessionMgr.Create(roleName, int(q.SecondsBeforeExpiry))
+	roleName := fmt.Sprintf("proj:%s:%s", q.Project, q.Token)
+	jwtToken, err := s.sessionMgr.Create(roleName, q.SecondsBeforeExpiry)
 	if err != nil {
 		return nil, err
 	}
-	q.Token.CreatedAt = jwtToken.IssuedAt
-	q.Project.Spec.Tokens = append(q.Project.Spec.Tokens, *q.Token)
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
+	token := v1alpha1.ProjectToken{Name: q.Token, CreatedAt: jwtToken.IssuedAt}
+	project.Spec.Tokens = append(project.Spec.Tokens, token)
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(q.Project, ctx, argo.EventReasonResourceCreated, "create token")
+	s.logEvent(project, ctx, argo.EventReasonResourceCreated, "create token")
 	return &ProjectTokenResponse{Token: jwtToken.Token}, nil
 
 }

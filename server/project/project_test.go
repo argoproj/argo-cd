@@ -129,8 +129,8 @@ func TestProjectServer(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithoutToken := existingProj.DeepCopy()
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithoutToken), enforcer, util.NewKeyLock(), sessionMgr)
-		token := &v1alpha1.ProjectToken{Name: "test"}
-		tokenResponse, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithoutToken, Token: token})
+		tokenName := "test"
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithoutToken.Name, Token: tokenName, SecondsBeforeExpiry: 1})
 		assert.Nil(t, err)
 		claims, err := sessionMgr.Parse(tokenResponse.Token)
 		assert.Nil(t, err)
@@ -144,10 +144,11 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestCreateDuplicateTokenFailure", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
-		token := v1alpha1.ProjectToken{Name: "test"}
+		tokenName := "test"
+		token := v1alpha1.ProjectToken{Name: tokenName}
 		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
-		_, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken, Token: &token})
+		_, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken.Name, Token: tokenName})
 		assert.EqualError(t, err, "rpc error: code = AlreadyExists desc = 'test' token already exist for project 'test'")
 	})
 
