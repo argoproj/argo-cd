@@ -38,6 +38,18 @@ NOTE: The make command can take a while, and we recommend building the specific 
 * `make codegen` - Builds protobuf and swagger files
 * `make argocd-util` - Make the administrator's utility, used for certain tasks such as import/export
 
+## Generating ArgoCD manifests for a specific image repository/tag
+
+During development, the `update-manifests.sh` script, can be used to conveniently regenerate the
+ArgoCD installation manifests with a customized image namespace and tag. This enables developers
+to easily apply manifests which are using the images that they pushed into their personal container
+repository.
+
+```
+$ IMAGE_NAMESPACE=jessesuen IMAGE_TAG=latest ./hack/update-manifests.sh
+$ kubectl apply -n argocd -f ./manifests/install.yaml
+```
+
 ## Running locally
 
 You need to have access to kubernetes cluster (including [minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/) or [docker edge](https://docs.docker.com/docker-for-mac/install/) ) in order to run Argo CD on your laptop:
