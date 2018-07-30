@@ -9,7 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -56,25 +55,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				printKubeContexts(configAccess)
 				os.Exit(1)
 			}
-			config, err := configAccess.GetStartingConfig()
-			errors.CheckError(err)
-			clstContext := config.Contexts[args[0]]
-			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", args[0])
-			}
-			overrides := clientcmd.ConfigOverrides{
-				Context: *clstContext,
-			}
-			clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
-			conf, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
 
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clst := NewCluster(args[0], conf)
-			if inCluster {
-				clst.Server = common.KubernetesInternalAPIServerAddr
-			}
 
 			kubeconfig, err := ioutil.ReadFile(clientOpts.ConfigPath)
 			errors.CheckError(err)
@@ -83,8 +66,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				Kubeconfig: string(kubeconfig),
 				Context:    args[0],
 				Upsert:     upsert,
+				InCluster:  inCluster,
 			}
-			clst, err = clusterIf.CreateFromKubeConfig(context.Background(), &clstCreateReq)
+			clst, err := clusterIf.CreateFromKubeConfig(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
 		},

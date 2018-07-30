@@ -92,10 +92,14 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 	}
 
 	var clusterServer localconfig.Server
-	for i, contextRef := range kubeconfig.Contexts {
-		if contextRef.Name == q.Context {
-			clusterServer = kubeconfig.Servers[i]
-			break
+	if q.InCluster {
+		clusterServer.Server = common.KubernetesInternalAPIServerAddr
+	} else {
+		for i, contextRef := range kubeconfig.Contexts {
+			if contextRef.Name == q.Context {
+				clusterServer = kubeconfig.Servers[i]
+				break
+			}
 		}
 	}
 	if clusterServer.Server == "" {

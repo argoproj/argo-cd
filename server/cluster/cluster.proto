@@ -28,6 +28,7 @@ message ClusterCreateFromKubeConfigRequest {
 	string kubeconfig = 1;
 	string context = 2;
 	bool upsert = 3;
+	bool inCluster = 4;
 }
 
 message ClusterUpdateRequest {
