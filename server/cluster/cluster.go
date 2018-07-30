@@ -125,7 +125,7 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 			BearerToken: bearerToken,
 			TLSClientConfig: appv1.TLSClientConfig{
 				Insecure: clusterServer.Insecure,
-				CAData:   []byte(clusterServer.CACertificateAuthorityData),
+				// CAData:   []byte(clusterServer.CACertificateAuthorityData),
 			},
 		},
 	}
