@@ -91,14 +91,14 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		return nil, status.Errorf(codes.Internal, "Could not unmarshal kubeconfig: %v", err)
 	}
 
-	var clusterServer string
-	for _, contextRef := range kubeconfig.Contexts {
+	var clusterServer localconfig.Server
+	for i, contextRef := range kubeconfig.Contexts {
 		if contextRef.Name == q.Context {
-			clusterServer = contextRef.Server
+			clusterServer = kubeconfig.Servers[i]
 			break
 		}
 	}
-	if clusterServer == "" {
+	if clusterServer.Server == "" {
 		return nil, status.Errorf(codes.Internal, "Context %s does not exist in kubeconfig", q.Context)
 	}
 
@@ -115,10 +115,14 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 	}
 
 	c := &appv1.Cluster{
-		Server: clusterServer,
+		Server: clusterServer.Server,
 		Name:   q.Context,
 		Config: appv1.ClusterConfig{
 			BearerToken: bearerToken,
+			TLSClientConfig: appv1.TLSClientConfig{
+				Insecure: clusterServer.Insecure,
+				CAData:   []byte(clusterServer.CACertificateAuthorityData),
+			},
 		},
 	}
 
