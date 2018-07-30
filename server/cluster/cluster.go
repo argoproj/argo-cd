@@ -7,15 +7,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -85,24 +84,17 @@ func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cl
 
 // Create creates a cluster
 func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromKubeConfigRequest) (*appv1.Cluster, error) {
-	var kubeconfig *localconfig.LocalConfig
-	err := yaml.Unmarshal([]byte(q.Kubeconfig), &kubeconfig)
+	kubeconfig, err := clientcmd.Load([]byte(q.Kubeconfig))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not unmarshal kubeconfig: %v", err)
 	}
 
-	var clusterServer localconfig.Server
+	var clusterServer string
 	if q.InCluster {
-		clusterServer.Server = common.KubernetesInternalAPIServerAddr
+		clusterServer = common.KubernetesInternalAPIServerAddr
+	} else if cluster, ok := kubeconfig.Clusters[q.Context]; ok {
+		clusterServer = cluster.Server
 	} else {
-		for i, contextRef := range kubeconfig.Contexts {
-			if contextRef.Name == q.Context {
-				clusterServer = kubeconfig.Servers[i]
-				break
-			}
-		}
-	}
-	if clusterServer.Server == "" {
 		return nil, status.Errorf(codes.Internal, "Context %s does not exist in kubeconfig", q.Context)
 	}
 
@@ -119,12 +111,12 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 	}
 
 	c := &appv1.Cluster{
-		Server: clusterServer.Server,
+		Server: clusterServer,
 		Name:   q.Context,
 		Config: appv1.ClusterConfig{
-			BearerToken: bearerToken,
+			BearerToken:     bearerToken,
 			TLSClientConfig: appv1.TLSClientConfig{
-				Insecure: clusterServer.Insecure,
+				// Insecure: clusterServer.Insecure,
 				// CAData:   []byte(clusterServer.CACertificateAuthorityData),
 			},
 		},

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
+	"path"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -37,6 +39,24 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	return command
 }
 
+// DefaultKubeConfigDir returns the local configuration path for settings such as cached authentication tokens.
+func DefaultKubeConfigDir() (string, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(usr.HomeDir, ".kube"), nil
+}
+
+// DefaultKubeConfigPath returns the local configuration path for settings such as cached authentication tokens.
+func DefaultKubeConfigPath() (string, error) {
+	dir, err := DefaultKubeConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(dir, "config"), nil
+}
+
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
@@ -57,7 +77,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
 
-			kubeconfig, err := ioutil.ReadFile(clientOpts.ConfigPath)
+			p, err := DefaultKubeConfigPath()
+			errors.CheckError(err)
+			kubeconfig, err := ioutil.ReadFile(p)
 			errors.CheckError(err)
 
 			clstCreateReq := cluster.ClusterCreateFromKubeConfigRequest{
