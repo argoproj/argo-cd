@@ -90,10 +90,12 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 	}
 
 	var clusterServer string
+	var clusterInsecure bool
 	if q.InCluster {
 		clusterServer = common.KubernetesInternalAPIServerAddr
 	} else if cluster, ok := kubeconfig.Clusters[q.Context]; ok {
 		clusterServer = cluster.Server
+		clusterInsecure = cluster.InsecureSkipTLSVerify
 	} else {
 		return nil, status.Errorf(codes.Internal, "Context %s does not exist in kubeconfig", q.Context)
 	}
@@ -114,10 +116,9 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		Server: clusterServer,
 		Name:   q.Context,
 		Config: appv1.ClusterConfig{
-			BearerToken:     bearerToken,
+			BearerToken: bearerToken,
 			TLSClientConfig: appv1.TLSClientConfig{
-				// Insecure: clusterServer.Insecure,
-				// CAData:   []byte(clusterServer.CACertificateAuthorityData),
+				Insecure: clusterInsecure,
 			},
 		},
 	}
