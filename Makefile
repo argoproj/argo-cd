@@ -81,8 +81,7 @@ argocd-util: clean-debug
 .PHONY: install-manifest
 install-manifest:
 	if [ "${IMAGE_NAMESPACE}" = "" ] ; then echo "IMAGE_NAMESPACE must be set to build install manifest" ; exit 1 ; fi
-	echo "# This is an auto-generated file. DO NOT EDIT" > manifests/install.yaml
-	cat manifests/components/*.yaml | sed 's@\( image: argoproj/\(.*\):latest\)@ image: '"${IMAGE_NAMESPACE}"'/\2:'"${IMAGE_TAG}"'@g' >> manifests/install.yaml
+	./hack/update-manifests.sh
 
 .PHONY: server
 server: clean-debug

@@ -3,7 +3,7 @@
 
 ## What is Argo CD?
 
-Argo CD is a declarative, continuous delivery for Kubernetes.
+Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
 ![Argo CD UI](docs/argocd-ui.gif)
 
@@ -55,13 +55,15 @@ For additional details, see [architecture overview](docs/architecture.md).
 * SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitLab, Microsoft, LinkedIn)
 * Webhook Integration (GitHub, BitBucket, GitLab)
 * PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
+* Audit trails for application events and API calls
 * Parameter overrides for overriding ksonnet/helm parameters in git
 
 ## Development Status
 * Argo CD is being used in production to deploy SaaS services at Intuit
 
 ## Roadmap
-* Audit trails for application events and API calls
+* Auto-sync toggle to directly apply git state changes to live state
 * Service account/access key management for CI pipelines
-* Revamped UI
+* Support for additional config management tools (Kustomize?)
+* Revamped UI, and feature parity with CLI
 * Customizable application actions
