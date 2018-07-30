@@ -55,6 +55,8 @@ func (s *Server) CreateTokenPolicy(ctx context.Context, q *ProjectTokenPolicyCre
 	s.projectLock.Lock(q.Project.Name)
 	defer s.projectLock.Unlock(q.Project.Name)
 	//TODO: add check for action to be allow or deny
+	//TODO: Confirm object is correct
+
 	object := q.Object
 	if !strings.HasPrefix(object, q.Project.Name+"/") {
 		object = fmt.Sprintf("%s/%s", q.Project.Name, object)
@@ -62,16 +64,19 @@ func (s *Server) CreateTokenPolicy(ctx context.Context, q *ProjectTokenPolicyCre
 	//p, role:readonly, applications, get, */*
 	policy := fmt.Sprintf("p, proj:%s:%s, projects, %s, %s", q.Project.Name, q.Token, q.Action, object)
 
+	tokenNotFound := true
 	for i, projectToken := range q.Project.Spec.Tokens {
 		if projectToken.Name == q.Token {
 			//TODO: Add check for confirming existing policy doesn't exist (what does this mean though?)
 			q.Project.Spec.Tokens[i].Policies = append(q.Project.Spec.Tokens[i].Policies, policy)
+			tokenNotFound = false
 			break
 		}
 	}
-	//TODO: Add exit if condition never turns true
+	if tokenNotFound {
+		return nil, status.Errorf(codes.NotFound, "'%s' token was not found in the project '%s'", q.Token, q.Project.Name)
+	}
 
-	//TODO: Autoupdate RBAC Enforcer
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
 	if err != nil {
 		return nil, err
@@ -80,8 +85,6 @@ func (s *Server) CreateTokenPolicy(ctx context.Context, q *ProjectTokenPolicyCre
 
 }
 
-// CreateToken TODO: Add logging
-// CreateToken TODO: Confirm deleting and recreating token doesn't work with old token
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
@@ -91,6 +94,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	if err != nil {
 		return nil, err
 	}
+
 	s.projectLock.Lock(q.Project.Name)
 	defer s.projectLock.Unlock(q.Project.Name)
 	//TODO: Verify inputs
@@ -102,19 +106,18 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	}
 	//TODO: Move string somewhere common
 	roleName := fmt.Sprintf("proj:%s:%s", q.Project.Name, q.Token.Name)
-	//Protobufforces SecondsBeforeExpiry to be a int32 instead of an int. We are converting it to a regular int here.
+	//Protobuf forces SecondsBeforeExpiry to be a int32 instead of an int. We are converting it to a regular int here.
 	jwtToken, err := s.sessionMgr.Create(roleName, int(q.SecondsBeforeExpiry))
 	if err != nil {
 		return nil, err
 	}
-
 	q.Token.CreatedAt = jwtToken.IssuedAt
 	q.Project.Spec.Tokens = append(q.Project.Spec.Tokens, *q.Token)
-
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
 	if err != nil {
 		return nil, err
 	}
+	s.logEvent(q.Project, ctx, argo.EventReasonResourceCreated, "create token")
 	return &ProjectTokenResponse{Token: jwtToken.Token}, nil
 
 }
