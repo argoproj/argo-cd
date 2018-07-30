@@ -1249,6 +1249,10 @@
         "context": {
           "type": "string"
         },
+        "inCluster": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "kubeconfig": {
           "type": "string"
         },
