@@ -11,13 +11,11 @@ import (
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -116,39 +114,6 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", prefix, name, context.Cluster, cluster.Server)
 		errors.CheckError(err)
 	}
-}
-
-func NewCluster(name string, conf *rest.Config) *argoappv1.Cluster {
-	tlsClientConfig := argoappv1.TLSClientConfig{
-		Insecure:   conf.TLSClientConfig.Insecure,
-		ServerName: conf.TLSClientConfig.ServerName,
-		CertData:   conf.TLSClientConfig.CertData,
-		KeyData:    conf.TLSClientConfig.KeyData,
-		CAData:     conf.TLSClientConfig.CAData,
-	}
-	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
-		errors.CheckError(err)
-		tlsClientConfig.CertData = data
-	}
-	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
-		errors.CheckError(err)
-		tlsClientConfig.KeyData = data
-	}
-	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
-		errors.CheckError(err)
-		tlsClientConfig.CAData = data
-	}
-	clst := argoappv1.Cluster{
-		Server: conf.Host,
-		Name:   name,
-		Config: argoappv1.ClusterConfig{
-			TLSClientConfig: tlsClientConfig,
-		},
-	}
-	return &clst
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
