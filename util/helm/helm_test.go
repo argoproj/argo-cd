@@ -11,9 +11,18 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
+func findParameter(params []*argoappv1.ComponentParameter, name string) *argoappv1.ComponentParameter {
+	for _, param := range params {
+		if param.Name == name {
+			return param
+		}
+	}
+	return nil
+}
+
 func TestHelmTemplateParams(t *testing.T) {
 	h := NewHelmApp("./testdata/minio")
-	params := []*argoappv1.ComponentParameter{
+	overrides := []*argoappv1.ComponentParameter{
 		{
 			Name:  "service.type",
 			Value: "LoadBalancer",
@@ -23,7 +32,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			Value: "1234",
 		},
 	}
-	objs, err := h.Template("test", nil, params)
+	objs, params, err := h.Template("test", nil, overrides)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -36,12 +45,20 @@ func TestHelmTemplateParams(t *testing.T) {
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
 		}
 	}
+
+	serviceTypeParam := findParameter(params, "service.type")
+	assert.NotNil(t, serviceTypeParam)
+	assert.Equal(t, serviceTypeParam.Value, "ClusterIP")
+
+	servicePortParam := findParameter(params, "service.port")
+	assert.NotNil(t, servicePortParam)
+	assert.Equal(t, servicePortParam.Value, "9000")
 }
 
 func TestHelmTemplateValues(t *testing.T) {
 	h := NewHelmApp("./testdata/redis")
 	valuesFiles := []string{"values-production.yaml"}
-	objs, err := h.Template("test", valuesFiles, nil)
+	objs, params, err := h.Template("test", valuesFiles, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -51,7 +68,10 @@ func TestHelmTemplateValues(t *testing.T) {
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
 			assert.Nil(t, err)
 			assert.Equal(t, int32(3), *dep.Spec.Replicas)
-
 		}
 	}
+
+	slaveCountParam := findParameter(params, "cluster.slaveCount")
+	assert.NotNil(t, slaveCountParam)
+	assert.Equal(t, slaveCountParam.Value, "3")
 }

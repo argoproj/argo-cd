@@ -197,7 +197,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		targetObjs, params, env, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
 	case AppSourceHelm:
 		h := helm.NewHelmApp(appPath)
-		targetObjs, err = h.Template(q.AppLabel, q.ValueFiles, q.ComponentParameterOverrides)
+		targetObjs, params, err = h.Template(q.AppLabel, q.ValueFiles, q.ComponentParameterOverrides)
 	case AppSourceDirectory:
 		targetObjs, err = findManifests(appPath)
 	}
