@@ -18,6 +18,7 @@ import (
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -70,7 +71,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			errors.CheckError(err)
 
 			// Install RBAC resources for managing the cluster
-			managerBearerToken := common.InstallClusterManagerRBAC(conf)
+			clientset, err := kubernetes.NewForConfig(conf)
+			errors.CheckError(err)
+
+			managerBearerToken, err := common.InstallClusterManagerRBAC(clientset)
+			errors.CheckError(err)
 
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
@@ -202,9 +207,14 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
+
+			// clientset, err := kubernetes.NewForConfig(conf)
+			// errors.CheckError(err)
+
 			for _, clusterName := range args {
 				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
-				// common.UninstallClusterManagerRBAC(conf)
+				// err := common.UninstallClusterManagerRBAC(clientset)
+				// errors.CheckError(err)
 				_, err := clusterIf.Delete(context.Background(), &cluster.ClusterQuery{Server: clusterName})
 				errors.CheckError(err)
 			}
