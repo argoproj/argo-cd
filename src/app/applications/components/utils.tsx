@@ -8,8 +8,10 @@ import { services } from '../../shared/services';
 
 export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[], overrides: appModels.ComponentParameter[]) {
     const componentParams = new Map<string, (appModels.ComponentParameter & {original: string})[]>();
-    (params || []).map((param) => {
-        const override = (overrides || []).find((item) => item.component === param.component && item.name === param.name);
+    (params || []).map((param) => ({component: '', ...param})).map((param) => {
+        const override = (overrides || [])
+            .map((item) => ({component: '', ...item}))
+            .find((item) => item.component === param.component && item.name === param.name);
         const res = {...param, original: ''};
         if (override) {
             res.original = res.value;
