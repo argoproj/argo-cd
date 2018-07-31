@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	passwordutil "github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -166,26 +167,21 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	}
 }
 
-func stringFromMap(input map[string]interface{}, key string) string {
-	if val, ok := input[key]; ok {
-		if res, ok := val.(string); ok {
-			return res
-		}
-	}
-	return ""
-}
-
 func Username(ctx context.Context) string {
-	if claims, ok := ctx.Value("claims").(*jwt.MapClaims); ok {
-		mapClaims := *claims
-		switch stringFromMap(mapClaims, "iss") {
-		case SessionManagerClaimsIssuer:
-			return stringFromMap(mapClaims, "sub")
-		default:
-			return stringFromMap(mapClaims, "email")
-		}
+	claims, ok := ctx.Value("claims").(jwt.Claims)
+	if !ok {
+		return ""
 	}
-	return ""
+	mapClaims, err := jwtutil.MapClaims(claims)
+	if err != nil {
+		return ""
+	}
+	switch jwtutil.GetField(mapClaims, "iss") {
+	case SessionManagerClaimsIssuer:
+		return jwtutil.GetField(mapClaims, "sub")
+	default:
+		return jwtutil.GetField(mapClaims, "email")
+	}
 }
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
