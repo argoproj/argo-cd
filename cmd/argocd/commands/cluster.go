@@ -3,18 +3,22 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -62,21 +66,23 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				Context: *clstContext,
 			}
 			clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
-			conf, err := clientConfig.RawConfig()
+			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			configBytes, err := clientcmd.Write(conf)
-			errors.CheckError(err)
+
+			// Install RBAC resources for managing the cluster
+			managerBearerToken := common.InstallClusterManagerRBAC(conf)
 
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-
-			clstCreateReq := cluster.ClusterCreateFromKubeConfigRequest{
-				Kubeconfig: string(configBytes),
-				Context:    args[0],
-				Upsert:     upsert,
-				InCluster:  inCluster,
+			clst := NewCluster(args[0], conf, managerBearerToken)
+			if inCluster {
+				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
-			clst, err := clusterIf.CreateFromKubeConfig(context.Background(), &clstCreateReq)
+			clstCreateReq := cluster.ClusterCreateRequest{
+				Cluster: clst,
+				Upsert:  upsert,
+			}
+			clst, err = clusterIf.Create(context.Background(), &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Name)
 		},
@@ -124,6 +130,40 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", prefix, name, context.Cluster, cluster.Server)
 		errors.CheckError(err)
 	}
+}
+
+func NewCluster(name string, conf *rest.Config, managerBearerToken string) *argoappv1.Cluster {
+	tlsClientConfig := argoappv1.TLSClientConfig{
+		Insecure:   conf.TLSClientConfig.Insecure,
+		ServerName: conf.TLSClientConfig.ServerName,
+		CertData:   conf.TLSClientConfig.CertData,
+		KeyData:    conf.TLSClientConfig.KeyData,
+		CAData:     conf.TLSClientConfig.CAData,
+	}
+	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
+		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
+		errors.CheckError(err)
+		tlsClientConfig.CertData = data
+	}
+	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
+		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
+		errors.CheckError(err)
+		tlsClientConfig.KeyData = data
+	}
+	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
+		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
+		errors.CheckError(err)
+		tlsClientConfig.CAData = data
+	}
+	clst := argoappv1.Cluster{
+		Server: conf.Host,
+		Name:   name,
+		Config: argoappv1.ClusterConfig{
+			BearerToken:     managerBearerToken,
+			TLSClientConfig: tlsClientConfig,
+		},
+	}
+	return &clst
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
