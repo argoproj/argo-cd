@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -188,9 +189,13 @@ func (f *Fixture) ensureClusterRegistered() error {
 	if err != nil {
 		return err
 	}
-	clst := commands.NewCluster(f.Config.Host, conf)
+	// Install RBAC resources for managing the cluster
+	clientset, err := kubernetes.NewForConfig(conf)
+	errors.CheckError(err)
+	managerBearerToken := common.InstallClusterManagerRBAC(clientset)
+	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken)
 	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
-	_, err = cluster.NewServer(f.KubeClient, f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
+	_, err = cluster.NewServer(f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
 	return err
 }
 
