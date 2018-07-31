@@ -30,3 +30,10 @@ rules:
   - update
   - delete
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list

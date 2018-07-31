@@ -90,7 +90,7 @@ func NewApplicationController(
 		statusRefreshTimeout:  appResyncPeriod,
 		forceRefreshApps:      make(map[string]bool),
 		forceRefreshAppsMutex: &sync.Mutex{},
-		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "appcontroller"),
+		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
 	}
 }
 
