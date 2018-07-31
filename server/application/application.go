@@ -214,23 +214,32 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/events", "get", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
-	if err != nil {
-		return nil, err
-	}
-	kubeClientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	var fieldSelector string
+	var (
+		kubeClientset kubernetes.Interface
+		fieldSelector string
+		namespace     string
+	)
+	// There are two places where we get events. If we are getting application events, we query
+	// our own cluster. If it is events on a resource on an external cluster, then we query the
+	// external cluster using its rest.Config
 	if q.ResourceName == "" && q.ResourceUID == "" {
+		kubeClientset = s.kubeclientset
+		namespace = a.Namespace
 		fieldSelector = fields.SelectorFromSet(map[string]string{
 			"involvedObject.name":      a.Name,
 			"involvedObject.uid":       string(a.UID),
-			"involvedObject.namespace": namespace,
+			"involvedObject.namespace": a.Namespace,
 		}).String()
 	} else {
+		var config *rest.Config
+		config, namespace, err = s.getApplicationClusterConfig(*q.Name)
+		if err != nil {
+			return nil, err
+		}
+		kubeClientset, err = kubernetes.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}
 		fieldSelector = fields.SelectorFromSet(map[string]string{
 			"involvedObject.name":      q.ResourceName,
 			"involvedObject.uid":       q.ResourceUID,
@@ -240,7 +249,6 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 
 	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
 	opts := metav1.ListOptions{FieldSelector: fieldSelector}
-
 	return kubeClientset.CoreV1().Events(namespace).List(opts)
 }
 
