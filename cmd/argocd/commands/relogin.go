@@ -17,7 +17,6 @@ import (
 // NewReloginCommand returns a new instance of `argocd relogin` command
 func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		username string
 		password string
 	)
 	var command = &cobra.Command{
@@ -54,8 +53,10 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 					PlainText:  configCtx.Server.PlainText,
 				}
 				acdClient := argocdclient.NewClientOrDie(&clientOpts)
-				tokenString = passwordLogin(acdClient, username, password)
+				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
+				tokenString = passwordLogin(acdClient, claims.Subject, password)
 			} else {
+				fmt.Println("Reinitiating SSO login")
 				tokenString, refreshToken = oauth2Login(configCtx.Server.Server, configCtx.Server.PlainText)
 			}
 
@@ -69,7 +70,6 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
 	return command
 }
