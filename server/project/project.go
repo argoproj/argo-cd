@@ -40,51 +40,6 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
 }
 
-// CreateTokenPolicy creates a new policy for a specifc project token
-func (s *Server) CreateTokenPolicy(ctx context.Context, q *ProjectTokenPolicyCreateRequest) (*ProjectTokenPolicyCreateResponse, error) {
-	//TODO: Grab the project here instead of the CLI. Do this everywhere else too
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
-		return nil, grpc.ErrPermissionDenied
-	}
-	//TODO: Verify inputs (i.e. verify project has token) (i.e. <project>/ is prepended )
-	err := validateProject(q.Project)
-	if err != nil {
-		return nil, err
-	}
-	//TODO: Confirm lock shouldn't be just before update
-	s.projectLock.Lock(q.Project.Name)
-	defer s.projectLock.Unlock(q.Project.Name)
-	//TODO: add check for action to be allow or deny
-	//TODO: Confirm object is correct
-
-	object := q.Object
-	if !strings.HasPrefix(object, q.Project.Name+"/") {
-		object = fmt.Sprintf("%s/%s", q.Project.Name, object)
-	}
-	//p, role:readonly, applications, get, */*
-	policy := fmt.Sprintf("p, proj:%s:%s, projects, %s, %s", q.Project.Name, q.Token, q.Action, object)
-
-	tokenNotFound := true
-	for i, projectToken := range q.Project.Spec.Tokens {
-		if projectToken.Name == q.Token {
-			//TODO: Add check for confirming existing policy doesn't exist (what does this mean though?)
-			q.Project.Spec.Tokens[i].Policies = append(q.Project.Spec.Tokens[i].Policies, policy)
-			tokenNotFound = false
-			break
-		}
-	}
-	if tokenNotFound {
-		return nil, status.Errorf(codes.NotFound, "'%s' token was not found in the project '%s'", q.Token, q.Project.Name)
-	}
-
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
-	if err != nil {
-		return nil, err
-	}
-	return &ProjectTokenPolicyCreateResponse{}, nil
-
-}
-
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project) {

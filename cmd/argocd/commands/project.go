@@ -124,10 +124,17 @@ func NewProjectAddTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *co
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			//TODO: Check if this project has token
+			tokenIndex, err := proj.GetTokenIndex(tokenName)
+			if err != nil {
+				log.Fatal(err)
+			}
+			token := proj.Spec.Tokens[tokenIndex]
 
-			//TODO: Change to input an array of policies instead of just one?
-			_, err = projIf.CreateTokenPolicy(context.Background(), &project.ProjectTokenPolicyCreateRequest{Project: proj, Token: tokenName, Action: opts.action, Permission: opts.permission, Object: opts.object})
+			policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+			policy := fmt.Sprintf(policyTemplate, proj.Name, token.Name, opts.action, proj.Name, opts.object)
+			proj.Spec.Tokens[tokenIndex].Policies = append(token.Policies, policy)
+
+			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}

@@ -722,33 +722,6 @@
         }
       }
     },
-    "/api/v1/projects/token/policy": {
-      "post": {
-        "tags": [
-          "ProjectService"
-        ],
-        "summary": "TODO: Is this the best endpoint for this?\nCreate a new project token.",
-        "operationId": "CreateTokenPolicy",
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/projectProjectTokenPolicyCreateRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/projectProjectTokenPolicyCreateResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/projects/{name}": {
       "get": {
         "tags": [
@@ -1404,29 +1377,6 @@
           "type": "string"
         }
       }
-    },
-    "projectProjectTokenPolicyCreateRequest": {
-      "type": "object",
-      "properties": {
-        "action": {
-          "type": "string"
-        },
-        "object": {
-          "type": "string"
-        },
-        "permission": {
-          "type": "string"
-        },
-        "project": {
-          "$ref": "#/definitions/v1alpha1AppProject"
-        },
-        "token": {
-          "type": "string"
-        }
-      }
-    },
-    "projectProjectTokenPolicyCreateResponse": {
-      "type": "object"
     },
     "projectProjectTokenResponse": {
       "description": "ProjectTokenResponse wraps the created token or returns an empty string if deleted.",

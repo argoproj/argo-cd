@@ -155,29 +155,22 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestCreateTokenPolicySuccessfully", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		permission := "allow"
+		tokenName := "test"
+		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+
 		projWithToken := existingProj.DeepCopy()
-		token := v1alpha1.ProjectToken{Name: "test"}
+		token := v1alpha1.ProjectToken{Name: tokenName}
+		policy := fmt.Sprintf(policyTemplate, projWithToken.Name, tokenName, action, projWithToken.Name, object)
+		token.Policies = append(token.Policies, policy)
 		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
-		request := &ProjectTokenPolicyCreateRequest{Project: projWithToken, Token: token.Name, Action: action, Object: object, Permission: permission}
-		_, err := projectServer.CreateTokenPolicy(context.Background(), request)
+		request := &ProjectUpdateRequest{Project: projWithToken}
+		_, err := projectServer.Update(context.Background(), request)
 		assert.Nil(t, err)
 		t.Log(projWithToken.Spec.Tokens[0].Policies[0])
-		expectedPolicy := fmt.Sprintf("p, proj:%s:%s, projects, %s, %s/%s", projWithToken.Name, token.Name, action, projWithToken.Name, object)
+		expectedPolicy := fmt.Sprintf(policyTemplate, projWithToken.Name, token.Name, action, projWithToken.Name, object)
 		assert.Equal(t, projWithToken.Spec.Tokens[0].Policies[0], expectedPolicy)
 	})
 
-	t.Run("TestCreateTokenPolicyOnNonExistingTokenFailure", func(t *testing.T) {
-		action := "create"
-		object := "testObject"
-		permission := "allow"
-
-		token := v1alpha1.ProjectToken{Name: "test"}
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, util.NewKeyLock(), nil)
-		request := &ProjectTokenPolicyCreateRequest{Project: &existingProj, Token: token.Name, Action: action, Object: object, Permission: permission}
-		_, err := projectServer.CreateTokenPolicy(context.Background(), request)
-		assert.EqualError(t, err, "rpc error: code = NotFound desc = 'test' token was not found in the project 'test'")
-
-	})
 }

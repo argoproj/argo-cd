@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -464,6 +465,16 @@ type AppProjectSpec struct {
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 
 	Tokens []ProjectToken `protobuf:"bytes,4,rep,name=tokens"`
+}
+
+// GetTokenIndex returns the index into the tokens array of that name if that token exists
+func (proj *AppProject) GetTokenIndex(name string) (int, error) {
+	for i, token := range proj.Spec.Tokens {
+		if name == token.Name {
+			return i, nil
+		}
+	}
+	return -1, fmt.Errorf("token '%s' does not exist in project '%s'", name, proj.Name)
 }
 
 // ProjectToken TODO: Check if everything should be capitalized

@@ -24,18 +24,6 @@ message ProjectTokenCreateRequest {
     string token = 2;
     int64 secondsBeforeExpiry = 3;
 }
-
-message ProjectTokenPolicyCreateRequest {
-    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
-    string token = 2;
-    string action = 3;
-    string permission = 4;
-    string object = 5;
-}
-
-message ProjectTokenPolicyCreateResponse {
-}
-
 // ProjectTokenResponse wraps the created token or returns an empty string if deleted.
 message ProjectTokenResponse {
     string token = 1;
@@ -55,15 +43,6 @@ message EmptyResponse {}
 
 // ProjectService
 service ProjectService {
-
-  // TODO: Is this the best endpoint for this?
-  // Create a new project token.
-  rpc CreateTokenPolicy(ProjectTokenPolicyCreateRequest) returns (ProjectTokenPolicyCreateResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/projects/token/policy"
-      body: "*"
-    };
-  }
 
   // Create a new project token.
   rpc CreateToken(ProjectTokenCreateRequest) returns (ProjectTokenResponse) {
