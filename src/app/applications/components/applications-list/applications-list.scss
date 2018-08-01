@@ -23,8 +23,26 @@
         padding-left: 1em;
         border-left: 5px solid $argo-color-gray-4;
 
+        // healthy statuses
+
         &--comparison-Synced {
             border-left-color: $argo-success-color;
+        }
+
+        &--health-Healthy {
+            border-left-color: $argo-success-color;
+        }
+
+        // intermediate statuses
+
+        &--health-Progressing {
+            border-left-color: $argo-running-color;
+        }
+
+        // failed statuses
+
+        &--health-Degraded {
+            border-left-color: $argo-failed-color;
         }
 
         &--comparison-Error {
