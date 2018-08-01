@@ -32,7 +32,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			Value: "1234",
 		},
 	}
-	objs, params, err := h.Template("test", nil, overrides)
+	objs, err := h.Template("test", nil, overrides)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -45,20 +45,12 @@ func TestHelmTemplateParams(t *testing.T) {
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
 		}
 	}
-
-	serviceTypeParam := findParameter(params, "service.type")
-	assert.NotNil(t, serviceTypeParam)
-	assert.Equal(t, serviceTypeParam.Value, "ClusterIP")
-
-	servicePortParam := findParameter(params, "service.port")
-	assert.NotNil(t, servicePortParam)
-	assert.Equal(t, servicePortParam.Value, "9000")
 }
 
 func TestHelmTemplateValues(t *testing.T) {
 	h := NewHelmApp("./testdata/redis")
 	valuesFiles := []string{"values-production.yaml"}
-	objs, params, err := h.Template("test", valuesFiles, nil)
+	objs, err := h.Template("test", valuesFiles, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -70,6 +62,23 @@ func TestHelmTemplateValues(t *testing.T) {
 			assert.Equal(t, int32(3), *dep.Spec.Replicas)
 		}
 	}
+
+}
+
+func TestHelmGetParams(t *testing.T) {
+	h := NewHelmApp("./testdata/redis")
+	params, err := h.GetParameters([]string{})
+	assert.Nil(t, err)
+
+	slaveCountParam := findParameter(params, "cluster.slaveCount")
+	assert.NotNil(t, slaveCountParam)
+	assert.Equal(t, slaveCountParam.Value, "1")
+}
+
+func TestHelmGetParamsValueFiles(t *testing.T) {
+	h := NewHelmApp("./testdata/redis")
+	params, err := h.GetParameters([]string{"values-production.yaml"})
+	assert.Nil(t, err)
 
 	slaveCountParam := findParameter(params, "cluster.slaveCount")
 	assert.NotNil(t, slaveCountParam)

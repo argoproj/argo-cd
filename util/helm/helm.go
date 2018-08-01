@@ -19,7 +19,9 @@ import (
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(name string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, []*argoappv1.ComponentParameter, error)
+	Template(name string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error)
+	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
+	GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error)
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
@@ -31,7 +33,7 @@ type helm struct {
 	path string
 }
 
-func (h *helm) Template(name string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, []*argoappv1.ComponentParameter, error) {
+func (h *helm) Template(name string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
 	args := []string{
 		"template", h.path, "--name", name,
 	}
@@ -43,20 +45,12 @@ func (h *helm) Template(name string, valuesFiles []string, overrides []*argoappv
 	}
 	out, err := helmCmd(args...)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	objs, err := kube.SplitYAML(out)
-	if err != nil {
-		return nil, nil, err
-	}
-	params, err := h.getParams(valuesFiles)
-	if err != nil {
-		return nil, nil, err
-	}
-	return objs, params, nil
+	return kube.SplitYAML(out)
 }
 
-func (h *helm) getParams(valuesFiles []string) ([]*argoappv1.ComponentParameter, error) {
+func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error) {
 	out, err := helmCmd("inspect", "values", h.path)
 	if err != nil {
 		return nil, err
