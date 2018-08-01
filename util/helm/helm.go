@@ -2,15 +2,14 @@ package helm
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 	"path"
 	"strings"
 
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"io/ioutil"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -66,7 +65,7 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParame
 
 	output := map[string]string{}
 	for _, file := range values {
-		values := map[interface{}]interface{}{}
+		values := map[string]interface{}{}
 		if err = yaml.Unmarshal([]byte(file), &values); err != nil {
 			return nil, fmt.Errorf("failed to parse values: %s", err)
 		}
@@ -102,9 +101,9 @@ func helmCmd(args ...string) (string, error) {
 	return out, nil
 }
 
-func flatVals(input map[interface{}]interface{}, output map[string]string, prefixes ...string) {
+func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {
 	for key, val := range input {
-		if subMap, ok := val.(map[interface{}]interface{}); ok {
+		if subMap, ok := val.(map[string]interface{}); ok {
 			flatVals(subMap, output, append(prefixes, fmt.Sprintf("%v", key))...)
 		} else {
 			output[strings.Join(append(prefixes, fmt.Sprintf("%v", key)), ".")] = fmt.Sprintf("%v", val)
