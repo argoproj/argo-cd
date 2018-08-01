@@ -198,6 +198,13 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	case AppSourceHelm:
 		h := helm.NewHelmApp(appPath)
 		targetObjs, err = h.Template(q.AppLabel, q.ValueFiles, q.ComponentParameterOverrides)
+		if err != nil {
+			return nil, err
+		}
+		params, err = h.GetParameters(q.ValueFiles)
+		if err != nil {
+			return nil, err
+		}
 	case AppSourceDirectory:
 		targetObjs, err = findManifests(appPath)
 	}
