@@ -110,7 +110,8 @@ export class ApplicationsList extends React.Component<Props, State> {
                             {this.state.applications.map((app) => (
                                 <div key={app.metadata.name} className='column column-block'>
                                     <div className={`argo-table-list__row
-                                        applications-list__entry applications-list__entry--comparison-${app.status.comparisonResult.status} applications-list__entry--health-${app.status.health.status}`
+                                        applications-list__entry applications-list__entry--comparison-${app.status.comparisonResult.status}
+                                        applications-list__entry--health-${app.status.health.status}`
                                     }>
                                         <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.name}`)}>
                                             <div className='columns small-12 applications-list__info'>
