@@ -34,7 +34,7 @@ message AppProjectList {
 // AppProjectSpec represents
 message AppProjectSpec {
   // SourceRepos contains list of git repository URLs which can be used for deployment
-  repeated string sources = 1;
+  repeated string sourceRepos = 1;
 
   // Destinations contains list of destinations available for deployment
   repeated ApplicationDestination destinations = 2;

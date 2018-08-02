@@ -446,7 +446,7 @@ type AppProject struct {
 // AppProjectSpec represents
 type AppProjectSpec struct {
 	// SourceRepos contains list of git repository URLs which can be used for deployment
-	SourceRepos []string `json:"sources" protobuf:"bytes,1,name=destination"`
+	SourceRepos []string `json:"sourceRepos" protobuf:"bytes,1,name=sourceRepos"`
 
 	// Destinations contains list of destinations available for deployment
 	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,2,name=destination"`

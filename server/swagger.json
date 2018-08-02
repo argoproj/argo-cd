@@ -1742,7 +1742,7 @@
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
         },
-        "sources": {
+        "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of git repository URLs which can be used for deployment",
           "items": {
