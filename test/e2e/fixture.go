@@ -192,7 +192,8 @@ func (f *Fixture) ensureClusterRegistered() error {
 	// Install RBAC resources for managing the cluster
 	clientset, err := kubernetes.NewForConfig(conf)
 	errors.CheckError(err)
-	managerBearerToken := common.InstallClusterManagerRBAC(clientset)
+	managerBearerToken, err := common.InstallClusterManagerRBAC(clientset)
+	errors.CheckError(err)
 	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken)
 	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
 	_, err = cluster.NewServer(f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
