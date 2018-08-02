@@ -164,6 +164,37 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 	return removed
 }
 
+func validatePolicy(proj string, token string, policy string) error {
+	policyComponents := strings.Split(policy, ",")
+	if len(policyComponents) != 5 {
+		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguements for '%s'", policy)
+
+	}
+	if strings.Trim(policyComponents[0], " ") != "p" {
+		return status.Errorf(codes.InvalidArgument, "token policy can only contain policies: '%s'", policy)
+	}
+	roleComponents := strings.Split(strings.Trim(policyComponents[1], " "), ":")
+	if len(roleComponents) != 3 {
+		return status.Errorf(codes.InvalidArgument, "incorrect number of role arguments for '%s' policy", policy)
+	}
+	if roleComponents[0] != "proj" {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as role should start with 'proj:'", policy)
+	}
+	if roleComponents[1] != proj {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other projects", policy)
+	}
+	if roleComponents[2] != token {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other tokens", policy)
+	}
+	if strings.Trim(policyComponents[2], " ") != "projects" {
+		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as token policies can only access projects", policy)
+	}
+	if !strings.HasPrefix(strings.Trim(policyComponents[4], " "), proj) {
+		return status.Errorf(codes.InvalidArgument, "incorrect token policy format for '%s' as token policies can't grant access to other tokens or projects", policy)
+	}
+	return nil
+}
+
 func validateProject(p *v1alpha1.AppProject) error {
 	destKeys := make(map[string]bool)
 	for _, dest := range p.Spec.Destinations {
@@ -184,6 +215,29 @@ func validateProject(p *v1alpha1.AppProject) error {
 			return status.Errorf(codes.InvalidArgument, "source repository %s should not be listed more than once.", src)
 		}
 	}
+
+	tokensNames := make(map[string]bool)
+	for _, token := range p.Spec.Tokens {
+		existingPolicies := make(map[string]bool)
+		for _, policy := range token.Policies {
+			err := validatePolicy(p.Name, token.Name, policy)
+			if err != nil {
+				return err
+			}
+			if _, ok := existingPolicies[policy]; !ok {
+				existingPolicies[policy] = true
+			} else {
+				return status.Errorf(codes.AlreadyExists, "token policy '%s' already exists for token '%s'", policy, token.Name)
+			}
+		}
+		if _, ok := tokensNames[token.Name]; !ok {
+			tokensNames[token.Name] = true
+		} else {
+			return status.Errorf(codes.AlreadyExists, "Token '%s' already exists", token)
+		}
+
+	}
+
 	return nil
 }
 

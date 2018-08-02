@@ -187,14 +187,85 @@ func TestProjectServer(t *testing.T) {
 		assert.Equal(t, projWithToken.Spec.Tokens[0].Policies[0], expectedPolicy)
 	})
 
-	t.Run("TestCreateDuplicateTokenPolicyFailure", func(t *testing.T) {
-		// sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
-		// projWithToken := existingProj.DeepCopy()
-		// tokenName := "test"
-		// token := v1alpha1.ProjectToken{Name: tokenName}
-		// projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
-		// projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
-		// _, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken.Name, Token: tokenName})
-		// assert.EqualError(t, err, "rpc error: code = AlreadyExists desc = 'test' token already exist for project 'test'")
+	t.Run("TestCreateTokenPolicyDuplicatePolicyFailure", func(t *testing.T) {
+		action := "create"
+		object := "testObject"
+		tokenName := "test"
+		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+
+		projWithToken := existingProj.DeepCopy()
+		token := v1alpha1.ProjectToken{Name: tokenName}
+		policy := fmt.Sprintf(policyTemplate, projWithToken.Name, tokenName, action, projWithToken.Name, object)
+		token.Policies = append(token.Policies, policy)
+		token.Policies = append(token.Policies, policy)
+		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithToken}
+		_, err := projectServer.Update(context.Background(), request)
+		expectedErr := fmt.Sprintf("rpc error: code = AlreadyExists desc = token policy '%s' already exists for token '%s'", policy, tokenName)
+		assert.EqualError(t, err, expectedErr)
+	})
+
+	t.Run("TestValidityProjectAccessToSeparateProjectObjectFailure", func(t *testing.T) {
+		action := "create"
+		object := "testObject"
+		tokenName := "test"
+		otherProject := "other-project"
+		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+
+		projWithToken := existingProj.DeepCopy()
+		token := v1alpha1.ProjectToken{Name: tokenName}
+		policy := fmt.Sprintf(policyTemplate, projWithToken.Name, tokenName, action, otherProject, object)
+		token.Policies = append(token.Policies, policy)
+		token.Policies = append(token.Policies, policy)
+		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithToken}
+		_, err := projectServer.Update(context.Background(), request)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect token policy format for '%s' as token policies can't grant access to other tokens or projects", policy)
+		assert.EqualError(t, err, expectedErr)
+	})
+
+	t.Run("TestValidityProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
+		action := "create"
+		object := "testObject"
+		tokenName := "test"
+		otherProject := "other-project"
+		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+
+		projWithToken := existingProj.DeepCopy()
+		token := v1alpha1.ProjectToken{Name: tokenName}
+		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, tokenName, action, projWithToken.Name, object)
+		token.Policies = append(token.Policies, invalidPolicy)
+		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithToken}
+		_, err := projectServer.Update(context.Background(), request)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other projects", invalidPolicy)
+		assert.EqualError(t, err, expectedErr)
+	})
+
+	t.Run("TestValidityProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
+		action := "create"
+		object := "testObject"
+		tokenName := "test"
+		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+		otherToken := "other-token"
+
+		projWithToken := existingProj.DeepCopy()
+		token := v1alpha1.ProjectToken{Name: tokenName}
+		invalidPolicy := fmt.Sprintf(policyTemplate, projWithToken.Name, otherToken, action, projWithToken.Name, object)
+		token.Policies = append(token.Policies, invalidPolicy)
+		token.Policies = append(token.Policies, invalidPolicy)
+		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithToken}
+		_, err := projectServer.Update(context.Background(), request)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other tokens", invalidPolicy)
+		assert.EqualError(t, err, expectedErr)
 	})
 }
