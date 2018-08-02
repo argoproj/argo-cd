@@ -196,7 +196,7 @@ func (f *Fixture) ensureClusterRegistered() error {
 	errors.CheckError(err)
 	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken)
 	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
-	_, err = cluster.NewServer(f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
+	_, err = cluster.NewServer(clientset, f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
 	return err
 }
 

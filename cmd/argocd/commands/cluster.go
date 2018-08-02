@@ -73,7 +73,6 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			// Install RBAC resources for managing the cluster
 			clientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
-
 			managerBearerToken, err := common.InstallClusterManagerRBAC(clientset)
 			errors.CheckError(err)
 
