@@ -1,10 +1,10 @@
-import { DropDownMenu, MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import { DropDownMenu, NotificationType, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 
-import { ConnectionStateIcon, ErrorNotification, FormField, Page } from '../../../shared/components';
+import { ConnectionStateIcon, DataLoader, ErrorNotification, FormField, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -17,7 +17,7 @@ interface NewRepoParams {
     password: string;
 }
 
-export class ReposList extends React.Component<RouteComponentProps<any>, { repos: models.Repository[] }> {
+export class ReposList extends React.Component<RouteComponentProps<any>> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
@@ -25,15 +25,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
     };
 
     private formApi: FormApi;
-
-    constructor(props: RouteComponentProps<any>) {
-        super(props);
-        this.state = { repos: null };
-    }
-
-    public componentDidMount() {
-        this.reloadRepos();
-    }
+    private loader: DataLoader;
 
     public render() {
         return (
@@ -55,8 +47,9 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
                         </div>
                     </div>
                     <div className='argo-container'>
-                    {this.state.repos ? (
-                        this.state.repos.length > 0 && (
+                    <DataLoader load={() => services.reposService.list()} ref={(loader) => this.loader = loader}>
+                    {(repos: models.Repository[]) => (
+                        repos.length > 0 && (
                         <div className='argo-table-list'>
                             <div className='argo-table-list__head'>
                                 <div className='row'>
@@ -64,7 +57,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
                                     <div className='columns small-3'>CONNECTION STATUS</div>
                                 </div>
                             </div>
-                            {this.state.repos.map((repo) => (
+                            {repos.map((repo) => (
                                 <div className='argo-table-list__row' key={repo.repo}>
                                     <div className='row'>
                                         <div className='columns small-9'>
@@ -83,7 +76,8 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
                                 </div>
                             ))}
                         </div> )
-                    ) : <MockupList height={50} marginTop={30}/>}
+                    )}
+                    </DataLoader>
                     </div>
                 </div>
                 <SlidingPanel isShown={this.showConnectRepo} onClose={() => this.showConnectRepo = false} header={(
@@ -124,7 +118,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
         try {
             await services.reposService.create(params);
             this.showConnectRepo = false;
-            this.reloadRepos();
+            this.loader.reload();
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to connect repository' e={e}/>,
@@ -133,16 +127,12 @@ export class ReposList extends React.Component<RouteComponentProps<any>, { repos
         }
     }
 
-    private async reloadRepos() {
-        this.setState({ repos: await services.reposService.list() });
-    }
-
     private async disconnectRepo(repo: string) {
         const confirmed = await this.appContext.apis.popup.confirm(
             'Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
             await services.reposService.delete(repo);
-            this.reloadRepos();
+            this.loader.reload();
         }
     }
 

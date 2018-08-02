@@ -5,7 +5,7 @@ import { Checkbox, Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 import { Observable, Subscription } from 'rxjs';
 
-import { ErrorNotification, FormField, Page } from '../../../shared/components';
+import { DataLoader, ErrorNotification, FormField, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -24,19 +24,21 @@ import * as AppUtils from '../utils';
 
 require('./application-details.scss');
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { application: appModels.Application; defaultKindFilter: string[]}> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { defaultKindFilter: string[], refreshing: boolean}> {
 
     public static contextTypes = {
         apis: PropTypes.object,
     };
 
-    private changesSubscription: Subscription;
     private viewPrefSubscription: Subscription;
+    private appUpdates: Observable<appModels.Application>;
     private formApi: FormApi;
+    private loader: DataLoader<appModels.Application>;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
         super(props);
-        this.state = { application: null, defaultKindFilter: [] };
+        this.state = { defaultKindFilter: [], refreshing: false };
+        this.appUpdates = services.applications.watch({name: props.match.params.name}).map((changeEvent) => changeEvent.application);
     }
 
     private get showOperationState() {
@@ -75,14 +77,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     public async componentDidMount() {
-        const appName = this.props.match.params.name;
-        const appUpdates = Observable
-            .from([await services.applications.get(appName)])
-            .merge(services.applications.watch({name: appName}).map((changeEvent) => changeEvent.application));
         this.ensureUnsubscribed();
-        this.changesSubscription = appUpdates.subscribe((application) => {
-            this.setState({ application });
-        });
         this.viewPrefSubscription = services.viewPreferences.getPreferences()
             .map((preferences) => preferences.appDetails.defaultKindFilter)
             .subscribe((filter) => {
@@ -95,144 +90,156 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     public render() {
-        const kindsSet = new Set<string>();
-        if (this.state.application) {
-            const items: (appModels.ResourceNode | appModels.ResourceState)[] = [...this.state.application.status.comparisonResult.resources || []];
-            while (items.length > 0) {
-                const next = items.pop();
-                const {resourceNode} = AppUtils.getStateAndNode(next);
-                kindsSet.add(resourceNode.state.kind);
-                (resourceNode.children || []).forEach((child) => items.push(child));
-            }
-        }
-        const kinds = Array.from(kindsSet);
-        const kindsFilter = this.getKindsFilter().filter((kind) => kinds.indexOf(kind) > -1);
-        const filter: TopBarFilter<string> = {
-            items: kinds.map((kind) => ({ value: kind, label: kind })),
-            selectedValues: kindsFilter,
-            selectionChanged: (items) => {
-                this.appContext.apis.navigation.goto('.', { kinds: `${items.join(',')}`});
-                services.viewPreferences.updatePreferences({
-                    appDetails: {
-                        defaultKindFilter: items,
-                    },
-                });
-            },
-        };
-
-        const appNodesByName = this.groupAppNodesByName();
-        const selectedItem = this.selectedNodeFullName && appNodesByName.get(this.selectedNodeFullName) || null;
-        const isAppSelected = this.state.application != null && selectedItem === this.state.application;
-        const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
-        const operationState = this.state.application && this.state.application.status.operationState;
-        const conditions = this.state.application && this.state.application.status.conditions || [];
         return (
-            <Page
-                title={'Application Details'}
-                toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: this.state.application && {
-                    items: [{
-                        className: 'icon fa fa-refresh',
-                        title: 'Refresh',
-                        action: async () => {
-                            this.setState({ application: null });
-                            const application = await services.applications.get(this.props.match.params.name, true);
-                            this.setState({ application });
-                        },
-                    }, {
-                        className: 'icon argo-icon-deploy',
-                        title: 'Sync',
-                        action: () => this.setDeployPanelVisible(true),
-                    }, {
-                        className: 'icon fa fa-history',
-                        title: 'History',
-                        action: () => this.setRollbackPanelVisible(0),
-                    }, {
-                        className: 'icon fa fa-times-circle',
-                        title: 'Delete',
-                        action: () => this.deleteApplication(),
-                    }],
-                } }}>
-                {this.state.application && <ApplicationStatusPanel application={this.state.application}
-                    showOperation={() => this.setOperationStatusVisible(true)}
-                    showConditions={() => this.setConditionsStatusVisible(true)}/>}
-                <div className='application-details'>
-                    {this.state.application ? (
-                        <ApplicationResourcesTree
-                            kindsFilter={kindsFilter}
-                            selectedNodeFullName={this.selectedNodeFullName}
-                            onNodeClick={(fullName) => this.selectNode(fullName)}
-                            nodeMenuItems={(node) => this.getResourceMenuItems(node)}
-                            nodeLabels={(node) => this.getResourceLabels(node)}
-                            app={this.state.application}/>
-                    ) : (
-                        <div>Loading...</div>
-                    )}
-                </div>
-                <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
-                    <div>
-                    {selectedNode && <Tabs
-                        navTransparent={true}
-                        tabs={this.getResourceTabs(selectedNode, [{title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}])} />
+            <DataLoader
+                ref={(loader) => this.loader = loader}
+                errorRenderer={(error) => <Page title='Application Details'>{error}</Page>}
+                loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
+                dataChanges={this.appUpdates}
+                input={this.props.match.params.name}
+                load={(name) => services.applications.get(name, false)}>
+
+                {(application: appModels.Application) => {
+                    const kindsSet = new Set<string>();
+                    const toProcess: (appModels.ResourceNode | appModels.ResourceState)[] = [...application.status.comparisonResult.resources || []];
+                    while (toProcess.length > 0) {
+                        const next = toProcess.pop();
+                        const {resourceNode} = AppUtils.getStateAndNode(next);
+                        kindsSet.add(resourceNode.state.kind);
+                        (resourceNode.children || []).forEach((child) => toProcess.push(child));
                     }
-                    {isAppSelected && (
-                        <Tabs navTransparent={true} tabs={[{
-                            title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={this.state.application}/>,
-                        }, {
-                            title: 'PARAMETERS', key: 'parameters', content: <ParametersPanel
-                                params={this.state.application.status.parameters || []}
-                                overrides={this.state.application.spec.source.componentParameterOverrides}/>,
-                        }, {
-                            title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={this.state.application.metadata.name}/>,
-                        }]}/>
-                    )}
-                    </div>
-                </SlidingPanel>
-                <SlidingPanel isNarrow={true} isShown={this.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
-                        <div>
-                        <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
-                            Synchronize
-                        </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
-                            Cancel
-                        </button>
-                        </div>
-                    )}>
-                    {this.state.application && this.showDeployPanel && (
-                        <Form onSubmit={(params: any) => this.syncApplication(params.revision, params.prune)} getApi={(api) => this.formApi = api}>
-                            {(formApi) => (
-                                <form role='form' className='width-control' onSubmit={formApi.submitForm}>
-                                    <h6>Synchronizing application manifests from <a href={this.state.application.spec.source.repoURL}>
-                                        {this.state.application.spec.source.repoURL}</a>
-                                    </h6>
-                                    <div className='argo-form-row'>
-                                        <FormField formApi={formApi} label='Revision' field='revision' component={Text}/>
+                    const kinds = Array.from(kindsSet);
+                    const kindsFilter = this.getKindsFilter().filter((kind) => kinds.indexOf(kind) > -1);
+                    const filter: TopBarFilter<string> = {
+                        items: kinds.map((kind) => ({ value: kind, label: kind })),
+                        selectedValues: kindsFilter,
+                        selectionChanged: (items) => {
+                            this.appContext.apis.navigation.goto('.', { kinds: `${items.join(',')}`});
+                            services.viewPreferences.updatePreferences({
+                                appDetails: {
+                                    defaultKindFilter: items,
+                                },
+                            });
+                        },
+                    };
+
+                    const appNodesByName = this.groupAppNodesByName(application);
+                    const selectedItem = this.selectedNodeFullName && appNodesByName.get(this.selectedNodeFullName) || null;
+                    const isAppSelected = selectedItem === application;
+                    const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
+                    const operationState = application.status.operationState;
+                    const conditions = application.status.conditions || [];
+                    return (
+                        <Page
+                            title='Application Details'
+                            toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
+                                items: [{
+                                    iconClassName: 'icon fa fa-refresh',
+                                    title: 'Refresh',
+                                    action: async () => {
+                                        try {
+                                            this.setState({ refreshing: true });
+                                            await this.loader.setData(await services.applications.get(this.props.match.params.name, true));
+                                        } finally {
+                                            this.setState({ refreshing: false });
+                                        }
+                                    },
+                                }, {
+                                    iconClassName: 'icon argo-icon-deploy',
+                                    title: 'Sync',
+                                    action: () => this.setDeployPanelVisible(true),
+                                }, {
+                                    iconClassName: 'icon fa fa-history',
+                                    title: 'History',
+                                    action: () => this.setRollbackPanelVisible(0),
+                                }, {
+                                    iconClassName: 'icon fa fa-times-circle',
+                                    title: 'Delete',
+                                    action: () => this.deleteApplication(),
+                                }],
+                            }}}>
+                            <ApplicationStatusPanel application={application}
+                                showOperation={() => this.setOperationStatusVisible(true)}
+                                showConditions={() => this.setConditionsStatusVisible(true)}/>
+                            <div className='application-details'>
+                                {this.state.refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+                                <ApplicationResourcesTree
+                                    kindsFilter={kindsFilter}
+                                    selectedNodeFullName={this.selectedNodeFullName}
+                                    onNodeClick={(fullName) => this.selectNode(fullName)}
+                                    nodeMenuItems={(node) => this.getResourceMenuItems(node)}
+                                    nodeLabels={(node) => this.getResourceLabels(node)}
+                                    app={application}/>
+                            </div>
+                            <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
+                                <div>
+                                {selectedNode && <Tabs
+                                    navTransparent={true}
+                                    tabs={this.getResourceTabs(
+                                        application, selectedNode, [{title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}])} />
+                                }
+                                {isAppSelected && (
+                                    <Tabs navTransparent={true} tabs={[{
+                                        title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application}/>,
+                                    }, {
+                                        title: 'PARAMETERS', key: 'parameters', content: <ParametersPanel
+                                            params={application.status.parameters || []}
+                                            overrides={application.spec.source.componentParameterOverrides}/>,
+                                    }, {
+                                        title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={application.metadata.name}/>,
+                                    }]}/>
+                                )}
+                                </div>
+                            </SlidingPanel>
+                            <SlidingPanel isNarrow={true} isShown={this.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
+                                    <div>
+                                    <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
+                                        Synchronize
+                                    </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
+                                        Cancel
+                                    </button>
                                     </div>
-                                    <div className='argo-form-row'>
-                                        <label htmlFor='prune-on-sync-checkbox'>Prune</label> <Checkbox id='prune-on-sync-checkbox' field='prune'/>
-                                    </div>
-                                </form>
-                            )}
-                        </Form>
-                    )}
-                </SlidingPanel>
-                <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
-                    {this.state.application && <ApplicationDeploymentHistory
-                        app={this.state.application}
-                        selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
-                        rollbackApp={(info) => this.rollbackApplication(info)}
-                        selectDeployment={(i) => this.setRollbackPanelVisible(i)}
-                        />}
-                </SlidingPanel>
-                <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
-                    {operationState && <ApplicationOperationState  application={this.state.application} operationState={operationState}/>}
-                </SlidingPanel>
-                <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
-                    {conditions && <ApplicationConditions conditions={conditions}/>}
-                </SlidingPanel>
-            </Page>
+                                )}>
+                                {this.showDeployPanel && (
+                                    <Form onSubmit={(params: any) => this.syncApplication(params.revision, params.prune)} getApi={(api) => this.formApi = api}>
+                                        {(formApi) => (
+                                            <form role='form' className='width-control' onSubmit={formApi.submitForm}>
+                                                <h6>Synchronizing application manifests from <a href={application.spec.source.repoURL}>
+                                                    {application.spec.source.repoURL}</a>
+                                                </h6>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Revision' field='revision' component={Text}/>
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <label htmlFor='prune-on-sync-checkbox'>Prune</label> <Checkbox id='prune-on-sync-checkbox' field='prune'/>
+                                                </div>
+                                            </form>
+                                        )}
+                                    </Form>
+                                )}
+                            </SlidingPanel>
+                            <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
+                                {<ApplicationDeploymentHistory
+                                    app={application}
+                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
+                                    rollbackApp={(info) => this.rollbackApplication(info)}
+                                    selectDeployment={(i) => this.setRollbackPanelVisible(i)}
+                                    />}
+                            </SlidingPanel>
+                            <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
+                                {operationState && <ApplicationOperationState  application={application} operationState={operationState}/>}
+                            </SlidingPanel>
+                            <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
+                                {conditions && <ApplicationConditions conditions={conditions}/>}
+                            </SlidingPanel>
+                        </Page>
+                    );
+                }}
+            </DataLoader>
         );
     }
 
-    public groupAppNodesByName() {
+    private groupAppNodesByName(application: appModels.Application) {
         const nodeByFullName = new Map<string, appModels.ResourceState | appModels.ResourceNode | appModels.Application>();
         function addChildren<T extends (appModels.ResourceNode | appModels.ResourceState) & { fullName: string, children: appModels.ResourceNode[] }>(node: T) {
             nodeByFullName.set(node.fullName, node);
@@ -241,9 +248,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             }
         }
 
-        if (this.state.application) {
-            nodeByFullName.set(`${this.state.application.kind}:${this.state.application.metadata.name}`, this.state.application);
-            for (const node of (this.state.application.status.comparisonResult.resources || [])) {
+        if (application) {
+            nodeByFullName.set(`${application.kind}:${application.metadata.name}`, application);
+            for (const node of (application.status.comparisonResult.resources || [])) {
                 const state = node.liveState || node.targetState;
                 addChildren({...node, children: node.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
             }
@@ -353,7 +360,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return labels;
     }
 
-    private getResourceTabs(resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {
+    private getResourceTabs(application: appModels.Application, resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {
         const {resourceNode} = AppUtils.getStateAndNode(resource);
         tabs.push({
             title: 'EVENTS', key: 'events', content: <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={resourceNode}/>,
@@ -376,7 +383,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             </div>
                             <div className='columns small-9 medium-10'>
                                 <PodsLogsViewer
-                                    pod={resourceNode.state} applicationName={this.state.application.metadata.name} containerIndex={this.selectedNodeContainer.container} />
+                                    pod={resourceNode.state} applicationName={application.metadata.name} containerIndex={this.selectedNodeContainer.container} />
                             </div>
                         </div>
                     </div>
@@ -387,10 +394,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private ensureUnsubscribed() {
-        if (this.changesSubscription) {
-            this.changesSubscription.unsubscribe();
-        }
-        this.changesSubscription = null;
         if (this.viewPrefSubscription) {
             this.viewPrefSubscription.unsubscribe();
             this.viewPrefSubscription = null;
