@@ -187,6 +187,38 @@ func validateProject(p *v1alpha1.AppProject) error {
 	return nil
 }
 
+// DeleteToken deletes a token in a project
+func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Project) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	err = validateProject(project)
+	if err != nil {
+		return nil, err
+	}
+
+	s.projectLock.Lock(q.Project)
+	defer s.projectLock.Unlock(q.Project)
+
+	index, err := project.GetTokenIndex(q.Token)
+	if err != nil {
+		return nil, err
+	}
+	project.Spec.Tokens[index] = project.Spec.Tokens[len(project.Spec.Tokens)-1]
+	project.Spec.Tokens = project.Spec.Tokens[:len(project.Spec.Tokens)-1]
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
+	if err != nil {
+		return nil, err
+	}
+	s.logEvent(project, ctx, argo.EventReasonResourceDeleted, "deleted token")
+	return &EmptyResponse{}, nil
+
+}
+
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
 	if q.Project.Name == common.DefaultAppProjectName {

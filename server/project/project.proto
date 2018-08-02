@@ -18,6 +18,12 @@ message ProjectCreateRequest {
   github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.AppProject project = 1;
 }
 
+// ProjectTokenCreateRequest defines project token deletion parameters.
+message ProjectTokenDeleteRequest {
+    string project = 1;
+    string token = 2;
+}
+
 // ProjectTokenCreateRequest defines project token creation parameters.
 message ProjectTokenCreateRequest {
     string project = 1;
@@ -50,6 +56,11 @@ service ProjectService {
       post: "/api/v1/projects/token"
       body: "*"
     };
+  }
+
+    // Create a new project token.
+  rpc DeleteToken(ProjectTokenDeleteRequest) returns (EmptyResponse) {
+    option (google.api.http).delete = "/api/v1/projects/token";
   }
 
   // Create a new project.

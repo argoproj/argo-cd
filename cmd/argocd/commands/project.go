@@ -72,8 +72,11 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			os.Exit(1)
 		},
 	}
+	tokenCommand.AddCommand(NewProjectListTokenCommand(clientOpts))
 	tokenCommand.AddCommand(NewProjectCreateTokenCommand(clientOpts))
+	tokenCommand.AddCommand(NewProjectDeleteTokenCommand(clientOpts))
 	tokenCommand.AddCommand(NewProjectAddTokenPolicyCommand(clientOpts))
+	tokenCommand.AddCommand(NewProjectRemoveTokenPolicyCommand(clientOpts))
 	command.AddCommand(tokenCommand)
 	command.AddCommand(NewProjectCreateCommand(clientOpts))
 	command.AddCommand(NewProjectDeleteCommand(clientOpts))
@@ -142,6 +145,59 @@ func NewProjectAddTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *co
 	return command
 }
 
+// NewProjectRemoveTokenPolicyCommand returns a new instance of an `argocd proj token remove-policy` command
+func NewProjectRemoveTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		opts policyOpts
+	)
+	var command = &cobra.Command{
+		Use:   "remove-policy PROJECT TOKEN-NAME",
+		Short: "Remove a policy from a token within a project",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			if opts.permission != "allow" && opts.permission != "deny" {
+				log.Fatal("Permission flag can only have the values 'allow' or 'deny'")
+			}
+
+			projName := args[0]
+			tokenName := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			tokenIndex, err := proj.GetTokenIndex(tokenName)
+			if err != nil {
+				log.Fatal(err)
+			}
+			token := proj.Spec.Tokens[tokenIndex]
+
+			policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, token.Name, opts.action, proj.Name, opts.object)
+			duplicateIndex := -1
+			for i, policy := range token.Policies {
+				if policy == policyToRemove {
+					duplicateIndex = i
+					break
+				}
+			}
+			if duplicateIndex < 0 {
+				log.Fatal("Policy does not exist in token.")
+			}
+			token.Policies[duplicateIndex] = token.Policies[len(token.Policies)-1]
+			proj.Spec.Tokens[tokenIndex].Policies = token.Policies[:len(token.Policies)-1]
+			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	addPolicyFlags(command, &opts)
+	return command
+}
+
 // NewProjectCreateTokenCommand returns a new instance of an `argocd proj token create` command
 func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -170,6 +226,58 @@ func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	}
 	command.Flags().Int64VarP(&secondsBeforeExpiry, "secondsBeforeExpiry", "s", defaultSecondsBeforeExpiry, "Number of seconds before the token will expire (Default: 3 months)")
 
+	return command
+}
+
+// NewProjectListTokenCommand returns a new instance of an `argocd proj token list` command
+func NewProjectListTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "list PROJECT",
+		Short: "List all the tokens in a project",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "TOKEN-NAME\tCREATED-AT\tPOLICIES\n")
+			for _, token := range project.Spec.Tokens {
+				fmt.Fprintf(w, "%s\t%d\t\n", token.Name, token.CreatedAt)
+				for _, policy := range token.Policies {
+					fmt.Fprintf(w, "%s\t%d\t%s\n", token.Name, token.CreatedAt, policy)
+				}
+			}
+			_ = w.Flush()
+		},
+	}
+	return command
+}
+
+// NewProjectDeleteTokenCommand returns a new instance of an `argocd proj token delete` command
+func NewProjectDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "delete PROJECT TOKEN-NAME",
+		Short: "Delete a project token",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			tokenName := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			_, err := projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Token: tokenName})
+			errors.CheckError(err)
+		},
+	}
 	return command
 }
 

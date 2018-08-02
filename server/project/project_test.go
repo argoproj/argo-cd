@@ -141,6 +141,20 @@ func TestProjectServer(t *testing.T) {
 		assert.Equal(t, "proj:test:test", subject)
 		assert.Nil(t, err)
 	})
+
+	t.Run("TestDeleteTokenSuccesfully", func(t *testing.T) {
+		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
+		projWithToken := existingProj.DeepCopy()
+		tokenName := "test"
+		token := v1alpha1.ProjectToken{Name: tokenName}
+		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		_, err := projectServer.DeleteToken(context.Background(), &ProjectTokenDeleteRequest{Project: projWithToken.Name, Token: tokenName})
+		assert.Nil(t, err)
+		assert.Len(t, projWithToken.Spec.Tokens, 1)
+	})
+
 	t.Run("TestCreateDuplicateTokenFailure", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
@@ -173,4 +187,14 @@ func TestProjectServer(t *testing.T) {
 		assert.Equal(t, projWithToken.Spec.Tokens[0].Policies[0], expectedPolicy)
 	})
 
+	t.Run("TestCreateDuplicateTokenPolicyFailure", func(t *testing.T) {
+		// sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
+		// projWithToken := existingProj.DeepCopy()
+		// tokenName := "test"
+		// token := v1alpha1.ProjectToken{Name: tokenName}
+		// projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		// projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
+		// _, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken.Name, Token: tokenName})
+		// assert.EqualError(t, err, "rpc error: code = AlreadyExists desc = 'test' token already exist for project 'test'")
+	})
 }

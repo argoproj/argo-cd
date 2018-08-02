@@ -720,6 +720,21 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Create a new project token.",
+        "operationId": "DeleteToken",
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectEmptyResponse"
+            }
+          }
+        }
       }
     },
     "/api/v1/projects/{name}": {
