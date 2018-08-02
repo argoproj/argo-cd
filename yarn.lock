@@ -184,9 +184,9 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-argo-ui@^2.1.1-alpha9:
-  version "2.1.1-alpha9"
-  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.1.1-alpha9.tgz#c5e08cb244049a6ab18b59a16e4646179365a976"
+argo-ui@^2.1.1-alpha12:
+  version "2.1.1-alpha12"
+  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.1.1-alpha12.tgz#81db977e6c5bc32344653acffe38c65c7484f7a6"
   dependencies:
     aws-sdk "^2.188.0"
     body-parser "^1.18.2"

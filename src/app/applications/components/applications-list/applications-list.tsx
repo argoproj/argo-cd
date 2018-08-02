@@ -3,9 +3,8 @@ import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
-import { Subscription } from 'rxjs';
 
-import { ErrorNotification, Page } from '../../../shared/components';
+import { DataLoader, ErrorNotification, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -15,7 +14,10 @@ import * as AppUtils from '../utils';
 require('./applications-list.scss');
 
 type Props = RouteComponentProps<{}>;
-interface State { allProjects: string[]; projectsFilter: string[]; applications: models.Application[]; appWizardStepState: WizardStepState; }
+interface State {
+    allProjects: string[];
+    appWizardStepState: WizardStepState;
+}
 
 export class ApplicationsList extends React.Component<Props, State> {
 
@@ -24,63 +26,37 @@ export class ApplicationsList extends React.Component<Props, State> {
         apis: PropTypes.object,
     };
 
-    public static getDerivedStateFromProps(props: Props, state: State): Partial<State> {
-        const projs = new URLSearchParams(props.history.location.search).getAll('proj');
-        if (projs.join(',') !== state.projectsFilter.join(',')) {
-            return {
-                applications: null,
-                projectsFilter: projs,
-            };
-        }
-        return null;
-    }
-
-    private changesSubscription: Subscription;
-
     private get showNewAppPanel() {
         return new URLSearchParams(this.props.location.search).get('new') === 'true';
     }
 
+    private loader: DataLoader<models.Application[], {}>;
+    private appChanges = services.applications.watch().filter(() => this.loader !== null && !!this.loader.getData()).map((applicationChange) => {
+        let applications = this.loader.getData().slice();
+        switch (applicationChange.type) {
+            case 'ADDED':
+            case 'MODIFIED':
+                const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
+                if (index > -1) {
+                    applications[index] = applicationChange.application;
+                } else {
+                    applications.unshift(applicationChange.application);
+                }
+                break;
+            case 'DELETED':
+                applications = applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name);
+                break;
+        }
+        return applications;
+    });
+
     constructor(props: Props) {
         super(props);
-        this.state = { allProjects: [], applications: null, appWizardStepState: { next: null, prev: null, nextTitle: 'Next'}, projectsFilter: [] };
-    }
-
-    public async componentDidUpdate(prevProps: Props, prevState: State) {
-        if (this.state.applications === null) {
-            this.setState({ applications: (await services.applications.list(this.state.projectsFilter)) });
-        }
+        this.state = { allProjects: [], appWizardStepState: { next: null, prev: null, nextTitle: 'Next'} };
     }
 
     public async componentDidMount() {
-        this.setState({ applications: (await services.applications.list(this.state.projectsFilter)) });
-        this.ensureUnsubscribed();
-        this.changesSubscription = services.applications.watch().subscribe((applicationChange) => {
-            if (this.state.applications) {
-                const applications = this.state.applications.slice();
-                switch (applicationChange.type) {
-                    case 'ADDED':
-                    case 'MODIFIED':
-                        const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
-                        if (index > -1) {
-                            applications[index] = applicationChange.application;
-                            this.setState({ applications });
-                        } else {
-                            applications.unshift(applicationChange.application);
-                            this.setState({ applications });
-                        }
-                        break;
-                    case 'DELETED':
-                        this.setState({ applications: applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name) });
-                        break;
-                }
-            }
-        });
         this.setState({ allProjects: await services.projects.list().then((items) => items.map((item) => item.metadata.name)) });
-    }
-
-    public componentWillUnmount() {
-        this.ensureUnsubscribed();
     }
 
     public render() {
@@ -105,80 +81,87 @@ export class ApplicationsList extends React.Component<Props, State> {
                 },
             }} >
                 <div className='argo-container applications-list'>
-                    {this.state.applications ? (
-                        <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
-                            {this.state.applications.map((app) => (
-                                <div key={app.metadata.name} className='column column-block'>
-                                    <div className={`argo-table-list__row
-                                        applications-list__entry applications-list__entry--comparison-${app.status.comparisonResult.status}
-                                        applications-list__entry--health-${app.status.health.status}`
-                                    }>
-                                        <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.name}`)}>
-                                            <div className='columns small-12 applications-list__info'>
-                                                <div className='row'>
-                                                    <div className='columns applications-list__title'>{app.metadata.name}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Project:</div>
-                                                    <div className='columns small-9'>{app.spec.project}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Namespace:</div>
-                                                    <div className='columns small-9'>{app.spec.destination.namespace}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Cluster:</div>
-                                                    <div className='columns small-9'>{app.spec.destination.server}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Status:</div>
-                                                    <div className='columns small-9'>
-                                                        <AppUtils.ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}
+                    <DataLoader
+                        ref={(loader) => this.loader = loader}
+                        dataChanges={this.appChanges}
+                        input={projectsFilter}
+                        load={(projects) => services.applications.list(projects)}
+                        loadingRenderer={() => <MockupList height={300} marginTop={30}/>}>
+                        {(applications: models.Application[]) => (
+                            <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
+                                {applications.map((app) => (
+                                    <div key={app.metadata.name} className='column column-block'>
+                                        <div className={`argo-table-list__row
+                                            applications-list__entry applications-list__entry--comparison-${app.status.comparisonResult.status}
+                                            applications-list__entry--health-${app.status.health.status}`
+                                        }>
+                                            <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.name}`)}>
+                                                <div className='columns small-12 applications-list__info'>
+                                                    <div className='row'>
+                                                        <div className='columns applications-list__title'>{app.metadata.name}</div>
                                                     </div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Health:</div>
-                                                    <div className='columns small-9'>
-                                                        <AppUtils.HealthStatusIcon state={app.status.health}/> {app.status.health.status}
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Project:</div>
+                                                        <div className='columns small-9'>{app.spec.project}</div>
                                                     </div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Age:</div>
-                                                    <div className='columns small-9'>{this.daysBeforeNow(app.metadata.creationTimestamp)} days</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Repository:</div>
-                                                    <div className='columns small-9'>
-                                                        <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                                                            <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-                                                        </a>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Namespace:</div>
+                                                        <div className='columns small-9'>{app.spec.destination.namespace}</div>
                                                     </div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Path:</div>
-                                                    <div className='columns small-9'>{app.spec.source.path}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>Environment:</div>
-                                                    <div className='columns small-9'>{app.spec.source.environment}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className='columns applications-list__entry--actions'>
-                                                        <DropDownMenu anchor={() =>
-                                                            <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'/></button>
-                                                        } items={[
-                                                            { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
-                                                            { title: 'Delete', action: () => this.deleteApplication(app.metadata.name) },
-                                                        ]} />
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Cluster:</div>
+                                                        <div className='columns small-9'>{app.spec.destination.server}</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Status:</div>
+                                                        <div className='columns small-9'>
+                                                            <AppUtils.ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}
+                                                        </div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Health:</div>
+                                                        <div className='columns small-9'>
+                                                            <AppUtils.HealthStatusIcon state={app.status.health}/> {app.status.health.status}
+                                                        </div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Age:</div>
+                                                        <div className='columns small-9'>{this.daysBeforeNow(app.metadata.creationTimestamp)} days</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Repository:</div>
+                                                        <div className='columns small-9'>
+                                                            <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
+                                                                <i className='fa fa-external-link'/> {app.spec.source.repoURL}
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Path:</div>
+                                                        <div className='columns small-9'>{app.spec.source.path}</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>Environment:</div>
+                                                        <div className='columns small-9'>{app.spec.source.environment}</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns applications-list__entry--actions'>
+                                                            <DropDownMenu anchor={() =>
+                                                                <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'/></button>
+                                                            } items={[
+                                                                { title: 'Sync', action: () => this.syncApplication(app.metadata.name, 'HEAD') },
+                                                                { title: 'Delete', action: () => this.deleteApplication(app.metadata.name) },
+                                                            ]} />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : <MockupList height={300} marginTop={30}/>}
+                                ))}
+                            </div>
+                        )}
+                    </DataLoader>
                 </div>
                 <SlidingPanel isShown={this.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} header={
                         <div>
@@ -210,13 +193,6 @@ export class ApplicationsList extends React.Component<Props, State> {
 
     private setNewAppPanelVisible(isVisible: boolean) {
         this.appContext.router.history.push(`${this.props.match.url}?new=${isVisible}`);
-    }
-
-    private ensureUnsubscribed() {
-        if (this.changesSubscription) {
-            this.changesSubscription.unsubscribe();
-        }
-        this.changesSubscription = null;
     }
 
     // DaysBeforeNow returns the delta, in days, between now and a given timestamp.

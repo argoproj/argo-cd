@@ -1,10 +1,22 @@
 @import 'node_modules/argo-ui/bundle/app/shared/styles/config';
 
 .application-details {
+    position: relative;
     padding: 1em;
     overflow-x: auto;
     overflow-y: auto;
     min-height: calc(100vh - 2 * 50px - 115px);
+
+    &__refreshing-label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-color: $argo-color-gray-4;
+        border: 1px solid $argo-color-gray-5;
+        border-radius: 5px;
+        padding: 0 5px;
+        font-size: 0.6em;
+    }
 
     &__tab-content-full-height {
         height: calc(100vh - 2 * 50px);
