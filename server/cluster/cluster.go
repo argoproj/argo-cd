@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
-	log "github.com/sirupsen/logrus"
 )
 
 // Server provides a Cluster service
@@ -101,12 +100,6 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 	}
 
 	// Temporarily install RBAC resources for managing the cluster
-	defer func() {
-		err := common.UninstallClusterManagerRBAC(s.kubeclientset)
-		if err != nil {
-			log.Errorf("Error occurred uninstalling cluster manager: %v", err)
-		}
-	}()
 	bearerToken, err := common.InstallClusterManagerRBAC(s.kubeclientset)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
