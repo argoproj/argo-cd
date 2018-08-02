@@ -31,7 +31,7 @@ brew install argoproj/tap/argocd
 On Linux:
 
 ```
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.7.0/argocd-darwin-amd64
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.7.0/argocd-linux-amd64
 chmod +x /usr/local/bin/argocd
 ```
 
