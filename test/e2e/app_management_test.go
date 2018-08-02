@@ -170,7 +170,7 @@ func TestAppManagement(t *testing.T) {
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status != v1alpha1.ComparisonStatusUnknown && len(app.Status.Conditions) > 0, err
+			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.ComparisonStatusUnknown && len(app.Status.Conditions) > 0, err
 		})
 
 		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
