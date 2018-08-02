@@ -17,7 +17,8 @@ func TestMain(m *testing.M) {
 		println(fmt.Sprintf("Unable to create e2e fixture: %v", err))
 		os.Exit(-1)
 	} else {
-		defer fixture.TearDown()
-		m.Run()
+		code := m.Run()
+		fixture.TearDown()
+		os.Exit(code)
 	}
 }
