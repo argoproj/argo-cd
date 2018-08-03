@@ -191,7 +191,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	var env *app.EnvironmentSpec
 	var err error
 
-	appSourceType := identifyAppSourceType(appPath)
+	appSourceType := IdentifyAppSourceTypeByAppDir(appPath)
 	switch appSourceType {
 	case AppSourceKsonnet:
 		targetObjs, params, env, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
@@ -244,12 +244,23 @@ func tempRepoPath(repo string) string {
 	return path.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
 }
 
-// identifyAppSourceType examines a directory and determines its application source type
-func identifyAppSourceType(appPath string) AppSourceType {
-	if pathExists(path.Join(appPath, "app.yaml")) {
+// IdentifyAppSourceTypeByAppDir examines a directory and determines its application source type
+func IdentifyAppSourceTypeByAppDir(appDirPath string) AppSourceType {
+	if pathExists(path.Join(appDirPath, "app.yaml")) {
 		return AppSourceKsonnet
 	}
-	if pathExists(path.Join(appPath, "Chart.yaml")) {
+	if pathExists(path.Join(appDirPath, "Chart.yaml")) {
+		return AppSourceHelm
+	}
+	return AppSourceDirectory
+}
+
+// IdentifyAppSourceTypeByAppPath determines application source type by app file path
+func IdentifyAppSourceTypeByAppPath(appFilePath string) AppSourceType {
+	if strings.HasSuffix(appFilePath, "app.yaml") {
+		return AppSourceKsonnet
+	}
+	if strings.HasSuffix(appFilePath, "Chart.yaml") {
 		return AppSourceHelm
 	}
 	return AppSourceDirectory

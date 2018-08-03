@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -520,22 +521,16 @@ type bug21955Workaround struct {
 	handler http.Handler
 }
 
+var pathPatters = []*regexp.Regexp{
+	regexp.MustCompile(`/api/v1/clusters/[^/]+`),
+	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps`),
+	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps/[^/]+`),
+}
+
 func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	paths := map[string][]string{
-		"/api/v1/repositories/": {"apps"},
-		"/api/v1/clusters/":     {},
-	}
-	for path, subPaths := range paths {
-		if strings.Index(r.URL.Path, path) > -1 {
-			postfix := ""
-			for _, subPath := range subPaths {
-				if strings.LastIndex(r.URL.Path, subPath) == len(r.URL.Path)-len(subPath) {
-					postfix = "/" + subPath
-					r.URL.Path = r.URL.Path[0 : len(r.URL.Path)-len(subPath)-1]
-					break
-				}
-			}
-			r.URL.Path = path + url.QueryEscape(r.URL.Path[len(path):]) + postfix
+	for _, pattern := range pathPatters {
+		if pattern.MatchString(r.URL.RawPath) {
+			r.URL.Path = r.URL.RawPath
 			break
 		}
 	}
@@ -555,6 +550,17 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 			return nil, err
 		}
 		rk.Repo = repo
+	} else if rdq, ok := req.(*repository.RepoAppDetailsQuery); ok {
+		repo, err := url.QueryUnescape(rdq.Repo)
+		if err != nil {
+			return nil, err
+		}
+		path, err := url.QueryUnescape(rdq.Path)
+		if err != nil {
+			return nil, err
+		}
+		rdq.Repo = repo
+		rdq.Path = path
 	} else if ru, ok := req.(*repository.RepoUpdateRequest); ok {
 		repo, err := url.QueryUnescape(ru.Repo.Repo)
 		if err != nil {

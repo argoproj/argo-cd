@@ -17,10 +17,30 @@ message RepoAppsQuery {
 	string revision = 2;
 }
 
+
+// AppInfo contains application type and app file path
+message AppInfo {
+	string type = 1;
+	string path = 2;
+}
+
+// RepoAppDetailsQuery contains query information for app details request
+message RepoAppDetailsQuery {
+	string repo = 1;
+	string revision = 2;
+	string path = 3;
+}
+
+// RepoAppDetailsResponse application details
+message RepoAppDetailsResponse {
+	string type = 1;
+	KsonnetAppSpec ksonnet = 2;
+	HelmAppSpec helm = 3;
+}
+
 // RepoAppsResponse contains applications of specified repository
 message RepoAppsResponse {
-	repeated KsonnetAppSpec ksonnetApps = 1;
-	repeated HelmAppSpec helmApps = 2;
+	repeated AppInfo items = 1;
 }
 
 // KsonnetAppSpec contains Ksonnet app response
@@ -35,6 +55,7 @@ message KsonnetAppSpec {
 message HelmAppSpec {
 	string name = 1;
 	string path = 2;
+	repeated string valueFiles = 3;
 }
 
 message KsonnetEnvironment {
@@ -79,9 +100,14 @@ service RepositoryService {
 		option (google.api.http).get = "/api/v1/repositories";
 	}
 
-	// ListKsonnetApps returns list of Ksonnet apps in the repo
+	// ListApps returns list of apps in the repo
 	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
+	}
+
+	// GetAppDetails returns application details by given path
+	rpc GetAppDetails(RepoAppDetailsQuery) returns (RepoAppDetailsResponse) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/apps/{path}";
 	}
 
 	// Create creates a repo
