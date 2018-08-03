@@ -7,12 +7,11 @@ import { Observable, Subscription } from 'rxjs';
 import { ConnectionStateIcon, FormField, Select } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { ArgoApp } from '../../../shared/services';
 
 export const AppsList = (props: {
-    apps: ArgoApp[],
-    selectedApp: ArgoApp,
-    onAppSelected: (app: ArgoApp) => any,
+    apps: models.AppInfo[],
+    selectedApp: models.AppInfo,
+    onAppSelected: (app: models.AppInfo) => any,
 }) => (
     props.apps.length === 0 ? (
     <div>
@@ -23,18 +22,14 @@ export const AppsList = (props: {
         <div className='argo-table-list__head'>
             <div className='row'>
                 <div className='columns small-2'>TYPE</div>
-                <div className='columns small-4'>APPLICATION NAME</div>
-                <div className='columns small-4'>PATH</div>
-                <div className='columns small-2'>ENVIRONMENTS COUNT</div>
+                <div className='columns small-10'>PATH</div>
             </div>
         </div>
         {props.apps.map((item, i) => (
             <div className={classNames('argo-table-list__row', { selected: item === props.selectedApp })} key={i} onClick={() => props.onAppSelected(item)}>
                 <div className='row'>
-                    <div className='columns small-2'>{item.ksonnet && 'Ksonnet' || 'Helm'}</div>
-                    <div className='columns small-4'>{(item.ksonnet || item.helm).name}</div>
-                    <div className='columns small-4'>{(item.ksonnet || item.helm).path}</div>
-                    <div className='columns small-2'>{item.ksonnet ? Object.keys(item.ksonnet.environments).length : 0}</div>
+                    <div className='columns small-2'>{item.type}</div>
+                    <div className='columns small-10'>{item.path}</div>
                 </div>
             </div>
         ))}
@@ -84,6 +79,9 @@ export const EnvironmentsList = (props: {
     onEnvsSelectionChanged: (env: string) => any;
 }) =>  {
     const environments = Object.keys(props.envs).map((name) => Object.assign(props.envs[name], {name}));
+    if (environments.length === 0) {
+        return <p>Application has no environments</p>;
+    }
     return (
         <div className='argo-table-list argo-table-list--clickable'>
             <div className='argo-table-list__head'>
