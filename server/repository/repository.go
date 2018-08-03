@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"path"
 	"reflect"
 
 	"github.com/ghodss/yaml"
@@ -75,84 +76,96 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 		revision = "HEAD"
 	}
 
-	ksonnetApps, err := s.listKsonnetApps(ctx, repo, revision, repoClient)
+	ksonnetRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*app.yaml"})
 	if err != nil {
 		return nil, err
 	}
 
-	helmApps, err := s.listHelmApps(ctx, repo, revision, repoClient)
+	helmRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*Chart.yaml"})
 	if err != nil {
 		return nil, err
 	}
 
-	return &RepoAppsResponse{
-		KsonnetApps: ksonnetApps,
-		HelmApps:    helmApps,
-	}, nil
+	items := make([]*AppInfo, 0)
+
+	for i := range ksonnetRes.Items {
+		items = append(items, &AppInfo{Type: string(repository.AppSourceKsonnet), Path: ksonnetRes.Items[i]})
+	}
+
+	for i := range helmRes.Items {
+		items = append(items, &AppInfo{Type: string(repository.AppSourceHelm), Path: helmRes.Items[i]})
+	}
+
+	return &RepoAppsResponse{Items: items}, nil
 }
 
-func (s *Server) listHelmApps(ctx context.Context, repo *appsv1.Repository, revision string, repoClient repository.RepositoryServiceClient) ([]*HelmAppSpec, error) {
-	req := repository.ListDirRequest{
-		Repo:     repo,
-		Revision: revision,
-		Path:     "*Chart.yaml",
+func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*RepoAppDetailsResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories/apps", "get", q.Repo) {
+		return nil, grpc.ErrPermissionDenied
 	}
-	getRes, err := repoClient.ListDir(ctx, &req)
+	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
 		return nil, err
 	}
 
-	helmApps := make([]*HelmAppSpec, 0)
-	for _, path := range getRes.Items {
-		getFileRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
-			Repo:     repo,
-			Revision: revision,
-			Path:     path,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		var appSpec HelmAppSpec
-		appSpec.Path = path
-		err = yaml.Unmarshal(getFileRes.Data, &appSpec)
-		if err == nil && appSpec.Name != "" {
-			helmApps = append(helmApps, &appSpec)
-		}
+	// Test the repo
+	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	if err != nil {
+		return nil, err
 	}
-	return helmApps, nil
-}
+	defer util.Close(conn)
 
-func (s *Server) listKsonnetApps(ctx context.Context, repo *appsv1.Repository, revision string, repoClient repository.RepositoryServiceClient) ([]*KsonnetAppSpec, error) {
-	req := repository.ListDirRequest{
+	revision := q.Revision
+	if revision == "" {
+		revision = "HEAD"
+	}
+
+	appSpecRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
 		Repo:     repo,
 		Revision: revision,
-		Path:     "*app.yaml",
-	}
-	getRes, err := repoClient.ListDir(ctx, &req)
+		Path:     q.Path,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	ksonnetApps := make([]*KsonnetAppSpec, 0)
-	for _, path := range getRes.Items {
-		getFileRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
-			Repo:     repo,
-			Revision: revision,
-			Path:     path,
-		})
-		if err != nil {
-			return nil, err
-		}
-
+	appSourceType := repository.IdentifyAppSourceTypeByAppPath(q.Path)
+	switch appSourceType {
+	case repository.AppSourceKsonnet:
 		var appSpec KsonnetAppSpec
-		appSpec.Path = path
-		err = yaml.Unmarshal(getFileRes.Data, &appSpec)
-		if err == nil && appSpec.Name != "" && len(appSpec.Environments) > 0 {
-			ksonnetApps = append(ksonnetApps, &appSpec)
+		appSpec.Path = q.Path
+		err = yaml.Unmarshal(appSpecRes.Data, &appSpec)
+		if err != nil {
+			return nil, err
 		}
+		return &RepoAppDetailsResponse{
+			Type:    string(appSourceType),
+			Ksonnet: &appSpec,
+		}, nil
+	case repository.AppSourceHelm:
+		var appSpec HelmAppSpec
+		appSpec.Path = q.Path
+		err = yaml.Unmarshal(appSpecRes.Data, &appSpec)
+		if err != nil {
+			return nil, err
+		}
+		valuesFilesRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{
+			Revision: revision,
+			Repo:     repo,
+			Path:     path.Join(path.Dir(q.Path), "*values*.yaml"),
+		})
+		if err != nil {
+			return nil, err
+		}
+		appSpec.ValueFiles = valuesFilesRes.Items
+		return &RepoAppDetailsResponse{
+			Type: string(appSourceType),
+			Helm: &appSpec,
+		}, nil
+
 	}
-	return ksonnetApps, nil
+
+	return nil, status.Errorf(codes.InvalidArgument, "specified application path is not supported")
 }
 
 // Create creates a repository

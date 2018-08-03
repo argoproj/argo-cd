@@ -884,7 +884,7 @@
         "tags": [
           "RepositoryService"
         ],
-        "summary": "ListKsonnetApps returns list of Ksonnet apps in the repo",
+        "summary": "ListApps returns list of apps in the repo",
         "operationId": "ListApps",
         "parameters": [
           {
@@ -904,6 +904,42 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/repositoryRepoAppsResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/repositories/{repo}/apps/{path}": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "GetAppDetails returns application details by given path",
+        "operationId": "GetAppDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "path",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "revision",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
             }
           }
         }
@@ -1236,6 +1272,18 @@
         }
       }
     },
+    "repositoryAppInfo": {
+      "type": "object",
+      "title": "AppInfo contains application type and app file path",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
     "repositoryHelmAppSpec": {
       "type": "object",
       "title": "HelmAppSpec contains helm app name and path in source repo",
@@ -1245,6 +1293,12 @@
         },
         "path": {
           "type": "string"
+        },
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -1325,20 +1379,29 @@
         }
       }
     },
+    "repositoryRepoAppDetailsResponse": {
+      "type": "object",
+      "title": "RepoAppDetailsResponse application details",
+      "properties": {
+        "helm": {
+          "$ref": "#/definitions/repositoryHelmAppSpec"
+        },
+        "ksonnet": {
+          "$ref": "#/definitions/repositoryKsonnetAppSpec"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
     "repositoryRepoAppsResponse": {
       "type": "object",
       "title": "RepoAppsResponse contains applications of specified repository",
       "properties": {
-        "helmApps": {
+        "items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/repositoryHelmAppSpec"
-          }
-        },
-        "ksonnetApps": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/repositoryKsonnetAppSpec"
+            "$ref": "#/definitions/repositoryAppInfo"
           }
         }
       }
