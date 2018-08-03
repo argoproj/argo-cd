@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.1 (2018-08-03)
++ Surface helm parameters to the application level (#485)
++ [UI] Improve application creation wizard (#459)
++ [UI] Show indicator when refresh is still in progress (#493)
+* [UI] Improve data loading error notification (#446)
+* Infer username from claims during an `argocd relogin` (#475)
+* Expand RBAC role to be able to create application events. Fix username claims extraction
+- Fix scalability issues with the ListApps API (#494)
+- Fix issue where application server was retrieving events from incorrect cluster (#478)
+- Fix failure in identifying app source type when path was '.'
+- AppProjectSpec SourceRepos mislabeled (#490)
+- Failed e2e test was not failing CI workflow
+* Fix linux download link in getting_started.md (#487) (@chocopowwwa)
+
 ## v0.7.0 (2018-07-27)
 + Support helm charts and yaml directories as an application source
 + Audit trails in the form of API call logs
