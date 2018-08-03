@@ -1,0 +1,10 @@
+.form-field__select {
+    border-bottom: none;
+}
+
+.form-field__select:not(.argo-has-value) {
+    &::before {
+        content: '';
+        display: inline-block;
+    }
+}
