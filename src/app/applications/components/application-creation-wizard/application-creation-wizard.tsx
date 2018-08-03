@@ -1,10 +1,13 @@
-import { MockupList } from 'argo-ui';
+import { MockupList, NotificationType } from 'argo-ui';
 import * as path from 'path';
+import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { BehaviorSubject } from 'rxjs';
 
+import { ErrorNotification } from '../../../shared/components';
+import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { ArgoApp, services } from '../../../shared/services';
+import { services } from '../../../shared/services';
 
 import { AppParams, AppsList, EnvironmentsList, NewAppParams, RepositoryList } from './steps';
 
@@ -16,10 +19,11 @@ interface StepInfo { title: string | React.ReactNode; canNext(): boolean; next()
 interface State {
     repos: models.Repository[];
     clusters: models.Cluster[];
-    apps: ArgoApp[];
+    apps: models.AppInfo[];
     envs: { [key: string]: models.KsonnetEnvironment; };
     selectedRepo: string;
-    selectedApp: ArgoApp;
+    selectedApp: models.AppInfo;
+    selectedAppDetails: models.AppDetails;
     selectedEnv: string;
     appParams: NewAppParams;
     appParamsValid: boolean;
@@ -33,6 +37,9 @@ export interface WizardProps { onStateChanged: (state: WizardStepState) => any; 
 export interface WizardStepState { nextTitle: string; next?: () => any; prev?: () => any; }
 
 export class ApplicationCreationWizardContainer extends React.Component<WizardProps, State> {
+    public static contextTypes = {
+        apis: PropTypes.object,
+    };
 
     private submitAppParamsForm = new BehaviorSubject<any>(null);
 
@@ -43,9 +50,10 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             clusters: [],
             repos: [],
             envs: {},
-            selectedApp: null,
+            selectedAppDetails: null,
             selectedRepo: null,
             selectedEnv: null,
+            selectedApp: null,
             appParamsValid: false,
             step: Step.SelectRepo,
             loading: false,
@@ -99,25 +107,34 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                         }, step: Step.SetParams })}>specify</a> drop-in YAML directory</div>
                     ),
                     canNext: () => !!this.state.selectedApp,
-                    next: () => {
-                        if (this.state.selectedApp.ksonnet) {
-                            this.updateState({ envs: this.state.selectedApp.ksonnet.environments, step: Step.SelectEnvironments});
-                        } else {
-                            this.updateState({ appParams: {
-                                applicationName: this.state.selectedApp.helm.name,
-                                repoURL: this.state.selectedRepo,
-                                environment: '',
-                                clusterURL: '',
-                                namespace: '',
-                                path: path.dirname(this.state.selectedApp.helm.path),
-                                project: this.state.projects[0],
-                            }, step: Step.SetParams });
+                    next: async () => {
+                        try {
+                            this.updateState({ loading: true });
+                            const selectedAppDetails = await services.reposService.appDetails(this.state.selectedRepo, this.state.selectedApp.path);
+
+                            if (selectedAppDetails.ksonnet) {
+                                this.updateState({ selectedAppDetails, envs: selectedAppDetails.ksonnet.environments || {}, step: Step.SelectEnvironments});
+                            } else {
+                                this.updateState({ selectedAppDetails, appParams: {
+                                    applicationName: selectedAppDetails.helm.name,
+                                    repoURL: this.state.selectedRepo,
+                                    environment: '',
+                                    clusterURL: '',
+                                    namespace: '',
+                                    path: path.dirname(selectedAppDetails.helm.path),
+                                    project: this.state.projects[0],
+                                }, step: Step.SetParams });
+                            }
+                        } catch (e) {
+                            this.appContext.apis.notifications.show({type: NotificationType.Error, content: <ErrorNotification title='Unable to load app details' e={e} />});
+                        } finally {
+                            this.updateState({ loading: false });
                         }
                     },
                     canPrev: () => true,
                     prev: () => this.updateState({ step: Step.SelectRepo }),
                     render: () => this.state.apps ? (
-                        <AppsList apps={this.state.apps} selectedApp={this.state.selectedApp} onAppSelected={(app) => this.updateState({ selectedApp: app })}/>
+                        <AppsList apps={this.state.apps} selectedApp={this.state.selectedApp} onAppSelected={(selectedApp) => this.updateState({ selectedApp })}/>
                     ) : (
                         <MockupList height={50} marginTop={10}/>
                     ),
@@ -130,12 +147,12 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                         const selectedEnv = this.state.envs[this.state.selectedEnv];
                         this.updateState({
                             appParams: {
-                                applicationName: `${this.state.selectedApp.ksonnet.name}-${this.state.selectedEnv}`,
+                                applicationName: `${this.state.selectedAppDetails.ksonnet.name}-${this.state.selectedEnv}`,
                                 repoURL: this.state.selectedRepo,
                                 environment: this.state.selectedEnv,
                                 clusterURL: selectedEnv.destination.server,
                                 namespace: selectedEnv.destination.namespace,
-                                path: path.dirname(this.state.selectedApp.ksonnet.path),
+                                path: path.dirname(this.state.selectedAppDetails.ksonnet.path),
                                 project: this.state.projects[0],
                             }, step: Step.SetParams,
                         });
@@ -153,7 +170,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     next: async () => this.submitAppParamsForm.next({}),
                     canPrev: () => true,
                     prev: async () => {
-                        if (this.state.selectedApp && this.state.selectedApp.ksonnet) {
+                        if (this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet) {
                             this.updateState({ step: Step.SelectEnvironments });
                         } else {
                             this.updateState({ step: Step.SelectApp });
@@ -161,7 +178,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     },
                     render: () => (
                         <AppParams
-                            needEnvironment={!!(this.state.selectedApp && this.state.selectedApp.ksonnet)}
+                            needEnvironment={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet)}
                             projects={this.state.projects}
                             appParams={this.state.appParams}
                             submitForm={this.submitAppParamsForm}
@@ -208,5 +225,9 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             prev: currentStep.canPrev()  && !this.state.loading && currentStep.prev,
             nextTitle: this.state.step === Step.SetParams ? 'Create' : 'Next',
         });
+    }
+
+    private get appContext(): AppContext {
+        return this.context as AppContext;
     }
 }
