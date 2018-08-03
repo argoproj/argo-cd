@@ -3,6 +3,8 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
+require('./form-field.scss');
+
 export const FormField: <E, T extends ReactForm.FieldProps & {className?: string}>(
     props: React.Props<E> & {
     label: string,
@@ -32,7 +34,7 @@ export const Select = ReactForm.FormField((props: SelectProps & { fieldApi: Reac
     const value = getValue();
 
     return (
-        <div className={props.className} style={{borderBottom: 'none'}}>
+        <div className={classNames(props.className, 'form-field__select')}>
             <ArgoSelect {...rest} value={!value && value !== 0 ? '' : value} placeholder={props.placeholder}
                 onChange={(option) => {
                     setValue(option.value);

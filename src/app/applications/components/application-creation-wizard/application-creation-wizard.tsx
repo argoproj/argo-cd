@@ -4,7 +4,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { BehaviorSubject } from 'rxjs';
 
-import { ErrorNotification } from '../../../shared/components';
+import { DataLoader, ErrorNotification } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -17,9 +17,6 @@ enum Step { SelectRepo = 0, SelectApp = 1, SelectEnvironments = 2, SetParams = 3
 interface StepInfo { title: string | React.ReactNode; canNext(): boolean; next(): any; render(): React.ReactNode; canPrev(): boolean; prev(): any; }
 
 interface State {
-    repos: models.Repository[];
-    clusters: models.Cluster[];
-    apps: models.AppInfo[];
     envs: { [key: string]: models.KsonnetEnvironment; };
     selectedRepo: string;
     selectedApp: models.AppInfo;
@@ -46,9 +43,6 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
     constructor(props: WizardProps) {
         super(props);
         this.state = {
-            apps: [],
-            clusters: [],
-            repos: [],
             envs: {},
             selectedAppDetails: null,
             selectedRepo: null,
@@ -64,20 +58,16 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
     }
 
     public async componentDidMount() {
-        const [repos, clusters, projects] = await Promise.all([
-            services.reposService.list(),
-            services.clustersService.list(),
-            (await services.projects.list()).map((proj) => proj.metadata.name).sort((a, b) => {
-                if (a === 'default') {
-                    return -1;
-                }
-                if (b === 'default') {
-                    return 1;
-                }
-                return a.localeCompare(b);
-            }),
-        ]);
-        this.setState({repos, clusters, projects});
+        const projects = (await services.projects.list()).map((proj) => proj.metadata.name).sort((a, b) => {
+            if (a === 'default') {
+                return -1;
+            }
+            if (b === 'default') {
+                return 1;
+            }
+            return a.localeCompare(b);
+        });
+        this.setState({projects});
     }
 
     public render() {
@@ -96,7 +86,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             case Step.SelectApp:
                 return {
                     title: (
-                        <div>Select application or <a onClick={() => !this.state.loading && this.updateState({ appParams: {
+                        <div>Select application or <a onClick={() => !this.state.loading && this.updateState({ selectedApp: null, selectedAppDetails: null, appParams: {
                             applicationName: '',
                             repoURL: this.state.selectedRepo,
                             environment: '',
@@ -133,11 +123,13 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     },
                     canPrev: () => true,
                     prev: () => this.updateState({ step: Step.SelectRepo }),
-                    render: () => this.state.apps ? (
-                        <AppsList apps={this.state.apps} selectedApp={this.state.selectedApp} onAppSelected={(selectedApp) => this.updateState({ selectedApp })}/>
-                    ) : (
-                        <MockupList height={50} marginTop={10}/>
-                    ),
+                render: () => (
+                    <DataLoader key='apps' load={() => services.reposService.apps(this.state.selectedRepo)} loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
+                        {(apps: models.AppInfo[]) => (
+                            <AppsList apps={apps} selectedApp={this.state.selectedApp} onAppSelected={(selectedApp) => this.updateState({ selectedApp })}/>
+                        )}
+                    </DataLoader>
+                ),
                 };
             case Step.SelectEnvironments:
                 return {
@@ -179,6 +171,8 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     render: () => (
                         <AppParams
                             needEnvironment={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet)}
+                            environments={this.state.selectedAppDetails &&
+                                this.state.selectedAppDetails.ksonnet && Object.keys(this.state.selectedAppDetails.ksonnet.environments) || []}
                             projects={this.state.projects}
                             appParams={this.state.appParams}
                             submitForm={this.submitAppParamsForm}
@@ -191,22 +185,16 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                 return {
                     title: 'Select repository',
                     canNext: () => !!this.state.selectedRepo,
-                    next: async () => {
-                        try {
-                            this.updateState({ loading: true, step: Step.SelectApp, apps: null });
-                            const apps = await services.reposService.apps(this.state.selectedRepo);
-                            this.updateState({ apps, loading: false });
-                        } finally {
-                            this.updateState({ loading: false });
-                        }
-                    },
+                    next: async () => this.updateState({ step: Step.SelectApp }),
                     canPrev: () => false,
                     prev: null,
                     render: () => (
-                        <RepositoryList
+                        <DataLoader key='repos' load={() => services.reposService.list()} loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
+                        {(repos) => <RepositoryList
                             selectedRepo={this.state.selectedRepo}
-                            repos={this.state.repos}
-                            onSelectedRepo={(repo) => this.updateState({ selectedRepo: repo })}/>
+                            repos={repos}
+                            onSelectedRepo={(repo) => this.updateState({ selectedRepo: repo })}/>}
+                        </DataLoader>
                     ),
                 };
         }

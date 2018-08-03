@@ -4,9 +4,10 @@ import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
-import { ConnectionStateIcon, FormField, Select } from '../../../shared/components';
+import { ConnectionStateIcon, DataLoader, FormField, Select } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
+import { services } from '../../../shared/services';
 
 export const AppsList = (props: {
     apps: models.AppInfo[],
@@ -127,6 +128,7 @@ export interface NewAppParams {
 
 export class AppParams extends React.Component<{
         needEnvironment: boolean,
+        environments: string[],
         projects: string[],
         appParams: NewAppParams,
         submitForm: Observable<any>,
@@ -168,24 +170,28 @@ export class AppParams extends React.Component<{
                 {(api) => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                         <div className='argo-form-row'>
+                            <FormField formApi={api} label='Repository URL' field='repoURL' componentProps={{readOnly: true}} component={Text}/>
+                        </div>
+                        <div className='argo-form-row'>
+                            <FormField formApi={api} label='Path' field='path' component={Text}/>
+                        </div>
+                        <div className='argo-form-row'>
                             <FormField formApi={api} label='Project' field='project' component={Select} componentProps={{options: this.props.projects}} />
                         </div>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Application Name' field='applicationName' component={Text}/>
                         </div>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Repository URL' field='repoURL' component={Text}/>
-                        </div>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Path' field='path' component={Text}/>
-                        </div>
                         {this.props.needEnvironment && (
                             <div className='argo-form-row'>
-                                <FormField formApi={api} label='Environment' field='environment' component={Text}/>
+                                <FormField formApi={api} label='Environment' field='environment' component={Select}  componentProps={{options: this.props.environments}} />
                             </div>
                         )}
                         <div className='argo-form-row'>
-                            <FormField formApi={api} label='Cluster URL' field='clusterURL' component={Text}/>
+                            <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
+                                {(clusters) => (
+                                    <FormField  formApi={api} label='Cluster URL' field='clusterURL' componentProps={{options: clusters}} component={Select}/>
+                                )}
+                            </DataLoader>
                         </div>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Namespace' field='namespace' component={Text}/>

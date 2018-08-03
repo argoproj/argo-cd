@@ -14,7 +14,7 @@ interface LoaderProps<I, D> {
     dataChanges?: Observable<D>;
 }
 
-export class DataLoader<D = {}, I = {}> extends React.Component<LoaderProps<I, D>, { loading: boolean; data: D; error: boolean; input: I}> {
+export class DataLoader<D = {}, I = {}> extends React.Component<LoaderProps<I, D>, { loading: boolean; data: D; error: boolean; input: I; }> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
@@ -28,6 +28,7 @@ export class DataLoader<D = {}, I = {}> extends React.Component<LoaderProps<I, D
     }
 
     private subscription: Subscription;
+    private unmounted = false;
 
     constructor(props: LoaderProps<I, D>) {
         super(props);
@@ -56,6 +57,7 @@ export class DataLoader<D = {}, I = {}> extends React.Component<LoaderProps<I, D
 
     public componentWillUnmount() {
         this.ensureUnsubscribed();
+        this.unmounted = true;
     }
 
     public render() {
@@ -82,13 +84,19 @@ export class DataLoader<D = {}, I = {}> extends React.Component<LoaderProps<I, D
             this.setState({ error: false, loading: true });
             try {
                 const data = await this.props.load(this.props.input);
-                this.setState({ data, loading: false });
+                if (!this.unmounted) {
+                    this.setState({ data, loading: false });
+                }
             } catch (e) {
-                this.setState({ error: true, loading: false });
-                this.appContext.apis.notifications.show({
-                    content: <ErrorNotification title='Unable to load data' e={e}/>,
-                    type: NotificationType.Error,
-                });
+                if (!this.unmounted) {
+                    this.setState({ error: true, loading: false });
+                    if (e.status !== 401) {
+                        this.appContext.apis.notifications.show({
+                            content: <ErrorNotification title='Unable to load data' e={e}/>,
+                            type: NotificationType.Error,
+                        });
+                    }
+                }
             }
         }
     }
