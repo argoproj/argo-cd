@@ -19,17 +19,15 @@ import (
 
 // Server provides a Cluster service
 type Server struct {
-	kubeclientset kubernetes.Interface
-	db            db.ArgoDB
-	enf           *rbac.Enforcer
+	db  db.ArgoDB
+	enf *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(kubeclientset kubernetes.Interface, db db.ArgoDB, enf *rbac.Enforcer) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer) *Server {
 	return &Server{
-		kubeclientset: kubeclientset,
-		db:            db,
-		enf:           enf,
+		db:  db,
+		enf: enf,
 	}
 }
 
@@ -99,22 +97,28 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 		return nil, status.Errorf(codes.Internal, "Context %s does not exist in kubeconfig", q.Context)
 	}
 
-	// Temporarily install RBAC resources for managing the cluster
-	bearerToken, err := common.InstallClusterManagerRBAC(s.kubeclientset)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
-	}
-
 	c := &appv1.Cluster{
 		Server: clusterServer,
 		Name:   q.Context,
 		Config: appv1.ClusterConfig{
-			BearerToken: bearerToken,
 			TLSClientConfig: appv1.TLSClientConfig{
 				Insecure: clusterInsecure,
 			},
 		},
 	}
+
+	// Temporarily install RBAC resources for managing the cluster
+	clientset, err := kubernetes.NewForConfig(c.RESTConfig())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not create Kubernetes clientset: %v", err)
+	}
+
+	bearerToken, err := common.InstallClusterManagerRBAC(clientset)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not install cluster manager RBAC: %v", err)
+	}
+
+	c.Config.BearerToken = bearerToken
 
 	return s.Create(ctx, &ClusterCreateRequest{
 		Cluster: c,
