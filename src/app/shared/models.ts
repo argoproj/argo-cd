@@ -335,7 +335,9 @@ export interface Event {
 export interface EventList extends ItemsList<Event> {}
 
 export interface ProjectSpec {
+    sourceRepos: string;
     destinations: ApplicationDestination[];
+    description: string;
 }
 
 export interface Project {

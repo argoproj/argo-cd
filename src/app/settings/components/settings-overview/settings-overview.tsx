@@ -10,6 +10,8 @@ const settings = [{
     title: 'Repositories', description: 'Configure connected Git repositories', path: './repos',
 }, {
     title: 'Clusters', description: 'Configure connected Kubernetes clusters', path: './clusters',
+}, {
+    title: 'Projects', description: 'Configure ArgoCD projects', path: './projects',
 }];
 
 export const SettingsOverview: React.StatelessComponent = (props: any, context: AppContext) => (
