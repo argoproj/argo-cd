@@ -122,6 +122,8 @@ p, dave, applications, get, foo/obj, allow
 p, dave, applications/*, get, foo/obj, allow
 p, eve, *, get, foo/obj, deny
 p, mallory, repositories, *, foo/obj, deny
+p, mallory, repositories, *, foo/obj, allow
+p, mike, *, *, foo/obj, allow
 p, mike, *, *, foo/obj, deny
 p, trudy, applications, get, foo/obj, allow
 p, trudy, applications/*, get, foo/obj, allow
