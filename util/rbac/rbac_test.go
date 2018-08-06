@@ -84,7 +84,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 // TestPolicyInformer verifies the informer will get updated with a new configmap
 func TestPolicyInformer(t *testing.T) {
 	cm := fakeConfigMap()
-	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*"
+	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*, allow"
 	kubeclientset := fake.NewSimpleClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 
@@ -115,11 +115,11 @@ func TestResourceActionWildcards(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
-p, alice, *, get, foo/obj
-p, bob, repositories, *, foo/obj
-p, cathy, *, *, foo/obj
-p, dave, applications, get, foo/obj
-p, dave, applications/*, get, foo/obj
+p, alice, *, get, foo/obj, allow
+p, bob, repositories, *, foo/obj, allow
+p, cathy, *, *, foo/obj, allow
+p, dave, applications, get, foo/obj, allow
+p, dave, applications/*, get, foo/obj, allow
 `
 	enf.SetUserPolicy(policy)
 
@@ -149,8 +149,8 @@ func TestProjectIsolationEnforcement(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
-p, role:foo-admin, *, *, foo/*
-p, role:bar-admin, *, *, bar/*
+p, role:foo-admin, *, *, foo/*, allow
+p, role:bar-admin, *, *, bar/*, allow
 g, alice, role:foo-admin
 g, bob, role:bar-admin
 `
@@ -169,7 +169,7 @@ func TestProjectReadOnly(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
-p, role:foo-readonly, *, get, foo/*
+p, role:foo-readonly, *, get, foo/*, allow
 g, alice, role:foo-readonly
 `
 	enf.SetBuiltinPolicy(policy)
@@ -234,9 +234,9 @@ func TestURLAsObjectName(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 	policy := `
-p, alice, repositories, *, foo/*
-p, bob, repositories, *, foo/https://github.com/argoproj/argo-cd.git
-p, cathy, repositories, *, foo/*
+p, alice, repositories, *, foo/*, allow
+p, bob, repositories, *, foo/https://github.com/argoproj/argo-cd.git, allow
+p, cathy, repositories, *, foo/*, allow
 `
 	enf.SetUserPolicy(policy)
 
@@ -261,7 +261,7 @@ func TestEnableDisableEnforce(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
-p, alice, *, get, foo/obj
+p, alice, *, get, foo/obj, allow
 `
 	enf.SetUserPolicy(policy)
 
@@ -277,11 +277,11 @@ func TestUpdatePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 
-	enf.SetUserPolicy("p, alice, *, get, foo/obj")
+	enf.SetUserPolicy("p, alice, *, get, foo/obj, allow")
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
-	enf.SetUserPolicy("p, bob, *, get, foo/obj")
+	enf.SetUserPolicy("p, bob, *, get, foo/obj, allow")
 	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
@@ -289,11 +289,11 @@ func TestUpdatePolicy(t *testing.T) {
 	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
-	enf.SetBuiltinPolicy("p, alice, *, get, foo/obj")
+	enf.SetBuiltinPolicy("p, alice, *, get, foo/obj, allow")
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
-	enf.SetBuiltinPolicy("p, bob, *, get, foo/obj")
+	enf.SetBuiltinPolicy("p, bob, *, get, foo/obj, allow")
 	assert.False(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 
