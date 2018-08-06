@@ -2334,7 +2334,7 @@
     },
     "v1alpha1ProjectToken": {
       "type": "object",
-      "title": "ProjectToken TODO: Check if everything should be capitalized\nProjectToken contains metadata of a token for a project",
+      "title": "ProjectToken contains metadata of a token for a project",
       "properties": {
         "createdAt": {
           "type": "string",

@@ -143,7 +143,6 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 		if tokenCreationTime != iat {
 			return false
 		}
-		//TODO: Add verification of created at time
 		adapter := scas.NewAdapter(projPolicy)
 		enf := casbin.NewEnforcer(model, adapter)
 		enf.EnableLog(false)

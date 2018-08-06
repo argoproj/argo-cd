@@ -285,7 +285,6 @@ message OperationState {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 }
 
-// ProjectToken TODO: Check if everything should be capitalized
 // ProjectToken contains metadata of a token for a project
 message ProjectToken {
   optional string name = 1;

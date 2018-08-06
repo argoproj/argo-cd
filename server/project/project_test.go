@@ -37,6 +37,8 @@ func TestProjectServer(t *testing.T) {
 		},
 	}
 
+	policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+
 	t.Run("TestRemoveDestinationSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
 			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
@@ -129,7 +131,7 @@ func TestProjectServer(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithoutToken := existingProj.DeepCopy()
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithoutToken), enforcer, util.NewKeyLock(), sessionMgr)
-		tokenName := "test"
+		tokenName := "testToken"
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithoutToken.Name, Token: tokenName, SecondsBeforeExpiry: 1})
 		assert.Nil(t, err)
 		claims, err := sessionMgr.Parse(tokenResponse.Token)
@@ -138,39 +140,41 @@ func TestProjectServer(t *testing.T) {
 		mapClaims, err := jwtUtil.MapClaims(claims)
 		subject, ok := mapClaims["sub"].(string)
 		assert.True(t, ok)
-		assert.Equal(t, "proj:test:test", subject)
+		expectedSubject := fmt.Sprintf(JwtTokenSubFormat, projWithoutToken.Name, tokenName)
+		assert.Equal(t, expectedSubject, subject)
 		assert.Nil(t, err)
 	})
 
 	t.Run("TestDeleteTokenSuccesfully", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
-		tokenName := "test"
+		tokenName := "testToken"
 		token := v1alpha1.ProjectToken{Name: tokenName}
 		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.DeleteToken(context.Background(), &ProjectTokenDeleteRequest{Project: projWithToken.Name, Token: tokenName})
 		assert.Nil(t, err)
-		assert.Len(t, projWithToken.Spec.Tokens, 1)
+		projWithoutToken, err := projectServer.Get(context.Background(), &ProjectQuery{Name: projWithToken.Name})
+		assert.Len(t, projWithoutToken.Spec.Tokens, 0)
 	})
 
 	t.Run("TestCreateDuplicateTokenFailure", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
-		tokenName := "test"
+		tokenName := "testToken"
 		token := v1alpha1.ProjectToken{Name: tokenName}
-		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		projWithToken.Spec.Token = append(projWithToken.Spec.Token, token)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken.Name, Token: tokenName})
-		assert.EqualError(t, err, "rpc error: code = AlreadyExists desc = 'test' token already exist for project 'test'")
+		expectedError := fmt.Sprintf("rpc error: code = AlreadyExists desc = '%s' token already exist for project '%s'", tokenName, projWithToken.Name)
+		assert.EqualError(t, err, expectedError)
 	})
 
 	t.Run("TestCreateTokenPolicySuccessfully", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "test"
-		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+		tokenName := "testToken"
 
 		projWithToken := existingProj.DeepCopy()
 		token := v1alpha1.ProjectToken{Name: tokenName}
@@ -190,8 +194,7 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestCreateTokenPolicyDuplicatePolicyFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "test"
-		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+		tokenName := "testToken"
 
 		projWithToken := existingProj.DeepCopy()
 		token := v1alpha1.ProjectToken{Name: tokenName}
@@ -207,17 +210,15 @@ func TestProjectServer(t *testing.T) {
 		assert.EqualError(t, err, expectedErr)
 	})
 
-	t.Run("TestValidityProjectAccessToSeparateProjectObjectFailure", func(t *testing.T) {
+	t.Run("TestValidateProjectAccessToSeparateProjectObjectFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
 		tokenName := "test"
 		otherProject := "other-project"
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
-		projWithToken := existingProj.DeepCopy()
 		token := v1alpha1.ProjectToken{Name: tokenName}
 		policy := fmt.Sprintf(policyTemplate, projWithToken.Name, tokenName, action, otherProject, object)
-		token.Policies = append(token.Policies, policy)
 		token.Policies = append(token.Policies, policy)
 		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
 
@@ -228,10 +229,10 @@ func TestProjectServer(t *testing.T) {
 		assert.EqualError(t, err, expectedErr)
 	})
 
-	t.Run("TestValidityProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
+	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "test"
+		tokenName := "testToken"
 		otherProject := "other-project"
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
@@ -248,10 +249,10 @@ func TestProjectServer(t *testing.T) {
 		assert.EqualError(t, err, expectedErr)
 	})
 
-	t.Run("TestValidityProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
+	t.Run("TestValidateProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "test"
+		tokenName := "testToken"
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 		otherToken := "other-token"
 

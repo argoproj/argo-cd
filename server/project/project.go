@@ -23,6 +23,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	// JwtTokenSubTemplate format of the JWT token subject that ArgoCD vends out.
+	JwtTokenSubFormat = "proj:%s:%s"
+)
+
 // Server provides a Project service
 type Server struct {
 	ns            string
@@ -56,16 +61,14 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
-	//TODO: Verify inputs
 
-	for _, projectToken := range project.Spec.Tokens {
-		if projectToken.Name == q.Token {
-			return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token, q.Project)
-		}
+	_, err = project.GetTokenIndex(q.Token)
+	if err == nil {
+		return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token, q.Project)
 	}
-	//TODO: Move string somewhere common
-	roleName := fmt.Sprintf("proj:%s:%s", q.Project, q.Token)
-	jwtToken, err := s.sessionMgr.Create(roleName, q.SecondsBeforeExpiry)
+
+	tokenName := fmt.Sprintf(JwtTokenSubFormat, q.Project, q.Token)
+	jwtToken, err := s.sessionMgr.Create(tokenName, q.SecondsBeforeExpiry)
 	if err != nil {
 		return nil, err
 	}

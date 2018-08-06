@@ -477,7 +477,6 @@ func (proj *AppProject) GetTokenIndex(name string) (int, error) {
 	return -1, fmt.Errorf("token '%s' does not exist in project '%s'", name, proj.Name)
 }
 
-// ProjectToken TODO: Check if everything should be capitalized
 // ProjectToken contains metadata of a token for a project
 type ProjectToken struct {
 	Name      string   `json:"name" protobuf:"bytes,1,opt,name=name"`

@@ -22,7 +22,7 @@ func TestSessionManager(t *testing.T) {
 		t.Errorf("Could not create token: %v", err)
 	}
 
-	claims, err := mgr.Parse(token)
+	claims, err := mgr.Parse(token.Token)
 	if err != nil {
 		t.Errorf("Could not parse token: %v", err)
 	}
