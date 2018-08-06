@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"strings"
@@ -62,7 +63,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, err = project.GetTokenIndex(q.Token)
+	_, err = project.GetRoleIndex(q.Token)
 	if err == nil {
 		return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token, q.Project)
 	}
@@ -72,8 +73,9 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	if err != nil {
 		return nil, err
 	}
-	token := v1alpha1.ProjectToken{Name: q.Token, CreatedAt: jwtToken.IssuedAt}
-	project.Spec.Tokens = append(project.Spec.Tokens, token)
+	tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: jwtToken.IssuedAt}}
+	token := v1alpha1.ProjectRole{Name: q.Token, Metadata: tokenMetadata}
+	project.Spec.Roles = append(project.Spec.Roles, token)
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err
@@ -167,14 +169,14 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 	return removed
 }
 
-func validatePolicy(proj string, token string, policy string) error {
-	policyComponents := strings.Split(policy, ",")
-	if len(policyComponents) != 5 {
-		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguements for '%s'", policy)
-
+func validateJwtToken(proj string, token string, policy string) error {
+	err := validatePolicy(proj, policy)
+	if err != nil {
+		return err
 	}
-	if strings.Trim(policyComponents[0], " ") != "p" {
-		return status.Errorf(codes.InvalidArgument, "token policy can only contain policies: '%s'", policy)
+	policyComponents := strings.Split(policy, ",")
+	if strings.Trim(policyComponents[2], " ") != "projects" {
+		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as JWT tokens can only access projects", policy)
 	}
 	roleComponents := strings.Split(strings.Trim(policyComponents[1], " "), ":")
 	if len(roleComponents) != 3 {
@@ -187,13 +189,30 @@ func validatePolicy(proj string, token string, policy string) error {
 		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other projects", policy)
 	}
 	if roleComponents[2] != token {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other tokens", policy)
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other roles", policy)
 	}
-	if strings.Trim(policyComponents[2], " ") != "projects" {
-		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as token policies can only access projects", policy)
+	return nil
+}
+
+func validatePolicy(proj string, policy string) error {
+	policyComponents := strings.Split(policy, ",")
+	if len(policyComponents) != 5 {
+		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguements for '%s'", policy)
+	}
+	if strings.Trim(policyComponents[0], " ") != "p" {
+		return status.Errorf(codes.InvalidArgument, "policies can only use the policy format: '%s'", policy)
+	}
+	if len(strings.Trim(policyComponents[1], " ")) <= 0 {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as subject must be longer than 0 characters:", policy)
+	}
+	if len(strings.Trim(policyComponents[2], " ")) <= 0 {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as object must be longer than 0 characters:", policy)
+	}
+	if len(strings.Trim(policyComponents[3], " ")) <= 0 {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as action must be longer than 0 characters:", policy)
 	}
 	if !strings.HasPrefix(strings.Trim(policyComponents[4], " "), proj) {
-		return status.Errorf(codes.InvalidArgument, "incorrect token policy format for '%s' as token policies can't grant access to other tokens or projects", policy)
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policies can't grant access to other roles or projects", policy)
 	}
 	return nil
 }
@@ -219,24 +238,32 @@ func validateProject(p *v1alpha1.AppProject) error {
 		}
 	}
 
-	tokensNames := make(map[string]bool)
-	for _, token := range p.Spec.Tokens {
+	roleNames := make(map[string]bool)
+	for _, role := range p.Spec.Roles {
+		if role.Metadata == nil {
+			return errors.New("Role must have a metadata")
+		}
 		existingPolicies := make(map[string]bool)
-		for _, policy := range token.Policies {
-			err := validatePolicy(p.Name, token.Name, policy)
+		for _, policy := range role.Policies {
+			var err error
+			if role.Metadata.JwtToken != nil {
+				err = validateJwtToken(p.Name, role.Name, policy)
+			} else {
+				err = validatePolicy(p.Name, policy)
+			}
 			if err != nil {
 				return err
 			}
 			if _, ok := existingPolicies[policy]; !ok {
 				existingPolicies[policy] = true
 			} else {
-				return status.Errorf(codes.AlreadyExists, "token policy '%s' already exists for token '%s'", policy, token.Name)
+				return status.Errorf(codes.AlreadyExists, "policy '%s' already exists for role '%s'", policy, role.Name)
 			}
 		}
-		if _, ok := tokensNames[token.Name]; !ok {
-			tokensNames[token.Name] = true
+		if _, ok := roleNames[role.Name]; !ok {
+			roleNames[role.Name] = true
 		} else {
-			return status.Errorf(codes.AlreadyExists, "Token '%s' already exists", token)
+			return status.Errorf(codes.AlreadyExists, "role '%s' already exists", role)
 		}
 
 	}
@@ -261,12 +288,12 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	index, err := project.GetTokenIndex(q.Token)
+	index, err := project.GetRoleIndex(q.Token)
 	if err != nil {
 		return nil, err
 	}
-	project.Spec.Tokens[index] = project.Spec.Tokens[len(project.Spec.Tokens)-1]
-	project.Spec.Tokens = project.Spec.Tokens[:len(project.Spec.Tokens)-1]
+	project.Spec.Roles[index] = project.Spec.Roles[len(project.Spec.Roles)-1]
+	project.Spec.Roles = project.Spec.Roles[:len(project.Spec.Roles)-1]
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err

@@ -1943,17 +1943,17 @@
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
         },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ProjectRole"
+          }
+        },
         "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of git repository URLs which can be used for deployment",
           "items": {
             "type": "string"
-          }
-        },
-        "tokens": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ProjectToken"
           }
         }
       }
@@ -2291,6 +2291,16 @@
         }
       }
     },
+    "v1alpha1JwtTokenMetadata": {
+      "type": "object",
+      "title": "JwtTokenMetadata holds the createdAt time of a token",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "v1alpha1Operation": {
       "description": "Operation contains requested operation parameters.",
       "type": "object",
@@ -2332,13 +2342,12 @@
         }
       }
     },
-    "v1alpha1ProjectToken": {
+    "v1alpha1ProjectRole": {
       "type": "object",
-      "title": "ProjectToken contains metadata of a token for a project",
+      "title": "ProjectRole represents a role that has access to a project",
       "properties": {
-        "createdAt": {
-          "type": "string",
-          "format": "int64"
+        "metadata": {
+          "$ref": "#/definitions/v1alpha1ProjectRoleMetatdata"
         },
         "name": {
           "type": "string"
@@ -2348,6 +2357,15 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1ProjectRoleMetatdata": {
+      "type": "object",
+      "title": "ProjectRoleMetatdata represents all the different types of roles a project can have\nProjectRoleMetatdata only one of its members may be specified for a specific role",
+      "properties": {
+        "jwtToken": {
+          "$ref": "#/definitions/v1alpha1JwtTokenMetadata"
         }
       }
     },

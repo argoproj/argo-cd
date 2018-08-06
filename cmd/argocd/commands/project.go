@@ -115,27 +115,34 @@ func NewProjectAddTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) *co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			if len(opts.action) <= 0 {
+				log.Fatal("Action needs to longer than 0 characters")
+			}
+			if len(opts.object) <= 0 {
+				log.Fatal("Objects needs to longer than 0 characters")
+
+			}
 			if opts.permission != "allow" && opts.permission != "deny" {
 				log.Fatal("Permission flag can only have the values 'allow' or 'deny'")
 			}
 
 			projName := args[0]
-			tokenName := args[1]
+			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			tokenIndex, err := proj.GetTokenIndex(tokenName)
+			roleIndex, err := proj.GetRoleIndex(roleName)
 			if err != nil {
 				log.Fatal(err)
 			}
-			token := proj.Spec.Tokens[tokenIndex]
+			role := proj.Spec.Roles[roleIndex]
 
 			policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
-			policy := fmt.Sprintf(policyTemplate, proj.Name, token.Name, opts.action, proj.Name, opts.object)
-			proj.Spec.Tokens[tokenIndex].Policies = append(token.Policies, policy)
+			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object)
+			proj.Spec.Roles[roleIndex].Policies = append(role.Policies, policy)
 
 			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
@@ -162,34 +169,42 @@ func NewProjectRemoveTokenPolicyCommand(clientOpts *argocdclient.ClientOptions) 
 				log.Fatal("Permission flag can only have the values 'allow' or 'deny'")
 			}
 
+			if len(opts.action) <= 0 {
+				log.Fatal("Action needs to longer than 0 characters")
+			}
+			if len(opts.object) <= 0 {
+				log.Fatal("Objects needs to longer than 0 characters")
+
+			}
+
 			projName := args[0]
-			tokenName := args[1]
+			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			tokenIndex, err := proj.GetTokenIndex(tokenName)
+			roleIndex, err := proj.GetRoleIndex(roleName)
 			if err != nil {
 				log.Fatal(err)
 			}
-			token := proj.Spec.Tokens[tokenIndex]
+			role := proj.Spec.Roles[roleIndex]
 
 			policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
-			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, token.Name, opts.action, proj.Name, opts.object)
+			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object)
 			duplicateIndex := -1
-			for i, policy := range token.Policies {
+			for i, policy := range role.Policies {
 				if policy == policyToRemove {
 					duplicateIndex = i
 					break
 				}
 			}
 			if duplicateIndex < 0 {
-				log.Fatal("Policy does not exist in token.")
+				log.Fatal("Policy does not exist in role.")
 			}
-			token.Policies[duplicateIndex] = token.Policies[len(token.Policies)-1]
-			proj.Spec.Tokens[tokenIndex].Policies = token.Policies[:len(token.Policies)-1]
+			role.Policies[duplicateIndex] = role.Policies[len(role.Policies)-1]
+			proj.Spec.Roles[roleIndex].Policies = role.Policies[:len(role.Policies)-1]
 			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
@@ -247,10 +262,12 @@ func NewProjectListTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "TOKEN-NAME\tCREATED-AT\tPOLICIES\n")
-			for _, token := range project.Spec.Tokens {
-				fmt.Fprintf(w, "%s\t%d\t\n", token.Name, token.CreatedAt)
-				for _, policy := range token.Policies {
-					fmt.Fprintf(w, "%s\t%d\t%s\n", token.Name, token.CreatedAt, policy)
+			for _, role := range project.Spec.Roles {
+				if role.Metadata.JwtToken != nil {
+					fmt.Fprintf(w, "%s\t%d\t\n", role.Name, role.Metadata.JwtToken.CreatedAt)
+					for _, policy := range role.Policies {
+						fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, role.Metadata.JwtToken.CreatedAt, policy)
+					}
 				}
 			}
 			_ = w.Flush()

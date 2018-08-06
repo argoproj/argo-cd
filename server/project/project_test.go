@@ -149,101 +149,108 @@ func TestProjectServer(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
-		token := v1alpha1.ProjectToken{Name: tokenName}
-		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
+		token := v1alpha1.ProjectRole{Name: tokenName, Metadata: tokenMetadata}
+		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.DeleteToken(context.Background(), &ProjectTokenDeleteRequest{Project: projWithToken.Name, Token: tokenName})
 		assert.Nil(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &ProjectQuery{Name: projWithToken.Name})
-		assert.Len(t, projWithoutToken.Spec.Tokens, 0)
+		assert.Len(t, projWithoutToken.Spec.Roles, 0)
 	})
 
 	t.Run("TestCreateDuplicateTokenFailure", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
-		token := v1alpha1.ProjectToken{Name: tokenName}
-		projWithToken.Spec.Token = append(projWithToken.Spec.Token, token)
+		tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
+		token := v1alpha1.ProjectRole{Name: tokenName, Metadata: tokenMetadata}
+		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken.Name, Token: tokenName})
 		expectedError := fmt.Sprintf("rpc error: code = AlreadyExists desc = '%s' token already exist for project '%s'", tokenName, projWithToken.Name)
 		assert.EqualError(t, err, expectedError)
 	})
 
-	t.Run("TestCreateTokenPolicySuccessfully", func(t *testing.T) {
+	t.Run("TestCreateRolePolicySuccessfully", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "testToken"
+		roleName := "testRole"
 
-		projWithToken := existingProj.DeepCopy()
-		token := v1alpha1.ProjectToken{Name: tokenName}
-		policy := fmt.Sprintf(policyTemplate, projWithToken.Name, tokenName, action, projWithToken.Name, object)
-		token.Policies = append(token.Policies, policy)
-		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		projWithRole := existingProj.DeepCopy()
+		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
+		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object)
+		role.Policies = append(role.Policies, policy)
+		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
-		request := &ProjectUpdateRequest{Project: projWithToken}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		assert.Nil(t, err)
-		t.Log(projWithToken.Spec.Tokens[0].Policies[0])
-		expectedPolicy := fmt.Sprintf(policyTemplate, projWithToken.Name, token.Name, action, projWithToken.Name, object)
-		assert.Equal(t, projWithToken.Spec.Tokens[0].Policies[0], expectedPolicy)
+		t.Log(projWithRole.Spec.Roles[0].Policies[0])
+		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object)
+		assert.Equal(t, projWithRole.Spec.Roles[0].Policies[0], expectedPolicy)
 	})
 
-	t.Run("TestCreateTokenPolicyDuplicatePolicyFailure", func(t *testing.T) {
+	t.Run("TestValidatePolicyDuplicatePolicyFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "testToken"
+		roleName := "testRole"
 
-		projWithToken := existingProj.DeepCopy()
-		token := v1alpha1.ProjectToken{Name: tokenName}
-		policy := fmt.Sprintf(policyTemplate, projWithToken.Name, tokenName, action, projWithToken.Name, object)
-		token.Policies = append(token.Policies, policy)
-		token.Policies = append(token.Policies, policy)
-		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		projWithRole := existingProj.DeepCopy()
+		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
+		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object)
+		role.Policies = append(role.Policies, policy)
+		role.Policies = append(role.Policies, policy)
+		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
-		request := &ProjectUpdateRequest{Project: projWithToken}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = AlreadyExists desc = token policy '%s' already exists for token '%s'", policy, tokenName)
+		expectedErr := fmt.Sprintf("rpc error: code = AlreadyExists desc = policy '%s' already exists for role '%s'", policy, roleName)
 		assert.EqualError(t, err, expectedErr)
 	})
 
 	t.Run("TestValidateProjectAccessToSeparateProjectObjectFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "test"
+		roleName := "testRole"
 		otherProject := "other-project"
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
-		token := v1alpha1.ProjectToken{Name: tokenName}
-		policy := fmt.Sprintf(policyTemplate, projWithToken.Name, tokenName, action, otherProject, object)
-		token.Policies = append(token.Policies, policy)
-		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		projWithRole := existingProj.DeepCopy()
+		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
+		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, otherProject, object)
+		role.Policies = append(role.Policies, policy)
+		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
-		request := &ProjectUpdateRequest{Project: projWithToken}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect token policy format for '%s' as token policies can't grant access to other tokens or projects", policy)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policies can't grant access to other roles or projects", policy)
 		assert.EqualError(t, err, expectedErr)
 	})
 
 	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "testToken"
+		roleName := "testRole"
 		otherProject := "other-project"
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
-		projWithToken := existingProj.DeepCopy()
-		token := v1alpha1.ProjectToken{Name: tokenName}
-		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, tokenName, action, projWithToken.Name, object)
-		token.Policies = append(token.Policies, invalidPolicy)
-		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		projWithRole := existingProj.DeepCopy()
+		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
+		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, roleName, action, projWithRole.Name, object)
+		role.Policies = append(role.Policies, invalidPolicy)
+		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
-		request := &ProjectUpdateRequest{Project: projWithToken}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other projects", invalidPolicy)
 		assert.EqualError(t, err, expectedErr)
@@ -252,21 +259,21 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestValidateProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
 		action := "create"
 		object := "testObject"
-		tokenName := "testToken"
+		roleName := "testRole"
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 		otherToken := "other-token"
 
-		projWithToken := existingProj.DeepCopy()
-		token := v1alpha1.ProjectToken{Name: tokenName}
-		invalidPolicy := fmt.Sprintf(policyTemplate, projWithToken.Name, otherToken, action, projWithToken.Name, object)
-		token.Policies = append(token.Policies, invalidPolicy)
-		token.Policies = append(token.Policies, invalidPolicy)
-		projWithToken.Spec.Tokens = append(projWithToken.Spec.Tokens, token)
+		projWithRole := existingProj.DeepCopy()
+		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
+		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, otherToken, action, projWithRole.Name, object)
+		role.Policies = append(role.Policies, invalidPolicy)
+		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), nil)
-		request := &ProjectUpdateRequest{Project: projWithToken}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other tokens", invalidPolicy)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other roles", invalidPolicy)
 		assert.EqualError(t, err, expectedErr)
 	})
 }

@@ -2,7 +2,6 @@ package rbac
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -133,47 +132,44 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 	}
 	user := jwtutil.GetField(mapClaims, "sub")
 	if strings.HasPrefix(user, "proj:") {
-		model := loadModel()
-		projPolicy, tokenCreationTime, err := e.getProjectTokenInfo(user)
-		if err != nil {
-			log.Error(err)
-			return false
-		}
-		iat := jwtutil.GetInt64Field(mapClaims, "iat")
-		if tokenCreationTime != iat {
-			return false
-		}
-		adapter := scas.NewAdapter(projPolicy)
-		enf := casbin.NewEnforcer(model, adapter)
-		enf.EnableLog(false)
-		vals := append([]interface{}{user}, rvals[1:]...)
-		return enf.Enforce(vals...)
-
+		return e.enforceJwtToken(user, mapClaims, rvals...)
 	}
 	vals := append([]interface{}{user}, rvals[1:]...)
 	return e.Enforce(vals...)
 }
 
-//TODO: Add tests for method
-// Returns all the policies for a project and when the token was created.
-func (e *Enforcer) getProjectTokenInfo(user string) (string, int64, error) {
+func (e *Enforcer) enforceJwtToken(user string, mapClaims jwt.MapClaims, rvals ...interface{}) bool {
 	userSplit := strings.Split(user, ":")
 	if len(userSplit) != 3 {
-		return "", -1, errors.New("incorrectly formated sub. Should follow proj:<proj>:<token> format")
+		return false
 	}
 	projName := userSplit[1]
 	tokenName := userSplit[2]
 	proj, err := e.appclientset.ArgoprojV1alpha1().AppProjects(e.namespace).Get(projName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Print(err)
-		return "", -1, err
+		return false
 	}
-	for _, token := range proj.Spec.Tokens {
-		if token.Name == tokenName {
-			return proj.TokenPoliciesString(), token.CreatedAt, nil
-		}
+	index, err := proj.GetRoleIndex(tokenName)
+	if err != nil {
+		return false
 	}
-	return "", -1, errors.New("project doesn't have token")
+	if proj.Spec.Roles[index].Metadata.JwtToken == nil {
+		return false
+	}
+	iat := jwtutil.GetInt64Field(mapClaims, "iat")
+	if proj.Spec.Roles[index].Metadata.JwtToken.CreatedAt != iat {
+		return false
+	}
+	vals := append([]interface{}{user}, rvals[1:]...)
+	return e.enforceCustomPolicy(proj.ProjectPoliciesString(), vals...)
+}
+
+func (e *Enforcer) enforceCustomPolicy(projPolicy string, rvals ...interface{}) bool {
+	model := loadModel()
+	adapter := scas.NewAdapter(projPolicy)
+	enf := casbin.NewEnforcer(model, adapter)
+	enf.EnableLog(false)
+	return enf.Enforce(rvals...)
 }
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies

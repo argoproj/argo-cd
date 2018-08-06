@@ -2,15 +2,19 @@ package rbac
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -341,4 +345,70 @@ func TestNoPolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(cm)
 	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
+}
+
+func TestEnforceJwtToken(t *testing.T) {
+	projectName := "testProj"
+	tokenName := "testToken"
+	subFormat := "proj:%s:%s"
+	sub := fmt.Sprintf(subFormat, projectName, tokenName)
+	policy := fmt.Sprintf("p, %s, projects, get, %s", sub, projectName)
+	createdAt := int64(1)
+
+	tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: createdAt}}
+	role := v1alpha1.ProjectRole{Name: tokenName, Policies: []string{policy}, Metadata: tokenMetadata}
+	existingProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: fakeNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			Roles: []v1alpha1.ProjectRole{role},
+		},
+	}
+	t.Run("TestEnforceJwtTokenSuccessful", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
+		claims := jwt.MapClaims{"sub": sub, "iat": createdAt}
+		assert.True(t, enf.EnforceClaims(claims, "projects", "get", projectName))
+	})
+
+	t.Run("TestEnforceJwtTokenWithDiffCreateAtFailure", func(t *testing.T) {
+		diffCreateAt := createdAt + 1
+		proj := existingProj.DeepCopy()
+		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
+		claims := jwt.MapClaims{"sub": sub, "iat": diffCreateAt}
+		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
+	})
+
+	t.Run("TestEnforceJwtTokenIncorrectSubFormatFailure", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		invalidSub := "proj:test"
+		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
+		claims := jwt.MapClaims{"sub": invalidSub, "iat": createdAt}
+		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
+	})
+
+	t.Run("TestEnforceJwtTokenNoTokenFailure", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		invalidToken := "fake-token"
+		invalidSub := fmt.Sprintf(subFormat, projectName, invalidToken)
+		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
+		claims := jwt.MapClaims{"sub": invalidSub, "iat": createdAt}
+		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
+	})
+
+	t.Run("TestEnforceJwtTokenNoTokenFailure", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		invalidToken := "fake-token"
+		invalidSub := fmt.Sprintf(subFormat, projectName, invalidToken)
+		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
+		claims := jwt.MapClaims{"sub": invalidSub, "iat": createdAt}
+		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
+	})
+
+	t.Run("TestEnforceJwtTokenNotJwtTokenFailure", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		proj.Spec.Roles[0].Metadata.JwtToken = nil
+		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
+		claims := jwt.MapClaims{"sub": sub, "iat": createdAt}
+		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
+	})
 }

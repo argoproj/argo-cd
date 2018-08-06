@@ -184,7 +184,7 @@ type DeploymentInfo struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type Application struct {
-	metav1.TypeMeta   `json:",inline" protobuf:"bytes,5,opt,name=typeMeta"`
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 	Status            ApplicationStatus `json:"status" protobuf:"bytes,3,opt,name=status"`
@@ -206,7 +206,7 @@ type ApplicationWatchEvent struct {
 // ApplicationList is list of Application resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type ApplicationList struct {
-	metav1.TypeMeta `json:",inline" protobuf:"bytes,3,opt,name=typeMeta"`
+	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Application `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
@@ -429,7 +429,7 @@ type RepositoryList struct {
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
-	metav1.TypeMeta `json:",inline" protobuf:"bytes,3,opt,name=typeMeta"`
+	metav1.TypeMeta `json:",inline""`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []AppProject `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
@@ -439,18 +439,18 @@ type AppProjectList struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProject struct {
-	metav1.TypeMeta   `json:",inline" protobuf:"bytes,3,opt,name=typeMeta"`
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
-//TokenPoliciesString returns Casabin formated string of all the policies for each string
-func (proj *AppProject) TokenPoliciesString() string {
-	var tokenPolicies []string
-	for _, token := range proj.Spec.Tokens {
-		tokenPolicies = append(tokenPolicies, token.Policies...)
+//ProjectPoliciesString returns Casabin formated string of a project's polcies for each role
+func (proj *AppProject) ProjectPoliciesString() string {
+	var policies []string
+	for _, role := range proj.Spec.Roles {
+		policies = append(policies, role.Policies...)
 	}
-	return strings.Join(tokenPolicies, "\n")
+	return strings.Join(policies, "\n")
 }
 
 // AppProjectSpec represents
@@ -464,24 +464,35 @@ type AppProjectSpec struct {
 	// Description contains optional project description
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 
-	Tokens []ProjectToken `protobuf:"bytes,4,rep,name=tokens"`
+	Roles []ProjectRole `protobuf:"bytes,4,rep,name=roles"`
 }
 
-// GetTokenIndex returns the index into the tokens array of that name if that token exists
-func (proj *AppProject) GetTokenIndex(name string) (int, error) {
-	for i, token := range proj.Spec.Tokens {
-		if name == token.Name {
+// GetRoleIndex looks up the index of a role in a project by the name
+func (proj *AppProject) GetRoleIndex(name string) (int, error) {
+	for i, role := range proj.Spec.Roles {
+		if name == role.Name {
 			return i, nil
 		}
 	}
-	return -1, fmt.Errorf("token '%s' does not exist in project '%s'", name, proj.Name)
+	return -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, proj.Name)
 }
 
-// ProjectToken contains metadata of a token for a project
-type ProjectToken struct {
-	Name      string   `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Policies  []string `protobuf:"bytes,2,rep,name=policies"`
-	CreatedAt int64    `json:"createdAt" protobuf:"int64,3,opt,name=createdAt"`
+// ProjectRole represents a role that has access to a project
+type ProjectRole struct {
+	Name     string                `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Policies []string              `json:"policies" protobuf:"bytes,2,rep,name=policies"`
+	Metadata *ProjectRoleMetatdata `json:"metadata" protobuf:"bytes,3,rep,name=metadata"`
+}
+
+// ProjectRoleMetatdata represents all the different types of roles a project can have
+// ProjectRoleMetatdata only one of its members may be specified for a specific role
+type ProjectRoleMetatdata struct {
+	JwtToken *JwtTokenMetadata `protobuf:"bytes,1,opt,name=jwtToken"`
+}
+
+// JwtTokenMetadata holds the createdAt time of a token
+type JwtTokenMetadata struct {
+	CreatedAt int64 `json:"createdAt" protobuf:"int64,3,opt,name=createdAt"`
 }
 
 func GetDefaultProject(namespace string) AppProject {
