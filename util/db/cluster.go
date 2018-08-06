@@ -58,11 +58,10 @@ func (s *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluste
 		},
 	}
 	clusterSecret.Data = clusterToData(c)
-	clusterSecret.Annotations = AnnotationsFromConnectionState(&c.ConnectionState)
 	clusterSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Create(clusterSecret)
 	if err != nil {
 		if apierr.IsAlreadyExists(err) {
-			return nil, status.Errorf(codes.AlreadyExists, "cluster '%s' already exists", c.Server)
+			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)
 		}
 		return nil, err
 	}
@@ -119,7 +118,7 @@ func (s *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 	clusterSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "cluster '%s' not found", server)
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 		}
 		return nil, err
 	}
