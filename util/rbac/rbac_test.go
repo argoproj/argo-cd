@@ -120,6 +120,12 @@ p, bob, repositories, *, foo/obj, allow
 p, cathy, *, *, foo/obj, allow
 p, dave, applications, get, foo/obj, allow
 p, dave, applications/*, get, foo/obj, allow
+p, eve, *, get, foo/obj, deny
+p, mallory, repositories, *, foo/obj, deny
+p, mike, *, *, foo/obj, deny
+p, trudy, applications, get, foo/obj, allow
+p, trudy, applications/*, get, foo/obj, allow
+p, trudy, applications/secrets, get, foo/obj, deny
 `
 	enf.SetUserPolicy(policy)
 
@@ -142,6 +148,27 @@ p, dave, applications/*, get, foo/obj, allow
 	// Verify wildcards with sub-resources
 	assert.True(t, enf.Enforce("dave", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("dave", "applications/logs", "get", "foo/obj"))
+
+	// Verify the resource wildcard
+	assert.False(t, enf.Enforce("eve", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("eve", "applications/pods", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("eve", "applications/pods", "delete", "foo/obj"))
+
+	// Verify action wildcards work
+	assert.False(t, enf.Enforce("mallory", "repositories", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("mallory", "repositories", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("mallory", "applications", "get", "foo/obj"))
+
+	// Verify resource and action wildcards work in conjunction
+	assert.False(t, enf.Enforce("mike", "repositories", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "repositories", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications/pods", "delete", "foo/obj"))
+
+	// Verify wildcards with sub-resources
+	assert.True(t, enf.Enforce("trudy", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("trudy", "applications/logs", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("trudy", "applications/secrets", "get", "foo/obj"))
 }
 
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
@@ -262,15 +289,20 @@ func TestEnableDisableEnforce(t *testing.T) {
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
 p, alice, *, get, foo/obj, allow
+p, mike, *, get, foo/obj, deny
 `
 	enf.SetUserPolicy(policy)
 
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications/pods", "delete", "foo/obj"))
 
 	enf.EnableEnforce(false)
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce("mike", "applications/pods", "delete", "foo/obj"))
 }
 
 func TestUpdatePolicy(t *testing.T) {
