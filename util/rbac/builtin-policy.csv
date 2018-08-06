@@ -6,31 +6,31 @@
 # 2. All other resources:
 # p, <user/group>, <resource>, <action>, <object>
 
-p, role:readonly, applications, get, */*
-p, role:readonly, applications/events, get, */*
-p, role:readonly, applications/manifests, get, */*
-p, role:readonly, applications/logs, get, */*
-p, role:readonly, clusters, get, *
-p, role:readonly, repositories, get, *
-p, role:readonly, repositories/apps, get, *
-p, role:readonly, projects, get, *
+p, role:readonly, applications, get, */*, allow
+p, role:readonly, applications/events, get, */*, allow
+p, role:readonly, applications/manifests, get, */*, allow
+p, role:readonly, applications/logs, get, */*, allow
+p, role:readonly, clusters, get, *, allow
+p, role:readonly, repositories, get, *, allow
+p, role:readonly, repositories/apps, get, *, allow
+p, role:readonly, projects, get, *, allow
 
-p, role:admin, applications, create, */*
-p, role:admin, applications, update, */*
-p, role:admin, applications, delete, */*
-p, role:admin, applications, sync, */*
-p, role:admin, applications, rollback, */*
-p, role:admin, applications, terminateop, */*
-p, role:admin, applications/pods, delete, */*
-p, role:admin, clusters, create, *
-p, role:admin, clusters, update, *
-p, role:admin, clusters, delete, *
-p, role:admin, repositories, create, *
-p, role:admin, repositories, update, *
-p, role:admin, repositories, delete, *
-p, role:admin, projects, create, *
-p, role:admin, projects, update, *
-p, role:admin, projects, delete, *
+p, role:admin, applications, create, */*, allow
+p, role:admin, applications, update, */*, allow
+p, role:admin, applications, delete, */*, allow
+p, role:admin, applications, sync, */*, allow
+p, role:admin, applications, rollback, */*, allow
+p, role:admin, applications, terminateop, */*, allow
+p, role:admin, applications/pods, delete, */*, allow
+p, role:admin, clusters, create, *, allow
+p, role:admin, clusters, update, *, allow
+p, role:admin, clusters, delete, *, allow
+p, role:admin, repositories, create, *, allow
+p, role:admin, repositories, update, *, allow
+p, role:admin, repositories, delete, *, allow
+p, role:admin, projects, create, *, allow
+p, role:admin, projects, update, *, allow
+p, role:admin, projects, delete, *, allow
 
 g, role:admin, role:readonly
 g, admin, role:admin
