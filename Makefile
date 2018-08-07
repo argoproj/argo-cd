@@ -127,6 +127,10 @@ lint:
 test:
 	go test -v `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 
+.PHONY: test-coverage
+test-coverage:
+	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+
 .PHONY: test-e2e
 test-e2e:
 	go test -v -failfast -timeout 20m ./test/e2e
