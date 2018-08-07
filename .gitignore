@@ -7,3 +7,4 @@ dist/
 # delve debug binaries
 cmd/**/debug
 debug.test
+coverage.out
