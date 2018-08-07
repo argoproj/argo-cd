@@ -2,12 +2,9 @@ package rbac
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
@@ -51,7 +48,7 @@ func fakeConfigMap(policy ...string) *apiv1.ConfigMap {
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
 func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 
@@ -90,7 +87,7 @@ func TestPolicyInformer(t *testing.T) {
 	cm := fakeConfigMap()
 	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*, allow"
 	kubeclientset := fake.NewSimpleClientset(cm)
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -117,7 +114,7 @@ func TestPolicyInformer(t *testing.T) {
 // TestResourceActionWildcards verifies the ability to use wildcards in resources and actions
 func TestResourceActionWildcards(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
 p, alice, *, get, foo/obj, allow
 p, bob, repositories, *, foo/obj, allow
@@ -180,7 +177,7 @@ p, trudy, applications/secrets, get, foo/obj, deny
 // TestProjectIsolationEnforcement verifies the ability to create Project specific policies
 func TestProjectIsolationEnforcement(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
 p, role:foo-admin, *, *, foo/*, allow
 p, role:bar-admin, *, *, bar/*, allow
@@ -200,7 +197,7 @@ g, bob, role:bar-admin
 // TestProjectReadOnly verifies the ability to have a read only role in a Project
 func TestProjectReadOnly(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
 p, role:foo-readonly, *, get, foo/*, allow
 g, alice, role:foo-readonly
@@ -215,7 +212,7 @@ g, alice, role:foo-readonly
 
 func TestEnforceClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
 	policy := `
 g, org2:team2, role:admin
@@ -246,7 +243,7 @@ g, bob, role:admin
 // TestDefaultRole tests the ability to set a default role
 func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
@@ -263,7 +260,7 @@ func TestDefaultRole(t *testing.T) {
 // TestURLAsObjectName tests the ability to have a URL as an object name
 func TestURLAsObjectName(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 	policy := `
@@ -283,7 +280,7 @@ p, cathy, repositories, *, foo/*, allow
 
 func TestEnforceNilClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
 	assert.False(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 	enf.SetDefaultRole("role:readonly")
@@ -292,7 +289,7 @@ func TestEnforceNilClaims(t *testing.T) {
 
 func TestEnableDisableEnforce(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	policy := `
 p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
@@ -313,7 +310,7 @@ p, mike, *, get, foo/obj, deny
 
 func TestUpdatePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 
 	enf.SetUserPolicy("p, alice, *, get, foo/obj, allow")
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
@@ -343,72 +340,6 @@ func TestUpdatePolicy(t *testing.T) {
 func TestNoPolicy(t *testing.T) {
 	cm := fakeConfigMap()
 	kubeclientset := fake.NewSimpleClientset(cm)
-	enf := NewEnforcer(kubeclientset, nil, fakeNamespace, fakeConfgMapName, nil)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
-}
-
-func TestEnforceJwtToken(t *testing.T) {
-	projectName := "testProj"
-	tokenName := "testToken"
-	subFormat := "proj:%s:%s"
-	sub := fmt.Sprintf(subFormat, projectName, tokenName)
-	policy := fmt.Sprintf("p, %s, projects, get, %s", sub, projectName)
-	createdAt := int64(1)
-
-	tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: createdAt}}
-	role := v1alpha1.ProjectRole{Name: tokenName, Policies: []string{policy}, Metadata: tokenMetadata}
-	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: fakeNamespace},
-		Spec: v1alpha1.AppProjectSpec{
-			Roles: []v1alpha1.ProjectRole{role},
-		},
-	}
-	t.Run("TestEnforceJwtTokenSuccessful", func(t *testing.T) {
-		proj := existingProj.DeepCopy()
-		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
-		claims := jwt.MapClaims{"sub": sub, "iat": createdAt}
-		assert.True(t, enf.EnforceClaims(claims, "projects", "get", projectName))
-	})
-
-	t.Run("TestEnforceJwtTokenWithDiffCreateAtFailure", func(t *testing.T) {
-		diffCreateAt := createdAt + 1
-		proj := existingProj.DeepCopy()
-		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
-		claims := jwt.MapClaims{"sub": sub, "iat": diffCreateAt}
-		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
-	})
-
-	t.Run("TestEnforceJwtTokenIncorrectSubFormatFailure", func(t *testing.T) {
-		proj := existingProj.DeepCopy()
-		invalidSub := "proj:test"
-		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
-		claims := jwt.MapClaims{"sub": invalidSub, "iat": createdAt}
-		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
-	})
-
-	t.Run("TestEnforceJwtTokenNoTokenFailure", func(t *testing.T) {
-		proj := existingProj.DeepCopy()
-		invalidToken := "fake-token"
-		invalidSub := fmt.Sprintf(subFormat, projectName, invalidToken)
-		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
-		claims := jwt.MapClaims{"sub": invalidSub, "iat": createdAt}
-		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
-	})
-
-	t.Run("TestEnforceJwtTokenNoTokenFailure", func(t *testing.T) {
-		proj := existingProj.DeepCopy()
-		invalidToken := "fake-token"
-		invalidSub := fmt.Sprintf(subFormat, projectName, invalidToken)
-		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
-		claims := jwt.MapClaims{"sub": invalidSub, "iat": createdAt}
-		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
-	})
-
-	t.Run("TestEnforceJwtTokenNotJwtTokenFailure", func(t *testing.T) {
-		proj := existingProj.DeepCopy()
-		proj.Spec.Roles[0].Metadata.JwtToken = nil
-		enf := NewEnforcer(nil, apps.NewSimpleClientset(proj), "", "", nil)
-		claims := jwt.MapClaims{"sub": sub, "iat": createdAt}
-		assert.False(t, enf.EnforceClaims(claims, "projects", "get", projectName))
-	})
 }

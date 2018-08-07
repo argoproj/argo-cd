@@ -38,7 +38,7 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 	if err != nil {
 		return nil, err
 	}
-	return &SessionResponse{Token: jwtToken.Token}, nil
+	return &SessionResponse{Token: jwtToken}, nil
 }
 
 // Delete an authentication cookie from the client.  This makes sense only for the Web client.

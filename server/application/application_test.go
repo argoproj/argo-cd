@@ -75,7 +75,7 @@ func fakeListDirResponse() *repository.FileList {
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer() ApplicationServiceServer {
 	kubeclientset := fake.NewSimpleClientset()
-	enforcer := rbac.NewEnforcer(kubeclientset, nil, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	enforcer.SetDefaultRole("role:admin")
 

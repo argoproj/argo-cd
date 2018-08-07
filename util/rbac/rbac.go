@@ -3,7 +3,6 @@ package rbac
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/casbin/casbin"
@@ -50,14 +49,14 @@ type Enforcer struct {
 	appclientset      appclientset.Interface
 }
 
-func loadModel() model.Model {
+func LoadModel() model.Model {
 	box := packr.NewBox(".")
 	modelConf := box.String(builtinModelFile)
 	return casbin.NewModel(modelConf)
 }
 
-func NewEnforcer(clientset kubernetes.Interface, appclientset appclientset.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
-	model := loadModel()
+func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
+	model := LoadModel()
 	adapter := scas.NewAdapter("")
 	enf := casbin.NewEnforcer(model, adapter)
 	enf.EnableLog(false)
@@ -69,7 +68,6 @@ func NewEnforcer(clientset kubernetes.Interface, appclientset appclientset.Inter
 		configmap:          configmap,
 		model:              model,
 		claimsEnforcerFunc: claimsEnforcer,
-		appclientset:       appclientset,
 	}
 }
 
@@ -117,7 +115,6 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 		}
 		return e.Enforce(rvals...)
 	}
-
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		vals := append([]interface{}{""}, rvals[1:]...)
@@ -131,45 +128,8 @@ func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
 		}
 	}
 	user := jwtutil.GetField(mapClaims, "sub")
-	if strings.HasPrefix(user, "proj:") {
-		return e.enforceJwtToken(user, mapClaims, rvals...)
-	}
 	vals := append([]interface{}{user}, rvals[1:]...)
 	return e.Enforce(vals...)
-}
-
-func (e *Enforcer) enforceJwtToken(user string, mapClaims jwt.MapClaims, rvals ...interface{}) bool {
-	userSplit := strings.Split(user, ":")
-	if len(userSplit) != 3 {
-		return false
-	}
-	projName := userSplit[1]
-	tokenName := userSplit[2]
-	proj, err := e.appclientset.ArgoprojV1alpha1().AppProjects(e.namespace).Get(projName, metav1.GetOptions{})
-	if err != nil {
-		return false
-	}
-	index, err := proj.GetRoleIndex(tokenName)
-	if err != nil {
-		return false
-	}
-	if proj.Spec.Roles[index].Metadata.JwtToken == nil {
-		return false
-	}
-	iat := jwtutil.GetInt64Field(mapClaims, "iat")
-	if proj.Spec.Roles[index].Metadata.JwtToken.CreatedAt != iat {
-		return false
-	}
-	vals := append([]interface{}{user}, rvals[1:]...)
-	return e.enforceCustomPolicy(proj.ProjectPoliciesString(), vals...)
-}
-
-func (e *Enforcer) enforceCustomPolicy(projPolicy string, rvals ...interface{}) bool {
-	model := loadModel()
-	adapter := scas.NewAdapter(projPolicy)
-	enf := casbin.NewEnforcer(model, adapter)
-	enf.EnableLog(false)
-	return enf.Enforce(rvals...)
 }
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies

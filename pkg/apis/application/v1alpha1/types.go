@@ -429,7 +429,7 @@ type RepositoryList struct {
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
-	metav1.TypeMeta `json:",inline""`
+	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []AppProject `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
@@ -464,11 +464,11 @@ type AppProjectSpec struct {
 	// Description contains optional project description
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 
-	Roles []ProjectRole `protobuf:"bytes,4,rep,name=roles"`
+	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
 }
 
-// GetRoleIndex looks up the index of a role in a project by the name
-func (proj *AppProject) GetRoleIndex(name string) (int, error) {
+// GetRoleIndexByName looks up the index of a role in a project by the name
+func (proj *AppProject) GetRoleIndexByName(name string) (int, error) {
 	for i, role := range proj.Spec.Roles {
 		if name == role.Name {
 			return i, nil
