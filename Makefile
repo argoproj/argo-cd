@@ -9,6 +9,7 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+COVERALLS_TOKEN=$(shell echo -n "${COVERALLS_TOKEN}")
 
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
@@ -130,6 +131,7 @@ test:
 .PHONY: test-coverage
 test-coverage:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+	@if [ "$(COVERALLS_TOKEN)" != "" ] ; then vendor/github.com/mattn/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken "$(COVERALLS_TOKEN)"; fi
 
 .PHONY: test-e2e
 test-e2e:
