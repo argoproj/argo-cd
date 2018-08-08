@@ -63,6 +63,13 @@ var (
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 )
 
+var noCacheHeaders = map[string]string{
+	"Expires":         time.Unix(0, 0).Format(time.RFC1123),
+	"Cache-Control":   "no-cache, private, max-age=0",
+	"Pragma":          "no-cache",
+	"X-Accel-Expires": "0",
+}
+
 var backoff = wait.Backoff{
 	Steps:    5,
 	Duration: 500 * time.Millisecond,
@@ -425,6 +432,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 
 			// serve index.html for non file requests to support HTML5 History API
 			if acceptHTML && !fileRequest && (request.Method == "GET" || request.Method == "HEAD") {
+				for k, v := range noCacheHeaders {
+					writer.Header().Set(k, v)
+				}
 				http.ServeFile(writer, request, a.StaticAssetsDir+"/index.html")
 			} else {
 				http.ServeFile(writer, request, a.StaticAssetsDir+request.URL.Path)
