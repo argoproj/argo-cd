@@ -30,6 +30,18 @@ spec:
             value: "{{item}}"
         withItems:
         - dep ensure && make cli lint test
+      - name: test-coverage
+        template: ci-builder
+        env:
+          - name: COVERALLS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: coverall-token
+                key: coverall-token
+        arguments:
+          parameters:
+          - name: cmd
+            value: "dep ensure && go get github.com/mattn/goveralls && make test-coverage"
       - name: test-e2e
         template: ci-builder
         arguments:
