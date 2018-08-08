@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -465,16 +464,6 @@ type AppProjectSpec struct {
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
-}
-
-// GetRoleIndexByName looks up the index of a role in a project by the name
-func (proj *AppProject) GetRoleIndexByName(name string) (int, error) {
-	for i, role := range proj.Spec.Roles {
-		if name == role.Name {
-			return i, nil
-		}
-	}
-	return -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, proj.Name)
 }
 
 // ProjectRole represents a role that has access to a project

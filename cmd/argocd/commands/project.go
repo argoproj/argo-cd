@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
+	projectUtil "github.com/argoproj/argo-cd/util/project"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -134,7 +135,7 @@ func NewProjectAddRolePolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			roleIndex, err := proj.GetRoleIndexByName(roleName)
+			roleIndex, err := projectUtil.GetRoleIndexByName(proj, roleName)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -185,7 +186,7 @@ func NewProjectRemoveRolePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			roleIndex, err := proj.GetRoleIndexByName(roleName)
+			roleIndex, err := projectUtil.GetRoleIndexByName(proj, roleName)
 			if err != nil {
 				log.Fatal(err)
 			}

@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
+	projectUtil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"google.golang.org/grpc/codes"
@@ -63,7 +64,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, err = project.GetRoleIndexByName(q.Token)
+	_, err = projectUtil.GetRoleIndexByName(project, q.Token)
 	if err == nil {
 		return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token, q.Project)
 	}
@@ -293,7 +294,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	index, err := project.GetRoleIndexByName(q.Token)
+	index, err := projectUtil.GetRoleIndexByName(project, q.Token)
 	if err != nil {
 		return nil, err
 	}

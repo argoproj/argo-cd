@@ -12,25 +12,6 @@ import (
 	"strings"
 	"time"
 
-	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/gobuffalo/packr"
-	golang_proto "github.com/golang/protobuf/proto"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	log "github.com/sirupsen/logrus"
-	"github.com/soheilhy/cmux"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -51,14 +32,33 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
+	projectUtil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gobuffalo/packr"
+	golang_proto "github.com/golang/protobuf/proto"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	log "github.com/sirupsen/logrus"
+	"github.com/soheilhy/cmux"
 	netCtx "golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -640,7 +640,7 @@ func enforceJwtToken(enf *rbac.Enforcer, a appclientset.Interface, namespace str
 	if err != nil {
 		return false
 	}
-	index, err := proj.GetRoleIndexByName(tokenName)
+	index, err := projectUtil.GetRoleIndexByName(proj, tokenName)
 	if err != nil {
 		return false
 	}
