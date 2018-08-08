@@ -247,14 +247,11 @@ func TestDefaultRole(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
 
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
-	assert.False(t, enf.EnforceClaims(claims, "applications", "get", "foo/bar"))
 	// after setting the default role to be the read-only role, this should now pass
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
-	assert.True(t, enf.EnforceClaims(claims, "applications", "get", "foo/bar"))
 }
 
 // TestURLAsObjectName tests the ability to have a URL as an object name
@@ -276,15 +273,6 @@ p, cathy, repositories, *, foo/*, allow
 	assert.True(t, enf.Enforce("bob", "repositories", "delete", "foo/https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("bob", "repositories", "delete", "foo/https://github.com/golang/go.git"))
 
-}
-
-func TestEnforceNilClaims(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	assert.False(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
-	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 }
 
 func TestEnableDisableEnforce(t *testing.T) {

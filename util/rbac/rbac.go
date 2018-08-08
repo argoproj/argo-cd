@@ -7,7 +7,6 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	scas "github.com/qiangmzsx/string-adapter"
 	log "github.com/sirupsen/logrus"
@@ -18,9 +17,6 @@ import (
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 )
 
 const (
@@ -46,17 +42,16 @@ type Enforcer struct {
 	defaultRole       string
 	builtinPolicy     string
 	userDefinedPolicy string
-	appclientset      appclientset.Interface
 }
 
-func LoadModel() model.Model {
+func loadModel() model.Model {
 	box := packr.NewBox(".")
 	modelConf := box.String(builtinModelFile)
 	return casbin.NewModel(modelConf)
 }
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
-	model := LoadModel()
+	model := loadModel()
 	adapter := scas.NewAdapter("")
 	enf := casbin.NewEnforcer(model, adapter)
 	enf.EnableLog(false)
@@ -96,40 +91,24 @@ func (e *Enforcer) Enforce(rvals ...interface{}) bool {
 	return e.Enforcer.Enforce(rvals...)
 }
 
+// EnforceCustomPolicy enforce a custom policy with the buildin and user defined policies in case of explicit deny of that resource
+func (e *Enforcer) EnforceCustomPolicy(policy string, rvals ...interface{}) bool {
+	model := loadModel()
+	policies := fmt.Sprintf("%s\n%s\n%s", e.builtinPolicy, e.userDefinedPolicy, policy)
+	adapter := scas.NewAdapter(policies)
+	enf := casbin.NewEnforcer(model, adapter)
+	enf.EnableLog(false)
+	return enf.Enforce(rvals...)
+}
+
 // EnforceClaims checks if the first value is a jwt.Claims and runs enforce against its groups and sub
 func (e *Enforcer) EnforceClaims(rvals ...interface{}) bool {
-	// Use default claims enforcer if it is nil
+	// Return false if no enforcer is provided
 	if e.claimsEnforcerFunc == nil {
-		return e.defaultEnforceClaims(rvals...)
+		return false
 	}
 
 	return e.claimsEnforcerFunc(rvals...)
-}
-
-func (e *Enforcer) defaultEnforceClaims(rvals ...interface{}) bool {
-	claims, ok := rvals[0].(jwt.Claims)
-	if !ok {
-		if rvals[0] == nil {
-			vals := append([]interface{}{""}, rvals[1:]...)
-			return e.Enforce(vals...)
-		}
-		return e.Enforce(rvals...)
-	}
-	mapClaims, err := jwtutil.MapClaims(claims)
-	if err != nil {
-		vals := append([]interface{}{""}, rvals[1:]...)
-		return e.Enforce(vals...)
-	}
-	groups := jwtutil.GetGroups(mapClaims)
-	for _, group := range groups {
-		vals := append([]interface{}{group}, rvals[1:]...)
-		if e.Enforcer.Enforce(vals...) {
-			return true
-		}
-	}
-	user := jwtutil.GetField(mapClaims, "sub")
-	vals := append([]interface{}{user}, rvals[1:]...)
-	return e.Enforce(vals...)
 }
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies

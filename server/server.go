@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -56,6 +58,7 @@ import (
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
 	netCtx "golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -332,7 +335,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
-
+	a.enf.SetClaimsEnforcerFunc(defaultEnforceClaims(a.enf, a.AppClientset, a.Namespace))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.KubeClientset)
 	clusterService := cluster.NewServer(db, a.enf)
@@ -592,4 +595,62 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		cu.Cluster.Server = server
 	}
 	return handler(ctx, req)
+}
+
+func defaultEnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespace string) func(rvals ...interface{}) bool {
+	return func(rvals ...interface{}) bool {
+		claims, ok := rvals[0].(jwt.Claims)
+		if !ok {
+			if rvals[0] == nil {
+				vals := append([]interface{}{""}, rvals[1:]...)
+				return enf.Enforce(vals...)
+			}
+			return enf.Enforce(rvals...)
+		}
+
+		mapClaims, err := jwtUtil.MapClaims(claims)
+		if err != nil {
+			vals := append([]interface{}{""}, rvals[1:]...)
+			return enf.Enforce(vals...)
+		}
+		groups := jwtUtil.GetGroups(mapClaims)
+		for _, group := range groups {
+			vals := append([]interface{}{group}, rvals[1:]...)
+			if enf.Enforcer.Enforce(vals...) {
+				return true
+			}
+		}
+		user := jwtUtil.GetField(mapClaims, "sub")
+		if strings.HasPrefix(user, "proj:") {
+			return enforceJwtToken(enf, a, namespace, user, mapClaims, rvals...)
+		}
+		vals := append([]interface{}{user}, rvals[1:]...)
+		return enf.Enforce(vals...)
+	}
+}
+
+func enforceJwtToken(enf *rbac.Enforcer, a appclientset.Interface, namespace string, user string, mapClaims jwt.MapClaims, rvals ...interface{}) bool {
+	userSplit := strings.Split(user, ":")
+	if len(userSplit) != 3 {
+		return false
+	}
+	projName := userSplit[1]
+	tokenName := userSplit[2]
+	proj, err := a.ArgoprojV1alpha1().AppProjects(namespace).Get(projName, metav1.GetOptions{})
+	if err != nil {
+		return false
+	}
+	index, err := proj.GetRoleIndexByName(tokenName)
+	if err != nil {
+		return false
+	}
+	if proj.Spec.Roles[index].JwtToken == nil {
+		return false
+	}
+	iat := jwtUtil.GetInt64Field(mapClaims, "iat")
+	if proj.Spec.Roles[index].JwtToken.CreatedAt != iat {
+		return false
+	}
+	vals := append([]interface{}{user}, rvals[1:]...)
+	return enf.EnforceCustomPolicy(proj.ProjectPoliciesString(), vals...)
 }

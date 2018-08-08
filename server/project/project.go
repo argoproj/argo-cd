@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"strings"
@@ -17,9 +16,6 @@ import (
 	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
-	"github.com/casbin/casbin"
-	jwt "github.com/dgrijalva/jwt-go"
-	scas "github.com/qiangmzsx/string-adapter"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
@@ -50,77 +46,9 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
 }
 
-func defaultEnforceClaims(rvals ...interface{}) bool {
-	s, ok := rvals[0].(*Server)
-	if !ok {
-		return false
-	}
-	claims, ok := rvals[1].(jwt.Claims)
-	if !ok {
-		if rvals[1] == nil {
-			vals := append([]interface{}{""}, rvals[2:]...)
-			return s.enf.Enforce(vals...)
-		}
-		return s.enf.Enforce(rvals...)
-	}
-
-	mapClaims, err := jwtUtil.MapClaims(claims)
-	if err != nil {
-		vals := append([]interface{}{""}, rvals[2:]...)
-		return s.enf.Enforce(vals...)
-	}
-	groups := jwtUtil.GetGroups(mapClaims)
-	for _, group := range groups {
-		vals := append([]interface{}{group}, rvals[2:]...)
-		if s.enf.Enforcer.Enforce(vals...) {
-			return true
-		}
-	}
-	user := jwtUtil.GetField(mapClaims, "sub")
-	if strings.HasPrefix(user, "proj:") {
-		return s.enforceJwtToken(user, mapClaims, rvals[1:]...)
-	}
-	vals := append([]interface{}{user}, rvals[2:]...)
-	return s.enf.Enforce(vals...)
-}
-
-func (s *Server) enforceJwtToken(user string, mapClaims jwt.MapClaims, rvals ...interface{}) bool {
-	userSplit := strings.Split(user, ":")
-	if len(userSplit) != 3 {
-		return false
-	}
-	projName := userSplit[1]
-	tokenName := userSplit[2]
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(projName, metav1.GetOptions{})
-	if err != nil {
-		return false
-	}
-	index, err := proj.GetRoleIndexByName(tokenName)
-	if err != nil {
-		return false
-	}
-	if proj.Spec.Roles[index].Metadata.JwtToken == nil {
-		return false
-	}
-	iat := jwtUtil.GetInt64Field(mapClaims, "iat")
-	if proj.Spec.Roles[index].Metadata.JwtToken.CreatedAt != iat {
-		return false
-	}
-	vals := append([]interface{}{user}, rvals[1:]...)
-	return enforceCustomPolicy(proj.ProjectPoliciesString(), vals...)
-}
-
-func enforceCustomPolicy(projPolicy string, rvals ...interface{}) bool {
-	model := rbac.LoadModel()
-	adapter := scas.NewAdapter(projPolicy)
-	enf := casbin.NewEnforcer(model, adapter)
-	enf.EnableLog(false)
-	return enf.Enforce(rvals...)
-}
-
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
-	if !s.enf.EnforceClaims(s, ctx.Value("claims"), "projects", "update", q.Project) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
@@ -167,7 +95,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 
 // Create a new project.
 func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(s, ctx.Value("claims"), "projects", "create", q.Project.Name) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "create", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if q.Project.Name == common.DefaultAppProjectName {
@@ -192,7 +120,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 		newItems := make([]v1alpha1.AppProject, 0)
 		for i := range list.Items {
 			project := list.Items[i]
-			if s.enf.EnforceClaims(s, ctx.Value("claims"), "projects", "get", project.Name) {
+			if s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", project.Name) {
 				newItems = append(newItems, project)
 			}
 		}
@@ -203,7 +131,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 
 // Get returns a project by name
 func (s *Server) Get(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(s, ctx.Value("claims"), "projects", "get", q.Name) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
@@ -350,7 +278,7 @@ func validateProject(p *v1alpha1.AppProject) error {
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
-	if !s.enf.EnforceClaims(s, ctx.Value("claims"), "projects", "delete", q.Project) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Project) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
@@ -385,7 +313,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 	if q.Project.Name == common.DefaultAppProjectName {
 		return nil, grpc.ErrPermissionDenied
 	}
-	if !s.enf.EnforceClaims(s, ctx.Value("claims"), "projects", "update", q.Project.Name) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := validateProject(q.Project)
@@ -441,7 +369,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 
 // Delete deletes a project
 func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, error) {
-	if !s.enf.EnforceClaims(s, ctx.Value("claims"), "projects", "delete", q.Name) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
