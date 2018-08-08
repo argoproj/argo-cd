@@ -1,9 +1,0 @@
-language: go
-go:
-    - "1.10.x"
-script:
-  - go get -u github.com/golang/dep/cmd/dep
-  - go get github.com/mattn/goveralls
-  - dep ensure
-  - make test-coverage
-
