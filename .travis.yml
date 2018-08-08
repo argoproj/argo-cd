@@ -1,7 +1,6 @@
 language: go
 go:
     - "1.10.x"
-    - master
 script:
   - go get -u github.com/golang/dep/cmd/dep
   - go get github.com/mattn/goveralls
