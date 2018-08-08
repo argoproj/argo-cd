@@ -208,7 +208,7 @@ func validateJwtToken(proj string, token string, policy string) error {
 func validatePolicy(proj string, policy string) error {
 	policyComponents := strings.Split(policy, ",")
 	if len(policyComponents) != 5 {
-		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguements for '%s'", policy)
+		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguments for '%s'", policy)
 	}
 	if strings.Trim(policyComponents[0], " ") != "p" {
 		return status.Errorf(codes.InvalidArgument, "policies can only use the policy format: '%s'", policy)

@@ -134,7 +134,7 @@ func TestProjectServer(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projectWithRole := existingProj.DeepCopy()
 		tokenName := "testToken"
-		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{v1alpha1.ProjectRole{Name: tokenName}}
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projectWithRole.Name, Token: tokenName, SecondsBeforeExpiry: 1})
 		assert.Nil(t, err)
@@ -161,6 +161,7 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.DeleteToken(context.Background(), &ProjectTokenDeleteRequest{Project: projWithToken.Name, Token: tokenName})
 		assert.Nil(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &ProjectQuery{Name: projWithToken.Name})
+		assert.Nil(t, err)
 		assert.Len(t, projWithoutToken.Spec.Roles, 1)
 		assert.Nil(t, projWithoutToken.Spec.Roles[0].JwtToken)
 	})

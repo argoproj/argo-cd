@@ -236,7 +236,7 @@ func NewProjectCreateRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 			_, err = projectUtil.GetRoleIndexByName(proj, roleName)
 			if err == nil {
-				log.Fatal("Role '%s' already exists for '%s'", roleName, projName)
+				log.Fatalf("Role '%s' already exists for '%s'", roleName, projName)
 			}
 			proj.Spec.Roles = append(proj.Spec.Roles, v1alpha1.ProjectRole{Name: roleName})
 
