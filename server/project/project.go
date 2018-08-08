@@ -183,8 +183,8 @@ func validateJwtToken(proj string, token string, policy string) error {
 		return err
 	}
 	policyComponents := strings.Split(policy, ",")
-	if strings.Trim(policyComponents[2], " ") != "projects" {
-		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as JWT tokens can only access projects", policy)
+	if strings.Trim(policyComponents[2], " ") != "applications" {
+		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as JWT tokens can only access applications", policy)
 	}
 	roleComponents := strings.Split(strings.Trim(policyComponents[1], " "), ":")
 	if len(roleComponents) != 3 {
@@ -220,7 +220,7 @@ func validatePolicy(proj string, policy string) error {
 		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as action must be longer than 0 characters:", policy)
 	}
 	if !strings.HasPrefix(strings.Trim(policyComponents[4], " "), proj) {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policies can't grant access to other roles or projects", policy)
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policies can't grant access to other projects", policy)
 	}
 	return nil
 }

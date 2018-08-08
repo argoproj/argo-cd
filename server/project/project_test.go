@@ -40,7 +40,7 @@ func TestProjectServer(t *testing.T) {
 		},
 	}
 
-	policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s"
 
 	t.Run("TestRemoveDestinationSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
@@ -177,7 +177,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestCreateRolePolicySuccessfully", func(t *testing.T) {
 		action := "create"
-		object := "testObject"
+		object := "testApplication"
 		roleName := "testRole"
 
 		projWithRole := existingProj.DeepCopy()
@@ -197,7 +197,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestValidatePolicyDuplicatePolicyFailure", func(t *testing.T) {
 		action := "create"
-		object := "testObject"
+		object := "testApplication"
 		roleName := "testRole"
 
 		projWithRole := existingProj.DeepCopy()
@@ -216,10 +216,9 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestValidateProjectAccessToSeparateProjectObjectFailure", func(t *testing.T) {
 		action := "create"
-		object := "testObject"
+		object := "testApplication"
 		roleName := "testRole"
 		otherProject := "other-project"
-		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
@@ -230,16 +229,15 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policies can't grant access to other roles or projects", policy)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policies can't grant access to other projects", policy)
 		assert.EqualError(t, err, expectedErr)
 	})
 
 	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
 		action := "create"
-		object := "testObject"
+		object := "testApplication"
 		roleName := "testRole"
 		otherProject := "other-project"
-		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
@@ -256,9 +254,8 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestValidateProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
 		action := "create"
-		object := "testObject"
+		object := "testApplication"
 		roleName := "testRole"
-		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 		otherToken := "other-token"
 
 		projWithRole := existingProj.DeepCopy()

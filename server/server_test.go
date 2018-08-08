@@ -9,6 +9,7 @@ import (
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/util/rbac"
 	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -111,6 +112,39 @@ func TestEnforceJwtToken(t *testing.T) {
 		assert.False(t, s.enf.EnforceClaims(claims, "projects", "get", projectName))
 	})
 }
+
+func TestEnforceClaims(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+
+	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)
+	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	enf.SetClaimsEnforcerFunc(defaultEnforceClaims(enf, nil, fakeNamespace))
+	policy := `
+g, org2:team2, role:admin
+g, bob, role:admin
+`
+	enf.SetUserPolicy(policy)
+	allowed := []jwt.Claims{
+		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
+		jwt.StandardClaims{Subject: "admin"},
+	}
+	for _, c := range allowed {
+		if !assert.True(t, enf.EnforceClaims(c, "applications", "delete", "foo/obj")) {
+			log.Errorf("%v: expected true, got false", c)
+		}
+	}
+
+	disallowed := []jwt.Claims{
+		jwt.MapClaims{"groups": []string{"org3:team3"}},
+		jwt.StandardClaims{Subject: "nobody"},
+	}
+	for _, c := range disallowed {
+		if !assert.False(t, enf.EnforceClaims(c, "applications", "delete", "foo/obj")) {
+			log.Errorf("%v: expected true, got false", c)
+		}
+	}
+}
+
 func TestDefaultRoleWithClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)

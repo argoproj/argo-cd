@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -208,36 +207,6 @@ g, alice, role:foo-readonly
 	assert.False(t, enf.Enforce("alice", "applications", "delete", "bar/obj"))
 	assert.False(t, enf.Enforce("alice", "applications", "get", "bar/obj"))
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
-}
-
-func TestEnforceClaims(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	policy := `
-g, org2:team2, role:admin
-g, bob, role:admin
-`
-	enf.SetUserPolicy(policy)
-	allowed := []jwt.Claims{
-		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
-		jwt.StandardClaims{Subject: "admin"},
-	}
-	for _, c := range allowed {
-		if !assert.True(t, enf.EnforceClaims(c, "applications", "delete", "foo/obj")) {
-			log.Errorf("%v: expected true, got false", c)
-		}
-	}
-
-	disallowed := []jwt.Claims{
-		jwt.MapClaims{"groups": []string{"org3:team3"}},
-		jwt.StandardClaims{Subject: "nobody"},
-	}
-	for _, c := range disallowed {
-		if !assert.False(t, enf.EnforceClaims(c, "applications", "delete", "foo/obj")) {
-			log.Errorf("%v: expected true, got false", c)
-		}
-	}
 }
 
 // TestDefaultRole tests the ability to set a default role
