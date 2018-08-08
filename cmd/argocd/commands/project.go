@@ -74,6 +74,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	roleCommand.AddCommand(NewProjectListRolesCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectCreateRoleCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectDeleteRoleCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectCreateTokenCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectDeleteTokenCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectAddRolePolicyCommand(clientOpts))
@@ -141,7 +143,7 @@ func NewProjectAddRolePolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 			role := proj.Spec.Roles[roleIndex]
 
-			policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+			policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s"
 			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object)
 			proj.Spec.Roles[roleIndex].Policies = append(role.Policies, policy)
 
@@ -214,6 +216,68 @@ func NewProjectRemoveRolePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 	return command
 }
 
+// NewProjectCreateRoleCommand returns a new instance of an `argocd proj role create` command
+func NewProjectCreateRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "create PROJECT ROLE-NAME",
+		Short: "Create a project role",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			roleName := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			_, err = projectUtil.GetRoleIndexByName(proj, roleName)
+			if err == nil {
+				log.Fatal("Role '%s' already exists for '%s'", roleName, projName)
+			}
+			proj.Spec.Roles = append(proj.Spec.Roles, v1alpha1.ProjectRole{Name: roleName})
+
+			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectDeleteRoleCommand returns a new instance of an `argocd proj role delete` command
+func NewProjectDeleteRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "delete PROJECT ROLE-NAME",
+		Short: "Delete a project role",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			roleName := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index, err := projectUtil.GetRoleIndexByName(proj, roleName)
+			errors.CheckError(err)
+
+			proj.Spec.Roles[index] = proj.Spec.Roles[len(proj.Spec.Roles)-1]
+			proj.Spec.Roles = proj.Spec.Roles[:len(proj.Spec.Roles)-1]
+
+			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
 // NewProjectCreateTokenCommand returns a new instance of an `argocd proj role create-token` command
 func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -264,6 +328,7 @@ func NewProjectListRolesCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "ROLE-NAME\tCREATED-AT\tPOLICIES\n")
 			for _, role := range project.Spec.Roles {
+				fmt.Fprintf(w, "%s\n", role.Name)
 				if role.JwtToken != nil {
 					fmt.Fprintf(w, "%s\t%d\t\n", role.Name, role.JwtToken.CreatedAt)
 					for _, policy := range role.Policies {
@@ -280,7 +345,7 @@ func NewProjectListRolesCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 // NewProjectDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
 func NewProjectDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete PROJECT TOKEN-NAME",
+		Use:   "delete-token PROJECT TOKEN-NAME",
 		Short: "Delete a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {

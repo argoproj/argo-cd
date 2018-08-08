@@ -132,10 +132,11 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestCreateTokenSuccesfully", func(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
-		projWithoutToken := existingProj.DeepCopy()
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithoutToken), enforcer, util.NewKeyLock(), sessionMgr)
+		projectWithRole := existingProj.DeepCopy()
 		tokenName := "testToken"
-		tokenResponse, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithoutToken.Name, Token: tokenName, SecondsBeforeExpiry: 1})
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{v1alpha1.ProjectRole{Name: tokenName}}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, util.NewKeyLock(), sessionMgr)
+		tokenResponse, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projectWithRole.Name, Token: tokenName, SecondsBeforeExpiry: 1})
 		assert.Nil(t, err)
 		claims, err := sessionMgr.Parse(tokenResponse.Token)
 		assert.Nil(t, err)
@@ -143,7 +144,7 @@ func TestProjectServer(t *testing.T) {
 		mapClaims, err := jwtUtil.MapClaims(claims)
 		subject, ok := mapClaims["sub"].(string)
 		assert.True(t, ok)
-		expectedSubject := fmt.Sprintf(JwtTokenSubFormat, projWithoutToken.Name, tokenName)
+		expectedSubject := fmt.Sprintf(JwtTokenSubFormat, projectWithRole.Name, tokenName)
 		assert.Equal(t, expectedSubject, subject)
 		assert.Nil(t, err)
 	})
@@ -160,7 +161,8 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.DeleteToken(context.Background(), &ProjectTokenDeleteRequest{Project: projWithToken.Name, Token: tokenName})
 		assert.Nil(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &ProjectQuery{Name: projWithToken.Name})
-		assert.Len(t, projWithoutToken.Spec.Roles, 0)
+		assert.Len(t, projWithoutToken.Spec.Roles, 1)
+		assert.Nil(t, projWithoutToken.Spec.Roles[0].JwtToken)
 	})
 
 	t.Run("TestCreateDuplicateTokenFailure", func(t *testing.T) {
@@ -171,7 +173,7 @@ func TestProjectServer(t *testing.T) {
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken.Name, Token: tokenName})
-		expectedError := fmt.Sprintf("rpc error: code = AlreadyExists desc = '%s' token already exist for project '%s'", tokenName, projWithToken.Name)
+		expectedError := fmt.Sprintf("rpc error: code = AlreadyExists desc = Role '%s' already has a JwtToken", tokenName)
 		assert.EqualError(t, err, expectedError)
 	})
 

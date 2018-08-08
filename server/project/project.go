@@ -64,9 +64,12 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	_, err = projectUtil.GetRoleIndexByName(project, q.Token)
-	if err == nil {
-		return nil, status.Errorf(codes.AlreadyExists, "'%s' token already exist for project '%s'", q.Token, q.Project)
+	index, err := projectUtil.GetRoleIndexByName(project, q.Token)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Token)
+	}
+	if project.Spec.Roles[index].JwtToken != nil {
+		return nil, status.Errorf(codes.AlreadyExists, "Role '%s' already has a JwtToken", q.Token)
 	}
 
 	tokenName := fmt.Sprintf(JwtTokenSubFormat, q.Project, q.Token)
@@ -83,8 +86,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 		return nil, err
 	}
 	issuedAt := jwtUtil.GetInt64Field(mapClaims, "iat")
-	token := v1alpha1.ProjectRole{Name: q.Token, JwtToken: &v1alpha1.JwtToken{CreatedAt: issuedAt}}
-	project.Spec.Roles = append(project.Spec.Roles, token)
+	project.Spec.Roles[index].JwtToken = &v1alpha1.JwtToken{CreatedAt: issuedAt}
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err
@@ -269,7 +271,7 @@ func validateProject(p *v1alpha1.AppProject) error {
 		if _, ok := roleNames[role.Name]; !ok {
 			roleNames[role.Name] = true
 		} else {
-			return status.Errorf(codes.AlreadyExists, "role '%s' already exists", role)
+			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role)
 		}
 
 	}
@@ -298,8 +300,10 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	if err != nil {
 		return nil, err
 	}
-	project.Spec.Roles[index] = project.Spec.Roles[len(project.Spec.Roles)-1]
-	project.Spec.Roles = project.Spec.Roles[:len(project.Spec.Roles)-1]
+	if project.Spec.Roles[index].JwtToken == nil {
+		return nil, fmt.Errorf("Role '%s' does not have a JWT token", q.Token)
+	}
+	project.Spec.Roles[index].JwtToken = nil
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err
