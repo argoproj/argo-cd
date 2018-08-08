@@ -75,15 +75,15 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	tokenName := fmt.Sprintf(JwtTokenSubFormat, q.Project, q.Token)
 	jwtToken, err := s.sessionMgr.Create(tokenName, q.SecondsBeforeExpiry)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	claims, err := s.sessionMgr.Parse(jwtToken)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mapClaims, err := jwtUtil.MapClaims(claims)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	issuedAt := jwtUtil.GetInt64Field(mapClaims, "iat")
 	project.Spec.Roles[index].JwtToken = &v1alpha1.JwtToken{CreatedAt: issuedAt}
@@ -298,10 +298,10 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 
 	index, err := projectUtil.GetRoleIndexByName(project, q.Token)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	if project.Spec.Roles[index].JwtToken == nil {
-		return nil, fmt.Errorf("Role '%s' does not have a JWT token", q.Token)
+		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Token)
 	}
 	project.Spec.Roles[index].JwtToken = nil
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
