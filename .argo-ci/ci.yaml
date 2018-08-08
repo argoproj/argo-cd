@@ -37,6 +37,12 @@ spec:
         - dep ensure && make cli lint test
       - name: test-coverage
         template: ci-builder
+        env:
+          - name: COVERALLS_TOKENTWO
+            valueFrom:
+              secretKeyRef:
+                name: coverall-token
+                key: coverall-token
         volumeMounts:
         - name: coverall-token-vol
           mountPath: "/secret/coverall-token"
