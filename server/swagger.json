@@ -2291,9 +2291,9 @@
         }
       }
     },
-    "v1alpha1JwtTokenMetadata": {
+    "v1alpha1JwtToken": {
       "type": "object",
-      "title": "JwtTokenMetadata holds the createdAt time of a token",
+      "title": "JwtToken holds the createdAt time of a token",
       "properties": {
         "createdAt": {
           "type": "string",
@@ -2346,8 +2346,8 @@
       "type": "object",
       "title": "ProjectRole represents a role that has access to a project",
       "properties": {
-        "metadata": {
-          "$ref": "#/definitions/v1alpha1ProjectRoleMetatdata"
+        "jwtToken": {
+          "$ref": "#/definitions/v1alpha1JwtToken"
         },
         "name": {
           "type": "string"
@@ -2357,15 +2357,6 @@
           "items": {
             "type": "string"
           }
-        }
-      }
-    },
-    "v1alpha1ProjectRoleMetatdata": {
-      "type": "object",
-      "title": "ProjectRoleMetatdata represents all the different types of roles a project can have\nProjectRoleMetatdata only one of its members may be specified for a specific role",
-      "properties": {
-        "jwtToken": {
-          "$ref": "#/definitions/v1alpha1JwtTokenMetadata"
         }
       }
     },

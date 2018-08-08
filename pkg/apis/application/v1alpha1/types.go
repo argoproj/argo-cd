@@ -479,19 +479,13 @@ func (proj *AppProject) GetRoleIndexByName(name string) (int, error) {
 
 // ProjectRole represents a role that has access to a project
 type ProjectRole struct {
-	Name     string                `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Policies []string              `json:"policies" protobuf:"bytes,2,rep,name=policies"`
-	Metadata *ProjectRoleMetatdata `json:"metadata" protobuf:"bytes,3,rep,name=metadata"`
+	Name     string    `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Policies []string  `json:"policies" protobuf:"bytes,2,rep,name=policies"`
+	JwtToken *JwtToken `json:"jwtToken" protobuf:"bytes,3,rep,name=jwtToken"`
 }
 
-// ProjectRoleMetatdata represents all the different types of roles a project can have
-// ProjectRoleMetatdata only one of its members may be specified for a specific role
-type ProjectRoleMetatdata struct {
-	JwtToken *JwtTokenMetadata `protobuf:"bytes,1,opt,name=jwtToken"`
-}
-
-// JwtTokenMetadata holds the createdAt time of a token
-type JwtTokenMetadata struct {
+// JwtToken holds the createdAt time of a token
+type JwtToken struct {
 	CreatedAt int64 `json:"createdAt" protobuf:"int64,3,opt,name=createdAt"`
 }
 

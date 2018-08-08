@@ -150,8 +150,8 @@ func TestProjectServer(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
-		tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
-		token := v1alpha1.ProjectRole{Name: tokenName, Metadata: tokenMetadata}
+
+		token := v1alpha1.ProjectRole{Name: tokenName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
@@ -165,8 +165,7 @@ func TestProjectServer(t *testing.T) {
 		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
-		tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
-		token := v1alpha1.ProjectRole{Name: tokenName, Metadata: tokenMetadata}
+		token := v1alpha1.ProjectRole{Name: tokenName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, util.NewKeyLock(), sessionMgr)
 		_, err := projectServer.CreateToken(context.Background(), &ProjectTokenCreateRequest{Project: projWithToken.Name, Token: tokenName})
@@ -180,8 +179,7 @@ func TestProjectServer(t *testing.T) {
 		roleName := "testRole"
 
 		projWithRole := existingProj.DeepCopy()
-		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
-		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		role := v1alpha1.ProjectRole{Name: roleName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
 		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
@@ -201,8 +199,7 @@ func TestProjectServer(t *testing.T) {
 		roleName := "testRole"
 
 		projWithRole := existingProj.DeepCopy()
-		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
-		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		role := v1alpha1.ProjectRole{Name: roleName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
 		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object)
 		role.Policies = append(role.Policies, policy)
 		role.Policies = append(role.Policies, policy)
@@ -223,8 +220,7 @@ func TestProjectServer(t *testing.T) {
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
 		projWithRole := existingProj.DeepCopy()
-		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
-		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		role := v1alpha1.ProjectRole{Name: roleName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
 		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, otherProject, object)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
@@ -244,8 +240,7 @@ func TestProjectServer(t *testing.T) {
 		policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
 
 		projWithRole := existingProj.DeepCopy()
-		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
-		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		role := v1alpha1.ProjectRole{Name: roleName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
 		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, roleName, action, projWithRole.Name, object)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
@@ -265,8 +260,7 @@ func TestProjectServer(t *testing.T) {
 		otherToken := "other-token"
 
 		projWithRole := existingProj.DeepCopy()
-		roleMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: 1}}
-		role := v1alpha1.ProjectRole{Name: roleName, Metadata: roleMetadata}
+		role := v1alpha1.ProjectRole{Name: roleName, JwtToken: &v1alpha1.JwtToken{CreatedAt: 1}}
 		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, otherToken, action, projWithRole.Name, object)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)

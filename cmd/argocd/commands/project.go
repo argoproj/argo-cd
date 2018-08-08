@@ -261,12 +261,12 @@ func NewProjectListRolesCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "TOKEN-NAME\tCREATED-AT\tPOLICIES\n")
+			fmt.Fprintf(w, "ROLE-NAME\tCREATED-AT\tPOLICIES\n")
 			for _, role := range project.Spec.Roles {
-				if role.Metadata.JwtToken != nil {
-					fmt.Fprintf(w, "%s\t%d\t\n", role.Name, role.Metadata.JwtToken.CreatedAt)
+				if role.JwtToken != nil {
+					fmt.Fprintf(w, "%s\t%d\t\n", role.Name, role.JwtToken.CreatedAt)
 					for _, policy := range role.Policies {
-						fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, role.Metadata.JwtToken.CreatedAt, policy)
+						fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, role.JwtToken.CreatedAt, policy)
 					}
 				}
 			}

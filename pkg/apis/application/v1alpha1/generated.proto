@@ -254,8 +254,8 @@ message HookStatus {
   optional string message = 6;
 }
 
-// JwtTokenMetadata holds the createdAt time of a token
-message JwtTokenMetadata {
+// JwtToken holds the createdAt time of a token
+message JwtToken {
   optional int64 createdAt = 3;
 }
 
@@ -296,13 +296,7 @@ message ProjectRole {
 
   repeated string policies = 2;
 
-  optional ProjectRoleMetatdata metadata = 3;
-}
-
-// ProjectRoleMetatdata represents all the different types of roles a project can have
-// ProjectRoleMetatdata only one of its members may be specified for a specific role
-message ProjectRoleMetatdata {
-  optional JwtTokenMetadata jwtToken = 1;
+  optional JwtToken jwtToken = 3;
 }
 
 // Repository is a Git repository holding application configurations

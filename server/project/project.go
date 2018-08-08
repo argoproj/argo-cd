@@ -154,9 +154,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 		return nil, err
 	}
 	issuedAt := jwtUtil.GetInt64Field(mapClaims, "iat")
-
-	tokenMetadata := &v1alpha1.ProjectRoleMetatdata{JwtToken: &v1alpha1.JwtTokenMetadata{CreatedAt: issuedAt}}
-	token := v1alpha1.ProjectRole{Name: q.Token, Metadata: tokenMetadata}
+	token := v1alpha1.ProjectRole{Name: q.Token, JwtToken: &v1alpha1.JwtToken{CreatedAt: issuedAt}}
 	project.Spec.Roles = append(project.Spec.Roles, token)
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
@@ -322,13 +320,10 @@ func validateProject(p *v1alpha1.AppProject) error {
 
 	roleNames := make(map[string]bool)
 	for _, role := range p.Spec.Roles {
-		if role.Metadata == nil {
-			return errors.New("Role must have a metadata")
-		}
 		existingPolicies := make(map[string]bool)
 		for _, policy := range role.Policies {
 			var err error
-			if role.Metadata.JwtToken != nil {
+			if role.JwtToken != nil {
 				err = validateJwtToken(p.Name, role.Name, policy)
 			} else {
 				err = validatePolicy(p.Name, policy)
