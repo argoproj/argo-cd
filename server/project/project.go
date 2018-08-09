@@ -19,22 +19,24 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 )
 
 // Server provides a Project service
 type Server struct {
-	ns           string
-	enf          *rbac.Enforcer
-	appclientset appclientset.Interface
-	auditLogger  *argo.AuditLogger
-	projectLock  *util.KeyLock
+	ns            string
+	enf           *rbac.Enforcer
+	appclientset  appclientset.Interface
+	kubeclientset kubernetes.Interface
+	auditLogger   *argo.AuditLogger
+	projectLock   *util.KeyLock
 }
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, appclientset: appclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger}
+	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger}
 }
 
 // Create a new project.
@@ -230,6 +232,22 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "delete")
 	}
 	return &EmptyResponse{}, err
+}
+
+func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects/events", "get", q.Name) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	fieldSelector := fields.SelectorFromSet(map[string]string{
+		"involvedObject.name":      proj.Name,
+		"involvedObject.uid":       string(proj.UID),
+		"involvedObject.namespace": proj.Namespace,
+	}).String()
+	return s.kubeclientset.CoreV1().Events(s.ns).List(metav1.ListOptions{FieldSelector: fieldSelector})
 }
 
 func (s *Server) logEvent(p *v1alpha1.AppProject, ctx context.Context, reason string, action string) {

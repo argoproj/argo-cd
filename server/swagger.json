@@ -743,6 +743,31 @@
         }
       }
     },
+    "/api/v1/projects/{name}/events": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "ListEvents returns a list of project events",
+        "operationId": "ListEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project.metadata.name}": {
       "put": {
         "tags": [
