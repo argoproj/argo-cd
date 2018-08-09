@@ -142,7 +142,7 @@ func TestEnforceClaims(t *testing.T) {
 
 	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	enf.SetClaimsEnforcerFunc(defaultEnforceClaims(enf, nil, fakeNamespace))
+	enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(enf, nil, fakeNamespace))
 	policy := `
 g, org2:team2, role:admin
 g, bob, role:admin
@@ -173,7 +173,7 @@ func TestDefaultRoleWithClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	enf.SetClaimsEnforcerFunc(defaultEnforceClaims(enf, nil, fakeNamespace))
+	enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(enf, nil, fakeNamespace))
 	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
 
 	assert.False(t, enf.EnforceClaims(claims, "applications", "get", "foo/bar"))
@@ -186,7 +186,7 @@ func TestEnforceNilClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	enf.SetClaimsEnforcerFunc(defaultEnforceClaims(enf, nil, fakeNamespace))
+	enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(enf, nil, fakeNamespace))
 	assert.False(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))

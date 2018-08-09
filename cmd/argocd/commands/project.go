@@ -25,6 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	policyTemplate = "p, proj:%s:%s, applications, %s, %s/%s, %s"
+)
+
 type projectOpts struct {
 	description  string
 	destinations []string
@@ -144,8 +148,7 @@ func NewProjectAddRolePolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 			role := proj.Spec.Roles[roleIndex]
 
-			policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s"
-			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object)
+			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
 			proj.Spec.Roles[roleIndex].Policies = append(role.Policies, policy)
 
 			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
@@ -195,8 +198,7 @@ func NewProjectRemoveRolePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 			}
 			role := proj.Spec.Roles[roleIndex]
 
-			policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s"
-			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object)
+			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
 			duplicateIndex := -1
 			for i, policy := range role.Policies {
 				if policy == policyToRemove {
@@ -299,10 +301,7 @@ func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Role: roleName, SecondsBeforeExpiry: secondsBeforeExpiry})
 			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "New token for %s-%s:\n%s\n", projName, roleName, token)
-			fmt.Fprintf(w, "Make sure to save token as it is not stored.")
-			_ = w.Flush()
+			fmt.Print(token.Token)
 		},
 	}
 	command.Flags().Int64VarP(&secondsBeforeExpiry, "secondsBeforeExpiry", "s", defaultSecondsBeforeExpiry, "Number of seconds before the token will expire (Default: 3 months)")

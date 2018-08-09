@@ -335,7 +335,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
-	a.enf.SetClaimsEnforcerFunc(defaultEnforceClaims(a.enf, a.AppClientset, a.Namespace))
+	a.enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(a.enf, a.AppClientset, a.Namespace))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.KubeClientset)
 	clusterService := cluster.NewServer(db, a.enf)
@@ -597,7 +597,7 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 	return handler(ctx, req)
 }
 
-func defaultEnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespace string) func(rvals ...interface{}) bool {
+func DefaultEnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespace string) func(rvals ...interface{}) bool {
 	return func(rvals ...interface{}) bool {
 		claims, ok := rvals[0].(jwt.Claims)
 		if !ok {

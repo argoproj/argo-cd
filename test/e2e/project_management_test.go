@@ -246,4 +246,49 @@ func TestProjectManagement(t *testing.T) {
 		assert.Equal(t, 0, len(proj.Spec.SourceRepos))
 		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
 	})
+
+	t.Run("TestUseJwtToken", func(t *testing.T) {
+		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+		appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
+		roleName := "roleTest"
+		testApp := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: appName,
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Source: v1alpha1.ApplicationSource{
+					RepoURL: "https://github.com/argoproj/argo-cd.git", Path: ".", Environment: "minikube",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    fixture.Config.Host,
+					Namespace: fixture.Namespace,
+				},
+				Project: projectName,
+			},
+		}
+		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
+		if err != nil {
+			t.Fatalf("Unable to create project %v", err)
+		}
+
+		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Create(testApp)
+		if err != nil {
+			t.Fatalf("Unable to create app %v", err)
+		}
+
+		_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
+		if err != nil {
+			t.Fatalf("Unable to get project %v", err)
+		}
+		_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
+		if err != nil {
+			t.Fatalf("Unable to get create token %v", err)
+		}
+
+		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", "get", "-o", "*", "-p", "allow")
+		if err != nil {
+			t.Fatalf("Unable to get add policy token %v", err)
+		}
+
+	})
 }
