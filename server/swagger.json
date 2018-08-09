@@ -2293,9 +2293,13 @@
     },
     "v1alpha1JwtToken": {
       "type": "object",
-      "title": "JwtToken holds the createdAt time of a token",
+      "title": "JwtToken holds the createdAt and expiresAt time of a token",
       "properties": {
         "createdAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "expireAt": {
           "type": "string",
           "format": "int64"
         }

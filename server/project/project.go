@@ -83,7 +83,9 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	issuedAt := jwtUtil.GetInt64Field(mapClaims, "iat")
-	project.Spec.Roles[index].JwtTokens = append(project.Spec.Roles[index].JwtTokens, v1alpha1.JwtToken{CreatedAt: issuedAt})
+	expireAt := jwtUtil.GetInt64Field(mapClaims, "exp")
+
+	project.Spec.Roles[index].JwtTokens = append(project.Spec.Roles[index].JwtTokens, v1alpha1.JwtToken{CreatedAt: issuedAt, ExpireAt: expireAt})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err

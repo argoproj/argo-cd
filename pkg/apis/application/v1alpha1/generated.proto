@@ -254,9 +254,11 @@ message HookStatus {
   optional string message = 6;
 }
 
-// JwtToken holds the createdAt time of a token
+// JwtToken holds the createdAt and expiresAt time of a token
 message JwtToken {
-  optional int64 createdAt = 3;
+  optional int64 createdAt = 1;
+
+  optional int64 expireAt = 2;
 }
 
 // Operation contains requested operation parameters.

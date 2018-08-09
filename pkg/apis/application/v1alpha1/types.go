@@ -473,9 +473,10 @@ type ProjectRole struct {
 	JwtTokens []JwtToken `json:"jwtTokens" protobuf:"bytes,3,rep,name=jwtTokens"`
 }
 
-// JwtToken holds the createdAt time of a token
+// JwtToken holds the createdAt and expiresAt time of a token
 type JwtToken struct {
-	CreatedAt int64 `json:"createdAt" protobuf:"int64,3,opt,name=createdAt"`
+	CreatedAt int64 `json:"createdAt" protobuf:"int64,1,opt,name=createdAt"`
+	ExpireAt  int64 `json:"expireAt" protobuf:"int64,2,opt,name=expireAt"`
 }
 
 func GetDefaultProject(namespace string) AppProject {
