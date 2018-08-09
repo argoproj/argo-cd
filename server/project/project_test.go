@@ -40,7 +40,7 @@ func TestProjectServer(t *testing.T) {
 		},
 	}
 
-	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s"
+	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s, %s"
 
 	t.Run("TestRemoveDestinationSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
@@ -187,10 +187,11 @@ func TestProjectServer(t *testing.T) {
 		action := "create"
 		object := "testApplication"
 		roleName := "testRole"
+		effect := "allow"
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: 1}}}
-		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object)
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
@@ -199,7 +200,7 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.Update(context.Background(), request)
 		assert.Nil(t, err)
 		t.Log(projWithRole.Spec.Roles[0].Policies[0])
-		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object)
+		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object, effect)
 		assert.Equal(t, projWithRole.Spec.Roles[0].Policies[0], expectedPolicy)
 	})
 
@@ -207,10 +208,11 @@ func TestProjectServer(t *testing.T) {
 		action := "create"
 		object := "testApplication"
 		roleName := "testRole"
+		effect := "allow"
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: 1}}}
-		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object)
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		role.Policies = append(role.Policies, policy)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
@@ -227,10 +229,11 @@ func TestProjectServer(t *testing.T) {
 		object := "testApplication"
 		roleName := "testRole"
 		otherProject := "other-project"
+		effect := "allow"
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: 1}}}
-		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, otherProject, object)
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, otherProject, object, effect)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
@@ -246,10 +249,11 @@ func TestProjectServer(t *testing.T) {
 		object := "testApplication"
 		roleName := "testRole"
 		otherProject := "other-project"
+		effect := "allow"
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: 1}}}
-		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, roleName, action, projWithRole.Name, object)
+		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, roleName, action, projWithRole.Name, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
@@ -265,10 +269,11 @@ func TestProjectServer(t *testing.T) {
 		object := "testApplication"
 		roleName := "testRole"
 		otherToken := "other-token"
+		effect := "allow"
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: 1}}}
-		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, otherToken, action, projWithRole.Name, object)
+		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, otherToken, action, projWithRole.Name, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 
@@ -276,6 +281,25 @@ func TestProjectServer(t *testing.T) {
 		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
 		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other roles", invalidPolicy)
+		assert.EqualError(t, err, expectedErr)
+	})
+
+	t.Run("TestValidateProjectInvalidEffectFailure", func(t *testing.T) {
+		action := "create"
+		object := "testApplication"
+		roleName := "testRole"
+		effect := "testEffect"
+
+		projWithRole := existingProj.DeepCopy()
+		role := v1alpha1.ProjectRole{Name: roleName, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: 1}}}
+		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
+		role.Policies = append(role.Policies, invalidPolicy)
+		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: projWithRole}
+		_, err := projectServer.Update(context.Background(), request)
+		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as effect can only have value 'allow' or 'deny'", invalidPolicy)
 		assert.EqualError(t, err, expectedErr)
 	})
 }
