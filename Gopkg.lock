@@ -506,14 +506,6 @@
   revision = "32fa128f234d041f196a9f3e0fea5ac9772c08e1"
 
 [[projects]]
-  digest = "1:e678dc289d4e9b4fc821b65509adb8df3bb96ce1db027dbf9e1bffda6167b0e7"
-  name = "github.com/mattn/goveralls"
-  packages = ["."]
-  pruneopts = ""
-  revision = "b71a1e4855f87991aff01c2c833a75a07059c61c"
-  version = "v0.0.2"
-
-[[projects]]
   branch = "master"
   digest = "1:eb9117392ee8e7aa44f78e0db603f70b1050ee0ebda4bd40040befb5b218c546"
   name = "github.com/mitchellh/mapstructure"
@@ -1254,7 +1246,6 @@
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
     "github.com/ksonnet/ksonnet/pkg/app",
     "github.com/ksonnet/ksonnet/pkg/component",
-    "github.com/mattn/goveralls",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
     "github.com/qiangmzsx/string-adapter",
