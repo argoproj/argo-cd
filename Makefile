@@ -130,7 +130,7 @@ test:
 .PHONY: test-coverage
 test-coverage:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
-	@if [ "$(COVERALLS_TOKEN)" != "" ] ; then goveralls -ignore 'pkg/client/*' -coverprofile=coverage.out -service=argo-ci -repotoken "$(COVERALLS_TOKEN)"; else echo 'No COVERALLS_TOKEN env var specified. Skipping submission to Coveralls.io'; fi
+	@if [ "$(COVERALLS_TOKEN)" != "" ] ; then goveralls -ignore 'server/*/*.pb.go,server/*/*.pb.gw.go' -coverprofile=coverage.out -service=argo-ci -repotoken "$(COVERALLS_TOKEN)"; else echo 'No COVERALLS_TOKEN env var specified. Skipping submission to Coveralls.io'; fi
 
 .PHONY: test-e2e
 test-e2e:
