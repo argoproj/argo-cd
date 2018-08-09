@@ -131,7 +131,6 @@ test:
 test-coverage:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 	echo CTOKEN=...$(COVERALLS_TOKEN)...
-	echo CTOKEN2=...$(COVERALLS_TOKEN2)...
 	@if [ "$(COVERALLS_TOKEN)" != "" ] ; then goveralls -coverprofile=coverage.out -service=argo-ci -repotoken "$(COVERALLS_TOKEN)"; fi
 
 .PHONY: test-e2e

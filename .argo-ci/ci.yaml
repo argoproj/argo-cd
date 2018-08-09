@@ -32,15 +32,15 @@ spec:
         - dep ensure && make cli lint test
       - name: test-coverage
         container:
-          image: argoproj/argo-cd-ci-builder:latest
-          command: [sh, -c]
+          image: "argoproj/argo-cd-ci-builder:latest"
+          command: ["sh", "-c"]
+          args: ["dep ensure && go get github.com/mattn/goveralls && make test-coverage"]
           env:
             - name: COVERALLS_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: coverall-token
                   key: coverall-token
-          args: ["dep ensure && go get github.com/mattn/goveralls && make test-coverage COVERALLS_TOKEN2='...${COVERALLS_TOKEN}...'"
       - name: test-e2e
         template: ci-builder
         arguments:
