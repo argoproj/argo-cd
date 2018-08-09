@@ -29,7 +29,13 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - dep ensure && make cli lint test
+        - dep ensure && make cli lint
+      - name: test-coverage
+        template: ci-builder
+        arguments:
+          parameters:
+          - name: cmd
+            value: "dep ensure && go get github.com/mattn/goveralls && make test-coverage"
       - name: test-e2e
         template: ci-builder
         arguments:
@@ -52,6 +58,12 @@ spec:
       command: [sh, -c]
       args: ["{{inputs.parameters.cmd}}"]
       workingDir: /go/src/github.com/argoproj/argo-cd
+      env:
+        - name: COVERALLS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: coverall-token
+              key: coverall-token
       resources:
         requests:
           memory: 1024Mi

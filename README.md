@@ -1,3 +1,4 @@
+[![Coverage Status](https://coveralls.io/repos/github/argoproj/argo-cd/badge.svg?branch=master)](https://coveralls.io/github/argoproj/argo-cd?branch=master)
 
 # Argo CD - Declarative Continuous Delivery for Kubernetes
 
