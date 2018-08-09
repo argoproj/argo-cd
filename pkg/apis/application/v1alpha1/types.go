@@ -468,9 +468,9 @@ type AppProjectSpec struct {
 
 // ProjectRole represents a role that has access to a project
 type ProjectRole struct {
-	Name     string    `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Policies []string  `json:"policies" protobuf:"bytes,2,rep,name=policies"`
-	JwtToken *JwtToken `json:"jwtToken" protobuf:"bytes,3,rep,name=jwtToken"`
+	Name      string     `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Policies  []string   `json:"policies" protobuf:"bytes,2,rep,name=policies"`
+	JwtTokens []JwtToken `json:"jwtTokens" protobuf:"bytes,3,rep,name=jwtTokens"`
 }
 
 // JwtToken holds the createdAt time of a token

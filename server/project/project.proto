@@ -21,13 +21,14 @@ message ProjectCreateRequest {
 // ProjectTokenCreateRequest defines project token deletion parameters.
 message ProjectTokenDeleteRequest {
     string project = 1;
-    string token = 2;
+    string role = 2;
+    int64 createdAt = 3;
 }
 
 // ProjectTokenCreateRequest defines project token creation parameters.
 message ProjectTokenCreateRequest {
     string project = 1;
-    string token = 2;
+    string role = 2;
     int64 secondsBeforeExpiry = 3;
 }
 // ProjectTokenResponse wraps the created token or returns an empty string if deleted.

@@ -596,14 +596,10 @@ func (in *ProjectRole) DeepCopyInto(out *ProjectRole) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.JwtToken != nil {
-		in, out := &in.JwtToken, &out.JwtToken
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(JwtToken)
-			**out = **in
-		}
+	if in.JwtTokens != nil {
+		in, out := &in.JwtTokens, &out.JwtTokens
+		*out = make([]JwtToken, len(*in))
+		copy(*out, *in)
 	}
 	return
 }

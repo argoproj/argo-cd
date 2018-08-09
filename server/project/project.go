@@ -64,15 +64,12 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	index, err := projectUtil.GetRoleIndexByName(project, q.Token)
+	index, err := projectUtil.GetRoleIndexByName(project, q.Role)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Token)
-	}
-	if project.Spec.Roles[index].JwtToken != nil {
-		return nil, status.Errorf(codes.AlreadyExists, "Role '%s' already has a JwtToken", q.Token)
+		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
 
-	tokenName := fmt.Sprintf(JwtTokenSubFormat, q.Project, q.Token)
+	tokenName := fmt.Sprintf(JwtTokenSubFormat, q.Project, q.Role)
 	jwtToken, err := s.sessionMgr.Create(tokenName, q.SecondsBeforeExpiry)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -86,7 +83,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	issuedAt := jwtUtil.GetInt64Field(mapClaims, "iat")
-	project.Spec.Roles[index].JwtToken = &v1alpha1.JwtToken{CreatedAt: issuedAt}
+	project.Spec.Roles[index].JwtTokens = append(project.Spec.Roles[index].JwtTokens, v1alpha1.JwtToken{CreatedAt: issuedAt})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err
@@ -254,7 +251,7 @@ func validateProject(p *v1alpha1.AppProject) error {
 		existingPolicies := make(map[string]bool)
 		for _, policy := range role.Policies {
 			var err error
-			if role.JwtToken != nil {
+			if role.JwtTokens != nil {
 				err = validateJwtToken(p.Name, role.Name, policy)
 			} else {
 				err = validatePolicy(p.Name, policy)
@@ -296,21 +293,25 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	index, err := projectUtil.GetRoleIndexByName(project, q.Token)
+	roleIndex, err := projectUtil.GetRoleIndexByName(project, q.Role)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	if project.Spec.Roles[index].JwtToken == nil {
-		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Token)
+	if project.Spec.Roles[roleIndex].JwtTokens == nil {
+		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Role)
 	}
-	project.Spec.Roles[index].JwtToken = nil
+	jwtTokenIndex, err := projectUtil.GetJwtTokenIndexByCreatedAt(project, roleIndex, q.CreatedAt)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	project.Spec.Roles[roleIndex].JwtTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JwtTokens[len(project.Spec.Roles[roleIndex].JwtTokens)-1]
+	project.Spec.Roles[roleIndex].JwtTokens = project.Spec.Roles[roleIndex].JwtTokens[:len(project.Spec.Roles[roleIndex].JwtTokens)-1]
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err
 	}
 	s.logEvent(project, ctx, argo.EventReasonResourceDeleted, "deleted token")
 	return &EmptyResponse{}, nil
-
 }
 
 // Update updates a project

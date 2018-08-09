@@ -644,11 +644,12 @@ func enforceJwtToken(enf *rbac.Enforcer, a appclientset.Interface, namespace str
 	if err != nil {
 		return false
 	}
-	if proj.Spec.Roles[index].JwtToken == nil {
+	if proj.Spec.Roles[index].JwtTokens == nil {
 		return false
 	}
 	iat := jwtUtil.GetInt64Field(mapClaims, "iat")
-	if proj.Spec.Roles[index].JwtToken.CreatedAt != iat {
+	_, err = projectUtil.GetJwtTokenIndexByCreatedAt(proj, index, iat)
+	if err != nil {
 		return false
 	}
 	vals := append([]interface{}{user}, rvals[1:]...)

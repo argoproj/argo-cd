@@ -2,6 +2,7 @@ package commands
 
 import (
 	"os"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -194,7 +195,7 @@ func NewProjectRemoveRolePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 			}
 			role := proj.Spec.Roles[roleIndex]
 
-			policyTemplate := "p, proj:%s:%s, projects, %s, %s/%s"
+			policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s"
 			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object)
 			duplicateIndex := -1
 			for i, policy := range role.Policies {
@@ -292,14 +293,14 @@ func NewProjectCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 			projName := args[0]
-			tokenName := args[1]
+			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Token: tokenName, SecondsBeforeExpiry: secondsBeforeExpiry})
+			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Role: roleName, SecondsBeforeExpiry: secondsBeforeExpiry})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "New token for %s-%s:\n%s\n", projName, tokenName, token)
+			fmt.Fprintf(w, "New token for %s-%s:\n%s\n", projName, roleName, token)
 			fmt.Fprintf(w, "Make sure to save token as it is not stored.")
 			_ = w.Flush()
 		},
@@ -329,10 +330,13 @@ func NewProjectListRolesCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			fmt.Fprintf(w, "ROLE-NAME\tCREATED-AT\tPOLICIES\n")
 			for _, role := range project.Spec.Roles {
 				fmt.Fprintf(w, "%s\n", role.Name)
-				if role.JwtToken != nil {
-					fmt.Fprintf(w, "%s\t%d\t\n", role.Name, role.JwtToken.CreatedAt)
-					for _, policy := range role.Policies {
-						fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, role.JwtToken.CreatedAt, policy)
+				if role.JwtTokens != nil {
+					for _, token := range role.JwtTokens {
+						fmt.Fprintf(w, "%s\t%d\t\n", role.Name, token.CreatedAt)
+
+						for _, policy := range role.Policies {
+							fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, token.CreatedAt, policy)
+						}
 					}
 				}
 			}
@@ -345,19 +349,24 @@ func NewProjectListRolesCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 // NewProjectDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
 func NewProjectDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete-token PROJECT TOKEN-NAME",
+		Use:   "delete-token PROJECT ROLE-NAME CREATED_AT",
 		Short: "Delete a project token",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
+			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
-			tokenName := args[1]
+			roleName := args[1]
+			createdAt, err := strconv.ParseInt(args[2], 10, 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			_, err := projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Token: tokenName})
+			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, CreatedAt: createdAt})
 			errors.CheckError(err)
 		},
 	}

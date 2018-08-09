@@ -60,7 +60,7 @@ func TestEnforceJwtToken(t *testing.T) {
 	policy := fmt.Sprintf("p, %s, projects, get, %s", sub, projectName)
 	createdAt := int64(1)
 
-	token := v1alpha1.ProjectRole{Name: tokenName, Policies: []string{policy}, JwtToken: &v1alpha1.JwtToken{CreatedAt: createdAt}}
+	token := v1alpha1.ProjectRole{Name: tokenName, Policies: []string{policy}, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: createdAt}}}
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: projectName, Namespace: fakeNamespace},
 		Spec: v1alpha1.AppProjectSpec{
@@ -105,7 +105,7 @@ func TestEnforceJwtToken(t *testing.T) {
 
 	t.Run("TestEnforceJwtTokenNotJwtTokenFailure", func(t *testing.T) {
 		proj := existingProj.DeepCopy()
-		proj.Spec.Roles[0].JwtToken = nil
+		proj.Spec.Roles[0].JwtTokens = nil
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj)})
 		s.newGRPCServer()
 		claims := jwt.MapClaims{"sub": sub, "iat": createdAt}
