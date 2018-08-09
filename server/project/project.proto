@@ -62,4 +62,9 @@ service ProjectService {
   rpc Delete(ProjectQuery) returns (EmptyResponse) {
       option (google.api.http).delete = "/api/v1/projects/{name}";
   }
+
+  // ListEvents returns a list of project events
+  rpc ListEvents(ProjectQuery) returns (k8s.io.api.core.v1.EventList) {
+      option (google.api.http).get = "/api/v1/projects/{name}/events";
+  }
 }
