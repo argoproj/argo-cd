@@ -41,7 +41,7 @@ spec:
         arguments:
           parameters:
           - name: cmd
-            value: "dep ensure && go get github.com/mattn/goveralls && make test-coverage"
+            value: "dep ensure && go get github.com/mattn/goveralls && make test-coverage COVERALLS_TOKEN2='...${COVERALLS_TOKEN}...'"
       - name: test-e2e
         template: ci-builder
         arguments:
