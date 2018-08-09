@@ -14,6 +14,7 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
+import { Provider } from './shared/context';
 import { NavigationManager } from './shared/navigation';
 
 const routes: {[path: string]: { component: React.ComponentType<RouteComponentProps<any>>, noLayout?: boolean } } = {
@@ -70,7 +71,7 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
 
     public render() {
         return (
-            <div>
+            <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
                 {this.state.popupProps && <Popup {...this.state.popupProps}/>}
                 <Router history={history}>
                     <Switch>
@@ -96,7 +97,7 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
                         <Redirect path='*' to='/'/>
                     </Switch>
                 </Router>
-            </div>
+            </Provider>
         );
     }
 

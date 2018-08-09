@@ -41,6 +41,10 @@ export default {
         return initHandlers(agent.post(`${API_ROOT}${url}`));
     },
 
+    put(url: string) {
+        return initHandlers(agent.put(`${API_ROOT}${url}`));
+    },
+
     delete(url: string) {
         return initHandlers(agent.del(`${API_ROOT}${url}`));
     },
