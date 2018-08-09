@@ -32,8 +32,8 @@ spec:
         - dep ensure && make cli lint test
       - name: test-coverage
         container:
-          image: "argoproj/argo-cd-ci-builder:latest"
-          command: ["sh", "-c"]
+          image: argoproj/argo-cd-ci-builder:latest
+          command: [sh, -c]
           args: ["dep ensure && go get github.com/mattn/goveralls && make test-coverage"]
           env:
             - name: COVERALLS_TOKEN
