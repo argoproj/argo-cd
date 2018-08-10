@@ -42,4 +42,8 @@ export class ProjectsService {
         const update = paramsToProj(params);
         return requests.put(`/projects/${params.name}`).send({project: {...proj, spec: update.spec }}).then((res) => res.body as models.Project);
     }
+
+    public events(projectName: string): Promise<models.Event[]> {
+        return requests.get(`/projects/${projectName}/events`).send().then((res) => (res.body as models.EventList).items || []);
+    }
 }
