@@ -13,12 +13,12 @@ func GetRoleIndexByName(proj *v1alpha1.AppProject, name string) (int, error) {
 	return -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, proj.Name)
 }
 
-// GetJwtTokenIndexByCreatedAt looks up the index of a JwtToken in a project by the created at time
-func GetJwtTokenIndexByCreatedAt(proj *v1alpha1.AppProject, roleIndex int, createdAt int64) (int, error) {
-	for i, token := range proj.Spec.Roles[roleIndex].JwtTokens {
-		if createdAt == token.CreatedAt {
+// GetJWTTokenIndexByIssuedAt looks up the index of a JWTToken in a project by the issue at time
+func GetJWTTokenIndexByIssuedAt(proj *v1alpha1.AppProject, roleIndex int, issuedAt int64) (int, error) {
+	for i, token := range proj.Spec.Roles[roleIndex].JWTTokens {
+		if issuedAt == token.IssuedAt {
 			return i, nil
 		}
 	}
-	return -1, fmt.Errorf("JwtToken for role '%s' with '%d' created time does not exist in project '%s'", proj.Spec.Roles[roleIndex].Name, createdAt, proj.Name)
+	return -1, fmt.Errorf("JWTToken for role '%s' with '%d' created time does not exist in project '%s'", proj.Spec.Roles[roleIndex].Name, issuedAt, proj.Name)
 }

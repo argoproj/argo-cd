@@ -254,11 +254,11 @@ message HookStatus {
   optional string message = 6;
 }
 
-// JwtToken holds the createdAt and expiresAt time of a token
-message JwtToken {
-  optional int64 createdAt = 1;
+// JWTToken holds the issuedAt and expiresAt values of a token
+message JWTToken {
+  optional int64 iat = 1;
 
-  optional int64 expireAt = 2;
+  optional int64 exp = 2;
 }
 
 // Operation contains requested operation parameters.
@@ -298,7 +298,7 @@ message ProjectRole {
 
   repeated string policies = 2;
 
-  repeated JwtToken jwtTokens = 3;
+  repeated JWTToken JWTTokens = 3;
 }
 
 // Repository is a Git repository holding application configurations

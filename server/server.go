@@ -622,14 +622,14 @@ func DefaultEnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespac
 		}
 		user := jwtUtil.GetField(mapClaims, "sub")
 		if strings.HasPrefix(user, "proj:") {
-			return enforceJwtToken(enf, a, namespace, user, mapClaims, rvals...)
+			return enforceJWTToken(enf, a, namespace, user, mapClaims, rvals...)
 		}
 		vals := append([]interface{}{user}, rvals[1:]...)
 		return enf.Enforce(vals...)
 	}
 }
 
-func enforceJwtToken(enf *rbac.Enforcer, a appclientset.Interface, namespace string, user string, mapClaims jwt.MapClaims, rvals ...interface{}) bool {
+func enforceJWTToken(enf *rbac.Enforcer, a appclientset.Interface, namespace string, user string, mapClaims jwt.MapClaims, rvals ...interface{}) bool {
 	userSplit := strings.Split(user, ":")
 	if len(userSplit) != 3 {
 		return false
@@ -644,11 +644,11 @@ func enforceJwtToken(enf *rbac.Enforcer, a appclientset.Interface, namespace str
 	if err != nil {
 		return false
 	}
-	if proj.Spec.Roles[index].JwtTokens == nil {
+	if proj.Spec.Roles[index].JWTTokens == nil {
 		return false
 	}
 	iat := jwtUtil.GetInt64Field(mapClaims, "iat")
-	_, err = projectUtil.GetJwtTokenIndexByCreatedAt(proj, index, iat)
+	_, err = projectUtil.GetJWTTokenIndexByIssuedAt(proj, index, iat)
 	if err != nil {
 		return false
 	}

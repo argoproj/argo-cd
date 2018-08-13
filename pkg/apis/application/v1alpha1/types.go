@@ -470,13 +470,13 @@ type AppProjectSpec struct {
 type ProjectRole struct {
 	Name      string     `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Policies  []string   `json:"policies" protobuf:"bytes,2,rep,name=policies"`
-	JwtTokens []JwtToken `json:"jwtTokens" protobuf:"bytes,3,rep,name=jwtTokens"`
+	JWTTokens []JWTToken `json:"JWTTokens" protobuf:"bytes,3,rep,name=JWTTokens"`
 }
 
-// JwtToken holds the createdAt and expiresAt time of a token
-type JwtToken struct {
-	CreatedAt int64 `json:"createdAt" protobuf:"int64,1,opt,name=createdAt"`
-	ExpireAt  int64 `json:"expireAt" protobuf:"int64,2,opt,name=expireAt"`
+// JWTToken holds the issuedAt and expiresAt values of a token
+type JWTToken struct {
+	IssuedAt  int64 `json:"iat,omitempty" protobuf:"int64,1,opt,name=iat"`
+	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
 func GetDefaultProject(namespace string) AppProject {

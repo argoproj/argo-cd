@@ -331,15 +331,15 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ROLE-NAME\tCREATED-AT\tPOLICIES\n")
+			fmt.Fprintf(w, "ROLE-NAME\tISSUED-AT\tEXPIRES-AT\tPOLICIES\n")
 			for _, role := range project.Spec.Roles {
 				fmt.Fprintf(w, "%s\n", role.Name)
-				if role.JwtTokens != nil {
-					for _, token := range role.JwtTokens {
-						fmt.Fprintf(w, "%s\t%d\t\n", role.Name, token.CreatedAt)
+				if role.JWTTokens != nil {
+					for _, token := range role.JWTTokens {
+						fmt.Fprintf(w, "%s\t%d\t\n", role.Name, token.IssuedAt)
 
 						for _, policy := range role.Policies {
-							fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, token.CreatedAt, policy)
+							fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, token.IssuedAt, policy)
 						}
 					}
 				}
@@ -362,7 +362,7 @@ func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			projName := args[0]
 			roleName := args[1]
-			createdAt, err := strconv.ParseInt(args[2], 10, 64)
+			issuedAt, err := strconv.ParseInt(args[2], 10, 64)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -370,7 +370,7 @@ func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, CreatedAt: createdAt})
+			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, IssuedAt: issuedAt})
 			errors.CheckError(err)
 		},
 	}

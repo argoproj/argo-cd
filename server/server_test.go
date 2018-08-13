@@ -52,7 +52,7 @@ func fakeSecret(policy ...string) *apiv1.Secret {
 	return &secret
 }
 
-func TestEnforceJwtToken(t *testing.T) {
+func TestEnforceJWTToken(t *testing.T) {
 	projectName := "testProj"
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
@@ -61,11 +61,11 @@ func TestEnforceJwtToken(t *testing.T) {
 	defaultObject := "*"
 	defaultEffect := "allow"
 	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
-	defaultCreatedAt := int64(1)
+	defaultIssuedAt := int64(1)
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 
-	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: defaultCreatedAt}}}
+	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: projectName, Namespace: fakeNamespace},
 		Spec: v1alpha1.AppProjectSpec{
@@ -76,60 +76,60 @@ func TestEnforceJwtToken(t *testing.T) {
 	secret := fakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 
-	t.Run("TestEnforceJwtTokenSuccessful", func(t *testing.T) {
+	t.Run("TestEnforceJWTTokenSuccessful", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
-		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultCreatedAt}
+		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		assert.True(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJwtTokenWithDiffCreateAtFailure", func(t *testing.T) {
+	t.Run("TestEnforceJWTTokenWithDiffCreateAtFailure", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
-		diffCreateAt := defaultCreatedAt + 1
+		diffCreateAt := defaultIssuedAt + 1
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": diffCreateAt}
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJwtTokenIncorrectSubFormatFailure", func(t *testing.T) {
+	t.Run("TestEnforceJWTTokenIncorrectSubFormatFailure", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
 		invalidSub := "proj:test"
-		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultCreatedAt}
+		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJwtTokenNoTokenFailure", func(t *testing.T) {
+	t.Run("TestEnforceJWTTokenNoTokenFailure", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
 		nonExistentToken := "fake-token"
 		invalidSub := fmt.Sprintf(subFormat, projectName, nonExistentToken)
-		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultCreatedAt}
+		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
 
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJwtTokenNotJwtTokenFailure", func(t *testing.T) {
+	t.Run("TestEnforceJWTTokenNotJWTTokenFailure", func(t *testing.T) {
 		proj := existingProj.DeepCopy()
-		proj.Spec.Roles[0].JwtTokens = nil
+		proj.Spec.Roles[0].JWTTokens = nil
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj)})
 		s.newGRPCServer()
-		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultCreatedAt}
+		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJwtTokenExplicitDeny", func(t *testing.T) {
+	t.Run("TestEnforceJWTTokenExplicitDeny", func(t *testing.T) {
 		denyApp := "testDenyApp"
 		allowPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 		denyPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, denyApp, "deny")
-		role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{allowPolicy, denyPolicy}, JwtTokens: []v1alpha1.JwtToken{{CreatedAt: defaultCreatedAt}}}
+		role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{allowPolicy, denyPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 		proj := existingProj.DeepCopy()
 		proj.Spec.Roles[0] = role
 
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj)})
 		s.newGRPCServer()
 
-		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultCreatedAt}
+		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		allowedObject := fmt.Sprintf("%s/%s", projectName, "test")
 		denyObject := fmt.Sprintf("%s/%s", projectName, denyApp)
 		assert.True(t, s.enf.EnforceClaims(claims, "applications", "get", allowedObject))

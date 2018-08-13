@@ -2291,15 +2291,15 @@
         }
       }
     },
-    "v1alpha1JwtToken": {
+    "v1alpha1JWTToken": {
       "type": "object",
-      "title": "JwtToken holds the createdAt and expiresAt time of a token",
+      "title": "JWTToken holds the issuedAt and expiresAt values of a token",
       "properties": {
-        "createdAt": {
+        "exp": {
           "type": "string",
           "format": "int64"
         },
-        "expireAt": {
+        "iat": {
           "type": "string",
           "format": "int64"
         }
@@ -2350,10 +2350,10 @@
       "type": "object",
       "title": "ProjectRole represents a role that has access to a project",
       "properties": {
-        "jwtTokens": {
+        "JWTTokens": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1JwtToken"
+            "$ref": "#/definitions/v1alpha1JWTToken"
           }
         },
         "name": {

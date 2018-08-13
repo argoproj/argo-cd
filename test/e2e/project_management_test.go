@@ -247,7 +247,7 @@ func TestProjectManagement(t *testing.T) {
 		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
 	})
 
-	t.Run("TestUseJwtToken", func(t *testing.T) {
+	t.Run("TestUseJWTToken", func(t *testing.T) {
 		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 		appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
 		roleName := "roleTest"

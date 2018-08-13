@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	// JwtTokenSubTemplate format of the JWT token subject that ArgoCD vends out.
-	JwtTokenSubFormat = "proj:%s:%s"
+	// JWTTokenSubFormat format of the JWT token subject that ArgoCD vends out.
+	JWTTokenSubFormat = "proj:%s:%s"
 )
 
 // Server provides a Project service
@@ -69,7 +69,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
 
-	tokenName := fmt.Sprintf(JwtTokenSubFormat, q.Project, q.Role)
+	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
 	jwtToken, err := s.sessionMgr.Create(tokenName, q.SecondsBeforeExpiry)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -83,9 +83,9 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	issuedAt := jwtUtil.GetInt64Field(mapClaims, "iat")
-	expireAt := jwtUtil.GetInt64Field(mapClaims, "exp")
+	expiresAt := jwtUtil.GetInt64Field(mapClaims, "exp")
 
-	project.Spec.Roles[index].JwtTokens = append(project.Spec.Roles[index].JwtTokens, v1alpha1.JwtToken{CreatedAt: issuedAt, ExpireAt: expireAt})
+	project.Spec.Roles[index].JWTTokens = append(project.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 	return removed
 }
 
-func validateJwtToken(proj string, token string, policy string) error {
+func validateJWTToken(proj string, token string, policy string) error {
 	err := validatePolicy(proj, policy)
 	if err != nil {
 		return err
@@ -257,8 +257,8 @@ func validateProject(p *v1alpha1.AppProject) error {
 		existingPolicies := make(map[string]bool)
 		for _, policy := range role.Policies {
 			var err error
-			if role.JwtTokens != nil {
-				err = validateJwtToken(p.Name, role.Name, policy)
+			if role.JWTTokens != nil {
+				err = validateJWTToken(p.Name, role.Name, policy)
 			} else {
 				err = validatePolicy(p.Name, policy)
 			}
@@ -303,15 +303,15 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	if project.Spec.Roles[roleIndex].JwtTokens == nil {
+	if project.Spec.Roles[roleIndex].JWTTokens == nil {
 		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Role)
 	}
-	jwtTokenIndex, err := projectUtil.GetJwtTokenIndexByCreatedAt(project, roleIndex, q.CreatedAt)
+	jwtTokenIndex, err := projectUtil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.IssuedAt)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	project.Spec.Roles[roleIndex].JwtTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JwtTokens[len(project.Spec.Roles[roleIndex].JwtTokens)-1]
-	project.Spec.Roles[roleIndex].JwtTokens = project.Spec.Roles[roleIndex].JwtTokens[:len(project.Spec.Roles[roleIndex].JwtTokens)-1]
+	project.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JWTTokens[len(project.Spec.Roles[roleIndex].JWTTokens)-1]
+	project.Spec.Roles[roleIndex].JWTTokens = project.Spec.Roles[roleIndex].JWTTokens[:len(project.Spec.Roles[roleIndex].JWTTokens)-1]
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
 	if err != nil {
 		return nil, err

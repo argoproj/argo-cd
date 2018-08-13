@@ -22,7 +22,7 @@ message ProjectCreateRequest {
 message ProjectTokenDeleteRequest {
     string project = 1;
     string role = 2;
-    int64 createdAt = 3;
+    int64 issuedAt = 3;
 }
 
 // ProjectTokenCreateRequest defines project token creation parameters.
