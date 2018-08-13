@@ -122,7 +122,10 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	data, err := kube.SplitYAML(out)
 	if err == nil {
 		for _, d := range data {
-			kube.UnsetLabel(d, "ksonnet.io/component")
+			err = kube.UnsetLabel(d, "ksonnet.io/component")
+			if err != nil {
+				return nil, fmt.Errorf("Could not remove label: %v", err)
+			}
 		}
 	}
 	return data, err
