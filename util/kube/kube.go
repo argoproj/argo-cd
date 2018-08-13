@@ -107,6 +107,16 @@ func MustToUnstructured(obj interface{}) *unstructured.Unstructured {
 	return uObj
 }
 
+// UnsetLabel removes our app labels from an unstructured object
+func UnsetLabel(target *unstructured.Unstructured, key string) {
+	labels := target.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	delete(labels, key)
+	target.SetLabels(labels)
+}
+
 // SetLabel sets our app labels against an unstructured object
 func SetLabel(target *unstructured.Unstructured, key, val string) error {
 	labels := target.GetLabels()

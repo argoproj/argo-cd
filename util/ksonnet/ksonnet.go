@@ -119,7 +119,13 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
-	return kube.SplitYAML(out)
+	data, err := kube.SplitYAML(out)
+	if err != nil {
+		for _, d := range data {
+			kube.UnsetLabel(d, "ksonnet.io/component")
+		}
+	}
+	return data, err
 }
 
 // ListEnvParams returns list of environment parameters
