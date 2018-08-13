@@ -360,10 +360,10 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				fmt.Fprintf(w, "%s\n", role.Name)
 				if role.JWTTokens != nil {
 					for _, token := range role.JWTTokens {
-						fmt.Fprintf(w, "%s\t%d\t\n", role.Name, token.IssuedAt)
+						fmt.Fprintf(w, "%s\t%d\t%d\n", role.Name, token.IssuedAt, token.ExpiresAt)
 
 						for _, policy := range role.Policies {
-							fmt.Fprintf(w, "%s\t%d\t%s\n", role.Name, token.IssuedAt, policy)
+							fmt.Fprintf(w, "%s\t%d\t%d\t%s\n", role.Name, token.IssuedAt, token.ExpiresAt, policy)
 						}
 					}
 				}
