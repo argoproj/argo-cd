@@ -56,7 +56,7 @@ spec:
     container:
       image: argoproj/argo-cd-ci-builder:latest
       command: [sh, -c]
-      args: ["{{inputs.parameters.cmd}}"]
+      args: ["{{inputs.parameters.cmd}} | tee /tmp/logs.txt"]
       workingDir: /go/src/github.com/argoproj/argo-cd
       env:
         - name: COVERALLS_TOKEN
@@ -68,6 +68,10 @@ spec:
         requests:
           memory: 1024Mi
           cpu: 200m
+    outputs:
+      artifacts:
+      - name: logs
+        path: /tmp/logs.txt
 
   - name: ci-dind
     inputs:
@@ -82,7 +86,7 @@ spec:
     container:
       image: argoproj/argo-cd-ci-builder:latest
       command: [sh, -c]
-      args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}}"]
+      args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}} | tee /tmp/logs.txt"]
       workingDir: /go/src/github.com/argoproj/argo-cd
       env:
       - name: DOCKER_HOST
@@ -97,4 +101,7 @@ spec:
       securityContext:
         privileged: true
       mirrorVolumeMounts: true
-
+    outputs:
+      artifacts:
+      - name: logs
+        path: /tmp/logs.txt
