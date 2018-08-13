@@ -30,16 +30,6 @@ func GetField(claims jwtgo.MapClaims, fieldName string) string {
 	return ""
 }
 
-// GetInt64Field extracts a field from the claims as a int64
-func GetInt64Field(claims jwtgo.MapClaims, fieldName string) int64 {
-	if fieldIf, ok := claims[fieldName]; ok {
-		if field, ok := fieldIf.(float64); ok {
-			return int64(field)
-		}
-	}
-	return 0
-}
-
 // GetGroups extracts the groups from a claims
 func GetGroups(claims jwtgo.MapClaims) []string {
 	groups := make([]string, 0)

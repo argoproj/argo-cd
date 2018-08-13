@@ -19,10 +19,10 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 const (
@@ -74,16 +74,16 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	claims, err := s.sessionMgr.Parse(jwtToken)
+	parser := &jwt.Parser{
+		SkipClaimsValidation: true,
+	}
+	claims := jwt.StandardClaims{}
+	_, _, err = parser.ParseUnverified(jwtToken, &claims)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	mapClaims, err := jwtutil.MapClaims(claims)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	issuedAt := jwtutil.GetInt64Field(mapClaims, "iat")
-	expiresAt := jwtutil.GetInt64Field(mapClaims, "exp")
+	issuedAt := claims.IssuedAt
+	expiresAt := claims.ExpiresAt
 
 	project.Spec.Roles[index].JWTTokens = append(project.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
