@@ -317,7 +317,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 // NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
 func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete-token PROJECT ROLE-NAME CREATED_AT",
+		Use:   "delete-token PROJECT ROLE-NAME ISSUED_AT",
 		Short: "Delete a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
