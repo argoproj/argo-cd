@@ -208,7 +208,7 @@ func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 				}
 			}
 			if duplicateIndex < 0 {
-				log.Fatal("Policy does not exist in role.")
+				return
 			}
 			role.Policies[duplicateIndex] = role.Policies[len(role.Policies)-1]
 			proj.Spec.Roles[roleIndex].Policies = role.Policies[:len(role.Policies)-1]
@@ -240,7 +240,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 			_, err = projectutil.GetRoleIndexByName(proj, roleName)
 			if err == nil {
-				log.Fatalf("Role '%s' already exists for '%s'", roleName, projName)
+				return
 			}
 			proj.Spec.Roles = append(proj.Spec.Roles, v1alpha1.ProjectRole{Name: roleName})
 
@@ -270,8 +270,9 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			errors.CheckError(err)
 
 			index, err := projectutil.GetRoleIndexByName(proj, roleName)
-			errors.CheckError(err)
-
+			if err != nil {
+				return
+			}
 			proj.Spec.Roles[index] = proj.Spec.Roles[len(proj.Spec.Roles)-1]
 			proj.Spec.Roles = proj.Spec.Roles[:len(proj.Spec.Roles)-1]
 

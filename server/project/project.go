@@ -114,14 +114,14 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 
 	roleIndex, err := projectutil.GetRoleIndexByName(project, q.Role)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
+		return &EmptyResponse{}, nil
 	}
 	if project.Spec.Roles[roleIndex].JWTTokens == nil {
-		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Role)
+		return &EmptyResponse{}, nil
 	}
 	jwtTokenIndex, err := projectutil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.IssuedAt)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
+		return &EmptyResponse{}, nil
 	}
 	project.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JWTTokens[len(project.Spec.Roles[roleIndex].JWTTokens)-1]
 	project.Spec.Roles[roleIndex].JWTTokens = project.Spec.Roles[roleIndex].JWTTokens[:len(project.Spec.Roles[roleIndex].JWTTokens)-1]
