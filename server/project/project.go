@@ -13,8 +13,8 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
-	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
-	projectUtil "github.com/argoproj/argo-cd/util/project"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"google.golang.org/grpc/codes"
@@ -64,7 +64,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	index, err := projectUtil.GetRoleIndexByName(project, q.Role)
+	index, err := projectutil.GetRoleIndexByName(project, q.Role)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
@@ -78,12 +78,12 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	mapClaims, err := jwtUtil.MapClaims(claims)
+	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	issuedAt := jwtUtil.GetInt64Field(mapClaims, "iat")
-	expiresAt := jwtUtil.GetInt64Field(mapClaims, "exp")
+	issuedAt := jwtutil.GetInt64Field(mapClaims, "iat")
+	expiresAt := jwtutil.GetInt64Field(mapClaims, "exp")
 
 	project.Spec.Roles[index].JWTTokens = append(project.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
@@ -112,14 +112,14 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	roleIndex, err := projectUtil.GetRoleIndexByName(project, q.Role)
+	roleIndex, err := projectutil.GetRoleIndexByName(project, q.Role)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	if project.Spec.Roles[roleIndex].JWTTokens == nil {
 		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Role)
 	}
-	jwtTokenIndex, err := projectUtil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.IssuedAt)
+	jwtTokenIndex, err := projectutil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.IssuedAt)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}

@@ -20,7 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
-	projectUtil "github.com/argoproj/argo-cd/util/project"
+	projectutil "github.com/argoproj/argo-cd/util/project"
 	timeutil "github.com/argoproj/pkg/time"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,7 +146,7 @@ func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			roleIndex, err := projectUtil.GetRoleIndexByName(proj, roleName)
+			roleIndex, err := projectutil.GetRoleIndexByName(proj, roleName)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -196,7 +196,7 @@ func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			roleIndex, err := projectUtil.GetRoleIndexByName(proj, roleName)
+			roleIndex, err := projectutil.GetRoleIndexByName(proj, roleName)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -241,7 +241,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			_, err = projectUtil.GetRoleIndexByName(proj, roleName)
+			_, err = projectutil.GetRoleIndexByName(proj, roleName)
 			if err == nil {
 				log.Fatalf("Role '%s' already exists for '%s'", roleName, projName)
 			}
@@ -272,7 +272,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			index, err := projectUtil.GetRoleIndexByName(proj, roleName)
+			index, err := projectutil.GetRoleIndexByName(proj, roleName)
 			errors.CheckError(err)
 
 			proj.Spec.Roles[index] = proj.Spec.Roles[len(proj.Spec.Roles)-1]

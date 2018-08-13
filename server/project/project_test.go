@@ -16,7 +16,7 @@ import (
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
-	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -141,7 +141,7 @@ func TestProjectServer(t *testing.T) {
 		claims, err := sessionMgr.Parse(tokenResponse.Token)
 		assert.Nil(t, err)
 
-		mapClaims, err := jwtUtil.MapClaims(claims)
+		mapClaims, err := jwtutil.MapClaims(claims)
 		subject, ok := mapClaims["sub"].(string)
 		assert.True(t, ok)
 		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)

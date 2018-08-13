@@ -32,8 +32,8 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
-	jwtUtil "github.com/argoproj/argo-cd/util/jwt"
-	projectUtil "github.com/argoproj/argo-cd/util/project"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
@@ -608,19 +608,19 @@ func DefaultEnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespac
 			return enf.Enforce(rvals...)
 		}
 
-		mapClaims, err := jwtUtil.MapClaims(claims)
+		mapClaims, err := jwtutil.MapClaims(claims)
 		if err != nil {
 			vals := append([]interface{}{""}, rvals[1:]...)
 			return enf.Enforce(vals...)
 		}
-		groups := jwtUtil.GetGroups(mapClaims)
+		groups := jwtutil.GetGroups(mapClaims)
 		for _, group := range groups {
 			vals := append([]interface{}{group}, rvals[1:]...)
 			if enf.Enforcer.Enforce(vals...) {
 				return true
 			}
 		}
-		user := jwtUtil.GetField(mapClaims, "sub")
+		user := jwtutil.GetField(mapClaims, "sub")
 		if strings.HasPrefix(user, "proj:") {
 			return enforceJWTToken(enf, a, namespace, user, mapClaims, rvals...)
 		}
@@ -640,15 +640,15 @@ func enforceJWTToken(enf *rbac.Enforcer, a appclientset.Interface, namespace str
 	if err != nil {
 		return false
 	}
-	index, err := projectUtil.GetRoleIndexByName(proj, tokenName)
+	index, err := projectutil.GetRoleIndexByName(proj, tokenName)
 	if err != nil {
 		return false
 	}
 	if proj.Spec.Roles[index].JWTTokens == nil {
 		return false
 	}
-	iat := jwtUtil.GetInt64Field(mapClaims, "iat")
-	_, err = projectUtil.GetJWTTokenIndexByIssuedAt(proj, index, iat)
+	iat := jwtutil.GetInt64Field(mapClaims, "iat")
+	_, err = projectutil.GetJWTTokenIndexByIssuedAt(proj, index, iat)
 	if err != nil {
 		return false
 	}
