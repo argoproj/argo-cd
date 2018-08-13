@@ -1,18 +1,18 @@
 package commands
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
+	"text/tabwriter"
 
+	timeutil "github.com/argoproj/pkg/time"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
-	"strings"
-
-	"context"
-
-	"fmt"
-	"text/tabwriter"
+	"github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -21,9 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
 	projectutil "github.com/argoproj/argo-cd/util/project"
-	timeutil "github.com/argoproj/pkg/time"
-	"github.com/spf13/pflag"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
