@@ -20,7 +20,7 @@ type SyncOperation struct {
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
 	// Prune deletes resources that are no longer tracked in git
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
-	// DryRun will perform a `kubectl apply --dry-run` without actually performing the sync
+	// DryRun will perform a `kubectl apply --dry-rudn` without actually performing the sync
 	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 	// SyncStrategy describes how to perform the sync
 	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
@@ -468,7 +468,8 @@ type AppProjectSpec struct {
 
 // ProjectRole represents a role that has access to a project
 type ProjectRole struct {
-	Name      string     `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Policies Stores a list of casbin formated strings that define access policies for the role in the project.
 	Policies  []string   `json:"policies" protobuf:"bytes,2,rep,name=policies"`
 	JWTTokens []JWTToken `json:"JWTTokens" protobuf:"bytes,3,rep,name=JWTTokens"`
 }

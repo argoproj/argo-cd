@@ -2386,6 +2386,7 @@
           "type": "string"
         },
         "policies": {
+          "description": "Policies Stores a list of casbin formated strings that define access policies for the role in the project.",
           "type": "array",
           "items": {
             "type": "string"
@@ -2512,7 +2513,7 @@
         "dryRun": {
           "type": "boolean",
           "format": "boolean",
-          "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
+          "title": "DryRun will perform a `kubectl apply --dry-rudn` without actually performing the sync"
         },
         "prune": {
           "type": "boolean",
