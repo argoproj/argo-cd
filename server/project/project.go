@@ -95,6 +95,44 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 
 }
 
+// DeleteToken deletes a token in a project
+func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Project) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	err = validateProject(project)
+	if err != nil {
+		return nil, err
+	}
+
+	s.projectLock.Lock(q.Project)
+	defer s.projectLock.Unlock(q.Project)
+
+	roleIndex, err := projectUtil.GetRoleIndexByName(project, q.Role)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	if project.Spec.Roles[roleIndex].JWTTokens == nil {
+		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Role)
+	}
+	jwtTokenIndex, err := projectUtil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.IssuedAt)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	project.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JWTTokens[len(project.Spec.Roles[roleIndex].JWTTokens)-1]
+	project.Spec.Roles[roleIndex].JWTTokens = project.Spec.Roles[roleIndex].JWTTokens[:len(project.Spec.Roles[roleIndex].JWTTokens)-1]
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
+	if err != nil {
+		return nil, err
+	}
+	s.logEvent(project, ctx, argo.EventReasonResourceDeleted, "deleted token")
+	return &EmptyResponse{}, nil
+}
+
 // Create a new project.
 func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1.AppProject, error) {
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "create", q.Project.Name) {
@@ -280,44 +318,6 @@ func validateProject(p *v1alpha1.AppProject) error {
 	}
 
 	return nil
-}
-
-// DeleteToken deletes a token in a project
-func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Project) {
-		return nil, grpc.ErrPermissionDenied
-	}
-	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	err = validateProject(project)
-	if err != nil {
-		return nil, err
-	}
-
-	s.projectLock.Lock(q.Project)
-	defer s.projectLock.Unlock(q.Project)
-
-	roleIndex, err := projectUtil.GetRoleIndexByName(project, q.Role)
-	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
-	}
-	if project.Spec.Roles[roleIndex].JWTTokens == nil {
-		return nil, status.Errorf(codes.NotFound, "Role '%s' does not have a JWT token", q.Role)
-	}
-	jwtTokenIndex, err := projectUtil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.IssuedAt)
-	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
-	}
-	project.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JWTTokens[len(project.Spec.Roles[roleIndex].JWTTokens)-1]
-	project.Spec.Roles[roleIndex].JWTTokens = project.Spec.Roles[roleIndex].JWTTokens[:len(project.Spec.Roles[roleIndex].JWTTokens)-1]
-	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
-	if err != nil {
-		return nil, err
-	}
-	s.logEvent(project, ctx, argo.EventReasonResourceDeleted, "deleted token")
-	return &EmptyResponse{}, nil
 }
 
 // Update updates a project

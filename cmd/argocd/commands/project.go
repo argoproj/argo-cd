@@ -314,6 +314,33 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 	return command
 }
 
+// NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
+func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "delete-token PROJECT ROLE-NAME CREATED_AT",
+		Short: "Delete a project token",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			roleName := args[1]
+			issuedAt, err := strconv.ParseInt(args[2], 10, 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, IssuedAt: issuedAt})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
 // NewProjectRoleListCommand returns a new instance of an `argocd proj roles list` command
 func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -345,33 +372,6 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			_ = w.Flush()
-		},
-	}
-	return command
-}
-
-// NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
-func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
-		Use:   "delete-token PROJECT ROLE-NAME CREATED_AT",
-		Short: "Delete a project token",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 3 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			roleName := args[1]
-			issuedAt, err := strconv.ParseInt(args[2], 10, 64)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, IssuedAt: issuedAt})
-			errors.CheckError(err)
 		},
 	}
 	return command

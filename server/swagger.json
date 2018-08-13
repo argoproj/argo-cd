@@ -695,48 +695,6 @@
         }
       }
     },
-    "/api/v1/projects/token": {
-      "post": {
-        "tags": [
-          "ProjectService"
-        ],
-        "summary": "Create a new project token.",
-        "operationId": "CreateToken",
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/projectProjectTokenCreateRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/projectProjectTokenResponse"
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "ProjectService"
-        ],
-        "summary": "Create a new project token.",
-        "operationId": "DeleteToken",
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/projectEmptyResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/projects/{name}": {
       "get": {
         "tags": [
@@ -838,6 +796,74 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1AppProject"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project}/roles/{role}/token": {
+      "post": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Create a new project token.",
+        "operationId": "CreateToken",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "project",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "role",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Delete a new project token.",
+        "operationId": "DeleteToken",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "project",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "role",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectEmptyResponse"
             }
           }
         }

@@ -54,14 +54,14 @@ service ProjectService {
   // Create a new project token.
   rpc CreateToken(ProjectTokenCreateRequest) returns (ProjectTokenResponse) {
     option (google.api.http) = {
-      post: "/api/v1/projects/token"
+      post: "/api/v1/projects/{project}/roles/{role}/token"
       body: "*"
     };
   }
 
-    // Create a new project token.
+    // Delete a new project token.
   rpc DeleteToken(ProjectTokenDeleteRequest) returns (EmptyResponse) {
-    option (google.api.http).delete = "/api/v1/projects/token";
+    option (google.api.http).delete = "/api/v1/projects/{project}/roles/{role}/token";
   }
 
   // Create a new project.
