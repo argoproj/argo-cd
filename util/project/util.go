@@ -20,5 +20,5 @@ func GetJWTTokenIndexByIssuedAt(proj *v1alpha1.AppProject, roleIndex int, issued
 			return i, nil
 		}
 	}
-	return -1, fmt.Errorf("JWTToken for role '%s' with '%d' created time does not exist in project '%s'", proj.Spec.Roles[roleIndex].Name, issuedAt, proj.Name)
+	return -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", proj.Spec.Roles[roleIndex].Name, issuedAt, proj.Name)
 }
