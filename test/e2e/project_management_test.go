@@ -43,9 +43,7 @@ func TestProjectManagement(t *testing.T) {
 			"-d", "https://192.168.99.100:8443,default",
 			"-d", "https://192.168.99.100:8443,service",
 			"-s", "https://github.com/argoproj/argo-cd.git")
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
+		assert.Nil(t, err)
 
 		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
 		if err != nil {
@@ -268,28 +266,19 @@ func TestProjectManagement(t *testing.T) {
 			},
 		}
 		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
+		assert.Nil(t, err)
 
 		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Create(testApp)
-		if err != nil {
-			t.Fatalf("Unable to create app %v", err)
-		}
+		assert.Nil(t, err)
 
 		_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
-		if err != nil {
-			t.Fatalf("Unable to get project %v", err)
-		}
+		assert.Nil(t, err)
+
 		_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
-		if err != nil {
-			t.Fatalf("Unable to get create token %v", err)
-		}
+		assert.Nil(t, err)
 
 		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", "get", "-o", "*", "-p", "allow")
-		if err != nil {
-			t.Fatalf("Unable to get add policy token %v", err)
-		}
+		assert.Nil(t, err)
 
 	})
 }

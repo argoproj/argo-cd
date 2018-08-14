@@ -87,11 +87,7 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (st
 		claims.ExpiresAt = expires.Unix()
 	}
 
-	token, err := mgr.signClaims(claims)
-	if err != nil {
-		return "", err
-	}
-	return token, nil
+	return mgr.signClaims(claims)
 }
 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
