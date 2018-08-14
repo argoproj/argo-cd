@@ -286,10 +286,10 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewProjectRoleCreateTokenCommand returns a new instance of an `argocd proj role create-token` command
 func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		timeBeforeExpiry string
+		expiresIn string
 	)
 	var command = &cobra.Command{
-		Use:   "create-token PROJECT TOKEN-NAME [--seconds seconds]",
+		Use:   "create-token PROJECT TOKEN-NAME [--expires-in 1d]",
 		Short: "Create a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
@@ -300,14 +300,14 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			roleName := args[1]
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
-			duration, err := timeutil.ParseDuration(timeBeforeExpiry)
+			duration, err := timeutil.ParseDuration(expiresIn)
 			errors.CheckError(err)
-			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Role: roleName, SecondsBeforeExpiry: int64(duration.Seconds())})
+			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Role: roleName, ExpiresIn: int64(duration.Seconds())})
 			errors.CheckError(err)
 			fmt.Print(token.Token)
 		},
 	}
-	command.Flags().StringVarP(&timeBeforeExpiry, "timeBeforeExpiry", "s", "0s", "Time before the token will expire. (Default: No expiration)")
+	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
 
 	return command
 }
@@ -315,7 +315,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 // NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
 func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete-token PROJECT ROLE-NAME ISSUED_AT",
+		Use:   "delete-token PROJECT ROLE-NAME ISSUED-AT",
 		Short: "Delete a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 3 {
@@ -332,7 +332,7 @@ func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
 			defer util.Close(conn)
 
-			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, IssuedAt: issuedAt})
+			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
 			errors.CheckError(err)
 		},
 	}

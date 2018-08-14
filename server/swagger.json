@@ -1407,15 +1407,16 @@
       "description": "ProjectTokenCreateRequest defines project token creation parameters.",
       "type": "object",
       "properties": {
+        "expiresIn": {
+          "type": "string",
+          "format": "int64",
+          "title": "expiresIn represents a duration in seconds"
+        },
         "project": {
           "type": "string"
         },
         "role": {
           "type": "string"
-        },
-        "secondsBeforeExpiry": {
-          "type": "string",
-          "format": "int64"
         }
       }
     },

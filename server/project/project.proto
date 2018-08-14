@@ -22,14 +22,15 @@ message ProjectCreateRequest {
 message ProjectTokenDeleteRequest {
     string project = 1;
     string role = 2;
-    int64 issuedAt = 3;
+    int64 iat = 3;
 }
 
-// ProjectTokenCreateRequest defines project token creation parameters.
+// ProjectTokenCreateRequest defines project token creation parameters. 
 message ProjectTokenCreateRequest {
     string project = 1;
     string role = 2;
-    int64 secondsBeforeExpiry = 3;
+    // expiresIn represents a duration in seconds
+    int64 expiresIn = 3;
 }
 // ProjectTokenResponse wraps the created token or returns an empty string if deleted.
 message ProjectTokenResponse {

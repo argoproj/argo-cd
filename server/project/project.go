@@ -70,7 +70,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	}
 
 	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
-	jwtToken, err := s.sessionMgr.Create(tokenName, q.SecondsBeforeExpiry)
+	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -119,7 +119,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	if project.Spec.Roles[roleIndex].JWTTokens == nil {
 		return &EmptyResponse{}, nil
 	}
-	jwtTokenIndex, err := projectutil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.IssuedAt)
+	jwtTokenIndex, err := projectutil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.Iat)
 	if err != nil {
 		return &EmptyResponse{}, nil
 	}
