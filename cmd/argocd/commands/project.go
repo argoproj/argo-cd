@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
+	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -65,7 +67,6 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			os.Exit(1)
 		},
 	}
-
 	command.AddCommand(NewProjectRoleCommand(clientOpts))
 	command.AddCommand(NewProjectCreateCommand(clientOpts))
 	command.AddCommand(NewProjectDeleteCommand(clientOpts))
@@ -102,6 +103,7 @@ func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		},
 	}
 	roleCommand.AddCommand(NewProjectRoleListCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleGetCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleCreateCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleDeleteCommand(clientOpts))
 	roleCommand.AddCommand(NewProjectRoleCreateTokenCommand(clientOpts))
@@ -357,23 +359,61 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ROLE-NAME\tDESCRIPTION\tISSUED-AT\tEXPIRES-AT\tPOLICIES\n")
+			fmt.Fprintf(w, "ROLE-NAME\tDESCRIPTION\n")
 			for _, role := range project.Spec.Roles {
-				fmt.Fprintf(w, "%s\n", role.Name)
-				if role.JWTTokens != nil {
-					for _, token := range role.JWTTokens {
-						fmt.Fprintf(w, "%s\t%s\t%d\t%d\n", role.Name, role.Description, token.IssuedAt, token.ExpiresAt)
-
-						for _, policy := range role.Policies {
-							fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%s\n", role.Name, role.Description, token.IssuedAt, token.ExpiresAt, policy)
-						}
-					}
-				}
+				fmt.Fprintf(w, "%s\t%s\n", role.Name, role.Description)
 			}
 			_ = w.Flush()
 		},
 	}
 	return command
+}
+
+// NewProjectRoleGetCommand returns a new instance of an `argocd proj roles get` command
+func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "get PROJECT ROLE-NAME",
+		Short: "Get the details of a specific role",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			roleName := args[1]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index, err := projectutil.GetRoleIndexByName(project, roleName)
+			errors.CheckError(err)
+			role := project.Spec.Roles[index]
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			fmt.Fprintf(w, "Role Name: %s\n", roleName)
+			fmt.Fprintf(w, "Description:%s\n", role.Description)
+			fmt.Fprintf(w, "Policies:\n")
+			fmt.Fprintf(w, "%s\n", project.ProjectPoliciesString())
+			fmt.Fprintf(w, "Jwt Tokens:\n")
+			fmt.Fprintf(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
+			for _, token := range role.JWTTokens {
+				expiresAt := "<None>"
+				if token.ExpiresAt > 0 {
+					expiresAt = humanizeTimestamp(token.ExpiresAt)
+				}
+				fmt.Fprintf(w, "%d\t%s\t%s\n", token.IssuedAt, humanizeTimestamp(token.IssuedAt), expiresAt)
+			}
+			_ = w.Flush()
+		},
+	}
+	return command
+}
+
+func humanizeTimestamp(epoch int64) string {
+	ts := time.Unix(epoch, 0)
+	return fmt.Sprintf("%s (%s)", ts.Format("Mon Jan 02 15:04:05 -0700"), humanize.Time(ts))
 }
 
 // NewProjectCreateCommand returns a new instance of an `argocd proj create` command
