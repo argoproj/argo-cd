@@ -136,6 +136,14 @@
   version = "v3.2.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:f1a75a8e00244e5ea77ff274baa9559eb877437b240ee7b278f3fc560d9f08bf"
+  name = "github.com/dustin/go-humanize"
+  packages = ["."]
+  pruneopts = ""
+  revision = "9f541cc9db5d55bce703bd99987c9d5cb8eea45e"
+
+[[projects]]
   digest = "1:971e9ba63a417c5f1f83ab358677bc59e96ff04285f26c6646ff089fb60b15e8"
   name = "github.com/emicklei/go-restful"
   packages = [
@@ -1230,6 +1238,7 @@
     "github.com/coreos/dex/api",
     "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
+    "github.com/dustin/go-humanize",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/loads",
     "github.com/go-openapi/runtime/middleware",

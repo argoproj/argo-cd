@@ -399,7 +399,7 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			fmt.Fprintf(w, "Jwt Tokens:\n")
 			fmt.Fprintf(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
 			for _, token := range role.JWTTokens {
-				expiresAt := "<None>"
+				expiresAt := "<none>"
 				if token.ExpiresAt > 0 {
 					expiresAt = humanizeTimestamp(token.ExpiresAt)
 				}
@@ -413,7 +413,7 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 func humanizeTimestamp(epoch int64) string {
 	ts := time.Unix(epoch, 0)
-	return fmt.Sprintf("%s (%s)", ts.Format("Mon Jan 02 15:04:05 -0700"), humanize.Time(ts))
+	return fmt.Sprintf("%s (%s)", ts.Format(time.RFC3339), humanize.Time(ts))
 }
 
 // NewProjectCreateCommand returns a new instance of an `argocd proj create` command
