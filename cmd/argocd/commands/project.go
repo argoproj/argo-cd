@@ -66,15 +66,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 
-	roleCommand := NewProjectRoleCommand(clientOpts)
-	roleCommand.AddCommand(NewProjectRoleListCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleCreateCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleDeleteCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleCreateTokenCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleDeleteTokenCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleAddPolicyCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleRemovePolicyCommand(clientOpts))
-	command.AddCommand(roleCommand)
+	command.AddCommand(NewProjectRoleCommand(clientOpts))
 	command.AddCommand(NewProjectCreateCommand(clientOpts))
 	command.AddCommand(NewProjectDeleteCommand(clientOpts))
 	command.AddCommand(NewProjectListCommand(clientOpts))
@@ -101,7 +93,7 @@ func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
 
 // NewProjectRoleCommand returns a new instance of the `argocd proj role` command
 func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	return &cobra.Command{
+	roleCommand := &cobra.Command{
 		Use:   "role",
 		Short: "Manage a project's role",
 		Run: func(c *cobra.Command, args []string) {
@@ -109,6 +101,14 @@ func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			os.Exit(1)
 		},
 	}
+	roleCommand.AddCommand(NewProjectRoleListCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleCreateCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleDeleteCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleCreateTokenCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleDeleteTokenCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleAddPolicyCommand(clientOpts))
+	roleCommand.AddCommand(NewProjectRoleRemovePolicyCommand(clientOpts))
+	return roleCommand
 }
 
 // NewProjectRoleAddPolicyCommand returns a new instance of an `argocd proj role add-policy` command
