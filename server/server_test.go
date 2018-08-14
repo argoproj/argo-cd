@@ -52,7 +52,7 @@ func fakeSecret(policy ...string) *apiv1.Secret {
 	return &secret
 }
 
-func TestEnforceJWTToken(t *testing.T) {
+func TestEnforceProjectToken(t *testing.T) {
 	projectName := "testProj"
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
@@ -76,14 +76,14 @@ func TestEnforceJWTToken(t *testing.T) {
 	secret := fakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 
-	t.Run("TestEnforceJWTTokenSuccessful", func(t *testing.T) {
+	t.Run("TestEnforceProjectTokenSuccessful", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		assert.True(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJWTTokenWithDiffCreateAtFailure", func(t *testing.T) {
+	t.Run("TestEnforceProjectTokenWithDiffCreateAtFailure", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
 		diffCreateAt := defaultIssuedAt + 1
@@ -91,7 +91,7 @@ func TestEnforceJWTToken(t *testing.T) {
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJWTTokenIncorrectSubFormatFailure", func(t *testing.T) {
+	t.Run("TestEnforceProjectTokenIncorrectSubFormatFailure", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
 		invalidSub := "proj:test"
@@ -99,7 +99,7 @@ func TestEnforceJWTToken(t *testing.T) {
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJWTTokenNoTokenFailure", func(t *testing.T) {
+	t.Run("TestEnforceProjectTokenNoTokenFailure", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
 		nonExistentToken := "fake-token"
@@ -109,7 +109,7 @@ func TestEnforceJWTToken(t *testing.T) {
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJWTTokenNotJWTTokenFailure", func(t *testing.T) {
+	t.Run("TestEnforceProjectTokenNotJWTTokenFailure", func(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.Roles[0].JWTTokens = nil
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj)})
@@ -118,7 +118,7 @@ func TestEnforceJWTToken(t *testing.T) {
 		assert.False(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 
-	t.Run("TestEnforceJWTTokenExplicitDeny", func(t *testing.T) {
+	t.Run("TestEnforceProjectTokenExplicitDeny", func(t *testing.T) {
 		denyApp := "testDenyApp"
 		allowPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 		denyPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, denyApp, "deny")
@@ -142,7 +142,7 @@ func TestEnforceClaims(t *testing.T) {
 
 	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(enf, nil, fakeNamespace))
+	enf.SetClaimsEnforcerFunc(EnforceClaims(enf, nil, fakeNamespace))
 	policy := `
 g, org2:team2, role:admin
 g, bob, role:admin
@@ -173,7 +173,7 @@ func TestDefaultRoleWithClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(enf, nil, fakeNamespace))
+	enf.SetClaimsEnforcerFunc(EnforceClaims(enf, nil, fakeNamespace))
 	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
 
 	assert.False(t, enf.EnforceClaims(claims, "applications", "get", "foo/bar"))
@@ -186,7 +186,7 @@ func TestEnforceNilClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, common.ArgoCDConfigMapName, nil)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(enf, nil, fakeNamespace))
+	enf.SetClaimsEnforcerFunc(EnforceClaims(enf, nil, fakeNamespace))
 	assert.False(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))

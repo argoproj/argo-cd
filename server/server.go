@@ -336,7 +336,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
-	a.enf.SetClaimsEnforcerFunc(DefaultEnforceClaims(a.enf, a.AppClientset, a.Namespace))
+	a.enf.SetClaimsEnforcerFunc(EnforceClaims(a.enf, a.AppClientset, a.Namespace))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.KubeClientset)
 	clusterService := cluster.NewServer(db, a.enf)
@@ -598,7 +598,7 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 	return handler(ctx, req)
 }
 
-func DefaultEnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespace string) func(rvals ...interface{}) bool {
+func EnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespace string) func(rvals ...interface{}) bool {
 	return func(rvals ...interface{}) bool {
 		claims, ok := rvals[0].(jwt.Claims)
 		if !ok {
@@ -624,14 +624,14 @@ func DefaultEnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespac
 
 		user := jwtutil.GetField(mapClaims, "sub")
 		if strings.HasPrefix(user, "proj:") {
-			return enforceJWTToken(enf, a, namespace, user, mapClaims, rvals...)
+			return enforceProjectToken(enf, a, namespace, user, mapClaims, rvals...)
 		}
 		vals := append([]interface{}{user}, rvals[1:]...)
 		return enf.Enforce(vals...)
 	}
 }
 
-func enforceJWTToken(enf *rbac.Enforcer, a appclientset.Interface, namespace string, user string, claims jwt.MapClaims, rvals ...interface{}) bool {
+func enforceProjectToken(enf *rbac.Enforcer, a appclientset.Interface, namespace string, user string, claims jwt.MapClaims, rvals ...interface{}) bool {
 	userSplit := strings.Split(user, ":")
 	if len(userSplit) != 3 {
 		return false

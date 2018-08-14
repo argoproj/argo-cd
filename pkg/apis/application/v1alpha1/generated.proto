@@ -299,7 +299,7 @@ message ProjectRole {
   // Policies Stores a list of casbin formated strings that define access policies for the role in the project.
   repeated string policies = 2;
 
-  repeated JWTToken JWTTokens = 3;
+  repeated JWTToken jwtTokens = 3;
 }
 
 // Repository is a Git repository holding application configurations
@@ -370,7 +370,7 @@ message SyncOperation {
   // Prune deletes resources that are no longer tracked in git
   optional bool prune = 2;
 
-  // DryRun will perform a `kubectl apply --dry-rudn` without actually performing the sync
+  // DryRun will perform a `kubectl apply --dry-run` without actually performing the sync
   optional bool dryRun = 3;
 
   // SyncStrategy describes how to perform the sync

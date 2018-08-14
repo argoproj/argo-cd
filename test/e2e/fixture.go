@@ -259,7 +259,7 @@ func NewFixture() (*Fixture, error) {
 	}
 	db := db.NewDB(namespace, kubeClient)
 	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName, nil)
-	enforcer.SetClaimsEnforcerFunc(server.DefaultEnforceClaims(enforcer, appClient, namespace))
+	enforcer.SetClaimsEnforcerFunc(server.EnforceClaims(enforcer, appClient, namespace))
 	err = enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	if err != nil {
 		return nil, err
