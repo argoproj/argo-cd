@@ -121,6 +121,7 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	}
 	data, err := kube.SplitYAML(out)
 	if err == nil {
+		// Address https://github.com/ksonnet/ksonnet/issues/707
 		for _, d := range data {
 			kube.UnsetLabel(d, "ksonnet.io/component")
 		}
