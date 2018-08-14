@@ -219,6 +219,9 @@ func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 
 // NewProjectRoleCreateCommand returns a new instance of an `argocd proj role create` command
 func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		description string
+	)
 	var command = &cobra.Command{
 		Use:   "create PROJECT ROLE-NAME",
 		Short: "Create a project role",
@@ -239,12 +242,13 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if err == nil {
 				return
 			}
-			proj.Spec.Roles = append(proj.Spec.Roles, v1alpha1.ProjectRole{Name: roleName})
+			proj.Spec.Roles = append(proj.Spec.Roles, v1alpha1.ProjectRole{Name: roleName, Description: description})
 
 			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVarP(&description, "description", "", "desc", "Project description")
 	return command
 }
 
@@ -286,7 +290,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		expiresIn string
 	)
 	var command = &cobra.Command{
-		Use:   "create-token PROJECT TOKEN-NAME [--expires-in 1d]",
+		Use:   "create-token PROJECT TOKEN-NAME",
 		Short: "Create a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
@@ -353,15 +357,15 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ROLE-NAME\tISSUED-AT\tEXPIRES-AT\tPOLICIES\n")
+			fmt.Fprintf(w, "ROLE-NAME\tDESCRIPTION\tISSUED-AT\tEXPIRES-AT\tPOLICIES\n")
 			for _, role := range project.Spec.Roles {
 				fmt.Fprintf(w, "%s\n", role.Name)
 				if role.JWTTokens != nil {
 					for _, token := range role.JWTTokens {
-						fmt.Fprintf(w, "%s\t%d\t%d\n", role.Name, token.IssuedAt, token.ExpiresAt)
+						fmt.Fprintf(w, "%s\t%s\t%d\t%d\n", role.Name, role.Description, token.IssuedAt, token.ExpiresAt)
 
 						for _, policy := range role.Policies {
-							fmt.Fprintf(w, "%s\t%d\t%d\t%s\n", role.Name, token.IssuedAt, token.ExpiresAt, policy)
+							fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%s\n", role.Name, role.Description, token.IssuedAt, token.ExpiresAt, policy)
 						}
 					}
 				}

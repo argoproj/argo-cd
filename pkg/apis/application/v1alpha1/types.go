@@ -468,10 +468,11 @@ type AppProjectSpec struct {
 
 // ProjectRole represents a role that has access to a project
 type ProjectRole struct {
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Name        string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Description string `json:"description" protobuf:"bytes,2,opt,name=description"`
 	// Policies Stores a list of casbin formated strings that define access policies for the role in the project.
-	Policies  []string   `json:"policies" protobuf:"bytes,2,rep,name=policies"`
-	JWTTokens []JWTToken `json:"jwtTokens" protobuf:"bytes,3,rep,name=jwtTokens"`
+	Policies  []string   `json:"policies" protobuf:"bytes,3,rep,name=policies"`
+	JWTTokens []JWTToken `json:"jwtTokens" protobuf:"bytes,4,rep,name=jwtTokens"`
 }
 
 // JWTToken holds the issuedAt and expiresAt values of a token

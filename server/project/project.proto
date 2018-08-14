@@ -28,9 +28,10 @@ message ProjectTokenDeleteRequest {
 // ProjectTokenCreateRequest defines project token creation parameters. 
 message ProjectTokenCreateRequest {
     string project = 1;
-    string role = 2;
+    string description = 2;
+    string role = 3;
     // expiresIn represents a duration in seconds
-    int64 expiresIn = 3;
+    int64 expiresIn = 4;
 }
 // ProjectTokenResponse wraps the created token or returns an empty string if deleted.
 message ProjectTokenResponse {

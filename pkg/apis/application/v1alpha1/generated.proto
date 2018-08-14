@@ -296,10 +296,12 @@ message OperationState {
 message ProjectRole {
   optional string name = 1;
 
-  // Policies Stores a list of casbin formated strings that define access policies for the role in the project.
-  repeated string policies = 2;
+  optional string description = 2;
 
-  repeated JWTToken jwtTokens = 3;
+  // Policies Stores a list of casbin formated strings that define access policies for the role in the project.
+  repeated string policies = 3;
+
+  repeated JWTToken jwtTokens = 4;
 }
 
 // Repository is a Git repository holding application configurations
