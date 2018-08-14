@@ -131,9 +131,6 @@ func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 				log.Fatal("Objects needs to longer than 0 characters")
 
 			}
-			if opts.permission != "allow" && opts.permission != "deny" {
-				log.Fatal("Permission flag can only have the values 'allow' or 'deny'")
-			}
 
 			projName := args[0]
 			roleName := args[1]
