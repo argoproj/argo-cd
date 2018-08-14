@@ -217,8 +217,7 @@ func TestUnsetLabels(t *testing.T) {
 		err = SetLabel(&obj, common.LabelApplicationName, "my-app")
 		assert.Nil(t, err)
 
-		err = UnsetLabel(&obj, common.LabelApplicationName)
-		assert.Nil(t, err)
+		UnsetLabel(&obj, common.LabelApplicationName)
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
 		assert.Nil(t, err)
