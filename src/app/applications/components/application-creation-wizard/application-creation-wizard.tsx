@@ -104,7 +104,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
 
                             if (selectedAppDetails.ksonnet) {
                                 this.updateState({ selectedAppDetails, envs: selectedAppDetails.ksonnet.environments || {}, step: Step.SelectEnvironments});
-                            } else {
+                            } else if (selectedAppDetails.helm) {
                                 this.updateState({ selectedAppDetails, appParams: {
                                     applicationName: selectedAppDetails.helm.name,
                                     repoURL: this.state.selectedRepo,
@@ -112,6 +112,16 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                     clusterURL: '',
                                     namespace: '',
                                     path: path.dirname(selectedAppDetails.helm.path),
+                                    project: this.state.projects[0],
+                                }, step: Step.SetParams });
+                            } else if (selectedAppDetails.kustomize) {
+                                this.updateState({ selectedAppDetails, appParams: {
+                                    applicationName: '',
+                                    repoURL: this.state.selectedRepo,
+                                    environment: '',
+                                    clusterURL: '',
+                                    namespace: '',
+                                    path: path.dirname(selectedAppDetails.kustomize.path),
                                     project: this.state.projects[0],
                                 }, step: Step.SetParams });
                             }
