@@ -54,6 +54,14 @@
   version = "v2.1.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:0667628f85b38f0422880ad3a503b1cf139bca5a817d29cd4e7ffccd5914869c"
+  name = "github.com/argoproj/pkg"
+  packages = ["time"]
+  pruneopts = ""
+  revision = "881057947d921c5d62af84ad15cd3c6fb36d6077"
+
+[[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
   name = "github.com/asaskevich/govalidator"
   packages = ["."]
@@ -126,6 +134,14 @@
   pruneopts = ""
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
   version = "v3.2.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:f1a75a8e00244e5ea77ff274baa9559eb877437b240ee7b278f3fc560d9f08bf"
+  name = "github.com/dustin/go-humanize"
+  packages = ["."]
+  pruneopts = ""
+  revision = "9f541cc9db5d55bce703bd99987c9d5cb8eea45e"
 
 [[projects]]
   digest = "1:971e9ba63a417c5f1f83ab358677bc59e96ff04285f26c6646ff089fb60b15e8"
@@ -1216,11 +1232,13 @@
   analyzer-version = 1
   input-imports = [
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
+    "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
     "github.com/coreos/dex/api",
     "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
+    "github.com/dustin/go-humanize",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/loads",
     "github.com/go-openapi/runtime/middleware",

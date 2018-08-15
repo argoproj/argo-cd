@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -20,12 +21,14 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
+	netCtx "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
@@ -49,13 +52,14 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
+	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
-	netCtx "golang.org/x/net/context"
 )
 
 var (
@@ -332,7 +336,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
-
+	a.enf.SetClaimsEnforcerFunc(EnforceClaims(a.enf, a.AppClientset, a.Namespace))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.KubeClientset)
 	clusterService := cluster.NewServer(db, a.enf)
@@ -340,7 +344,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf, projectLock)
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
@@ -592,4 +596,72 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		cu.Cluster.Server = server
 	}
 	return handler(ctx, req)
+}
+
+func EnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespace string) func(rvals ...interface{}) bool {
+	return func(rvals ...interface{}) bool {
+		claims, ok := rvals[0].(jwt.Claims)
+		if !ok {
+			if rvals[0] == nil {
+				vals := append([]interface{}{""}, rvals[1:]...)
+				return enf.Enforce(vals...)
+			}
+			return enf.Enforce(rvals...)
+		}
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		if err != nil {
+			vals := append([]interface{}{""}, rvals[1:]...)
+			return enf.Enforce(vals...)
+		}
+		groups := jwtutil.GetGroups(mapClaims)
+		for _, group := range groups {
+			vals := append([]interface{}{group}, rvals[1:]...)
+			if enf.Enforcer.Enforce(vals...) {
+				return true
+			}
+		}
+
+		user := jwtutil.GetField(mapClaims, "sub")
+		if strings.HasPrefix(user, "proj:") {
+			return enforceProjectToken(enf, a, namespace, user, mapClaims, rvals...)
+		}
+		vals := append([]interface{}{user}, rvals[1:]...)
+		return enf.Enforce(vals...)
+	}
+}
+
+func enforceProjectToken(enf *rbac.Enforcer, a appclientset.Interface, namespace string, user string, claims jwt.MapClaims, rvals ...interface{}) bool {
+	userSplit := strings.Split(user, ":")
+	if len(userSplit) != 3 {
+		return false
+	}
+	projName := userSplit[1]
+	tokenName := userSplit[2]
+	proj, err := a.ArgoprojV1alpha1().AppProjects(namespace).Get(projName, metav1.GetOptions{})
+	if err != nil {
+		return false
+	}
+	index, err := projectutil.GetRoleIndexByName(proj, tokenName)
+	if err != nil {
+		return false
+	}
+	if proj.Spec.Roles[index].JWTTokens == nil {
+		return false
+	}
+	iatField, ok := claims["iat"]
+	if !ok {
+		return false
+	}
+	iatFloat, ok := iatField.(float64)
+	if !ok {
+		return false
+	}
+	iat := int64(iatFloat)
+	_, err = projectutil.GetJWTTokenIndexByIssuedAt(proj, index, iat)
+	if err != nil {
+		return false
+	}
+	vals := append([]interface{}{user}, rvals[1:]...)
+	return enf.EnforceCustomPolicy(proj.ProjectPoliciesString(), vals...)
 }

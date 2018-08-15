@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -209,36 +209,6 @@ g, alice, role:foo-readonly
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/obj"))
 }
 
-func TestEnforceClaims(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	policy := `
-g, org2:team2, role:admin
-g, bob, role:admin
-`
-	enf.SetUserPolicy(policy)
-	allowed := []jwt.Claims{
-		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
-		jwt.StandardClaims{Subject: "admin"},
-	}
-	for _, c := range allowed {
-		if !assert.True(t, enf.EnforceClaims(c, "applications", "delete", "foo/obj")) {
-			log.Errorf("%v: expected true, got false", c)
-		}
-	}
-
-	disallowed := []jwt.Claims{
-		jwt.MapClaims{"groups": []string{"org3:team3"}},
-		jwt.StandardClaims{Subject: "nobody"},
-	}
-	for _, c := range disallowed {
-		if !assert.False(t, enf.EnforceClaims(c, "applications", "delete", "foo/obj")) {
-			log.Errorf("%v: expected true, got false", c)
-		}
-	}
-}
-
 // TestDefaultRole tests the ability to set a default role
 func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
@@ -246,14 +216,11 @@ func TestDefaultRole(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
 	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
 
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
-	assert.False(t, enf.EnforceClaims(claims, "applications", "get", "foo/bar"))
 	// after setting the default role to be the read-only role, this should now pass
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
-	assert.True(t, enf.EnforceClaims(claims, "applications", "get", "foo/bar"))
 }
 
 // TestURLAsObjectName tests the ability to have a URL as an object name
@@ -275,15 +242,6 @@ p, cathy, repositories, *, foo/*, allow
 	assert.True(t, enf.Enforce("bob", "repositories", "delete", "foo/https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("bob", "repositories", "delete", "foo/https://github.com/golang/go.git"))
 
-}
-
-func TestEnforceNilClaims(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
-	assert.False(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
-	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 }
 
 func TestEnableDisableEnforce(t *testing.T) {

@@ -41,6 +41,8 @@ message AppProjectSpec {
 
   // Description contains optional project description
   optional string description = 3;
+
+  repeated ProjectRole roles = 4;
 }
 
 // Application is a definition of Application resource.
@@ -252,6 +254,13 @@ message HookStatus {
   optional string message = 6;
 }
 
+// JWTToken holds the issuedAt and expiresAt values of a token
+message JWTToken {
+  optional int64 iat = 1;
+
+  optional int64 exp = 2;
+}
+
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
@@ -281,6 +290,18 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+}
+
+// ProjectRole represents a role that has access to a project
+message ProjectRole {
+  optional string name = 1;
+
+  optional string description = 2;
+
+  // Policies Stores a list of casbin formated strings that define access policies for the role in the project.
+  repeated string policies = 3;
+
+  repeated JWTToken jwtTokens = 4;
 }
 
 // Repository is a Git repository holding application configurations

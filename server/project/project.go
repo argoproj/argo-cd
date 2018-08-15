@@ -3,8 +3,14 @@ package project
 import (
 	"context"
 	"fmt"
-
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -13,14 +19,15 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
+	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/kubernetes"
+	jwt "github.com/dgrijalva/jwt-go"
+)
+
+const (
+	// JWTTokenSubFormat format of the JWT token subject that ArgoCD vends out.
+	JWTTokenSubFormat = "proj:%s:%s"
 )
 
 // Server provides a Project service
@@ -31,12 +38,99 @@ type Server struct {
 	kubeclientset kubernetes.Interface
 	auditLogger   *argo.AuditLogger
 	projectLock   *util.KeyLock
+	sessionMgr    *session.SessionManager
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock *util.KeyLock, sessionMgr *session.SessionManager) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger}
+	return &Server{enf: enf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
+}
+
+// CreateToken creates a new token to access a project
+func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	err = validateProject(project)
+	if err != nil {
+		return nil, err
+	}
+
+	s.projectLock.Lock(q.Project)
+	defer s.projectLock.Unlock(q.Project)
+
+	index, err := projectutil.GetRoleIndexByName(project, q.Role)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
+	}
+
+	tokenName := fmt.Sprintf(JWTTokenSubFormat, q.Project, q.Role)
+	jwtToken, err := s.sessionMgr.Create(tokenName, q.ExpiresIn)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	parser := &jwt.Parser{
+		SkipClaimsValidation: true,
+	}
+	claims := jwt.StandardClaims{}
+	_, _, err = parser.ParseUnverified(jwtToken, &claims)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	issuedAt := claims.IssuedAt
+	expiresAt := claims.ExpiresAt
+
+	project.Spec.Roles[index].JWTTokens = append(project.Spec.Roles[index].JWTTokens, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt})
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
+	if err != nil {
+		return nil, err
+	}
+	s.logEvent(project, ctx, argo.EventReasonResourceCreated, "create token")
+	return &ProjectTokenResponse{Token: jwtToken}, nil
+
+}
+
+// DeleteToken deletes a token in a project
+func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Project) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	err = validateProject(project)
+	if err != nil {
+		return nil, err
+	}
+
+	s.projectLock.Lock(q.Project)
+	defer s.projectLock.Unlock(q.Project)
+
+	roleIndex, err := projectutil.GetRoleIndexByName(project, q.Role)
+	if err != nil {
+		return &EmptyResponse{}, nil
+	}
+	if project.Spec.Roles[roleIndex].JWTTokens == nil {
+		return &EmptyResponse{}, nil
+	}
+	jwtTokenIndex, err := projectutil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.Iat)
+	if err != nil {
+		return &EmptyResponse{}, nil
+	}
+	project.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = project.Spec.Roles[roleIndex].JWTTokens[len(project.Spec.Roles[roleIndex].JWTTokens)-1]
+	project.Spec.Roles[roleIndex].JWTTokens = project.Spec.Roles[roleIndex].JWTTokens[:len(project.Spec.Roles[roleIndex].JWTTokens)-1]
+	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(project)
+	if err != nil {
+		return nil, err
+	}
+	s.logEvent(project, ctx, argo.EventReasonResourceDeleted, "deleted token")
+	return &EmptyResponse{}, nil
 }
 
 // Create a new project.
@@ -123,6 +217,58 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 	return removed
 }
 
+func validateJWTToken(proj string, token string, policy string) error {
+	err := validatePolicy(proj, policy)
+	if err != nil {
+		return err
+	}
+	policyComponents := strings.Split(policy, ",")
+	if strings.Trim(policyComponents[2], " ") != "applications" {
+		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as JWT tokens can only access applications", policy)
+	}
+	roleComponents := strings.Split(strings.Trim(policyComponents[1], " "), ":")
+	if len(roleComponents) != 3 {
+		return status.Errorf(codes.InvalidArgument, "incorrect number of role arguments for '%s' policy", policy)
+	}
+	if roleComponents[0] != "proj" {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as role should start with 'proj:'", policy)
+	}
+	if roleComponents[1] != proj {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other projects", policy)
+	}
+	if roleComponents[2] != token {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other roles", policy)
+	}
+	return nil
+}
+
+func validatePolicy(proj string, policy string) error {
+	policyComponents := strings.Split(policy, ",")
+	if len(policyComponents) != 6 {
+		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguments for '%s'", policy)
+	}
+	if strings.Trim(policyComponents[0], " ") != "p" {
+		return status.Errorf(codes.InvalidArgument, "policies can only use the policy format: '%s'", policy)
+	}
+	if len(strings.Trim(policyComponents[1], " ")) <= 0 {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as subject must be longer than 0 characters:", policy)
+	}
+	if len(strings.Trim(policyComponents[2], " ")) <= 0 {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as object must be longer than 0 characters:", policy)
+	}
+	if len(strings.Trim(policyComponents[3], " ")) <= 0 {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as action must be longer than 0 characters:", policy)
+	}
+	if !strings.HasPrefix(strings.Trim(policyComponents[4], " "), proj) {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policies can't grant access to other projects", policy)
+	}
+	effect := strings.Trim(policyComponents[5], " ")
+	if effect != "allow" && effect != "deny" {
+		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as effect can only have value 'allow' or 'deny'", policy)
+	}
+	return nil
+}
+
 func validateProject(p *v1alpha1.AppProject) error {
 	destKeys := make(map[string]bool)
 	for _, dest := range p.Spec.Destinations {
@@ -143,6 +289,34 @@ func validateProject(p *v1alpha1.AppProject) error {
 			return status.Errorf(codes.InvalidArgument, "source repository %s should not be listed more than once.", src)
 		}
 	}
+
+	roleNames := make(map[string]bool)
+	for _, role := range p.Spec.Roles {
+		existingPolicies := make(map[string]bool)
+		for _, policy := range role.Policies {
+			var err error
+			if role.JWTTokens != nil {
+				err = validateJWTToken(p.Name, role.Name, policy)
+			} else {
+				err = validatePolicy(p.Name, policy)
+			}
+			if err != nil {
+				return err
+			}
+			if _, ok := existingPolicies[policy]; !ok {
+				existingPolicies[policy] = true
+			} else {
+				return status.Errorf(codes.AlreadyExists, "policy '%s' already exists for role '%s'", policy, role.Name)
+			}
+		}
+		if _, ok := roleNames[role.Name]; !ok {
+			roleNames[role.Name] = true
+		} else {
+			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role)
+		}
+
+	}
+
 	return nil
 }
 

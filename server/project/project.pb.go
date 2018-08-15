@@ -13,6 +13,9 @@
 
 	It has these top-level messages:
 		ProjectCreateRequest
+		ProjectTokenDeleteRequest
+		ProjectTokenCreateRequest
+		ProjectTokenResponse
 		ProjectQuery
 		ProjectUpdateRequest
 		EmptyResponse
@@ -61,6 +64,98 @@ func (m *ProjectCreateRequest) GetProject() *github_com_argoproj_argo_cd_pkg_api
 	return nil
 }
 
+// ProjectTokenCreateRequest defines project token deletion parameters.
+type ProjectTokenDeleteRequest struct {
+	Project string `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Role    string `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	Iat     int64  `protobuf:"varint,3,opt,name=iat,proto3" json:"iat,omitempty"`
+}
+
+func (m *ProjectTokenDeleteRequest) Reset()                    { *m = ProjectTokenDeleteRequest{} }
+func (m *ProjectTokenDeleteRequest) String() string            { return proto.CompactTextString(m) }
+func (*ProjectTokenDeleteRequest) ProtoMessage()               {}
+func (*ProjectTokenDeleteRequest) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{1} }
+
+func (m *ProjectTokenDeleteRequest) GetProject() string {
+	if m != nil {
+		return m.Project
+	}
+	return ""
+}
+
+func (m *ProjectTokenDeleteRequest) GetRole() string {
+	if m != nil {
+		return m.Role
+	}
+	return ""
+}
+
+func (m *ProjectTokenDeleteRequest) GetIat() int64 {
+	if m != nil {
+		return m.Iat
+	}
+	return 0
+}
+
+// ProjectTokenCreateRequest defines project token creation parameters.
+type ProjectTokenCreateRequest struct {
+	Project     string `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Role        string `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	// expiresIn represents a duration in seconds
+	ExpiresIn int64 `protobuf:"varint,4,opt,name=expiresIn,proto3" json:"expiresIn,omitempty"`
+}
+
+func (m *ProjectTokenCreateRequest) Reset()                    { *m = ProjectTokenCreateRequest{} }
+func (m *ProjectTokenCreateRequest) String() string            { return proto.CompactTextString(m) }
+func (*ProjectTokenCreateRequest) ProtoMessage()               {}
+func (*ProjectTokenCreateRequest) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{2} }
+
+func (m *ProjectTokenCreateRequest) GetProject() string {
+	if m != nil {
+		return m.Project
+	}
+	return ""
+}
+
+func (m *ProjectTokenCreateRequest) GetDescription() string {
+	if m != nil {
+		return m.Description
+	}
+	return ""
+}
+
+func (m *ProjectTokenCreateRequest) GetRole() string {
+	if m != nil {
+		return m.Role
+	}
+	return ""
+}
+
+func (m *ProjectTokenCreateRequest) GetExpiresIn() int64 {
+	if m != nil {
+		return m.ExpiresIn
+	}
+	return 0
+}
+
+// ProjectTokenResponse wraps the created token or returns an empty string if deleted.
+type ProjectTokenResponse struct {
+	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+}
+
+func (m *ProjectTokenResponse) Reset()                    { *m = ProjectTokenResponse{} }
+func (m *ProjectTokenResponse) String() string            { return proto.CompactTextString(m) }
+func (*ProjectTokenResponse) ProtoMessage()               {}
+func (*ProjectTokenResponse) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{3} }
+
+func (m *ProjectTokenResponse) GetToken() string {
+	if m != nil {
+		return m.Token
+	}
+	return ""
+}
+
 // ProjectQuery is a query for Project resources
 type ProjectQuery struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -69,7 +164,7 @@ type ProjectQuery struct {
 func (m *ProjectQuery) Reset()                    { *m = ProjectQuery{} }
 func (m *ProjectQuery) String() string            { return proto.CompactTextString(m) }
 func (*ProjectQuery) ProtoMessage()               {}
-func (*ProjectQuery) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{1} }
+func (*ProjectQuery) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{4} }
 
 func (m *ProjectQuery) GetName() string {
 	if m != nil {
@@ -85,7 +180,7 @@ type ProjectUpdateRequest struct {
 func (m *ProjectUpdateRequest) Reset()                    { *m = ProjectUpdateRequest{} }
 func (m *ProjectUpdateRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProjectUpdateRequest) ProtoMessage()               {}
-func (*ProjectUpdateRequest) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{2} }
+func (*ProjectUpdateRequest) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{5} }
 
 func (m *ProjectUpdateRequest) GetProject() *github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.AppProject {
 	if m != nil {
@@ -100,10 +195,13 @@ type EmptyResponse struct {
 func (m *EmptyResponse) Reset()                    { *m = EmptyResponse{} }
 func (m *EmptyResponse) String() string            { return proto.CompactTextString(m) }
 func (*EmptyResponse) ProtoMessage()               {}
-func (*EmptyResponse) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{3} }
+func (*EmptyResponse) Descriptor() ([]byte, []int) { return fileDescriptorProject, []int{6} }
 
 func init() {
 	proto.RegisterType((*ProjectCreateRequest)(nil), "project.ProjectCreateRequest")
+	proto.RegisterType((*ProjectTokenDeleteRequest)(nil), "project.ProjectTokenDeleteRequest")
+	proto.RegisterType((*ProjectTokenCreateRequest)(nil), "project.ProjectTokenCreateRequest")
+	proto.RegisterType((*ProjectTokenResponse)(nil), "project.ProjectTokenResponse")
 	proto.RegisterType((*ProjectQuery)(nil), "project.ProjectQuery")
 	proto.RegisterType((*ProjectUpdateRequest)(nil), "project.ProjectUpdateRequest")
 	proto.RegisterType((*EmptyResponse)(nil), "project.EmptyResponse")
@@ -120,6 +218,10 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for ProjectService service
 
 type ProjectServiceClient interface {
+	// Create a new project token.
+	CreateToken(ctx context.Context, in *ProjectTokenCreateRequest, opts ...grpc.CallOption) (*ProjectTokenResponse, error)
+	// Delete a new project token.
+	DeleteToken(ctx context.Context, in *ProjectTokenDeleteRequest, opts ...grpc.CallOption) (*EmptyResponse, error)
 	// Create a new project.
 	Create(ctx context.Context, in *ProjectCreateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.AppProject, error)
 	// List returns list of projects
@@ -140,6 +242,24 @@ type projectServiceClient struct {
 
 func NewProjectServiceClient(cc *grpc.ClientConn) ProjectServiceClient {
 	return &projectServiceClient{cc}
+}
+
+func (c *projectServiceClient) CreateToken(ctx context.Context, in *ProjectTokenCreateRequest, opts ...grpc.CallOption) (*ProjectTokenResponse, error) {
+	out := new(ProjectTokenResponse)
+	err := grpc.Invoke(ctx, "/project.ProjectService/CreateToken", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *projectServiceClient) DeleteToken(ctx context.Context, in *ProjectTokenDeleteRequest, opts ...grpc.CallOption) (*EmptyResponse, error) {
+	out := new(EmptyResponse)
+	err := grpc.Invoke(ctx, "/project.ProjectService/DeleteToken", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *projectServiceClient) Create(ctx context.Context, in *ProjectCreateRequest, opts ...grpc.CallOption) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.AppProject, error) {
@@ -199,6 +319,10 @@ func (c *projectServiceClient) ListEvents(ctx context.Context, in *ProjectQuery,
 // Server API for ProjectService service
 
 type ProjectServiceServer interface {
+	// Create a new project token.
+	CreateToken(context.Context, *ProjectTokenCreateRequest) (*ProjectTokenResponse, error)
+	// Delete a new project token.
+	DeleteToken(context.Context, *ProjectTokenDeleteRequest) (*EmptyResponse, error)
 	// Create a new project.
 	Create(context.Context, *ProjectCreateRequest) (*github_com_argoproj_argo_cd_pkg_apis_application_v1alpha1.AppProject, error)
 	// List returns list of projects
@@ -215,6 +339,42 @@ type ProjectServiceServer interface {
 
 func RegisterProjectServiceServer(s *grpc.Server, srv ProjectServiceServer) {
 	s.RegisterService(&_ProjectService_serviceDesc, srv)
+}
+
+func _ProjectService_CreateToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProjectTokenCreateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectServiceServer).CreateToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/project.ProjectService/CreateToken",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectServiceServer).CreateToken(ctx, req.(*ProjectTokenCreateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProjectService_DeleteToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProjectTokenDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectServiceServer).DeleteToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/project.ProjectService/DeleteToken",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectServiceServer).DeleteToken(ctx, req.(*ProjectTokenDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ProjectService_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -330,6 +490,14 @@ var _ProjectService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ProjectServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "CreateToken",
+			Handler:    _ProjectService_CreateToken_Handler,
+		},
+		{
+			MethodName: "DeleteToken",
+			Handler:    _ProjectService_DeleteToken_Handler,
+		},
+		{
 			MethodName: "Create",
 			Handler:    _ProjectService_Create_Handler,
 		},
@@ -382,6 +550,106 @@ func (m *ProjectCreateRequest) MarshalTo(dAtA []byte) (int, error) {
 			return 0, err
 		}
 		i += n1
+	}
+	return i, nil
+}
+
+func (m *ProjectTokenDeleteRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProjectTokenDeleteRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Project) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(len(m.Project)))
+		i += copy(dAtA[i:], m.Project)
+	}
+	if len(m.Role) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(len(m.Role)))
+		i += copy(dAtA[i:], m.Role)
+	}
+	if m.Iat != 0 {
+		dAtA[i] = 0x18
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(m.Iat))
+	}
+	return i, nil
+}
+
+func (m *ProjectTokenCreateRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProjectTokenCreateRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Project) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(len(m.Project)))
+		i += copy(dAtA[i:], m.Project)
+	}
+	if len(m.Description) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(len(m.Description)))
+		i += copy(dAtA[i:], m.Description)
+	}
+	if len(m.Role) > 0 {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(len(m.Role)))
+		i += copy(dAtA[i:], m.Role)
+	}
+	if m.ExpiresIn != 0 {
+		dAtA[i] = 0x20
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(m.ExpiresIn))
+	}
+	return i, nil
+}
+
+func (m *ProjectTokenResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ProjectTokenResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Token) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintProject(dAtA, i, uint64(len(m.Token)))
+		i += copy(dAtA[i:], m.Token)
 	}
 	return i, nil
 }
@@ -470,6 +738,54 @@ func (m *ProjectCreateRequest) Size() (n int) {
 	_ = l
 	if m.Project != nil {
 		l = m.Project.Size()
+		n += 1 + l + sovProject(uint64(l))
+	}
+	return n
+}
+
+func (m *ProjectTokenDeleteRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Project)
+	if l > 0 {
+		n += 1 + l + sovProject(uint64(l))
+	}
+	l = len(m.Role)
+	if l > 0 {
+		n += 1 + l + sovProject(uint64(l))
+	}
+	if m.Iat != 0 {
+		n += 1 + sovProject(uint64(m.Iat))
+	}
+	return n
+}
+
+func (m *ProjectTokenCreateRequest) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Project)
+	if l > 0 {
+		n += 1 + l + sovProject(uint64(l))
+	}
+	l = len(m.Description)
+	if l > 0 {
+		n += 1 + l + sovProject(uint64(l))
+	}
+	l = len(m.Role)
+	if l > 0 {
+		n += 1 + l + sovProject(uint64(l))
+	}
+	if m.ExpiresIn != 0 {
+		n += 1 + sovProject(uint64(m.ExpiresIn))
+	}
+	return n
+}
+
+func (m *ProjectTokenResponse) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Token)
+	if l > 0 {
 		n += 1 + l + sovProject(uint64(l))
 	}
 	return n
@@ -575,6 +891,368 @@ func (m *ProjectCreateRequest) Unmarshal(dAtA []byte) error {
 			if err := m.Project.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipProject(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthProject
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ProjectTokenDeleteRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowProject
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProjectTokenDeleteRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProjectTokenDeleteRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Project", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthProject
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Project = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Role", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthProject
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Role = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Iat", wireType)
+			}
+			m.Iat = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Iat |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipProject(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthProject
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ProjectTokenCreateRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowProject
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProjectTokenCreateRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProjectTokenCreateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Project", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthProject
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Project = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Description", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthProject
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Description = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Role", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthProject
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Role = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExpiresIn", wireType)
+			}
+			m.ExpiresIn = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ExpiresIn |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipProject(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthProject
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ProjectTokenResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowProject
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ProjectTokenResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ProjectTokenResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Token", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowProject
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthProject
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Token = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -917,38 +1595,49 @@ var (
 func init() { proto.RegisterFile("server/project/project.proto", fileDescriptorProject) }
 
 var fileDescriptorProject = []byte{
-	// 524 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x94, 0xcf, 0x6b, 0x13, 0x41,
-	0x14, 0xc7, 0x19, 0x2d, 0x11, 0xc7, 0x9f, 0x0c, 0xad, 0xd6, 0xb5, 0x8d, 0x65, 0x0f, 0x52, 0x0a,
-	0x9d, 0x21, 0xad, 0x87, 0xe2, 0xcd, 0x1f, 0x41, 0x0a, 0x1e, 0x34, 0x22, 0x88, 0x97, 0x32, 0xdd,
-	0x7d, 0x6c, 0x36, 0xc9, 0xee, 0x8c, 0x33, 0x93, 0x95, 0x20, 0x5e, 0x8a, 0x37, 0x8f, 0x82, 0xff,
-	0x80, 0xff, 0x8c, 0x47, 0xc1, 0x7f, 0x40, 0x82, 0x7f, 0x88, 0xcc, 0xdb, 0x5d, 0xd3, 0x34, 0x5d,
-	0x4f, 0xc1, 0x53, 0x5e, 0xde, 0xcc, 0xbc, 0xef, 0xe7, 0xfd, 0xd8, 0x47, 0x37, 0x2c, 0x98, 0x02,
-	0x8c, 0xd0, 0x46, 0x0d, 0x20, 0x72, 0xf5, 0x2f, 0xd7, 0x46, 0x39, 0xc5, 0x2e, 0x55, 0x7f, 0x83,
-	0xd5, 0x44, 0x25, 0x0a, 0x7d, 0xc2, 0x5b, 0xe5, 0x71, 0xb0, 0x91, 0x28, 0x95, 0x8c, 0x40, 0x48,
-	0x9d, 0x0a, 0x99, 0xe7, 0xca, 0x49, 0x97, 0xaa, 0xdc, 0x56, 0xa7, 0xe1, 0xf0, 0xc0, 0xf2, 0x54,
-	0xe1, 0x69, 0xa4, 0x0c, 0x88, 0xa2, 0x23, 0x12, 0xc8, 0xc1, 0x48, 0x07, 0x71, 0x75, 0xe7, 0xc1,
-	0xec, 0x4e, 0x26, 0xa3, 0x7e, 0x9a, 0x83, 0x99, 0x08, 0x3d, 0x4c, 0xbc, 0xc3, 0x8a, 0x0c, 0x9c,
-	0x3c, 0xef, 0xd5, 0x61, 0x92, 0xba, 0xfe, 0xf8, 0x98, 0x47, 0x2a, 0x13, 0xd2, 0x20, 0xd8, 0x00,
-	0x8d, 0xdd, 0x28, 0x9e, 0xbd, 0x96, 0x5a, 0x8f, 0xd2, 0x08, 0x91, 0x44, 0xd1, 0x91, 0x23, 0xdd,
-	0x97, 0x0b, 0xa1, 0xc2, 0xf7, 0x74, 0xf5, 0x45, 0x99, 0xe3, 0x13, 0x03, 0xd2, 0x41, 0x0f, 0xde,
-	0x8d, 0xc1, 0x3a, 0x76, 0x44, 0xeb, 0xdc, 0xd7, 0xc9, 0x16, 0xd9, 0xbe, 0xb2, 0xd7, 0xe5, 0x33,
-	0x51, 0x5e, 0x8b, 0xa2, 0x71, 0x14, 0xc5, 0x5c, 0x0f, 0x13, 0xee, 0x45, 0xf9, 0x29, 0x51, 0x5e,
-	0x8b, 0xf2, 0x47, 0x5a, 0x57, 0x22, 0xbd, 0x3a, 0x6a, 0x18, 0xd2, 0xab, 0x95, 0xef, 0xe5, 0x18,
-	0xcc, 0x84, 0x31, 0xba, 0x92, 0xcb, 0x0c, 0x50, 0xed, 0x72, 0x0f, 0xed, 0x53, 0x70, 0xaf, 0x75,
-	0xfc, 0x3f, 0xe1, 0x6e, 0xd0, 0x6b, 0xdd, 0x4c, 0xbb, 0x49, 0x0f, 0xac, 0x56, 0xb9, 0x85, 0xbd,
-	0xaf, 0x2d, 0x7a, 0xbd, 0xba, 0xf5, 0x0a, 0x4c, 0x91, 0x46, 0xc0, 0x3e, 0x13, 0xda, 0x2a, 0x6b,
-	0xc6, 0x36, 0x79, 0x3d, 0x36, 0xe7, 0xd5, 0x32, 0x58, 0x0e, 0x5d, 0x78, 0xf7, 0xe4, 0xe7, 0xef,
-	0x2f, 0x17, 0xd6, 0xc2, 0x9b, 0x38, 0x51, 0x45, 0xa7, 0x9e, 0x55, 0xfb, 0x90, 0xec, 0xb0, 0x13,
-	0x42, 0x57, 0x9e, 0xa7, 0xd6, 0xb1, 0xb5, 0xb3, 0x2c, 0x58, 0xde, 0xe0, 0x70, 0x29, 0x0c, 0x5e,
-	0x21, 0x5c, 0x47, 0x0e, 0xc6, 0x16, 0x38, 0xd8, 0x27, 0x42, 0x2f, 0x3e, 0x83, 0x46, 0x86, 0x25,
-	0xd5, 0xe1, 0x1e, 0xea, 0xdf, 0x61, 0xb7, 0xcf, 0xea, 0x8b, 0x0f, 0x7e, 0x6a, 0x3e, 0xb2, 0x6f,
-	0x84, 0xb6, 0xca, 0x81, 0x59, 0xec, 0xcc, 0xdc, 0x20, 0x2d, 0x8b, 0x68, 0x1f, 0x89, 0x76, 0x83,
-	0xed, 0x45, 0xa2, 0x5a, 0xde, 0x7f, 0xca, 0xb1, 0x74, 0x92, 0x23, 0xa2, 0xef, 0xd8, 0x1b, 0xda,
-	0x7a, 0x0a, 0x23, 0x70, 0xd0, 0x54, 0xae, 0x5b, 0x7f, 0xdd, 0x73, 0xb3, 0x58, 0xe7, 0xbf, 0xd3,
-	0x98, 0xff, 0x80, 0x52, 0xdf, 0xa8, 0x6e, 0x01, 0xb9, 0xb3, 0x4d, 0xd1, 0x37, 0x79, 0xb9, 0x7a,
-	0x7c, 0x86, 0xdc, 0xaf, 0x27, 0x5e, 0x74, 0x38, 0x3e, 0xc1, 0x26, 0xdf, 0x47, 0x91, 0x2d, 0xd6,
-	0x6e, 0x10, 0x11, 0x80, 0xd1, 0x1f, 0x1f, 0x7c, 0x9f, 0xb6, 0xc9, 0x8f, 0x69, 0x9b, 0xfc, 0x9a,
-	0xb6, 0xc9, 0xdb, 0x9d, 0x7f, 0x2d, 0xa6, 0xf9, 0x4d, 0x7b, 0xdc, 0xc2, 0x05, 0xb4, 0xff, 0x27,
-	0x00, 0x00, 0xff, 0xff, 0x07, 0x9f, 0x39, 0xbd, 0x82, 0x05, 0x00, 0x00,
+	// 689 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0x5d, 0x6b, 0x13, 0x4d,
+	0x14, 0x66, 0x9a, 0xbe, 0x79, 0xed, 0xc4, 0x8f, 0x32, 0xb4, 0x9a, 0xc6, 0x36, 0x86, 0xb9, 0x90,
+	0x12, 0xec, 0x0c, 0x69, 0x15, 0x8a, 0x77, 0x7e, 0x14, 0x29, 0x78, 0xa1, 0x51, 0x41, 0xf4, 0xa2,
+	0x4c, 0x37, 0x87, 0xed, 0x36, 0xc9, 0xce, 0x38, 0x3b, 0x5d, 0x2d, 0xa5, 0x20, 0xc5, 0x1b, 0xf5,
+	0xd2, 0x9f, 0x20, 0xf8, 0x5b, 0xbc, 0x14, 0xfc, 0x03, 0x12, 0xfc, 0x21, 0x32, 0xb3, 0xbb, 0x49,
+	0xb6, 0xe9, 0x16, 0x84, 0xe0, 0x55, 0xce, 0x9e, 0x39, 0x73, 0x9e, 0xe7, 0x39, 0x1f, 0x19, 0xbc,
+	0x1c, 0x81, 0x8e, 0x41, 0x73, 0xa5, 0xe5, 0x3e, 0x78, 0x26, 0xfb, 0x65, 0x4a, 0x4b, 0x23, 0xc9,
+	0xff, 0xe9, 0x67, 0x6d, 0xc1, 0x97, 0xbe, 0x74, 0x3e, 0x6e, 0xad, 0xe4, 0xb8, 0xb6, 0xec, 0x4b,
+	0xe9, 0xf7, 0x80, 0x0b, 0x15, 0x70, 0x11, 0x86, 0xd2, 0x08, 0x13, 0xc8, 0x30, 0x4a, 0x4f, 0x69,
+	0x77, 0x33, 0x62, 0x81, 0x74, 0xa7, 0x9e, 0xd4, 0xc0, 0xe3, 0x16, 0xf7, 0x21, 0x04, 0x2d, 0x0c,
+	0x74, 0xd2, 0x98, 0xdb, 0xa3, 0x98, 0xbe, 0xf0, 0xf6, 0x82, 0x10, 0xf4, 0x21, 0x57, 0x5d, 0xdf,
+	0x3a, 0x22, 0xde, 0x07, 0x23, 0xce, 0xba, 0xb5, 0xed, 0x07, 0x66, 0xef, 0x60, 0x97, 0x79, 0xb2,
+	0xcf, 0x85, 0x76, 0xc4, 0xf6, 0x9d, 0xb1, 0xe6, 0x75, 0x46, 0xb7, 0x85, 0x52, 0xbd, 0xc0, 0x73,
+	0x94, 0x78, 0xdc, 0x12, 0x3d, 0xb5, 0x27, 0x26, 0x52, 0xd1, 0xb7, 0x78, 0xe1, 0x49, 0xa2, 0xf1,
+	0x81, 0x06, 0x61, 0xa0, 0x0d, 0x6f, 0x0e, 0x20, 0x32, 0x64, 0x07, 0x67, 0xda, 0xab, 0xa8, 0x81,
+	0x56, 0x2b, 0xeb, 0x5b, 0x6c, 0x04, 0xca, 0x32, 0x50, 0x67, 0xec, 0x78, 0x1d, 0xa6, 0xba, 0x3e,
+	0xb3, 0xa0, 0x6c, 0x0c, 0x94, 0x65, 0xa0, 0xec, 0x9e, 0x52, 0x29, 0x48, 0x3b, 0xcb, 0x4a, 0x5f,
+	0xe3, 0xa5, 0xd4, 0xf7, 0x5c, 0x76, 0x21, 0x7c, 0x08, 0x3d, 0x18, 0xa1, 0x57, 0xf3, 0xe8, 0x73,
+	0xc3, 0x6b, 0x84, 0xe0, 0x59, 0x2d, 0x7b, 0x50, 0x9d, 0x71, 0x6e, 0x67, 0x93, 0x79, 0x5c, 0x0a,
+	0x84, 0xa9, 0x96, 0x1a, 0x68, 0xb5, 0xd4, 0xb6, 0x26, 0xfd, 0x88, 0xf2, 0xd9, 0xf3, 0xda, 0x8a,
+	0xb3, 0x37, 0x70, 0xa5, 0x03, 0x91, 0xa7, 0x03, 0x65, 0x05, 0xa4, 0x20, 0xe3, 0xae, 0x21, 0x7e,
+	0x69, 0x0c, 0x7f, 0x19, 0xcf, 0xc1, 0x3b, 0x15, 0x68, 0x88, 0xb6, 0xc3, 0xea, 0xac, 0x63, 0x31,
+	0x72, 0xd0, 0x5b, 0xc3, 0x0a, 0x3b, 0x2a, 0x6d, 0x88, 0x94, 0x0c, 0x23, 0x20, 0x0b, 0xf8, 0x3f,
+	0x63, 0x1d, 0x29, 0x87, 0xe4, 0x83, 0x52, 0x7c, 0x31, 0x8d, 0x7e, 0x7a, 0x00, 0xfa, 0xd0, 0xe2,
+	0x85, 0xa2, 0x0f, 0x69, 0x90, 0xb3, 0xc7, 0x7a, 0xf6, 0x42, 0x75, 0xfe, 0x65, 0xcf, 0xae, 0xe0,
+	0x4b, 0x5b, 0x7d, 0x65, 0x0e, 0x33, 0x0d, 0xeb, 0xdf, 0x2e, 0xe0, 0xcb, 0x69, 0xd4, 0x33, 0xd0,
+	0x71, 0xe0, 0x01, 0xf9, 0x84, 0x70, 0x25, 0x29, 0xb7, 0x93, 0x4b, 0x28, 0xcb, 0x56, 0xaa, 0xb0,
+	0x21, 0xb5, 0x95, 0x33, 0x63, 0x32, 0x14, 0xba, 0x79, 0xf2, 0xf3, 0xf7, 0x97, 0x99, 0x75, 0xba,
+	0xe6, 0x56, 0x29, 0x6e, 0x65, 0x4b, 0x1a, 0xf1, 0xa3, 0xd4, 0x3a, 0xe6, 0xb6, 0x11, 0x11, 0x3f,
+	0xb2, 0x3f, 0xc7, 0xdc, 0x95, 0xf2, 0x2e, 0x6a, 0x92, 0xf7, 0x08, 0x57, 0x92, 0xc9, 0x3a, 0x8f,
+	0x4c, 0x6e, 0xf6, 0x6a, 0x57, 0x87, 0x31, 0x39, 0xad, 0xf4, 0x8e, 0x63, 0xc1, 0x9b, 0x7f, 0xc7,
+	0x82, 0x7c, 0x46, 0xb8, 0x9c, 0xa8, 0x25, 0x13, 0x32, 0xf3, 0x55, 0x98, 0x4e, 0xb7, 0xe8, 0x75,
+	0xc7, 0x73, 0x91, 0xce, 0x9f, 0xe6, 0x69, 0x0b, 0x72, 0x82, 0xf0, 0xec, 0xe3, 0x20, 0x32, 0x64,
+	0xf1, 0x34, 0x17, 0x37, 0x6e, 0xb5, 0xed, 0xa9, 0x70, 0xb0, 0x08, 0xb4, 0xea, 0x78, 0x10, 0x32,
+	0xc1, 0x83, 0x7c, 0x40, 0xb8, 0xf4, 0x08, 0x0a, 0x39, 0x4c, 0xa9, 0x0e, 0x37, 0x1c, 0xfe, 0x12,
+	0xb9, 0x36, 0xd9, 0x2f, 0xbb, 0x45, 0xc7, 0xe4, 0x2b, 0xc2, 0xe5, 0x64, 0x81, 0x26, 0x3b, 0x93,
+	0x5b, 0xac, 0x69, 0x31, 0xda, 0x70, 0x8c, 0xd6, 0x6a, 0xab, 0x85, 0x13, 0xc4, 0xec, 0x3f, 0x7e,
+	0x47, 0x18, 0xc1, 0x1c, 0x45, 0xdb, 0xb1, 0x97, 0xb8, 0x9c, 0xcc, 0x67, 0x51, 0xb9, 0x8a, 0xe6,
+	0x35, 0xd5, 0xdf, 0x2c, 0xd4, 0xbf, 0x8f, 0xb1, 0x6d, 0xd4, 0x56, 0x0c, 0xa1, 0x89, 0x8a, 0xb2,
+	0xaf, 0xb0, 0xe4, 0x85, 0xb2, 0x0a, 0x99, 0x7d, 0xc5, 0x58, 0xdc, 0x62, 0xee, 0x8a, 0x6b, 0xf2,
+	0x4d, 0x07, 0xd2, 0x20, 0xf5, 0x02, 0x10, 0x0e, 0x2e, 0xfb, 0xfd, 0xcd, 0xef, 0x83, 0x3a, 0xfa,
+	0x31, 0xa8, 0xa3, 0x5f, 0x83, 0x3a, 0x7a, 0xd5, 0x3c, 0xef, 0xfd, 0xca, 0x3f, 0xc8, 0xbb, 0x65,
+	0xf7, 0x4e, 0x6d, 0xfc, 0x09, 0x00, 0x00, 0xff, 0xff, 0x53, 0xd4, 0xec, 0x49, 0xa9, 0x07, 0x00,
+	0x00,
 }

@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/argo"
 )
 
 func TestProjectManagement(t *testing.T) {
@@ -42,9 +43,7 @@ func TestProjectManagement(t *testing.T) {
 			"-d", "https://192.168.99.100:8443,default",
 			"-d", "https://192.168.99.100:8443,service",
 			"-s", "https://github.com/argoproj/argo-cd.git")
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
+		assert.Nil(t, err)
 
 		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
 		if err != nil {
@@ -245,5 +244,41 @@ func TestProjectManagement(t *testing.T) {
 		assert.Equal(t, projectName, proj.Name)
 		assert.Equal(t, 0, len(proj.Spec.SourceRepos))
 		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
+	})
+
+	t.Run("TestUseJWTToken", func(t *testing.T) {
+		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+		appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
+		roleName := "roleTest"
+		testApp := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: appName,
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Source: v1alpha1.ApplicationSource{
+					RepoURL: "https://github.com/argoproj/argo-cd.git", Path: ".", Environment: "minikube",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    fixture.Config.Host,
+					Namespace: fixture.Namespace,
+				},
+				Project: projectName,
+			},
+		}
+		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
+		assert.Nil(t, err)
+
+		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Create(testApp)
+		assert.Nil(t, err)
+
+		_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
+		assert.Nil(t, err)
+
+		_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
+		assert.Nil(t, err)
+
+		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", "get", "-o", "*", "-p", "allow")
+		assert.Nil(t, err)
+
 	})
 }

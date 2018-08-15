@@ -11,11 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/password"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
@@ -26,6 +21,12 @@ import (
 	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/password"
+	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -123,6 +124,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 			settings.AdminPasswordMtime = adminPasswordMtime
 		}
 	}
+
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if !ok {
 		return fmt.Errorf("server secret key not found")
@@ -200,6 +202,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		createSecret = true
 	}
+
 	argoCDSecret.StringData = make(map[string]string)
 	argoCDSecret.StringData[settingServerSignatureKey] = string(settings.ServerSignature)
 	argoCDSecret.StringData[settingAdminPasswordHashKey] = settings.AdminPasswordHash

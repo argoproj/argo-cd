@@ -801,6 +801,74 @@
         }
       }
     },
+    "/api/v1/projects/{project}/roles/{role}/token": {
+      "post": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Create a new project token.",
+        "operationId": "CreateToken",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "project",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "role",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectProjectTokenResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "Delete a new project token.",
+        "operationId": "DeleteToken",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "project",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "role",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/projectEmptyResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories": {
       "get": {
         "tags": [
@@ -1332,6 +1400,35 @@
       "properties": {
         "project": {
           "$ref": "#/definitions/v1alpha1AppProject"
+        }
+      }
+    },
+    "projectProjectTokenCreateRequest": {
+      "description": "ProjectTokenCreateRequest defines project token creation parameters.",
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "expiresIn": {
+          "type": "string",
+          "format": "int64",
+          "title": "expiresIn represents a duration in seconds"
+        },
+        "project": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      }
+    },
+    "projectProjectTokenResponse": {
+      "description": "ProjectTokenResponse wraps the created token or returns an empty string if deleted.",
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
         }
       }
     },
@@ -1876,6 +1973,12 @@
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
           }
         },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ProjectRole"
+          }
+        },
         "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of git repository URLs which can be used for deployment",
@@ -2218,6 +2321,20 @@
         }
       }
     },
+    "v1alpha1JWTToken": {
+      "type": "object",
+      "title": "JWTToken holds the issuedAt and expiresAt values of a token",
+      "properties": {
+        "exp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "iat": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "v1alpha1Operation": {
       "description": "Operation contains requested operation parameters.",
       "type": "object",
@@ -2256,6 +2373,31 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        }
+      }
+    },
+    "v1alpha1ProjectRole": {
+      "type": "object",
+      "title": "ProjectRole represents a role that has access to a project",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "jwtTokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JWTToken"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "policies": {
+          "description": "Policies Stores a list of casbin formated strings that define access policies for the role in the project.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

@@ -443,6 +443,15 @@ type AppProject struct {
 	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
+// ProjectPoliciesString returns Casbin formated string of a project's polcies for each role
+func (proj *AppProject) ProjectPoliciesString() string {
+	var policies []string
+	for _, role := range proj.Spec.Roles {
+		policies = append(policies, role.Policies...)
+	}
+	return strings.Join(policies, "\n")
+}
+
 // AppProjectSpec represents
 type AppProjectSpec struct {
 	// SourceRepos contains list of git repository URLs which can be used for deployment
@@ -453,6 +462,23 @@ type AppProjectSpec struct {
 
 	// Description contains optional project description
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
+
+	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
+}
+
+// ProjectRole represents a role that has access to a project
+type ProjectRole struct {
+	Name        string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Description string `json:"description" protobuf:"bytes,2,opt,name=description"`
+	// Policies Stores a list of casbin formated strings that define access policies for the role in the project.
+	Policies  []string   `json:"policies" protobuf:"bytes,3,rep,name=policies"`
+	JWTTokens []JWTToken `json:"jwtTokens" protobuf:"bytes,4,rep,name=jwtTokens"`
+}
+
+// JWTToken holds the issuedAt and expiresAt values of a token
+type JWTToken struct {
+	IssuedAt  int64 `json:"iat,omitempty" protobuf:"int64,1,opt,name=iat"`
+	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
 func GetDefaultProject(namespace string) AppProject {
