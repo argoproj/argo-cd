@@ -208,6 +208,33 @@ spec:
         - containerPort: 80
 `
 
+func TestUnsetLabels(t *testing.T) {
+	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
+		var obj unstructured.Unstructured
+		err := yaml.Unmarshal([]byte(yamlStr), &obj)
+		assert.Nil(t, err)
+
+		err = SetLabel(&obj, common.LabelApplicationName, "my-app")
+		assert.Nil(t, err)
+
+		UnsetLabel(&obj, common.LabelApplicationName)
+
+		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+		assert.Nil(t, err)
+		log.Println(string(manifestBytes))
+
+		var depV1Beta1 extv1beta1.Deployment
+		err = json.Unmarshal(manifestBytes, &depV1Beta1)
+		assert.Nil(t, err)
+		assert.Equal(t, 1, len(depV1Beta1.Spec.Selector.MatchLabels))
+		assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
+		assert.Equal(t, 1, len(depV1Beta1.Spec.Template.Labels))
+		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
+		assert.Equal(t, "", depV1Beta1.Spec.Template.Labels[common.LabelApplicationName])
+	}
+
+}
+
 func TestSetLabels(t *testing.T) {
 	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
 		var obj unstructured.Unstructured

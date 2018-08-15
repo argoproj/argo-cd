@@ -46,7 +46,7 @@ required = [
 
 [[constraint]]
   name = "github.com/ksonnet/ksonnet"
-  version = "v0.11.0"
+  version = "v0.12.0"
 
 [[constraint]]
   name = "github.com/gobuffalo/packr"
