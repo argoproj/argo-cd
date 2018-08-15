@@ -56,3 +56,7 @@ required = [
 [[override]]
   name = "github.com/sirupsen/logrus"
   revision = "ea8897e79973357ba785ac2533559a6297e83c44"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/argoproj/pkg"

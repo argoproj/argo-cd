@@ -86,6 +86,11 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 		return nil, err
 	}
 
+	kustomizationRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*kustomization.yaml"})
+	if err != nil {
+		return nil, err
+	}
+
 	items := make([]*AppInfo, 0)
 
 	for i := range ksonnetRes.Items {
@@ -94,6 +99,10 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 
 	for i := range helmRes.Items {
 		items = append(items, &AppInfo{Type: string(repository.AppSourceHelm), Path: helmRes.Items[i]})
+	}
+
+	for i := range kustomizationRes.Items {
+		items = append(items, &AppInfo{Type: string(repository.AppSourceKustomize), Path: kustomizationRes.Items[i]})
 	}
 
 	return &RepoAppsResponse{Items: items}, nil
@@ -162,9 +171,15 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 			Type: string(appSourceType),
 			Helm: &appSpec,
 		}, nil
-
+	case repository.AppSourceKustomize:
+		appSpec := KustomizeAppSpec{
+			Path: q.Path,
+		}
+		return &RepoAppDetailsResponse{
+			Type:      string(appSourceType),
+			Kustomize: &appSpec,
+		}, nil
 	}
-
 	return nil, status.Errorf(codes.InvalidArgument, "specified application path is not supported")
 }
 

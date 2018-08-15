@@ -232,8 +232,8 @@ func GetSpecErrors(
 				if len(helmConditions) > 0 {
 					conditions = append(conditions, helmConditions...)
 				}
-			case repository.AppSourceDirectory:
-				maniDirConditions := verifyManifestDirectory(ctx, repoRes, spec, repoClient)
+			case repository.AppSourceDirectory, repository.AppSourceKustomize:
+				maniDirConditions := verifyGenerateManifests(ctx, repoRes, spec, repoClient)
 				if len(maniDirConditions) > 0 {
 					conditions = append(conditions, maniDirConditions...)
 				}
@@ -316,6 +316,9 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		}
 		if trimmedPath == "Chart.yaml" {
 			return repository.AppSourceHelm, nil
+		}
+		if trimmedPath == "kustomization.yaml" {
+			return repository.AppSourceKustomize, nil
 		}
 	}
 	return repository.AppSourceDirectory, nil
@@ -410,8 +413,8 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 	return conditions
 }
 
-// verifyManifestDirectory verifies a repo path contains at least one valid k8s manifest
-func verifyManifestDirectory(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
+// verifyGenerateManifests verifies a repo path can generate manifests
+func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -435,7 +438,7 @@ func verifyManifestDirectory(ctx context.Context, repoRes *argoappv1.Repository,
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Unable to get manifests in %s: %v", spec.Source.Path, err),
+			Message: fmt.Sprintf("Unable to generate manifests in %s: %v", spec.Source.Path, err),
 		})
 	} else if len(manRes.Manifests) == 0 {
 		conditions = append(conditions, argoappv1.ApplicationCondition{

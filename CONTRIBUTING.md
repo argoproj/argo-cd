@@ -6,6 +6,7 @@ Make sure you have following tools installed
 * [protobuf](https://developers.google.com/protocol-buffers/)
 * [ksonnet](https://github.com/ksonnet/ksonnet#install)
 * [helm](https://github.com/helm/helm/releases)
+* [kustomize](https://github.com/kubernetes-sigs/kustomize/releases)
 * [go-swagger](https://github.com/go-swagger/go-swagger/blob/master/docs/install.md)
 * [jq](https://stedolan.github.io/jq/)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).

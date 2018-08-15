@@ -55,11 +55,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0667628f85b38f0422880ad3a503b1cf139bca5a817d29cd4e7ffccd5914869c"
+  digest = "1:f624a361a427f4c9853f1d4d0bd47dff8323cef0054708d8df56cefe03ce4ac5"
   name = "github.com/argoproj/pkg"
-  packages = ["time"]
+  packages = [
+    "exec",
+    "time",
+  ]
   pruneopts = ""
-  revision = "881057947d921c5d62af84ad15cd3c6fb36d6077"
+  revision = "fc8a50f323ce16f93a34632f7abf780977386fe8"
 
 [[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"
@@ -1232,6 +1235,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
+    "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",

@@ -169,6 +169,49 @@ func TestConvertToVersion(t *testing.T) {
 	assert.Equal(t, "v1", gvk.Version)
 }
 
+const depWithLabel = `
+apiVersion: extensions/v1beta2
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    foo: bar
+spec:
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx:1.7.9
+        name: nginx
+        ports:
+        - containerPort: 80
+`
+
+func TestUnsetLabels(t *testing.T) {
+	for _, yamlStr := range []string{depWithLabel} {
+		var obj unstructured.Unstructured
+		err := yaml.Unmarshal([]byte(yamlStr), &obj)
+		assert.Nil(t, err)
+
+		err = SetLabel(&obj, "foo", "bar")
+		assert.Nil(t, err)
+
+		UnsetLabel(&obj, "foo")
+
+		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+		assert.Nil(t, err)
+		log.Println(string(manifestBytes))
+
+		var dep extv1beta1.Deployment
+		err = json.Unmarshal(manifestBytes, &dep)
+		assert.Nil(t, err)
+		assert.Equal(t, 0, len(dep.ObjectMeta.Labels))
+	}
+
+}
+
 const depWithoutSelector = `
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -207,33 +250,6 @@ spec:
         ports:
         - containerPort: 80
 `
-
-func TestUnsetLabels(t *testing.T) {
-	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
-		var obj unstructured.Unstructured
-		err := yaml.Unmarshal([]byte(yamlStr), &obj)
-		assert.Nil(t, err)
-
-		err = SetLabel(&obj, common.LabelApplicationName, "my-app")
-		assert.Nil(t, err)
-
-		UnsetLabel(&obj, common.LabelApplicationName)
-
-		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
-		assert.Nil(t, err)
-		log.Println(string(manifestBytes))
-
-		var depV1Beta1 extv1beta1.Deployment
-		err = json.Unmarshal(manifestBytes, &depV1Beta1)
-		assert.Nil(t, err)
-		assert.Equal(t, 1, len(depV1Beta1.Spec.Selector.MatchLabels))
-		assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
-		assert.Equal(t, 1, len(depV1Beta1.Spec.Template.Labels))
-		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
-		assert.Equal(t, "", depV1Beta1.Spec.Template.Labels[common.LabelApplicationName])
-	}
-
-}
 
 func TestSetLabels(t *testing.T) {
 	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
