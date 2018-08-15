@@ -32,7 +32,7 @@ func TestUnmarshalLocalFile(t *testing.T) {
 		Field2 int
 	}
 	err = UnmarshalLocalFile(file.Name(), &testStruct)
-	if err == nil {
+	if err != nil {
 		t.Errorf("Could not unmarshal test data: %s", err)
 	}
 
