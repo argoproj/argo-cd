@@ -49,8 +49,8 @@ export class ApplicationsService {
             (data) => JSON.parse(data).result as models.LogEntry);
     }
 
-    public deletePod(applicationName: string, podName: string): Promise<any> {
-        return requests.delete(`/applications/${applicationName}/pods/${podName}`).send().then(() => true);
+    public deleteResource(applicationName: string, resourceName: string, apiVersion: string, kind: string): Promise<any> {
+        return requests.delete(`/applications/${applicationName}/resource`).query({resourceName, apiVersion, kind}).send().then(() => true);
     }
 
     public events(applicationName: string): Promise<models.Event[]> {

@@ -318,13 +318,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             action: () => this.selectNode(`${resourceNode.state.kind}:${resourceNode.state.metadata.name}`),
         }];
 
-        if (resourceNode.state.kind === 'Pod') {
+        if (resourceNode.state.kind != 'Application') {
             menuItems.push({
                 title: 'Delete',
                 action: async () => {
-                    const confirmed = await this.appContext.apis.popup.confirm('Delete pod', `Are your sure you want to delete pod '${resourceNode.state.metadata.name}'?`);
+                    const confirmed = await this.appContext.apis.popup.confirm('Delete resource', `Are your sure you want to delete ${resourceNode.state.kind} '${resourceNode.state.metadata.name}'?`);
                     if (confirmed) {
-                        this.deletePod(resourceNode.state.metadata.name);
+                        this.deleteResource(resourceNode.state.metadata.name, resourceNode.state.apiVersion, resourceNode.state.kind);
                     }
                 },
             });
@@ -332,9 +332,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return menuItems;
     }
 
-    private async deletePod(podName: string) {
+    private async deleteResource(resourceName: string, apiVersion: string, kind: string) {
         try {
-            await services.applications.deletePod(this.props.match.params.name, podName);
+            await services.applications.deleteResource(this.props.match.params.name, resourceName, apiVersion, kind);
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to delete pod' e={e}/>,
