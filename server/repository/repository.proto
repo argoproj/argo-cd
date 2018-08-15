@@ -36,6 +36,7 @@ message RepoAppDetailsResponse {
 	string type = 1;
 	KsonnetAppSpec ksonnet = 2;
 	HelmAppSpec helm = 3;
+	KustomizeAppSpec kustomize = 4;
 }
 
 // RepoAppsResponse contains applications of specified repository
@@ -56,6 +57,11 @@ message HelmAppSpec {
 	string name = 1;
 	string path = 2;
 	repeated string valueFiles = 3;
+}
+
+// KustomizeAppSpec contains kustomize app name and path in source repo
+message KustomizeAppSpec {
+	string path = 1;
 }
 
 message KsonnetEnvironment {

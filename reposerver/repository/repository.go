@@ -21,7 +21,8 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
-	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -35,6 +36,7 @@ type AppSourceType string
 const (
 	AppSourceKsonnet   AppSourceType = "ksonnet"
 	AppSourceHelm      AppSourceType = "helm"
+	AppSourceKustomize AppSourceType = "kustomize"
 	AppSourceDirectory AppSourceType = "directory"
 )
 
@@ -205,6 +207,9 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		if err != nil {
 			return nil, err
 		}
+	case AppSourceKustomize:
+		k := kustomize.NewKustomizeApp(appPath)
+		targetObjs, err = k.Build()
 	case AppSourceDirectory:
 		targetObjs, err = findManifests(appPath)
 	}
@@ -252,6 +257,9 @@ func IdentifyAppSourceTypeByAppDir(appDirPath string) AppSourceType {
 	if pathExists(path.Join(appDirPath, "Chart.yaml")) {
 		return AppSourceHelm
 	}
+	if pathExists(path.Join(appDirPath, "kustomization.yaml")) {
+		return AppSourceKustomize
+	}
 	return AppSourceDirectory
 }
 
@@ -262,6 +270,9 @@ func IdentifyAppSourceTypeByAppPath(appFilePath string) AppSourceType {
 	}
 	if strings.HasSuffix(appFilePath, "Chart.yaml") {
 		return AppSourceHelm
+	}
+	if strings.HasSuffix(appFilePath, "kustomization.yaml") {
+		return AppSourceKustomize
 	}
 	return AppSourceDirectory
 }
@@ -295,7 +306,7 @@ func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
 func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *app.EnvironmentConfig, error) {
-	ksApp, err := ksutil.NewKsonnetApp(appPath)
+	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("unable to load application from %s: %v", appPath, err)
 	}

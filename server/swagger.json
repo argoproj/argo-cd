@@ -1521,6 +1521,15 @@
         }
       }
     },
+    "repositoryKustomizeAppSpec": {
+      "type": "object",
+      "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
@@ -1556,6 +1565,9 @@
         },
         "ksonnet": {
           "$ref": "#/definitions/repositoryKsonnetAppSpec"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/repositoryKustomizeAppSpec"
         },
         "type": {
           "type": "string"
