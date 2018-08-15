@@ -22,7 +22,7 @@ p, role:admin, applications, delete, */*, allow
 p, role:admin, applications, sync, */*, allow
 p, role:admin, applications, rollback, */*, allow
 p, role:admin, applications, terminateop, */*, allow
-p, role:admin, applications/pods, delete, */*, allow
+p, role:admin, applications/resources, delete, */*, allow
 p, role:admin, clusters, create, *, allow
 p, role:admin, clusters, update, *, allow
 p, role:admin, clusters, delete, *, allow

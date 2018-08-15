@@ -15,6 +15,7 @@ import (
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -31,6 +32,7 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 )
@@ -481,34 +483,69 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 	return nil
 }
 
-func (s *Server) DeletePod(ctx context.Context, q *ApplicationDeletePodRequest) (*ApplicationResponse, error) {
+func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourceRequest) (*ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/pods", "delete", appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/resources", "delete", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-
+	found := findResource(a, q)
+	if found == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.APIVersion, q.ResourceName, *q.Name)
+	}
 	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
 	if err != nil {
 		return nil, err
 	}
-	kubeClientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	err = s.ensurePodBelongsToApp(*q.Name, *q.PodName, namespace, kubeClientset)
-	if err != nil {
-		return nil, err
-	}
-	err = kubeClientset.CoreV1().Pods(namespace).Delete(*q.PodName, &metav1.DeleteOptions{})
+	err = kube.DeleteResource(config, found, namespace)
 	if err != nil {
 		return nil, err
 	}
 	return &ApplicationResponse{}, nil
 }
+
+func findResource(a *appv1.Application, q *ApplicationDeleteResourceRequest) *unstructured.Unstructured {
+	for _, res := range a.Status.ComparisonResult.Resources {
+		liveObj, err := res.LiveObject()
+		if err != nil {
+			log.Warnf("Failed to unmarshal live object: %v", err)
+			continue
+		}
+		if liveObj == nil {
+			continue
+		}
+		if q.ResourceName == liveObj.GetName() && q.APIVersion == liveObj.GetAPIVersion() && q.Kind == liveObj.GetKind() {
+			return liveObj
+		}
+		liveObj = recurseResourceNode(q.ResourceName, q.APIVersion, q.Kind, res.ChildLiveResources)
+		if liveObj != nil {
+			return liveObj
+		}
+	}
+	return nil
+}
+
+func recurseResourceNode(name, apiVersion, kind string, nodes []appv1.ResourceNode) *unstructured.Unstructured {
+	for _, node := range nodes {
+		var childObj unstructured.Unstructured
+		err := json.Unmarshal([]byte(node.State), &childObj)
+		if err != nil {
+			log.Warnf("Failed to unmarshal child live object: %v", err)
+			continue
+		}
+		if name == childObj.GetName() && apiVersion == childObj.GetAPIVersion() && kind == childObj.GetKind() {
+			return &childObj
+		}
+		recurseChildObj := recurseResourceNode(name, apiVersion, kind, node.Children)
+		if recurseChildObj != nil {
+			return recurseChildObj
+		}
+	}
+	return nil
+}
+
 
 func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLogsServer) error {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
