@@ -72,9 +72,11 @@ message ApplicationRollbackRequest {
 	optional bool prune = 4 [(gogoproto.nullable) = false];
 }
 
-message ApplicationDeletePodRequest {
+message ApplicationDeleteResourceRequest {
 	required string name = 1;
-	required string podName = 2;
+	required string resourceName = 2 [(gogoproto.nullable) = false];
+	required string apiVersion = 3 [(gogoproto.customname) = "APIVersion", (gogoproto.nullable) = false];
+	required string kind = 4 [(gogoproto.nullable) = false];
 }
 
 message ApplicationPodLogsQuery {
@@ -179,9 +181,9 @@ service ApplicationService {
 		};
 	}
 
-	// DeletePod returns stream of log entries for the specified pod. Pod
-	rpc DeletePod(ApplicationDeletePodRequest) returns (ApplicationResponse) {
-		option (google.api.http).delete = "/api/v1/applications/{name}/pods/{podName}";
+	// DeleteResource deletes a single application resource
+	rpc DeleteResource(ApplicationDeleteResourceRequest) returns (ApplicationResponse) {
+		option (google.api.http).delete = "/api/v1/applications/{name}/resource";
 	}
 
 	// PodLogs returns stream of log entries for the specified pod. Pod

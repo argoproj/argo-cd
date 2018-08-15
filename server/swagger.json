@@ -291,37 +291,6 @@
         }
       }
     },
-    "/api/v1/applications/{name}/pods/{podName}": {
-      "delete": {
-        "tags": [
-          "ApplicationService"
-        ],
-        "summary": "DeletePod returns stream of log entries for the specified pod. Pod",
-        "operationId": "DeletePod",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "podName",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/applicationApplicationResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/applications/{name}/pods/{podName}/logs": {
       "get": {
         "tags": [
@@ -385,6 +354,31 @@
             "description": "(streaming responses)",
             "schema": {
               "$ref": "#/definitions/applicationLogEntry"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource": {
+      "delete": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "DeleteResource deletes a single application resource",
+        "operationId": "DeleteResource",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
             }
           }
         }

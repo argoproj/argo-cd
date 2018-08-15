@@ -133,8 +133,8 @@ p, trudy, applications/secrets, get, foo/obj, deny
 
 	// Verify the resource wildcard
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("alice", "applications/pods", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("alice", "applications/resources", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
 
 	// Verify action wildcards work
 	assert.True(t, enf.Enforce("bob", "repositories", "get", "foo/obj"))
@@ -145,7 +145,7 @@ p, trudy, applications/secrets, get, foo/obj, deny
 	assert.True(t, enf.Enforce("cathy", "repositories", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("cathy", "repositories", "delete", "foo/obj"))
 	assert.True(t, enf.Enforce("cathy", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("cathy", "applications/pods", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("cathy", "applications/resources", "delete", "foo/obj"))
 
 	// Verify wildcards with sub-resources
 	assert.True(t, enf.Enforce("dave", "applications", "get", "foo/obj"))
@@ -153,8 +153,8 @@ p, trudy, applications/secrets, get, foo/obj, deny
 
 	// Verify the resource wildcard
 	assert.False(t, enf.Enforce("eve", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("eve", "applications/pods", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("eve", "applications/pods", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("eve", "applications/resources", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("eve", "applications/resources", "delete", "foo/obj"))
 
 	// Verify action wildcards work
 	assert.False(t, enf.Enforce("mallory", "repositories", "get", "foo/obj"))
@@ -165,7 +165,7 @@ p, trudy, applications/secrets, get, foo/obj, deny
 	assert.False(t, enf.Enforce("mike", "repositories", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "repositories", "delete", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "applications/pods", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 
 	// Verify wildcards with sub-resources
 	assert.True(t, enf.Enforce("trudy", "applications", "get", "foo/obj"))
@@ -254,15 +254,15 @@ p, mike, *, get, foo/obj, deny
 	enf.SetUserPolicy(policy)
 
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
-	assert.False(t, enf.Enforce("mike", "applications/pods", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 
 	enf.EnableEnforce(false)
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("alice", "applications/pods", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
 	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
-	assert.True(t, enf.Enforce("mike", "applications/pods", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 }
 
 func TestUpdatePolicy(t *testing.T) {
