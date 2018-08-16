@@ -56,7 +56,7 @@ spec:
     container:
       image: argoproj/argo-cd-ci-builder:latest
       command: [sh, -c]
-      args: ["{{inputs.parameters.cmd}} | tee /tmp/logs.txt"]
+      args: ["mkfifo pipe; tee /tmp/logs.txt < pipe & {{inputs.parameters.cmd}} > pipe"]
       workingDir: /go/src/github.com/argoproj/argo-cd
       env:
         - name: COVERALLS_TOKEN
@@ -86,7 +86,7 @@ spec:
     container:
       image: argoproj/argo-cd-ci-builder:latest
       command: [sh, -c]
-      args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}} | tee /tmp/logs.txt"]
+      args: ["mkfifo pipe; tee /tmp/logs.txt < pipe & until docker ps; do sleep 3; done && {{inputs.parameters.cmd}} > pipe"]
       workingDir: /go/src/github.com/argoproj/argo-cd
       env:
       - name: DOCKER_HOST

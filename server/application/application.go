@@ -546,7 +546,6 @@ func recurseResourceNode(name, apiVersion, kind string, nodes []appv1.ResourceNo
 	return nil
 }
 
-
 func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLogsServer) error {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
