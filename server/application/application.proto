@@ -50,12 +50,6 @@ message ApplicationDeleteRequest {
 	optional bool cascade = 2;
 }
 
-message ApplicationHealthRequest {
-	required string name = 1;
-}
-
-message ApplicationHealthResponse {}
-
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	required string name = 1;
@@ -195,10 +189,5 @@ service ApplicationService {
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {
 		option (google.api.http).get = "/api/v1/applications/{name}/pods/{podName}/logs";
-	}
-
-	// Health returns application health status.
-	rpc Health(ApplicationHealthRequest) returns (ApplicationHealthResponse) {
-		option (google.api.http).get = "/api/v1/applications/{name}/health";
 	}
 }

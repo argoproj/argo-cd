@@ -741,7 +741,3 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
 	s.auditLogger.LogAppEvent(a, argo.EventInfo{Reason: reason, Action: action, Username: session.Username(ctx)}, v1.EventTypeNormal)
 }
-
-func (s *Server) health(ctx context.Context, healthReq *ApplicationHealthRequest) (*ApplicationHealthResponse, error) {
-	fmt.Println("HEALTH")
-}
