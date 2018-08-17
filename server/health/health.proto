@@ -17,8 +17,8 @@ message HealthRequest {}
 // HealthResponse is a response containing health status
 message HealthResponse {}
 
-// RepositoryService 
-service RepositoryService {
+// HealthService 
+service HealthService {
 
 	// List returns list of repos
 	rpc Health(HealthRequest) returns (HealthResponse) {

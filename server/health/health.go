@@ -12,7 +12,7 @@ type Server struct {
 }
 
 // NewServer returns a new instance of the Health service
-func NewServer(namespace string) HealthServiceServer {
+func NewServer(namespace string) *Server {
 	return &Server{
 		ns: namespace,
 	}
