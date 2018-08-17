@@ -643,7 +643,7 @@
     "/api/v1/health": {
       "get": {
         "tags": [
-          "RepositoryService"
+          "HealthService"
         ],
         "summary": "List returns list of repos",
         "operationId": "Health",
