@@ -18,6 +18,7 @@ func NewServer(namespace string) *Server {
 	}
 }
 
-func (s *Server) health(ctx context.Context, healthReq *HealthRequest) (*HealthResponse, error) {
+func (s *Server) Health(ctx context.Context, healthReq *HealthRequest) (*HealthResponse, error) {
 	fmt.Println("HEALTH")
+	return nil, nil
 }
