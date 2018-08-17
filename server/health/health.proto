@@ -1,0 +1,27 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/server/health";
+
+// Health Service
+//
+// Health Service API performs CRUD actions against health resources 
+package repository;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "k8s.io/api/core/v1/generated.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+// HealthRequest is a query for health status
+message HealthRequest {}
+
+// HealthResponse is a response containing health status
+message HealthResponse {}
+
+// RepositoryService 
+service RepositoryService {
+
+	// List returns list of repos
+	rpc Health(HealthRequest) returns (HealthResponse) {
+		option (google.api.http).get = "/api/v1/health";
+	}
+}
