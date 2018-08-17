@@ -236,6 +236,31 @@
         }
       }
     },
+    "/api/v1/applications/{name}/health": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Health returns application health status.",
+        "operationId": "Health",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationHealthResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/manifests": {
       "get": {
         "tags": [
@@ -1269,6 +1294,9 @@
           "type": "string"
         }
       }
+    },
+    "applicationApplicationHealthResponse": {
+      "type": "object"
     },
     "applicationApplicationResponse": {
       "type": "object"
