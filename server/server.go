@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -347,6 +348,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
+	healthService := health.NewServer(a.Namespace)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
 	application.RegisterApplicationServiceServer(grpcS, applicationService)
@@ -355,6 +357,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	settings.RegisterSettingsServiceServer(grpcS, settingsService)
 	project.RegisterProjectServiceServer(grpcS, projectService)
 	account.RegisterAccountServiceServer(grpcS, accountService)
+	health.RegisterHealthServiceServer(grpcS, healthService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	return grpcS
