@@ -41,7 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/server/health"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
@@ -52,6 +51,7 @@ import (
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/healthz"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	projectutil "github.com/argoproj/argo-cd/util/project"
@@ -348,7 +348,6 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
-	healthService := health.NewServer(a.Namespace, a.KubeClientset)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
 	application.RegisterApplicationServiceServer(grpcS, applicationService)
@@ -357,7 +356,6 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	settings.RegisterSettingsServiceServer(grpcS, settingsService)
 	project.RegisterProjectServiceServer(grpcS, projectService)
 	account.RegisterAccountServiceServer(grpcS, accountService)
-	health.RegisterHealthServiceServer(grpcS, healthService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	return grpcS
@@ -416,9 +414,12 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
-	mustRegisterGWHandler(health.RegisterHealthServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	swagger.ServeSwaggerUI(mux, packr.NewBox("."), "/swagger-ui")
+	healthz.ServeHealthCheck(mux, func() error {
+		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
+		return err
+	})
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)

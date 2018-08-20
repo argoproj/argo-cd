@@ -19,7 +19,7 @@ message HealthResponse {}
 service HealthService {
 
 	// Health runs a health check
-	rpc Health(google.protobuf.Empty) returns (HealthResponse) {
+	rpc Health(google.protobuf.Empty) returns (string) {
 		option (google.api.http).get = "/api/v1/healthz";
 	}
 }
