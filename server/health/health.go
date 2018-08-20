@@ -17,12 +17,12 @@ type Server struct {
 func NewServer(namespace string, kubeclientset kubernetes.Interface) *Server {
 	return &Server{
 		ns:            namespace,
-		kubeclientset: clientset,
+		kubeclientset: kubeclientset,
 	}
 }
 
 func (s *Server) Health(ctx context.Context, healthReq *HealthRequest) (*HealthResponse, error) {
-	_, err := s.kubeclientset.ServerVersion()
+	_, err := s.kubeclientset.(*kubernetes.Clientset).ServerVersion()
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "Could not get Kubernetes version: %v", err)
 	}
