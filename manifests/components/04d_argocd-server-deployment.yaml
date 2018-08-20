@@ -33,6 +33,20 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 3
+
       - name: dex
         image: quay.io/coreos/dex:v2.10.0
         command: [/shared/argocd-util, rundex]
