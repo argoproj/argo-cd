@@ -640,7 +640,7 @@
         }
       }
     },
-    "/api/v1/health": {
+    "/api/v1/healthz": {
       "get": {
         "tags": [
           "HealthService"
