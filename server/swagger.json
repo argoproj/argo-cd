@@ -49,7 +49,7 @@
           "ApplicationService"
         ],
         "summary": "List returns list of applications",
-        "operationId": "ListMixin6",
+        "operationId": "ListMixin5",
         "parameters": [
           {
             "type": "string",
@@ -85,7 +85,7 @@
           "ApplicationService"
         ],
         "summary": "Create creates an application",
-        "operationId": "CreateMixin6",
+        "operationId": "CreateMixin5",
         "parameters": [
           {
             "name": "body",
@@ -112,7 +112,7 @@
           "ApplicationService"
         ],
         "summary": "Update updates an application",
-        "operationId": "UpdateMixin6",
+        "operationId": "UpdateMixin5",
         "parameters": [
           {
             "type": "string",
@@ -145,7 +145,7 @@
           "ApplicationService"
         ],
         "summary": "Get returns an application by name",
-        "operationId": "GetMixin6",
+        "operationId": "GetMixin5",
         "parameters": [
           {
             "type": "string",
@@ -182,7 +182,7 @@
           "ApplicationService"
         ],
         "summary": "Delete deletes an application",
-        "operationId": "DeleteMixin6",
+        "operationId": "DeleteMixin5",
         "parameters": [
           {
             "type": "string",
@@ -640,30 +640,13 @@
         }
       }
     },
-    "/api/v1/healthz": {
-      "get": {
-        "tags": [
-          "HealthService"
-        ],
-        "summary": "Health runs a health check",
-        "operationId": "Health",
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/healthHealthResponse"
-            }
-          }
-        }
-      }
-    },
     "/api/v1/projects": {
       "get": {
         "tags": [
           "ProjectService"
         ],
         "summary": "List returns list of projects",
-        "operationId": "ListMixin4",
+        "operationId": "ListMixin3",
         "parameters": [
           {
             "type": "string",
@@ -685,7 +668,7 @@
           "ProjectService"
         ],
         "summary": "Create a new project.",
-        "operationId": "CreateMixin4",
+        "operationId": "CreateMixin3",
         "parameters": [
           {
             "name": "body",
@@ -712,7 +695,7 @@
           "ProjectService"
         ],
         "summary": "Get returns a project by name",
-        "operationId": "GetMixin4",
+        "operationId": "GetMixin3",
         "parameters": [
           {
             "type": "string",
@@ -735,7 +718,7 @@
           "ProjectService"
         ],
         "summary": "Delete deletes a project",
-        "operationId": "DeleteMixin4",
+        "operationId": "DeleteMixin3",
         "parameters": [
           {
             "type": "string",
@@ -785,7 +768,7 @@
           "ProjectService"
         ],
         "summary": "Update updates a project",
-        "operationId": "UpdateMixin4",
+        "operationId": "UpdateMixin3",
         "parameters": [
           {
             "type": "string",
@@ -1082,7 +1065,7 @@
           "SessionService"
         ],
         "summary": "Create a new JWT for authentication and set a cookie if using HTTP.",
-        "operationId": "CreateMixin8",
+        "operationId": "CreateMixin7",
         "parameters": [
           {
             "name": "body",
@@ -1107,7 +1090,7 @@
           "SessionService"
         ],
         "summary": "Delete an existing JWT cookie if using HTTP.",
-        "operationId": "DeleteMixin8",
+        "operationId": "DeleteMixin7",
         "responses": {
           "200": {
             "description": "(empty)",
@@ -1401,10 +1384,6 @@
           "type": "string"
         }
       }
-    },
-    "healthHealthResponse": {
-      "type": "object",
-      "title": "HealthResponse is a response containing health status"
     },
     "projectEmptyResponse": {
       "type": "object"
