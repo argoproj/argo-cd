@@ -645,7 +645,7 @@
         "tags": [
           "HealthService"
         ],
-        "summary": "List returns list of repos",
+        "summary": "Health runs a health check",
         "operationId": "Health",
         "responses": {
           "200": {

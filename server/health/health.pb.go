@@ -75,7 +75,7 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for HealthService service
 
 type HealthServiceClient interface {
-	// List returns list of repos
+	// Health runs a health check
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 }
 
@@ -99,7 +99,7 @@ func (c *healthServiceClient) Health(ctx context.Context, in *HealthRequest, opt
 // Server API for HealthService service
 
 type HealthServiceServer interface {
-	// List returns list of repos
+	// Health runs a health check
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 }
 
