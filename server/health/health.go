@@ -1,9 +1,11 @@
 package health
 
 import (
-	"fmt"
+	"net/http"
 
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Server provides a Health service
@@ -19,6 +21,11 @@ func NewServer(namespace string) *Server {
 }
 
 func (s *Server) Health(ctx context.Context, healthReq *HealthRequest) (*HealthResponse, error) {
-	fmt.Println("HEALTH")
-	return nil, nil
+	const srvr = "kubernetes.default.svc"
+	_, err := http.Get(srvr)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Could not contact Kubernetes cluster: %+v", err)
+	}
+
+	return &HealthResponse{}, nil
 }
