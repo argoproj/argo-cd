@@ -348,7 +348,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
-	healthService := health.NewServer(a.Namespace)
+	healthService := health.NewServer(a.Namespace, a.KubeClientset)
 	version.RegisterVersionServiceServer(grpcS, &version.Server{})
 	cluster.RegisterClusterServiceServer(grpcS, clusterService)
 	application.RegisterApplicationServiceServer(grpcS, applicationService)
@@ -416,6 +416,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(session.RegisterSessionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
+	mustRegisterGWHandler(health.RegisterHealthServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	swagger.ServeSwaggerUI(mux, packr.NewBox("."), "/swagger-ui")
 

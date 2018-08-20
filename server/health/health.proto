@@ -20,7 +20,7 @@ message HealthResponse {}
 // HealthService 
 service HealthService {
 
-	// List returns list of repos
+	// Health runs a health check
 	rpc Health(HealthRequest) returns (HealthResponse) {
 		option (google.api.http).get = "/api/v1/health";
 	}
