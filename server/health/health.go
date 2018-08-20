@@ -1,6 +1,7 @@
 package health
 
 import (
+	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,7 +22,7 @@ func NewServer(namespace string, kubeclientset kubernetes.Interface) *Server {
 	}
 }
 
-func (s *Server) Health(ctx context.Context, healthReq *HealthRequest) (*HealthResponse, error) {
+func (s *Server) Health(context.Context, *empty.Empty) (*HealthResponse, error) {
 	_, err := s.kubeclientset.(*kubernetes.Clientset).ServerVersion()
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "Could not get Kubernetes version: %v", err)
