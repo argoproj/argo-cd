@@ -3,6 +3,8 @@ package healthz
 import (
 	"fmt"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // ServeHealthCheck serves the health check endpoint.
@@ -11,7 +13,7 @@ func ServeHealthCheck(mux *http.ServeMux, f func() error) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := f(); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintln(w, err)
+			log.Errorln(w, err)
 		} else {
 			fmt.Fprintln(w, "ok")
 		}
