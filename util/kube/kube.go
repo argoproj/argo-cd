@@ -174,7 +174,11 @@ func GetCachedServerResources(host string, disco discovery.DiscoveryInterface) (
 	}
 	resList, err = disco.ServerResources()
 	if err != nil {
-		return nil, errors.WithStack(err)
+		if len(resList) == 0 {
+			return nil, errors.WithStack(err)
+		}
+		// It's possible for ServerResources to return error as well as a resource list
+		log.Warnf("Resource discovery partially successful. Encountered error: %v", err)
 	}
 	err = apiResourceCache.Set(&cache.Item{
 		Key:    cacheKey,
