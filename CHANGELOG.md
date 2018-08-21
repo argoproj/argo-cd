@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.2 (2018-08-21)
+- API discovery becomes best effort when partial resource list is returned (issue #524)
+
 ## v0.7.1 (2018-08-03)
 + Surface helm parameters to the application level (#485)
 + [UI] Improve application creation wizard (#459)
