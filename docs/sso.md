@@ -35,7 +35,7 @@ kubectl edit configmap argocd-cm
   [GitHub connector](https://github.com/coreos/dex/blob/master/Documentation/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
   clientSecret generated in Step 1.
-* You will very likely want to restrict logins to one ore more GitHub organization. In the
+* You will very likely want to restrict logins to one or more GitHub organization. In the
   `connectors.config.orgs` list, add one or more GitHub organizations. Any member of the org will
   then be able to login to ArgoCD to perform management tasks.
 
