@@ -35,17 +35,19 @@ spec:
           name: static-files
 
         readinessProbe:
-          tcpSocket:
+          httpGet:
+            path: /healthz
             port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          initialDelaySeconds: 2
+          periodSeconds: 1
+          failureThreshold: 30
 
         livenessProbe:
           httpGet:
             path: /healthz
             port: 8080
-          initialDelaySeconds: 3
-          periodSeconds: 3
+          initialDelaySeconds: 30
+          periodSeconds: 30
 
       - name: dex
         image: quay.io/coreos/dex:v2.10.0
