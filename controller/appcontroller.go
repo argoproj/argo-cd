@@ -204,7 +204,7 @@ func retryUntilSucceed(action func() error, desc string, ctx context.Context, ti
 				log.Infof("Stop retrying %s", desc)
 				return
 			} else {
-				log.Warnf("Failed to %s: %v, retrying in %v", desc, err, timeout)
+				log.Warnf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
 				time.Sleep(timeout)
 			}
 		}
