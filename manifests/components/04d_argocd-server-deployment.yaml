@@ -38,15 +38,7 @@ spec:
           httpGet:
             path: /healthz
             port: 8080
-          initialDelaySeconds: 2
-          periodSeconds: 1
-          failureThreshold: 30
-
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-          initialDelaySeconds: 30
+          initialDelaySeconds: 3
           periodSeconds: 30
 
       - name: dex
