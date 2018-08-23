@@ -51,6 +51,7 @@ import (
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/healthz"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	projectutil "github.com/argoproj/argo-cd/util/project"
@@ -415,6 +416,10 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	swagger.ServeSwaggerUI(mux, packr.NewBox("."), "/swagger-ui")
+	healthz.ServeHealthCheck(mux, func() error {
+		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
+		return err
+	})
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
