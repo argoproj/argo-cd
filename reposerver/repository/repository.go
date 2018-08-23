@@ -13,6 +13,8 @@ import (
 
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
@@ -308,11 +310,11 @@ func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
 func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *app.EnvironmentConfig, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unable to load application from %s: %v", appPath, err)
+		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
 	}
 	params, err := ksApp.ListEnvParams(envName)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("Failed to list ksonnet app params: %v", err)
+		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "Failed to list ksonnet app params: %v", err)
 	}
 	if overrides != nil {
 		for _, override := range overrides {
@@ -325,7 +327,7 @@ func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) (
 	appSpec := ksApp.App()
 	env, err := appSpec.Environment(envName)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", envName)
+		return nil, nil, nil, status.Errorf(codes.NotFound, "environment %q does not exist in ksonnet app", envName)
 	}
 	targetObjs, err := ksApp.Show(envName)
 	if err != nil {
@@ -340,7 +342,7 @@ var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json)$`)
 func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
 	files, err := ioutil.ReadDir(appPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read dir %s: %v", appPath, err)
+		return nil, status.Errorf(codes.FailedPrecondition, "Failed to read dir %s: %v", appPath, err)
 	}
 	var objs []*unstructured.Unstructured
 	for _, f := range files {
@@ -355,7 +357,7 @@ func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
 			var obj unstructured.Unstructured
 			err = json.Unmarshal(out, &obj)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to unmarshal '%s': %v", f.Name(), err)
+				return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 			}
 			objs = append(objs, &obj)
 		} else {
@@ -365,7 +367,7 @@ func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
 					// If we get here, we had a multiple objects in a single YAML file which had some
 					// valid k8s objects, but errors parsing others (within the same file). It's very
 					// likely the user messed up a portion of the YAML, so report on that.
-					return nil, fmt.Errorf("Failed to unmarshal '%s': %v", f.Name(), err)
+					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 				}
 				// Otherwise, it might be a unrelated YAML file which we will ignore
 				continue
