@@ -481,15 +481,6 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
-func GetDefaultProject(namespace string) AppProject {
-	return AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.DefaultAppProjectName,
-			Namespace: namespace,
-		},
-	}
-}
-
 func (app *Application) getFinalizerIndex(name string) int {
 	for i, finalizer := range app.Finalizers {
 		if finalizer == name {

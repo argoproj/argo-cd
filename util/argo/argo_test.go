@@ -29,6 +29,23 @@ func TestRefreshApp(t *testing.T) {
 	//assert.True(t, ok)
 }
 
+func TestGetAppProjectWithNoProjDefined(t *testing.T) {
+	projName := "default"
+	namespace := "default"
+
+	testProj := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: projName, Namespace: namespace},
+	}
+
+	var testApp argoappv1.Application
+	testApp.Name = "test-app"
+	testApp.Namespace = namespace
+	appClientset := appclientset.NewSimpleClientset(testProj)
+	proj, err := GetAppProject(&testApp.Spec, appClientset, namespace)
+	assert.Nil(t, err)
+	assert.Equal(t, proj.Name, projName)
+}
+
 func TestCheckValidParam(t *testing.T) {
 	oldAppSet := make(map[string]map[string]bool)
 	oldAppSet["testComponent"] = make(map[string]bool)

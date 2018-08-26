@@ -102,10 +102,8 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	if !q.Application.Spec.BelongsToDefaultProject() {
-		s.projectLock.Lock(q.Application.Spec.Project)
-		defer s.projectLock.Unlock(q.Application.Spec.Project)
-	}
+	s.projectLock.Lock(q.Application.Spec.Project)
+	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
 	err := s.validateApp(ctx, &a.Spec)

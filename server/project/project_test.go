@@ -91,6 +91,40 @@ func TestProjectServer(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
+	t.Run("TestNoDestinationsInDefaultProject", func(t *testing.T) {
+		defaultProj := v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec:       v1alpha1.AppProjectSpec{},
+		}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil)
+
+		invalidDefaultProj := defaultProj.DeepCopy()
+		invalidDefaultProj.Spec.Destinations = []v1alpha1.ApplicationDestination{
+			{Namespace: "ns1", Server: "https://server1"},
+		}
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: invalidDefaultProj})
+
+		assert.NotNil(t, err)
+		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+	})
+
+	t.Run("TestNoSourcesReposInDefaultProject", func(t *testing.T) {
+		defaultProj := v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec:       v1alpha1.AppProjectSpec{},
+		}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil)
+
+		invalidDefaultProj := defaultProj.DeepCopy()
+		invalidDefaultProj.Spec.SourceRepos = []string{"https://github.com/argoproj/argo-cd.git"}
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: invalidDefaultProj})
+
+		assert.NotNil(t, err)
+		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+	})
+
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
 			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
@@ -114,6 +148,17 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: "test"})
 
 		assert.Nil(t, err)
+	})
+
+	t.Run("TestDeleteDefaultProjectFailure", func(t *testing.T) {
+		defaultProj := v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec:       v1alpha1.AppProjectSpec{},
+		}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil)
+
+		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: defaultProj.Name})
+		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
 	})
 
 	t.Run("TestDeleteProjectReferencedByApp", func(t *testing.T) {

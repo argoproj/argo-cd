@@ -276,16 +276,12 @@ func GetSpecErrors(
 	return conditions, nil
 }
 
+// GetAppProject returns a project from an application
 func GetAppProject(spec *argoappv1.ApplicationSpec, appclientset appclientset.Interface, ns string) (*argoappv1.AppProject, error) {
-	var proj *argoappv1.AppProject
-	var err error
 	if spec.BelongsToDefaultProject() {
-		defaultProj := argoappv1.GetDefaultProject(ns)
-		proj = &defaultProj
-	} else {
-		proj, err = appclientset.ArgoprojV1alpha1().AppProjects(ns).Get(spec.Project, metav1.GetOptions{})
+		return appclientset.ArgoprojV1alpha1().AppProjects(ns).Get(common.DefaultAppProjectName, metav1.GetOptions{})
 	}
-	return proj, err
+	return appclientset.ArgoprojV1alpha1().AppProjects(ns).Get(spec.Project, metav1.GetOptions{})
 }
 
 // queryAppSourceType queries repo server for yaml files in a directory, and determines its

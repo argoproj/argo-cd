@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
@@ -95,10 +96,15 @@ func newTestAppServer() ApplicationServiceServer {
 	mockRepoClient := &mockrepo.Clientset{}
 	mockRepoClient.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
 
+	defaultProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+		Spec:       appsv1.AppProjectSpec{},
+	}
+
 	return NewServer(
 		testNamespace,
 		kubeclientset,
-		apps.NewSimpleClientset(),
+		apps.NewSimpleClientset(defaultProj),
 		mockRepoClient,
 		db,
 		enforcer,
