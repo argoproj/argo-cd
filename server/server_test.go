@@ -191,3 +191,50 @@ func TestEnforceNilClaims(t *testing.T) {
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.EnforceClaims(nil, "applications", "get", "foo/obj"))
 }
+
+func TestInitializingExistingDefaultProject(t *testing.T) {
+	cm := fakeConfigMap()
+	secret := fakeSecret()
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	defaultProj := &v1alpha1.AppProject{
+		ObjectMeta: v1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: fakeNamespace},
+		Spec:       v1alpha1.AppProjectSpec{},
+	}
+	appClientSet := apps.NewSimpleClientset(defaultProj)
+
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     fakeNamespace,
+		KubeClientset: kubeclientset,
+		AppClientset:  appClientSet,
+	}
+
+	argocd := NewServer(argoCDOpts)
+	assert.NotNil(t, argocd)
+
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(fakeNamespace).Get(common.DefaultAppProjectName, v1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, proj)
+	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+}
+
+func TestInitializingNotExistingDefaultProject(t *testing.T) {
+	cm := fakeConfigMap()
+	secret := fakeSecret()
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	appClientSet := apps.NewSimpleClientset()
+
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     fakeNamespace,
+		KubeClientset: kubeclientset,
+		AppClientset:  appClientSet,
+	}
+
+	argocd := NewServer(argoCDOpts)
+	assert.NotNil(t, argocd)
+
+	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(fakeNamespace).Get(common.DefaultAppProjectName, v1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, proj)
+	assert.Equal(t, proj.Name, common.DefaultAppProjectName)
+
+}
