@@ -98,7 +98,10 @@ func newTestAppServer() ApplicationServiceServer {
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
-		Spec:       appsv1.AppProjectSpec{},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
 	}
 
 	return NewServer(

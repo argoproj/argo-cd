@@ -541,16 +541,14 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
-func (proj AppProject) IsDefault() bool {
-	return proj.Name == "" || proj.Name == common.DefaultAppProjectName
-}
-
+// IsSourcePermitted validiates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
-	if proj.IsDefault() {
-		return true
-	}
+
 	normalizedURL := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
+		if repoURL == "*" {
+			return true
+		}
 		if git.NormalizeGitURL(repoURL) == normalizedURL {
 			return true
 		}
@@ -558,13 +556,14 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	return false
 }
 
+// IsDestinationPermitted validiates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
-	if proj.IsDefault() {
-		return true
-	}
+
 	for _, item := range proj.Spec.Destinations {
-		if item.Server == dst.Server && item.Namespace == dst.Namespace {
-			return true
+		if item.Server == dst.Server || item.Server == "*" {
+			if item.Namespace == dst.Namespace || item.Namespace == "*" {
+				return true
+			}
 		}
 	}
 	return false

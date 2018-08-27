@@ -258,10 +258,8 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	if !q.Application.Spec.BelongsToDefaultProject() {
-		s.projectLock.Lock(q.Application.Spec.Project)
-		defer s.projectLock.Unlock(q.Application.Spec.Project)
-	}
+	s.projectLock.Lock(q.Application.Spec.Project)
+	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
 	err := s.validateApp(ctx, &a.Spec)
@@ -302,10 +300,8 @@ func (s *Server) removeInvalidOverrides(a *appv1.Application, q *ApplicationUpda
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
 func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
 
-	if !q.Spec.BelongsToDefaultProject() {
-		s.projectLock.Lock(q.Spec.Project)
-		defer s.projectLock.Unlock(q.Spec.Project)
-	}
+	s.projectLock.Lock(q.Spec.Project)
+	defer s.projectLock.Unlock(q.Spec.Project)
 
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -348,10 +344,8 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 		return nil, err
 	}
 
-	if !a.Spec.BelongsToDefaultProject() {
-		s.projectLock.Lock(a.Spec.Project)
-		defer s.projectLock.Unlock(a.Spec.Project)
-	}
+	s.projectLock.Lock(a.Spec.Project)
+	defer s.projectLock.Unlock(a.Spec.Project)
 
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied

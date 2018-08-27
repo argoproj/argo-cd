@@ -37,6 +37,9 @@ func IsCommitSHA(sha string) bool {
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
 	// preprocess
+	if repo == "*" {
+		return repo
+	}
 	repo = ensureSuffix(repo, ".git")
 	if IsSSHURL(repo) {
 		repo = ensurePrefix(repo, "ssh://")
@@ -60,6 +63,8 @@ func IsSSHURL(url string) bool {
 }
 
 const gitSSHCommand = "ssh -q -F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20"
+
+//TODO: Make sure every public method works with '*' repo
 
 // GetGitCommandEnvAndURL returns URL and env options for git operation
 func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey string) (string, []string, error) {

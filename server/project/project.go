@@ -267,12 +267,6 @@ func validatePolicy(proj string, policy string) error {
 }
 
 func validateProject(p *v1alpha1.AppProject) error {
-	if p.Name == common.DefaultAppProjectName && len(p.Spec.SourceRepos) > 0 {
-		return status.Errorf(codes.InvalidArgument, "SourceRepos can not be edited on the default project")
-	}
-	if p.Name == common.DefaultAppProjectName && len(p.Spec.Destinations) > 0 {
-		return status.Errorf(codes.InvalidArgument, "Destinations can not be edited on the default project")
-	}
 	destKeys := make(map[string]bool)
 	for _, dest := range p.Spec.Destinations {
 		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
@@ -315,7 +309,7 @@ func validateProject(p *v1alpha1.AppProject) error {
 		if _, ok := roleNames[role.Name]; !ok {
 			roleNames[role.Name] = true
 		} else {
-			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role)
+			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role.Name)
 		}
 
 	}

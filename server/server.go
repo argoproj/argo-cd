@@ -124,8 +124,12 @@ type ArgoCDServerOpts struct {
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: opts.Namespace},
-		Spec:       v1alpha1.AppProjectSpec{},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
 	}
+
 	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(defaultProj)
 	if apierrors.IsAlreadyExists(err) {
 		return nil
