@@ -278,7 +278,9 @@ func validateProject(p *v1alpha1.AppProject) error {
 	}
 	srcRepos := make(map[string]bool)
 	for i, src := range p.Spec.SourceRepos {
-		src = git.NormalizeGitURL(src)
+		if src != "*" {
+			src = git.NormalizeGitURL(src)
+		}
 		p.Spec.SourceRepos[i] = src
 		if _, ok := srcRepos[src]; !ok {
 			srcRepos[src] = true

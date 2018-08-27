@@ -201,8 +201,7 @@ func TestProjectManagement(t *testing.T) {
 		}
 
 		_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-		assert.NotNil(t, err)
-		assert.True(t, strings.Contains(err.Error(), "already defined"))
+		assert.Nil(t, err)
 
 		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
 		if err != nil {
@@ -234,8 +233,7 @@ func TestProjectManagement(t *testing.T) {
 		}
 
 		_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
-		assert.NotNil(t, err)
-		assert.True(t, strings.Contains(err.Error(), "does not exist"))
+		assert.Nil(t, err)
 
 		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
 		if err != nil {
