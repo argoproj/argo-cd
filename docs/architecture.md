@@ -50,3 +50,29 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
 ```
+
+### AppProject CRD (Custom Resource Definition)
+The AppProject CRD is the Kubernetes resource object representing a grouping of applications. It is defined by three key pieces of information:
+* `sourceRepos` reference to the reposities that applications within the project can pull manifests from.
+* `destinations` reference to clusters and namespaces that applications within the project can deploy into.
+* `roles` list of entities with defintions of their access to resources within the project.
+
+An example spec is as follows:
+
+```
+spec:
+  description: Description of the project
+  destinations:
+  - namespace: default
+    server: https://kubernetes.default.svc
+  roles:
+  - description: Description of the role
+    jwtTokens:
+    - iat: 1535390316
+    name: role-name
+    policies:
+    - p, proj:proj-name:role-name, applications, get, proj-name/*, allow
+    - p, proj:proj-name:role-name, applications, sync, proj-name/*, deny
+  sourceRepos:
+  - https://github.com/argoproj/argocd-example-apps.git
+```
