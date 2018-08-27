@@ -126,9 +126,9 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
-	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Get(common.DefaultAppProjectName, metav1.GetOptions{})
-	if apierrors.IsNotFound(err) {
-		_, err = opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(defaultProj)
+	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(defaultProj)
+	if apierrors.IsAlreadyExists(err) {
+		return nil
 	}
 	return err
 }
