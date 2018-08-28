@@ -138,9 +138,7 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "create", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	if q.Project.Name == common.DefaultAppProjectName {
-		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be used as a project name", q.Project.Name)
-	}
+
 	err := validateProject(q.Project)
 	if err != nil {
 		return nil, err
@@ -155,7 +153,6 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 // List returns list of projects
 func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(metav1.ListOptions{})
-	list.Items = append(list.Items, v1alpha1.GetDefaultProject(s.ns))
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
 		for i := range list.Items {
@@ -281,7 +278,9 @@ func validateProject(p *v1alpha1.AppProject) error {
 	}
 	srcRepos := make(map[string]bool)
 	for i, src := range p.Spec.SourceRepos {
-		src = git.NormalizeGitURL(src)
+		if src != "*" {
+			src = git.NormalizeGitURL(src)
+		}
 		p.Spec.SourceRepos[i] = src
 		if _, ok := srcRepos[src]; !ok {
 			srcRepos[src] = true
@@ -312,7 +311,7 @@ func validateProject(p *v1alpha1.AppProject) error {
 		if _, ok := roleNames[role.Name]; !ok {
 			roleNames[role.Name] = true
 		} else {
-			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role)
+			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role.Name)
 		}
 
 	}
@@ -322,9 +321,6 @@ func validateProject(p *v1alpha1.AppProject) error {
 
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
-	if q.Project.Name == common.DefaultAppProjectName {
-		return nil, grpc.ErrPermissionDenied
-	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
@@ -381,6 +377,9 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 
 // Delete deletes a project
 func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, error) {
+	if q.Name == common.DefaultAppProjectName {
+		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
+	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}

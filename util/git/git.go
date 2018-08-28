@@ -61,6 +61,8 @@ func IsSSHURL(url string) bool {
 
 const gitSSHCommand = "ssh -q -F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20"
 
+//TODO: Make sure every public method works with '*' repo
+
 // GetGitCommandEnvAndURL returns URL and env options for git operation
 func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey string) (string, []string, error) {
 	cmdURL := repo

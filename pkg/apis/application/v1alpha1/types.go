@@ -481,15 +481,6 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
-func GetDefaultProject(namespace string) AppProject {
-	return AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.DefaultAppProjectName,
-			Namespace: namespace,
-		},
-	}
-}
-
 func (app *Application) getFinalizerIndex(name string) int {
 	for i, finalizer := range app.Finalizers {
 		if finalizer == name {
@@ -550,16 +541,14 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
-func (proj AppProject) IsDefault() bool {
-	return proj.Name == "" || proj.Name == common.DefaultAppProjectName
-}
-
+// IsSourcePermitted validiates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
-	if proj.IsDefault() {
-		return true
-	}
+
 	normalizedURL := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
+		if repoURL == "*" {
+			return true
+		}
 		if git.NormalizeGitURL(repoURL) == normalizedURL {
 			return true
 		}
@@ -567,13 +556,14 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	return false
 }
 
+// IsDestinationPermitted validiates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
-	if proj.IsDefault() {
-		return true
-	}
+
 	for _, item := range proj.Spec.Destinations {
-		if item.Server == dst.Server && item.Namespace == dst.Namespace {
-			return true
+		if item.Server == dst.Server || item.Server == "*" {
+			if item.Namespace == dst.Namespace || item.Namespace == "*" {
+				return true
+			}
 		}
 	}
 	return false

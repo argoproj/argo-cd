@@ -585,8 +585,13 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			errors.CheckError(err)
 
 			for _, item := range proj.Spec.SourceRepos {
+				if item == "*" && item == url {
+					log.Info("Wildcard source repository is already defined in project")
+					return
+				}
 				if item == git.NormalizeGitURL(url) {
-					log.Fatal("Specified source repository is already defined in project")
+					log.Info("Specified source repository is already defined in project")
+					return
 				}
 			}
 			proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, url)
@@ -617,13 +622,17 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			index := -1
 			for i, item := range proj.Spec.SourceRepos {
+				if item == "*" && item == url {
+					index = i
+					break
+				}
 				if item == git.NormalizeGitURL(url) {
 					index = i
 					break
 				}
 			}
 			if index == -1 {
-				log.Fatal("Specified source repository does not exist in project")
+				log.Info("Specified source repository does not exist in project")
 			} else {
 				proj.Spec.SourceRepos = append(proj.Spec.SourceRepos[:index], proj.Spec.SourceRepos[index+1:]...)
 				_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})

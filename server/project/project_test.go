@@ -116,6 +116,17 @@ func TestProjectServer(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
+	t.Run("TestDeleteDefaultProjectFailure", func(t *testing.T) {
+		defaultProj := v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec:       v1alpha1.AppProjectSpec{},
+		}
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil)
+
+		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: defaultProj.Name})
+		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+	})
+
 	t.Run("TestDeleteProjectReferencedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
 			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
@@ -181,6 +192,19 @@ func TestProjectServer(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Len(t, projWithTwoTokens.Spec.Roles, 1)
 		assert.Len(t, projWithTwoTokens.Spec.Roles[0].JWTTokens, 2)
+	})
+
+	t.Run("TestAddWildcardSource", func(t *testing.T) {
+
+		proj := existingProj.DeepCopy()
+		wildSouceRepo := "*"
+		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSouceRepo)
+
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, util.NewKeyLock(), nil)
+		request := &ProjectUpdateRequest{Project: proj}
+		updatedProj, err := projectServer.Update(context.Background(), request)
+		assert.Nil(t, err)
+		assert.Equal(t, wildSouceRepo, updatedProj.Spec.SourceRepos[1])
 	})
 
 	t.Run("TestCreateRolePolicySuccessfully", func(t *testing.T) {

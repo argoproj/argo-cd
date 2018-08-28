@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -36,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/account"
@@ -118,6 +120,23 @@ type ArgoCDServerOpts struct {
 	RepoClientset   reposerver.Clientset
 }
 
+// initializeDefaultProject creates the default project if it does not already exist
+func initializeDefaultProject(opts ArgoCDServerOpts) error {
+	defaultProj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: common.DefaultAppProjectName, Namespace: opts.Namespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(defaultProj)
+	if apierrors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
+}
+
 // initializeSettings sets default secret settings (password set to hostname)
 func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
 
@@ -132,7 +151,10 @@ func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDS
 // NewServer returns a new instance of the ArgoCD API server
 func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
+
 	settings, err := initializeSettings(settingsMgr, opts)
+	errors.CheckError(err)
+	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settings)
 
