@@ -81,16 +81,16 @@ func getPvcHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 		return nil, err
 	}
 
-	if pvc.Status.Phase == coreV1.ClaimLost {
+	switch pvc.Status.Phase {
+	case coreV1.ClaimLost:
 		return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded}, nil
-	}
-	if pvc.Status.Phase == coreV1.ClaimPending {
+	case coreV1.ClaimPending:
 		return &appv1.HealthStatus{Status: appv1.HealthStatusProgressing}, nil
-	}
-	if pvc.Status.Phase == coreV1.ClaimBound {
+	case coreV1.ClaimBound:
 		return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}, nil
+	default:
+		return &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}, nil
 	}
-	return &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}, nil
 }
 
 func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
