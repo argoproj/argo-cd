@@ -33,6 +33,8 @@ func GetAppHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 		health, err = getReplicaSetHealth(obj)
 	case kube.DaemonSetKind:
 		health, err = getDaemonSetHealth(obj)
+	case kube.PersistentVolumeClaimKind:
+		health, err = getPvcHealth(obj)
 	default:
 		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	}
@@ -66,6 +68,29 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 		}
 	}
 	return newIndex > currentIndex
+}
+
+func getPvcHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	if err != nil {
+		return nil, err
+	}
+	var pvc coreV1.PersistentVolumeClaim
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pvc)
+	if err != nil {
+		return nil, err
+	}
+
+	switch pvc.Status.Phase {
+	case coreV1.ClaimLost:
+		return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded}, nil
+	case coreV1.ClaimPending:
+		return &appv1.HealthStatus{Status: appv1.HealthStatusProgressing}, nil
+	case coreV1.ClaimBound:
+		return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}, nil
+	default:
+		return &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}, nil
+	}
 }
 
 func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
@@ -122,6 +147,7 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 	if err != nil {
 		return nil, err
 	}
+
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L80
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := getDeploymentCondition(deployment.Status, v1.DeploymentProgressing)
