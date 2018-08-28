@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.8.0 (TBD)
+
+### Notes about upgrading from v0.7
+* The RBAC model has been improved to support explicit denies. What this means is that any previous
+RBAC policy rules, need to be rewritten to include one extra column with the effect:
+`allow` or `deny`. For example, if a rule was written like this:
+    ```
+    p, my-org:my-team, applications, get, */*
+    ```
+    It should be rewritten to look like this:
+    ```
+    p, my-org:my-team, applications, get, */*, allow
+    ```
+
+### Changes since v0.7:
++ Support kustomize as an application source
++ Introduce project tokens for automation access
++ Add ability to delete a single application resource to support immutable updates
++ Update RBAC model to support explicit denies (issue #497)
++ Ability to view Kubernetes events related to application projects for auditing
+* Upgrade ksonnet to v0.12.0
+* Add readiness probe to API server
+- API discovery becomes best effort when partial resource list is returned (issue #524)
+
 ## v0.7.2 (2018-08-21)
 - API discovery becomes best effort when partial resource list is returned (issue #524)
 
