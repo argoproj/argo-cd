@@ -62,14 +62,14 @@ cli: clean-debug
 
 .PHONY: cli-linux
 cli-linux: clean-debug
-	docker build --iidfile /tmp/argocd-linux-id --target builder --build-arg MAKE_TARGET="cli IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-linux-amd64" -f Dockerfile-argocd .
+	docker build --iidfile /tmp/argocd-linux-id --target builder --build-arg MAKE_TARGET="cli IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-linux-amd64" .
 	docker create --name tmp-argocd-linux `cat /tmp/argocd-linux-id`
 	docker cp tmp-argocd-linux:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-linux-amd64 dist/
 	docker rm tmp-argocd-linux
 
 .PHONY: cli-darwin
 cli-darwin: clean-debug
-	docker build --iidfile /tmp/argocd-darwin-id --target builder --build-arg MAKE_TARGET="cli GOOS=darwin IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-darwin-amd64" -f Dockerfile-argocd .
+	docker build --iidfile /tmp/argocd-darwin-id --target builder --build-arg MAKE_TARGET="cli GOOS=darwin IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-darwin-amd64" .
 	docker create --name tmp-argocd-darwin `cat /tmp/argocd-darwin-id`
 	docker cp tmp-argocd-darwin:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
 	docker rm tmp-argocd-darwin
@@ -89,7 +89,7 @@ server: clean-debug
 	
 .PHONY: server-image
 server-image:
-	docker build --build-arg BINARY=argocd-server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd-server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
 
 .PHONY: repo-server
@@ -98,7 +98,7 @@ repo-server:
 
 .PHONY: repo-server-image
 repo-server-image:
-	docker build --build-arg BINARY=argocd-repo-server -t $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd-repo-server -t $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) ; fi
 
 .PHONY: controller
@@ -107,17 +107,17 @@ controller:
 
 .PHONY: controller-image
 controller-image:
-	docker build --build-arg BINARY=argocd-application-controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd-application-controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG)  .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) ; fi
 
 .PHONY: cli-image
 cli-image:
-	docker build --build-arg BINARY=argocd -t $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) -f Dockerfile-argocd .
+	docker build --build-arg BINARY=argocd -t $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) ; fi
 
 .PHONY: builder-image
 builder-image:
-	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) -f Dockerfile-ci-builder .
+	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 
 .PHONY: lint
 lint:
