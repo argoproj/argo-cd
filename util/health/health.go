@@ -147,6 +147,7 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 	if err != nil {
 		return nil, err
 	}
+
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L80
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := getDeploymentCondition(deployment.Status, v1.DeploymentProgressing)
