@@ -33,6 +33,8 @@ func GetAppHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 		health, err = getReplicaSetHealth(obj)
 	case kube.DaemonSetKind:
 		health, err = getDaemonSetHealth(obj)
+	case kube.PersistentVolumeClaimKind:
+		health, err = getPvcHealth(obj)
 	default:
 		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	}
@@ -66,6 +68,29 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 		}
 	}
 	return newIndex > currentIndex
+}
+
+func getPvcHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kube.ConvertToVersion(obj, "", "v1")
+	if err != nil {
+		return nil, err
+	}
+	var pvc coreV1.PersistentVolumeClaim
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pvc)
+	if err != nil {
+		return nil, err
+	}
+
+	if pvc.Status.Phase == coreV1.ClaimLost {
+		return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded}, nil
+	}
+	if pvc.Status.Phase == coreV1.ClaimPending {
+		return &appv1.HealthStatus{Status: appv1.HealthStatusProgressing}, nil
+	}
+	if pvc.Status.Phase == coreV1.ClaimBound {
+		return &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}, nil
+	}
+	return &appv1.HealthStatus{Status: appv1.HealthStatusUnknown}, nil
 }
 
 func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {

@@ -49,13 +49,14 @@ const (
 )
 
 const (
-	ServiceKind     = "Service"
-	EndpointsKind   = "Endpoints"
-	DeploymentKind  = "Deployment"
-	ReplicaSetKind  = "ReplicaSet"
-	StatefulSetKind = "StatefulSet"
-	DaemonSetKind   = "DaemonSet"
-	IngressKind     = "Ingress"
+	ServiceKind               = "Service"
+	EndpointsKind             = "Endpoints"
+	DeploymentKind            = "Deployment"
+	ReplicaSetKind            = "ReplicaSet"
+	StatefulSetKind           = "StatefulSet"
+	DaemonSetKind             = "DaemonSet"
+	IngressKind               = "Ingress"
+	PersistentVolumeClaimKind = "PersistentVolumeClaim"
 )
 
 const (
