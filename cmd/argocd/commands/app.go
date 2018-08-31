@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -845,23 +846,22 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // ResourceState tracks the state of a resource when waiting on an application status.
 type resourceState struct {
-	Kind      string
-	Name      string
-	PrevState string
-	Fields    map[string]string
-	Updated   bool
+	Kind    string
+	Name    string
+	Status  string
+	Health  string
+	Hook    string
+	Message string
 }
 
-func newResourceState(kind, name, status, healthStatus, resType, message string) *resourceState {
+func newResourceState(kind, name, status, health, hook, message string) *resourceState {
 	return &resourceState{
-		Kind: kind,
-		Name: name,
-		Fields: map[string]string{
-			"status":       status,
-			"healthStatus": healthStatus,
-			"type":         resType,
-			"message":      message,
-		},
+		Kind:    kind,
+		Name:    name,
+		Status:  status,
+		Health:  health,
+		Hook:    hook,
+		Message: message,
 	}
 }
 
@@ -870,47 +870,104 @@ func (rs *resourceState) Key() string {
 	return fmt.Sprintf("%s/%s", rs.Kind, rs.Name)
 }
 
-// Merge merges the new state into the previous state, returning whether the
-// new state contains any additional keys or different values from the old state.
-func (rs *resourceState) Merge() bool {
-	if out := rs.String(); out != rs.PrevState {
-		rs.PrevState = out
-		return true
-	}
-	return false
-}
-
 func (rs *resourceState) String() string {
-	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Fields["status"], rs.Fields["healthStatus"], rs.Fields["type"], rs.Fields["message"])
+	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Status, rs.Health, rs.Hook, rs.Message)
 }
 
-// Update a resourceState with any different contents from another resourceState.
+// Merge merges the new state with any different contents from another resourceState.
 // Blank fields in the receiver state will be updated to non-blank.
 // Non-blank fields in the receiver state will never be updated to blank.
-func (rs *resourceState) Update(newState *resourceState) {
-	for k, v := range newState.Fields {
-		if v != "" {
-			rs.Fields[k] = v
+// Returns whether or not any keys were updated.
+func (rs *resourceState) Merge(newState *resourceState) bool {
+	updated := false
+	for _, field := range []string{"Status", "Health", "Hook", "Message"} {
+		v := reflect.ValueOf(rs).Elem().FieldByName(field)
+		currVal := v.String()
+		newVal := reflect.ValueOf(newState).Elem().FieldByName(field).String()
+		if newVal != "" && currVal != newVal {
+			v.SetString(newVal)
+			updated = true
 		}
 	}
+	return updated
 }
 
-func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperations bool) (*argoappv1.Application, error) {
+func calculateResourceStates(app *argoappv1.Application) map[string]*resourceState {
+	resStates := make(map[string]*resourceState)
+	for _, res := range app.Status.ComparisonResult.Resources {
+		obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
+		errors.CheckError(err)
+		if obj == nil {
+			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
+			errors.CheckError(err)
+		}
+		newState := newResourceState(obj.GetKind(), obj.GetName(), string(res.Status), res.Health.Status, "", "")
+		key := newState.Key()
+		if prev, ok := resStates[key]; ok {
+			prev.Merge(newState)
+		} else {
+			resStates[key] = newState
+		}
+	}
+
+	var opResult *argoappv1.SyncOperationResult
+	if app.Status.OperationState.SyncResult != nil {
+		opResult = app.Status.OperationState.SyncResult
+	} else if app.Status.OperationState.RollbackResult != nil {
+		opResult = app.Status.OperationState.SyncResult
+	}
+	if opResult == nil {
+		return resStates
+	}
+
+	for _, hook := range opResult.Hooks {
+		newState := newResourceState(hook.Kind, hook.Name, string(hook.Status), "", string(hook.Type), hook.Message)
+		key := newState.Key()
+		if prev, ok := resStates[key]; ok {
+			prev.Merge(newState)
+		} else {
+			resStates[key] = newState
+		}
+	}
+
+	for _, res := range opResult.Resources {
+		newState := newResourceState(res.Kind, res.Name, "", "", "", res.Message)
+		key := newState.Key()
+		if prev, ok := resStates[key]; ok {
+			prev.Merge(newState)
+		} else {
+			resStates[key] = newState
+		}
+	}
+	return resStates
+}
+
+func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperation bool) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	printFinalStatus := func() {
-		// get refreshed app before printing to show accurate sync/health status
-		app, err := appClient.Get(ctx, &application.ApplicationQuery{Name: &appName, Refresh: true})
-		errors.CheckError(err)
+	// refresh controls whether or not we refresh the app before printing the final status.
+	// We only want to do this when an operation is in progress, since operations are the only
+	// time when the sync status lags behind when an operation completes
+	refresh := false
 
-		fmt.Printf(printOpFmtStr, "Application:", appName)
-		printOperationResult(app.Status.OperationState)
+	printFinalStatus := func(app *argoappv1.Application) {
+		var err error
+		if refresh {
+			app, err = appClient.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: true})
+			errors.CheckError(err)
+		}
+
+		fmt.Println()
+		fmt.Printf(printOpFmtStr, "Application:", app.Name)
+		if watchOperation {
+			printOperationResult(app.Status.OperationState)
+		}
 
 		if len(app.Status.ComparisonResult.Resources) > 0 {
 			fmt.Println()
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			printAppResources(w, app, true)
+			w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
+			printAppResources(w, app, watchOperation)
 			_ = w.Flush()
 		}
 	}
@@ -918,89 +975,47 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 			cancel()
-			printFinalStatus()
 		})
 	}
 
-	// print the initial components to format the tabwriter columns
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG")
-	_ = w.Flush()
 
 	prevStates := make(map[string]*resourceState)
-	conditionallyPrintOutput := func(w io.Writer, newState *resourceState) {
-		stateKey := newState.Key()
-		if prevState, found := prevStates[stateKey]; found {
-			prevState.Update(newState)
-		} else {
-			prevStates[stateKey] = newState
-		}
-	}
-
-	printCompResults := func(compResult *argoappv1.ComparisonResult) {
-		if compResult != nil {
-			for _, res := range compResult.Resources {
-				obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-				errors.CheckError(err)
-				if obj == nil {
-					obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-					errors.CheckError(err)
-				}
-
-				newState := newResourceState(obj.GetKind(), obj.GetName(), string(res.Status), res.Health.Status, "", "")
-				conditionallyPrintOutput(w, newState)
-			}
-		}
-	}
-
-	printOpResults := func(opResult *argoappv1.SyncOperationResult) {
-		if opResult != nil {
-			if opResult.Hooks != nil {
-				for _, hook := range opResult.Hooks {
-					newState := newResourceState(hook.Kind, hook.Name, string(hook.Status), "", string(hook.Type), hook.Message)
-					conditionallyPrintOutput(w, newState)
-				}
-			}
-
-			if opResult.Resources != nil {
-				for _, res := range opResult.Resources {
-					newState := newResourceState(res.Kind, res.Name, string(res.Status), "", "", res.Message)
-					conditionallyPrintOutput(w, newState)
-				}
-			}
-		}
-	}
-
 	appEventCh := watchApp(ctx, appClient, appName)
+	var app *argoappv1.Application
+
 	for appEvent := range appEventCh {
-		app := appEvent.Application
-
-		printCompResults(&app.Status.ComparisonResult)
-
-		if opState := app.Status.OperationState; opState != nil {
-			printOpResults(opState.SyncResult)
-			printOpResults(opState.RollbackResult)
+		app = &appEvent.Application
+		if app.Operation != nil {
+			refresh = true
 		}
-
-		for _, v := range prevStates {
-			if v.Merge() {
-				fmt.Fprintln(w, v)
-			}
-		}
-
-		_ = w.Flush()
-
 		// consider skipped checks successful
 		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
 		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
-		operational := !watchOperations || appEvent.Application.Operation == nil
+		operational := !watchOperation || appEvent.Application.Operation == nil
 		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {
-			log.Printf("App %q matches desired state", appName)
-			printFinalStatus()
-			return &app, nil
+			printFinalStatus(app)
+			return app, nil
 		}
-	}
 
+		newStates := calculateResourceStates(app)
+		for _, newState := range newStates {
+			var doPrint bool
+			stateKey := newState.Key()
+			if prevState, found := prevStates[stateKey]; found {
+				doPrint = prevState.Merge(newState)
+			} else {
+				prevStates[stateKey] = newState
+				doPrint = true
+			}
+			if doPrint {
+				fmt.Fprintln(w, prevStates[stateKey])
+			}
+		}
+		_ = w.Flush()
+	}
+	printFinalStatus(app)
 	return nil, fmt.Errorf("Timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
