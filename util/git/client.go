@@ -136,7 +136,7 @@ func (m *nativeGitClient) setCredentials() error {
 func (m *nativeGitClient) Fetch() error {
 	var err error
 	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
-	if _, err = m.runCmd("git", "fetch", "origin"); err != nil {
+	if _, err = m.runCmd("git", "fetch", "origin", "--tags"); err != nil {
 		return err
 	}
 	// git fetch does not update the HEAD reference. The following command will update the local
