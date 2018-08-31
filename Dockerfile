@@ -95,7 +95,12 @@ RUN make ${MAKE_TARGET}
 # Final image
 ####################################################################################################
 FROM debian:9.5-slim
-RUN apt-get update && \
+
+RUN groupadd -g 999 argocd && \
+    useradd -r -u 999 -g argocd argocd && \
+    mkdir -p /home/argocd && \
+    chown argocd:argocd /home/argocd && \
+    apt-get update && \
     apt-get install -y git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -106,7 +111,7 @@ COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
-ENV USER=root
+ENV USER=argocd
 
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/* /usr/local/bin/
 
@@ -117,5 +122,7 @@ RUN ln -s /usr/local/bin/argocd /argocd && \
     ln -s /usr/local/bin/argocd-application-controller /argocd-application-controller && \
     ln -s /usr/local/bin/argocd-repo-server /argocd-repo-server
 
+USER argocd
+WORKDIR /home/argocd
 ARG BINARY
 CMD ${BINARY}
