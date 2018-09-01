@@ -36,7 +36,7 @@ export const ProjectEditPanel = (props: {
                 <div className='argo-form-row'>
                     <FormField formApi={api} label='Project Description' field='description' component={Text}/>
                 </div>
-                <DataLoader load={() => services.reposService.list().then((repos) => repos.map((repo) => repo.repo))}>
+                <DataLoader load={() => services.reposService.list().then((repos) => repos.concat({repo: '*'} as models.Repository).map((repo) => repo.repo))}>
                     {(repos) => (
                         <React.Fragment>
                         <h4>Sources:</h4>
@@ -53,7 +53,7 @@ export const ProjectEditPanel = (props: {
                     )}
                 </DataLoader>
 
-                <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((cluster) => cluster.server))}>
+                <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.concat({server: '*'} as models.Cluster).map((cluster) => cluster.server))}>
                     {(clusters) => (
                         <React.Fragment>
                             <h4>Destinations:</h4>
