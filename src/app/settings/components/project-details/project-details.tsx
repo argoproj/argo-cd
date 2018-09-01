@@ -24,7 +24,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                 actionMenu: {items: [
                     { title: 'Edit', iconClassName: 'icon fa fa-pencil', action: () => ctx.navigation.goto('.', {edit: true}) },
                     { title: 'Delete', iconClassName: 'icon fa fa-times-circle', action: async () => {
-                        const confirmed = ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
+                        const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
                         if (confirmed) {
                             try {
                                 await services.projects.delete(this.props.match.params.name);
