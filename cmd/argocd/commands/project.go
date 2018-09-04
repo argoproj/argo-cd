@@ -80,14 +80,14 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 }
 
 func addProjFlags(command *cobra.Command, opts *projectOpts) {
-	command.Flags().StringVarP(&opts.description, "description", "", "desc", "Project description")
+	command.Flags().StringVarP(&opts.description, "description", "", "", "Project description")
 	command.Flags().StringArrayVarP(&opts.destinations, "dest", "d", []string{},
-		"Allowed deployment destination. Includes comma separated server url and namespace (e.g. https://192.168.99.100:8443,default")
-	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Allowed deployment source repository URL.")
+		"Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)")
+	command.Flags().StringArrayVarP(&opts.sources, "src", "s", []string{}, "Permitted git source repository URL")
 }
 
 func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
-	command.Flags().StringVarP(&opts.action, "action", "a", "", "Action to grant/deny permission on")
+	command.Flags().StringVarP(&opts.action, "action", "a", "", "Action to grant/deny permission on (e.g. get, create, list, update, delete)")
 	command.Flags().StringVarP(&opts.permission, "permission", "p", "allow", "Whether to allow or deny access to object with the action.  This can only be 'allow' or 'deny'")
 	command.Flags().StringVarP(&opts.object, "object", "o", "", "Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'")
 }
@@ -96,7 +96,7 @@ func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
 func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	roleCommand := &cobra.Command{
 		Use:   "role",
-		Short: "Manage a project's role",
+		Short: "Manage a project's roles",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -250,7 +250,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringVarP(&description, "description", "", "desc", "Project description")
+	command.Flags().StringVarP(&description, "description", "", "", "Project description")
 	return command
 }
 
@@ -292,7 +292,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		expiresIn string
 	)
 	var command = &cobra.Command{
-		Use:   "create-token PROJECT TOKEN-NAME",
+		Use:   "create-token PROJECT ROLE-NAME",
 		Short: "Create a project token",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
@@ -307,7 +307,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 			errors.CheckError(err)
 			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Role: roleName, ExpiresIn: int64(duration.Seconds())})
 			errors.CheckError(err)
-			fmt.Print(token.Token)
+			fmt.Println(token.Token)
 		},
 	}
 	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
@@ -391,12 +391,13 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 			role := project.Spec.Roles[index]
 
+			printRoleFmtStr := "%-15s%s\n"
+			fmt.Printf(printRoleFmtStr, "Role Name:", roleName)
+			fmt.Printf(printRoleFmtStr, "Description:", role.Description)
+			fmt.Printf("Policies:\n")
+			fmt.Printf("%s\n", project.ProjectPoliciesString())
+			fmt.Printf("JWT Tokens:\n")
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "Role Name: %s\n", roleName)
-			fmt.Fprintf(w, "Description:%s\n", role.Description)
-			fmt.Fprintf(w, "Policies:\n")
-			fmt.Fprintf(w, "%s\n", project.ProjectPoliciesString())
-			fmt.Fprintf(w, "Jwt Tokens:\n")
 			fmt.Fprintf(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
 			for _, token := range role.JWTTokens {
 				expiresAt := "<none>"
