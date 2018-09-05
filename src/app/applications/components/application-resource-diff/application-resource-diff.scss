@@ -1,5 +1,16 @@
 .application-component-diff {
     line-height: 1em;
+    position: relative;
+
+    &__checkbox {
+        position: absolute;
+        right: 1em;
+        top: 0;
+    }
+   
+    &__manifest {
+        overflow-x: auto;
+    }
 }
 
 .jsondiffpatch-delta {
