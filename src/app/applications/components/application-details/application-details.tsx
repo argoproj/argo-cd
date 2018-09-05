@@ -318,11 +318,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             action: () => this.selectNode(`${resourceNode.state.kind}:${resourceNode.state.metadata.name}`),
         }];
 
-        if (resourceNode.state.kind != 'Application') {
+        if (resourceNode.state.kind !== 'Application') {
             menuItems.push({
                 title: 'Delete',
                 action: async () => {
-                    const confirmed = await this.appContext.apis.popup.confirm('Delete resource', `Are your sure you want to delete ${resourceNode.state.kind} '${resourceNode.state.metadata.name}'?`);
+                    const confirmed = await this.appContext.apis.popup.confirm('Delete resource',
+                        `Are your sure you want to delete ${resourceNode.state.kind} '${resourceNode.state.metadata.name}'?`);
                     if (confirmed) {
                         this.deleteResource(resourceNode.state.metadata.name, resourceNode.state.apiVersion, resourceNode.state.kind);
                     }

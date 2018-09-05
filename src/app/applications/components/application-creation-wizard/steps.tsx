@@ -124,16 +124,19 @@ export interface NewAppParams {
     clusterURL: string;
     namespace: string;
     project: string;
+    valuesFiles?: string[];
 }
 
 export class AppParams extends React.Component<{
-        needEnvironment: boolean,
-        environments: string[],
-        projects: string[],
-        appParams: NewAppParams,
-        submitForm: Observable<any>,
-        onValidationChanged: (isValid: boolean) => any,
-        onSubmit: (params: NewAppParams) => any,
+    needEnvironment: boolean,
+    needValuesFiles: boolean,
+    valuesFiles: string[],
+    environments: string[],
+    projects: string[],
+    appParams: NewAppParams,
+    submitForm: Observable<any>,
+    onValidationChanged: (isValid: boolean) => any,
+    onSubmit: (params: NewAppParams) => any,
 }> {
 
     private formApi: FormApi;
@@ -184,6 +187,14 @@ export class AppParams extends React.Component<{
                         {this.props.needEnvironment && (
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Environment' field='environment' component={Select}  componentProps={{options: this.props.environments}} />
+                            </div>
+                        )}
+                        {this.props.needValuesFiles && (
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Values Files' field='valuesFiles' component={Select} componentProps={{
+                                    options: this.props.valuesFiles,
+                                    multiSelect: true,
+                                }} />
                             </div>
                         )}
                         <div className='argo-form-row'>

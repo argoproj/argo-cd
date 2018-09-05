@@ -30,16 +30,17 @@ export const FormField: <E, T extends ReactForm.FieldProps & {className?: string
 };
 
 export const Select = ReactForm.FormField((props: SelectProps & { fieldApi: ReactForm.FieldApi, placeholder?: string, className?: string }) => {
-    const { fieldApi: {getValue, setValue}, onChange, ...rest } = props;
+    const { fieldApi: {getValue, setValue}, ...rest } = props;
     const value = getValue();
 
     return (
         <div className={classNames(props.className, 'form-field__select')}>
-            <ArgoSelect {...rest} value={!value && value !== 0 ? '' : value} placeholder={props.placeholder}
-                onChange={(option) => {
-                    setValue(option.value);
-                }
-            }/>
+            <ArgoSelect {...rest} value={value} placeholder={props.placeholder} multiSelect={props.multiSelect}
+                onMultiChange={(options) => {
+                    setValue(options.map((item) => item.value));
+                }}
+                onChange={(option) => setValue(option.value)}
+            />
         </div>
     );
-}) as React.ComponentType<ReactForm.FieldProps & { options: (SelectOption | string)[], placeholder?: string, className?: string }>;
+}) as React.ComponentType<ReactForm.FieldProps & { options: (SelectOption | string)[], multiSelect?: boolean, placeholder?: string, className?: string }>;

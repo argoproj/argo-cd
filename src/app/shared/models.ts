@@ -144,6 +144,10 @@ export interface ApplicationSource {
      * Overridden component parameters.
      */
     componentParameterOverrides: ComponentParameter[];
+    /**
+     * List of Helm values files to use when generating a template
+     */
+    valuesFiles: string[];
 }
 
 export interface ApplicationSpec {
@@ -295,6 +299,7 @@ export interface AppInfo {
 export interface HelmAppSpec {
     name: string;
     path: string;
+    valueFiles: string[];
 }
 
 export interface KustomizeAppSpec {
