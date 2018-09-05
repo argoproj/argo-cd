@@ -3,6 +3,7 @@
 ArgoCD supports several different ways in which kubernetes manifests can be defined:
 
 * [ksonnet](https://ksonnet.io) applications
+* [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
 * Simple directory of YAML/json manifests
 

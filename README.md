@@ -23,6 +23,7 @@ is provided for additional features.
 Argo CD follows the **GitOps** pattern of using git repositories as the source of truth for defining
 the desired application state. Kubernetes manifests can be specified in several ways:
 * [ksonnet](https://ksonnet.io) applications
+* [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
 * Simple directory of YAML/json manifests
 
