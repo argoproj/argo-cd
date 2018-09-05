@@ -2,6 +2,7 @@ package repository
 
 import (
 	"path"
+	"path/filepath"
 	"reflect"
 
 	"github.com/ghodss/yaml"
@@ -158,15 +159,23 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 		if err != nil {
 			return nil, err
 		}
+		appDir := path.Dir(q.Path)
 		valuesFilesRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{
 			Revision: revision,
 			Repo:     repo,
-			Path:     path.Join(path.Dir(q.Path), "*values*.yaml"),
+			Path:     path.Join(appDir, "*values*.yaml"),
 		})
 		if err != nil {
 			return nil, err
 		}
-		appSpec.ValueFiles = valuesFilesRes.Items
+		appSpec.ValueFiles = make([]string, len(valuesFilesRes.Items))
+		for i := range valuesFilesRes.Items {
+			valueFilePath, err := filepath.Rel(appDir, valuesFilesRes.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			appSpec.ValueFiles[i] = valueFilePath
+		}
 		return &RepoAppDetailsResponse{
 			Type: string(appSourceType),
 			Helm: &appSpec,
