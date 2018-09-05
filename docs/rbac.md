@@ -2,13 +2,17 @@
 
 ## Overview
 
-The feature RBAC allows restricting access to ArgoCD resources. ArgoCD does not have own user management system and has only one built-in user `admin`. The `admin` user is a
-superuser and it has full access. RBAC requires configuring [SSO](./sso.md) integration. Once [SSO](./sso.md) is connected you can define RBAC roles and map roles to groups.
+The RBAC feature enables restriction of access to ArgoCD resources. ArgoCD does not have its own
+user management system and has only one built-in user `admin`. The `admin` user is a superuser and
+it has unrestricted access to the system. RBAC requires [SSO configuration](./sso.md). Once SSO is
+configured, additional RBAC roles can be defined, and SSO groups can man be mapped to roles.
 
 ## Configure RBAC
 
-RBAC configuration allows defining roles and groups. ArgoCD has two pre-defined roles: role `role:readonly` which provides read-only access to all resources and role `role:admin`
-which provides full access. Role definitions are available in [builtin-policy.csv](../util/rbac/builtin-policy.csv) file.
+RBAC configuration allows defining roles and groups. ArgoCD has two pre-defined roles:
+* `role:readonly` - read-only access to all resources
+* `role:admin` - unrestricted access to all resources
+These role definitions can be seen in [builtin-policy.csv](../util/rbac/builtin-policy.csv)
 
 Additional roles and groups can be configured in `argocd-rbac-cm` ConfigMap. The example below custom role `org-admin`. The role is assigned to any user which belongs to
 `your-github-org:your-team` group. All other users get `role:readonly` and cannot modify ArgoCD settings.

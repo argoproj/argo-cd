@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.8.0 (TBD)
+## v0.8.0 (2018-09-04)
 
 ### Notes about upgrading from v0.7
 * The RBAC model has been improved to support explicit denies. What this means is that any previous
@@ -15,14 +15,20 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
     ```
 
 ### Changes since v0.7:
-+ Support kustomize as an application source
-+ Introduce project tokens for automation access
-+ Add ability to delete a single application resource to support immutable updates
++ Support kustomize as an application source (issue #510)
++ Introduce project tokens for automation access (issue #498)
++ Add ability to delete a single application resource to support immutable updates (issue #262)
 + Update RBAC model to support explicit denies (issue #497)
 + Ability to view Kubernetes events related to application projects for auditing
++ Add PVC healthcheck to controller (issue #501)
++ Run all containers as an unprivileged user (issue #528)
 * Upgrade ksonnet to v0.12.0
-* Add readiness probe to API server
+* Add readiness probes to API server (issue #522)
+* Use gRPC error codes instead of fmt.Errorf (#532)
 - API discovery becomes best effort when partial resource list is returned (issue #524)
+- Fix `argocd app wait` printing incorrect Sync output (issue #542)
+- Fix issue where argocd could not sync to a tag (#541)
+- Fix issue where static assets were browser cached between upgrades (issue #489)
 
 ## v0.7.2 (2018-08-21)
 - API discovery becomes best effort when partial resource list is returned (issue #524)

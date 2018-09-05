@@ -62,16 +62,16 @@ cli: clean-debug
 
 .PHONY: cli-linux
 cli-linux: clean-debug
-	docker build --iidfile /tmp/argocd-linux-id --target builder --build-arg MAKE_TARGET="cli IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-linux-amd64" .
+	docker build --iidfile /tmp/argocd-linux-id --target argocd-build --build-arg MAKE_TARGET="cli IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-linux-amd64" .
 	docker create --name tmp-argocd-linux `cat /tmp/argocd-linux-id`
-	docker cp tmp-argocd-linux:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-linux-amd64 dist/
+	docker cp tmp-argocd-linux:/go/src/github.com/argoproj/argo-cd/dist/argocd-linux-amd64 dist/
 	docker rm tmp-argocd-linux
 
 .PHONY: cli-darwin
 cli-darwin: clean-debug
-	docker build --iidfile /tmp/argocd-darwin-id --target builder --build-arg MAKE_TARGET="cli GOOS=darwin IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-darwin-amd64" .
+	docker build --iidfile /tmp/argocd-darwin-id --target argocd-build --build-arg MAKE_TARGET="cli GOOS=darwin IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-darwin-amd64" .
 	docker create --name tmp-argocd-darwin `cat /tmp/argocd-darwin-id`
-	docker cp tmp-argocd-darwin:/root/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
+	docker cp tmp-argocd-darwin:/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
 	docker rm tmp-argocd-darwin
 
 .PHONY: argocd-util
