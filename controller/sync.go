@@ -33,6 +33,7 @@ type syncContext struct {
 	config        *rest.Config
 	dynClientPool dynamic.ClientPool
 	disco         *discovery.DiscoveryClient
+	kubectl       kube.Kubectl
 	namespace     string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
@@ -146,6 +147,7 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		config:        restConfig,
 		dynClientPool: dynClientPool,
 		disco:         disco,
+		kubectl:       s.kubectl,
 		namespace:     app.Spec.Destination.Namespace,
 		syncOp:        &syncOp,
 		syncRes:       syncRes,
@@ -310,7 +312,7 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 		Kind:      targetObj.GetKind(),
 		Namespace: sc.namespace,
 	}
-	message, err := kube.ApplyResource(sc.config, targetObj, sc.namespace, dryRun, force)
+	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, sc.namespace, dryRun, force)
 	if err != nil {
 		resDetails.Message = err.Error()
 		resDetails.Status = appv1.ResourceDetailsSyncFailed
@@ -333,7 +335,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			resDetails.Message = "pruned (dry run)"
 			resDetails.Status = appv1.ResourceDetailsSyncedAndPruned
 		} else {
-			err := kube.DeleteResource(sc.config, liveObj, sc.namespace)
+			err := sc.kubectl.DeleteResource(sc.config, liveObj, sc.namespace)
 			if err != nil {
 				resDetails.Message = err.Error()
 				resDetails.Status = appv1.ResourceDetailsSyncFailed
@@ -412,7 +414,7 @@ func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Un
 	// already started the post-sync phase, then we do not need to perform the health check.
 	postSyncHooks, _ := sc.getHooks(appv1.HookTypePostSync)
 	if len(postSyncHooks) > 0 && !sc.startedPostSyncPhase() {
-		healthState, err := setApplicationHealth(sc.comparison)
+		healthState, err := setApplicationHealth(sc.kubectl, sc.comparison)
 		sc.log.Infof("PostSync application health check: %s", healthState.Status)
 		if err != nil {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to check application health: %v", err))
@@ -555,7 +557,7 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 		if err != nil {
 			sc.log.Warnf("Failed to set application label on hook %v: %v", hook, err)
 		}
-		_, err := kube.ApplyResource(sc.config, hook, sc.namespace, false, false)
+		_, err := sc.kubectl.ApplyResource(sc.config, hook, sc.namespace, false, false)
 		if err != nil {
 			return false, fmt.Errorf("Failed to create %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
 		}

@@ -2,13 +2,10 @@
 package kube
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"sync"
@@ -489,65 +486,6 @@ func deleteFile(path string) {
 	_ = os.Remove(path)
 }
 
-// DeleteResource deletes resource
-func DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error {
-	dynClientPool := dynamic.NewDynamicClientPool(config)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return err
-	}
-	gvk := obj.GroupVersionKind()
-	dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
-	if err != nil {
-		return err
-	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
-	if err != nil {
-		return err
-	}
-	reIf := dclient.Resource(apiResource, namespace)
-	propagationPolicy := metav1.DeletePropagationForeground
-	return reIf.Delete(obj.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
-}
-
-// ApplyResource performs an apply of a unstructured resource
-func ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error) {
-	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
-	f, err := ioutil.TempFile(kubectlTempDir, "")
-	if err != nil {
-		return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
-	}
-	_ = f.Close()
-	err = WriteKubeConfig(config, namespace, f.Name())
-	if err != nil {
-		return "", fmt.Errorf("Failed to write kubeconfig: %v", err)
-	}
-	defer deleteFile(f.Name())
-	manifestBytes, err := json.Marshal(obj)
-	if err != nil {
-		return "", err
-	}
-	applyArgs := []string{"--kubeconfig", f.Name(), "-n", namespace, "apply", "-f", "-"}
-	if dryRun {
-		applyArgs = append(applyArgs, "--dry-run")
-	}
-	if force {
-		applyArgs = append(applyArgs, "--force")
-	}
-	cmd := exec.Command("kubectl", applyArgs...)
-	log.Info(cmd.Args)
-	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := cmd.Output()
-	if err != nil {
-		if exErr, ok := err.(*exec.ExitError); ok {
-			errMsg := cleanKubectlOutput(string(exErr.Stderr))
-			return "", errors.New(errMsg)
-		}
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
 // cleanKubectlOutput makes the error output of kubectl a little better to read
 func cleanKubectlOutput(s string) string {
 	s = strings.TrimSpace(s)
@@ -611,46 +549,6 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 		kubeConfig.AuthInfos[restConfig.Host].Token = restConfig.BearerToken
 	}
 	return clientcmd.WriteToFile(kubeConfig, filename)
-}
-
-// ConvertToVersion converts an unstructured object into the specified group/version
-func ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
-	gvk := obj.GroupVersionKind()
-	if gvk.Group == group && gvk.Version == version {
-		return obj.DeepCopy(), nil
-	}
-	manifestBytes, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	f, err := ioutil.TempFile(kubectlTempDir, "")
-	if err != nil {
-		return nil, fmt.Errorf("Failed to generate temp file for kubectl: %v", err)
-	}
-	_ = f.Close()
-	if err := ioutil.WriteFile(f.Name(), manifestBytes, 0600); err != nil {
-		return nil, err
-	}
-	defer deleteFile(f.Name())
-	outputVersion := fmt.Sprintf("%s/%s", group, version)
-	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
-	cmd.Stdin = bytes.NewReader(manifestBytes)
-	out, err := cmd.Output()
-	if err != nil {
-		if exErr, ok := err.(*exec.ExitError); ok {
-			errMsg := cleanKubectlOutput(string(exErr.Stderr))
-			return nil, errors.New(errMsg)
-		}
-		return nil, fmt.Errorf("failed to convert %s/%s to %s/%s", obj.GetKind(), obj.GetName(), group, version)
-	}
-	// NOTE: when kubectl convert runs against stdin (i.e. kubectl convert -f -), the output is
-	// a unstructured list instead of an unstructured object
-	var convertedObj unstructured.Unstructured
-	err = json.Unmarshal(out, &convertedObj)
-	if err != nil {
-		return nil, err
-	}
-	return &convertedObj, nil
 }
 
 var diffSeparator = regexp.MustCompile(`\n---`)

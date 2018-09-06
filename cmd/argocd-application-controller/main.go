@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/stats"
 )
 
@@ -74,7 +75,8 @@ func newCommand() *cobra.Command {
 			db := db.NewDB(namespace, kubeClient)
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			repoClientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
-			appStateManager := controller.NewAppStateManager(db, appClient, repoClientset, namespace)
+			kubectlCmd := kube.KubectlCmd{}
+			appStateManager := controller.NewAppStateManager(db, appClient, repoClientset, namespace, kubectlCmd)
 
 			appController := controller.NewApplicationController(
 				namespace,
@@ -82,6 +84,7 @@ func newCommand() *cobra.Command {
 				appClient,
 				repoClientset,
 				db,
+				kubectlCmd,
 				appStateManager,
 				resyncDuration,
 				&controllerConfig)

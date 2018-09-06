@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 func TestDeploymentHealth(t *testing.T) {
@@ -17,7 +18,7 @@ func TestDeploymentHealth(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetAppHealth(&obj)
+	health, err := GetAppHealth(kube.KubectlCmd{}, &obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusHealthy, health.Status)
@@ -29,7 +30,7 @@ func TestDeploymentProgressing(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetAppHealth(&obj)
+	health, err := GetAppHealth(kube.KubectlCmd{}, &obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusProgressing, health.Status)
@@ -41,7 +42,7 @@ func TestDeploymentDegraded(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetAppHealth(&obj)
+	health, err := GetAppHealth(kube.KubectlCmd{}, &obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusDegraded, health.Status)
@@ -53,7 +54,7 @@ func TestStatefulSetHealth(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetAppHealth(&obj)
+	health, err := GetAppHealth(kube.KubectlCmd{}, &obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusHealthy, health.Status)
@@ -65,7 +66,7 @@ func TestPvcHealthy(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetAppHealth(&obj)
+	health, err := GetAppHealth(kube.KubectlCmd{}, &obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusHealthy, health.Status)
@@ -77,7 +78,7 @@ func TestPvcPending(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetAppHealth(&obj)
+	health, err := GetAppHealth(kube.KubectlCmd{}, &obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, appv1.HealthStatusProgressing, health.Status)

@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -109,6 +110,7 @@ func newTestAppServer() ApplicationServiceServer {
 		kubeclientset,
 		apps.NewSimpleClientset(defaultProj),
 		mockRepoClient,
+		kube.KubectlCmd{},
 		db,
 		enforcer,
 		util.NewKeyLock(),

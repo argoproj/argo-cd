@@ -43,6 +43,7 @@ type Server struct {
 	kubeclientset kubernetes.Interface
 	appclientset  appclientset.Interface
 	repoClientset reposerver.Clientset
+	kubectl       kube.Kubectl
 	db            db.ArgoDB
 	appComparator controller.AppStateManager
 	enf           *rbac.Enforcer
@@ -56,6 +57,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
+	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	projectLock *util.KeyLock,
@@ -67,7 +69,8 @@ func NewServer(
 		kubeclientset: kubeclientset,
 		db:            db,
 		repoClientset: repoClientset,
-		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace),
+		kubectl:       kubectl,
+		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace, kubectl),
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
@@ -491,7 +494,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	if err != nil {
 		return nil, err
 	}
-	err = kube.DeleteResource(config, found, namespace)
+	err = s.kubectl.DeleteResource(config, found, namespace)
 	if err != nil {
 		return nil, err
 	}

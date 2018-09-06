@@ -41,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -308,7 +309,7 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 // createController creates new controller instance
 func (f *Fixture) createController() *controller.ApplicationController {
 	appStateManager := controller.NewAppStateManager(
-		f.DB, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace)
+		f.DB, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace, kube.KubectlCmd{})
 
 	return controller.NewApplicationController(
 		f.Namespace,
@@ -316,6 +317,7 @@ func (f *Fixture) createController() *controller.ApplicationController {
 		f.AppClient,
 		reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
 		f.DB,
+		kube.KubectlCmd{},
 		appStateManager,
 		10*time.Second,
 		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
