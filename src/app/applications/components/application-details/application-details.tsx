@@ -365,7 +365,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             }
 
             const allStatuses = resourceNode.state.status.containerStatuses;
-            const readyStatuses = allStatuses.filter((s: ContainerStatus) => ('running' in s['state']));
+            const readyStatuses = allStatuses.filter((s: ContainerStatus) => ('running' in s.state));
             const readyContainers = "" + readyStatuses.length + "/" + allStatuses.length + " containers ready";
             labels.push(readyContainers);
         }
