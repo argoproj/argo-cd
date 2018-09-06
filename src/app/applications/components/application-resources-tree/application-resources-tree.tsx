@@ -29,17 +29,6 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     return {width, height};
 }
 
-// CountReadyContainerStatuses takes a list of container statuses and counts the running ones.
-function countReadyContainerStatuses(containerStatuses: Map<string, any>): number {
-    let total = 0;
-    containerStatuses.forEach((containerStatus) => {
-        if ('running' in containerStatus.state) {
-            total++;
-        }
-    });
-    return total;
-}
-
 function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.ResourceNode | models.ResourceState) => boolean) {
     graph.nodes().forEach((nodeId) => {
         const node = graph.node(nodeId) as (models.ResourceNode | models.ResourceState) & dagre.Node;
@@ -153,9 +142,6 @@ export const ApplicationResourcesTree = (props: {
                         <div className='application-resources-tree__node-labels'>
                             {props.nodeLabels && props.nodeLabels(node).map((label) => <span key={label}>{label}</span>)}
                             <span>{kubeState.kind}</span>
-                            {kubeState.status && kubeState.status.containerStatuses && (
-                                <span>{countReadyContainerStatuses(kubeState.status.containerStatuses)}/{kubeState.status.containerStatuses.length} containers ready</span>
-                            )}
                         </div>
                         {props.nodeMenuItems && (
                             <div className='application-resources-tree__node-menu'>
