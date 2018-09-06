@@ -76,6 +76,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveSourceCommand(clientOpts))
+	command.AddCommand(NewProjectAddClusterResCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveClusterResCommand(clientOpts))
 	return command
 }
 
@@ -603,6 +605,76 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
+// NewProjectRemoveClusterResCommand returns a new instance of an `argocd proj remove-res` command
+func NewProjectRemoveClusterResCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "remove-res PROJECT group kind",
+		Short: "Add cluster resource",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			group := args[1]
+			kind := args[2]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index := -1
+			for i, item := range proj.Spec.ClusterResources {
+				if item.Group == group && item.Kind == kind {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				log.Info("Specified cluster resource does not exist in project")
+			} else {
+				proj.Spec.ClusterResources = append(proj.Spec.ClusterResources[:index], proj.Spec.ClusterResources[index+1:]...)
+				_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+	return command
+}
+
+// NewProjectAddClusterResCommand returns a new instance of an `argocd proj add-res` command
+func NewProjectAddClusterResCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "add-res PROJECT group kind",
+		Short: "Add cluster resource",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			group := args[1]
+			kind := args[2]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for _, item := range proj.Spec.ClusterResources {
+				if item.Group == group && item.Kind == kind {
+					log.Fatalf("Group '%s' and kind '%s' are already defined in project", item.Group, item.Kind)
+				}
+			}
+			proj.Spec.ClusterResources = append(proj.Spec.ClusterResources, v1.GroupKind{Group: group, Kind: kind})
+			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
 func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -677,9 +749,9 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			projects, err := projIf.List(context.Background(), &project.ProjectQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\n")
+			fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER RESOURCES\n")
 			for _, p := range projects.Items {
-				fmt.Fprintf(w, "%s\t%s\t%v\n", p.Name, p.Spec.Description, p.Spec.Destinations)
+				fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\n", p.Name, p.Spec.Description, p.Spec.Destinations, p.Spec.SourceRepos, p.Spec.ClusterResources)
 			}
 			_ = w.Flush()
 		},

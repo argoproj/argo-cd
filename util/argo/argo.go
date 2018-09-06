@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/discovery"
 
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -30,7 +31,9 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/session"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -66,7 +69,7 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
-//ParamToMap converts a ComponentParameter list to a map for easy filtering
+// ParamToMap converts a ComponentParameter list to a map for easy filtering
 func ParamToMap(params []argoappv1.ComponentParameter) map[string]map[string]bool {
 	validAppSet := make(map[string]map[string]bool)
 	for _, p := range params {
@@ -76,6 +79,42 @@ func ParamToMap(params []argoappv1.ComponentParameter) map[string]map[string]boo
 		validAppSet[p.Component][p.Name] = true
 	}
 	return validAppSet
+}
+
+// FindRestrictedGroupKinds returns list of cluster wide resources which are not permitted in the specified project
+func FindRestrictedGroupKinds(proj argoappv1.AppProject, comparionResult *argoappv1.ComparisonResult, host string, disco discovery.DiscoveryInterface) ([]metav1.GroupKind, error) {
+	serverResources, err := kube.GetCachedServerResources(host, disco)
+	if err != nil {
+		return nil, err
+	}
+	resourcesMap := make(map[string]*metav1.APIResource)
+	for _, list := range serverResources {
+		listGroup := schema.FromAPIVersionAndKind(list.GroupVersion, list.Kind).Group
+		for i := range list.APIResources {
+			res := list.APIResources[i]
+			group := res.Group
+			if group == "" {
+				group = listGroup
+			}
+			resourcesMap[fmt.Sprintf("%s:%s", group, res.Kind)] = &res
+		}
+	}
+	groupKinds := make([]metav1.GroupKind, 0)
+	for _, res := range comparionResult.Resources {
+		targetObj, err := res.TargetObject()
+		if err != nil {
+			return nil, err
+		}
+		serverRes := resourcesMap[fmt.Sprintf("%s:%s", targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Kind)]
+		if serverRes == nil {
+			return nil, fmt.Errorf("Resource %s:%s is not supported by target kubernetes server", targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Kind)
+		}
+		gk := metav1.GroupKind{Group: serverRes.Group, Kind: serverRes.Kind}
+		if serverRes != nil && !serverRes.Namespaced && !proj.IsClusterGroupKindPermitted(gk) {
+			groupKinds = append(groupKinds, gk)
+		}
+	}
+	return groupKinds, nil
 }
 
 // CheckValidParam checks if the parameter passed is overridable for the given appMap

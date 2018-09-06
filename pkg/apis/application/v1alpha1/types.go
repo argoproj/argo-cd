@@ -10,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
+	"path/filepath"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/git"
 )
@@ -482,6 +484,9 @@ type AppProjectSpec struct {
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
+
+	// ClusterResources contains list of cluster level group kinds which are accessible by project apps
+	ClusterResources []metav1.GroupKind `json:"clusterGroupKinds,omitempty" protobuf:"bytes,5,opt,name=clusterGroupKinds"`
 }
 
 // ProjectRole represents a role that has access to a project
@@ -557,6 +562,23 @@ func (spec ApplicationSpec) GetProject() string {
 		return common.DefaultAppProjectName
 	}
 	return spec.Project
+}
+
+func (proj AppProject) IsDefault() bool {
+	return proj.Name == "" || proj.Name == common.DefaultAppProjectName
+}
+
+func (proj AppProject) IsClusterGroupKindPermitted(gk metav1.GroupKind) bool {
+	for _, item := range proj.Spec.ClusterResources {
+		ok, err := filepath.Match(item.Kind, gk.Kind)
+		if ok && err == nil {
+			ok, err = filepath.Match(item.Group, gk.Group)
+			if ok && err == nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // IsSourcePermitted validiates if the provided application's source is a one of the allowed sources for the project.

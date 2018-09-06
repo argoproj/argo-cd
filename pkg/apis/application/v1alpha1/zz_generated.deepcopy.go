@@ -89,6 +89,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.ClusterResources != nil {
+		in, out := &in.ClusterResources, &out.ClusterResources
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

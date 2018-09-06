@@ -12,6 +12,8 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/discovery/fake"
 	testcore "k8s.io/client-go/testing"
 )
 
@@ -93,4 +95,40 @@ func TestWaitForRefresh(t *testing.T) {
 	app, err = WaitForRefresh(appIf, "test-app", &oneHundredMs)
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
+}
+
+func TestFindRestrictedGroupKinds(t *testing.T) {
+	proj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResources: []metav1.GroupKind{
+				{Group: "argoproj.io", Kind: "*"},
+			},
+		},
+	}
+	disco := &fake.FakeDiscovery{Fake: &testcore.Fake{}}
+	disco.Resources = []*metav1.APIResourceList{
+		{
+			GroupVersion: corev1.SchemeGroupVersion.String(),
+			APIResources: []metav1.APIResource{
+				{Name: "clusterroles", Namespaced: false, Kind: "ClusterRole", Group: "rbac.authorization.k8s.io"},
+				{Name: "workflows", Namespaced: false, Kind: "Workflow", Group: "argoproj.io"},
+				{Name: "application", Namespaced: false, Kind: "Application", Group: "argoproj.io"},
+			},
+		},
+	}
+
+	res, err := FindRestrictedGroupKinds(proj, &argoappv1.ComparisonResult{
+		Resources: []argoappv1.ResourceState{{
+			TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
+			LiveState:   "null",
+		}},
+	}, "fake", disco)
+
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(res))
+	assert.Equal(t, "ClusterRole", res[0].Kind)
 }

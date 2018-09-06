@@ -43,6 +43,9 @@ message AppProjectSpec {
   optional string description = 3;
 
   repeated ProjectRole roles = 4;
+
+  // ClusterResources contains list of cluster level group kinds which are accessible by project apps
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterGroupKinds = 5;
 }
 
 // Application is a definition of Application resource.

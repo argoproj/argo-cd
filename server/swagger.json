@@ -1714,6 +1714,19 @@
         }
       }
     },
+    "v1GroupKind": {
+      "description": "+protobuf.options.(gogoproto.goproto_stringer)=false",
+      "type": "object",
+      "title": "GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying\nconcepts during lookup stages without having partially valid types",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      }
+    },
     "v1Initializer": {
       "description": "Initializer is information about an initializer that has not yet completed.",
       "type": "object",
@@ -1968,6 +1981,13 @@
       "type": "object",
       "title": "AppProjectSpec represents",
       "properties": {
+        "clusterGroupKinds": {
+          "type": "array",
+          "title": "ClusterResources contains list of cluster level group kinds which are accessible by project apps",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "description": {
           "type": "string",
           "title": "Description contains optional project description"
