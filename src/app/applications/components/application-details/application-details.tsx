@@ -26,7 +26,7 @@ require('./application-details.scss');
 
 // ContainerStatus holds just the state of a container status, used for type-checking.
 interface ContainerStatus {
-    state: Map<string, any>;
+    state: {[name: string]: any};
 }
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { defaultKindFilter: string[], refreshing: boolean}> {
