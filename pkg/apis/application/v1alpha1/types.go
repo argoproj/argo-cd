@@ -558,7 +558,6 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 
 // IsDestinationPermitted validiates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
-
 	for _, item := range proj.Spec.Destinations {
 		if item.Server == dst.Server || item.Server == "*" {
 			if item.Namespace == dst.Namespace || item.Namespace == "*" {
@@ -571,6 +570,13 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 
 // RESTConfig returns a go-client REST config from cluster
 func (c *Cluster) RESTConfig() *rest.Config {
+	if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			panic("Unable to create in-cluster config")
+		}
+		return config
+	}
 	return &rest.Config{
 		Host:        c.Server,
 		Username:    c.Config.Username,
