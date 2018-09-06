@@ -30,7 +30,7 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
 }
 
 // CountReadyContainerStatuses takes a list of container statuses and counts the running ones.
-function countReadyContainerStatuses(containerStatuses) {
+function countReadyContainerStatuses(containerStatuses: Map<string, any>): number {
     let total = 0;
     containerStatuses.forEach((containerStatus) => {
         if ('running' in containerStatus.state) {
