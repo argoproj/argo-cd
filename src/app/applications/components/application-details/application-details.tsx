@@ -354,7 +354,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.appContext.apis.navigation.goto('/applications');
     }
 
-
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
         const labels: string[] = [];
         const {resourceNode} = AppUtils.getStateAndNode(resource);
