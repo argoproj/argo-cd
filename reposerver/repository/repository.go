@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	jsonnet "github.com/google/go-jsonnet"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -336,7 +337,7 @@ func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) (
 	return targetObjs, params, env, nil
 }
 
-var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json)$`)
+var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
 func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
@@ -360,6 +361,29 @@ func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
 				return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 			}
 			objs = append(objs, &obj)
+		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
+			vm := jsonnet.MakeVM()
+			vm.Importer(&jsonnet.FileImporter{
+				JPaths: []string{appPath},
+			})
+			jsonStr, err := vm.EvaluateSnippet(f.Name(), string(out))
+			if err != nil {
+				return nil, status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
+			}
+
+			// attempt to unmarshal either array or single object
+			var jsonObjs []*unstructured.Unstructured
+			err = json.Unmarshal([]byte(jsonStr), &jsonObjs)
+			if err == nil {
+				objs = append(objs, jsonObjs...)
+			} else {
+				var jsonObj unstructured.Unstructured
+				err = json.Unmarshal([]byte(jsonStr), &jsonObj)
+				if err != nil {
+					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", f.Name(), err)
+				}
+				objs = append(objs, &jsonObj)
+			}
 		} else {
 			yamlObjs, err := kube.SplitYAML(string(out))
 			if err != nil {
