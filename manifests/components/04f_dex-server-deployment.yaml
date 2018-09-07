@@ -20,25 +20,7 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
-      - name: ui
-        image: argoproj/argocd-ui:v0.8.0
-        command: [cp, -r, /app, /shared]
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
       containers:
-      - name: argocd-server
-        image: argoproj/argocd-server:v0.8.0
-        command: [/argocd-server, --staticassets, /shared/app, --repo-server, 'argocd-repo-server:8081']
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-          initialDelaySeconds: 3
-          periodSeconds: 30
       - name: dex
         image: quay.io/coreos/dex:v2.10.0
         command: [/shared/argocd-util, rundex]
