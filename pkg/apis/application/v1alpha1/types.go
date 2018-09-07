@@ -485,8 +485,11 @@ type AppProjectSpec struct {
 
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
 
-	// ClusterResources contains list of cluster level group kinds which are accessible by project apps
-	ClusterResources []metav1.GroupKind `json:"clusterGroupKinds,omitempty" protobuf:"bytes,5,opt,name=clusterGroupKinds"`
+	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
+	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
+
+	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
+	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 }
 
 // ProjectRole represents a role that has access to a project
@@ -564,15 +567,11 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
-func (proj AppProject) IsDefault() bool {
-	return proj.Name == "" || proj.Name == common.DefaultAppProjectName
-}
-
-func (proj AppProject) IsClusterGroupKindPermitted(gk metav1.GroupKind) bool {
-	for _, item := range proj.Spec.ClusterResources {
-		ok, err := filepath.Match(item.Kind, gk.Kind)
+func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
+	for _, item := range list {
+		ok, err := filepath.Match(item.Kind, res.Kind)
 		if ok && err == nil {
-			ok, err = filepath.Match(item.Group, gk.Group)
+			ok, err = filepath.Match(item.Group, res.Group)
 			if ok && err == nil {
 				return true
 			}
@@ -581,7 +580,15 @@ func (proj AppProject) IsClusterGroupKindPermitted(gk metav1.GroupKind) bool {
 	return false
 }
 
-// IsSourcePermitted validiates if the provided application's source is a one of the allowed sources for the project.
+func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool) bool {
+	if namespaced {
+		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+	} else {
+		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
+	}
+}
+
+// IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 
 	normalizedURL := git.NormalizeGitURL(src.RepoURL)

@@ -44,8 +44,11 @@ message AppProjectSpec {
 
   repeated ProjectRole roles = 4;
 
-  // ClusterResources contains list of cluster level group kinds which are accessible by project apps
-  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterGroupKinds = 5;
+  // ClusterResourceWhitelist contains list of whitelisted cluster level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+
+  // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
 }
 
 // Application is a definition of Application resource.

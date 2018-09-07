@@ -1981,9 +1981,9 @@
       "type": "object",
       "title": "AppProjectSpec represents",
       "properties": {
-        "clusterGroupKinds": {
+        "clusterResourceWhitelist": {
           "type": "array",
-          "title": "ClusterResources contains list of cluster level group kinds which are accessible by project apps",
+          "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
           "items": {
             "$ref": "#/definitions/v1GroupKind"
           }
@@ -1997,6 +1997,13 @@
           "title": "Destinations contains list of destinations available for deployment",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
+          }
+        },
+        "namespaceResourceBlacklist": {
+          "type": "array",
+          "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
           }
         },
         "roles": {

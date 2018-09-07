@@ -81,8 +81,8 @@ func ParamToMap(params []argoappv1.ComponentParameter) map[string]map[string]boo
 	return validAppSet
 }
 
-// FindRestrictedGroupKinds returns list of cluster wide resources which are not permitted in the specified project
-func FindRestrictedGroupKinds(proj argoappv1.AppProject, comparionResult *argoappv1.ComparisonResult, host string, disco discovery.DiscoveryInterface) ([]metav1.GroupKind, error) {
+// FindRestrictedResources returns list of resources which are not permitted in the specified project
+func FindRestrictedResources(proj argoappv1.AppProject, comparionResult *argoappv1.ComparisonResult, host string, disco discovery.DiscoveryInterface) ([]metav1.GroupKind, error) {
 	serverResources, err := kube.GetCachedServerResources(host, disco)
 	if err != nil {
 		return nil, err
@@ -107,11 +107,11 @@ func FindRestrictedGroupKinds(proj argoappv1.AppProject, comparionResult *argoap
 		}
 		serverRes := resourcesMap[fmt.Sprintf("%s:%s", targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Kind)]
 		if serverRes == nil {
-			return nil, fmt.Errorf("Resource %s:%s is not supported by target kubernetes server", targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Kind)
+			return nil, fmt.Errorf("Resource %s:%s is not supported by target kubernetes server.", targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Kind)
 		}
-		gk := metav1.GroupKind{Group: serverRes.Group, Kind: serverRes.Kind}
-		if serverRes != nil && !serverRes.Namespaced && !proj.IsClusterGroupKindPermitted(gk) {
-			groupKinds = append(groupKinds, gk)
+		res := metav1.GroupKind{Group: serverRes.Group, Kind: serverRes.Kind}
+		if serverRes != nil && !proj.IsResourcePermitted(res, serverRes.Namespaced) {
+			groupKinds = append(groupKinds, res)
 		}
 	}
 	return groupKinds, nil

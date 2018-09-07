@@ -393,7 +393,7 @@ func (s *ksonnetAppStateManager) validateClusterResources(
 	if err != nil {
 		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
-	groupKinds, err := argo.FindRestrictedGroupKinds(*proj, comparisonResult, clst.RESTConfig().Host, disco)
+	groupKinds, err := argo.FindRestrictedResources(*proj, comparisonResult, clst.RESTConfig().Host, disco)
 	if err != nil {
 		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
@@ -416,7 +416,7 @@ func (s *ksonnetAppStateManager) validateClusterResources(
 		}
 		conditions = append(conditions, v1alpha1.ApplicationCondition{
 			Type:    v1alpha1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Application has resource types not enabled in project %s: %s", proj.Name, strings.Join(formatter, ", ")),
+			Message: fmt.Sprintf("Application has resource types not allowed in project '%s': %s", proj.Name, strings.Join(formatter, ", ")),
 		})
 	}
 	return conditions

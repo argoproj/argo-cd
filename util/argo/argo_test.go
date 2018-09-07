@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/kube"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -97,13 +99,13 @@ func TestWaitForRefresh(t *testing.T) {
 	assert.NotNil(t, app)
 }
 
-func TestFindRestrictedGroupKinds(t *testing.T) {
+func TestFindNotWhitelistedClusterResources(t *testing.T) {
 	proj := argoappv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 		},
 		Spec: argoappv1.AppProjectSpec{
-			ClusterResources: []metav1.GroupKind{
+			ClusterResourceWhitelist: []metav1.GroupKind{
 				{Group: "argoproj.io", Kind: "*"},
 			},
 		},
@@ -120,7 +122,8 @@ func TestFindRestrictedGroupKinds(t *testing.T) {
 		},
 	}
 
-	res, err := FindRestrictedGroupKinds(proj, &argoappv1.ComparisonResult{
+	kube.FlushServerResourcesCache()
+	res, err := FindRestrictedResources(proj, &argoappv1.ComparisonResult{
 		Resources: []argoappv1.ResourceState{{
 			TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
 			LiveState:   "null",
@@ -131,4 +134,41 @@ func TestFindRestrictedGroupKinds(t *testing.T) {
 
 	assert.Equal(t, 1, len(res))
 	assert.Equal(t, "ClusterRole", res[0].Kind)
+}
+
+func TestFindBlacklistedNamespacedResources(t *testing.T) {
+	proj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+		Spec: argoappv1.AppProjectSpec{
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "*", Kind: "Deployment"},
+			},
+		},
+	}
+	disco := &fake.FakeDiscovery{Fake: &testcore.Fake{}}
+	disco.Resources = []*metav1.APIResourceList{
+		{
+			GroupVersion: corev1.SchemeGroupVersion.String(),
+			APIResources: []metav1.APIResource{
+				{Name: "clusterroles", Namespaced: false, Kind: "ClusterRole", Group: "rbac.authorization.k8s.io"},
+				{Name: "workflows", Namespaced: true, Kind: "Pod", Group: ""},
+				{Name: "application", Namespaced: true, Kind: "Deployment", Group: "extensions"},
+			},
+		},
+	}
+
+	kube.FlushServerResourcesCache()
+	res, err := FindRestrictedResources(proj, &argoappv1.ComparisonResult{
+		Resources: []argoappv1.ResourceState{{
+			TargetState: `{"apiVersion": "extensions/v1beta1", "kind": "Deployment", "metadata": {"name": "argo-ui-cluster-deployment" }}`,
+			LiveState:   "null",
+		}},
+	}, "fake", disco)
+
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(res))
+	assert.Equal(t, "Deployment", res[0].Kind)
 }
