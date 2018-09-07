@@ -79,6 +79,65 @@ func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
 
+func toString(val interface{}) string {
+	if val == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s", val)
+}
+
+// hideSecretData checks if given object kind is Secret, replaces data keys with stars and returns unchanged data map. The method additionally check if data key if different
+// from corresponding key of optional parameter `otherData` and adds extra star to keep information about difference. So if secret data is out of sync user still can see which
+// fields are different.
+func hideSecretData(state string, otherData map[string]interface{}) (string, map[string]interface{}) {
+	obj, err := appv1.UnmarshalToUnstructured(state)
+	if err == nil {
+		if obj != nil && obj.GetKind() == kube.SecretKind {
+			if data, ok, err := unstructured.NestedMap(obj.Object, "data"); err == nil && ok {
+				unchangedData := make(map[string]interface{})
+				for k, v := range data {
+					unchangedData[k] = v
+				}
+				for k := range data {
+					replacement := "********"
+					if otherData != nil {
+						if val, ok := otherData[k]; ok && toString(val) != toString(data[k]) {
+							replacement = replacement + "*"
+						}
+					}
+					data[k] = replacement
+				}
+				_ = unstructured.SetNestedMap(obj.Object, data, "data")
+				newState, err := json.Marshal(obj)
+				if err == nil {
+					return string(newState), unchangedData
+				}
+			}
+		}
+	}
+	return state, nil
+}
+
+func hideNodesSecrets(nodes []appv1.ResourceNode) {
+	for i := range nodes {
+		node := nodes[i]
+		node.State, _ = hideSecretData(node.State, nil)
+		hideNodesSecrets(node.Children)
+		nodes[i] = node
+	}
+}
+
+func hideAppSecrets(app *appv1.Application) {
+	for i := range app.Status.ComparisonResult.Resources {
+		res := app.Status.ComparisonResult.Resources[i]
+		var data map[string]interface{}
+		res.LiveState, data = hideSecretData(res.LiveState, nil)
+		res.TargetState, _ = hideSecretData(res.TargetState, data)
+		hideNodesSecrets(res.ChildLiveResources)
+		app.Status.ComparisonResult.Resources[i] = res
+	}
+}
+
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.ApplicationList, error) {
 	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
@@ -92,6 +151,11 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 		}
 	}
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
+	for i := range newItems {
+		app := newItems[i]
+		hideAppSecrets(&app)
+		newItems[i] = app
+	}
 	appList.Items = newItems
 	return appList, nil
 }
@@ -135,6 +199,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 	if err == nil {
 		s.logEvent(out, ctx, argo.EventReasonResourceCreated, "create")
 	}
+	hideAppSecrets(out)
 	return out, err
 }
 
@@ -202,6 +267,7 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 			return nil, err
 		}
 	}
+	hideAppSecrets(a)
 	return a, nil
 }
 
@@ -266,7 +332,11 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	if err != nil {
 		return nil, err
 	}
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
+	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
+	if out != nil {
+		hideAppSecrets(out)
+	}
+	return out, err
 }
 
 // removeInvalidOverrides removes any parameter overrides that are no longer valid
@@ -406,6 +476,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 					// do not emit apps user does not have accessing
 					continue
 				}
+				hideAppSecrets(&a)
 				err = ws.Send(&appv1.ApplicationWatchEvent{
 					Type:        next.Type,
 					Application: a,

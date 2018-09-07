@@ -49,6 +49,7 @@ const (
 )
 
 const (
+	SecretKind                = "Secret"
 	ServiceKind               = "Service"
 	EndpointsKind             = "Endpoints"
 	DeploymentKind            = "Deployment"
