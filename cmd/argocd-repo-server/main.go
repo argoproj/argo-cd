@@ -8,6 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/errors"
@@ -17,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/stats"
+	"github.com/argoproj/pkg/kube/cli"
 )
 
 const (
@@ -27,7 +29,8 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		logLevel string
+		logLevel     string
+		clientConfig clientcmd.ClientConfig
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -37,7 +40,11 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 			log.SetLevel(level)
 
-			server := reposerver.NewServer(git.NewFactory(), newCache())
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+
+			server, err := reposerver.NewServer(git.NewFactory(), newCache(), namespace)
+			errors.CheckError(err)
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 			errors.CheckError(err)
@@ -56,6 +63,7 @@ func newCommand() *cobra.Command {
 		},
 	}
 
+	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return &command
 }
