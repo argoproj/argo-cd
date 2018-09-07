@@ -357,16 +357,21 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
         const labels: string[] = [];
         const {resourceNode} = AppUtils.getStateAndNode(resource);
-        if (resourceNode.state.kind === 'Pod') {
-            const {reason}  = AppUtils.getPodStateReason(resourceNode.state);
-            if (reason) {
-                labels.push(reason);
-            }
+        switch(resourceNode.state.kind) {
+            case 'Pod':
+                const {reason}  = AppUtils.getPodStateReason(resourceNode.state);
+                if (reason) {
+                    labels.push(reason);
+                }
 
-            const allStatuses = resourceNode.state.status.containerStatuses;
-            const readyStatuses = allStatuses.filter((s: ContainerStatus) => ('running' in s.state));
-            const readyContainers = '' + readyStatuses.length + '/' + allStatuses.length + ' containers ready';
-            labels.push(readyContainers);
+                const allStatuses = resourceNode.state.status.containerStatuses;
+                const readyStatuses = allStatuses.filter((s: ContainerStatus) => ('running' in s.state));
+                const readyContainers = '' + readyStatuses.length + '/' + allStatuses.length + ' containers ready';
+                labels.push(readyContainers);
+                break;
+
+            case 'Application':
+                break;
         }
         return labels;
     }
