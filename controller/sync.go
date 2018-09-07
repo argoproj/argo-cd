@@ -356,21 +356,25 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 // Or if the prune/apply failed, will also update the result.
 func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update bool) bool {
 	syncSuccessful := true
-	// apply all resources in parallel
+
+	createTasks := []syncTask{}
+	pruneTasks := []syncTask{}
+	for _, syncTask := range syncTasks {
+		if syncTask.targetObj == nil {
+			pruneTasks = append(pruneTasks, syncTask)
+		} else {
+			createTasks = append(createTasks, syncTask)
+
+		}
+	}
+
 	var wg sync.WaitGroup
-	for _, task := range syncTasks {
+	for _, task := range pruneTasks {
 		wg.Add(1)
 		go func(t syncTask) {
 			defer wg.Done()
 			var resDetails appv1.ResourceDetails
-			if t.targetObj == nil {
-				resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
-			} else {
-				if isHook(t.targetObj) {
-					return
-				}
-				resDetails = sc.applyObject(t.targetObj, dryRun, force)
-			}
+			resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			if !resDetails.Status.Successful() {
 				syncSuccessful = false
 			}
@@ -379,8 +383,54 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 			}
 		}(task)
 	}
+	for _, t := range createTasks {
+		if isHook(t.targetObj) {
+			continue
+		}
+		resDetails := sc.applyObject(t.targetObj, dryRun, force)
+		if !resDetails.Status.Successful() {
+			syncSuccessful = false
+		}
+		if update || !resDetails.Status.Successful() {
+			sc.setResourceDetails(&resDetails)
+		}
+	}
+
 	wg.Wait()
 	return syncSuccessful
+	//Filter into create/prune arrays and sort
+	//start waitgroup
+	//For create/prune array
+	// Add 1 to waitgroup
+	// Start go routine with array
+	//for each task in array
+	//do apply or prune
+
+	// apply all resources in parallel
+	// var wg sync.WaitGroup
+	// for _, task := range syncTasks {
+	// 	wg.Add(1)
+	// 	go func(t syncTask) {
+	// 		defer wg.Done()
+	// 		var resDetails appv1.ResourceDetails
+	// 		if t.targetObj == nil {
+	// 			resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
+	// 		} else {
+	// 			if isHook(t.targetObj) {
+	// 				return
+	// 			}
+	// 			resDetails = sc.applyObject(t.targetObj, dryRun, force)
+	// 		}
+	// 		if !resDetails.Status.Successful() {
+	// 			syncSuccessful = false
+	// 		}
+	// 		if update || !resDetails.Status.Successful() {
+	// 			sc.setResourceDetails(&resDetails)
+	// 		}
+	// 	}(task)
+	// }
+	// wg.Wait()
+	// return syncSuccessful
 }
 
 // doHookSync initiates (or continues) a hook-based sync. This method will be invoked when there may

@@ -63,50 +63,26 @@ func TestSyncSuccessfully(t *testing.T) {
 	syncCtx.kubectl = mockKubectlCmd{}
 	syncCtx.comparison = &v1alpha1.ComparisonResult{
 		Resources: []v1alpha1.ResourceState{{
+			LiveState:   "",
+			TargetState: "{\"kind\":\"service\"}",
+		}, {
 			LiveState:   "{\"kind\":\"pod\"}",
 			TargetState: "",
-		}, {
-			LiveState:   "",
-			TargetState: "{\"kind\":\"service\"}",
 		},
 		},
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
-	assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[0].Status)
 	assert.Equal(t, "service", syncCtx.syncRes.Resources[0].Kind)
+	assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[0].Status)
+	assert.Equal(t, "pod", syncCtx.syncRes.Resources[1].Kind)
 	assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[1].Status)
-	assert.Equal(t, "pod", syncCtx.syncRes.Resources[1].Kind)
 
 	syncCtx.sync()
 	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
 
-func TestSyncCreateCorrectOrder(t *testing.T) {
-	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "",
-			TargetState: "{\"kind\":\"pod\"}",
-		}, {
-			LiveState:   "",
-			TargetState: "{\"kind\":\"service\"}",
-		},
-		},
-	}
-	syncCtx.sync()
-	assert.Len(t, syncCtx.syncRes.Resources, 2)
-	assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[0].Status)
-	assert.Equal(t, "service", syncCtx.syncRes.Resources[0].Kind)
-	assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[1].Status)
-	assert.Equal(t, "pod", syncCtx.syncRes.Resources[1].Kind)
-
-	syncCtx.sync()
-	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
-}
-
-func TestSyncDeleteCorrectOrder(t *testing.T) {
+func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{}
 	syncCtx.comparison = &v1alpha1.ComparisonResult{
@@ -129,6 +105,7 @@ func TestSyncDeleteCorrectOrder(t *testing.T) {
 	syncCtx.sync()
 	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
+
 func TestSyncCreateFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{
