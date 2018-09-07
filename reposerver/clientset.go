@@ -1,10 +1,13 @@
 package reposerver
 
 import (
+	"crypto/tls"
+
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // Clientset represets repository server api clients
@@ -17,7 +20,7 @@ type clientSet struct {
 }
 
 func (c *clientSet) NewRepositoryClient() (util.Closer, repository.RepositoryServiceClient, error) {
-	conn, err := grpc.Dial(c.address, grpc.WithInsecure())
+	conn, err := grpc.Dial(c.address, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})))
 	if err != nil {
 		log.Errorf("Unable to connect to repository service with address %s", c.address)
 		return nil, nil, err

@@ -127,7 +127,11 @@ func (f *Fixture) setup() error {
 	}
 
 	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
-	repoServerGRPC := reposerver.NewServer(&FakeGitClientFactory{}, memCache).CreateGRPC()
+	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache, f.Namespace)
+	if err != nil {
+		return err
+	}
+	repoServerGRPC := repoSrv.CreateGRPC()
 	repoServerListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return err
