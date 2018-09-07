@@ -357,7 +357,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
         const labels: string[] = [];
         const {resourceNode} = AppUtils.getStateAndNode(resource);
-        switch(resourceNode.state.kind) {
+        switch (resourceNode.state.kind) {
             case 'Pod':
                 const {reason}  = AppUtils.getPodStateReason(resourceNode.state);
                 if (reason) {
