@@ -373,7 +373,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             case 'Application':
                 const appSrc = resourceNode.state.spec.source;
                 const countOfOverrides = 'componentParameterOverrides' in appSrc && appSrc.componentParameterOverrides.length || 0;
-                labels.push('' + countOfOverrides + ' parameter override(s)');
+                if (countOfOverrides > 0) {
+                    labels.push('' + countOfOverrides + ' parameter override(s)');
+                }
                 break;
         }
         return labels;
