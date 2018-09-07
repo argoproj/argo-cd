@@ -24,6 +24,11 @@ import * as AppUtils from '../utils';
 
 require('./application-details.scss');
 
+// ContainerStatus holds just the state of a container status, used for type-checking.
+interface ContainerStatus {
+    state: {[name: string]: any};
+}
+
 export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { defaultKindFilter: string[], refreshing: boolean}> {
 
     public static contextTypes = {
@@ -357,6 +362,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             if (reason) {
                 labels.push(reason);
             }
+
+            const allStatuses = resourceNode.state.status.containerStatuses;
+            const readyStatuses = allStatuses.filter((s: ContainerStatus) => ('running' in s.state));
+            const readyContainers = '' + readyStatuses.length + '/' + allStatuses.length + ' containers ready';
+            labels.push(readyContainers);
         }
         return labels;
     }
