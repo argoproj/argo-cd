@@ -2,15 +2,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: argocd-server
+  name: dex-server
 spec:
   selector:
     matchLabels:
-      app: argocd-server
+      app: dex-server
   template:
     metadata:
       labels:
-        app: argocd-server
+        app: dex-server
     spec:
       serviceAccountName: argocd-server
       initContainers:
