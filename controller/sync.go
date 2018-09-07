@@ -383,54 +383,32 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 			}
 		}(task)
 	}
-	for _, t := range createTasks {
-		if isHook(t.targetObj) {
-			continue
+	currKind := ""
+	var createWg sync.WaitGroup
+	for _, task := range createTasks {
+		//Only wait if the type of the next task is different than the previous type
+		if currKind != "" && currKind != task.targetObj.GetKind() {
+			createWg.Wait()
 		}
-		resDetails := sc.applyObject(t.targetObj, dryRun, force)
-		if !resDetails.Status.Successful() {
-			syncSuccessful = false
-		}
-		if update || !resDetails.Status.Successful() {
-			sc.setResourceDetails(&resDetails)
-		}
+		createWg.Add(1)
+		go func(t syncTask) {
+			defer createWg.Done()
+			if isHook(t.targetObj) {
+				return
+			}
+			resDetails := sc.applyObject(t.targetObj, dryRun, force)
+			if !resDetails.Status.Successful() {
+				syncSuccessful = false
+			}
+			if update || !resDetails.Status.Successful() {
+				sc.setResourceDetails(&resDetails)
+			}
+		}(task)
+		currKind = task.targetObj.GetKind()
 	}
-
+	createWg.Wait()
 	wg.Wait()
 	return syncSuccessful
-	//Filter into create/prune arrays and sort
-	//start waitgroup
-	//For create/prune array
-	// Add 1 to waitgroup
-	// Start go routine with array
-	//for each task in array
-	//do apply or prune
-
-	// apply all resources in parallel
-	// var wg sync.WaitGroup
-	// for _, task := range syncTasks {
-	// 	wg.Add(1)
-	// 	go func(t syncTask) {
-	// 		defer wg.Done()
-	// 		var resDetails appv1.ResourceDetails
-	// 		if t.targetObj == nil {
-	// 			resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
-	// 		} else {
-	// 			if isHook(t.targetObj) {
-	// 				return
-	// 			}
-	// 			resDetails = sc.applyObject(t.targetObj, dryRun, force)
-	// 		}
-	// 		if !resDetails.Status.Successful() {
-	// 			syncSuccessful = false
-	// 		}
-	// 		if update || !resDetails.Status.Successful() {
-	// 			sc.setResourceDetails(&resDetails)
-	// 		}
-	// 	}(task)
-	// }
-	// wg.Wait()
-	// return syncSuccessful
 }
 
 // doHookSync initiates (or continues) a hook-based sync. This method will be invoked when there may

@@ -15,7 +15,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/apps"
 )
 
-// GetAppHealth returns the
+// GetAppHealth returns the health of a k8s resource
 func GetAppHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 
 	var err error

@@ -48,12 +48,6 @@ func SortManifestByKind(manifests []*unstructured.Unstructured) []*unstructured.
 	return ks.manifests
 }
 
-func sortByKind(manifests []*unstructured.Unstructured, ordering SortOrder) []*unstructured.Unstructured {
-	ks := newKindSorter(manifests, ordering)
-	sort.Sort(ks)
-	return ks.manifests
-}
-
 type kindSorter struct {
 	ordering  map[string]int
 	manifests []*unstructured.Unstructured

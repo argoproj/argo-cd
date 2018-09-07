@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 type kubectlOutput struct {
@@ -73,11 +74,15 @@ func TestSyncSuccessfully(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
-	assert.Equal(t, "service", syncCtx.syncRes.Resources[0].Kind)
-	assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[0].Status)
-	assert.Equal(t, "pod", syncCtx.syncRes.Resources[1].Kind)
-	assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[1].Status)
-
+	for i := range syncCtx.syncRes.Resources {
+		if syncCtx.syncRes.Resources[i].Kind == "pod" {
+			assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[i].Status)
+		} else if syncCtx.syncRes.Resources[i].Kind == "service" {
+			assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[i].Status)
+		} else {
+			t.Error("Resource isn't a pod or a service")
+		}
+	}
 	syncCtx.sync()
 	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
@@ -96,12 +101,15 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 		},
 	}
 	syncCtx.sync()
-	assert.Len(t, syncCtx.syncRes.Resources, 2)
-	assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[0].Status)
-	assert.Equal(t, "pod", syncCtx.syncRes.Resources[0].Kind)
-	assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[1].Status)
-	assert.Equal(t, "service", syncCtx.syncRes.Resources[1].Kind)
-
+	for i := range syncCtx.syncRes.Resources {
+		if syncCtx.syncRes.Resources[i].Kind == "pod" {
+			assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[i].Status)
+		} else if syncCtx.syncRes.Resources[i].Kind == "service" {
+			assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[i].Status)
+		} else {
+			t.Error("Resource isn't a pod or a service")
+		}
+	}
 	syncCtx.sync()
 	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
@@ -110,7 +118,7 @@ func TestSyncCreateFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{
 		commands: map[string]kubectlOutput{
-			"test-service": kubectlOutput{
+			"test-service": {
 				output: "",
 				err:    fmt.Errorf("error: error validating \"test.yaml\": error validating data: apiVersion not set; if you choose to ignore these errors, turn validation off with --validate=false"),
 			},
@@ -132,7 +140,7 @@ func TestSyncPruneFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{
 		commands: map[string]kubectlOutput{
-			"test-service": kubectlOutput{
+			"test-service": {
 				output: "",
 				err:    fmt.Errorf(" error: timed out waiting for \"test-service\" to be synced"),
 			},
