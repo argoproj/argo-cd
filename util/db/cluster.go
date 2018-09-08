@@ -105,12 +105,35 @@ func (s *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) er
 		return err
 	}
 
+	localCls, err := s.GetCluster(ctx, common.KubernetesInternalAPIServerAddr)
+	if err != nil {
+		return err
+	}
+
 	defer w.Stop()
 	done := make(chan bool)
+
+	// trigger callback with event for local cluster since it always considered added
+	callback(&ClusterEvent{Type: watch.Added, Cluster: localCls})
+
 	go func() {
 		for next := range w.ResultChan() {
 			secret := next.Object.(*apiv1.Secret)
 			cluster := SecretToCluster(secret)
+
+			// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+			if cluster.Server == common.KubernetesInternalAPIServerAddr {
+				if next.Type == watch.Deleted {
+					next.Type = watch.Modified
+					cluster = &localCluster
+				} else if next.Type == watch.Added {
+					localCls = cluster
+					next.Type = watch.Modified
+				} else {
+					localCls = cluster
+				}
+			}
+
 			callback(&ClusterEvent{
 				Type:    next.Type,
 				Cluster: cluster,
