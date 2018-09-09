@@ -136,7 +136,7 @@ func (m *nativeGitClient) setCredentials() error {
 func (m *nativeGitClient) Fetch() error {
 	var err error
 	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
-	if _, err = m.runCmd("git", "fetch", "origin", "--tags"); err != nil {
+	if _, err = m.runCmd("git", "fetch", "origin", "--tags", "--force"); err != nil {
 		return err
 	}
 	// git fetch does not update the HEAD reference. The following command will update the local
@@ -192,7 +192,10 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
-	if _, err := m.runCmd("git", "checkout", revision); err != nil {
+	if _, err := m.runCmd("git", "checkout", "--force", revision); err != nil {
+		return err
+	}
+	if _, err := m.runCmd("git", "clean", "-fd"); err != nil {
 		return err
 	}
 	return nil
