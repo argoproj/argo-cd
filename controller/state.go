@@ -39,6 +39,7 @@ type AppStateManager interface {
 type ksonnetAppStateManager struct {
 	db            db.ArgoDB
 	appclientset  appclientset.Interface
+	kubectl       kubeutil.Kubectl
 	repoClientset reposerver.Clientset
 	namespace     string
 }
@@ -198,7 +199,6 @@ func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetOb
 		controlledLiveObj[i] = liveObj
 		delete(liveObjByFullName, fullName)
 	}
-
 	return controlledLiveObj, liveObjByFullName, nil
 }
 
@@ -411,10 +411,12 @@ func NewAppStateManager(
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
 	namespace string,
+	kubectl kubeutil.Kubectl,
 ) AppStateManager {
 	return &ksonnetAppStateManager{
 		db:            db,
 		appclientset:  appclientset,
+		kubectl:       kubectl,
 		repoClientset: repoClientset,
 		namespace:     namespace,
 	}

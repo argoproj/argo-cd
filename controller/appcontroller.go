@@ -46,6 +46,7 @@ const (
 type ApplicationController struct {
 	namespace             string
 	kubeClientset         kubernetes.Interface
+	kubectl               kube.Kubectl
 	applicationClientset  appclientset.Interface
 	auditLogger           *argo.AuditLogger
 	appRefreshQueue       workqueue.RateLimitingInterface
@@ -71,6 +72,7 @@ func NewApplicationController(
 	applicationClientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
 	db db.ArgoDB,
+	kubectl kube.Kubectl,
 	appStateManager AppStateManager,
 	appResyncPeriod time.Duration,
 	config *ApplicationControllerConfig,
@@ -80,6 +82,7 @@ func NewApplicationController(
 	return &ApplicationController{
 		namespace:             namespace,
 		kubeClientset:         kubeClientset,
+		kubectl:               kubectl,
 		applicationClientset:  applicationClientset,
 		repoClientset:         repoClientset,
 		appRefreshQueue:       appRefreshQueue,
@@ -523,7 +526,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		parameters = manifestInfo.Params
 	}
 
-	healthState, err := setApplicationHealth(comparisonResult)
+	healthState, err := setApplicationHealth(ctrl.kubectl, comparisonResult)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
@@ -605,7 +608,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
+func setApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
@@ -620,7 +623,7 @@ func setApplicationHealth(comparisonResult *appv1.ComparisonResult) (*appv1.Heal
 			if err != nil {
 				return nil, err
 			}
-			healthState, err := health.GetAppHealth(&obj)
+			healthState, err := health.GetAppHealth(kubectl, &obj)
 			if err != nil && savedErr == nil {
 				savedErr = err
 			}

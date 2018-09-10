@@ -56,6 +56,7 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+	"github.com/argoproj/argo-cd/util/kube"
 	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -366,7 +367,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf)
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, db, a.enf, projectLock)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, kube.KubectlCmd{}, db, a.enf, projectLock)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)

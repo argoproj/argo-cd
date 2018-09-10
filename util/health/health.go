@@ -15,26 +15,27 @@ import (
 	"k8s.io/kubernetes/pkg/apis/apps"
 )
 
-func GetAppHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+// GetAppHealth returns the health of a k8s resource
+func GetAppHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 
 	var err error
 	var health *appv1.HealthStatus
 
 	switch obj.GetKind() {
 	case kube.DeploymentKind:
-		health, err = getDeploymentHealth(obj)
+		health, err = getDeploymentHealth(kubectl, obj)
 	case kube.ServiceKind:
-		health, err = getServiceHealth(obj)
+		health, err = getServiceHealth(kubectl, obj)
 	case kube.IngressKind:
-		health, err = getIngressHealth(obj)
+		health, err = getIngressHealth(kubectl, obj)
 	case kube.StatefulSetKind:
-		health, err = getStatefulSetHealth(obj)
+		health, err = getStatefulSetHealth(kubectl, obj)
 	case kube.ReplicaSetKind:
-		health, err = getReplicaSetHealth(obj)
+		health, err = getReplicaSetHealth(kubectl, obj)
 	case kube.DaemonSetKind:
-		health, err = getDaemonSetHealth(obj)
+		health, err = getDaemonSetHealth(kubectl, obj)
 	case kube.PersistentVolumeClaimKind:
-		health, err = getPvcHealth(obj)
+		health, err = getPvcHealth(kubectl, obj)
 	default:
 		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	}
@@ -70,8 +71,8 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 	return newIndex > currentIndex
 }
 
-func getPvcHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "", "v1")
+func getPvcHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kubectl.ConvertToVersion(obj, "", "v1")
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +94,8 @@ func getPvcHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	}
 }
 
-func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "extensions", "v1beta1")
+func getIngressHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kubectl.ConvertToVersion(obj, "extensions", "v1beta1")
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +115,8 @@ func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, erro
 	return &health, nil
 }
 
-func getServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "", "v1")
+func getServiceHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kubectl.ConvertToVersion(obj, "", "v1")
 	if err != nil {
 		return nil, err
 	}
@@ -137,8 +138,8 @@ func getServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, erro
 	return &health, nil
 }
 
-func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
+func getDeploymentHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +185,8 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 	}, nil
 }
 
-func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
+func getDaemonSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
 		return nil, err
 	}
@@ -222,8 +223,8 @@ func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, er
 	}, nil
 }
 
-func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
+func getStatefulSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +274,8 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, 
 	}, nil
 }
 
-func getReplicaSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kube.ConvertToVersion(obj, "apps", "v1")
+func getReplicaSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 
@@ -33,6 +34,7 @@ type syncContext struct {
 	config        *rest.Config
 	dynClientPool dynamic.ClientPool
 	disco         *discovery.DiscoveryClient
+	kubectl       kube.Kubectl
 	namespace     string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
@@ -146,6 +148,7 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		config:        restConfig,
 		dynClientPool: dynClientPool,
 		disco:         disco,
+		kubectl:       s.kubectl,
 		namespace:     app.Spec.Destination.Namespace,
 		syncOp:        &syncOp,
 		syncRes:       syncRes,
@@ -310,7 +313,7 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 		Kind:      targetObj.GetKind(),
 		Namespace: sc.namespace,
 	}
-	message, err := kube.ApplyResource(sc.config, targetObj, sc.namespace, dryRun, force)
+	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, sc.namespace, dryRun, force)
 	if err != nil {
 		resDetails.Message = err.Error()
 		resDetails.Status = appv1.ResourceDetailsSyncFailed
@@ -333,7 +336,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			resDetails.Message = "pruned (dry run)"
 			resDetails.Status = appv1.ResourceDetailsSyncedAndPruned
 		} else {
-			err := kube.DeleteResource(sc.config, liveObj, sc.namespace)
+			err := sc.kubectl.DeleteResource(sc.config, liveObj, sc.namespace)
 			if err != nil {
 				resDetails.Message = err.Error()
 				resDetails.Status = appv1.ResourceDetailsSyncFailed
@@ -354,21 +357,26 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 // Or if the prune/apply failed, will also update the result.
 func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update bool) bool {
 	syncSuccessful := true
-	// apply all resources in parallel
+
+	createTasks := []syncTask{}
+	pruneTasks := []syncTask{}
+	for _, syncTask := range syncTasks {
+		if syncTask.targetObj == nil {
+			pruneTasks = append(pruneTasks, syncTask)
+		} else {
+			createTasks = append(createTasks, syncTask)
+
+		}
+	}
+	sort.Sort(newKindSorter(createTasks, resourceOrder))
+
 	var wg sync.WaitGroup
-	for _, task := range syncTasks {
+	for _, task := range pruneTasks {
 		wg.Add(1)
 		go func(t syncTask) {
 			defer wg.Done()
 			var resDetails appv1.ResourceDetails
-			if t.targetObj == nil {
-				resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
-			} else {
-				if isHook(t.targetObj) {
-					return
-				}
-				resDetails = sc.applyObject(t.targetObj, dryRun, force)
-			}
+			resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			if !resDetails.Status.Successful() {
 				syncSuccessful = false
 			}
@@ -377,6 +385,30 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 			}
 		}(task)
 	}
+	currKind := ""
+	var createWg sync.WaitGroup
+	for _, task := range createTasks {
+		//Only wait if the type of the next task is different than the previous type
+		if currKind != "" && currKind != task.targetObj.GetKind() {
+			createWg.Wait()
+		}
+		createWg.Add(1)
+		go func(t syncTask) {
+			defer createWg.Done()
+			if isHook(t.targetObj) {
+				return
+			}
+			resDetails := sc.applyObject(t.targetObj, dryRun, force)
+			if !resDetails.Status.Successful() {
+				syncSuccessful = false
+			}
+			if update || !resDetails.Status.Successful() {
+				sc.setResourceDetails(&resDetails)
+			}
+		}(task)
+		currKind = task.targetObj.GetKind()
+	}
+	createWg.Wait()
 	wg.Wait()
 	return syncSuccessful
 }
@@ -412,7 +444,7 @@ func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Un
 	// already started the post-sync phase, then we do not need to perform the health check.
 	postSyncHooks, _ := sc.getHooks(appv1.HookTypePostSync)
 	if len(postSyncHooks) > 0 && !sc.startedPostSyncPhase() {
-		healthState, err := setApplicationHealth(sc.comparison)
+		healthState, err := setApplicationHealth(sc.kubectl, sc.comparison)
 		sc.log.Infof("PostSync application health check: %s", healthState.Status)
 		if err != nil {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to check application health: %v", err))
@@ -555,7 +587,7 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 		if err != nil {
 			sc.log.Warnf("Failed to set application label on hook %v: %v", hook, err)
 		}
-		_, err := kube.ApplyResource(sc.config, hook, sc.namespace, false, false)
+		_, err := sc.kubectl.ApplyResource(sc.config, hook, sc.namespace, false, false)
 		if err != nil {
 			return false, fmt.Errorf("Failed to create %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
 		}
@@ -855,4 +887,90 @@ func (sc *syncContext) deleteHook(name, kind, apiVersion string) error {
 	}
 	resIf := dclient.Resource(apiResource, sc.namespace)
 	return resIf.Delete(name, &metav1.DeleteOptions{})
+}
+
+// This code is mostly taken from https://github.com/helm/helm/blob/release-2.10/pkg/tiller/kind_sorter.go
+
+// sortOrder is an ordering of Kinds.
+type sortOrder []string
+
+// resourceOrder represents the correct order of Kubernetes resources within a manifest
+var resourceOrder sortOrder = []string{
+	"Namespace",
+	"ResourceQuota",
+	"LimitRange",
+	"PodSecurityPolicy",
+	"Secret",
+	"ConfigMap",
+	"StorageClass",
+	"PersistentVolume",
+	"PersistentVolumeClaim",
+	"ServiceAccount",
+	"CustomResourceDefinition",
+	"ClusterRole",
+	"ClusterRoleBinding",
+	"Role",
+	"RoleBinding",
+	"Service",
+	"DaemonSet",
+	"Pod",
+	"ReplicationController",
+	"ReplicaSet",
+	"Deployment",
+	"StatefulSet",
+	"Job",
+	"CronJob",
+	"Ingress",
+	"APIService",
+}
+
+type kindSorter struct {
+	ordering  map[string]int
+	manifests []syncTask
+}
+
+func newKindSorter(m []syncTask, s sortOrder) *kindSorter {
+	o := make(map[string]int, len(s))
+	for v, k := range s {
+		o[k] = v
+	}
+
+	return &kindSorter{
+		manifests: m,
+		ordering:  o,
+	}
+}
+
+func (k *kindSorter) Len() int { return len(k.manifests) }
+
+func (k *kindSorter) Swap(i, j int) { k.manifests[i], k.manifests[j] = k.manifests[j], k.manifests[i] }
+
+func (k *kindSorter) Less(i, j int) bool {
+	a := k.manifests[i].targetObj
+	if a == nil {
+		return false
+	}
+	b := k.manifests[j].targetObj
+	if b == nil {
+		return true
+	}
+	first, aok := k.ordering[a.GetKind()]
+	second, bok := k.ordering[b.GetKind()]
+	// if same kind (including unknown) sub sort alphanumeric
+	if first == second {
+		// if both are unknown and of different kind sort by kind alphabetically
+		if !aok && !bok && a.GetKind() != b.GetKind() {
+			return a.GetKind() < b.GetKind()
+		}
+		return a.GetName() < b.GetName()
+	}
+	// unknown kind is last
+	if !aok {
+		return false
+	}
+	if !bok {
+		return true
+	}
+	// sort different kinds
+	return first < second
 }
