@@ -34,6 +34,13 @@ func IsCommitSHA(sha string) bool {
 	return commitSHARegex.MatchString(sha)
 }
 
+var truncatedCommitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{7,}$")
+
+// IsTruncatedCommitSHA returns whether or not a string is a truncated  SHA-1
+func IsTruncatedCommitSHA(sha string) bool {
+	return truncatedCommitSHARegex.MatchString(sha)
+}
+
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
 	// preprocess
