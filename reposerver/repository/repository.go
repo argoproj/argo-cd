@@ -83,7 +83,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return &res, nil
 	}
 
-	err = checkoutRevision(gitClient, q.Revision)
+	err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,11 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	err = checkoutRevision(gitClient, q.Revision)
+	commitSHA, err := gitClient.LsRemote(q.Revision)
+	if err != nil {
+		return nil, err
+	}
+	err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +170,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		log.Infof("manifest cache miss: %s", cacheKey)
 	}
 
-	err = checkoutRevision(gitClient, q.Revision)
+	err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -281,16 +285,12 @@ func IdentifyAppSourceTypeByAppPath(appFilePath string) AppSourceType {
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
-func checkoutRevision(gitClient git.Client, revision string) error {
+func checkoutRevision(gitClient git.Client, commitSHA string) error {
 	err := gitClient.Fetch()
 	if err != nil {
 		return err
 	}
-	err = gitClient.Reset()
-	if err != nil {
-		log.Warn(err)
-	}
-	err = gitClient.Checkout(revision)
+	err = gitClient.Checkout(commitSHA)
 	if err != nil {
 		return err
 	}
