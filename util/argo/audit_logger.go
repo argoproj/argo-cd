@@ -39,8 +39,22 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 	} else {
 		message = fmt.Sprintf("Unknown user executed action %s", info.Action)
 	}
+	logCtx := log.WithFields(log.Fields{
+		"type":     eventType,
+		"action":   info.Action,
+		"reason":   info.Reason,
+		"username": info.Username,
+	})
+	switch gvk.Kind {
+	case "Application":
+		logCtx = logCtx.WithField("application", objMeta.Name)
+	case "AppProject":
+		logCtx = logCtx.WithField("project", objMeta.Name)
+	default:
+		logCtx = logCtx.WithField("name", objMeta.Name)
+	}
 	t := metav1.Time{Time: time.Now()}
-	_, err := l.kIf.CoreV1().Events(l.ns).Create(&v1.Event{
+	event := v1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
 		},
@@ -62,9 +76,12 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 		Type:           eventType,
 		Action:         info.Action,
 		Reason:         info.Reason,
-	})
+	}
+	logCtx.Info(message)
+	_, err := l.kIf.CoreV1().Events(l.ns).Create(&event)
 	if err != nil {
-		log.Errorf("Unable to create audit event: %v", err)
+		logCtx.Errorf("Unable to create audit event: %v", err)
+		return
 	}
 }
 

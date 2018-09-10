@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -29,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/session"
 )
 
 const (
@@ -443,4 +445,36 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 		})
 	}
 	return conditions
+}
+
+// SetAppOperation updates an application with the specified operation, retrying conflict errors
+func SetAppOperation(ctx context.Context, appIf v1alpha1.ApplicationInterface, audit *AuditLogger, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
+	for {
+		a, err := appIf.Get(appName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		if a.Operation != nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+		}
+		a.Operation = op
+		a.Status.OperationState = nil
+		a, err = appIf.Update(a)
+		var action string
+		if op.Sync != nil {
+			action = "sync"
+		} else if op.Rollback != nil {
+			action = "rollback"
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
+		}
+		if err == nil {
+			audit.LogAppEvent(a, EventInfo{Reason: EventReasonResourceUpdated, Action: action, Username: session.Username(ctx)}, v1.EventTypeNormal)
+			return a, nil
+		}
+		if !apierr.IsConflict(err) {
+			return nil, err
+		}
+		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
+	}
 }

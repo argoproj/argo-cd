@@ -16,7 +16,8 @@ import (
 
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
-	// Revision is the git revision in which to sync the application to
+	// Revision is the git revision in which to sync the application to.
+	// If omitted, will use the revision specified in app spec.
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
 	// Prune deletes resources that are no longer tracked in git
 	Prune bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
@@ -78,11 +79,23 @@ type OperationState struct {
 	FinishedAt *metav1.Time `json:"finishedAt" protobuf:"bytes,7,opt,name=finishedAt"`
 }
 
-// SyncStrategy indicates the
+// SyncPolicy controls when a sync will be performed in response to updates in git
+type SyncPolicy struct {
+	// Automated will keep an application synced to the target revision
+	Automated *SyncPolicyAutomated `json:"automated,omitempty" protobuf:"bytes,1,opt,name=automated"`
+}
+
+// SyncPolicyAutomated controls the behavior of an automated sync
+type SyncPolicyAutomated struct {
+	// Prune will prune resources automatically as part of automated sync (default: false)
+	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+}
+
+// SyncStrategy controls the manner in which a sync is performed
 type SyncStrategy struct {
-	// Apply wil perform a `kubectl apply` to perform the sync. This is the default strategy
+	// Apply wil perform a `kubectl apply` to perform the sync.
 	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
-	// Hook will submit any referenced resources to perform the sync
+	// Hook will submit any referenced resources to perform the sync. This is the default strategy
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
 }
 
@@ -218,6 +231,8 @@ type ApplicationSpec struct {
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
 	// Project is a application project name. Empty name means that application belongs to 'default' project.
 	Project string `json:"project" protobuf:"bytes,3,name=project"`
+	// SyncPolicy controls when a sync will be performed
+	SyncPolicy *SyncPolicy `json:"syncPolicy" protobuf:"bytes,4,name=syncPolicy"`
 }
 
 // ComponentParameter contains information about component parameter value
@@ -283,8 +298,10 @@ const (
 	ApplicationConditionDeletionError = "DeletionError"
 	// ApplicationConditionInvalidSpecError indicates that application source is invalid
 	ApplicationConditionInvalidSpecError = "InvalidSpecError"
-	// ApplicationComparisonError indicates controller failed to compare application state
+	// ApplicationConditionComparisonError indicates controller failed to compare application state
 	ApplicationConditionComparisonError = "ComparisonError"
+	// ApplicationConditionSyncError indicates controller failed to automatically sync the application
+	ApplicationConditionSyncError = "SyncError"
 	// ApplicationConditionUnknownError indicates an unknown controller error
 	ApplicationConditionUnknownError = "UnknownError"
 	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
@@ -305,6 +322,7 @@ type ComparisonResult struct {
 	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
 	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
 	Resources  []ResourceState   `json:"resources" protobuf:"bytes,6,opt,name=resources"`
+	Revision   string            `json:"revision" protobuf:"bytes,7,opt,name=revision"`
 }
 
 type HealthStatus struct {

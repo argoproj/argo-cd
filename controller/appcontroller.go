@@ -14,9 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -71,30 +68,28 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
-	db db.ArgoDB,
-	kubectl kube.Kubectl,
-	appStateManager AppStateManager,
 	appResyncPeriod time.Duration,
-	config *ApplicationControllerConfig,
 ) *ApplicationController {
-	appRefreshQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	appOperationQueue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-	return &ApplicationController{
+	db := db.NewDB(namespace, kubeClientset)
+	kubectlCmd := kube.KubectlCmd{}
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd)
+	ctrl := ApplicationController{
 		namespace:             namespace,
 		kubeClientset:         kubeClientset,
-		kubectl:               kubectl,
+		kubectl:               kubectlCmd,
 		applicationClientset:  applicationClientset,
 		repoClientset:         repoClientset,
-		appRefreshQueue:       appRefreshQueue,
-		appOperationQueue:     appOperationQueue,
+		appRefreshQueue:       workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		appOperationQueue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
 		appStateManager:       appStateManager,
-		appInformer:           newApplicationInformer(applicationClientset, appRefreshQueue, appOperationQueue, appResyncPeriod, config),
 		db:                    db,
 		statusRefreshTimeout:  appResyncPeriod,
 		forceRefreshApps:      make(map[string]bool),
 		forceRefreshAppsMutex: &sync.Mutex{},
 		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
 	}
+	ctrl.appInformer = ctrl.newApplicationInformer()
+	return &ctrl
 }
 
 // Run starts the Application CRD controller.
@@ -371,11 +366,12 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 }
 
 func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Application) {
+	logCtx := log.WithField("application", app.Name)
 	var state *appv1.OperationState
 	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 			state.Phase = appv1.OperationError
 			if rerr, ok := r.(error); ok {
 				state.Message = rerr.Error()
@@ -392,20 +388,20 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		// again. To detect this, always retrieve the latest version to ensure it is not stale.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
-			log.Errorf("Failed to retrieve latest application state: %v", err)
+			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
 			return
 		}
 		if !isOperationInProgress(freshApp) {
-			log.Infof("Skipping operation on stale application state (%s)", app.ObjectMeta.Name)
+			logCtx.Infof("Skipping operation on stale application state")
 			return
 		}
 		app = freshApp
 		state = app.Status.OperationState.DeepCopy()
-		log.Infof("Resuming in-progress operation. app: %s, phase: %s, message: %s", app.ObjectMeta.Name, state.Phase, state.Message)
+		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 		ctrl.setOperationState(app, state)
-		log.Infof("Initialized new operation. app: %s, operation: %v", app.ObjectMeta.Name, *app.Operation)
+		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ctrl.appStateManager.SyncAppState(app, state)
 
@@ -530,6 +526,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
+
+	syncErrCond := ctrl.autoSync(app, comparisonResult)
+	if syncErrCond != nil {
+		conditions = append(conditions, *syncErrCond)
+	}
+
 	ctrl.updateAppStatus(app, comparisonResult, healthState, parameters, conditions)
 	return
 }
@@ -588,6 +590,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 		appv1.ApplicationConditionUnknownError:          true,
 		appv1.ApplicationConditionComparisonError:       true,
 		appv1.ApplicationConditionSharedResourceWarning: true,
+		appv1.ApplicationConditionSyncError:             true,
 	}
 	appConditions := make([]appv1.ApplicationCondition, 0)
 	for i := 0; i < len(app.Status.Conditions); i++ {
@@ -691,33 +694,67 @@ func (ctrl *ApplicationController) updateAppStatus(
 	}
 }
 
-func newApplicationInformer(
-	appClientset appclientset.Interface,
-	appQueue workqueue.RateLimitingInterface,
-	appOperationQueue workqueue.RateLimitingInterface,
-	appResyncPeriod time.Duration,
-	config *ApplicationControllerConfig) cache.SharedIndexInformer {
+// autoSync will initiate a sync operation for an application configured with automated sync
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonResult *appv1.ComparisonResult) *appv1.ApplicationCondition {
+	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+		return nil
+	}
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
+	if app.Operation != nil {
+		logCtx.Infof("Skipping auto-sync: another operation is in progress")
+		return nil
+	}
+	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
+	// a sync when application is already in a Synced or Unknown state
+	if comparisonResult.Status != appv1.ComparisonStatusOutOfSync {
+		logCtx.Infof("Skipping auto-sync: application status is %s", comparisonResult.Status)
+		return nil
+	}
+	desiredCommitSHA := comparisonResult.Revision
+	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
+	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
+	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
+	// and parameter overrides do *not* appear in the application's most recent history.
+	historyLen := len(app.Status.History)
+	if historyLen > 0 {
+		mostRecent := app.Status.History[historyLen-1]
+		if mostRecent.Revision == desiredCommitSHA && reflect.DeepEqual(app.Spec.Source.ComponentParameterOverrides, mostRecent.ComponentParameterOverrides) {
+			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
+			return nil
+		}
+	}
+	// If a sync failed, the revision will not make it's way into application history. We also need
+	// to check the operationState to see if the last operation was the one we just attempted.
+	if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
+		if app.Status.OperationState.SyncResult.Revision == desiredCommitSHA {
+			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
+			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
+		}
+	}
 
-	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
-		appClientset,
-		appResyncPeriod,
-		config.Namespace,
-		func(options *metav1.ListOptions) {
-			var instanceIDReq *labels.Requirement
-			var err error
-			if config.InstanceID != "" {
-				instanceIDReq, err = labels.NewRequirement(common.LabelKeyApplicationControllerInstanceID, selection.Equals, []string{config.InstanceID})
-			} else {
-				instanceIDReq, err = labels.NewRequirement(common.LabelKeyApplicationControllerInstanceID, selection.DoesNotExist, nil)
-			}
-			if err != nil {
-				panic(err)
-			}
-
-			options.FieldSelector = fields.Everything().String()
-			labelSelector := labels.NewSelector().Add(*instanceIDReq)
-			options.LabelSelector = labelSelector.String()
+	op := appv1.Operation{
+		Sync: &appv1.SyncOperation{
+			Revision: desiredCommitSHA,
+			Prune:    app.Spec.SyncPolicy.Automated.Prune,
 		},
+	}
+	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+	_, err := argo.SetAppOperation(context.Background(), appIf, ctrl.auditLogger, app.Name, &op)
+	if err != nil {
+		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
+		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
+	}
+	logCtx.Infof("Initiated auto-sync to %s", desiredCommitSHA)
+	return nil
+}
+
+func (ctrl *ApplicationController) newApplicationInformer() cache.SharedIndexInformer {
+	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
+		ctrl.applicationClientset,
+		ctrl.statusRefreshTimeout,
+		ctrl.namespace,
+		func(options *metav1.ListOptions) {},
 	)
 	informer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
 	informer.AddEventHandler(
@@ -725,23 +762,32 @@ func newApplicationInformer(
 			AddFunc: func(obj interface{}) {
 				key, err := cache.MetaNamespaceKeyFunc(obj)
 				if err == nil {
-					appQueue.Add(key)
-					appOperationQueue.Add(key)
+					ctrl.appRefreshQueue.Add(key)
+					ctrl.appOperationQueue.Add(key)
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
 				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err == nil {
-					appQueue.Add(key)
-					appOperationQueue.Add(key)
+				if err != nil {
+					return
 				}
+				oldApp, oldOK := old.(*appv1.Application)
+				newApp, newOK := new.(*appv1.Application)
+				if oldOK && newOK {
+					if toggledAutomatedSync(oldApp, newApp) {
+						log.WithField("application", newApp.Name).Info("Enabled automated sync")
+						ctrl.forceAppRefresh(newApp.Name)
+					}
+				}
+				ctrl.appRefreshQueue.Add(key)
+				ctrl.appOperationQueue.Add(key)
 			},
 			DeleteFunc: func(obj interface{}) {
 				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
 				// key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 				if err == nil {
-					appQueue.Add(key)
+					ctrl.appRefreshQueue.Add(key)
 				}
 			},
 		},
@@ -751,4 +797,18 @@ func newApplicationInformer(
 
 func isOperationInProgress(app *appv1.Application) bool {
 	return app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed()
+}
+
+// toggledAutomatedSync tests if an app went from auto-sync disabled to enabled.
+// if it was toggled to be enabled, the informer handler will force a refresh
+func toggledAutomatedSync(old *appv1.Application, new *appv1.Application) bool {
+	if new.Spec.SyncPolicy == nil || new.Spec.SyncPolicy.Automated == nil {
+		return false
+	}
+	// auto-sync is enabled. check if it was previously disabled
+	if old.Spec.SyncPolicy == nil || old.Spec.SyncPolicy.Automated == nil {
+		return true
+	}
+	// nothing changed
+	return false
 }

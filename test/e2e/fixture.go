@@ -8,6 +8,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -20,9 +22,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"path"
-	"path/filepath"
 
 	"github.com/argoproj/argo-cd/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/common"
@@ -41,7 +40,6 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -58,7 +56,6 @@ type Fixture struct {
 	AppClient         appclientset.Interface
 	DB                db.ArgoDB
 	Namespace         string
-	InstanceID        string
 	RepoServerAddress string
 	ApiServerAddress  string
 	Enforcer          *rbac.Enforcer
@@ -278,7 +275,6 @@ func NewFixture() (*Fixture, error) {
 		DB:               db,
 		KubeClient:       kubeClient,
 		Namespace:        namespace,
-		InstanceID:       namespace,
 		Enforcer:         enforcer,
 	}
 	err = fixture.setup()
@@ -288,7 +284,7 @@ func NewFixture() (*Fixture, error) {
 	return fixture, nil
 }
 
-// CreateApp creates application with appropriate controller instance id.
+// CreateApp creates application
 func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1alpha1.Application {
 	application = application.DeepCopy()
 	application.Name = fmt.Sprintf("e2e-test-%v", time.Now().Unix())
@@ -297,7 +293,6 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 		labels = make(map[string]string)
 		application.ObjectMeta.Labels = labels
 	}
-	labels[common.LabelKeyApplicationControllerInstanceID] = f.InstanceID
 
 	application.Spec.Source.ComponentParameterOverrides = append(
 		application.Spec.Source.ComponentParameterOverrides,
@@ -312,19 +307,12 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 
 // createController creates new controller instance
 func (f *Fixture) createController() *controller.ApplicationController {
-	appStateManager := controller.NewAppStateManager(
-		f.DB, f.AppClient, reposerver.NewRepositoryServerClientset(f.RepoServerAddress), f.Namespace, kube.KubectlCmd{})
-
 	return controller.NewApplicationController(
 		f.Namespace,
 		f.KubeClient,
 		f.AppClient,
 		reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
-		f.DB,
-		kube.KubectlCmd{},
-		appStateManager,
-		10*time.Second,
-		&controller.ApplicationControllerConfig{Namespace: f.Namespace, InstanceID: f.InstanceID})
+		10*time.Second)
 }
 
 func (f *Fixture) NewApiClientset() (argocdclient.Client, error) {
@@ -380,10 +368,10 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 
 type FakeGitClientFactory struct{}
 
-func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) git.Client {
+func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) (git.Client, error) {
 	return &FakeGitClient{
 		root: path,
-	}
+	}, nil
 }
 
 // FakeGitClient is a test git client implementation which always clone local test repo.

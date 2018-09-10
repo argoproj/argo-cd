@@ -117,6 +117,9 @@ message ApplicationSpec {
 
   // Project is a application project name. Empty name means that application belongs to 'default' project.
   optional string project = 3;
+
+  // SyncPolicy controls when a sync will be performed
+  optional SyncPolicy syncPolicy = 4;
 }
 
 // ApplicationStatus contains information about application status in target environment.
@@ -194,6 +197,8 @@ message ComparisonResult {
   optional string status = 5;
 
   repeated ResourceState resources = 6;
+
+  optional string revision = 7;
 }
 
 // ComponentParameter contains information about component parameter value
@@ -366,7 +371,8 @@ message RollbackOperation {
 
 // SyncOperation contains sync operation details.
 message SyncOperation {
-  // Revision is the git revision in which to sync the application to
+  // Revision is the git revision in which to sync the application to.
+  // If omitted, will use the revision specified in app spec.
   optional string revision = 1;
 
   // Prune deletes resources that are no longer tracked in git
@@ -391,12 +397,24 @@ message SyncOperationResult {
   repeated HookStatus hooks = 3;
 }
 
-// SyncStrategy indicates the
+// SyncPolicy controls when a sync will be performed in response to updates in git
+message SyncPolicy {
+  // Automated will keep an application synced to the target revision
+  optional SyncPolicyAutomated automated = 1;
+}
+
+// SyncPolicyAutomated controls the behavior of an automated sync
+message SyncPolicyAutomated {
+  // Prune will prune resources automatically as part of automated sync (default: false)
+  optional bool prune = 1;
+}
+
+// SyncStrategy controls the manner in which a sync is performed
 message SyncStrategy {
-  // Apply wil perform a `kubectl apply` to perform the sync. This is the default strategy
+  // Apply wil perform a `kubectl apply` to perform the sync.
   optional SyncStrategyApply apply = 1;
 
-  // Hook will submit any referenced resources to perform the sync
+  // Hook will submit any referenced resources to perform the sync. This is the default strategy
   optional SyncStrategyHook hook = 2;
 }
 
