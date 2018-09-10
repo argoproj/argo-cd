@@ -305,7 +305,7 @@ func TestSortManifestHandleNil(t *testing.T) {
 		},
 	}
 	manifest := []syncTask{
-		syncTask{},
+		{},
 		task,
 	}
 	ks := newKindSorter(manifest, resourceOrder)
