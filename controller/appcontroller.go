@@ -100,12 +100,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appRefreshQueue.ShutDown()
 
 	go ctrl.appInformer.Run(ctx.Done())
-	go ctrl.watchAppsResources()
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced) {
 		log.Error("Timed out waiting for caches to sync")
 		return
 	}
+
+	go ctrl.watchAppsResources()
 
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {
@@ -142,8 +143,13 @@ func (ctrl *ApplicationController) isRefreshForced(appName string) bool {
 
 // watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
 func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, item appv1.Cluster) {
-	config := item.RESTConfig()
-	retryUntilSucceed(func() error {
+	retryUntilSucceed(func() (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("Recovered from panic: %v\n", r)
+			}
+		}()
+		config := item.RESTConfig()
 		ch, err := kube.WatchResourcesWithLabel(ctx, config, "", common.LabelApplicationName)
 		if err != nil {
 			return err
@@ -160,26 +166,68 @@ func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, it
 			}
 		}
 		return fmt.Errorf("resource updates channel has closed")
-	}, fmt.Sprintf("watch app resources on %s", config.Host), ctx, watchResourcesRetryTimeout)
+	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, watchResourcesRetryTimeout)
 
+}
+
+func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
+	for _, obj := range apps {
+		if app, ok := obj.(*appv1.Application); ok && app.Spec.Destination.Server == cluster.Server {
+			return true
+		}
+	}
+	return false
 }
 
 // WatchAppsResources watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
 func (ctrl *ApplicationController) watchAppsResources() {
-	watchingClusters := make(map[string]context.CancelFunc)
+	watchingClusters := make(map[string]struct {
+		cancel  context.CancelFunc
+		cluster *appv1.Cluster
+	})
 
 	retryUntilSucceed(func() error {
-		return ctrl.db.WatchClusters(context.Background(), func(event *db.ClusterEvent) {
-			cancel, ok := watchingClusters[event.Cluster.Server]
-			if event.Type == watch.Deleted && ok {
-				cancel()
+		clusterEventCallback := func(event *db.ClusterEvent) {
+			info, ok := watchingClusters[event.Cluster.Server]
+			hasApps := isClusterHasApps(ctrl.appInformer.GetStore().List(), event.Cluster)
+
+			// cluster resources must be watched only if cluster has at least one app
+			if (event.Type == watch.Deleted || !hasApps) && ok {
+				info.cancel()
 				delete(watchingClusters, event.Cluster.Server)
-			} else if event.Type != watch.Deleted && !ok {
+			} else if event.Type != watch.Deleted && !ok && hasApps {
 				ctx, cancel := context.WithCancel(context.Background())
-				watchingClusters[event.Cluster.Server] = cancel
+				watchingClusters[event.Cluster.Server] = struct {
+					cancel  context.CancelFunc
+					cluster *appv1.Cluster
+				}{
+					cancel:  cancel,
+					cluster: event.Cluster,
+				}
 				go ctrl.watchClusterResources(ctx, *event.Cluster)
 			}
-		})
+		}
+
+		onAppModified := func(obj interface{}) {
+			if app, ok := obj.(*appv1.Application); ok {
+				var cluster *appv1.Cluster
+				info, infoOk := watchingClusters[app.Spec.Destination.Server]
+				if infoOk {
+					cluster = info.cluster
+				} else {
+					cluster, _ = ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+				}
+				if cluster != nil {
+					// trigger cluster event every time when app created/deleted to either start or stop watching resources
+					clusterEventCallback(&db.ClusterEvent{Cluster: cluster, Type: watch.Modified})
+				}
+			}
+		}
+
+		ctrl.appInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{AddFunc: onAppModified, DeleteFunc: onAppModified})
+
+		return ctrl.db.WatchClusters(context.Background(), clusterEventCallback)
+
 	}, "watch clusters", context.Background(), watchResourcesRetryTimeout)
 
 	<-context.Background().Done()

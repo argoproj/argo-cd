@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
@@ -18,6 +19,13 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/watch"
+)
+
+var (
+	localCluster = appv1.Cluster{
+		Server:          common.KubernetesInternalAPIServerAddr,
+		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
+	}
 )
 
 // ListClusters returns list of clusters
@@ -37,8 +45,16 @@ func (s *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	clusterList := appv1.ClusterList{
 		Items: make([]appv1.Cluster, len(clusterSecrets.Items)),
 	}
+	hasInClusterCredentials := false
 	for i, clusterSecret := range clusterSecrets.Items {
-		clusterList.Items[i] = *SecretToCluster(&clusterSecret)
+		cluster := *SecretToCluster(&clusterSecret)
+		clusterList.Items[i] = cluster
+		if cluster.Server == common.KubernetesInternalAPIServerAddr {
+			hasInClusterCredentials = true
+		}
+	}
+	if !hasInClusterCredentials {
+		clusterList.Items = append(clusterList.Items, localCluster)
 	}
 	return &clusterList, nil
 }
@@ -89,12 +105,35 @@ func (s *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) er
 		return err
 	}
 
+	localCls, err := s.GetCluster(ctx, common.KubernetesInternalAPIServerAddr)
+	if err != nil {
+		return err
+	}
+
 	defer w.Stop()
 	done := make(chan bool)
+
+	// trigger callback with event for local cluster since it always considered added
+	callback(&ClusterEvent{Type: watch.Added, Cluster: localCls})
+
 	go func() {
 		for next := range w.ResultChan() {
 			secret := next.Object.(*apiv1.Secret)
 			cluster := SecretToCluster(secret)
+
+			// change local cluster event to modified or deleted, since it cannot be re-added or deleted
+			if cluster.Server == common.KubernetesInternalAPIServerAddr {
+				if next.Type == watch.Deleted {
+					next.Type = watch.Modified
+					cluster = &localCluster
+				} else if next.Type == watch.Added {
+					localCls = cluster
+					next.Type = watch.Modified
+				} else {
+					localCls = cluster
+				}
+			}
+
 			callback(&ClusterEvent{
 				Type:    next.Type,
 				Cluster: cluster,
@@ -129,7 +168,11 @@ func (s *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 func (s *db) GetCluster(ctx context.Context, server string) (*appv1.Cluster, error) {
 	clusterSecret, err := s.getClusterSecret(server)
 	if err != nil {
-		return nil, err
+		if grpc.Code(err) == codes.NotFound && server == common.KubernetesInternalAPIServerAddr {
+			return &localCluster, nil
+		} else {
+			return nil, err
+		}
 	}
 	return SecretToCluster(clusterSecret), nil
 }

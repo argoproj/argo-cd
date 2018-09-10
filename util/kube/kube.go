@@ -275,9 +275,13 @@ func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace
 }
 
 func copyEventsChannel(ctx context.Context, src <-chan watch.Event, dst chan watch.Event) {
+	stopped := false
 	done := make(chan bool)
 	go func() {
 		for event := range src {
+			if stopped {
+				break
+			}
 			dst <- event
 		}
 		done <- true
@@ -285,6 +289,7 @@ func copyEventsChannel(ctx context.Context, src <-chan watch.Event, dst chan wat
 	select {
 	case <-done:
 	case <-ctx.Done():
+		stopped = true
 	}
 }
 
