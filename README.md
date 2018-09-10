@@ -25,12 +25,18 @@ the desired application state. Kubernetes manifests can be specified in several 
 * [ksonnet](https://ksonnet.io) applications
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* Simple directory of YAML/json manifests
+* Plain directory of YAML/json manifests
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of 
 manifests at a git commit. See [tracking strategies](docs/tracking_strategies.md) for additional
 details about the different tracking strategies available.
+
+For a quick 10 minute overview of ArgoCD, check out the demo presented to the Sig Apps community
+meeting:
+[![Alt text](https://img.youtube.com/vi/aWDIQMbp1cc/0.jpg)](https://youtu.be/aWDIQMbp1cc?t=1m4s)
+
+
 
 ## Architecture
 
@@ -49,6 +55,7 @@ For additional details, see [architecture overview](docs/architecture.md).
 ## Features
 
 * Automated deployment of applications to specified target environments
+* Flexibility in support for multiple config management tools (Ksonnet, Kustomize, Helm, plain-YAML)
 * Continuous monitoring of deployed applications
 * Automated or manual syncing of applications to its desired state
 * Web and CLI based visualization of applications and differences between live vs. desired state
@@ -59,13 +66,12 @@ For additional details, see [architecture overview](docs/architecture.md).
 * PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
 * Audit trails for application events and API calls
 * Parameter overrides for overriding ksonnet/helm parameters in git
+* Service account/access key management for CI pipelines
 
 ## Development Status
 * Argo CD is being used in production to deploy SaaS services at Intuit
 
 ## Roadmap
 * Auto-sync toggle to directly apply git state changes to live state
-* Service account/access key management for CI pipelines
-* Support for additional config management tools (Kustomize?)
 * Revamped UI, and feature parity with CLI
 * Customizable application actions
