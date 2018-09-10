@@ -2,10 +2,12 @@ package controller
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
@@ -57,6 +59,34 @@ func newTestSyncCtx() *syncContext {
 		opState: &v1alpha1.OperationState{},
 		log:     log.WithFields(log.Fields{"application": "fake-app"}),
 	}
+}
+
+func TestSyncCreateInSortedOrder(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.kubectl = mockKubectlCmd{}
+	syncCtx.comparison = &v1alpha1.ComparisonResult{
+		Resources: []v1alpha1.ResourceState{{
+			LiveState:   "",
+			TargetState: "{\"kind\":\"pod\"}",
+		}, {
+			LiveState:   "",
+			TargetState: "{\"kind\":\"service\"}",
+		},
+		},
+	}
+	syncCtx.sync()
+	assert.Len(t, syncCtx.syncRes.Resources, 2)
+	for i := range syncCtx.syncRes.Resources {
+		if syncCtx.syncRes.Resources[i].Kind == "pod" {
+			assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[i].Status)
+		} else if syncCtx.syncRes.Resources[i].Kind == "service" {
+			assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[i].Status)
+		} else {
+			t.Error("Resource isn't a pod or a service")
+		}
+	}
+	syncCtx.sync()
+	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
 
 func TestSyncSuccessfully(t *testing.T) {
@@ -161,5 +191,126 @@ func TestSyncPruneFailure(t *testing.T) {
 func TestRunWorkflows(t *testing.T) {
 	// syncCtx := newTestSyncCtx()
 	// syncCtx.doWorkflowSync(nil, nil)
+
+}
+
+func unsortedManifest() []syncTask {
+	return []syncTask{
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "Pod",
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "Service",
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "PersistentVolume",
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "ConfigMap",
+				},
+			},
+		},
+	}
+}
+
+func sortedManifest() []syncTask {
+	return []syncTask{
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "ConfigMap",
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "PersistentVolume",
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "Service",
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+					"kind":         "Pod",
+				},
+			},
+		},
+		{
+			targetObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				},
+			},
+		},
+	}
+}
+
+func TestSortKubernetesResourcesSuccessfully(t *testing.T) {
+	unsorted := unsortedManifest()
+	ks := newKindSorter(unsorted, resourceOrder)
+	sort.Sort(ks)
+
+	expectedOrder := sortedManifest()
+	assert.Equal(t, len(unsorted), len(expectedOrder))
+	for i, sorted := range unsorted {
+		assert.Equal(t, expectedOrder[i], sorted)
+	}
+
+}
+
+func TestSortManifestHandleNil(t *testing.T) {
+	task := syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"kind":         "Service",
+			},
+		},
+	}
+	manifest := []syncTask{
+		syncTask{},
+		task,
+	}
+	ks := newKindSorter(manifest, resourceOrder)
+	sort.Sort(ks)
+	assert.Equal(t, task, manifest[0])
+	assert.Nil(t, manifest[1].targetObj)
 
 }

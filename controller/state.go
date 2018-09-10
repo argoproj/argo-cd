@@ -138,7 +138,7 @@ func (s *ksonnetAppStateManager) getTargetObjs(app *v1alpha1.Application, revisi
 		}
 		targetObjs = append(targetObjs, obj)
 	}
-	return kubeutil.SortManifestByKind(targetObjs), manifestInfo, nil
+	return targetObjs, manifestInfo, nil
 }
 
 func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (
@@ -199,7 +199,7 @@ func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetOb
 		controlledLiveObj[i] = liveObj
 		delete(liveObjByFullName, fullName)
 	}
-	return kubeutil.SortManifestByKind(controlledLiveObj), liveObjByFullName, nil
+	return controlledLiveObj, liveObjByFullName, nil
 }
 
 // CompareAppState compares application git state to the live app state, using the specified
