@@ -2,14 +2,19 @@
 
 .application-node-info {
     &__manifest {
-        background: white;
-        padding: 1em;
         overflow-x: auto;
+
+        .tabs__content {
+            background-color: white;
+        }
 
         &--raw {
             font-family: 'Bitstream Vera Sans Mono', 'DejaVu Sans Mono', Monaco, Courier, monospace;
             white-space: pre;
             font-size: 12px;
+            color: gray;
+            padding: 0 0 0 12px;
+            line-height: 2em;
         }
     }
 }

@@ -1,4 +1,7 @@
+import { Tab, Tabs } from 'argo-ui';
+import * as jsYaml from 'js-yaml';
 import * as React from 'react';
+
 import * as models from '../../../shared/models';
 import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
 import { ComparisonStatusIcon, getPodStateReason, getStateAndNode, HealthStatusIcon } from '../utils';
@@ -40,6 +43,19 @@ export const ApplicationNodeInfo = (props: { node: models.ResourceNode | models.
         }
     }
 
+    const tabs: Tab[] = [{
+        key: 'manifest',
+        title: 'Manifest',
+        content: <div className='application-node-info__manifest application-node-info__manifest--raw'>{jsYaml.safeDump(resourceNode.state, {indent: 2 })}</div>,
+    }];
+    if (resourceState) {
+        tabs.unshift({
+            key: 'diff',
+            title: 'Diff',
+            content: <ApplicationResourceDiff targetState={resourceState.targetState} liveState={resourceState.liveState}/>,
+        });
+    }
+
     return (
         <div>
             <div className='white-box'>
@@ -56,12 +72,7 @@ export const ApplicationNodeInfo = (props: { node: models.ResourceNode | models.
             </div>
 
             <div className='application-node-info__manifest'>
-            {resourceState &&
-                <ApplicationResourceDiff targetState={resourceState.targetState} liveState={resourceState.liveState}/> ||
-                <div  className='application-node-info__manifest application-node-info__manifest--raw'>
-                    {JSON.stringify(resourceNode, null, 2)}
-                </div>
-            }
+                <Tabs selectedTabKey={tabs[0].key} tabs={tabs} />
             </div>
         </div>
     );
