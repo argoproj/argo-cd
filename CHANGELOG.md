@@ -2,6 +2,7 @@
 
 ## v0.8.1 (2018-09-10)
 - Fix issue where changes were not pulled when tracking a branch (issue #567)
+- Fix controller hot loop when app source contains bad manifests (issue #568)
 
 ## v0.8.0 (2018-09-04)
 

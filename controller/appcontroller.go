@@ -538,13 +538,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 // Returns true if application never been compared, has changed or comparison result has expired.
 func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) bool {
 	var reason string
+	expired := app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if ctrl.isRefreshForced(app.Name) {
 		reason = "force refresh"
-	} else if app.Status.ComparisonResult.Status == appv1.ComparisonStatusUnknown {
+	} else if app.Status.ComparisonResult.Status == appv1.ComparisonStatusUnknown && expired {
 		reason = "comparison status unknown"
 	} else if !app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) {
 		reason = "spec.source differs"
-	} else if app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now().UTC()) {
+	} else if expired {
 		reason = fmt.Sprintf("comparison expired. comparedAt: %v, expiry: %v", app.Status.ComparisonResult.ComparedAt, statusRefreshTimeout)
 	}
 	if reason != "" {
