@@ -209,7 +209,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                 environment: params.environment,
                 path: params.path,
                 repoURL: params.repoURL,
-                targetRevision: null,
+                targetRevision: params.revision,
                 componentParameterOverrides: null,
                 valuesFiles: params.valuesFiles,
             }, {

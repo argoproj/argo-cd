@@ -14,13 +14,13 @@ export class RepositoriesService {
         return requests.delete(`/repositories/${encodeURIComponent(url)}`).send().then((res) => res.body as models.Repository);
     }
 
-    public apps(repo: string): Promise<models.AppInfo[]> {
-        return requests.get(`/repositories/${encodeURIComponent(repo)}/apps`)
+    public apps(repo: string, revision: string): Promise<models.AppInfo[]> {
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/apps`).query({revision})
             .then((res) => res.body.items as models.AppInfo[]);
     }
 
-    public appDetails(repo: string, path: string): Promise<models.AppDetails> {
-        return requests.get(`/repositories/${encodeURIComponent(repo)}/apps/${encodeURIComponent(path)}`)
+    public appDetails(repo: string, path: string, revision: string): Promise<models.AppDetails> {
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/apps/${encodeURIComponent(path)}`).query({revision})
             .then((res) => res.body as models.AppDetails);
     }
 }

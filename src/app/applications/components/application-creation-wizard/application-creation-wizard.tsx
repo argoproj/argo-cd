@@ -19,6 +19,8 @@ interface StepInfo { title: string | React.ReactNode; canNext(): boolean; next()
 interface State {
     envs: { [key: string]: models.KsonnetEnvironment; };
     selectedRepo: string;
+    revision: string;
+    editingRevision: string;
     selectedApp: models.AppInfo;
     selectedAppDetails: models.AppDetails;
     selectedEnv: string;
@@ -33,12 +35,15 @@ export interface WizardProps { onStateChanged: (state: WizardStepState) => any; 
 
 export interface WizardStepState { nextTitle: string; next?: () => any; prev?: () => any; }
 
+require('./application-creation-wizard.scss');
+
 export class ApplicationCreationWizardContainer extends React.Component<WizardProps, State> {
     public static contextTypes = {
         apis: PropTypes.object,
     };
 
     private submitAppParamsForm = new BehaviorSubject<any>(null);
+    private appsLoader: DataLoader;
 
     constructor(props: WizardProps) {
         super(props);
@@ -46,6 +51,8 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             envs: {},
             selectedAppDetails: null,
             selectedRepo: null,
+            revision: 'HEAD',
+            editingRevision: null,
             selectedEnv: null,
             selectedApp: null,
             appParamsValid: false,
@@ -86,27 +93,49 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             case Step.SelectApp:
                 return {
                     title: (
-                        <div>Select application or <a onClick={() => !this.state.loading && this.updateState({ selectedApp: null, selectedAppDetails: null, appParams: {
-                            applicationName: '',
-                            repoURL: this.state.selectedRepo,
-                            environment: '',
-                            clusterURL: '',
-                            namespace: '',
-                            path: '',
-                            project: this.state.projects[0],
-                        }, step: Step.SetParams })}>specify</a> drop-in YAML directory</div>
+                        <div className='application-creation-wizard__title'>
+                            Select application
+                            <button className='argo-button argo-button--base application-creation-wizard__title-btn'
+                                onClick={() => !this.state.loading && this.updateState({ selectedApp: null, selectedAppDetails: null, appParams: {
+                                applicationName: '',
+                                revision: this.state.revision,
+                                repoURL: this.state.selectedRepo,
+                                environment: '',
+                                clusterURL: '',
+                                namespace: '',
+                                path: '',
+                                project: this.state.projects[0],
+                            }, step: Step.SetParams })}>Create app from directory</button>
+                            <div className='application-creation-wizard__sub-title'>
+                                Browsing repository <a target='_blank' href={this.state.selectedRepo}>{this.state.selectedRepo}</a>, revision:
+                                    {this.state.editingRevision === null && <React.Fragment>
+                                        <span className='application-creation-wizard__rev'>{this.state.revision || 'HEAD'}</span>
+                                        <i className='fa fa-pencil' onClick={() => this.setState({ editingRevision: this.state.revision })}/>
+                                    </React.Fragment>}
+                                    {this.state.editingRevision !== null && <React.Fragment>
+                                        <input className='application-creation-wizard__rev'
+                                            value={this.state.editingRevision || 'HEAD'} onChange={(e) => this.setState({ editingRevision: e.target.value })}/>
+                                        <i className='fa fa-check' onClick={() => {
+                                            this.setState({editingRevision: null, revision: this.state.editingRevision});
+                                            this.appsLoader.reload();
+                                        }}/>
+                                        <i className='fa fa-times' onClick={() => this.setState({editingRevision: null})}/>
+                                    </React.Fragment>}
+                            </div>
+                        </div>
                     ),
                     canNext: () => !!this.state.selectedApp,
                     next: async () => {
                         try {
                             this.updateState({ loading: true });
-                            const selectedAppDetails = await services.reposService.appDetails(this.state.selectedRepo, this.state.selectedApp.path);
+                            const selectedAppDetails = await services.reposService.appDetails(this.state.selectedRepo, this.state.selectedApp.path, this.state.revision);
 
                             if (selectedAppDetails.ksonnet) {
                                 this.updateState({ selectedAppDetails, envs: selectedAppDetails.ksonnet.environments || {}, step: Step.SelectEnvironments});
                             } else if (selectedAppDetails.helm) {
                                 this.updateState({ selectedAppDetails, appParams: {
                                     applicationName: selectedAppDetails.helm.name,
+                                    revision: this.state.revision,
                                     repoURL: this.state.selectedRepo,
                                     environment: '',
                                     clusterURL: '',
@@ -117,6 +146,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                             } else if (selectedAppDetails.kustomize) {
                                 this.updateState({ selectedAppDetails, appParams: {
                                     applicationName: '',
+                                    revision: this.state.revision,
                                     repoURL: this.state.selectedRepo,
                                     environment: '',
                                     clusterURL: '',
@@ -132,9 +162,11 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                         }
                     },
                     canPrev: () => true,
-                    prev: () => this.updateState({ step: Step.SelectRepo }),
+                    prev: () => this.updateState({ step: Step.SelectRepo, revision: 'HEAD' }),
                 render: () => (
-                    <DataLoader key='apps' load={() => services.reposService.apps(this.state.selectedRepo)} loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
+                    <DataLoader ref={(loader) => this.appsLoader = loader} key='apps'
+                            load={() => services.reposService.apps(this.state.selectedRepo, this.state.revision)}
+                            loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
                         {(apps: models.AppInfo[]) => (
                             <AppsList apps={apps} selectedApp={this.state.selectedApp} onAppSelected={(selectedApp) => this.updateState({ selectedApp })}/>
                         )}
@@ -150,6 +182,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                         this.updateState({
                             appParams: {
                                 applicationName: `${this.state.selectedAppDetails.ksonnet.name}-${this.state.selectedEnv}`,
+                                revision: this.state.revision,
                                 repoURL: this.state.selectedRepo,
                                 environment: this.state.selectedEnv,
                                 clusterURL: selectedEnv.destination.server,

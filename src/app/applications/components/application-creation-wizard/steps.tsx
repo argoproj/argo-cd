@@ -125,6 +125,7 @@ export interface NewAppParams {
     namespace: string;
     project: string;
     valuesFiles?: string[];
+    revision: string;
 }
 
 export class AppParams extends React.Component<{
@@ -160,6 +161,7 @@ export class AppParams extends React.Component<{
                     project: !params.project && 'Project is required',
                     applicationName: !params.applicationName && 'Application name is required',
                     repoURL: !params.repoURL && 'Repository URL is required',
+                    revision: !params.revision && 'Revision is required',
                     path: !params.path && 'Path is required',
                     environment: this.props.needEnvironment && !params.environment && 'Environment is required',
                     clusterURL: !params.clusterURL && 'Cluster URL is required',
@@ -174,6 +176,9 @@ export class AppParams extends React.Component<{
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Repository URL' field='repoURL' componentProps={{readOnly: true}} component={Text}/>
+                        </div>
+                        <div className='argo-form-row'>
+                            <FormField formApi={api} label='Revision' field='revision' component={Text}/>
                         </div>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Path' field='path' component={Text}/>
