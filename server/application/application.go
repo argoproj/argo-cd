@@ -705,70 +705,51 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*appv1.Application, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*syncReq.Name, metav1.GetOptions{})
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err := appIf.Get(*syncReq.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	return s.setAppOperation(ctx, *syncReq.Name, "sync", func(app *appv1.Application) (*appv1.Operation, error) {
-		syncOp := appv1.SyncOperation{
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
+		if syncReq.Revision != "" && syncReq.Revision != a.Spec.Source.TargetRevision {
+			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
+		}
+	}
+
+	op := appv1.Operation{
+		Sync: &appv1.SyncOperation{
 			Revision:     syncReq.Revision,
 			Prune:        syncReq.Prune,
 			DryRun:       syncReq.DryRun,
 			SyncStrategy: syncReq.Strategy,
-		}
-		return &appv1.Operation{
-			Sync: &syncOp,
-		}, nil
-	})
+		},
+	}
+	return argo.SetAppOperation(ctx, appIf, s.auditLogger, *syncReq.Name, &op)
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*appv1.Application, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*rollbackReq.Name, metav1.GetOptions{})
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err := appIf.Get(*rollbackReq.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "rollback", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	return s.setAppOperation(ctx, *rollbackReq.Name, "rollback", func(app *appv1.Application) (*appv1.Operation, error) {
-		return &appv1.Operation{
-			Rollback: &appv1.RollbackOperation{
-				ID:     rollbackReq.ID,
-				Prune:  rollbackReq.Prune,
-				DryRun: rollbackReq.DryRun,
-			},
-		}, nil
-	})
-}
-
-func (s *Server) setAppOperation(ctx context.Context, appName string, operationName string, operationCreator func(app *appv1.Application) (*appv1.Operation, error)) (*appv1.Application, error) {
-	for {
-		a, err := s.Get(ctx, &ApplicationQuery{Name: &appName})
-		if err != nil {
-			return nil, err
-		}
-		if a.Operation != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "another operation is already in progress")
-		}
-		op, err := operationCreator(a)
-		if err != nil {
-			return nil, err
-		}
-		a.Operation = op
-		a.Status.OperationState = nil
-		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
-		if err != nil && apierr.IsConflict(err) {
-			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
-		} else {
-			if err == nil {
-				s.logEvent(a, ctx, argo.EventReasonResourceUpdated, operationName)
-			}
-			return a, err
-		}
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "Rollback cannot be initiated when auto-sync is enabled")
 	}
+	op := appv1.Operation{
+		Rollback: &appv1.RollbackOperation{
+			ID:     rollbackReq.ID,
+			Prune:  rollbackReq.Prune,
+			DryRun: rollbackReq.DryRun,
+		},
+	}
+	return argo.SetAppOperation(ctx, appIf, s.auditLogger, *rollbackReq.Name, &op)
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTerminateRequest) (*OperationTerminateResponse, error) {

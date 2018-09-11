@@ -318,6 +318,9 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		Resources:  resources,
 		Status:     comparisonStatus,
 	}
+	if manifestInfo != nil {
+		compResult.Revision = manifestInfo.Revision
+	}
 	return &compResult, manifestInfo, conditions, nil
 }
 

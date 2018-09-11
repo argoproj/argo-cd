@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
@@ -23,8 +24,6 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/stats"
 )
 
@@ -67,27 +66,14 @@ func newCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			// TODO (amatyushentsev): Use config map to store controller configuration
-			controllerConfig := controller.ApplicationControllerConfig{
-				Namespace:  namespace,
-				InstanceID: "",
-			}
-			db := db.NewDB(namespace, kubeClient)
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			repoClientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
-			kubectlCmd := kube.KubectlCmd{}
-			appStateManager := controller.NewAppStateManager(db, appClient, repoClientset, namespace, kubectlCmd)
-
 			appController := controller.NewApplicationController(
 				namespace,
 				kubeClient,
 				appClient,
 				repoClientset,
-				db,
-				kubectlCmd,
-				appStateManager,
-				resyncDuration,
-				&controllerConfig)
+				resyncDuration)
 			secretController := controller.NewSecretController(kubeClient, repoClientset, resyncDuration, namespace)
 
 			ctx, cancel := context.WithCancel(context.Background())

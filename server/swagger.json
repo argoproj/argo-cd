@@ -2104,6 +2104,9 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "syncPolicy": {
+          "$ref": "#/definitions/v1alpha1SyncPolicy"
         }
       }
     },
@@ -2222,6 +2225,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceState"
           }
+        },
+        "revision": {
+          "type": "string"
         },
         "status": {
           "type": "string"
@@ -2534,8 +2540,8 @@
           "title": "Prune deletes resources that are no longer tracked in git"
         },
         "revision": {
-          "type": "string",
-          "title": "Revision is the git revision in which to sync the application to"
+          "description": "Revision is the git revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
+          "type": "string"
         },
         "syncStrategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
@@ -2566,9 +2572,29 @@
         }
       }
     },
+    "v1alpha1SyncPolicy": {
+      "type": "object",
+      "title": "SyncPolicy controls when a sync will be performed in response to updates in git",
+      "properties": {
+        "automated": {
+          "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        }
+      }
+    },
+    "v1alpha1SyncPolicyAutomated": {
+      "type": "object",
+      "title": "SyncPolicyAutomated controls the behavior of an automated sync",
+      "properties": {
+        "prune": {
+          "type": "boolean",
+          "format": "boolean",
+          "title": "Prune will prune resources automatically as part of automated sync (default: false)"
+        }
+      }
+    },
     "v1alpha1SyncStrategy": {
       "type": "object",
-      "title": "SyncStrategy indicates the",
+      "title": "SyncStrategy controls the manner in which a sync is performed",
       "properties": {
         "apply": {
           "$ref": "#/definitions/v1alpha1SyncStrategyApply"

@@ -119,6 +119,18 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if len(appOpts.valuesFiles) > 0 {
 				app.Spec.Source.ValuesFiles = appOpts.valuesFiles
 			}
+			switch appOpts.syncPolicy {
+			case "automated":
+				app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
+					Automated: &argoappv1.SyncPolicyAutomated{
+						Prune: appOpts.autoPrune,
+					},
+				}
+			case "none", "":
+				app.Spec.SyncPolicy = nil
+			default:
+				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
+			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appCreateRequest := application.ApplicationCreateRequest{
@@ -182,6 +194,16 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if len(app.Spec.Source.ValuesFiles) > 0 {
 					fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(app.Spec.Source.ValuesFiles, ","))
 				}
+				var syncPolicy string
+				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+					syncPolicy = "Automated"
+					if app.Spec.SyncPolicy.Automated.Prune {
+						syncPolicy += " (Prune)"
+					}
+				} else {
+					syncPolicy = "<none>"
+				}
+				fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
 
 				if len(app.Status.Conditions) > 0 {
 					fmt.Println()
@@ -313,6 +335,17 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					app.Spec.Destination.Namespace = appOpts.destNamespace
 				case "project":
 					app.Spec.Project = appOpts.project
+				case "sync-policy":
+					switch appOpts.syncPolicy {
+					case "automated":
+						app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
+							Automated: &argoappv1.SyncPolicyAutomated{},
+						}
+					case "none":
+						app.Spec.SyncPolicy = nil
+					default:
+						log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
+					}
 				}
 			})
 			if visited == 0 {
@@ -320,6 +353,13 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			if c.Flags().Changed("auto-prune") {
+				if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+					log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
+				}
+				app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+			}
+
 			setParameterOverrides(app, appOpts.parameters)
 			oldOverrides := app.Spec.Source.ComponentParameterOverrides
 			updatedSpec, err := appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
@@ -358,6 +398,8 @@ type appOptions struct {
 	parameters    []string
 	valuesFiles   []string
 	project       string
+	syncPolicy    string
+	autoPrune     bool
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -370,6 +412,8 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
+	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
+	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
