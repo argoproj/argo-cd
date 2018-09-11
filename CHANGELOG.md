@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.9.0 (Unreleased)
+
+### Changes since v0.8:
++ Support raw jsonnet as an application source (#issue #540)
++ Reorder K8s resources to correct creation order (issue #102)
++ Redact K8s secrets from API server payloads (issue #470)
++ [UI] Support selection of helm values files in App creation wizard (issue #499)
++ [UI] Support specifying source revision in App creation wizard allow (issue #503)
++ [UI] Improve resource diff rendering (issue #457)
++ [UI] Indicate number of ready containers in pod (issue #539)
++ [UI] Indicate when app is overriding parameters (issue #503)
++ [UI] Provide a YAML view of resources (issue #396)
+* Enable TLS for repo server (issue #553)
+- Fix issue where changes were not pulled when tracking a branch (issue #567)
+- Fix controller hot loop when app source contains bad manifests (issue #568)
+- [UI] Fix issue where projects filter does not work when application got changed
+
 ## v0.8.1 (2018-09-10)
 + [UI] Support selection of helm values files in App creation wizard (issue #499)
 + [UI] Support specifying source revision in App creation wizard allow (issue #503)
@@ -9,6 +26,7 @@
 + [UI] Provide a YAML view of resources (issue #396)
 - Fix issue where changes were not pulled when tracking a branch (issue #567)
 - Fix controller hot loop when app source contains bad manifests (issue #568)
+- [UI] Fix issue where projects filter does not work when application got changed
 
 ## v0.8.0 (2018-09-04)
 
