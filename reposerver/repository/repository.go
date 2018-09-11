@@ -61,17 +61,7 @@ func NewService(gitFactory git.ClientFactory, cache cache.Cache) *Service {
 
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, error) {
-	appRepoPath := tempRepoPath(q.Repo.Repo)
-	s.repoLock.Lock(appRepoPath)
-	defer s.repoLock.Unlock(appRepoPath)
-
-	gitClient := s.gitFactory.NewClient(q.Repo.Repo, appRepoPath, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey)
-	err := gitClient.Init()
-	if err != nil {
-		return nil, err
-	}
-
-	commitSHA, err := gitClient.LsRemote(q.Revision)
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +73,13 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return &res, nil
 	}
 
-	err = checkoutRevision(gitClient, commitSHA)
+	s.repoLock.Lock(gitClient.Root())
+	defer s.repoLock.Unlock(gitClient.Root())
+	err = gitClient.Init()
+	if err != nil {
+		return nil, err
+	}
+	commitSHA, err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +93,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		Items: lsFiles,
 	}
 	err = s.cache.Set(&cache.Item{
-		Key:        cacheKey,
+		Key:        listDirCacheKey(commitSHA, q),
 		Object:     &res,
 		Expiration: DefaultRepoCacheExpiration,
 	})
@@ -108,20 +104,25 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 }
 
 func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
-	appRepoPath := tempRepoPath(q.Repo.Repo)
-	s.repoLock.Lock(appRepoPath)
-	defer s.repoLock.Unlock(appRepoPath)
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := getFileCacheKey(commitSHA, q)
+	var res GetFileResponse
+	err = s.cache.Get(cacheKey, &res)
+	if err == nil {
+		log.Infof("getfile cache hit: %s", cacheKey)
+		return &res, nil
+	}
 
-	gitClient := s.gitFactory.NewClient(q.Repo.Repo, appRepoPath, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey)
-	err := gitClient.Init()
+	s.repoLock.Lock(gitClient.Root())
+	defer s.repoLock.Unlock(gitClient.Root())
+	err = gitClient.Init()
 	if err != nil {
 		return nil, err
 	}
-	commitSHA, err := gitClient.LsRemote(q.Revision)
-	if err != nil {
-		return nil, err
-	}
-	err = checkoutRevision(gitClient, commitSHA)
+	commitSHA, err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -129,36 +130,27 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	res := GetFileResponse{
+	res = GetFileResponse{
 		Data: data,
+	}
+	err = s.cache.Set(&cache.Item{
+		Key:        getFileCacheKey(commitSHA, q),
+		Object:     &res,
+		Expiration: DefaultRepoCacheExpiration,
+	})
+	if err != nil {
+		log.Warnf("getfile cache set error %s: %v", cacheKey, err)
 	}
 	return &res, nil
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
-	var res ManifestResponse
-	if git.IsCommitSHA(q.Revision) {
-		cacheKey := manifestCacheKey(q.Revision, q)
-		err := s.cache.Get(cacheKey, res)
-		if err == nil {
-			log.Infof("manifest cache hit: %s", cacheKey)
-			return &res, nil
-		}
-	}
-	appRepoPath := tempRepoPath(q.Repo.Repo)
-	s.repoLock.Lock(appRepoPath)
-	defer s.repoLock.Unlock(appRepoPath)
-
-	gitClient := s.gitFactory.NewClient(q.Repo.Repo, appRepoPath, q.Repo.Username, q.Repo.Password, q.Repo.SSHPrivateKey)
-	err := gitClient.Init()
-	if err != nil {
-		return nil, err
-	}
-	commitSHA, err := gitClient.LsRemote(q.Revision)
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 	cacheKey := manifestCacheKey(commitSHA, q)
+	var res ManifestResponse
 	err = s.cache.Get(cacheKey, &res)
 	if err == nil {
 		log.Infof("manifest cache hit: %s", cacheKey)
@@ -170,11 +162,17 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		log.Infof("manifest cache miss: %s", cacheKey)
 	}
 
-	err = checkoutRevision(gitClient, commitSHA)
+	s.repoLock.Lock(gitClient.Root())
+	defer s.repoLock.Unlock(gitClient.Root())
+	err = gitClient.Init()
 	if err != nil {
 		return nil, err
 	}
-	appPath := path.Join(appRepoPath, q.Path)
+	commitSHA, err = checkoutRevision(gitClient, commitSHA)
+	if err != nil {
+		return nil, err
+	}
+	appPath := path.Join(gitClient.Root(), q.Path)
 
 	genRes, err := generateManifests(appPath, q)
 	if err != nil {
@@ -183,7 +181,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	res = *genRes
 	res.Revision = commitSHA
 	err = s.cache.Set(&cache.Item{
-		Key:        cacheKey,
+		Key:        manifestCacheKey(commitSHA, q),
 		Object:     res,
 		Expiration: DefaultRepoCacheExpiration,
 	})
@@ -223,7 +221,6 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	if err != nil {
 		return nil, err
 	}
-	// TODO(jessesuen): we need to sort objects based on their dependency order of creation
 
 	manifests := make([]string, len(targetObjs))
 	for i, target := range targetObjs {
@@ -285,16 +282,17 @@ func IdentifyAppSourceTypeByAppPath(appFilePath string) AppSourceType {
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
-func checkoutRevision(gitClient git.Client, commitSHA string) error {
+// Returns the 40 character commit SHA after the checkout has been performed
+func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 	err := gitClient.Fetch()
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = gitClient.Checkout(commitSHA)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return gitClient.CommitSHA()
 }
 
 func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
@@ -305,6 +303,10 @@ func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
 
 func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
 	return fmt.Sprintf("ldir|%s|%s", q.Path, commitSHA)
+}
+
+func getFileCacheKey(commitSHA string, q *GetFileRequest) string {
+	return fmt.Sprintf("gfile|%s|%s", q.Path, commitSHA)
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
@@ -410,4 +412,19 @@ func pathExists(name string) bool {
 		}
 	}
 	return true
+}
+
+// newClientResolveRevision is a helper to perform the common task of instantiating a git client
+// and resolving a revision to a commit SHA
+func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
+	appRepoPath := tempRepoPath(repo.Repo)
+	gitClient, err := s.gitFactory.NewClient(repo.Repo, appRepoPath, repo.Username, repo.Password, repo.SSHPrivateKey)
+	if err != nil {
+		return nil, "", err
+	}
+	commitSHA, err := gitClient.LsRemote(revision)
+	if err != nil {
+		return nil, "", err
+	}
+	return gitClient, commitSHA, nil
 }

@@ -13,6 +13,9 @@ func TestIsCommitSHA(t *testing.T) {
 	assert.False(t, IsCommitSHA("master"))
 	assert.False(t, IsCommitSHA("HEAD"))
 	assert.False(t, IsCommitSHA("9d921f6")) // only consider 40 characters hex strings as a commit-sha
+	assert.True(t, IsTruncatedCommitSHA("9d921f6"))
+	assert.False(t, IsTruncatedCommitSHA("9d921f")) // we only consider 7+ characters
+	assert.False(t, IsTruncatedCommitSHA("branch-name"))
 }
 
 func TestEnsurePrefix(t *testing.T) {
@@ -84,5 +87,38 @@ func TestNormalizeUrl(t *testing.T) {
 	}
 	for k, v := range data {
 		assert.Equal(t, v, NormalizeGitURL(k))
+	}
+}
+
+func TestLsRemote(t *testing.T) {
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", "", "", "")
+	assert.NoError(t, err)
+	xpass := []string{
+		"HEAD",
+		"master",
+		"release-0.8",
+		"v0.8.0",
+		"4e22a3cb21fa447ca362a05a505a69397c8a0d44",
+		//"4e22a3c",
+	}
+	for _, revision := range xpass {
+		commitSHA, err := clnt.LsRemote(revision)
+		assert.NoError(t, err)
+		assert.True(t, IsCommitSHA(commitSHA))
+	}
+
+	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
+	commitSHA, err := clnt.LsRemote("4e22a3c")
+	assert.NoError(t, err)
+	assert.False(t, IsCommitSHA(commitSHA))
+	assert.True(t, IsTruncatedCommitSHA(commitSHA))
+
+	xfail := []string{
+		"unresolvable",
+		"4e22a3", // too short (6 characters)
+	}
+	for _, revision := range xfail {
+		_, err := clnt.LsRemote(revision)
+		assert.Error(t, err)
 	}
 }
