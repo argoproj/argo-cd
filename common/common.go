@@ -103,7 +103,7 @@ var ArgoCDManagerPolicyRules = []rbacv1.PolicyRule{
 		Verbs:     []string{"*"},
 	},
 	{
-		NonResourceURLs: []string{"/metrics"},
-		Verbs:           []string{"get"},
+		NonResourceURLs: []string{"*"},
+		Verbs:           []string{"*"},
 	},
 }
