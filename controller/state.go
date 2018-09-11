@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -19,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
@@ -318,9 +320,11 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 		Resources:  resources,
 		Status:     comparisonStatus,
 	}
+
 	if manifestInfo != nil {
 		compResult.Revision = manifestInfo.Revision
 	}
+	conditions = s.validateClusterResources(app, conditions, &compResult)
 	return &compResult, manifestInfo, conditions, nil
 }
 
@@ -370,6 +374,52 @@ func (s *ksonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 		repo = &v1alpha1.Repository{Repo: repoURL}
 	}
 	return repo
+}
+
+func (s *ksonnetAppStateManager) validateClusterResources(
+	app *v1alpha1.Application, conditions []v1alpha1.ApplicationCondition, comparisonResult *v1alpha1.ComparisonResult) []v1alpha1.ApplicationCondition {
+
+	proj, err := argo.GetAppProject(&app.Spec, s.appclientset, s.namespace)
+	if err != nil {
+		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	}
+
+	clst, err := s.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	if err != nil {
+		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	}
+
+	disco, err := discovery.NewDiscoveryClientForConfig(clst.RESTConfig())
+	if err != nil {
+		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	}
+	groupKinds, err := argo.FindRestrictedResources(*proj, comparisonResult, clst.RESTConfig().Host, disco)
+	if err != nil {
+		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	}
+
+	if len(groupKinds) > 0 {
+		formattedMap := make(map[string]interface{})
+		for i := range groupKinds {
+			parts := make([]string, 0)
+			if groupKinds[i].Group != "" {
+				parts = append(parts, groupKinds[i].Group)
+			}
+			if groupKinds[i].Kind != "" {
+				parts = append(parts, groupKinds[i].Kind)
+			}
+			formattedMap[strings.Join(parts, "/")] = true
+		}
+		formatter := make([]string, 0)
+		for k := range formattedMap {
+			formatter = append(formatter, k)
+		}
+		conditions = append(conditions, v1alpha1.ApplicationCondition{
+			Type:    v1alpha1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("Application has resource types not allowed in project '%s': %s", proj.Name, strings.Join(formatter, ", ")),
+		})
+	}
+	return conditions
 }
 
 func (s *ksonnetAppStateManager) persistDeploymentInfo(

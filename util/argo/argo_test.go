@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/kube"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -12,6 +14,8 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/discovery/fake"
 	testcore "k8s.io/client-go/testing"
 )
 
@@ -93,4 +97,78 @@ func TestWaitForRefresh(t *testing.T) {
 	app, err = WaitForRefresh(appIf, "test-app", &oneHundredMs)
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
+}
+
+func TestFindNotWhitelistedClusterResources(t *testing.T) {
+	proj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceWhitelist: []metav1.GroupKind{
+				{Group: "argoproj.io", Kind: "*"},
+			},
+		},
+	}
+	disco := &fake.FakeDiscovery{Fake: &testcore.Fake{}}
+	disco.Resources = []*metav1.APIResourceList{
+		{
+			GroupVersion: corev1.SchemeGroupVersion.String(),
+			APIResources: []metav1.APIResource{
+				{Name: "clusterroles", Namespaced: false, Kind: "ClusterRole", Group: "rbac.authorization.k8s.io"},
+				{Name: "workflows", Namespaced: false, Kind: "Workflow", Group: "argoproj.io"},
+				{Name: "application", Namespaced: false, Kind: "Application", Group: "argoproj.io"},
+			},
+		},
+	}
+
+	kube.FlushServerResourcesCache()
+	res, err := FindRestrictedResources(proj, &argoappv1.ComparisonResult{
+		Resources: []argoappv1.ResourceState{{
+			TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
+			LiveState:   "null",
+		}},
+	}, "fake", disco)
+
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(res))
+	assert.Equal(t, "ClusterRole", res[0].Kind)
+}
+
+func TestFindBlacklistedNamespacedResources(t *testing.T) {
+	proj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+		Spec: argoappv1.AppProjectSpec{
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "*", Kind: "Deployment"},
+			},
+		},
+	}
+	disco := &fake.FakeDiscovery{Fake: &testcore.Fake{}}
+	disco.Resources = []*metav1.APIResourceList{
+		{
+			GroupVersion: corev1.SchemeGroupVersion.String(),
+			APIResources: []metav1.APIResource{
+				{Name: "clusterroles", Namespaced: false, Kind: "ClusterRole", Group: "rbac.authorization.k8s.io"},
+				{Name: "workflows", Namespaced: true, Kind: "Pod", Group: ""},
+				{Name: "application", Namespaced: true, Kind: "Deployment", Group: "extensions"},
+			},
+		},
+	}
+
+	kube.FlushServerResourcesCache()
+	res, err := FindRestrictedResources(proj, &argoappv1.ComparisonResult{
+		Resources: []argoappv1.ResourceState{{
+			TargetState: `{"apiVersion": "extensions/v1beta1", "kind": "Deployment", "metadata": {"name": "argo-ui-cluster-deployment" }}`,
+			LiveState:   "null",
+		}},
+	}, "fake", disco)
+
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(res))
+	assert.Equal(t, "Deployment", res[0].Kind)
 }

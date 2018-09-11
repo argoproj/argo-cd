@@ -8,17 +8,17 @@ import (
 	gocache "github.com/patrickmn/go-cache"
 )
 
-func NewInMemoryCache(expiration time.Duration) Cache {
-	return &inMemoryCache{
+func NewInMemoryCache(expiration time.Duration) *InMemoryCache {
+	return &InMemoryCache{
 		memCache: gocache.New(expiration, 1*time.Minute),
 	}
 }
 
-type inMemoryCache struct {
+type InMemoryCache struct {
 	memCache *gocache.Cache
 }
 
-func (i *inMemoryCache) Set(item *Item) error {
+func (i *InMemoryCache) Set(item *Item) error {
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(item.Object)
 	if err != nil {
@@ -28,11 +28,15 @@ func (i *inMemoryCache) Set(item *Item) error {
 	return nil
 }
 
-func (i *inMemoryCache) Get(key string, obj interface{}) error {
+func (i *InMemoryCache) Get(key string, obj interface{}) error {
 	bufIf, found := i.memCache.Get(key)
 	if !found {
 		return ErrCacheMiss
 	}
 	buf := bufIf.(bytes.Buffer)
 	return gob.NewDecoder(&buf).Decode(obj)
+}
+
+func (i *InMemoryCache) Flush() {
+	i.memCache.Flush()
 }

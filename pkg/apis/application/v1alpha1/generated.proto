@@ -43,6 +43,12 @@ message AppProjectSpec {
   optional string description = 3;
 
   repeated ProjectRole roles = 4;
+
+  // ClusterResourceWhitelist contains list of whitelisted cluster level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+
+  // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
+  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
 }
 
 // Application is a definition of Application resource.

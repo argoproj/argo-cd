@@ -199,6 +199,10 @@ func GetCachedServerResources(host string, disco discovery.DiscoveryInterface) (
 	return resList, nil
 }
 
+func FlushServerResourcesCache() {
+	apiResourceCache.Flush()
+}
+
 // GetLiveResource returns the corresponding live resource from a unstructured object
 func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, apiResource *metav1.APIResource, namespace string) (*unstructured.Unstructured, error) {
 	resourceName := obj.GetName()

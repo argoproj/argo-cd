@@ -89,6 +89,16 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.ClusterResourceWhitelist != nil {
+		in, out := &in.ClusterResourceWhitelist, &out.ClusterResourceWhitelist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
+	if in.NamespaceResourceBlacklist != nil {
+		in, out := &in.NamespaceResourceBlacklist, &out.NamespaceResourceBlacklist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

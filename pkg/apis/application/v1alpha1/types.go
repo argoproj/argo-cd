@@ -10,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
+	"path/filepath"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/git"
 )
@@ -482,6 +484,12 @@ type AppProjectSpec struct {
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
+
+	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
+	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
+
+	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
+	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 }
 
 // ProjectRole represents a role that has access to a project
@@ -559,7 +567,28 @@ func (spec ApplicationSpec) GetProject() string {
 	return spec.Project
 }
 
-// IsSourcePermitted validiates if the provided application's source is a one of the allowed sources for the project.
+func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
+	for _, item := range list {
+		ok, err := filepath.Match(item.Kind, res.Kind)
+		if ok && err == nil {
+			ok, err = filepath.Match(item.Group, res.Group)
+			if ok && err == nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool) bool {
+	if namespaced {
+		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)
+	} else {
+		return isResourceInList(res, proj.Spec.ClusterResourceWhitelist)
+	}
+}
+
+// IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 
 	normalizedURL := git.NormalizeGitURL(src.RepoURL)

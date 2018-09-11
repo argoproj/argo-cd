@@ -76,6 +76,10 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveSourceCommand(clientOpts))
+	command.AddCommand(NewProjectAllowClusterResourceCommand(clientOpts))
+	command.AddCommand(NewProjectDenyClusterResourceCommand(clientOpts))
+	command.AddCommand(NewProjectAllowNamespaceResourceCommand(clientOpts))
+	command.AddCommand(NewProjectDenyNamespaceResourceCommand(clientOpts))
 	return command
 }
 
@@ -603,6 +607,104 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
+func modifyProjectResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.ClientOptions, action func(proj *v1alpha1.AppProject, group string, kind string) bool) *cobra.Command {
+	return &cobra.Command{
+		Use:   cmdUse,
+		Short: cmdDesc,
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName, group, kind := args[0], args[1], args[2]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			if action(proj, group, kind) {
+				_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+}
+
+// NewProjectAllowNamespaceResourceCommand returns a new instance of an `deny-cluster-resources` command
+func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	use := "allow-namespace-resource PROJECT group kind"
+	desc := "Removes namespaced resource from black list"
+	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
+		index := -1
+		for i, item := range proj.Spec.NamespaceResourceBlacklist {
+			if item.Group == group && item.Kind == kind {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			log.Info("Specified cluster resource is not blacklisted")
+			return false
+		}
+		proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist[:index], proj.Spec.NamespaceResourceBlacklist[index+1:]...)
+		return true
+	})
+}
+
+// NewProjectDenyNamespaceResourceCommand returns a new instance of an `argocd proj deny-namespace-resource` command
+func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	use := "deny-namespace-resource PROJECT group kind"
+	desc := "Adds namespaced resource to black list"
+	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
+		for _, item := range proj.Spec.NamespaceResourceBlacklist {
+			if item.Group == group && item.Kind == kind {
+				log.Infof("Group '%s' and kind '%s' are already blacklisted in project", item.Group, item.Kind)
+				return false
+			}
+		}
+		proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist, v1.GroupKind{Group: group, Kind: kind})
+		return true
+	})
+}
+
+// NewProjectDenyClusterResourceCommand returns a new instance of an `deny-cluster-resource` command
+func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	use := "deny-cluster-resource PROJECT group kind"
+	desc := "Adds cluster wide resource to white list"
+	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
+		index := -1
+		for i, item := range proj.Spec.ClusterResourceWhitelist {
+			if item.Group == group && item.Kind == kind {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			log.Info("Specified cluster resource already denied in project")
+			return false
+		}
+		proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist[:index], proj.Spec.ClusterResourceWhitelist[index+1:]...)
+		return true
+	})
+}
+
+// NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
+func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	use := "allow-cluster-resource PROJECT group kind"
+	desc := "Removed cluster wide resource from white list"
+	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
+		for _, item := range proj.Spec.ClusterResourceWhitelist {
+			if item.Group == group && item.Kind == kind {
+				log.Infof("Group '%s' and kind '%s' are already whitelisted in project", item.Group, item.Kind)
+				return false
+			}
+		}
+		proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist, v1.GroupKind{Group: group, Kind: kind})
+		return true
+	})
+}
+
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
 func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -677,9 +779,9 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			projects, err := projIf.List(context.Background(), &project.ProjectQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\n")
+			fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\n")
 			for _, p := range projects.Items {
-				fmt.Fprintf(w, "%s\t%s\t%v\n", p.Name, p.Spec.Description, p.Spec.Destinations)
+				fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, p.Spec.Destinations, p.Spec.SourceRepos, p.Spec.ClusterResourceWhitelist, p.Spec.NamespaceResourceBlacklist)
 			}
 			_ = w.Flush()
 		},

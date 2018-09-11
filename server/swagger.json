@@ -1714,6 +1714,19 @@
         }
       }
     },
+    "v1GroupKind": {
+      "description": "+protobuf.options.(gogoproto.goproto_stringer)=false",
+      "type": "object",
+      "title": "GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying\nconcepts during lookup stages without having partially valid types",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      }
+    },
     "v1Initializer": {
       "description": "Initializer is information about an initializer that has not yet completed.",
       "type": "object",
@@ -1968,6 +1981,13 @@
       "type": "object",
       "title": "AppProjectSpec represents",
       "properties": {
+        "clusterResourceWhitelist": {
+          "type": "array",
+          "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "description": {
           "type": "string",
           "title": "Description contains optional project description"
@@ -1977,6 +1997,13 @@
           "title": "Destinations contains list of destinations available for deployment",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationDestination"
+          }
+        },
+        "namespaceResourceBlacklist": {
+          "type": "array",
+          "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
           }
         },
         "roles": {
