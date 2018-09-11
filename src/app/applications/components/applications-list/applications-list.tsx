@@ -33,19 +33,22 @@ export class ApplicationsList extends React.Component<Props, State> {
     private loader: DataLoader<models.Application[], {}>;
     private appChanges = services.applications.watch().filter(() => this.loader !== null && !!this.loader.getData()).map((applicationChange) => {
         let applications = this.loader.getData().slice();
-        switch (applicationChange.type) {
-            case 'ADDED':
-            case 'MODIFIED':
-                const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
-                if (index > -1) {
-                    applications[index] = applicationChange.application;
-                } else {
-                    applications.unshift(applicationChange.application);
-                }
-                break;
-            case 'DELETED':
-                applications = applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name);
-                break;
+        const projectsFilter = new URLSearchParams(this.props.history.location.search).getAll('proj');
+        if (projectsFilter.length === 0 || projectsFilter.includes(applicationChange.application.spec.project)) {
+            switch (applicationChange.type) {
+                case 'ADDED':
+                case 'MODIFIED':
+                    const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
+                    if (index > -1) {
+                        applications[index] = applicationChange.application;
+                    } else {
+                        applications.unshift(applicationChange.application);
+                    }
+                    break;
+                case 'DELETED':
+                    applications = applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name);
+                    break;
+            }
         }
         return applications;
     });
