@@ -32,7 +32,7 @@ import (
 
 const (
 	// DexReverseProxyAddr is the address of the Dex OIDC server, which we run a reverse proxy against
-	DexReverseProxyAddr = "http://localhost:5556"
+	DexReverseProxyAddr = "http://dex-server:5556"
 	// DexgRPCAPIAddr is the address to the Dex gRPC API server for managing dex. This is assumed to run
 	// locally (as a sidecar)
 	DexgRPCAPIAddr = "localhost:5557"
