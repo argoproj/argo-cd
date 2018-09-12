@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
@@ -39,10 +40,13 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
+	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
+	"github.com/argoproj/argo-cd/server/metrics"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
@@ -106,6 +110,8 @@ type ArgoCDServer struct {
 	sessionMgr   *util_session.SessionManager
 	settingsMgr  *settings_util.SettingsManager
 	enf          *rbac.Enforcer
+	appInformer  cache.SharedIndexInformer
+	appLister    applister.ApplicationLister
 
 	// stopCh is the channel which when closed, will shutdown the ArgoCD server
 	stopCh chan struct{}
@@ -173,6 +179,11 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	err = enf.SetBuiltinPolicy(builtinPolicy)
 	errors.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
+
+	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
+	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+	appLister := factory.Argoproj().V1alpha1().Applications().Lister()
+
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
 		log:              log.NewEntry(log.New()),
@@ -180,6 +191,8 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 		sessionMgr:       sessionMgr,
 		settingsMgr:      settingsMgr,
 		enf:              enf,
+		appInformer:      appInformer,
+		appLister:        appLister,
 	}
 }
 
@@ -236,10 +249,13 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 		httpsL = tlsm.Match(cmux.HTTP1Fast())
 		grpcL = tlsm.Match(cmux.Any())
 	}
+	metricsServ := metrics.NewMetricsServer(8082, a.appLister)
 
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		argocd.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
+
+	go a.appInformer.Run(ctx.Done())
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {
@@ -249,6 +265,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	go a.watchSettings(ctx)
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
+	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
+	if !cache.WaitForCacheSync(ctx.Done(), a.appInformer.HasSynced) {
+		log.Fatal("Timed out waiting for caches to sync")
+	}
 
 	a.stopCh = make(chan struct{})
 	<-a.stopCh

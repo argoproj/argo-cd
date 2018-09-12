@@ -15,7 +15,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: argocd-repo-server
-        image: argoproj/argocd-repo-server:v0.8.2
+        image: argoproj/argocd-repo-server:latest
         command: [/argocd-repo-server]
         ports:
         - containerPort: 8081

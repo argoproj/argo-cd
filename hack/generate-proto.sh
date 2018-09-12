@@ -64,8 +64,8 @@ for i in ${PROTO_FILES}; do
     # Path to the google API gateway annotations.proto will be different depending if we are
     # building natively (e.g. from workspace) vs. part of a docker build.
     if [ -f /.dockerenv ]; then
-        GOOGLE_PROTO_API_PATH=/root/go/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
-        GOGO_PROTOBUF_PATH=/root/go/src/github.com/gogo/protobuf
+        GOOGLE_PROTO_API_PATH=$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
+        GOGO_PROTOBUF_PATH=$GOPATH/src/github.com/gogo/protobuf
     else
         GOOGLE_PROTO_API_PATH=${PROJECT_ROOT}/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis
         GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
