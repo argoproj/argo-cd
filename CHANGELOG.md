@@ -1,7 +1,8 @@
 # Changelog
 
-## v0.8.2 (2018-09-11)
+## v0.8.2 (2018-09-12)
 - Downgrade ksonnet from v0.12.0 to v0.11.0 due to quote unescape regression
+- Fix CLI panic when performing an initial `argocd sync/wait`
 
 ## v0.8.1 (2018-09-10)
 + [UI] Support selection of helm values files in App creation wizard (issue #499)
