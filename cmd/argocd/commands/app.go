@@ -911,10 +911,12 @@ func calculateResourceStates(app *argoappv1.Application) map[string]*resourceSta
 	}
 
 	var opResult *argoappv1.SyncOperationResult
-	if app.Status.OperationState.SyncResult != nil {
-		opResult = app.Status.OperationState.SyncResult
-	} else if app.Status.OperationState.RollbackResult != nil {
-		opResult = app.Status.OperationState.SyncResult
+	if app.Status.OperationState != nil {
+		if app.Status.OperationState.SyncResult != nil {
+			opResult = app.Status.OperationState.SyncResult
+		} else if app.Status.OperationState.RollbackResult != nil {
+			opResult = app.Status.OperationState.SyncResult
+		}
 	}
 	if opResult == nil {
 		return resStates
