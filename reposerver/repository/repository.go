@@ -196,7 +196,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var params []*v1alpha1.ComponentParameter
-	var env *app.EnvironmentConfig
+	var env *app.EnvironmentSpec
 	var err error
 
 	appSourceType := IdentifyAppSourceTypeByAppDir(appPath)
@@ -307,7 +307,7 @@ func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *app.EnvironmentConfig, error) {
+func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *app.EnvironmentSpec, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)

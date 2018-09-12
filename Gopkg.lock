@@ -356,7 +356,7 @@
   revision = "e09c5db296004fbe3f74490e84dcd62c3c5ddb1b"
 
 [[projects]]
-  digest = "1:b3679b7aa6d7243a170d5f43810e0f4a7c3a2120340069f7a077625c51c83fd9"
+  digest = "1:14d826ee25139b4674e9768ac287a135f4e7c14e1134a5b15e4e152edfd49f41"
   name = "github.com/google/go-jsonnet"
   packages = [
     ".",
@@ -364,7 +364,7 @@
     "parser",
   ]
   pruneopts = ""
-  revision = "v0.11.2"
+  revision = "dfddf2b4e3aec377b0dcdf247ff92e7d078b8179"
 
 [[projects]]
   branch = "master"
@@ -475,7 +475,7 @@
   revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
 
 [[projects]]
-  digest = "1:f4975a8aa19d1a4e512cfebf9a2c3751faedd8939be80d193d157463b47eb334"
+  digest = "1:2fe45da14d25bce0a58c5a991967149cc5d07f94be327b928a9fd306466815a3"
   name = "github.com/ksonnet/ksonnet"
   packages = [
     "metadata/params",
@@ -491,11 +491,10 @@
     "pkg/util/jsonnet",
     "pkg/util/kslib",
     "pkg/util/strings",
-    "pkg/util/version",
   ]
   pruneopts = ""
-  revision = "5b4917a292a76a62e3d97852279575293ba73b50"
-  version = "v0.12.0"
+  revision = "e943ae55d4fe256c8330a047ce8426ad9dac110c"
+  version = "v0.11.0"
 
 [[projects]]
   digest = "1:a345c560e5609bd71b1f54993f3b087ca45eb0e6226886c642ce519de81896cb"
