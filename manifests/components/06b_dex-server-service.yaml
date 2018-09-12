@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex-server
+spec:
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8082
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: 8082
+  selector:
+    app: dex-server
