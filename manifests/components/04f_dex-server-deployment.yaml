@@ -24,6 +24,8 @@ spec:
       - name: dex
         image: quay.io/coreos/dex:v2.10.0
         command: [/shared/argocd-util, rundex]
+        ports:
+          - containerPort: 8082
         volumeMounts:
         - mountPath: /shared
           name: static-files
