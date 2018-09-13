@@ -13,6 +13,15 @@ import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 // Package-wide variables from generator "generated".
 option go_package = "v1alpha1";
 
+// AWSAuthConfig is an AWS IAM authentication configuration
+message AWSAuthConfig {
+  // ClusterName contains AWS cluster name
+  optional string clusterName = 1;
+
+  // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
+  optional string roleARN = 2;
+}
+
 // AppProject is a definition of AppProject resource.
 // +genclient
 // +genclient:noStatus
@@ -185,6 +194,9 @@ message ClusterConfig {
 
   // TLSClientConfig contains settings to enable transport layer security
   optional TLSClientConfig tlsClientConfig = 4;
+
+  // AWSAuthConfig contains IAM authentication configuration
+  optional AWSAuthConfig awsAuthConfig = 5;
 }
 
 // ClusterList is a collection of Clusters.

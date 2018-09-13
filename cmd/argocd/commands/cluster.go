@@ -44,8 +44,10 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 // NewClusterAddCommand returns a new instance of an `argocd cluster add` command
 func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
-		inCluster bool
-		upsert    bool
+		inCluster      bool
+		upsert         bool
+		awsRoleArn     string
+		awsClusterName string
 	)
 	var command = &cobra.Command{
 		Use:   "add",
@@ -63,6 +65,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if clstContext == nil {
 				log.Fatalf("Context %s does not exist in kubeconfig", args[0])
 			}
+
 			overrides := clientcmd.ConfigOverrides{
 				Context: *clstContext,
 			}
@@ -70,15 +73,23 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
-			// Install RBAC resources for managing the cluster
-			clientset, err := kubernetes.NewForConfig(conf)
-			errors.CheckError(err)
-			managerBearerToken, err := common.InstallClusterManagerRBAC(clientset)
-			errors.CheckError(err)
-
+			managerBearerToken := ""
+			var awsAuthConf *argoappv1.AWSAuthConfig
+			if awsClusterName != "" {
+				awsAuthConf = &argoappv1.AWSAuthConfig{
+					ClusterName: awsClusterName,
+					RoleARN:     awsRoleArn,
+				}
+			} else {
+				// Install RBAC resources for managing the cluster
+				clientset, err := kubernetes.NewForConfig(conf)
+				errors.CheckError(err)
+				managerBearerToken, err = common.InstallClusterManagerRBAC(clientset)
+				errors.CheckError(err)
+			}
 			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
 			defer util.Close(conn)
-			clst := NewCluster(args[0], conf, managerBearerToken)
+			clst := NewCluster(args[0], conf, managerBearerToken, awsAuthConf)
 			if inCluster {
 				clst.Server = common.KubernetesInternalAPIServerAddr
 			}
@@ -94,6 +105,8 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates ArgoCD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
+	command.Flags().StringVar(&awsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws-iam-authenticator will be used to access cluster")
+	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")
 	return command
 }
 
@@ -136,7 +149,7 @@ func printKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, conf *rest.Config, managerBearerToken string) *argoappv1.Cluster {
+func NewCluster(name string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -165,6 +178,7 @@ func NewCluster(name string, conf *rest.Config, managerBearerToken string) *argo
 		Config: argoappv1.ClusterConfig{
 			BearerToken:     managerBearerToken,
 			TLSClientConfig: tlsClientConfig,
+			AWSAuthConfig:   awsAuthConf,
 		},
 	}
 	return &clst
