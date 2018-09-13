@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 
+	"k8s.io/client-go/tools/clientcmd/api"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -394,6 +396,15 @@ type ClusterList struct {
 	Items           []Cluster `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// AWSAuthConfig is an AWS IAM authentication configuration
+type AWSAuthConfig struct {
+	// ClusterName contains AWS cluster name
+	ClusterName string `json:"clusterName,omitempty" protobuf:"bytes,1,opt,name=clusterName"`
+
+	// RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
+	RoleARN string `json:"roleARN,omitempty" protobuf:"bytes,2,opt,name=roleARN"`
+}
+
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
 // rest.Config with annotations added for marshalling.
 type ClusterConfig struct {
@@ -408,6 +419,9 @@ type ClusterConfig struct {
 
 	// TLSClientConfig contains settings to enable transport layer security
 	TLSClientConfig `json:"tlsClientConfig" protobuf:"bytes,4,opt,name=tlsClientConfig"`
+
+	// AWSAuthConfig contains IAM authentication configuration
+	AWSAuthConfig *AWSAuthConfig `json:"awsAuthConfig" protobuf:"bytes,5,opt,name=awsAuthConfig"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -624,18 +638,35 @@ func (c *Cluster) RESTConfig() *rest.Config {
 		}
 		return config
 	}
+	tlsClientConfig := rest.TLSClientConfig{
+		Insecure:   c.Config.TLSClientConfig.Insecure,
+		ServerName: c.Config.TLSClientConfig.ServerName,
+		CertData:   c.Config.TLSClientConfig.CertData,
+		KeyData:    c.Config.TLSClientConfig.KeyData,
+		CAData:     c.Config.TLSClientConfig.CAData,
+	}
+	if c.Config.AWSAuthConfig != nil {
+		args := []string{"token", "-i", c.Config.AWSAuthConfig.ClusterName}
+		if c.Config.AWSAuthConfig.RoleARN != "" {
+			args = append(args, "-r", c.Config.AWSAuthConfig.RoleARN)
+		}
+		return &rest.Config{
+			Host:            c.Server,
+			TLSClientConfig: tlsClientConfig,
+			ExecProvider: &api.ExecConfig{
+				APIVersion: "client.authentication.k8s.io/v1alpha1",
+				Command:    "aws-iam-authenticator",
+				Args:       args,
+			},
+		}
+	}
+
 	return &rest.Config{
-		Host:        c.Server,
-		Username:    c.Config.Username,
-		Password:    c.Config.Password,
-		BearerToken: c.Config.BearerToken,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure:   c.Config.TLSClientConfig.Insecure,
-			ServerName: c.Config.TLSClientConfig.ServerName,
-			CertData:   c.Config.TLSClientConfig.CertData,
-			KeyData:    c.Config.TLSClientConfig.KeyData,
-			CAData:     c.Config.TLSClientConfig.CAData,
-		},
+		Host:            c.Server,
+		Username:        c.Config.Username,
+		Password:        c.Config.Password,
+		BearerToken:     c.Config.BearerToken,
+		TLSClientConfig: tlsClientConfig,
 	}
 }
 

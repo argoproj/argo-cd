@@ -65,6 +65,10 @@ ENV KUSTOMIZE_VERSION=1.0.7
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize
 
+ENV AWS_IAM_AUTHENTICATOR_VERSION=0.3.0
+RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.3.0/heptio-authenticator-aws_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
+    chmod +x /usr/local/bin/aws-iam-authenticator
+
 
 ####################################################################################################
 # ArgoCD Build stage which performs the actual build of ArgoCD binaries
@@ -109,6 +113,7 @@ COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
 ENV USER=argocd

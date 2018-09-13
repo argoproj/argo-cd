@@ -558,6 +558,9 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 	if restConfig.BearerToken != "" {
 		kubeConfig.AuthInfos[restConfig.Host].Token = restConfig.BearerToken
 	}
+	if restConfig.ExecProvider != nil {
+		kubeConfig.AuthInfos[restConfig.Host].Exec = restConfig.ExecProvider
+	}
 	return clientcmd.WriteToFile(kubeConfig, filename)
 }
 

@@ -1950,6 +1950,20 @@
         }
       }
     },
+    "v1alpha1AWSAuthConfig": {
+      "type": "object",
+      "title": "AWSAuthConfig is an AWS IAM authentication configuration",
+      "properties": {
+        "clusterName": {
+          "type": "string",
+          "title": "ClusterName contains AWS cluster name"
+        },
+        "roleARN": {
+          "description": "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1AppProject": {
       "type": "object",
       "title": "AppProject is a definition of AppProject resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
@@ -2206,6 +2220,9 @@
       "description": "ClusterConfig is the configuration attributes. This structure is subset of the go-client\nrest.Config with annotations added for marshalling.",
       "type": "object",
       "properties": {
+        "awsAuthConfig": {
+          "$ref": "#/definitions/v1alpha1AWSAuthConfig"
+        },
         "bearerToken": {
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
