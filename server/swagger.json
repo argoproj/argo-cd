@@ -832,7 +832,9 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/v1/projects/{project}/roles/{role}/token/{iat}": {
       "delete": {
         "tags": [
           "ProjectService"
@@ -849,6 +851,13 @@
           {
             "type": "string",
             "name": "role",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "name": "iat",
             "in": "path",
             "required": true
           }

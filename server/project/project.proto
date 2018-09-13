@@ -63,7 +63,7 @@ service ProjectService {
 
     // Delete a new project token.
   rpc DeleteToken(ProjectTokenDeleteRequest) returns (EmptyResponse) {
-    option (google.api.http).delete = "/api/v1/projects/{project}/roles/{role}/token";
+    option (google.api.http).delete = "/api/v1/projects/{project}/roles/{role}/token/{iat}";
   }
 
   // Create a new project.
