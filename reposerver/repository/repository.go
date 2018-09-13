@@ -11,12 +11,13 @@ import (
 	"strings"
 	"time"
 
-	jsonnet "github.com/google/go-jsonnet"
+	"github.com/google/go-jsonnet"
 	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -222,19 +223,39 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		return nil, err
 	}
 
-	manifests := make([]string, len(targetObjs))
-	for i, target := range targetObjs {
-		if q.AppLabel != "" {
-			err = kube.SetLabel(target, common.LabelApplicationName, q.AppLabel)
+	manifests := make([]string, 0)
+	for _, obj := range targetObjs {
+		var targets []*unstructured.Unstructured
+		if obj.IsList() {
+			err = obj.EachListItem(func(object runtime.Object) error {
+				unstructuredObj, ok := object.(*unstructured.Unstructured)
+				if ok {
+					targets = append(targets, unstructuredObj)
+					return nil
+				} else {
+					return fmt.Errorf("resource list item has unexpected type")
+				}
+			})
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			targets = []*unstructured.Unstructured{obj}
 		}
-		manifestStr, err := json.Marshal(target.Object)
-		if err != nil {
-			return nil, err
+
+		for _, target := range targets {
+			if q.AppLabel != "" {
+				err = kube.SetLabel(target, common.LabelApplicationName, q.AppLabel)
+				if err != nil {
+					return nil, err
+				}
+			}
+			manifestStr, err := json.Marshal(target.Object)
+			if err != nil {
+				return nil, err
+			}
+			manifests = append(manifests, string(manifestStr))
 		}
-		manifests[i] = string(manifestStr)
 	}
 
 	res := ManifestResponse{
