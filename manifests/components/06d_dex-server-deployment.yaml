@@ -12,7 +12,7 @@ spec:
       labels:
         app: dex-server
     spec:
-      serviceAccountName: argocd-server
+      serviceAccountName: dex-server
       initContainers:
       - name: copyutil
         image: argoproj/argocd-server:v0.8.0
