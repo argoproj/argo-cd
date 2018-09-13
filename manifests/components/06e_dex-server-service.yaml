@@ -5,21 +5,13 @@ metadata:
   name: dex-server
 spec:
   ports:
-  - name: https
-    protocol: TCP
-    port: 5554
-    targetPort: 5554
-  # - name: callback
-  #   protocol: TCP
-  #   port: 5555
-  #   targetPort: 5555
   - name: http
     protocol: TCP
     port: 5556
     targetPort: 5556
-  # - name: redirect
-  #   protocol: TCP
-  #   port: 5557
-  #   targetPort: 5557
+  - name: grpc
+    protocol: TCP
+    port: 5557
+    targetPort: 5557
   selector:
     app: dex-server

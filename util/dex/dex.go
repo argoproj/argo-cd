@@ -35,7 +35,7 @@ const (
 	DexReverseProxyAddr = "http://dex-server:5556"
 	// DexgRPCAPIAddr is the address to the Dex gRPC API server for managing dex. This is assumed to run
 	// locally (as a sidecar)
-	DexgRPCAPIAddr = "localhost:5557"
+	DexgRPCAPIAddr = "dex-server:5557"
 )
 
 var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
