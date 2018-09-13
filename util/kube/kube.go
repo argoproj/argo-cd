@@ -373,10 +373,11 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 		return err
 	}
 
-	var resourceInterfaces []struct {
+	type resClient struct {
 		dynamic.ResourceInterface
-		bool
+		deleteCollectionSupported bool
 	}
+	var resourceInterfaces []resClient
 
 	for _, apiResourcesList := range resources {
 		for i := range apiResourcesList.APIResources {
@@ -396,10 +397,10 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 			}
 
 			if deleteCollectionSupported || deleteSupported {
-				resourceInterfaces = append(resourceInterfaces, struct {
-					dynamic.ResourceInterface
-					bool
-				}{dclient.Resource(&apiResource, namespace), deleteCollectionSupported})
+				resourceInterfaces = append(resourceInterfaces, resClient{
+					dclient.Resource(&apiResource, namespace),
+					deleteCollectionSupported,
+				})
 			}
 		}
 	}
@@ -410,13 +411,10 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 	var wg sync.WaitGroup
 	wg.Add(len(resourceInterfaces))
 
-	for i := range resourceInterfaces {
-		client := resourceInterfaces[i].ResourceInterface
-		deleteCollectionSupported := resourceInterfaces[i].bool
-
-		go func() {
+	for _, c := range resourceInterfaces {
+		go func(client resClient) {
 			defer wg.Done()
-			if deleteCollectionSupported {
+			if client.deleteCollectionSupported {
 				err = client.DeleteCollection(&metav1.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
 				}, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
@@ -445,7 +443,7 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 					}
 				}
 			}
-		}()
+		}(c)
 	}
 	wg.Wait()
 	return asyncErr
