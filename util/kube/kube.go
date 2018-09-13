@@ -330,12 +330,11 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 
 	var asyncErr error
 	var result []*unstructured.Unstructured
-
 	var wg sync.WaitGroup
+	var lock sync.Mutex
 	wg.Add(len(resourceInterfaces))
-	for i := range resourceInterfaces {
-		client := resourceInterfaces[i]
-		go func() {
+	for _, c := range resourceInterfaces {
+		go func(client dynamic.ResourceInterface) {
 			defer wg.Done()
 			list, err := client.List(metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
@@ -350,11 +349,13 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 				labels := item.GetLabels()
 				if labels != nil {
 					if value, ok := labels[labelName]; ok && value == labelValue {
+						lock.Lock()
 						result = append(result, &item)
+						lock.Unlock()
 					}
 				}
 			}
-		}()
+		}(c)
 	}
 	wg.Wait()
 	return result, asyncErr
