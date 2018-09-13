@@ -7,6 +7,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -188,11 +189,15 @@ func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetOb
 			}
 			apiResource, err := kubeutil.ServerResourceForGroupVersionKind(disco, gvk)
 			if err != nil {
-				return nil, nil, err
-			}
-			liveObj, err = kubeutil.GetLiveResource(dclient, targetObj, apiResource, app.Spec.Destination.Namespace)
-			if err != nil {
-				return nil, nil, err
+				if !apierr.IsNotFound(err) {
+					return nil, nil, err
+				}
+				// If we get here, the app is comprised of a custom resource which has yet to be registered
+			} else {
+				liveObj, err = kubeutil.GetLiveResource(dclient, targetObj, apiResource, app.Spec.Destination.Namespace)
+				if err != nil {
+					return nil, nil, err
+				}
 			}
 		}
 		controlledLiveObj[i] = liveObj
