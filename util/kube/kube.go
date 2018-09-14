@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -14,12 +15,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	appsv1 "k8s.io/api/apps/v1"
-	appsv1beta1 "k8s.io/api/apps/v1beta1"
-	appsv1beta2 "k8s.io/api/apps/v1beta2"
-	corev1 "k8s.io/api/core/v1"
-	extv1beta1 "k8s.io/api/extensions/v1beta1"
-	extv1beta2 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +28,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	"github.com/argoproj/argo-cd/util/cache"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
@@ -592,69 +588,40 @@ func SplitYAML(out string) ([]*unstructured.Unstructured, error) {
 			}
 			continue
 		}
-		err = remarshal(&obj)
+		remObj, err := Remarshal(&obj)
 		if err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("Failed to remarshal manifest: %v", err)
-			}
-			continue
+			log.Warnf("Failed to remarshal oject: %v", err)
+		} else {
+			obj = *remObj
 		}
 		objs = append(objs, &obj)
 	}
 	return objs, firstErr
 }
 
-// remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller.
-// This ensures that expected resource state is formatter same as actualresource state in kubernetes
+// Remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller.
+// This ensures that expected resource state is formatter same as actual resource state in kubernetes
 // and allows to find differences between actual and target states more accurately.
-func remarshal(obj *unstructured.Unstructured) error {
-	var newObj interface{}
-	switch obj.GetAPIVersion() + ":" + obj.GetKind() {
-	case "apps/v1beta1:Deployment":
-		newObj = &appsv1beta1.Deployment{}
-	case "apps/v1beta2:Deployment":
-		newObj = &appsv1beta2.Deployment{}
-	case "apps/v1:Deployment":
-		newObj = &appsv1.Deployment{}
-	case "extensions/v1beta1:Deployment":
-		newObj = &extv1beta1.Deployment{}
-	case "extensions/v1beta2:Deployment":
-		newObj = &extv1beta2.Deployment{}
-	case "apps/v1beta1:StatefulSet":
-		newObj = &appsv1beta1.StatefulSet{}
-	case "apps/v1beta2:StatefulSet":
-		newObj = &appsv1beta2.StatefulSet{}
-	case "apps/v1:StatefulSet":
-		newObj = &appsv1.StatefulSet{}
-	case "extensions/v1beta1:DaemonSet":
-		newObj = &extv1beta1.DaemonSet{}
-	case "apps/v1beta2:DaemonSet":
-		newObj = &appsv1beta2.DaemonSet{}
-	case "apps/v1:DaemonSet":
-		newObj = &appsv1.DaemonSet{}
-	case "v1:Service":
-		newObj = &corev1.Service{}
+func Remarshal(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
 	}
-	if newObj != nil {
-		oldObj := obj.Object
-		data, err := json.Marshal(obj)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(data, newObj)
-		if err != nil {
-			return err
-		}
-		data, err = json.Marshal(newObj)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(data, obj)
-		if err != nil {
-			return err
-		}
-		// remove all default values specified by custom formatter
-		obj.Object = jsonutil.RemoveMapFields(oldObj, obj.Object)
+	item, err := scheme.Scheme.New(obj.GroupVersionKind())
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	// This will drop any omitempty fields, perform resource conversion etc...
+	unmarshalledObj := reflect.New(reflect.TypeOf(item).Elem()).Interface()
+	err = json.Unmarshal(data, &unmarshalledObj)
+	if err != nil {
+		return nil, err
+	}
+	unstrBody, err := runtime.DefaultUnstructuredConverter.ToUnstructured(unmarshalledObj)
+	if err != nil {
+		return nil, err
+	}
+	// remove all default values specified by custom formatter (e.g. creationTimestamp)
+	unstrBody = jsonutil.RemoveMapFields(obj.Object, unstrBody)
+	return &unstructured.Unstructured{Object: unstrBody}, nil
 }
