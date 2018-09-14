@@ -50,7 +50,9 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 				fmt.Print("\n")
 			}
 			if newPassword == "" {
-				newPassword = settings.ReadAndConfirmPassword()
+				var err error
+				newPassword, err = settings.ReadAndConfirmPassword()
+				errors.CheckError(err)
 			}
 
 			updatePasswordRequest := account.UpdatePasswordRequest{

@@ -144,7 +144,15 @@ func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDS
 	defaultPassword, err := os.Hostname()
 	errors.CheckError(err)
 
-	cdSettings := settings_util.UpdateSettings(defaultPassword, settingsMgr, false, false, opts.Namespace)
+	cdSettings, err := settings_util.UpdateSettings(defaultPassword, settingsMgr, false, false, opts.Namespace)
+	if err != nil {
+		// assume settings are initialized by another instance of api server
+		if apierrors.IsConflict(err) {
+			return settingsMgr.GetSettings()
+		} else {
+			log.Fatal(err)
+		}
+	}
 
 	return cdSettings, nil
 }

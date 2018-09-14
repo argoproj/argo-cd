@@ -366,7 +366,8 @@ func NewSettingsCommand() *cobra.Command {
 			errors.CheckError(err)
 			settingsMgr := settings.NewSettingsManager(kubeclientset, namespace)
 
-			_ = settings.UpdateSettings(superuserPassword, settingsMgr, updateSignature, updateSuperuser, namespace)
+			_, err = settings.UpdateSettings(superuserPassword, settingsMgr, updateSignature, updateSuperuser, namespace)
+			errors.CheckError(err)
 		},
 	}
 	command.Flags().BoolVar(&updateSuperuser, "update-superuser", false, "force updating the  superuser password")

@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
@@ -87,6 +86,14 @@ type SettingsManager struct {
 	mutex *sync.Mutex
 }
 
+type incompleteSettingsError struct {
+	message string
+}
+
+func (e *incompleteSettingsError) Error() string {
+	return e.message
+}
+
 // GetSettings retrieves settings from the ArgoCD configmap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	var settings ArgoCDSettings
@@ -111,11 +118,11 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.URL = argoCDCM.Data[settingURLKey]
 }
 
-// UpdateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
+// updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
 func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
 	adminPasswordHash, ok := argoCDSecret.Data[settingAdminPasswordHashKey]
 	if !ok {
-		return fmt.Errorf("admin user not found")
+		return &incompleteSettingsError{message: "admin-password is missing"}
 	}
 	settings.AdminPasswordHash = string(adminPasswordHash)
 	settings.AdminPasswordMtime = time.Now().UTC()
@@ -127,7 +134,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if !ok {
-		return fmt.Errorf("server secret key not found")
+		return &incompleteSettingsError{message: "server-signature-key is missing"}
 	}
 	settings.ServerSignature = secretKey
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
@@ -145,7 +152,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 	if certOk && keyOk {
 		cert, err := tls.X509KeyPair(serverCert, serverKey)
 		if err != nil {
-			return fmt.Errorf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)
+			return &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)}
 		}
 		settings.Certificate = &cert
 	}
@@ -400,31 +407,38 @@ func (mgr *SettingsManager) notifySubscribers() {
 	}
 }
 
-func ReadAndConfirmPassword() string {
+func ReadAndConfirmPassword() (string, error) {
 	for {
 		fmt.Print("*** Enter new password: ")
 		password, err := terminal.ReadPassword(syscall.Stdin)
-		errors.CheckError(err)
+		if err != nil {
+			return "", err
+		}
 		fmt.Print("\n")
 		fmt.Print("*** Confirm new password: ")
 		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
-		errors.CheckError(err)
+		if err != nil {
+			return "", err
+		}
 		fmt.Print("\n")
 		if string(password) == string(confirmPassword) {
-			return string(password)
+			return string(password), nil
 		}
 		log.Error("Passwords do not match")
 	}
 }
 
+func isIncompleteSettingsError(err error) bool {
+	_, ok := err.(*incompleteSettingsError)
+	return ok
+}
+
 // UpdateSettings is used to update the admin password, signature, certificate etc
-func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, updateSignature bool, updateSuperuser bool, Namespace string) *ArgoCDSettings {
+func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, updateSignature bool, updateSuperuser bool, Namespace string) (*ArgoCDSettings, error) {
 
 	cdSettings, err := settingsMgr.GetSettings()
-	if err != nil {
-		if apierr.IsNotFound(err) {
-			log.Fatal(err)
-		}
+	if err != nil && !apierr.IsNotFound(err) && !isIncompleteSettingsError(err) {
+		return nil, err
 	}
 	if cdSettings == nil {
 		cdSettings = &ArgoCDSettings{}
@@ -432,16 +446,23 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 	if cdSettings.ServerSignature == nil || updateSignature {
 		// set JWT signature
 		signature, err := util.MakeSignature(32)
-		errors.CheckError(err)
+		if err != nil {
+			return nil, err
+		}
 		cdSettings.ServerSignature = signature
 	}
 	if cdSettings.AdminPasswordHash == "" || updateSuperuser {
 		passwordRaw := defaultPassword
 		if passwordRaw == "" {
-			passwordRaw = ReadAndConfirmPassword()
+			passwordRaw, err = ReadAndConfirmPassword()
+			if err != nil {
+				return nil, err
+			}
 		}
 		hashedPassword, err := password.HashPassword(passwordRaw)
-		errors.CheckError(err)
+		if err != nil {
+			return nil, err
+		}
 		cdSettings.AdminPasswordHash = hashedPassword
 		cdSettings.AdminPasswordMtime = time.Now().UTC()
 	}
@@ -461,11 +482,11 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 			IsCA:         true,
 		}
 		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
-		errors.CheckError(err)
+		if err != nil {
+			return nil, err
+		}
 		cdSettings.Certificate = cert
 	}
 
-	err = settingsMgr.SaveSettings(cdSettings)
-	errors.CheckError(err)
-	return cdSettings
+	return cdSettings, settingsMgr.SaveSettings(cdSettings)
 }
