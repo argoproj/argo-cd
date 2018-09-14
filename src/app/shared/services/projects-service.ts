@@ -7,6 +7,33 @@ export interface ProjectParams {
     description: string;
     sourceRepos: string[];
     destinations: models.ApplicationDestination[];
+    roles: models.ProjectRole[];
+}
+
+export interface ProjectRoleParams {
+    projName: string;
+    roleName: string;
+    description: string;
+    policies: string[] | string;
+    jwtTokens: models.JwtToken[];
+    deleteRole: boolean;
+}
+
+function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
+    let newPolicies = [] as string[];
+    if (typeof params.policies === 'string') {
+        if (params.policies !== '') {
+            newPolicies = params.policies.split('\n');
+        }
+     } else {
+         newPolicies = params.policies;
+     }
+    return {
+        name: params.roleName,
+        description: params.description,
+        policies: newPolicies,
+        jwtTokens: params.jwtTokens,
+    };
 }
 
 function paramsToProj(params: ProjectParams) {
@@ -16,6 +43,7 @@ function paramsToProj(params: ProjectParams) {
             description: params.description,
             sourceRepos: params.sourceRepos,
             destinations: params.destinations,
+            roles: params.roles,
         },
     };
 }
@@ -41,6 +69,34 @@ export class ProjectsService {
         const proj = await this.get(params.name);
         const update = paramsToProj(params);
         return requests.put(`/projects/${params.name}`).send({project: {...proj, spec: update.spec }}).then((res) => res.body as models.Project);
+    }
+
+    public async updateRole(params: ProjectRoleParams): Promise<models.Project> {
+        const proj = await this.get(params.projName);
+        const updatedRole = paramsToProjRole(params);
+        let roleExist = false;
+        if (proj.spec.roles === undefined) {
+            proj.spec.roles = [];
+        }
+        const updatedSpec = proj.spec;
+
+        for (let i = 0; i < proj.spec.roles.length; i++) {
+            if (proj.spec.roles[i].name === params.roleName) {
+                roleExist = true;
+                if (params.deleteRole) {
+                    updatedSpec.roles.splice(i, 1);
+                    break;
+                }
+                updatedSpec.roles[i] = updatedRole;
+            }
+        }
+        if (!roleExist) {
+            if (updatedSpec.roles === undefined) {
+                updatedSpec.roles = [];
+            }
+            updatedSpec.roles = updatedSpec.roles.concat(updatedRole);
+        }
+        return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
     }
 
     public events(projectName: string): Promise<models.Event[]> {

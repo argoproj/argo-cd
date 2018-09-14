@@ -26,4 +26,4 @@ export const services: Services = {
     viewPreferences: new ViewPreferencesService(),
 };
 
-export { ProjectParams } from './projects-service';
+export { ProjectParams, ProjectRoleParams } from './projects-service';

@@ -349,10 +349,22 @@ export interface Event {
 
 export interface EventList extends ItemsList<Event> {}
 
+export interface ProjectRole {
+    description: string;
+    policies: string[];
+    name: string;
+    jwtTokens: JwtToken[];
+}
+
+export interface JwtToken {
+    iat: number;
+    exp: number;
+}
 export interface ProjectSpec {
     sourceRepos: string[];
     destinations: ApplicationDestination[];
     description: string;
+    roles: ProjectRole[];
 }
 
 export interface Project {
