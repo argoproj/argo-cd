@@ -201,7 +201,7 @@ func randString(n int, charset string) (string, error) {
 		if err != nil {
 			return b.String(), err
 		}
-		b.WriteRune(rr[pos.Int64()])
+		_, _ = b.WriteRune(rr[pos.Int64()])
 	}
 	return b.String(), nil
 }
