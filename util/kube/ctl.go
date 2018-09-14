@@ -63,14 +63,34 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 	if err != nil {
 		return "", err
 	}
-	applyArgs := []string{"--kubeconfig", f.Name(), "-n", namespace, "apply", "-f", "-"}
-	if dryRun {
-		applyArgs = append(applyArgs, "--dry-run")
+
+	var out []string
+	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
+		outReconcile, err := runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		if err != nil {
+			return "", err
+		}
+		out = append(out, outReconcile)
 	}
+
+	applyArgs := []string{"apply"}
 	if force {
 		applyArgs = append(applyArgs, "--force")
 	}
-	cmd := exec.Command("kubectl", applyArgs...)
+	outApply, err := runKubectl(f.Name(), namespace, applyArgs, manifestBytes, dryRun)
+	if err != nil {
+		return "", err
+	}
+	out = append(out, outApply)
+	return strings.Join(out, "\n"), nil
+}
+
+func runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
+	cmdArgs := append(append([]string{"--kubeconfig", kubeconfigPath, "-n", namespace}, args...), "-f", "-")
+	if dryRun {
+		cmdArgs = append(cmdArgs, "--dry-run")
+	}
+	cmd := exec.Command("kubectl", cmdArgs...)
 	log.Info(cmd.Args)
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
