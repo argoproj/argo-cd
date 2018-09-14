@@ -1,3 +1,4 @@
+# This is an auto-generated file. DO NOT EDIT
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
