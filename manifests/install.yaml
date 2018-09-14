@@ -335,13 +335,6 @@ rules:
   - get
   - list
   - watch
-# - apiGroups:
-#   - ""
-#   resources:
-#   - events
-#   verbs:
-#   - create
-#   - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
