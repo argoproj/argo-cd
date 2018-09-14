@@ -6,6 +6,9 @@ metadata:
 rules:
 - apiGroups:
   - ""
+  resourceNames:
+  - argocd-cm
+  - argocd-secret
   resources:
   - secrets
   - configmaps
