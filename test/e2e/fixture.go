@@ -125,7 +125,7 @@ func (f *Fixture) setup() error {
 	}
 
 	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
-	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache, f.Namespace)
+	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache)
 	if err != nil {
 		return err
 	}
