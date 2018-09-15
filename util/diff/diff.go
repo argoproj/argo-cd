@@ -30,15 +30,26 @@ type DiffResultList struct {
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
 func Diff(config, live *unstructured.Unstructured) *DiffResult {
+	if config != nil {
+		config = stripTypeInformation(config)
+	}
+	if live != nil {
+		live = stripTypeInformation(live)
+	}
 	orig := getLastAppliedConfigAnnotation(live)
 	if orig != nil && config != nil {
-		return ThreeWayDiff(orig, config, live)
+		dr, err := ThreeWayDiff(orig, config, live)
+		if err == nil {
+			return dr
+		}
+		log.Warnf("three-way diff calculation failed: %v. Falling back to two-way diff", err)
 	}
 	return TwoWayDiff(config, live)
 }
 
 // TwoWayDiff performs a normal two-way diff between two unstructured objects. Ignores extra fields
 // in the live object.
+// Inputs are assumed to be stripped of type information
 func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 	var configObj, liveObj map[string]interface{}
 	if config != nil {
@@ -57,39 +68,70 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 
 // ThreeWayDiff performs a diff with the understanding of how to incorporate the
 // last-applied-configuration annotation in the diff.
-func ThreeWayDiff(orig, config, live *unstructured.Unstructured) *DiffResult {
+// Inputs are assumed to be stripped of type information
+func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, error) {
 	orig = removeNamespaceAnnotation(orig)
-	// remove extra fields in the live, that were not in the original object
-	liveObj := jsonutil.RemoveMapFields(orig.Object, live.Object)
-	// now we have a pruned live object
-	gjDiff := gojsondiff.New().CompareObjects(config.Object, liveObj)
+	// Remove defaulted fields from the live object.
+	// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
+	// This is needed to perform a fair comparison when we send the objects to gojsondiff
+	live = &unstructured.Unstructured{Object: jsonutil.RemoveMapFields(orig.Object, live.Object)}
+
+	// 1. calculate a 3-way merge patch
+	patchBytes, err := threeWayMergePatch(orig, config, live)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. apply the patch against the live object
+	liveBytes, err := json.Marshal(live)
+	if err != nil {
+		return nil, err
+	}
+	versionedObject, err := scheme.Scheme.New(orig.GroupVersionKind())
+	if err != nil {
+		return nil, err
+	}
+	patchedLiveBytes, err := strategicpatch.StrategicMergePatch(liveBytes, patchBytes, versionedObject)
+	if err != nil {
+		return nil, err
+	}
+	var patchedLive unstructured.Unstructured
+	err = json.Unmarshal(patchedLiveBytes, &patchedLive)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. diff the live object vs. the patched live object
+	gjDiff := gojsondiff.New().CompareObjects(patchedLive.Object, live.Object)
 	dr := DiffResult{
 		Diff:     gjDiff,
 		Modified: gjDiff.Modified(),
 	}
-	// Theoretically, we should be able to return the diff result a this point. Just to be safe,
-	// calculate a kubernetes 3-way merge patch to see if kubernetes will also agree with what we
-	// just calculated.
-	patch, err := threeWayMergePatch(orig, config, live)
-	if err != nil {
-		log.Warnf("Failed to calculate three way merge patch: %v", err)
-		return &dr
-	}
-	patchStr := string(patch)
-	modified := bool(patchStr != "{}")
-	if dr.Modified != modified {
-		// We theoretically should not get here. If we do, it is a issue with our diff calculation
-		// We should honor what kubernetes thinks. If we *do* get here, it means what we will be
-		// reporting OutOfSync, but do not have a good way to visualize the diff to the user.
-		log.Warnf("Disagreement in three way diff calculation: %s", patchStr)
-		dr.Modified = modified
-	}
-	return &dr
+	return &dr, nil
 }
 
+// stripTypeInformation strips any type information (e.g. float64 vs. int) from the unstructured
+// object by remarshalling the object. This is important for diffing since it will cause godiff
+// to report a false difference.
+func stripTypeInformation(un *unstructured.Unstructured) *unstructured.Unstructured {
+	unBytes, err := json.Marshal(un)
+	if err != nil {
+		panic(err)
+	}
+	var newUn unstructured.Unstructured
+	err = json.Unmarshal(unBytes, &newUn)
+	if err != nil {
+		panic(err)
+	}
+	return &newUn
+}
+
+// removeNamespaceAnnotation remove the namespace and an empty annotation map from the metadata.
+// The namespace field is *always* present in live objects, but not necessarily present in config
+// or last-applied. This results in a diff which we don't care about. We delete the two so that
+// the diff is more relevant.
 func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Unstructured {
 	orig = orig.DeepCopy()
-	// remove the namespace an annotation from the
 	if metadataIf, ok := orig.Object["metadata"]; ok {
 		metadata := metadataIf.(map[string]interface{})
 		delete(metadata, "namespace")
