@@ -174,6 +174,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 		ComponentParameterOverrides: overrides,
 		AppLabel:                    a.Name,
 		ValueFiles:                  a.Spec.Source.ValuesFiles,
+		Namespace:                   a.Spec.Destination.Namespace,
 	})
 	if err != nil {
 		return nil, err

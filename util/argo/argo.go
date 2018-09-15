@@ -422,8 +422,9 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
-		Revision: spec.Source.TargetRevision,
-		Path:     spec.Source.Path,
+		Revision:  spec.Source.TargetRevision,
+		Path:      spec.Source.Path,
+		Namespace: spec.Destination.Namespace,
 	}
 	if repoRes != nil {
 		req.Repo.Username = repoRes.Username

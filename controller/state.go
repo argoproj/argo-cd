@@ -122,6 +122,7 @@ func (s *ksonnetAppStateManager) getTargetObjs(app *v1alpha1.Application, revisi
 		ComponentParameterOverrides: mfReqOverrides,
 		AppLabel:                    app.Name,
 		ValueFiles:                  app.Spec.Source.ValuesFiles,
+		Namespace:                   app.Spec.Destination.Namespace,
 	})
 	if err != nil {
 		return nil, nil, err

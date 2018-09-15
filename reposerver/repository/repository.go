@@ -206,7 +206,11 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		targetObjs, params, env, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
 	case AppSourceHelm:
 		h := helm.NewHelmApp(appPath)
-		targetObjs, err = h.Template(q.AppLabel, q.ValueFiles, q.ComponentParameterOverrides)
+		err = h.DependencyBuild()
+		if err != nil {
+			return nil, err
+		}
+		targetObjs, err = h.Template(q.AppLabel, q.Namespace, q.ValueFiles, q.ComponentParameterOverrides)
 		if err != nil {
 			return nil, err
 		}
@@ -319,7 +323,7 @@ func checkoutRevision(gitClient git.Client, commitSHA string) error {
 func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
 	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
 	valuesFiles := strings.Join(q.ValueFiles, ",")
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%s|%s", q.AppLabel, q.Path, q.Environment, commitSHA, string(pStr), valuesFiles)
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%s|%s|%s", q.AppLabel, q.Path, q.Environment, commitSHA, string(pStr), valuesFiles, q.Namespace)
 }
 
 func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
