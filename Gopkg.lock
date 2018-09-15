@@ -59,7 +59,6 @@
   name = "github.com/argoproj/pkg"
   packages = [
     "exec",
-    "kube/cli",
     "time",
   ]
   pruneopts = ""
@@ -1388,7 +1387,6 @@
   input-imports = [
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/pkg/exec",
-    "github.com/argoproj/pkg/kube/cli",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",

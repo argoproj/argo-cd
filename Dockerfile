@@ -128,6 +128,9 @@ RUN ln -s /usr/local/bin/argocd /argocd && \
     ln -s /usr/local/bin/argocd-repo-server /argocd-repo-server
 
 USER argocd
+
+RUN helm init --client-only
+
 WORKDIR /home/argocd
 ARG BINARY
 CMD ${BINARY}

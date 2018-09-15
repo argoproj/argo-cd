@@ -1,6 +1,8 @@
 package helm
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,7 +34,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			Value: "1234",
 		},
 	}
-	objs, err := h.Template("test", nil, overrides)
+	objs, err := h.Template("test", "", nil, overrides)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -50,7 +52,7 @@ func TestHelmTemplateParams(t *testing.T) {
 func TestHelmTemplateValues(t *testing.T) {
 	h := NewHelmApp("./testdata/redis")
 	valuesFiles := []string{"values-production.yaml"}
-	objs, err := h.Template("test", valuesFiles, nil)
+	objs, err := h.Template("test", "", valuesFiles, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -83,4 +85,25 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	slaveCountParam := findParameter(params, "cluster.slaveCount")
 	assert.NotNil(t, slaveCountParam)
 	assert.Equal(t, slaveCountParam.Value, "3")
+}
+
+func TestHelmDependencyBuild(t *testing.T) {
+	clean := func() {
+		_ = os.RemoveAll("./testdata/wordpress/charts")
+	}
+	clean()
+	defer clean()
+	h := NewHelmApp("./testdata/wordpress")
+	helmHome, err := ioutil.TempDir("", "")
+	assert.NoError(t, err)
+	defer func() { _ = os.RemoveAll(helmHome) }()
+	h.SetHome(helmHome)
+	err = h.Init()
+	assert.NoError(t, err)
+	_, err = h.Template("wordpress", "", nil, nil)
+	assert.Error(t, err)
+	err = h.DependencyBuild()
+	assert.NoError(t, err)
+	_, err = h.Template("wordpress", "", nil, nil)
+	assert.NoError(t, err)
 }

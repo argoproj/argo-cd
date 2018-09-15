@@ -2,7 +2,6 @@ package reposerver
 
 import (
 	"crypto/tls"
-	"fmt"
 
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/version"
@@ -27,15 +26,11 @@ type ArgoCDRepoServer struct {
 }
 
 // NewServer returns a new instance of the ArgoCD Repo server
-func NewServer(gitFactory git.ClientFactory, cache cache.Cache, namespace string) (*ArgoCDRepoServer, error) {
-
+func NewServer(gitFactory git.ClientFactory, cache cache.Cache) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
 		"argocd-repo-server",
-		fmt.Sprintf("argocd-repo-server.%s", namespace),
-		fmt.Sprintf("argocd-repo-server.%s.svc", namespace),
-		fmt.Sprintf("argocd-repo-server.%s.svc.cluster.local", namespace),
 	}
 	cert, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
 		Hosts:        hosts,

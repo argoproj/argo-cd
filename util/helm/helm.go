@@ -18,9 +18,15 @@ import (
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(name string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error)
+	Template(name, namespace string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error)
+	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
+	DependencyBuild() error
+	// SetHome sets the helm home location (default "~/.helm")
+	SetHome(path string)
+	// Init runs `helm init --client-only`
+	Init() error
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
@@ -30,27 +36,45 @@ func NewHelmApp(path string) Helm {
 
 type helm struct {
 	path string
+	home string
 }
 
-func (h *helm) Template(name string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
+func (h *helm) Template(name, namespace string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
 	args := []string{
-		"template", h.path, "--name", name,
+		"template", ".", "--name", name,
+	}
+	if namespace != "" {
+		args = append(args, "--namespace", namespace)
 	}
 	for _, valuesFile := range valuesFiles {
-		args = append(args, "-f", path.Join(h.path, valuesFile))
+		args = append(args, "-f", valuesFile)
 	}
 	for _, p := range overrides {
 		args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
 	}
-	out, err := helmCmd(args...)
+	out, err := h.helmCmd(args...)
 	if err != nil {
 		return nil, err
 	}
 	return kube.SplitYAML(out)
 }
 
+func (h *helm) DependencyBuild() error {
+	_, err := h.helmCmd("dependency", "build")
+	return err
+}
+
+func (h *helm) SetHome(home string) {
+	h.home = home
+}
+
+func (h *helm) Init() error {
+	_, err := h.helmCmd("init", "--client-only")
+	return err
+}
+
 func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error) {
-	out, err := helmCmd("inspect", "values", h.path)
+	out, err := h.helmCmd("inspect", "values", ".")
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +106,12 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParame
 	return params, nil
 }
 
-func helmCmd(args ...string) (string, error) {
+func (h *helm) helmCmd(args ...string) (string, error) {
 	cmd := exec.Command("helm", args...)
+	cmd.Dir = h.path
+	if h.home != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.home))
+	}
 	cmdStr := strings.Join(cmd.Args, " ")
 	log.Info(cmdStr)
 	outBytes, err := cmd.Output()
