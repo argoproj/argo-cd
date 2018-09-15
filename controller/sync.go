@@ -659,7 +659,7 @@ func isHelmHook(obj *unstructured.Unstructured) bool {
 	if annotations == nil {
 		return false
 	}
-	_, ok := annotations[common.AnnotationHook]
+	_, ok := annotations[common.AnnotationHelmHook]
 	return ok
 }
 
