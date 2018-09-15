@@ -2,8 +2,10 @@ package diff
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/test"
@@ -193,8 +195,11 @@ var demoLive = `
 `
 
 // Tests a real world example
-func TestDiffActualExample(t *testing.T) {
+func TestThreeWayDiffExample1(t *testing.T) {
 	var configUn, liveUn unstructured.Unstructured
+	// NOTE: it is intentional to unmarshal to Unstructured.Object instead of just Unstructured
+	// since it catches a case when we comparison fails due to subtle differences in types
+	// (e.g. float vs. int)
 	err := json.Unmarshal([]byte(demoConfig), &configUn.Object)
 	assert.Nil(t, err)
 	err = json.Unmarshal([]byte(demoLive), &liveUn.Object)
@@ -207,4 +212,71 @@ func TestDiffActualExample(t *testing.T) {
 		log.Println(ascii)
 	}
 
+}
+
+func TestThreeWayDiffExample2(t *testing.T) {
+	configData, err := ioutil.ReadFile("testdata/elasticsearch-config.json")
+	assert.NoError(t, err)
+	liveData, err := ioutil.ReadFile("testdata/elasticsearch-live.json")
+	assert.NoError(t, err)
+	var configUn, liveUn unstructured.Unstructured
+	err = json.Unmarshal(configData, &configUn.Object)
+	assert.NoError(t, err)
+	err = json.Unmarshal(liveData, &liveUn.Object)
+	assert.NoError(t, err)
+	dr := Diff(&configUn, &liveUn)
+	assert.False(t, dr.Modified)
+	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	assert.Nil(t, err)
+	log.Println(ascii)
+}
+
+// TestThreeWayDiffExample2WithDifference is same as TestThreeWayDiffExample2 but with differences
+func TestThreeWayDiffExample2WithDifference(t *testing.T) {
+	configData, err := ioutil.ReadFile("testdata/elasticsearch-config.json")
+	assert.NoError(t, err)
+	liveData, err := ioutil.ReadFile("testdata/elasticsearch-live.json")
+	assert.NoError(t, err)
+	var configUn, liveUn unstructured.Unstructured
+	err = json.Unmarshal(configData, &configUn.Object)
+	assert.NoError(t, err)
+	err = json.Unmarshal(liveData, &liveUn.Object)
+	assert.NoError(t, err)
+
+	labels := configUn.GetLabels()
+	// add a new label
+	labels["foo"] = "bar"
+	// modify a label
+	labels["chart"] = "elasticsearch-1.7.1"
+	// remove an existing label
+	delete(labels, "release")
+	configUn.SetLabels(labels)
+
+	dr := Diff(&configUn, &liveUn)
+	assert.True(t, dr.Modified)
+	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	assert.Nil(t, err)
+	log.Println(ascii)
+
+	// Check that we indicate missing/extra/changed correctly
+	showsMissing := false
+	showsExtra := false
+	showsChanged := 0
+	for _, line := range strings.Split(ascii, "\n") {
+		if strings.HasPrefix(line, `-      "foo": "bar"`) {
+			showsMissing = true
+		}
+		if strings.HasPrefix(line, `+      "release": "elasticsearch4"`) {
+			showsExtra = true
+		}
+		if strings.HasPrefix(line, `-      "chart": "elasticsearch-1.7.1"`) {
+			showsChanged++
+		}
+		if strings.HasPrefix(line, `+      "chart": "elasticsearch-1.7.0"`) {
+			showsChanged++
+		}
+	}
+	assert.True(t, showsMissing)
+	assert.True(t, showsExtra)
+	assert.Equal(t, 2, showsChanged)
 }
