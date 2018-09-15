@@ -39,12 +39,6 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
-      - name: dex
-        image: quay.io/coreos/dex:v2.10.0
-        command: [/shared/argocd-util, rundex]
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
       volumes:
       - emptyDir: {}
         name: static-files

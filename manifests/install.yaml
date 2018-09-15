@@ -1,4 +1,3 @@
-# This is an auto-generated file. DO NOT EDIT
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -265,12 +264,6 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
-      - name: dex
-        image: quay.io/coreos/dex:v2.10.0
-        command: [/shared/argocd-util, rundex]
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
       volumes:
       - emptyDir: {}
         name: static-files
@@ -322,3 +315,90 @@ spec:
     targetPort: 8081
   selector:
     app: argocd-repo-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dex-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dex-server-role
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-cm
+  - argocd-secret
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dex-server-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dex-server-role
+subjects:
+- kind: ServiceAccount
+  name: dex-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex-server
+spec:
+  selector:
+    matchLabels:
+      app: dex-server
+  template:
+    metadata:
+      labels:
+        app: dex-server
+    spec:
+      serviceAccountName: dex-server
+      initContainers:
+      - name: copyutil
+        image: argoproj/argocd-server:v0.8.0
+        command: [cp, /argocd-util, /shared]
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      containers:
+      - name: dex
+        image: quay.io/coreos/dex:v2.10.0
+        command: [/shared/argocd-util, rundex]
+        ports:
+          - containerPort: 5556
+          - containerPort: 5557
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      volumes:
+      - emptyDir: {}
+        name: static-files
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex-server
+spec:
+  ports:
+  - name: http
+    protocol: TCP
+    port: 5556
+    targetPort: 5556
+  - name: grpc
+    protocol: TCP
+    port: 5557
+    targetPort: 5557
+  selector:
+    app: dex-server

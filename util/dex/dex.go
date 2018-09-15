@@ -2,11 +2,12 @@ package dex
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"html"
 	"io/ioutil"
-	"math/rand"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/coreos/dex/api"
@@ -32,10 +34,10 @@ import (
 
 const (
 	// DexReverseProxyAddr is the address of the Dex OIDC server, which we run a reverse proxy against
-	DexReverseProxyAddr = "http://localhost:5556"
+	DexReverseProxyAddr = "http://dex-server:5556"
 	// DexgRPCAPIAddr is the address to the Dex gRPC API server for managing dex. This is assumed to run
 	// locally (as a sidecar)
-	DexgRPCAPIAddr = "localhost:5557"
+	DexgRPCAPIAddr = "dex-server:5557"
 )
 
 var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
@@ -187,23 +189,34 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 	}, nil
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+// RandString generates, from a given charset, a cryptographically-secure pseudo-random string of a given length.
+// If the random number reader is unable to gather enough entropy to generate a secure random number, an error will be returned.
+func randString(n int, charset string) (string, error) {
+	var b strings.Builder
+	rr := []rune(charset)
+	m := big.NewInt(int64(len(rr)))
 
-func randString(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+	for i := 0; i < n; i++ {
+		pos, err := rand.Int(rand.Reader, m)
+		if err != nil {
+			return b.String(), err
+		}
+		_, _ = b.WriteRune(rr[pos.Int64()])
 	}
-	return string(b)
+	return b.String(), nil
 }
 
 // generateAppState creates an app state nonce
 func (a *ClientApp) generateAppState(returnURL string) string {
-	randStr := randString(10)
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	randStr, err := randString(10, letters)
+	if err != nil {
+		log.Fatalf("Could not generate entropy: %v", err)
+	}
 	if returnURL == "" {
 		returnURL = "/"
 	}
-	err := a.states.Set(&cache.Item{
+	err = a.states.Set(&cache.Item{
 		Key: randStr,
 		Object: &appState{
 			ReturnURL: returnURL,
