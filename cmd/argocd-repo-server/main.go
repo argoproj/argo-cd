@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/stats"
+	"github.com/argoproj/argo-cd/util/tls"
 )
 
 const (
@@ -27,7 +28,8 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		logLevel string
+		logLevel               string
+		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -37,7 +39,10 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 			log.SetLevel(level)
 
-			server, err := reposerver.NewServer(git.NewFactory(), newCache())
+			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
+			errors.CheckError(err)
+
+			server, err := reposerver.NewServer(git.NewFactory(), newCache(), tlsConfigCustomizer)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -58,6 +63,7 @@ func newCommand() *cobra.Command {
 	}
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	return &command
 }
 

@@ -15,10 +15,20 @@ import (
 	"net"
 	"os"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 const (
 	DefaultRSABits = 2048
+)
+
+var (
+	tlsVersionByString = map[string]uint16{
+		"1.0": tls.VersionTLS10,
+		"1.1": tls.VersionTLS11,
+		"1.2": tls.VersionTLS12,
+	}
 )
 
 type CertOptions struct {
@@ -36,6 +46,40 @@ type CertOptions struct {
 	RSABits int
 	// ECDSA curve to use to generate a key. Valid values are P224, P256 (recommended), P384, P521
 	ECDSACurve string
+}
+
+type ConfigCustomizer = func(*tls.Config)
+
+func getTLSVersionByString(version string) (uint16, error) {
+	if version == "" {
+		return 0, nil
+	}
+	if res, ok := tlsVersionByString[version]; ok {
+		return res, nil
+	}
+	return 0, fmt.Errorf("%s is not valid TLS version", version)
+}
+
+func AddTLSFlagsToCmd(cmd *cobra.Command) func() (ConfigCustomizer, error) {
+	minVersionStr := ""
+	maxVersionStr := ""
+	cmd.Flags().StringVar(&minVersionStr, "tlsminversion", "", "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2)")
+	cmd.Flags().StringVar(&maxVersionStr, "tlsmaxversion", "", "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2)")
+
+	return func() (ConfigCustomizer, error) {
+		minVersion, err := getTLSVersionByString(minVersionStr)
+		if err != nil {
+			return nil, err
+		}
+		maxVersion, err := getTLSVersionByString(maxVersionStr)
+		if err != nil {
+			return nil, err
+		}
+		return func(config *tls.Config) {
+			config.MinVersion = minVersion
+			config.MaxVersion = maxVersion
+		}, nil
+	}
 }
 
 func publicKey(priv interface{}) interface{} {
