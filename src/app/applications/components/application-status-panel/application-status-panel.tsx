@@ -31,8 +31,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             </div>
             {application.status.operationState && (
             <div className='application-status-panel__item columns small-3'>
-                <div className='application-status-panel__item-value'>
-                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application.status.operationState)}</a>
+                <div className={`application-status-panel__item-value application-status-panel__item-value--${application.status.operationState.phase}`}>
+                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application.status.operationState)} <utils.OperationPhaseIcon
+                        phase={application.status.operationState.phase}/></a>
                 </div>
                 <div className='application-status-panel__item-name'>
                     {application.status.operationState.phase} at {application.status.operationState.finishedAt || application.status.operationState.startedAt}

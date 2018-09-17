@@ -34,7 +34,15 @@ export interface Operation {
     rollback: RollbackOperation;
 }
 
-export type OperationPhase = 'InProgress' | 'Failed' | 'Succeeded' | 'Terminating';
+export type OperationPhase = 'InProgress' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
+
+export const OperationPhases = {
+    InProgress: 'InProgress' as OperationPhase,
+    Failed: 'Failed' as OperationPhase,
+    Error: 'Error' as OperationPhase,
+    Succeeded: 'Succeeded' as OperationPhase,
+    Terminating: 'Terminating' as OperationPhase,
+};
 
 /**
  * OperationState contains information about state of currently performing operation on application.

@@ -69,6 +69,28 @@ export async function deleteApplication(appName: string, context: AppContext) {
     }
 }
 
+export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase }) => {
+    let className = '';
+    let color = '';
+
+    switch (phase) {
+        case appModels.OperationPhases.Succeeded:
+            className = 'fa fa-check-circle';
+            color = ARGO_SUCCESS_COLOR;
+            break;
+        case appModels.OperationPhases.Error:
+        case appModels.OperationPhases.Failed:
+            className = 'fa fa-times';
+            color = ARGO_FAILED_COLOR;
+            break;
+        default:
+            className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
+            color = ARGO_RUNNING_COLOR;
+            break;
+    }
+    return <i title={phase} className={className} style={{ color }} />;
+};
+
 export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonStatus }) => {
     let className = '';
     let color = '';

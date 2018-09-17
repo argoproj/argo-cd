@@ -35,11 +35,27 @@
     }
 
     &__item-value {
+        .fa {
+            font-size: 1em;
+        }
+
         font-size: 2em;
         color: $argo-color-gray-6;
 
         &--highlight {
             color: $argo-color-teal-6;
+        }
+
+        &--InProgress a, &--Terminating a {
+            color: $argo-running-color;
+        }
+
+        &--Error a, &--Failed a {
+            color: $argo-failed-color;
+        }
+
+        &--Succeeded a {
+            color: $argo-success-color;
         }
 
         i {
