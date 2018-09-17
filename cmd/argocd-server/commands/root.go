@@ -17,18 +17,20 @@ import (
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/stats"
+	"github.com/argoproj/argo-cd/util/tls"
 )
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		insecure          bool
-		logLevel          string
-		glogLevel         int
-		clientConfig      clientcmd.ClientConfig
-		staticAssetsDir   string
-		repoServerAddress string
-		disableAuth       bool
+		insecure               bool
+		logLevel               string
+		glogLevel              int
+		clientConfig           clientcmd.ClientConfig
+		staticAssetsDir        string
+		repoServerAddress      string
+		disableAuth            bool
+		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -50,18 +52,22 @@ func NewCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
+			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
+			errors.CheckError(err)
+
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
 			repoclientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:        insecure,
-				Namespace:       namespace,
-				StaticAssetsDir: staticAssetsDir,
-				KubeClientset:   kubeclientset,
-				AppClientset:    appclientset,
-				RepoClientset:   repoclientset,
-				DisableAuth:     disableAuth,
+				Insecure:            insecure,
+				Namespace:           namespace,
+				StaticAssetsDir:     staticAssetsDir,
+				KubeClientset:       kubeclientset,
+				AppClientset:        appclientset,
+				RepoClientset:       repoclientset,
+				DisableAuth:         disableAuth,
+				TLSConfigCustomizer: tlsConfigCustomizer,
 			}
 
 			stats.RegisterStackDumper()
@@ -86,5 +92,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))
+	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	return command
 }

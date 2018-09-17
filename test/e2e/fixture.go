@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -125,7 +126,7 @@ func (f *Fixture) setup() error {
 	}
 
 	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
-	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache)
+	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache, func(config *tls.Config) {})
 	if err != nil {
 		return err
 	}

@@ -112,13 +112,14 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth     bool
-	Insecure        bool
-	Namespace       string
-	StaticAssetsDir string
-	KubeClientset   kubernetes.Interface
-	AppClientset    appclientset.Interface
-	RepoClientset   reposerver.Clientset
+	DisableAuth         bool
+	Insecure            bool
+	Namespace           string
+	StaticAssetsDir     string
+	KubeClientset       kubernetes.Interface
+	AppClientset        appclientset.Interface
+	RepoClientset       reposerver.Clientset
+	TLSConfigCustomizer tlsutil.ConfigCustomizer
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -421,6 +422,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 		// so we need to supply the same certificates to establish the connections that a normal,
 		// external gRPC client would need.
 		tlsConfig := a.settings.TLSConfig()
+		a.ArgoCDServerOpts.TLSConfigCustomizer(tlsConfig)
 		tlsConfig.InsecureSkipVerify = true
 		dCreds := credentials.NewTLS(tlsConfig)
 		dOpts = append(dOpts, grpc.WithTransportCredentials(dCreds))

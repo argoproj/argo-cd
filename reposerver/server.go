@@ -26,7 +26,7 @@ type ArgoCDRepoServer struct {
 }
 
 // NewServer returns a new instance of the ArgoCD Repo server
-func NewServer(gitFactory git.ClientFactory, cache cache.Cache) (*ArgoCDRepoServer, error) {
+func NewServer(gitFactory git.ClientFactory, cache cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
@@ -42,7 +42,10 @@ func NewServer(gitFactory git.ClientFactory, cache cache.Cache) (*ArgoCDRepoServ
 		return nil, err
 	}
 
-	opts := []grpc.ServerOption{grpc.Creds(credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{*cert}}))}
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
+	tlsConfCustomizer(tlsConfig)
+
+	opts := []grpc.ServerOption{grpc.Creds(credentials.NewTLS(tlsConfig))}
 
 	return &ArgoCDRepoServer{
 		log:        log.NewEntry(log.New()),
