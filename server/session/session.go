@@ -43,7 +43,7 @@ func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionR
 
 // Delete an authentication cookie from the client.  This makes sense only for the Web client.
 func (s *Server) Delete(ctx context.Context, q *SessionDeleteRequest) (*SessionResponse, error) {
-	return &SessionResponse{""}, nil
+	return &SessionResponse{Token: ""}, nil
 }
 
 // AuthFuncOverride overrides the authentication function and let us not require auth to receive auth.
