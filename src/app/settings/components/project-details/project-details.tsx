@@ -76,13 +76,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         </button>
                                     </div>
                                 )}>
-                                    <ProjectEditPanel nameReadonly={true} defaultParams={{
+                                    {params.get('edit') === 'true' && <ProjectEditPanel nameReadonly={true} defaultParams={{
                                         name: proj.metadata.name,
                                         description: proj.spec.description,
                                         destinations: proj.spec.destinations || [],
                                         sourceRepos: proj.spec.sourceRepos || [],
                                         roles: proj.spec.roles || [],
-                                        }} getApi={(api) => this.projectRoleFormApi = api} submit={async (projParams) => {
+                                        }} getApi={(api) => this.projectFormApi = api} submit={async (projParams) => {
                                             try {
                                                 await services.projects.update(projParams);
                                                 ctx.navigation.goto('.', {edit: null});
@@ -94,7 +94,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                                 });
                                             }
                                         }
-                                    }/>
+                                    }/>}
                                 </SlidingPanel>
                                 <SlidingPanel isMiddle={true} isShown={params.get('editRole') !== null || params.get('newRole') !== null}
                                     onClose={() => ctx.navigation.goto('.', {editRole: null, newRole: null})} header={(
