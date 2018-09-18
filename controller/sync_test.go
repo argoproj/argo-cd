@@ -5,13 +5,17 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	fakedisco "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/rest"
+	testcore "k8s.io/client-go/testing"
 )
 
 type kubectlOutput struct {
@@ -44,7 +48,16 @@ func (k mockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, 
 	return obj, nil
 }
 
-func newTestSyncCtx() *syncContext {
+func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
+	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
+	fakeDisco.Resources = append(resources, &v1.APIResourceList{
+		APIResources: []v1.APIResource{
+			{Kind: "pod", Namespaced: true},
+			{Kind: "deployment", Namespaced: true},
+			{Kind: "service", Namespaced: true},
+		},
+	})
+	kube.FlushServerResourcesCache()
 	return &syncContext{
 		comparison: &v1alpha1.ComparisonResult{},
 		config:     &rest.Config{},
@@ -56,7 +69,18 @@ func newTestSyncCtx() *syncContext {
 				Apply: &v1alpha1.SyncStrategyApply{},
 			},
 		},
+		proj: &v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				Name: "test",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				ClusterResourceWhitelist: []v1.GroupKind{
+					{Group: "*", Kind: "*"},
+				},
+			},
+		},
 		opState: &v1alpha1.OperationState{},
+		disco:   fakeDisco,
 		log:     log.WithFields(log.Fields{"application": "fake-app"}),
 	}
 }
@@ -87,6 +111,57 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 	}
 	syncCtx.sync()
 	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
+}
+
+func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
+	syncCtx := newTestSyncCtx(&v1.APIResourceList{
+		GroupVersion: v1alpha1.SchemeGroupVersion.String(),
+		APIResources: []v1.APIResource{
+			{Name: "workflows", Namespaced: false, Kind: "Workflow", Group: "argoproj.io"},
+			{Name: "application", Namespaced: false, Kind: "Application", Group: "argoproj.io"},
+		},
+	}, &v1.APIResourceList{
+		GroupVersion: "rbac.authorization.k8s.io/v1",
+		APIResources: []v1.APIResource{
+			{Name: "clusterroles", Namespaced: false, Kind: "ClusterRole", Group: "rbac.authorization.k8s.io"},
+		},
+	})
+
+	syncCtx.proj.Spec.ClusterResourceWhitelist = []v1.GroupKind{
+		{Group: "argoproj.io", Kind: "*"},
+	}
+
+	syncCtx.kubectl = mockKubectlCmd{}
+	syncCtx.comparison = &v1alpha1.ComparisonResult{
+		Resources: []v1alpha1.ResourceState{{
+			LiveState:   "",
+			TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
+		}},
+	}
+	syncCtx.sync()
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+	assert.Equal(t, v1alpha1.ResourceDetailsSyncFailed, syncCtx.syncRes.Resources[0].Status)
+	assert.Contains(t, syncCtx.syncRes.Resources[0].Message, "not permitted in project")
+}
+
+func TestSyncBlacklistedNamespacedResources(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+
+	syncCtx.proj.Spec.NamespaceResourceBlacklist = []v1.GroupKind{
+		{Group: "*", Kind: "deployment"},
+	}
+
+	syncCtx.kubectl = mockKubectlCmd{}
+	syncCtx.comparison = &v1alpha1.ComparisonResult{
+		Resources: []v1alpha1.ResourceState{{
+			LiveState:   "",
+			TargetState: "{\"kind\":\"deployment\"}",
+		}},
+	}
+	syncCtx.sync()
+	assert.Len(t, syncCtx.syncRes.Resources, 1)
+	assert.Equal(t, v1alpha1.ResourceDetailsSyncFailed, syncCtx.syncRes.Resources[0].Status)
+	assert.Contains(t, syncCtx.syncRes.Resources[0].Message, "not permitted in project")
 }
 
 func TestSyncSuccessfully(t *testing.T) {

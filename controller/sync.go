@@ -30,10 +30,11 @@ import (
 
 type syncContext struct {
 	appName       string
+	proj          *appv1.AppProject
 	comparison    *appv1.ComparisonResult
 	config        *rest.Config
 	dynClientPool dynamic.ClientPool
-	disco         *discovery.DiscoveryClient
+	disco         discovery.DiscoveryInterface
 	kubectl       kube.Kubectl
 	namespace     string
 	syncOp        *appv1.SyncOperation
@@ -45,7 +46,7 @@ type syncContext struct {
 	lock sync.Mutex
 }
 
-func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
+func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
 	// Sync requests are usually requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult and
@@ -142,8 +143,16 @@ func (s *ksonnetAppStateManager) SyncAppState(app *appv1.Application, state *app
 		return
 	}
 
+	proj, err := argo.GetAppProject(&app.Spec, s.appclientset, s.namespace)
+	if err != nil {
+		state.Phase = appv1.OperationError
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
+		return
+	}
+
 	syncCtx := syncContext{
 		appName:       app.Name,
+		proj:          proj,
 		comparison:    comparison,
 		config:        restConfig,
 		dynClientPool: dynClientPool,
@@ -319,6 +328,7 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 		resDetails.Status = appv1.ResourceDetailsSyncFailed
 		return resDetails
 	}
+
 	resDetails.Message = message
 	resDetails.Status = appv1.ResourceDetailsSynced
 	return resDetails
@@ -352,20 +362,38 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	return resDetails
 }
 
+func hasCRDOfGroupKind(tasks []syncTask, group, kind string) bool {
+	for _, task := range tasks {
+		if kube.IsCRD(task.targetObj) {
+			crdGroup, ok, err := unstructured.NestedString(task.targetObj.Object, "spec", "group")
+			if err != nil || !ok {
+				continue
+			}
+			crdKind, ok, err := unstructured.NestedString(task.targetObj.Object, "spec", "names", "kind")
+			if err != nil || !ok {
+				continue
+			}
+			if group == crdGroup && crdKind == kind {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // performs a apply based sync of the given sync tasks (possibly pruning the objects).
 // If update is true, will updates the resource details with the result.
 // Or if the prune/apply failed, will also update the result.
 func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update bool) bool {
 	syncSuccessful := true
 
-	createTasks := []syncTask{}
-	pruneTasks := []syncTask{}
+	var createTasks []syncTask
+	var pruneTasks []syncTask
 	for _, syncTask := range syncTasks {
 		if syncTask.targetObj == nil {
 			pruneTasks = append(pruneTasks, syncTask)
 		} else {
 			createTasks = append(createTasks, syncTask)
-
 		}
 	}
 	sort.Sort(newKindSorter(createTasks, resourceOrder))
@@ -385,31 +413,77 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 			}
 		}(task)
 	}
-	currKind := ""
-	var createWg sync.WaitGroup
-	for _, task := range createTasks {
-		//Only wait if the type of the next task is different than the previous type
-		if currKind != "" && currKind != task.targetObj.GetKind() {
-			createWg.Wait()
-		}
-		createWg.Add(1)
-		go func(t syncTask) {
-			defer createWg.Done()
-			if isHook(t.targetObj) {
+	wg.Wait()
+
+	processCreateTasks := func(tasks []syncTask, gvk schema.GroupVersionKind) {
+		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+		if err != nil {
+			// Special case for custom resources: if custom resource definition is not supported by the cluster by defined in application then
+			// skip verification using `kubectl apply --dry-run` and since CRD should be created during app synchronization.
+			if dryRun && apierr.IsNotFound(err) && hasCRDOfGroupKind(createTasks, gvk.Group, gvk.Kind) {
+				return
+			} else {
+				syncSuccessful = false
+				for _, task := range tasks {
+					sc.setResourceDetails(&appv1.ResourceDetails{
+						Name:      task.targetObj.GetName(),
+						Kind:      task.targetObj.GetKind(),
+						Namespace: sc.namespace,
+						Message:   err.Error(),
+						Status:    appv1.ResourceDetailsSyncFailed,
+					})
+				}
 				return
 			}
-			resDetails := sc.applyObject(t.targetObj, dryRun, force)
-			if !resDetails.Status.Successful() {
-				syncSuccessful = false
+		}
+
+		if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
+			syncSuccessful = false
+			for _, task := range tasks {
+				sc.setResourceDetails(&appv1.ResourceDetails{
+					Name:      task.targetObj.GetName(),
+					Kind:      task.targetObj.GetKind(),
+					Namespace: sc.namespace,
+					Message:   fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name),
+					Status:    appv1.ResourceDetailsSyncFailed,
+				})
 			}
-			if update || !resDetails.Status.Successful() {
-				sc.setResourceDetails(&resDetails)
-			}
-		}(task)
-		currKind = task.targetObj.GetKind()
+			return
+		}
+
+		var createWg sync.WaitGroup
+		for i := range tasks {
+			createWg.Add(1)
+			go func(t syncTask) {
+				defer createWg.Done()
+				if isHook(t.targetObj) {
+					return
+				}
+				resDetails := sc.applyObject(t.targetObj, dryRun, force)
+				if !resDetails.Status.Successful() {
+					syncSuccessful = false
+				}
+				if update || !resDetails.Status.Successful() {
+					sc.setResourceDetails(&resDetails)
+				}
+			}(tasks[i])
+		}
+		createWg.Wait()
 	}
-	createWg.Wait()
-	wg.Wait()
+
+	var tasksGroup []syncTask
+	for _, task := range createTasks {
+		//Only wait if the type of the next task is different than the previous type
+		if len(tasksGroup) > 0 && tasksGroup[0].targetObj.GetKind() != task.targetObj.GetKind() {
+			processCreateTasks(tasksGroup, tasksGroup[0].targetObj.GroupVersionKind())
+			tasksGroup = []syncTask{task}
+		} else {
+			tasksGroup = append(tasksGroup, task)
+		}
+	}
+	if len(tasksGroup) > 0 {
+		processCreateTasks(tasksGroup, tasksGroup[0].targetObj.GroupVersionKind())
+	}
 	return syncSuccessful
 }
 

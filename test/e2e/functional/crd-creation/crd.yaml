@@ -1,0 +1,27 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: workflows.argoproj.io
+spec:
+  group: argoproj.io
+  version: v1alpha1
+  scope: Namespaced
+  names:
+    kind: Workflow
+    plural: workflows
+    shortNames:
+    - wf
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: hello-world
+spec:
+  entrypoint: whalesay
+  templates:
+  - name: whalesay
+    container:
+      image: docker/whalesay:latest
+      command: [cowsay]
+      args: ["hello world"]
