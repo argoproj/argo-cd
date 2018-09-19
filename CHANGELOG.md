@@ -2,20 +2,55 @@
 
 ## v0.9.0 (Unreleased)
 
+### Breaking changes v0.8
+* Projects now provide the ability to allow or deny deployments of cluster-scoped resources
+(e.g. Namespaces, ClusterRoles, CustomResourceDefinitions). When upgrading from v0.8 to v0.9, to
+match the behavior of v0.8 (which did not have restrictions on deploying resources) and continue to
+allow deployment of cluster-scoped resources, an additional command should be run:
+
+```bash
+argocd proj allow-cluster-resource default '*'
+```
+
+The above command allows the `default` project to deploy any cluster-scoped resources which matches
+the behavior of v0.8.
+
+* The secret keys in the argocd-secret containing the TLS certificate and key, has been renamed from
+  `server.crt` and `server.key` to the standard `tls.crt` and `tls.key` keys. This enables ArgoCD
+  to integrate better with Ingress and cert-manager. When upgrading to v0.9, the `server.crt` and
+  `server.key` keys in argocd-secret should be renamed to the new keys.
+
 ### Changes since v0.8:
-+ Support raw jsonnet as an application source (#issue #540)
++ Support for an automated sync policy (issue #79)
++ Support IAM Authentication for managing external AWS K8s clusters (issue #482)
++ Give ability to deploy Projects controls on cluster-scoped resources (issue #330)
++ Support ability to run API server with multiple replicas (issue #515)
++ Support for exporting prometheus metrics about ArgoCD applications (issue #513)
++ Support raw jsonnet as an application source (issue #540)
 + Reorder K8s resources to correct creation order (issue #102)
 + Redact K8s secrets from API server payloads (issue #470)
++ Add ability to restrict TLS version (issue #609)
++ Support helm charts with dependencies and namespace sensitivity (issue #582)
++ Use 'kubectl auth reconcile' for RBAC resources (issue #523)
 + [UI] Support selection of helm values files in App creation wizard (issue #499)
 + [UI] Support specifying source revision in App creation wizard allow (issue #503)
 + [UI] Improve resource diff rendering (issue #457)
 + [UI] Indicate number of ready containers in pod (issue #539)
 + [UI] Indicate when app is overriding parameters (issue #503)
 + [UI] Provide a YAML view of resources (issue #396)
+* Performance improvements to repo-server (issue #554)
 * Enable TLS for repo server (issue #553)
+* Dex runs as an independent service/deployment (issue #555)
+* Improve three-way diff to provide more accurate Sync status and diff result (issue #597)
+* Improve remarshalling to use reflection/schema builders to handle all k8s core types (#603)
 - Fix issue where changes were not pulled when tracking a branch (issue #567)
 - Fix controller hot loop when app source contains bad manifests (issue #568)
+- Fix issue where ArgoCD fails to deploy when resources are in a K8s list format (issue #584)
+- Fix comparison failure when app contains unregistered custom resource (issue #583)
+- Fix issue where helm hooks were being deployed as part of sync (issue #605)
+- Fix race conditions in kube.GetResourcesWithLabel and DeleteResourceWithLabel (issue #587)
 - [UI] Fix issue where projects filter does not work when application got changed
+- Fix CLI panic when performing an initial `argocd sync/wait`
 
 ## v0.8.2 (2018-09-12)
 - Downgrade ksonnet from v0.12.0 to v0.11.0 due to quote unescape regression

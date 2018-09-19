@@ -5,7 +5,7 @@ ArgoCD supports several different ways in which kubernetes manifests can be defi
 * [ksonnet](https://ksonnet.io) applications
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* Simple directory of YAML/json manifests
+* Directory of YAML/json/jsonnet manifests
 
 Some additional considerations should be made when deploying apps of a particular type:
 

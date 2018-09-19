@@ -38,18 +38,15 @@ chmod +x /usr/local/bin/argocd
 ## 3. Open access to ArgoCD API server
 
 By default, the ArgoCD API server is not exposed with an external IP. To expose the API server,
-change the service type to `LoadBalancer`:
+one mechanism is to expose the service type with type `LoadBalancer`:
 
 ```bash
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 ```
 
-### Notes about Ingress and AWS Load Balancers
-* If using Ingress objects without TLS from the ingress-controller to ArgoCD API server, you will
-need to add the `--insecure` command line flag to the argocd-server deployment.
-* AWS Classic ELB (in HTTP mode) and ALB do not have full support for HTTP2/gRPC which is the
-protocol used by the `argocd` CLI. When using an AWS load balancer, either Classic ELB in 
-passthrough mode is needed, or NLBs.
+Alternatively, the ArgoCD API server can be exposed using Ingress. See [instructions](ingress.md)
+on how to configure ArgoCD with ingress. `kubectl port-forward` can also be used to connect to
+the API server without exposing the service.
 
 
 ## 4. Login to the server from the CLI
