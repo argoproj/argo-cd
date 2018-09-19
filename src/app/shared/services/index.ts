@@ -26,4 +26,4 @@ export const services: Services = {
     viewPreferences: new ViewPreferencesService(),
 };
 
-export { ProjectParams, ProjectRoleParams } from './projects-service';
+export { ProjectParams, ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse } from './projects-service';

@@ -10,6 +10,22 @@ export interface ProjectParams {
     roles: models.ProjectRole[];
 }
 
+export interface CreateJWTTokenParams {
+    project: string;
+    role: string;
+    expiresIn: number;
+}
+
+export interface DeleteJWTTokenParams {
+    project: string;
+    role: string;
+    iat: number;
+}
+
+export interface JWTTokenResponse {
+    token: string;
+}
+
 export interface ProjectRoleParams {
     projName: string;
     roleName: string;
@@ -17,6 +33,7 @@ export interface ProjectRoleParams {
     policies: string[] | string;
     jwtTokens: models.JwtToken[];
     deleteRole: boolean;
+    expiresIn: string;
 }
 
 function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
@@ -97,6 +114,14 @@ export class ProjectsService {
             updatedSpec.roles = updatedSpec.roles.concat(updatedRole);
         }
         return requests.put(`/projects/${params.projName}`).send({project: {...proj, spec: updatedSpec }}).then((res) => res.body as models.Project);
+    }
+
+    public async createJWTToken(params: CreateJWTTokenParams): Promise<JWTTokenResponse> {
+        return requests.post(`/projects/${params.project}/roles/${params.role}/token`).send(params).then((res) => res.body as JWTTokenResponse);
+    }
+
+    public async deleteJWTToken(params: DeleteJWTTokenParams): Promise<boolean> {
+        return requests.delete(`/projects/${params.project}/roles/${params.role}/token/${params.iat}`).send().then(() => true);
     }
 
     public events(projectName: string): Promise<models.Event[]> {

@@ -6,16 +6,25 @@ import { RouteComponentProps } from 'react-router';
 import { DataLoader, ErrorNotification, Page, Query } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import { Project } from '../../../shared/models';
-import { ProjectRoleParams, services } from '../../../shared/services';
+import { CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services } from '../../../shared/services';
 
 import { ProjectEditPanel } from '../project-edit-panel/project-edit-panel';
 import { ProjectEvents } from '../project-events/project-events';
 import { ProjectRoleEditPanel } from '../project-role-edit-panel/project-role-edit-panel';
 
-export class ProjectDetails extends React.Component<RouteComponentProps<{ name: string; }>> {
+interface ProjectDetailsState {
+    token: string;
+}
+
+export class ProjectDetails extends React.Component<RouteComponentProps<{ name: string; }>, ProjectDetailsState> {
     private projectFormApi: FormApi;
     private projectRoleFormApi: FormApi;
     private loader: DataLoader;
+
+    constructor(props: RouteComponentProps<{ name: string; }>) {
+        super(props);
+        this.state = {token: ''};
+    }
 
     public render() {
         return (
@@ -24,13 +33,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
             <Page title='Projects' toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}],
                 actionMenu: {items: [
-                    { title: 'Add Role', iconClassName: 'icon fa fa-plus', action: () => {
-                        this.projectRoleFormApi.setValue('roleName', '');
-                        this.projectRoleFormApi.setValue('description', '');
-                        this.projectRoleFormApi.setValue('policies', '');
-                        this.projectRoleFormApi.setValue('jwtTokens', []);
-                        ctx.navigation.goto('.', {newRole: true});
-                    }},
+                    { title: 'Add Role', iconClassName: 'icon fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
                     { title: 'Edit', iconClassName: 'icon fa fa-pencil', action: () => ctx.navigation.goto('.', {edit: true}) },
                     { title: 'Delete', iconClassName: 'icon fa fa-times-circle', action: async () => {
                         const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
@@ -97,9 +100,15 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                     }/>}
                                 </SlidingPanel>
                                 <SlidingPanel isMiddle={true} isShown={params.get('editRole') !== null || params.get('newRole') !== null}
-                                    onClose={() => ctx.navigation.goto('.', {editRole: null, newRole: null})} header={(
+                                    onClose={() => {
+                                        this.setState({token: ''});
+                                        ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                    }} header={(
                                         <div>
-                                            <button onClick={() => ctx.navigation.goto('.', {editRole: null, newRole: null})} className='argo-button argo-button--base-o'>
+                                            <button onClick={() => {
+                                                    this.setState({token: ''});
+                                                    ctx.navigation.goto('.', {editRole: null, newRole: null});
+                                                }} className='argo-button argo-button--base-o'>
                                                 Cancel
                                             </button> <button onClick={() => this.projectRoleFormApi.submitForm(null)} className='argo-button argo-button--base'>
                                                 {params.get('newRole') != null ? 'Create' : 'Update'}
@@ -124,8 +133,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                             ) : null}
                                         </div>
                                     )}>
-                                    <ProjectRoleEditPanel nameReadonly={params.get('newRole') === null ? true : false}
+                                    {(params.get('editRole') !== null || params.get('newRole') === 'true') && <ProjectRoleEditPanel
+                                        nameReadonly={params.get('newRole') === null ? true : false}
                                         defaultParams={{
+                                            newRole: (params.get('newRole') === null ) ? false : true,
                                             deleteRole: false,
                                             projName: proj.metadata.name,
                                             role: (params.get('newRole') === null && proj.spec.roles !== undefined) ?
@@ -144,7 +155,11 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                                 });
                                             }
                                         }}
-                                    />
+                                        token={this.state.token}
+                                        createJWTToken={async (jwtTokenParams: CreateJWTTokenParams) => this.createJWTToken(jwtTokenParams)}
+                                        deleteJWTToken={async (jwtTokenParams: DeleteJWTTokenParams) => this.deleteJWTToken(jwtTokenParams)}
+                                        hideJWTToken={() => this.setState({token: ''})}
+                                    />}
                                 </SlidingPanel>
                             </div>
                         )}
@@ -155,6 +170,17 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
             )}
             </Consumer>
         );
+    }
+
+    private async deleteJWTToken(params: DeleteJWTTokenParams) {
+        await services.projects.deleteJWTToken(params);
+        this.loader.reload();
+    }
+
+    private async createJWTToken(params: CreateJWTTokenParams) {
+        const jwtToken = await services.projects.createJWTToken(params);
+        this.loader.reload();
+        this.setState({token: jwtToken.token});
     }
 
     private eventsTab(proj: Project) {
@@ -178,13 +204,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                         </div>
                         {(proj.spec.roles || []).map((role) => (
                             <div className='argo-table-list__row' key={`${role.name}`}
-                            onClick={() => {
-                                this.projectRoleFormApi.setValue('roleName', role.name);
-                                this.projectRoleFormApi.setValue('description', role.description);
-                                this.projectRoleFormApi.setValue('policies', role.policies !== null ? role.policies.join('\n') : '');
-                                this.projectRoleFormApi.setValue('jwtTokens', role.jwtTokens);
-                                ctx.navigation.goto(`.`, {editRole: role.name});
-                            }}>
+                            onClick={() => ctx.navigation.goto(`.`, {editRole: role.name})}>
                                 <div className='row'>
                                     <div className='columns small-3'>
                                         {role.name}

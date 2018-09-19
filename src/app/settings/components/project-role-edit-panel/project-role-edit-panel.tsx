@@ -3,36 +3,39 @@ import { Form, FormApi, Text, TextArea } from 'react-form';
 
 import { FormField } from '../../../shared/components';
 import * as models from '../../../shared/models';
-import { ProjectRoleParams } from '../../../shared/services';
-
+import { CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams } from '../../../shared/services';
+import { ProjectRoleJWTTokens } from '../project-role-jwt-tokens/project-role-jwt-tokens';
 interface ProjectRoleDefaultParams {
     projName: string;
     role?: models.ProjectRole;
+    newRole: boolean;
     deleteRole: boolean;
 }
 
 interface ProjectRoleEditPanelProps {
     nameReadonly?: boolean;
     submit: (params: ProjectRoleParams) => any;
+    createJWTToken: (params: CreateJWTTokenParams) => void;
+    deleteJWTToken: (params: DeleteJWTTokenParams) => void;
+    hideJWTToken: () => void;
+    token: string;
     getApi?: (formApi: FormApi) => void;
     defaultParams: ProjectRoleDefaultParams;
 }
 
-export class ProjectRoleEditPanel extends React.Component<ProjectRoleEditPanelProps, any> {
-
-    public render() {
+export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
         return (
             <div className='project-role-edit-panel'>
             <Form
-                onSubmit={this.props.submit}
-                getApi={this.props.getApi}
+                onSubmit={props.submit}
+                getApi={props.getApi}
                 defaultValues={{
-                    projName: this.props.defaultParams.projName,
-                    roleName: (this.props.defaultParams.role !== undefined ? this.props.defaultParams.role.name : ''),
-                    description: (this.props.defaultParams.role !== undefined ? this.props.defaultParams.role.description : ''),
-                    policies: (this.props.defaultParams.role !== undefined && this.props.defaultParams.role.policies !== null
-                        ? this.props.defaultParams.role.policies.join('\n') : ''),
-                    jwtTokens: (this.props.defaultParams.role !== undefined ? this.props.defaultParams.role.jwtTokens : []),
+                    projName: props.defaultParams.projName,
+                    roleName: (props.defaultParams.role !== undefined ? props.defaultParams.role.name : ''),
+                    description: (props.defaultParams.role !== undefined ? props.defaultParams.role.description : ''),
+                    policies: (props.defaultParams.role !== undefined && props.defaultParams.role.policies !== null
+                        ? props.defaultParams.role.policies.join('\n') : ''),
+                    jwtTokens: (props.defaultParams.role !== undefined ? props.defaultParams.role.jwtTokens : []),
                 }}
                 validateError={(params: ProjectRoleParams) => ({
                     projName: !params.projName && 'Project name is required',
@@ -43,44 +46,27 @@ export class ProjectRoleEditPanel extends React.Component<ProjectRoleEditPanelPr
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Role Name'
-                            componentProps={{ readOnly: this.props.nameReadonly }} field='roleName' component={Text}/>
+                            componentProps={{ readOnly: props.nameReadonly }} field='roleName' component={Text}/>
                         </div>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Role Description' field='description' component={Text}/>
                         </div>
                         <h4>Policies:</h4>
                         <FormField formApi={api} label='' field='policies' component={TextArea}/>
-                        <h4>JWT Tokens:</h4>
-                        { api.values.jwtTokens !== null && api.values.jwtTokens.length > 0 ? (
-                            <div className='argo-table-list'>
-                                <div className='argo-table-list__head'>
-                                    <div className='row'>
-                                        <div className='columns small-3'>ID</div>
-                                        <div className='columns small-3'>ISSUED AT</div>
-                                        <div className='columns small-3'>EXPIRES AT</div>
-                                    </div>
-                                </div>
-                                {api.values.jwtTokens.map((jwtToken: models.JwtToken) => (
-                                    <div className='argo-table-list__row' key={`${jwtToken.iat}`}>
-                                        <div className='row'>
-                                            <div className='columns small-3'>
-                                                {jwtToken.iat}
-                                            </div>
-                                            <div className='columns small-3'>
-                                                {new Date(jwtToken.iat * 1000).toDateString()}
-                                            </div>
-                                            <div className='columns small-3'>
-                                                {jwtToken.exp == null ? 'None' : new Date(jwtToken.exp * 1000).toDateString()}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : <div className='white-box'><p>Role has no JWT tokens</p></div> }
                     </form>
                 )}
             </Form>
+            { !props.defaultParams.newRole && props.defaultParams.role !== undefined  ?
+                <ProjectRoleJWTTokens
+                    projName={props.defaultParams.projName}
+                    roleName={props.defaultParams.role.name}
+                    tokens={props.defaultParams.role.jwtTokens as models.JwtToken[]}
+                    token={props.token}
+                    createJWTToken={props.createJWTToken}
+                    deleteJWTToken={props.deleteJWTToken}
+                    hideJWTToken={props.hideJWTToken}
+                    />
+            : null}
             </div>
         );
-    }
-}
+    };
