@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -21,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
@@ -38,8 +36,8 @@ type AppStateManager interface {
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
-// ksonnetAppStateManager allows to compare application using KSonnet CLI
-type ksonnetAppStateManager struct {
+// appStateManager allows to compare application using KSonnet CLI
+type appStateManager struct {
 	db            db.ArgoDB
 	appclientset  appclientset.Interface
 	kubectl       kubeutil.Kubectl
@@ -87,7 +85,7 @@ func groupLiveObjects(liveObjs []*unstructured.Unstructured, targetObjs []*unstr
 	return liveByFullName
 }
 
-func (s *ksonnetAppStateManager) getTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
+func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	repo := s.getRepo(app.Spec.Source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
@@ -145,7 +143,7 @@ func (s *ksonnetAppStateManager) getTargetObjs(app *v1alpha1.Application, revisi
 	return targetObjs, manifestInfo, nil
 }
 
-func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (
+func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (
 	[]*unstructured.Unstructured, map[string]*unstructured.Unstructured, error) {
 
 	// Get the REST config for the cluster corresponding to the environment
@@ -213,7 +211,7 @@ func (s *ksonnetAppStateManager) getLiveObjs(app *v1alpha1.Application, targetOb
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
+func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
 	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error) {
 
 	failedToLoadObjs := false
@@ -330,7 +328,6 @@ func (s *ksonnetAppStateManager) CompareAppState(app *v1alpha1.Application, revi
 	if manifestInfo != nil {
 		compResult.Revision = manifestInfo.Revision
 	}
-	conditions = s.validateClusterResources(app, conditions, &compResult)
 	return &compResult, manifestInfo, conditions, nil
 }
 
@@ -373,7 +370,7 @@ func getResourceFullName(obj *unstructured.Unstructured) string {
 	return fmt.Sprintf("%s:%s", obj.GetKind(), obj.GetName())
 }
 
-func (s *ksonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
+func (s *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	repo, err := s.db.GetRepository(context.Background(), repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
@@ -382,53 +379,7 @@ func (s *ksonnetAppStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	return repo
 }
 
-func (s *ksonnetAppStateManager) validateClusterResources(
-	app *v1alpha1.Application, conditions []v1alpha1.ApplicationCondition, comparisonResult *v1alpha1.ComparisonResult) []v1alpha1.ApplicationCondition {
-
-	proj, err := argo.GetAppProject(&app.Spec, s.appclientset, s.namespace)
-	if err != nil {
-		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
-	}
-
-	clst, err := s.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
-	}
-
-	disco, err := discovery.NewDiscoveryClientForConfig(clst.RESTConfig())
-	if err != nil {
-		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
-	}
-	groupKinds, err := argo.FindRestrictedResources(*proj, comparisonResult, clst.RESTConfig().Host, disco)
-	if err != nil {
-		return append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
-	}
-
-	if len(groupKinds) > 0 {
-		formattedMap := make(map[string]interface{})
-		for i := range groupKinds {
-			parts := make([]string, 0)
-			if groupKinds[i].Group != "" {
-				parts = append(parts, groupKinds[i].Group)
-			}
-			if groupKinds[i].Kind != "" {
-				parts = append(parts, groupKinds[i].Kind)
-			}
-			formattedMap[strings.Join(parts, "/")] = true
-		}
-		formatter := make([]string, 0)
-		for k := range formattedMap {
-			formatter = append(formatter, k)
-		}
-		conditions = append(conditions, v1alpha1.ApplicationCondition{
-			Type:    v1alpha1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Application has resource types not allowed in project '%s': %s", proj.Name, strings.Join(formatter, ", ")),
-		})
-	}
-	return conditions
-}
-
-func (s *ksonnetAppStateManager) persistDeploymentInfo(
+func (s *appStateManager) persistDeploymentInfo(
 	app *v1alpha1.Application, revision string, envParams []*v1alpha1.ComponentParameter, overrides *[]v1alpha1.ComponentParameter) error {
 
 	params := make([]v1alpha1.ComponentParameter, len(envParams))
@@ -472,7 +423,7 @@ func NewAppStateManager(
 	namespace string,
 	kubectl kubeutil.Kubectl,
 ) AppStateManager {
-	return &ksonnetAppStateManager{
+	return &appStateManager{
 		db:            db,
 		appclientset:  appclientset,
 		kubectl:       kubectl,

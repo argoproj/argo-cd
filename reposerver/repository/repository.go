@@ -248,7 +248,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		}
 
 		for _, target := range targets {
-			if q.AppLabel != "" {
+			if q.AppLabel != "" && !kube.IsCRD(target) {
 				err = kube.SetLabel(target, common.LabelApplicationName, q.AppLabel)
 				if err != nil {
 					return nil, err
