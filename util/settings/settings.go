@@ -61,9 +61,9 @@ const (
 	// settingServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
 	settingServerSignatureKey = "server.secretkey"
 	// settingServerCertificate designates the key for the public cert used in TLS
-	settingServerCertificate = "server.crt"
+	settingServerCertificate = "tls.crt"
 	// settingServerPrivateKey designates the key for the private key used in TLS
-	settingServerPrivateKey = "server.key"
+	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where ArgoCDs external URL is set
 	settingURLKey = "url"
 	// settingDexConfigKey designates the key for the dex config
