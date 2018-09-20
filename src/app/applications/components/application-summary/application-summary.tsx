@@ -1,39 +1,142 @@
+import { PopupApi } from 'argo-ui';
 import * as React from 'react';
+import { FormApi, Text } from 'react-form';
+
+import { DataLoader, EditablePanel, FormField, Select } from '../../../shared/components';
+import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
+import { services } from '../../../shared/services';
+
 import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
-export const ApplicationSummary = ({app}: {app: models.Application}) => {
+export const ApplicationSummary = (props: {app: models.Application, updateApp: (app: models.Application) => Promise<any>}) => {
+    const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
+
     const attributes = [
-        {title: 'PROJECT', value: app.spec.project},
-        {title: 'CLUSTER', value: app.spec.destination.server},
-        {title: 'NAMESPACE', value: app.spec.destination.namespace},
-        {title: 'REPO URL', value: (
-            <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-            </a> )},
-        {title: 'REVISION', value: app.spec.source.targetRevision || 'HEAD'},
-        {title: 'PATH', value: app.spec.source.path},
-        {title: 'ENVIRONMENT', value: app.spec.source.environment},
-        {title: 'STATUS', value: (
+        {
+            title: 'PROJECT',
+            view: app.spec.project,
+            edit: (formApi: FormApi) => (
+                <DataLoader load={() => services.projects.list().then((items) => items.map((item) => item.metadata.name))}>
+                    {(projects) => <FormField formApi={formApi} field='spec.project' component={Select} componentProps={{options: projects}} />}
+                </DataLoader>
+            ),
+        },
+        {
+            title: 'CLUSTER',
+            view: app.spec.destination.server,
+            edit: (formApi: FormApi) => (
+                <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
+                    {(clusters) => (
+                        <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={Select}/>
+                    )}
+                </DataLoader>
+            ),
+        },
+        {
+            title: 'NAMESPACE',
+            view: app.spec.destination.namespace,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text}/>,
+        },
+        {
+            title: 'REPO URL',
+            view: (
+                <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
+                    <i className='fa fa-external-link'/> {app.spec.source.repoURL}
+                </a>
+            ),
+        },
+        {
+            title: 'REVISION',
+            view: app.spec.source.targetRevision || 'HEAD',
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text}/>,
+        },
+        {
+            title: 'PATH',
+            view: app.spec.source.path,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text}/>,
+        },
+        {
+            title: 'ENVIRONMENT',
+            view: app.spec.source.environment,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.environment' component={Text}/>,
+        },
+        {title: 'STATUS', view: (
             <span><ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}</span>
         )},
-        {title: 'HEALTH', value: (
+        {title: 'HEALTH', view: (
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
+
+    async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean) {
+        const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
+        if (confirmed) {
+            const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+            updatedApp.spec.syncPolicy = { automated: { prune } };
+            props.updateApp(updatedApp);
+        }
+    }
+
+    async function unsetAutoSync(ctx: { popup: PopupApi }) {
+        const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
+        if (confirmed) {
+            const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+            updatedApp.spec.syncPolicy = { automated: null };
+            props.updateApp(updatedApp);
+        }
+    }
+
     return (
-        <div className='white-box'>
-            <div className='white-box__details'>
-                <p>{app.metadata.name.toLocaleUpperCase()}</p>
-                {attributes.map((attr) => (
-                    <div className='row white-box__details-row' key={attr.title}>
+        <React.Fragment>
+            <EditablePanel
+            save={props.updateApp}
+            validate={(input) => ({
+                'spec.project': !input.spec.project && 'Project name is required',
+                'spec.destination.server': !input.spec.destination.server && 'Cluster URL is required',
+                'spec.destination.namespace': !input.spec.destination.namespace && 'Namespace is required',
+            })} values={app} title={app.metadata.name.toLocaleUpperCase()} items={attributes} />
+            <Consumer>{(ctx) => (
+            <div className='white-box'>
+                <div className='white-box__details'>
+                    <p>Sync Policy</p>
+                    <div className='row white-box__details-row'>
                         <div className='columns small-3'>
-                            {attr.title}
+                            {app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>Automated</span> || <span>None</span>}
                         </div>
-                        <div className='columns small-9'>{attr.value}</div>
+                        <div className='columns small-9'>
+                            {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
+                                <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>Disable Auto-Sync</button>
+                            ) || (
+                                <button className='argo-button argo-button--base' onClick={() => setAutoSync(
+                                    ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false)
+                                }>Enable Auto-Sync</button>
+                            )}
+                        </div>
                     </div>
-                ))}
+
+                    {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>
+                                Prune Resources
+                            </div>
+                            <div className='columns small-9'>
+                                {app.spec.syncPolicy.automated.prune && (
+                                    <button className='argo-button argo-button--base' onClick={() => setAutoSync(
+                                        ctx, 'Disable Prune Resources?', 'Are you sure you want to disable resource pruning during automated application synchronization?', false)
+                                    }>Disable</button>
+                                ) || (
+                                    <button className='argo-button argo-button--base' onClick={() => setAutoSync(
+                                        ctx, 'Enable Prune Resources?', 'Are you sure you want to enable resource pruning during automated application synchronization?', true)
+                                    }>Enable</button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                </div>
             </div>
-        </div>
+            )}</Consumer>
+        </React.Fragment>
     );
 };

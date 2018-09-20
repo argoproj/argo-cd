@@ -14,6 +14,21 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
     }
 
+    public update(app: models.Application): Promise<models.Application> {
+        (app.status.comparisonResult.resources || []).forEach((resource) => {
+            resource.liveState = JSON.stringify(resource.liveState) as any;
+            resource.targetState = JSON.stringify(resource.targetState) as any;
+            function parseResourceNodes(node: models.ResourceNode) {
+                node.state = JSON.stringify(node.state) as any;
+                (node.children || []).forEach(parseResourceNodes);
+            }
+            (resource.childLiveResources || []).forEach((node) => {
+                parseResourceNodes(node);
+            });
+        });
+        return requests.put(`/applications/${app.metadata.name}`).send(app).then((res) => this.parseAppFields(res.body));
+    }
+
     public create(name: string, project: string, source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {
         return requests.post(`/applications`).send({
             metadata: { name },

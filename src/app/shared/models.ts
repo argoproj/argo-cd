@@ -158,10 +158,15 @@ export interface ApplicationSource {
     valuesFiles: string[];
 }
 
+export interface SyncPolicy {
+    automated?: { prune: boolean };
+}
+
 export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     destination: ApplicationDestination;
+    syncPolicy?: SyncPolicy;
 }
 
 /**

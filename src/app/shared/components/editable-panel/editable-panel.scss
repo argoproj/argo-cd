@@ -1,0 +1,21 @@
+.editable-panel {
+    &__buttons {
+        position: absolute;
+        top: 30px;
+        right: 3em;
+    }
+
+    .form-field__select {
+        line-height: 15px;
+        padding: 0;
+    }
+
+    .white-box__details-row {
+        position: relative;
+    }
+
+    .argo-form-row__error-msg {
+        position: absolute;
+        top: 0;
+    }
+}

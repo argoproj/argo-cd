@@ -6,3 +6,4 @@ export * from './error-notification';
 export * from './data-loader';
 export * from './query';
 export * from './events-list/events-list';
+export * from './editable-panel/editable-panel';

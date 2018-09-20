@@ -185,11 +185,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 }
                                 {isAppSelected && (
                                     <Tabs navTransparent={true} tabs={[{
-                                        title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application}/>,
+                                        title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)}/>,
                                     }, {
                                         title: 'PARAMETERS', key: 'parameters', content: <ParametersPanel
-                                            params={application.status.parameters || []}
-                                            overrides={application.spec.source.componentParameterOverrides}/>,
+                                            updateApp={(app) => this.updateApp(app)}
+                                            app={application}/>,
                                     }, {
                                         title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={application.metadata.name}/>,
                                     }]}/>
@@ -242,6 +242,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 }}
             </DataLoader>
         );
+    }
+
+    private async updateApp(app: appModels.Application) {
+        try {
+            const updatedApp = await services.applications.update(app);
+            this.loader.setData(updatedApp);
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to update application' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
     }
 
     private groupAppNodesByName(application: appModels.Application) {

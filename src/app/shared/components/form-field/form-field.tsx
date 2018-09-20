@@ -5,9 +5,17 @@ import * as ReactForm from 'react-form';
 
 require('./form-field.scss');
 
+export function getNestedField(src: any, path: string): any {
+    const parts = path.split('.');
+    while (parts.length > 0 && src) {
+        src = src[parts.splice(0, 1)[0]];
+    }
+    return src;
+}
+
 export const FormField: <E, T extends ReactForm.FieldProps & {className?: string}>(
     props: React.Props<E> & {
-    label: string,
+    label?: string,
     field: string,
     formApi: ReactForm.FormApi,
     component: React.ComponentType<T>,
@@ -21,8 +29,8 @@ export const FormField: <E, T extends ReactForm.FieldProps & {className?: string
                 field={props.field}
                 className={classNames({ 'argo-field': true, 'argo-has-value': !!props.formApi.values[props.field] })}/>
 
-            <label className='argo-label-placeholder'>{props.label}</label>
-            {props.formApi.touched[props.field] &&
+            {props.label && <label className='argo-label-placeholder'>{props.label}</label>}
+            {getNestedField(props.formApi.touched, props.field) &&
                 (props.formApi.errors[props.field] && <div className='argo-form-row__error-msg'>{props.formApi.errors[props.field]}</div>)
             }
         </div>
