@@ -64,7 +64,17 @@ func TestHelmTemplateValues(t *testing.T) {
 			assert.Equal(t, int32(3), *dep.Spec.Replicas)
 		}
 	}
+}
 
+func TestHelmTemplateValuesURL(t *testing.T) {
+	h := NewHelmApp("./testdata/redis")
+	valuesFiles := []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"}
+	objs, err := h.Template("test", "", valuesFiles, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, 8, len(objs))
+	params, err := h.GetParameters(valuesFiles)
+	assert.NoError(t, err)
+	assert.True(t, len(params) > 0)
 }
 
 func TestHelmGetParams(t *testing.T) {
