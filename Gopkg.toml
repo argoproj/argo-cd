@@ -9,6 +9,7 @@ required = [
   "k8s.io/code-generator/cmd/go-to-protobuf",
   "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
   "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
+  "golang.org/x/sync/errgroup",
 ]
 
 [[constraint]]
@@ -37,11 +38,6 @@ required = [
   branch = "release-1.10"
   name = "k8s.io/api"
 
-# override ksonnet dependency
-[[override]]
-  branch = "release-1.10"
-  name = "k8s.io/apimachinery"
-
 [[constraint]]
   name = "k8s.io/apiextensions-apiserver"
   branch = "release-1.10"
@@ -59,17 +55,8 @@ required = [
   version = "1.2.1"
 
 [[constraint]]
-  name = "github.com/ksonnet/ksonnet"
-  version = "v0.11.0"
-
-[[constraint]]
   name = "github.com/gobuffalo/packr"
   version = "v1.11.0"
-
-# override ksonnet's logrus dependency
-[[override]]
-  name = "github.com/sirupsen/logrus"
-  revision = "ea8897e79973357ba785ac2533559a6297e83c44"
 
 [[constraint]]
   branch = "master"

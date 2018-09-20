@@ -1,86 +1,26 @@
 package ksonnet
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/ksonnet/ksonnet/pkg/app"
-	"github.com/ksonnet/ksonnet/pkg/component"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
-// KsonnetApp represents a ksonnet application directory and provides wrapper functionality around
-// the `ks` command.
-type KsonnetApp interface {
-	// Root is the root path ksonnet application directory
-	Root() string
-
-	// App is the Ksonnet application
-	App() app.App
-
-	// Spec is the Ksonnet application spec
-	Spec() *app.Spec
-
-	// Show returns a list of unstructured objects that would be applied to an environment
-	Show(environment string) ([]*unstructured.Unstructured, error)
-
-	// ListEnvParams returns list of environment parameters
-	ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error)
-
-	// SetComponentParams updates component parameter in specified environment.
-	SetComponentParams(environment string, component string, param string, value string) error
-}
-
-// KsonnetVersion returns the version of ksonnet used when running ksonnet commands
-func KsonnetVersion() (string, error) {
-	cmd := exec.Command("ks", "version")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("unable to determine ksonnet version: %v", err)
-	}
-	ksonnetVersionStr := strings.Split(string(out), "\n")[0]
-	parts := strings.SplitN(ksonnetVersionStr, ":", 2)
-	if len(parts) != 2 {
-		return "", fmt.Errorf("unexpected version string format: %s", ksonnetVersionStr)
-	}
-	return strings.TrimSpace(parts[1]), nil
-}
-
-type ksonnetApp struct {
-	app  app.App
-	spec app.Spec
-}
-
-// NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
-func NewKsonnetApp(path string) (KsonnetApp, error) {
-	ksApp := ksonnetApp{}
-	a, err := app.Load(afero.NewOsFs(), path, false)
-	if err != nil {
-		return nil, err
-	}
-	ksApp.app = a
-
-	var spec app.Spec
-	err = config.UnmarshalLocalFile(filepath.Join(a.Root(), "app.yaml"), &spec)
-	if err != nil {
-		return nil, err
-	}
-	ksApp.spec = spec
-	return &ksApp, nil
-}
-
-func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
+func ksCmd(cwd string, args ...string) (string, error) {
 	cmd := exec.Command("ks", args...)
-	cmd.Dir = k.Root()
+	cmd.Dir = cwd
 
 	cmdStr := strings.Join(cmd.Args, " ")
 	log.Debug(cmdStr)
@@ -99,23 +39,93 @@ func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
 	return out, nil
 }
 
+// Destination returns the deployment destination for an environment in app spec data
+func Destination(data []byte, environment string) (*v1alpha1.ApplicationDestination, error) {
+	var appSpec struct {
+		Environments map[string]struct {
+			Destination v1alpha1.ApplicationDestination
+		}
+	}
+	err := yaml.Unmarshal(data, &appSpec)
+	if err != nil {
+		return nil, fmt.Errorf("could not unmarshal ksonnet spec app.yaml: %v", err)
+	}
+
+	envSpec, ok := appSpec.Environments[environment]
+	if !ok {
+		return nil, fmt.Errorf("environment '%s' does not exist in ksonnet app", environment)
+	}
+
+	return &envSpec.Destination, nil
+}
+
+// KsonnetApp represents a ksonnet application directory and provides wrapper functionality around
+// the `ks` command.
+type KsonnetApp interface {
+	// Root is the root path ksonnet application directory
+	Root() string
+
+	// Show returns a list of unstructured objects that would be applied to an environment
+	Show(environment string) ([]*unstructured.Unstructured, error)
+
+	// Destination returns the deployment destination for an environment
+	Destination(environment string) (*v1alpha1.ApplicationDestination, error)
+
+	// ListEnvParams returns list of environment parameters
+	ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error)
+
+	// SetComponentParams updates component parameter in specified environment.
+	SetComponentParams(environment string, component string, param string, value string) error
+}
+
+// KsonnetVersion returns the version of ksonnet used when running ksonnet commands
+func KsonnetVersion() (string, error) {
+	out, err := ksCmd("", "version")
+	if err != nil {
+		return "", fmt.Errorf("unable to determine ksonnet version: %v", err)
+	}
+	ksonnetVersionStr := strings.Split(string(out), "\n")[0]
+	parts := strings.SplitN(ksonnetVersionStr, ":", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("unexpected version string format: %s", ksonnetVersionStr)
+	}
+	return strings.TrimSpace(parts[1]), nil
+}
+
+type ksonnetApp struct {
+	rootDir string
+}
+
+// NewKsonnetApp tries to create a new wrapper to run commands on the `ks` command-line tool.
+func NewKsonnetApp(path string) (KsonnetApp, error) {
+	ksApp := ksonnetApp{rootDir: path}
+	// ensure that the file exists
+	if _, err := ksApp.appYamlPath(); err != nil {
+		return nil, err
+	}
+	return &ksApp, nil
+}
+
+func (k *ksonnetApp) appYamlPath() (string, error) {
+	const appYamlName = "app.yaml"
+	p := filepath.Join(k.rootDir, appYamlName)
+	if _, err := os.Stat(p); err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
+func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
+	return ksCmd(k.rootDir, args...)
+}
+
 func (k *ksonnetApp) Root() string {
-	return k.app.Root()
-}
-
-// App is the Ksonnet application
-func (k *ksonnetApp) App() app.App {
-	return k.app
-}
-
-// Spec is the Ksonnet application spec
-func (k *ksonnetApp) Spec() *app.Spec {
-	return &k.spec
+	return k.rootDir
 }
 
 // Show generates a concatenated list of Kubernetes manifests in the given environment.
 func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {
-	out, err := k.ksCmd("show", environment)
+	out, err := ksCmd(k.rootDir, "show", environment)
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
@@ -129,19 +139,41 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	return data, err
 }
 
+// Destination returns the deployment destination for an environment
+func (k *ksonnetApp) Destination(environment string) (*v1alpha1.ApplicationDestination, error) {
+	p, err := k.appYamlPath()
+	if err != nil {
+		return nil, err
+	}
+	data, err := ioutil.ReadFile(p)
+	if err != nil {
+		return nil, err
+	}
+	return Destination(data, environment)
+}
+
 // ListEnvParams returns list of environment parameters
 func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error) {
 	log.Infof("listing environment '%s' parameters", environment)
-	mod, err := component.DefaultManager.Module(k.app, "")
+	out, err := ksCmd(k.rootDir, "param", "list", "--output", "json", "--env", environment)
 	if err != nil {
 		return nil, err
 	}
-	ksParams, err := mod.Params(environment)
-	if err != nil {
+
+	// Auxiliary data to hold unmarshaled JSON output, which may use different field names
+	var ksParams struct {
+		Data []struct {
+			Component string `json:"component"`
+			Key       string `json:"param"`
+			Value     string `json:"value"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(out), &ksParams); err != nil {
 		return nil, err
 	}
+
 	var params []*v1alpha1.ComponentParameter
-	for _, ksParam := range ksParams {
+	for _, ksParam := range ksParams.Data {
 		value, err := strconv.Unquote(ksParam.Value)
 		if err != nil {
 			value = ksParam.Value
@@ -158,6 +190,6 @@ func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentPar
 
 // SetComponentParams updates component parameter in specified environment.
 func (k *ksonnetApp) SetComponentParams(environment string, component string, param string, value string) error {
-	_, err := k.ksCmd("param", "set", component, param, value, "--env", environment)
+	_, err := ksCmd(k.rootDir, "param", "set", component, param, value, "--env", environment)
 	return err
 }

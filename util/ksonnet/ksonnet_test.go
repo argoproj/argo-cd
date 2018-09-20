@@ -2,7 +2,7 @@ package ksonnet
 
 import (
 	"encoding/json"
-	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
@@ -23,20 +23,19 @@ const (
 
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
-	testDataDir = path.Join(path.Dir(filename), "testdata")
+	testDataDir = filepath.Join(filepath.Dir(filename), "testdata")
 }
 
 func TestKsonnet(t *testing.T) {
-	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
+	ksApp, err := NewKsonnetApp(filepath.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	app := ksApp.App()
-	defaultEnv, err := app.Environment(testEnvName)
+	defaultEnv, err := ksApp.GetEnvironment(testEnvName)
 	assert.True(t, err == nil)
 	assert.Equal(t, "https://1.2.3.4", defaultEnv.Destination.Server)
 }
 
 func TestShow(t *testing.T) {
-	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
+	ksApp, err := NewKsonnetApp(filepath.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
 	objs, err := ksApp.Show(testEnvName)
 	assert.Nil(t, err)
@@ -49,7 +48,7 @@ func TestShow(t *testing.T) {
 }
 
 func TestListEnvParams(t *testing.T) {
-	ksApp, err := NewKsonnetApp(path.Join(testDataDir, testAppName))
+	ksApp, err := NewKsonnetApp(filepath.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
 	paramPointers, err := ksApp.ListEnvParams(testEnvName)
 	assert.Nil(t, err)
