@@ -57,7 +57,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories/apps", "get", q.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -110,7 +110,7 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 }
 
 func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*RepoAppDetailsResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories/apps", "get", q.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
