@@ -52,7 +52,7 @@ func UnmarshalLocalFile(path string, obj interface{}) error {
 // UnmarshalRemoteFile retrieves JSON or YAML through a GET request.
 // The caller is responsible for checking error return values.
 func UnmarshalRemoteFile(url string, obj interface{}) error {
-	data, err := readRemoteFile(url)
+	data, err := ReadRemoteFile(url)
 	if err == nil {
 		err = unmarshalObject(data, obj)
 	}
@@ -61,7 +61,7 @@ func UnmarshalRemoteFile(url string, obj interface{}) error {
 
 // ReadRemoteFile issues a GET request to retrieve the contents of the specified URL as a byte array.
 // The caller is responsible for checking error return values.
-func readRemoteFile(url string) ([]byte, error) {
+func ReadRemoteFile(url string) ([]byte, error) {
 	var data []byte
 	resp, err := http.Get(url)
 	if err == nil {

@@ -74,7 +74,7 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 	address := <-c
 	t.Logf("Listening at address: %s", address)
 
-	data, err := readRemoteFile("http://" + address)
+	data, err := ReadRemoteFile("http://" + address)
 	if string(data) != sentinel {
 		t.Errorf("Test data did not match (err = %v)! Expected %q and received %q", err, sentinel, string(data))
 	}
