@@ -218,8 +218,12 @@ func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, 
 	return liveObj, nil
 }
 
+func IsCRDGroupVersionKind(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == CustomResourceDefinitionKind && gvk.Group == "apiextensions.k8s.io"
+}
+
 func IsCRD(obj *unstructured.Unstructured) bool {
-	return obj.GroupVersionKind().Kind == CustomResourceDefinitionKind && obj.GroupVersionKind().Group == "apiextensions.k8s.io"
+	return IsCRDGroupVersionKind(obj.GroupVersionKind())
 }
 
 func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace string, labelName string) (chan watch.Event, error) {
@@ -399,7 +403,7 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 				return err
 			}
 
-			if deleteCollectionSupported || deleteSupported {
+			if deleteCollectionSupported || deleteSupported && !IsCRDGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind)) {
 				resourceInterfaces = append(resourceInterfaces, resClient{
 					dclient.Resource(&apiResource, namespace),
 					deleteCollectionSupported,
