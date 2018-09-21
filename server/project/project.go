@@ -408,7 +408,7 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 }
 
 func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects/events", "get", q.Name) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})

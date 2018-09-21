@@ -212,7 +212,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/manifests", "get", appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo := s.getRepo(ctx, a.Spec.Source.RepoURL)
@@ -281,7 +281,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/events", "get", appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	var (
@@ -555,7 +555,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications/resources", "delete", appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	found := findResource(a, q)
@@ -618,7 +618,7 @@ func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLo
 	if err != nil {
 		return err
 	}
-	if !s.enf.EnforceClaims(ws.Context().Value("claims"), "applications/logs", "get", appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ws.Context().Value("claims"), "applications", "get", appRBACName(*a)) {
 		return grpc.ErrPermissionDenied
 	}
 	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
@@ -737,7 +737,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "rollback", appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
@@ -758,7 +758,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "terminateop", appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 

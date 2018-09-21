@@ -7,22 +7,14 @@
 # p, <user/group>, <resource>, <action>, <object>
 
 p, role:readonly, applications, get, */*, allow
-p, role:readonly, applications/events, get, */*, allow
-p, role:readonly, applications/manifests, get, */*, allow
-p, role:readonly, applications/logs, get, */*, allow
 p, role:readonly, clusters, get, *, allow
 p, role:readonly, repositories, get, *, allow
-p, role:readonly, repositories/apps, get, *, allow
 p, role:readonly, projects, get, *, allow
-p, role:readonly, projects/events, get, */*, allow
 
 p, role:admin, applications, create, */*, allow
 p, role:admin, applications, update, */*, allow
 p, role:admin, applications, delete, */*, allow
 p, role:admin, applications, sync, */*, allow
-p, role:admin, applications, rollback, */*, allow
-p, role:admin, applications, terminateop, */*, allow
-p, role:admin, applications/resources, delete, */*, allow
 p, role:admin, clusters, create, *, allow
 p, role:admin, clusters, update, *, allow
 p, role:admin, clusters, delete, *, allow
@@ -32,7 +24,6 @@ p, role:admin, repositories, delete, *, allow
 p, role:admin, projects, create, *, allow
 p, role:admin, projects, update, *, allow
 p, role:admin, projects, delete, *, allow
-
 
 g, role:admin, role:readonly
 g, admin, role:admin
