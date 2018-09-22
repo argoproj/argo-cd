@@ -2,26 +2,17 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: workflows.argoproj.io
+  name: dummy-crd.argoproj.io
 spec:
   group: argoproj.io
   version: v1alpha1
   scope: Namespaced
   names:
-    kind: Workflow
-    plural: workflows
-    shortNames:
-    - wf
+    kind: Dummy
+    plural: dummies
 ---
 apiVersion: argoproj.io/v1alpha1
-kind: Workflow
+kind: Dummy
 metadata:
-  name: hello-world
-spec:
-  entrypoint: whalesay
-  templates:
-  - name: whalesay
-    container:
-      image: docker/whalesay:latest
-      command: [cowsay]
-      args: ["hello world"]
+  name: dummy-crd-instance
+

@@ -720,12 +720,33 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 		}
 	}
 
+	parameterOverrides := make(appv1.ParameterOverrides, 0)
+	if syncReq.Parameter != nil {
+		// If parameter overrides are supplied, the caller explicitly states to use the provided
+		// list of overrides. NOTE: gogo/protobuf cannot currently distinguish between empty arrays
+		// vs nil arrays, which is why the wrapping syncReq.Parameter is examined for intent.
+		// See: https://github.com/gogo/protobuf/issues/181
+		for _, p := range syncReq.Parameter.Overrides {
+			parameterOverrides = append(parameterOverrides, appv1.ComponentParameter{
+				Name:      p.Name,
+				Value:     p.Value,
+				Component: p.Component,
+			})
+		}
+	} else {
+		// If parameter overrides are omitted completely, we use what is set in the application
+		if a.Spec.Source.ComponentParameterOverrides != nil {
+			parameterOverrides = appv1.ParameterOverrides(a.Spec.Source.ComponentParameterOverrides)
+		}
+	}
+
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:     syncReq.Revision,
-			Prune:        syncReq.Prune,
-			DryRun:       syncReq.DryRun,
-			SyncStrategy: syncReq.Strategy,
+			Revision:           syncReq.Revision,
+			Prune:              syncReq.Prune,
+			DryRun:             syncReq.DryRun,
+			SyncStrategy:       syncReq.Strategy,
+			ParameterOverrides: parameterOverrides,
 		},
 	}
 	return argo.SetAppOperation(ctx, appIf, s.auditLogger, *syncReq.Name, &op)

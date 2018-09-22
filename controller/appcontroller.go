@@ -711,32 +711,26 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonRe
 		return nil
 	}
 	desiredCommitSHA := comparisonResult.Revision
+
 	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
-	// and parameter overrides do *not* appear in the application's most recent history.
-	historyLen := len(app.Status.History)
-	if historyLen > 0 {
-		mostRecent := app.Status.History[historyLen-1]
-		if mostRecent.Revision == desiredCommitSHA && reflect.DeepEqual(app.Spec.Source.ComponentParameterOverrides, mostRecent.ComponentParameterOverrides) {
-			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
-			return nil
-		}
-	}
-	// If a sync failed, the revision will not make it's way into application history. We also need
-	// to check the operationState to see if the last operation was the one we just attempted.
-	if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-		if app.Status.OperationState.SyncResult.Revision == desiredCommitSHA {
+	// and parameter overrides are different from our most recent sync operation.
+	if alreadyAttemptedSync(app, desiredCommitSHA) {
+		if app.Status.OperationState.Phase != appv1.OperationSucceeded {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
 		}
+		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
+		return nil
 	}
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision: desiredCommitSHA,
-			Prune:    app.Spec.SyncPolicy.Automated.Prune,
+			Revision:           desiredCommitSHA,
+			Prune:              app.Spec.SyncPolicy.Automated.Prune,
+			ParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		},
 	}
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
@@ -747,6 +741,21 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonRe
 	}
 	logCtx.Infof("Initiated auto-sync to %s", desiredCommitSHA)
 	return nil
+}
+
+// alreadyAttemptedSync returns whether or not the most recent sync was performed against the
+// commitSHA and with the same parameter overrides which are currently set in the app
+func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
+	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
+		return false
+	}
+	if app.Status.OperationState.SyncResult.Revision != commitSHA {
+		return false
+	}
+	if !reflect.DeepEqual(appv1.ParameterOverrides(app.Spec.Source.ComponentParameterOverrides), app.Status.OperationState.Operation.Sync.ParameterOverrides) {
+		return false
+	}
+	return true
 }
 
 func (ctrl *ApplicationController) newApplicationInformer() cache.SharedIndexInformer {
