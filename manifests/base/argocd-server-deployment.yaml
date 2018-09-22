@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,12 +13,6 @@ spec:
     spec:
       serviceAccountName: argocd-server
       initContainers:
-      - name: copyutil
-        image: argoproj/argocd-server:latest
-        command: [cp, /argocd-util, /shared]
-        volumeMounts:
-        - mountPath: /shared
-          name: static-files
       - name: ui
         image: argoproj/argocd-ui:latest
         command: [cp, -r, /app, /shared]

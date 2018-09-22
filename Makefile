@@ -78,9 +78,8 @@ cli-darwin: clean-debug
 argocd-util: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
-.PHONY: install-manifest
-install-manifest:
-	if [ "${IMAGE_NAMESPACE}" = "" ] ; then echo "IMAGE_NAMESPACE must be set to build install manifest" ; exit 1 ; fi
+.PHONY: manifests
+manifests:
 	./hack/update-manifests.sh
 
 .PHONY: server

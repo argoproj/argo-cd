@@ -92,7 +92,7 @@ func getFreePort() (int, error) {
 }
 
 func (f *Fixture) setup() error {
-	_, err := exec.Command("kubectl", "apply", "-f", "../../manifests/components/01a_application-crd.yaml", "-f", "../../manifests/components/01b_appproject-crd.yaml").Output()
+	_, err := exec.Command("kubectl", "apply", "-f", "../../manifests/base/application-crd.yaml", "-f", "../../manifests/base/appproject-crd.yaml").Output()
 	if err != nil {
 		return err
 	}

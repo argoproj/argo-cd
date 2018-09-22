@@ -1,11 +1,22 @@
 #!/bin/sh
 
-IMAGE_NAMESPACE=${IMAGE_NAMESPACE:='argoproj'}
-IMAGE_TAG=${IMAGE_TAG:='latest'}
+SRCROOT="$( cd "$(dirname "$0")/.." ; pwd -P )"
+AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
-for i in "$(ls manifests/components/*.yaml)"; do
-    sed -i '' 's@\( image: \(.*\)/\(argocd-.*\):.*\)@ image: '"${IMAGE_NAMESPACE}"'/\3:'"${IMAGE_TAG}"'@g' $i
-done
+update_image () {
+  if [ ! -z "${IMAGE_NAMESPACE}" ]; then
+    sed -i '' 's| image: \(.*\)/\(argocd-.*\)| image: '"${IMAGE_NAMESPACE}"'/\2|g' ${1}
+  fi
+  if [ ! -z "${IMAGE_TAG}" ]; then
+    sed -i '' 's|\( image: .*/argocd-.*\)\:.*|\1:'"${IMAGE_TAG}"'|g' ${1}
+  fi
+}
 
-echo "# This is an auto-generated file. DO NOT EDIT" > manifests/install.yaml
-cat manifests/components/*.yaml >> manifests/install.yaml
+echo "${AUTOGENMSG}" > ${SRCROOT}/manifests/install.yaml
+kustomize build ${SRCROOT}/manifests/cluster-install >> ${SRCROOT}/manifests/install.yaml
+update_image ${SRCROOT}/manifests/install.yaml
+
+echo "${AUTOGENMSG}" > ${SRCROOT}/manifests/namespace-install.yaml
+kustomize build ${SRCROOT}/manifests/base >> ${SRCROOT}/manifests/namespace-install.yaml
+update_image ${SRCROOT}/manifests/namespace-install.yaml
+
