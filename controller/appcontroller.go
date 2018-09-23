@@ -298,12 +298,13 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 }
 
 func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) {
-	log.Infof("Deleting resources for application %s", app.Name)
+	logCtx := log.WithField("application", app.Name)
+	logCtx.Infof("Deleting resources")
 	// Get refreshed application info, since informer app copy might be stale
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			log.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
+			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
 		}
 		return
 	}
@@ -327,14 +328,14 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 	}
 	if err != nil {
-		log.Errorf("Unable to delete application resources: %v", err)
 		ctrl.setAppCondition(app, appv1.ApplicationCondition{
 			Type:    appv1.ApplicationConditionDeletionError,
 			Message: err.Error(),
 		})
-		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Action: "refresh_status"}, v1.EventTypeWarning)
+		message := fmt.Sprintf("Unable to delete application resources: %v", err)
+		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
 	} else {
-		log.Infof("Successfully deleted resources for application %s", app.Name)
+		logCtx.Info("Successfully deleted resources")
 	}
 }
 
@@ -447,7 +448,6 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			// If operation is completed, clear the operation field to indicate no operation is
 			// in progress.
 			patch["operation"] = nil
-			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Action: "refresh_status"}, v1.EventTypeNormal)
 		}
 		if reflect.DeepEqual(app.Status.OperationState, state) {
 			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.Name)
@@ -463,6 +463,18 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			return err
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
+		if state.Phase.Completed() {
+			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+			var message string
+			if state.Phase.Successful() {
+				eventInfo.Type = v1.EventTypeNormal
+				message = "Operation succeeded"
+			} else {
+				eventInfo.Type = v1.EventTypeWarning
+				message = fmt.Sprintf("Operation failed: %v", state.Message)
+			}
+			ctrl.auditLogger.LogAppEvent(app, eventInfo, message)
+		}
 		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
 }
@@ -539,6 +551,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 // needRefreshAppStatus answers if application status needs to be refreshed.
 // Returns true if application never been compared, has changed or comparison result has expired.
 func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) bool {
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	var reason string
 	expired := app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if ctrl.isRefreshForced(app.Name) {
@@ -551,7 +564,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		reason = fmt.Sprintf("comparison expired. comparedAt: %v, expiry: %v", app.Status.ComparisonResult.ComparedAt, statusRefreshTimeout)
 	}
 	if reason != "" {
-		log.Infof("Refreshing application '%s' status (%s)", app.Name, reason)
+		logCtx.Infof("Refreshing app status (%s)", reason)
 		return true
 	}
 	return false
@@ -649,12 +662,21 @@ func (ctrl *ApplicationController) updateAppStatus(
 	parameters []*appv1.ComponentParameter,
 	conditions []appv1.ApplicationCondition,
 ) {
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	modifiedApp := app.DeepCopy()
 	if comparisonResult != nil {
 		modifiedApp.Status.ComparisonResult = *comparisonResult
-		log.Infof("App %s comparison result: prev: %s. current: %s", app.Name, app.Status.ComparisonResult.Status, comparisonResult.Status)
+		if app.Status.ComparisonResult.Status != comparisonResult.Status {
+			message := fmt.Sprintf("Updated sync status: %s -> %s", app.Status.ComparisonResult.Status, comparisonResult.Status)
+			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		}
+		logCtx.Infof("Comparison result: prev: %s. current: %s", app.Status.ComparisonResult.Status, comparisonResult.Status)
 	}
 	if healthState != nil {
+		if modifiedApp.Status.Health.Status != healthState.Status {
+			message := fmt.Sprintf("Updated health status: %s -> %s", modifiedApp.Status.Health.Status, healthState.Status)
+			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
+		}
 		modifiedApp.Status.Health = *healthState
 	}
 	if parameters != nil {
@@ -668,29 +690,29 @@ func (ctrl *ApplicationController) updateAppStatus(
 	}
 	origBytes, err := json.Marshal(app)
 	if err != nil {
-		log.Errorf("Error updating application %s (marshal orig app): %v", app.Name, err)
+		logCtx.Errorf("Error updating (marshal orig app): %v", err)
 		return
 	}
 	modifiedBytes, err := json.Marshal(modifiedApp)
 	if err != nil {
-		log.Errorf("Error updating application %s (marshal modified app): %v", app.Name, err)
+		logCtx.Errorf("Error updating (marshal modified app): %v", err)
 		return
 	}
 	patch, err := strategicpatch.CreateTwoWayMergePatch(origBytes, modifiedBytes, appv1.Application{})
 	if err != nil {
-		log.Errorf("Error calculating patch for app %s update: %v", app.Name, err)
+		logCtx.Errorf("Error calculating patch for update: %v", err)
 		return
 	}
 	if string(patch) == "{}" {
-		log.Infof("No status changes to %s. Skipping patch", app.Name)
+		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
 	if err != nil {
-		log.Warnf("Error updating application %s: %v", app.Name, err)
+		logCtx.Warnf("Error updating application: %v", err)
 	} else {
-		log.Infof("Application %s update successful", app.Name)
+		logCtx.Infof("Update successful")
 	}
 }
 
@@ -739,7 +761,9 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonRe
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
 	}
-	logCtx.Infof("Initiated auto-sync to %s", desiredCommitSHA)
+	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
+	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
+	logCtx.Info(message)
 	return nil
 }
 
