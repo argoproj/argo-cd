@@ -24,8 +24,8 @@ resources:
 
 imageTags:
 - name: argoproj/argocd-server
-  newTag: v0.9.0
+  newTag: v0.9.1
 - name: argoproj/argocd-repo-server
-  newTag: v0.9.0
+  newTag: v0.9.1
 - name: argoproj/application-controller
-  newTag: v0.9.0
+  newTag: v0.9.1
