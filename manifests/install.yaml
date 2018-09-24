@@ -315,7 +315,7 @@ spec:
         - /argocd-application-controller
         - --repo-server
         - argocd-repo-server:8081
-        image: argoproj/argocd-application-controller:latest
+        image: argoproj/argocd-application-controller:v0.9.0
         name: application-controller
       serviceAccountName: application-controller
 ---
@@ -336,7 +336,7 @@ spec:
       containers:
       - command:
         - /argocd-repo-server
-        image: argoproj/argocd-repo-server:latest
+        image: argoproj/argocd-repo-server:v0.9.0
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -366,7 +366,7 @@ spec:
         - /shared/app
         - --repo-server
         - argocd-repo-server:8081
-        image: argoproj/argocd-server:latest
+        image: argoproj/argocd-server:v0.9.0
         name: argocd-server
         readinessProbe:
           httpGet:
@@ -383,7 +383,7 @@ spec:
         - -r
         - /app
         - /shared
-        image: argoproj/argocd-ui:latest
+        image: argoproj/argocd-ui:v0.9.0
         name: ui
         volumeMounts:
         - mountPath: /shared
@@ -423,7 +423,7 @@ spec:
         - cp
         - /argocd-util
         - /shared
-        image: argoproj/argocd-server:latest
+        image: argoproj/argocd-server:v0.9.0
         name: copyutil
         volumeMounts:
         - mountPath: /shared
