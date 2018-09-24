@@ -1,21 +1,55 @@
 # Changelog
 
-## v0.9.0 (Unreleased)
+## v0.9.0
+
+### Notes about upgrading from v0.8
+
+* The `server.crt` and `server.key` fields of `argocd-secret` had been renamed to `tls.crt` and `tls.key` for
+better integration with cert manager(issue #617). Existing `argocd-secret` should be updated accordingly to
+preserve existing TLS certificate.
+* Cluster wide resources should be allowed in default project (due to issue #330):
+
+```
+argocd project allow-cluster-resource default '*' '*'
+```
 
 ### Changes since v0.8:
-+ Support raw jsonnet as an application source (#issue #540)
++ Auto-sync option in application CRD instance (issue #79)
++ Support raw jsonnet as an application source (issue #540)
 + Reorder K8s resources to correct creation order (issue #102)
 + Redact K8s secrets from API server payloads (issue #470)
++ Support --in-cluster authentication without providing a kubeconfig (issue #527)
++ Special handling of CustomResourceDefinitions (issue #613)
++ ArgoCD should download helm chart dependencies (issue #582)
++ Export ArgoCD stats as prometheus style metrics (issue #513)
++ Support restricting TLS version (issue #609)
++ Use 'kubectl auth reconcile' before 'kubectl apply' (issue #523)
++ Projects need controls on cluster-scoped resources (issue #330)
++ Support IAM Authentication for managing external K8s clusters (issue #482)
++ Compatibility with cert manager (issue #617)
+* Enable TLS for repo server (issue #553)
+* Split out dex into it's own deployment (instead of sidecar) (issue #555)
 + [UI] Support selection of helm values files in App creation wizard (issue #499)
 + [UI] Support specifying source revision in App creation wizard allow (issue #503)
 + [UI] Improve resource diff rendering (issue #457)
 + [UI] Indicate number of ready containers in pod (issue #539)
 + [UI] Indicate when app is overriding parameters (issue #503)
 + [UI] Provide a YAML view of resources (issue #396)
-* Enable TLS for repo server (issue #553)
++ [UI] Project Role/Token management from UI (issue #548)
++ [UI] App creation wizard should allow specifying source revision (issue #562)
++ [UI] Ability to modify application from UI (issue #615)
++ [UI] indicate when operation is in progress or has failed (issue #566)
 - Fix issue where changes were not pulled when tracking a branch (issue #567)
+- Lazy enforcement of unknown cluster/namespace restricted resources (issue #599)
 - Fix controller hot loop when app source contains bad manifests (issue #568)
 - [UI] Fix issue where projects filter does not work when application got changed
+- [UI] Creating apps from directories is not obvious (issue #565)
+- Helm hooks are being deployed as resources (issue #605)
+- Disagreement in three way diff calculation (issue #597)
+- SIGSEGV in kube.GetResourcesWithLabel (issue #587)
+- ArgoCD fails to deploy resources list (issue #584)
+- Branch tracking not working properly (issue #567)
+- Controller hot loop when application source has bad manifests (issue #568)
 
 ## v0.8.2 (2018-09-12)
 - Downgrade ksonnet from v0.12.0 to v0.11.0 due to quote unescape regression
