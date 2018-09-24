@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,11 +21,11 @@ spec:
           name: static-files
       containers:
       - name: dex
-        image: quay.io/coreos/dex:v2.10.0
+        image: quay.io/dexidp/dex:v2.11.0
         command: [/shared/argocd-util, rundex]
         ports:
-          - containerPort: 5556
-          - containerPort: 5557
+        - containerPort: 5556
+        - containerPort: 5557
         volumeMounts:
         - mountPath: /shared
           name: static-files

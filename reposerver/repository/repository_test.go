@@ -11,14 +11,14 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	const countOfManifests = 22
 
 	q := ManifestRequest{}
-	res1, err := generateManifests("../../manifests/components", &q)
+	res1, err := generateManifests("../../manifests/base", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), countOfManifests)
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := generateManifests("../../manifests", &q)
+	res2, err := generateManifests("./testdata/concatenated", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, len(res2.Manifests), len(res1.Manifests))
+	assert.Equal(t, 3, len(res2.Manifests))
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {

@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa1
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa2
+---
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa3
+---
