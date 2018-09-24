@@ -3,8 +3,9 @@
 1. Tag, build, and push argo-cd-ui
 ```bash
 cd argo-cd-ui
+git checkout -b release-X.Y
 git tag vX.Y.Z
-git push upstream vX.Y.Z
+git push upstream release-X.Y --tags
 IMAGE_NAMESPACE=argoproj IMAGE_TAG=vX.Y.Z DOCKER_PUSH=true yarn docker
 ```
 
@@ -19,7 +20,7 @@ git push upstream release-X.Y
 vi manifests/base/kustomization.yaml # update with new image tags
 make manifests
 git commit -a -m "Update manifests to vX.Y.Z"
-git push upstream master
+git push upstream release-X.Y
 ```
 
 4. Tag, build, and push release to docker hub

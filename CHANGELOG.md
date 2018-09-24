@@ -1,26 +1,25 @@
 # Changelog
 
-## v0.9.0
+## v0.9.1 (2018-09-24)
+
+- Repo server unable to execute ls-remote for private repos (issue #639)
+
+## v0.9.0 (2018-09-24)
 
 ### Notes about upgrading from v0.8
-
-* The `server.crt` and `server.key` fields of `argocd-secret` had been renamed to `tls.crt` and `tls.key` for
-better integration with cert manager(issue #617). Existing `argocd-secret` should be updated accordingly to
-preserve existing TLS certificate.
 * Cluster wide resources should be allowed in default project (due to issue #330):
 
 ```
 argocd project allow-cluster-resource default '*' '*'
 ```
 
-### Breaking changes v0.8
 * Projects now provide the ability to allow or deny deployments of cluster-scoped resources
 (e.g. Namespaces, ClusterRoles, CustomResourceDefinitions). When upgrading from v0.8 to v0.9, to
 match the behavior of v0.8 (which did not have restrictions on deploying resources) and continue to
 allow deployment of cluster-scoped resources, an additional command should be run:
 
 ```bash
-argocd proj allow-cluster-resource default '*'
+argocd proj allow-cluster-resource default '*' '*'
 ```
 
 The above command allows the `default` project to deploy any cluster-scoped resources which matches
