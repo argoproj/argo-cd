@@ -633,8 +633,8 @@ func modifyProjectResourceCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.C
 
 // NewProjectAllowNamespaceResourceCommand returns a new instance of an `deny-cluster-resources` command
 func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	use := "allow-namespace-resource PROJECT group kind"
-	desc := "Removes namespaced resource from black list"
+	use := "allow-namespace-resource PROJECT GROUP KIND"
+	desc := "Removes a namespaced API resource from the blacklist"
 	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
 		index := -1
 		for i, item := range proj.Spec.NamespaceResourceBlacklist {
@@ -654,8 +654,8 @@ func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOpti
 
 // NewProjectDenyNamespaceResourceCommand returns a new instance of an `argocd proj deny-namespace-resource` command
 func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	use := "deny-namespace-resource PROJECT group kind"
-	desc := "Adds namespaced resource to black list"
+	use := "deny-namespace-resource PROJECT GROUP KIND"
+	desc := "Adds a namespaced API resource to the blacklist"
 	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
 		for _, item := range proj.Spec.NamespaceResourceBlacklist {
 			if item.Group == group && item.Kind == kind {
@@ -670,8 +670,8 @@ func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptio
 
 // NewProjectDenyClusterResourceCommand returns a new instance of an `deny-cluster-resource` command
 func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	use := "deny-cluster-resource PROJECT group kind"
-	desc := "Adds cluster wide resource to white list"
+	use := "deny-cluster-resource PROJECT GROUP KIND"
+	desc := "Removes a cluster-scoped API resource from the whitelist"
 	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
 		index := -1
 		for i, item := range proj.Spec.ClusterResourceWhitelist {
@@ -691,8 +691,8 @@ func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions
 
 // NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
 func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	use := "allow-cluster-resource PROJECT group kind"
-	desc := "Removed cluster wide resource from white list"
+	use := "allow-cluster-resource PROJECT GROUP KIND"
+	desc := "Adds a cluster-scoped API resource to the whitelist"
 	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
 		for _, item := range proj.Spec.ClusterResourceWhitelist {
 			if item.Group == group && item.Kind == kind {

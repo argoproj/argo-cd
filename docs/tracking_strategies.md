@@ -4,13 +4,14 @@ An ArgoCD application spec provides several different ways of track kubernetes r
 git. This document describes the different techniques and the means of deploying those manifests to
 the target environment.
 
-## Branch Tracking
+## HEAD / Branch Tracking
 
-If a branch name is specified, ArgoCD will continually compare live state against the resource
-manifests defined at the tip of the specified branch.
+If a branch name, or a symbolic reference (like HEAD) is specified, ArgoCD will continually compare
+live state against the resource manifests defined at the tip of the specified branch or the
+deferenced commit of the symbolic reference.
 
 To redeploy an application, a user makes changes to the manifests, and commit/pushes those the
-changes to the tracked branch, which will then be detected by ArgoCD controller. 
+changes to the tracked branch/symbolic reference, which will then be detected by ArgoCD controller. 
 
 ## Tag Tracking
 
@@ -33,9 +34,9 @@ which is pinned to a commit, is by updating the tracking revision in the applica
 commit containing the new manifests. Note that [parameter overrides](parameters.md) can still be set
 on an application which is pinned to a revision.
 
-## Auto-Sync [(Not Yet Implemented)]((https://github.com/argoproj/argo-cd/issues/79))
+## Automated Sync
 
-In all tracking strategies, the application will have the option to sync automatically. If auto-sync
+In all tracking strategies, the application has the option to sync automatically. If [auto-sync](auto_sync.md)
 is configured, the new resources manifests will be applied automatically -- as soon as a difference
 is detected between the target state (git) and live state. If auto-sync is disabled, a manual sync
 will be needed using the Argo UI, CLI, or API.

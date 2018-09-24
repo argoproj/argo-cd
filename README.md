@@ -72,6 +72,5 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Argo CD is being used in production to deploy SaaS services at Intuit
 
 ## Roadmap
-* Auto-sync toggle to directly apply git state changes to live state
 * Revamped UI, and feature parity with CLI
 * Customizable application actions

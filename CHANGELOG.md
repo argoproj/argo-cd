@@ -13,6 +13,24 @@ preserve existing TLS certificate.
 argocd project allow-cluster-resource default '*' '*'
 ```
 
+### Breaking changes v0.8
+* Projects now provide the ability to allow or deny deployments of cluster-scoped resources
+(e.g. Namespaces, ClusterRoles, CustomResourceDefinitions). When upgrading from v0.8 to v0.9, to
+match the behavior of v0.8 (which did not have restrictions on deploying resources) and continue to
+allow deployment of cluster-scoped resources, an additional command should be run:
+
+```bash
+argocd proj allow-cluster-resource default '*'
+```
+
+The above command allows the `default` project to deploy any cluster-scoped resources which matches
+the behavior of v0.8.
+
+* The secret keys in the argocd-secret containing the TLS certificate and key, has been renamed from
+  `server.crt` and `server.key` to the standard `tls.crt` and `tls.key` keys. This enables ArgoCD
+  to integrate better with Ingress and cert-manager. When upgrading to v0.9, the `server.crt` and
+  `server.key` keys in argocd-secret should be renamed to the new keys.
+
 ### Changes since v0.8:
 + Auto-sync option in application CRD instance (issue #79)
 + Support raw jsonnet as an application source (issue #540)
@@ -42,6 +60,10 @@ argocd project allow-cluster-resource default '*' '*'
 - Fix issue where changes were not pulled when tracking a branch (issue #567)
 - Lazy enforcement of unknown cluster/namespace restricted resources (issue #599)
 - Fix controller hot loop when app source contains bad manifests (issue #568)
+- Fix issue where ArgoCD fails to deploy when resources are in a K8s list format (issue #584)
+- Fix comparison failure when app contains unregistered custom resource (issue #583)
+- Fix issue where helm hooks were being deployed as part of sync (issue #605)
+- Fix race conditions in kube.GetResourcesWithLabel and DeleteResourceWithLabel (issue #587)
 - [UI] Fix issue where projects filter does not work when application got changed
 - [UI] Creating apps from directories is not obvious (issue #565)
 - Helm hooks are being deployed as resources (issue #605)
