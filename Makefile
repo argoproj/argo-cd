@@ -148,7 +148,7 @@ clean: clean-debug
 precheckin: test lint
 
 .PHONY: release-precheck
-release-precheck: install-manifest
+release-precheck: manifests
 	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
 	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
 
