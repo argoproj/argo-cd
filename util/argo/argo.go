@@ -14,7 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -30,7 +29,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/session"
 )
 
 const (
@@ -461,16 +459,10 @@ func SetAppOperation(ctx context.Context, appIf v1alpha1.ApplicationInterface, a
 		a.Operation = op
 		a.Status.OperationState = nil
 		a, err = appIf.Update(a)
-		var action string
-		if op.Sync != nil {
-			action = "sync"
-		} else if op.Rollback != nil {
-			action = "rollback"
-		} else {
+		if op.Sync == nil && op.Rollback == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
 		}
 		if err == nil {
-			audit.LogAppEvent(a, EventInfo{Reason: EventReasonResourceUpdated, Action: action, Username: session.Username(ctx)}, v1.EventTypeNormal)
 			return a, nil
 		}
 		if !apierr.IsConflict(err) {

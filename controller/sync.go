@@ -47,7 +47,7 @@ type syncContext struct {
 }
 
 func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
-	// Sync requests are usually requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
+	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult and
 	// rollbackResult fields. This ensures that when resuming an operation, we sync to the same
@@ -59,6 +59,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 
 	if state.Operation.Sync != nil {
 		syncOp = *state.Operation.Sync
+		overrides = []appv1.ComponentParameter(state.Operation.Sync.ParameterOverrides)
 		if state.SyncResult != nil {
 			syncRes = state.SyncResult
 			revision = state.SyncResult.Revision

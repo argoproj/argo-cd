@@ -200,7 +200,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 	}
 
 	if err == nil {
-		s.logEvent(out, ctx, argo.EventReasonResourceCreated, "create")
+		s.logEvent(out, ctx, argo.EventReasonResourceCreated, "created application")
 	}
 	hideAppSecrets(out)
 	return out, err
@@ -340,6 +340,9 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	if out != nil {
 		hideAppSecrets(out)
 	}
+	if err == nil {
+		s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application")
+	}
 	return out, err
 }
 
@@ -373,7 +376,6 @@ func (s *Server) removeInvalidOverrides(a *appv1.Application, q *ApplicationUpda
 
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
 func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
-
 	s.projectLock.Lock(q.Spec.Project)
 	defer s.projectLock.Unlock(q.Spec.Project)
 
@@ -396,9 +398,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 		a.Spec = q.Spec
 		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
-			if err != nil {
-				s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "update")
-			}
+			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application spec")
 			return &q.Spec, nil
 		}
 		if !apierr.IsConflict(err) {
@@ -461,7 +461,7 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 		return nil, err
 	}
 
-	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, "delete")
+	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
 	return &ApplicationResponse{}, nil
 }
 
@@ -570,6 +570,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	if err != nil {
 		return nil, err
 	}
+	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.APIVersion, q.Kind, q.ResourceName))
 	return &ApplicationResponse{}, nil
 }
 
@@ -720,15 +721,45 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 		}
 	}
 
+	parameterOverrides := make(appv1.ParameterOverrides, 0)
+	if syncReq.Parameter != nil {
+		// If parameter overrides are supplied, the caller explicitly states to use the provided
+		// list of overrides. NOTE: gogo/protobuf cannot currently distinguish between empty arrays
+		// vs nil arrays, which is why the wrapping syncReq.Parameter is examined for intent.
+		// See: https://github.com/gogo/protobuf/issues/181
+		for _, p := range syncReq.Parameter.Overrides {
+			parameterOverrides = append(parameterOverrides, appv1.ComponentParameter{
+				Name:      p.Name,
+				Value:     p.Value,
+				Component: p.Component,
+			})
+		}
+	} else {
+		// If parameter overrides are omitted completely, we use what is set in the application
+		if a.Spec.Source.ComponentParameterOverrides != nil {
+			parameterOverrides = appv1.ParameterOverrides(a.Spec.Source.ComponentParameterOverrides)
+		}
+	}
+
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:     syncReq.Revision,
-			Prune:        syncReq.Prune,
-			DryRun:       syncReq.DryRun,
-			SyncStrategy: syncReq.Strategy,
+			Revision:           syncReq.Revision,
+			Prune:              syncReq.Prune,
+			DryRun:             syncReq.DryRun,
+			SyncStrategy:       syncReq.Strategy,
+			ParameterOverrides: parameterOverrides,
 		},
 	}
-	return argo.SetAppOperation(ctx, appIf, s.auditLogger, *syncReq.Name, &op)
+	a, err = argo.SetAppOperation(ctx, appIf, s.auditLogger, *syncReq.Name, &op)
+	if err == nil {
+		rev := syncReq.Revision
+		if syncReq.Revision == "" {
+			rev = a.Spec.Source.TargetRevision
+		}
+		message := fmt.Sprintf("initiated sync to %s", rev)
+		s.logEvent(a, ctx, argo.EventReasonOperationStarted, message)
+	}
+	return a, err
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackRequest) (*appv1.Application, error) {
@@ -750,7 +781,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 			DryRun: rollbackReq.DryRun,
 		},
 	}
-	return argo.SetAppOperation(ctx, appIf, s.auditLogger, *rollbackReq.Name, &op)
+	a, err = argo.SetAppOperation(ctx, appIf, s.auditLogger, *rollbackReq.Name, &op)
+	if err == nil {
+		s.logEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
+	}
+	return a, err
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTerminateRequest) (*OperationTerminateResponse, error) {
@@ -780,12 +815,18 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 		if err != nil {
 			return nil, err
 		} else {
-			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "terminateop")
+			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
 		}
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
 func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
-	s.auditLogger.LogAppEvent(a, argo.EventInfo{Reason: reason, Action: action, Username: session.Username(ctx)}, v1.EventTypeNormal)
+	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	user := session.Username(ctx)
+	if user == "" {
+		user = "Unknown user"
+	}
+	message := fmt.Sprintf("%s %s", user, action)
+	s.auditLogger.LogAppEvent(a, eventInfo, message)
 }

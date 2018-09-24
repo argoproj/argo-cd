@@ -45,11 +45,24 @@ spec:
   syncPolicy:
     automated: {}
 status:
-  history:
-  - deployedAt: 2018-09-08T09:16:50Z
-    id: 0
-    params: []
-    revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  operationState:
+    finishedAt: 2018-09-21T23:50:29Z
+    message: successfully synced
+    operation:
+      sync:
+        revision: HEAD
+    phase: Succeeded
+    startedAt: 2018-09-21T23:50:25Z
+    syncResult:
+      resources:
+      - kind: RoleBinding
+        message: |-
+          rolebinding.rbac.authorization.k8s.io/always-outofsync reconciled
+          rolebinding.rbac.authorization.k8s.io/always-outofsync configured
+        name: always-outofsync
+        namespace: default
+        status: Synced
+      revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 `
 
 func newFakeApp() *argoappv1.Application {
@@ -123,6 +136,9 @@ func TestSkipAutoSync(t *testing.T) {
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
 	app = newFakeApp()
 	app.Status.OperationState = &argoappv1.OperationState{
+		Operation: argoappv1.Operation{
+			Sync: &argoappv1.SyncOperation{},
+		},
 		Phase: argoappv1.OperationFailed,
 		SyncResult: &argoappv1.SyncOperationResult{
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -138,4 +154,78 @@ func TestSkipAutoSync(t *testing.T) {
 	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications("argocd").Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Nil(t, app.Operation)
+}
+
+// TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed
+func TestAutoSyncIndicateError(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Source.ComponentParameterOverrides = []argoappv1.ComponentParameter{
+		{
+			Name:  "a",
+			Value: "1",
+		},
+	}
+	ctrl := newFakeController(app)
+	compRes := argoappv1.ComparisonResult{
+		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		Operation: argoappv1.Operation{
+			Sync: &argoappv1.SyncOperation{
+				ParameterOverrides: argoappv1.ParameterOverrides{
+					{
+						Name:  "a",
+						Value: "1",
+					},
+				},
+			},
+		},
+		Phase: argoappv1.OperationFailed,
+		SyncResult: &argoappv1.SyncOperationResult{
+			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+	}
+	cond := ctrl.autoSync(app, &compRes)
+	assert.NotNil(t, cond)
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications("argocd").Get("my-app", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Nil(t, app.Operation)
+}
+
+// TestAutoSyncParameterOverrides verifies we auto-sync if revision is same but parameter overrides are different
+func TestAutoSyncParameterOverrides(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Source.ComponentParameterOverrides = []argoappv1.ComponentParameter{
+		{
+			Name:  "a",
+			Value: "1",
+		},
+	}
+	ctrl := newFakeController(app)
+	compRes := argoappv1.ComparisonResult{
+		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		Operation: argoappv1.Operation{
+			Sync: &argoappv1.SyncOperation{
+				ParameterOverrides: argoappv1.ParameterOverrides{
+					{
+						Name:  "a",
+						Value: "2", // this value changed
+					},
+				},
+			},
+		},
+		Phase: argoappv1.OperationFailed,
+		SyncResult: &argoappv1.SyncOperationResult{
+			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+	}
+	cond := ctrl.autoSync(app, &compRes)
+	assert.Nil(t, cond)
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications("argocd").Get("my-app", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, app.Operation)
 }

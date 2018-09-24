@@ -20,30 +20,23 @@ type AuditLogger struct {
 }
 
 type EventInfo struct {
-	Action   string
-	Reason   string
-	Username string
+	Type   string
+	Reason string
 }
 
 const (
-	EventReasonStatusRefreshed = "StatusRefreshed"
-	EventReasonResourceCreated = "ResourceCreated"
-	EventReasonResourceUpdated = "ResourceUpdated"
-	EventReasonResourceDeleted = "ResourceDeleted"
+	EventReasonStatusRefreshed    = "StatusRefreshed"
+	EventReasonResourceCreated    = "ResourceCreated"
+	EventReasonResourceUpdated    = "ResourceUpdated"
+	EventReasonResourceDeleted    = "ResourceDeleted"
+	EventReasonOperationStarted   = "OperationStarted"
+	EventReasonOperationCompleted = "OperationCompleted"
 )
 
-func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersionKind, info EventInfo, eventType string) {
-	var message string
-	if info.Username != "" {
-		message = fmt.Sprintf("User %s executed action %s", info.Username, info.Action)
-	} else {
-		message = fmt.Sprintf("Unknown user executed action %s", info.Action)
-	}
+func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersionKind, info EventInfo, message string) {
 	logCtx := log.WithFields(log.Fields{
-		"type":     eventType,
-		"action":   info.Action,
-		"reason":   info.Reason,
-		"username": info.Username,
+		"type":   info.Type,
+		"reason": info.Reason,
 	})
 	switch gvk.Kind {
 	case "Application":
@@ -73,8 +66,7 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 		LastTimestamp:  t,
 		Count:          1,
 		Message:        message,
-		Type:           eventType,
-		Action:         info.Action,
+		Type:           info.Type,
 		Reason:         info.Reason,
 	}
 	logCtx.Info(message)
@@ -85,12 +77,12 @@ func (l *AuditLogger) logEvent(objMeta metav1.ObjectMeta, gvk schema.GroupVersio
 	}
 }
 
-func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, eventType string) {
-	l.logEvent(app.ObjectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, eventType)
+func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message string) {
+	l.logEvent(app.ObjectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message)
 }
 
-func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, eventType string) {
-	l.logEvent(proj.ObjectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, eventType)
+func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, message string) {
+	l.logEvent(proj.ObjectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message)
 }
 
 func NewAuditLogger(ns string, kIf kubernetes.Interface, component string) *AuditLogger {
