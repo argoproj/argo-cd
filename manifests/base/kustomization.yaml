@@ -25,7 +25,9 @@ resources:
 imageTags:
 - name: argoproj/argocd-server
   newTag: latest
+- name: argoproj/argocd-ui
+  newTag: latest
 - name: argoproj/argocd-repo-server
   newTag: latest
-- name: argoproj/application-controller
+- name: argoproj/argocd-application-controller
   newTag: latest
