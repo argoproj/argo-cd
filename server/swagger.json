@@ -1313,6 +1313,9 @@
         "name": {
           "type": "string"
         },
+        "parameter": {
+          "$ref": "#/definitions/applicationParameterOverrides"
+        },
         "prune": {
           "type": "boolean",
           "format": "boolean"
@@ -1338,6 +1341,43 @@
     },
     "applicationOperationTerminateResponse": {
       "type": "object"
+    },
+    "applicationParameter": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationParameterOverrides": {
+      "type": "object",
+      "properties": {
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationParameter"
+          }
+        }
+      }
+    },
+    "applicationv1alpha1ParameterOverrides": {
+      "type": "object",
+      "title": "ParameterOverrides masks the value so protobuf can generate\n+protobuf.nullable=true\n+protobuf.options.(gogoproto.goproto_stringer)=false",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ComponentParameter"
+          }
+        }
+      }
     },
     "clusterClusterCreateFromKubeConfigRequest": {
       "type": "object",
@@ -2586,6 +2626,9 @@
           "type": "boolean",
           "format": "boolean",
           "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
+        },
+        "parameterOverrides": {
+          "$ref": "#/definitions/applicationv1alpha1ParameterOverrides"
         },
         "prune": {
           "type": "boolean",

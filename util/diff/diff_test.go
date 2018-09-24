@@ -280,3 +280,20 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	assert.True(t, showsExtra)
 	assert.Equal(t, 2, showsChanged)
 }
+
+func TestThreeWayDiffExplicitNamespace(t *testing.T) {
+	configData, err := ioutil.ReadFile("testdata/spinnaker-sa-config.json")
+	assert.NoError(t, err)
+	liveData, err := ioutil.ReadFile("testdata/spinnaker-sa-live.json")
+	assert.NoError(t, err)
+	var configUn, liveUn unstructured.Unstructured
+	err = json.Unmarshal(configData, &configUn.Object)
+	assert.NoError(t, err)
+	err = json.Unmarshal(liveData, &liveUn.Object)
+	assert.NoError(t, err)
+	dr := Diff(&configUn, &liveUn)
+	assert.False(t, dr.Modified)
+	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	assert.Nil(t, err)
+	log.Println(ascii)
+}

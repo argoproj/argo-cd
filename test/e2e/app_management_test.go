@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
@@ -18,7 +20,7 @@ import (
 )
 
 func TestAppManagement(t *testing.T) {
-	assertAppHasEvent := func(a *v1alpha1.Application, action string, reason string) {
+	assertAppHasEvent := func(a *v1alpha1.Application, message string, reason string) {
 		list, err := fixture.KubeClient.CoreV1().Events(fixture.Namespace).List(metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
 				"involvedObject.name":      a.Name,
@@ -31,11 +33,11 @@ func TestAppManagement(t *testing.T) {
 		}
 		for i := range list.Items {
 			event := list.Items[i]
-			if event.Reason == reason && event.Action == action {
+			if event.Reason == reason && strings.Contains(event.Message, message) {
 				return
 			}
 		}
-		t.Errorf("Unable to find event with reason=%s; action=%s", reason, action)
+		t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
 	}
 
 	testApp := &v1alpha1.Application{
@@ -148,7 +150,7 @@ func TestAppManagement(t *testing.T) {
 			t.Fatalf("Unable to sync app %v", err)
 		}
 
-		assertAppHasEvent(app, "rollback", argo.EventReasonResourceUpdated)
+		assertAppHasEvent(app, "rollback", argo.EventReasonOperationStarted)
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})

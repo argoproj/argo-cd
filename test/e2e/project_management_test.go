@@ -16,7 +16,7 @@ import (
 )
 
 func TestProjectManagement(t *testing.T) {
-	assertProjHasEvent := func(a *v1alpha1.AppProject, action string, reason string) {
+	assertProjHasEvent := func(a *v1alpha1.AppProject, message string, reason string) {
 		list, err := fixture.KubeClient.CoreV1().Events(fixture.Namespace).List(metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
 				"involvedObject.name":      a.Name,
@@ -29,11 +29,11 @@ func TestProjectManagement(t *testing.T) {
 		}
 		for i := range list.Items {
 			event := list.Items[i]
-			if event.Reason == reason && event.Action == action {
+			if event.Reason == reason && strings.Contains(event.Message, message) {
 				return
 			}
 		}
-		t.Errorf("Unable to find event with reason=%s; action=%s", reason, action)
+		t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
 	}
 
 	t.Run("TestProjectCreation", func(t *testing.T) {

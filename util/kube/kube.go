@@ -42,15 +42,16 @@ const (
 )
 
 const (
-	SecretKind                = "Secret"
-	ServiceKind               = "Service"
-	EndpointsKind             = "Endpoints"
-	DeploymentKind            = "Deployment"
-	ReplicaSetKind            = "ReplicaSet"
-	StatefulSetKind           = "StatefulSet"
-	DaemonSetKind             = "DaemonSet"
-	IngressKind               = "Ingress"
-	PersistentVolumeClaimKind = "PersistentVolumeClaim"
+	SecretKind                   = "Secret"
+	ServiceKind                  = "Service"
+	EndpointsKind                = "Endpoints"
+	DeploymentKind               = "Deployment"
+	ReplicaSetKind               = "ReplicaSet"
+	StatefulSetKind              = "StatefulSet"
+	DaemonSetKind                = "DaemonSet"
+	IngressKind                  = "Ingress"
+	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
+	CustomResourceDefinitionKind = "CustomResourceDefinition"
 )
 
 const (
@@ -217,6 +218,14 @@ func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, 
 	return liveObj, nil
 }
 
+func IsCRDGroupVersionKind(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == CustomResourceDefinitionKind && gvk.Group == "apiextensions.k8s.io"
+}
+
+func IsCRD(obj *unstructured.Unstructured) bool {
+	return IsCRDGroupVersionKind(obj.GroupVersionKind())
+}
+
 func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace string, labelName string) (chan watch.Event, error) {
 	log.Infof("Start watching for resources changes with label %s in cluster %s", labelName, config.Host)
 	dynClientPool := dynamic.NewDynamicClientPool(config)
@@ -336,7 +345,9 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 				LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
 			})
 			if err != nil {
-				asyncErr = err
+				if !apierr.IsNotFound(err) {
+					asyncErr = err
+				}
 				return
 			}
 			// apply client side filtering since not every kubernetes API supports label filtering
@@ -392,7 +403,7 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 				return err
 			}
 
-			if deleteCollectionSupported || deleteSupported {
+			if deleteCollectionSupported || deleteSupported && !IsCRDGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind)) {
 				resourceInterfaces = append(resourceInterfaces, resClient{
 					dclient.Resource(&apiResource, namespace),
 					deleteCollectionSupported,
@@ -457,7 +468,7 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 			return &r, nil
 		}
 	}
-	return nil, fmt.Errorf("Server is unable to handle %s", gvk)
+	return nil, apierr.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
 }
 
 type listResult struct {
@@ -495,6 +506,7 @@ func deleteFile(path string) {
 func cleanKubectlOutput(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.Replace(s, ": error validating \"STDIN\"", "", -1)
+	s = strings.Replace(s, ": unable to recognize \"STDIN\"", "", -1)
 	s = strings.Replace(s, ": error when creating \"STDIN\"", "", -1)
 	s = strings.Replace(s, "; if you choose to ignore these errors, turn validation off with --validate=false", "", -1)
 	s = strings.Replace(s, "error: error", "error", -1)

@@ -78,9 +78,8 @@ cli-darwin: clean-debug
 argocd-util: clean-debug
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
-.PHONY: install-manifest
-install-manifest:
-	if [ "${IMAGE_NAMESPACE}" = "" ] ; then echo "IMAGE_NAMESPACE must be set to build install manifest" ; exit 1 ; fi
+.PHONY: manifests
+manifests:
 	./hack/update-manifests.sh
 
 .PHONY: server
@@ -149,7 +148,7 @@ clean: clean-debug
 precheckin: test lint
 
 .PHONY: release-precheck
-release-precheck: install-manifest
+release-precheck: manifests
 	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
 	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
 

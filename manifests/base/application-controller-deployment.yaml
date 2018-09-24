@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: application-controller
+spec:
+  selector:
+    matchLabels:
+      app: application-controller
+  template:
+    metadata:
+      labels:
+        app: application-controller
+    spec:
+      containers:
+      - command: [/argocd-application-controller, --repo-server, 'argocd-repo-server:8081']
+        image: argoproj/argocd-application-controller:latest
+        name: application-controller
+      serviceAccountName: application-controller

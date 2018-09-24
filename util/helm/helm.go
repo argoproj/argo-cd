@@ -3,6 +3,7 @@ package helm
 import (
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os/exec"
 	"path"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -80,7 +82,13 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParame
 	}
 	values := append([]string{out})
 	for _, file := range valuesFiles {
-		fileValues, err := ioutil.ReadFile(path.Join(h.path, file))
+		var fileValues []byte
+		parsedURL, err := url.ParseRequestURI(file)
+		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			fileValues, err = config.ReadRemoteFile(file)
+		} else {
+			fileValues, err = ioutil.ReadFile(path.Join(h.path, file))
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)
 		}

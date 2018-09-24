@@ -1,0 +1,31 @@
+resources:
+- application-crd.yaml
+- appproject-crd.yaml
+- argocd-cm.yaml
+- argocd-secret.yaml
+- argocd-rbac-cm.yaml
+- application-controller-sa.yaml
+- application-controller-role.yaml
+- application-controller-rolebinding.yaml
+- application-controller-deployment.yaml
+- argocd-server-sa.yaml
+- argocd-server-role.yaml
+- argocd-server-rolebinding.yaml
+- argocd-server-deployment.yaml
+- argocd-server-service.yaml
+- argocd-metrics-service.yaml
+- argocd-repo-server-deployment.yaml
+- argocd-repo-server-service.yaml
+- dex-server-sa.yaml
+- dex-server-role.yaml
+- dex-server-rolebinding.yaml
+- dex-server-deployment.yaml
+- dex-server-service.yaml
+
+imageTags:
+- name: argoproj/argocd-server
+  newTag: latest
+- name: argoproj/argocd-repo-server
+  newTag: latest
+- name: argoproj/application-controller
+  newTag: latest

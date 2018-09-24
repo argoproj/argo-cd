@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex-server
+spec:
+  selector:
+    matchLabels:
+      app: dex-server
+  template:
+    metadata:
+      labels:
+        app: dex-server
+    spec:
+      serviceAccountName: dex-server
+      initContainers:
+      - name: copyutil
+        image: argoproj/argocd-server:latest
+        command: [cp, /argocd-util, /shared]
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      containers:
+      - name: dex
+        image: quay.io/dexidp/dex:v2.11.0
+        command: [/shared/argocd-util, rundex]
+        ports:
+        - containerPort: 5556
+        - containerPort: 5557
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      volumes:
+      - emptyDir: {}
+        name: static-files

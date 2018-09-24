@@ -71,6 +71,7 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 // Inputs are assumed to be stripped of type information
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, error) {
 	orig = removeNamespaceAnnotation(orig)
+	config = removeNamespaceAnnotation(config)
 	// Remove defaulted fields from the live object.
 	// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
 	// This is needed to perform a fair comparison when we send the objects to gojsondiff

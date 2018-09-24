@@ -1,6 +1,0 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Cluster
-metadata:
-  name: production
-spec:
-  server: "http://1.2.3.4"

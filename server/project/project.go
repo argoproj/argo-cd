@@ -90,7 +90,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(project, ctx, argo.EventReasonResourceCreated, "create token")
+	s.logEvent(project, ctx, argo.EventReasonResourceCreated, "created token")
 	return &ProjectTokenResponse{Token: jwtToken}, nil
 
 }
@@ -145,7 +145,7 @@ func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(q.Project)
 	if err == nil {
-		s.logEvent(res, ctx, argo.EventReasonResourceCreated, "create")
+		s.logEvent(res, ctx, argo.EventReasonResourceCreated, "created project")
 	}
 	return res, err
 }
@@ -370,7 +370,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
 	if err == nil {
-		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "update")
+		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "updated project")
 	}
 	return res, err
 }
@@ -402,13 +402,13 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	}
 	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(q.Name, &metav1.DeleteOptions{})
 	if err == nil {
-		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "delete")
+		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
 	}
 	return &EmptyResponse{}, err
 }
 
 func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects/events", "get", q.Name) {
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
@@ -423,6 +423,12 @@ func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList
 	return s.kubeclientset.CoreV1().Events(s.ns).List(metav1.ListOptions{FieldSelector: fieldSelector})
 }
 
-func (s *Server) logEvent(p *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
-	s.auditLogger.LogAppProjEvent(p, argo.EventInfo{Reason: reason, Action: action, Username: session.Username(ctx)}, v1.EventTypeNormal)
+func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
+	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	user := session.Username(ctx)
+	if user == "" {
+		user = "Unknown user"
+	}
+	message := fmt.Sprintf("%s %s", user, action)
+	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
 }

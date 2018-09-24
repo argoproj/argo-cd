@@ -1,0 +1,380 @@
+# This is an auto-generated file. DO NOT EDIT
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: applications.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: Application
+    plural: applications
+    shortNames:
+    - app
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: appprojects.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: AppProject
+    plural: appprojects
+    shortNames:
+    - appproj
+    - appprojs
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: application-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dex-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: application-controller-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+  - list
+  - patch
+  - update
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-server-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dex-server-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: application-controller-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: application-controller-role
+subjects:
+- kind: ServiceAccount
+  name: application-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-server-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-server-role
+subjects:
+- kind: ServiceAccount
+  name: argocd-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dex-server-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dex-server-role
+subjects:
+- kind: ServiceAccount
+  name: dex-server
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-metrics
+spec:
+  ports:
+  - name: http
+    port: 8082
+    protocol: TCP
+    targetPort: 8082
+  selector:
+    app: argocd-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-repo-server
+spec:
+  ports:
+  - port: 8081
+    targetPort: 8081
+  selector:
+    app: argocd-repo-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: argocd-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex-server
+spec:
+  ports:
+  - name: http
+    port: 5556
+    protocol: TCP
+    targetPort: 5556
+  - name: grpc
+    port: 5557
+    protocol: TCP
+    targetPort: 5557
+  selector:
+    app: dex-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: application-controller
+spec:
+  selector:
+    matchLabels:
+      app: application-controller
+  template:
+    metadata:
+      labels:
+        app: application-controller
+    spec:
+      containers:
+      - command:
+        - /argocd-application-controller
+        - --repo-server
+        - argocd-repo-server:8081
+        image: argoproj/argocd-application-controller:latest
+        name: application-controller
+      serviceAccountName: application-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  selector:
+    matchLabels:
+      app: argocd-repo-server
+  template:
+    metadata:
+      labels:
+        app: argocd-repo-server
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - command:
+        - /argocd-repo-server
+        image: argoproj/argocd-repo-server:latest
+        name: argocd-repo-server
+        ports:
+        - containerPort: 8081
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          tcpSocket:
+            port: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+spec:
+  selector:
+    matchLabels:
+      app: argocd-server
+  template:
+    metadata:
+      labels:
+        app: argocd-server
+    spec:
+      containers:
+      - command:
+        - /argocd-server
+        - --staticassets
+        - /shared/app
+        - --repo-server
+        - argocd-repo-server:8081
+        image: argoproj/argocd-server:latest
+        name: argocd-server
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      initContainers:
+      - command:
+        - cp
+        - -r
+        - /app
+        - /shared
+        image: argoproj/argocd-ui:latest
+        name: ui
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      serviceAccountName: argocd-server
+      volumes:
+      - emptyDir: {}
+        name: static-files
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex-server
+spec:
+  selector:
+    matchLabels:
+      app: dex-server
+  template:
+    metadata:
+      labels:
+        app: dex-server
+    spec:
+      containers:
+      - command:
+        - /shared/argocd-util
+        - rundex
+        image: quay.io/dexidp/dex:v2.11.0
+        name: dex
+        ports:
+        - containerPort: 5556
+        - containerPort: 5557
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      initContainers:
+      - command:
+        - cp
+        - /argocd-util
+        - /shared
+        image: argoproj/argocd-server:latest
+        name: copyutil
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      serviceAccountName: dex-server
+      volumes:
+      - emptyDir: {}
+        name: static-files

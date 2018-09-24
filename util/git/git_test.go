@@ -84,6 +84,8 @@ func TestNormalizeUrl(t *testing.T) {
 		"ssh://git@GITHUB.com:argoproj/test.git": "git@github.com:argoproj/test.git",
 		"ssh://git@GITHUB.com:test.git":          "git@github.com:test.git",
 		"ssh://git@github.com:test":              "git@github.com:test.git",
+		" https://github.com/argoproj/test ":     "https://github.com/argoproj/test.git",
+		"\thttps://github.com/argoproj/test\n":   "https://github.com/argoproj/test.git",
 	}
 	for k, v := range data {
 		assert.Equal(t, v, NormalizeGitURL(k))

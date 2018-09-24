@@ -44,6 +44,7 @@ func IsTruncatedCommitSHA(sha string) bool {
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
 	// preprocess
+	repo = strings.TrimSpace(repo)
 	repo = ensureSuffix(repo, ".git")
 	if IsSSHURL(repo) {
 		repo = ensurePrefix(repo, "ssh://")

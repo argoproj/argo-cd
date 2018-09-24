@@ -2,17 +2,16 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	fmt "fmt"
+	"path/filepath"
 	"reflect"
 	"strings"
-
-	"k8s.io/client-go/tools/clientcmd/api"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
-
-	"path/filepath"
+	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/git"
@@ -29,6 +28,19 @@ type SyncOperation struct {
 	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 	// SyncStrategy describes how to perform the sync
 	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
+	// ParameterOverrides applies any parameter overrides as part of the sync
+	// If nil, uses the parameter override set in application.
+	// If empty, sets no parameter overrides
+	ParameterOverrides ParameterOverrides `json:"parameterOverrides" protobuf:"bytes,5,opt,name=parameterOverrides"`
+}
+
+// ParameterOverrides masks the value so protobuf can generate
+// +protobuf.nullable=true
+// +protobuf.options.(gogoproto.goproto_stringer)=false
+type ParameterOverrides []ComponentParameter
+
+func (po ParameterOverrides) String() string {
+	return fmt.Sprintf("%v", []ComponentParameter(po))
 }
 
 type RollbackOperation struct {
@@ -236,7 +248,7 @@ type ApplicationSpec struct {
 	// Project is a application project name. Empty name means that application belongs to 'default' project.
 	Project string `json:"project" protobuf:"bytes,3,name=project"`
 	// SyncPolicy controls when a sync will be performed
-	SyncPolicy *SyncPolicy `json:"syncPolicy" protobuf:"bytes,4,name=syncPolicy"`
+	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 }
 
 // ComponentParameter contains information about component parameter value
