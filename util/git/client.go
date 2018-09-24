@@ -243,7 +243,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	refs, err := remote.List(&git.ListOptions{})
+	refs, err := remote.List(&git.ListOptions{Auth: m.auth})
 	if err != nil {
 		return "", err
 	}
