@@ -1,10 +1,12 @@
 import * as React from 'react';
-import { Form, FormApi, Text, TextArea } from 'react-form';
+import { Form, FormApi, Text } from 'react-form';
 
 import { FormField } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams } from '../../../shared/services';
 import { ProjectRoleJWTTokens } from '../project-role-jwt-tokens/project-role-jwt-tokens';
+import { ProjectRolePoliciesEdit } from '../project-role-policies-edit/project-role-policies-edit';
+
 interface ProjectRoleDefaultParams {
     projName: string;
     role?: models.ProjectRole;
@@ -34,7 +36,7 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                     roleName: (props.defaultParams.role !== undefined ? props.defaultParams.role.name : ''),
                     description: (props.defaultParams.role !== undefined ? props.defaultParams.role.description : ''),
                     policies: (props.defaultParams.role !== undefined && props.defaultParams.role.policies !== null
-                        ? props.defaultParams.role.policies.join('\n') : ''),
+                        ? props.defaultParams.role.policies : []),
                     jwtTokens: (props.defaultParams.role !== undefined ? props.defaultParams.role.jwtTokens : []),
                 }}
                 validateError={(params: ProjectRoleParams) => ({
@@ -51,8 +53,11 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Role Description' field='description' component={Text}/>
                         </div>
-                        <h4>Policies:</h4>
-                        <FormField formApi={api} label='' field='policies' component={TextArea}/>
+                        <ProjectRolePoliciesEdit
+                            projName={api.values.projName}
+                            roleName={api.values.roleName}
+                            formApi={api} policies={api.values.policies}
+                            newRole={props.defaultParams.newRole}/>
                     </form>
                 )}
             </Form>

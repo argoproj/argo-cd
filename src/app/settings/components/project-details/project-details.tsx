@@ -203,8 +203,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                             </div>
                         </div>
                         {(proj.spec.roles || []).map((role) => (
-                            <div className='argo-table-list__row' key={`${role.name}`}
-                            onClick={() => ctx.navigation.goto(`.`, {editRole: role.name})}>
+                            <div className='argo-table-list__row' key={`${role.name}`} onClick={() => ctx.navigation.goto(`.`, {editRole: role.name})}>
                                 <div className='row'>
                                     <div className='columns small-3'>
                                         {role.name}
