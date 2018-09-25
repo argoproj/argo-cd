@@ -6,7 +6,6 @@ surfaced to the overall Application health status as a whole. The following chec
 specific types of kuberentes resources:
 
 ### Deployment, ReplicaSet, StatefulSet DaemonSet
-
 * Observed generation is equal to desired generation.
 * Number of **updated** replicas equals the number of desired replicas.
 
@@ -16,3 +15,6 @@ with at least one value for `hostname` or `IP`.
 
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
+
+### PersistentVolumeClaim
+* The `status.phase` is `Bound`
