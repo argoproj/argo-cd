@@ -29,9 +29,9 @@ func init() {
 func TestKsonnet(t *testing.T) {
 	ksApp, err := NewKsonnetApp(filepath.Join(testDataDir, testAppName))
 	assert.Nil(t, err)
-	defaultEnv, err := ksApp.GetEnvironment(testEnvName)
+	defaultDest, err := ksApp.Destination(testEnvName)
 	assert.True(t, err == nil)
-	assert.Equal(t, "https://1.2.3.4", defaultEnv.Destination.Server)
+	assert.Equal(t, "https://1.2.3.4", defaultDest.Server)
 }
 
 func TestShow(t *testing.T) {
