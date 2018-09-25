@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -174,10 +173,7 @@ func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentPar
 
 	var params []*v1alpha1.ComponentParameter
 	for _, ksParam := range ksParams.Data {
-		value, err := strconv.Unquote(ksParam.Value)
-		if err != nil {
-			value = ksParam.Value
-		}
+		value := strings.Trim(ksParam.Value, `'"`)
 		componentParam := v1alpha1.ComponentParameter{
 			Component: ksParam.Component,
 			Name:      ksParam.Key,
