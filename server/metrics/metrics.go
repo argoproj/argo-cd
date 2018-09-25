@@ -88,7 +88,7 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 	apps, err := c.store.List(labels.NewSelector())
 	if err != nil {
-		log.Warn("Failed to collect applications: %v", err)
+		log.Warnf("Failed to collect applications: %v", err)
 		return
 	}
 	for _, app := range apps {
