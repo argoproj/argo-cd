@@ -83,7 +83,7 @@ func KsonnetVersion() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to determine ksonnet version: %v", err)
 	}
-	ksonnetVersionStr := strings.Split(string(out), "\n")[0]
+	ksonnetVersionStr := strings.Split(out, "\n")[0]
 	parts := strings.SplitN(ksonnetVersionStr, ":", 2)
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unexpected version string format: %s", ksonnetVersionStr)
