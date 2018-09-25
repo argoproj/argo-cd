@@ -809,7 +809,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 		if !apierr.IsConflict(err) {
 			return nil, err
 		}
-		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", termOpReq.Name)
+		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", *termOpReq.Name)
 		time.Sleep(100 * time.Millisecond)
 		a, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*termOpReq.Name, metav1.GetOptions{})
 		if err != nil {
