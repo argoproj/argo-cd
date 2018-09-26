@@ -17,27 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
-func ksCmd(cwd string, args ...string) (string, error) {
-	cmd := exec.Command("ks", args...)
-	cmd.Dir = cwd
-
-	cmdStr := strings.Join(cmd.Args, " ")
-	log.Debug(cmdStr)
-	outBytes, err := cmd.Output()
-	if err != nil {
-		exErr, ok := err.(*exec.ExitError)
-		if !ok {
-			return "", err
-		}
-		errOutput := string(exErr.Stderr)
-		log.Errorf("`%s` failed: %s", cmdStr, errOutput)
-		return "", fmt.Errorf(strings.TrimSpace(errOutput))
-	}
-	out := string(outBytes)
-	log.Debug(out)
-	return out, nil
-}
-
 // Destination returns the deployment destination for an environment in app spec data
 func Destination(data []byte, environment string) (*v1alpha1.ApplicationDestination, error) {
 	var appSpec struct {
@@ -79,7 +58,8 @@ type KsonnetApp interface {
 
 // KsonnetVersion returns the version of ksonnet used when running ksonnet commands
 func KsonnetVersion() (string, error) {
-	out, err := ksCmd("", "version")
+	ksApp := ksonnetApp{}
+	out, err := ksApp.ksCmd("", "version")
 	if err != nil {
 		return "", fmt.Errorf("unable to determine ksonnet version: %v", err)
 	}
@@ -107,7 +87,7 @@ func NewKsonnetApp(path string) (KsonnetApp, error) {
 
 func (k *ksonnetApp) appYamlPath() (string, error) {
 	const appYamlName = "app.yaml"
-	p := filepath.Join(k.rootDir, appYamlName)
+	p := filepath.Join(k.Root(), appYamlName)
 	if _, err := os.Stat(p); err != nil {
 		return "", err
 	}
@@ -115,7 +95,24 @@ func (k *ksonnetApp) appYamlPath() (string, error) {
 }
 
 func (k *ksonnetApp) ksCmd(args ...string) (string, error) {
-	return ksCmd(k.rootDir, args...)
+	cmd := exec.Command("ks", args...)
+	cmd.Dir = k.Root()
+
+	cmdStr := strings.Join(cmd.Args, " ")
+	log.Debug(cmdStr)
+	outBytes, err := cmd.Output()
+	if err != nil {
+		exErr, ok := err.(*exec.ExitError)
+		if !ok {
+			return "", err
+		}
+		errOutput := string(exErr.Stderr)
+		log.Errorf("`%s` failed: %s", cmdStr, errOutput)
+		return "", fmt.Errorf(strings.TrimSpace(errOutput))
+	}
+	out := string(outBytes)
+	log.Debug(out)
+	return out, nil
 }
 
 func (k *ksonnetApp) Root() string {
@@ -124,7 +121,7 @@ func (k *ksonnetApp) Root() string {
 
 // Show generates a concatenated list of Kubernetes manifests in the given environment.
 func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, error) {
-	out, err := ksCmd(k.rootDir, "show", environment)
+	out, err := k.ksCmd("show", environment)
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
@@ -154,7 +151,7 @@ func (k *ksonnetApp) Destination(environment string) (*v1alpha1.ApplicationDesti
 // ListEnvParams returns list of environment parameters
 func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error) {
 	log.Infof("listing environment '%s' parameters", environment)
-	out, err := ksCmd(k.rootDir, "param", "list", "--output", "json", "--env", environment)
+	out, err := k.ksCmd("param", "list", "--output", "json", "--env", environment)
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +183,6 @@ func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentPar
 
 // SetComponentParams updates component parameter in specified environment.
 func (k *ksonnetApp) SetComponentParams(environment string, component string, param string, value string) error {
-	_, err := ksCmd(k.rootDir, "param", "set", component, param, value, "--env", environment)
+	_, err := k.ksCmd("param", "set", component, param, value, "--env", environment)
 	return err
 }
