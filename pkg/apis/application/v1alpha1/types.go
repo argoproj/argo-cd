@@ -200,7 +200,6 @@ type ResourceDetails struct {
 
 // DeploymentInfo contains information relevant to an application deployment
 type DeploymentInfo struct {
-	Params                      []ComponentParameter `json:"params" protobuf:"bytes,1,name=params"`
 	Revision                    string               `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,3,opt,name=componentParameterOverrides"`
 	DeployedAt                  metav1.Time          `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
