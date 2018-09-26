@@ -151,6 +151,7 @@ precheckin: test lint
 release-precheck: manifests
 	@if [ "$(GIT_TREE_STATE)" != "clean" ]; then echo 'git tree state is $(GIT_TREE_STATE)' ; exit 1; fi
 	@if [ -z "$(GIT_TAG)" ]; then echo 'commit must be tagged to perform release' ; exit 1; fi
+	@if [ "$(GIT_TAG)" != "v`cat VERSION`" ]; then echo 'VERSION does not match git tag'; exit 1; fi
 
 .PHONY: release
 release: release-precheck precheckin cli-darwin cli-linux server-image controller-image repo-server-image cli-image
