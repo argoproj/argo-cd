@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ghodss/yaml"
-	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/ksonnet"
 )
 
 const (
@@ -223,9 +222,13 @@ func GetSpecErrors(
 		} else {
 			switch appSourceType {
 			case repository.AppSourceKsonnet:
-				appYamlConditions := verifyAppYAML(ctx, repoRes, spec, repoClient)
-				if len(appYamlConditions) > 0 {
-					conditions = append(conditions, appYamlConditions...)
+				err := verifyAppYAML(ctx, repoRes, spec, repoClient)
+				if err != nil {
+					conditions = append(conditions, argoappv1.ApplicationCondition{
+						Type:    argoappv1.ApplicationConditionInvalidSpecError,
+						Message: err.Error(),
+					})
+
 				}
 			case repository.AppSourceHelm:
 				helmConditions := verifyHelmChart(ctx, repoRes, spec, repoClient)
@@ -321,7 +324,12 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 }
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
-func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
+func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) error {
+	// Default revision to HEAD if unspecified
+	if spec.Source.TargetRevision == "" {
+		spec.Source.TargetRevision = "HEAD"
+	}
+
 	req := repository.GetFileRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
@@ -335,47 +343,25 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
 	}
 	getRes, err := repoClient.GetFile(ctx, &req)
-	var conditions []argoappv1.ApplicationCondition
 	if err != nil {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Unable to load app.yaml: %v", err),
-		})
-	} else {
-		var appSpec app.Spec
-		err = yaml.Unmarshal(getRes.Data, &appSpec)
-		if err != nil {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: "app.yaml is not a valid ksonnet app spec",
-			})
-		} else {
-			// Default revision to HEAD if unspecified
-			if spec.Source.TargetRevision == "" {
-				spec.Source.TargetRevision = "HEAD"
-			}
-
-			// Verify the specified environment is defined in it
-			envSpec, ok := appSpec.Environments[spec.Source.Environment]
-			if !ok || envSpec == nil {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("environment '%s' does not exist in ksonnet app", spec.Source.Environment),
-				})
-			}
-
-			if envSpec != nil {
-				// If server and namespace are not supplied, pull it from the app.yaml
-				if spec.Destination.Server == "" {
-					spec.Destination.Server = envSpec.Destination.Server
-				}
-				if spec.Destination.Namespace == "" {
-					spec.Destination.Namespace = envSpec.Destination.Namespace
-				}
-			}
-		}
+		return fmt.Errorf("Unable to load app.yaml: %v", err)
 	}
-	return conditions
+
+	// Verify the specified environment is defined in the app spec
+	dest, err := ksonnet.Destination(getRes.Data, spec.Source.Environment)
+	if err != nil {
+		return err
+	}
+
+	// If server and namespace are not supplied, pull it from the app.yaml
+	if spec.Destination.Server == "" {
+		spec.Destination.Server = dest.Server
+	}
+	if spec.Destination.Namespace == "" {
+		spec.Destination.Namespace = dest.Namespace
+	}
+
+	return nil
 }
 
 // verifyHelmChart verifies a helm chart is functional

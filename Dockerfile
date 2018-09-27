@@ -49,7 +49,7 @@ RUN curl -L -o /usr/local/bin/kubectl -LO https://storage.googleapis.com/kuberne
 # Option 1: build ksonnet ourselves
 #RUN go get -v -u github.com/ksonnet/ksonnet && mv ${GOPATH}/bin/ksonnet /usr/local/bin/ks
 # Option 2: use official tagged ksonnet release
-ENV KSONNET_VERSION=0.11.0
+ENV KSONNET_VERSION=0.13.0
 RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks

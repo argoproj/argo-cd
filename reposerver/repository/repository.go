@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/go-jsonnet"
-	"github.com/ksonnet/ksonnet/pkg/app"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -196,13 +195,13 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var params []*v1alpha1.ComponentParameter
-	var env *app.EnvironmentSpec
+	var dest *v1alpha1.ApplicationDestination
 	var err error
 
 	appSourceType := IdentifyAppSourceTypeByAppDir(appPath)
 	switch appSourceType {
 	case AppSourceKsonnet:
-		targetObjs, params, env, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
+		targetObjs, params, dest, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
 	case AppSourceHelm:
 		h := helm.NewHelmApp(appPath)
 		err = h.DependencyBuild()
@@ -266,9 +265,9 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		Manifests: manifests,
 		Params:    params,
 	}
-	if env != nil {
-		res.Namespace = env.Destination.Namespace
-		res.Server = env.Destination.Server
+	if dest != nil {
+		res.Namespace = dest.Namespace
+		res.Server = dest.Server
 	}
 	return &res, nil
 }
@@ -335,7 +334,7 @@ func getFileCacheKey(commitSHA string, q *GetFileRequest) string {
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *app.EnvironmentSpec, error) {
+func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
@@ -352,8 +351,7 @@ func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) (
 			}
 		}
 	}
-	appSpec := ksApp.App()
-	env, err := appSpec.Environment(envName)
+	dest, err := ksApp.Destination(envName)
 	if err != nil {
 		return nil, nil, nil, status.Errorf(codes.NotFound, "environment %q does not exist in ksonnet app", envName)
 	}
@@ -361,7 +359,7 @@ func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) (
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return targetObjs, params, env, nil
+	return targetObjs, params, dest, nil
 }
 
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)

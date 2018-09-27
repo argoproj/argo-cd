@@ -10,16 +10,6 @@
   version = "v0.18.0"
 
 [[projects]]
-  digest = "1:6204a59b379aadf05380cf8cf3ae0f5867588ba028fe84f260312a79ae717272"
-  name = "github.com/GeertJohan/go.rice"
-  packages = [
-    ".",
-    "embedded",
-  ]
-  pruneopts = ""
-  revision = "c02ca9a983da5807ddf7d796784928f5be4afd09"
-
-[[projects]]
   digest = "1:8ec1618fc3ee146af104d6c13be250f25e5976e34557d4afbfe4b28035ce6c05"
   name = "github.com/Knetic/govaluate"
   packages = ["."]
@@ -81,14 +71,6 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
-  digest = "1:79421244ba5848aae4b0a5c41e633a04e4894cb0b164a219dc8c15ec7facb7f1"
-  name = "github.com/blang/semver"
-  packages = ["."]
-  pruneopts = ""
-  revision = "2ee87856327ba09384cabd113bc6b5d174e9ec0f"
-  version = "v3.5.1"
-
-[[projects]]
   digest = "1:e04162bd6a6d4950541bae744c968108e14913b1cebccf29f7650b573f44adb3"
   name = "github.com/casbin/casbin"
   packages = [
@@ -121,14 +103,6 @@
   packages = ["."]
   pruneopts = ""
   revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
-
-[[projects]]
-  branch = "master"
-  digest = "1:5fd5c4d4282935b7a575299494f2c09e9d2cacded7815c83aff7c1602aff3154"
-  name = "github.com/daaku/go.zipexe"
-  packages = ["."]
-  pruneopts = ""
-  revision = "a5fe2436ffcb3236e175e5149162b41cd28bd27d"
 
 [[projects]]
   digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
@@ -500,14 +474,6 @@
   version = "1.0.6"
 
 [[projects]]
-  branch = "master"
-  digest = "1:2c5ad58492804c40bdaf5d92039b0cde8b5becd2b7feeb37d7d1cc36a8aa8dbe"
-  name = "github.com/kardianos/osext"
-  packages = ["."]
-  pruneopts = ""
-  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
-
-[[projects]]
   digest = "1:41e0bed5df4f9fd04c418bf9b6b7179b3671e416ad6175332601ca1c8dc74606"
   name = "github.com/kevinburke/ssh_config"
   packages = ["."]
@@ -516,42 +482,12 @@
   version = "0.5"
 
 [[projects]]
-  digest = "1:2fe45da14d25bce0a58c5a991967149cc5d07f94be327b928a9fd306466815a3"
-  name = "github.com/ksonnet/ksonnet"
-  packages = [
-    "metadata/params",
-    "pkg/app",
-    "pkg/component",
-    "pkg/docparser",
-    "pkg/lib",
-    "pkg/log",
-    "pkg/node",
-    "pkg/params",
-    "pkg/prototype",
-    "pkg/schema",
-    "pkg/util/jsonnet",
-    "pkg/util/kslib",
-    "pkg/util/strings",
-  ]
+  branch = "master"
+  digest = "1:448b4a6e39e46d8740b00dc871f26d58dc39341b160e01267b7917132831a136"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
   pruneopts = ""
-  revision = "e943ae55d4fe256c8330a047ce8426ad9dac110c"
-  version = "v0.11.0"
-
-[[projects]]
-  digest = "1:a345c560e5609bd71b1f54993f3b087ca45eb0e6226886c642ce519de81896cb"
-  name = "github.com/ksonnet/ksonnet-lib"
-  packages = [
-    "ksonnet-gen/astext",
-    "ksonnet-gen/jsonnet",
-    "ksonnet-gen/ksonnet",
-    "ksonnet-gen/kubespec",
-    "ksonnet-gen/kubeversion",
-    "ksonnet-gen/nodemaker",
-    "ksonnet-gen/printer",
-  ]
-  pruneopts = ""
-  revision = "83f20ee933bcd13fcf4ad1b49a40c92135c5569c"
-  version = "v0.1.10"
+  revision = "b729f2633dfe35f4d1d8a32385f6685610ce1cb5"
 
 [[projects]]
   branch = "master"
@@ -693,11 +629,12 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:c92f01303e3ab3b5da92657841639cb53d1548f0d2733d12ef3b9fd9d47c869e"
+  digest = "1:01d968ff6535945510c944983eee024e81f1c949043e9bbfe5ab206ebc3588a4"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = ""
-  revision = "ea8897e79973357ba785ac2533559a6297e83c44"
+  revision = "a67f783a3814b8729bd2dac5780b5f78f8dbd64d"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -714,16 +651,6 @@
   pruneopts = ""
   revision = "e09e9389d85d8492d313d73d1469c029e710623f"
   version = "v0.1.4"
-
-[[projects]]
-  digest = "1:a35a4db30a6094deac33fdb99de9ed99fefc39a7bf06b57d9f04bcaa425bb183"
-  name = "github.com/spf13/afero"
-  packages = [
-    ".",
-    "mem",
-  ]
-  pruneopts = ""
-  revision = "9be650865eab0c12963d8753212f4f9c66cdcf12"
 
 [[projects]]
   digest = "1:2208a80fc3259291e43b30f42f844d18f4218036dff510f42c653ec9890d460a"
@@ -1473,8 +1400,6 @@
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
-    "github.com/ksonnet/ksonnet/pkg/app",
-    "github.com/ksonnet/ksonnet/pkg/component",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
@@ -1483,7 +1408,6 @@
     "github.com/sirupsen/logrus",
     "github.com/skratchdot/open-golang/open",
     "github.com/soheilhy/cmux",
-    "github.com/spf13/afero",
     "github.com/spf13/cobra",
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
