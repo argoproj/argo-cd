@@ -790,6 +790,11 @@ func (in *SyncOperation) DeepCopyInto(out *SyncOperation) {
 			(*in).DeepCopyInto(*out)
 		}
 	}
+	if in.ParameterOverrides != nil {
+		in, out := &in.ParameterOverrides, &out.ParameterOverrides
+		*out = make(ParameterOverrides, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

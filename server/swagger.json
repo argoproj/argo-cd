@@ -1358,6 +1358,7 @@
     },
     "applicationParameterOverrides": {
       "type": "object",
+      "title": "ParameterOverrides is a wrapper on a list of parameters. If omitted, the application's overrides\nin the spec will be used. If set, will use the supplied list of overrides",
       "properties": {
         "overrides": {
           "type": "array",
