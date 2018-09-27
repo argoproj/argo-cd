@@ -1,12 +1,7 @@
 package git
 
 import (
-	"errors"
-	"fmt"
-	"io/ioutil"
 	"net/url"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 )
@@ -76,69 +71,12 @@ func IsSSHURL(url string) bool {
 	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
 }
 
-const gitSSHCommand = "ssh -q -F /dev/null -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20"
-
-//TODO: Make sure every public method works with '*' repo
-
-// GetGitCommandEnvAndURL returns URL and env options for git operation
-func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey string) (string, []string, error) {
-	cmdURL := repo
-	env := os.Environ()
-	if IsSSHURL(repo) {
-		sshCmd := gitSSHCommand
-		if sshPrivateKey != "" {
-			sshFile, err := ioutil.TempFile("", "")
-			if err != nil {
-				return "", nil, err
-			}
-			_, err = sshFile.WriteString(sshPrivateKey)
-			if err != nil {
-				return "", nil, err
-			}
-			err = sshFile.Close()
-			if err != nil {
-				return "", nil, err
-			}
-			sshCmd += " -i " + sshFile.Name()
-		}
-		env = append(env, fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd))
-	} else {
-		env = append(env, "GIT_ASKPASS=")
-		repoURL, err := url.ParseRequestURI(repo)
-		if err != nil {
-			return "", nil, err
-		}
-
-		repoURL.User = url.UserPassword(username, password)
-		cmdURL = repoURL.String()
-	}
-	return cmdURL, env, nil
-}
-
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(repo, username, password string, sshPrivateKey string) error {
-	repo, env, err := GetGitCommandEnvAndURL(repo, username, password, sshPrivateKey)
+	clnt, err := NewFactory().NewClient(repo, "", username, password, sshPrivateKey)
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("git", "ls-remote", repo, "HEAD")
-	cmd.Env = env
-	_, err = cmd.Output()
-	if err != nil {
-		if exErr, ok := err.(*exec.ExitError); ok {
-			errOutput := strings.Split(string(exErr.Stderr), "\n")[0]
-			errOutput = fmt.Sprintf("%s: %s", repo, errOutput)
-			return errors.New(redactPassword(errOutput, password))
-		}
-		return err
-	}
-	return nil
-}
-
-func redactPassword(msg string, password string) string {
-	if password != "" {
-		passwordRegexp := regexp.MustCompile("\\b" + regexp.QuoteMeta(password) + "\\b")
-		msg = passwordRegexp.ReplaceAllString(msg, "*****")
-	}
-	return msg
+	_, err = clnt.LsRemote("HEAD")
+	return err
 }
