@@ -82,6 +82,9 @@ func GetGitCommandEnvAndURL(repo, username, password string, sshPrivateKey strin
 			if err != nil {
 				return "", nil, err
 			}
+
+			defer os.Remove(sshFile.Name())
+
 			_, err = sshFile.WriteString(sshPrivateKey)
 			if err != nil {
 				return "", nil, err
