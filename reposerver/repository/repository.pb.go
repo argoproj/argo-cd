@@ -46,7 +46,7 @@ func (m *ManifestRequest) Reset()         { *m = ManifestRequest{} }
 func (m *ManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*ManifestRequest) ProtoMessage()    {}
 func (*ManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e1170ea85be6baa9, []int{0}
+	return fileDescriptor_repository_49651600e73b0b40, []int{0}
 }
 func (m *ManifestRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -146,7 +146,7 @@ func (m *ManifestResponse) Reset()         { *m = ManifestResponse{} }
 func (m *ManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*ManifestResponse) ProtoMessage()    {}
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e1170ea85be6baa9, []int{1}
+	return fileDescriptor_repository_49651600e73b0b40, []int{1}
 }
 func (m *ManifestResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -224,7 +224,7 @@ func (m *ListDirRequest) Reset()         { *m = ListDirRequest{} }
 func (m *ListDirRequest) String() string { return proto.CompactTextString(m) }
 func (*ListDirRequest) ProtoMessage()    {}
 func (*ListDirRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e1170ea85be6baa9, []int{2}
+	return fileDescriptor_repository_49651600e73b0b40, []int{2}
 }
 func (m *ListDirRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -286,7 +286,7 @@ func (m *FileList) Reset()         { *m = FileList{} }
 func (m *FileList) String() string { return proto.CompactTextString(m) }
 func (*FileList) ProtoMessage()    {}
 func (*FileList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e1170ea85be6baa9, []int{3}
+	return fileDescriptor_repository_49651600e73b0b40, []int{3}
 }
 func (m *FileList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -336,7 +336,7 @@ func (m *GetFileRequest) Reset()         { *m = GetFileRequest{} }
 func (m *GetFileRequest) String() string { return proto.CompactTextString(m) }
 func (*GetFileRequest) ProtoMessage()    {}
 func (*GetFileRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e1170ea85be6baa9, []int{4}
+	return fileDescriptor_repository_49651600e73b0b40, []int{4}
 }
 func (m *GetFileRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -398,7 +398,7 @@ func (m *GetFileResponse) Reset()         { *m = GetFileResponse{} }
 func (m *GetFileResponse) String() string { return proto.CompactTextString(m) }
 func (*GetFileResponse) ProtoMessage()    {}
 func (*GetFileResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e1170ea85be6baa9, []int{5}
+	return fileDescriptor_repository_49651600e73b0b40, []int{5}
 }
 func (m *GetFileResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2099,10 +2099,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("reposerver/repository/repository.proto", fileDescriptor_repository_e1170ea85be6baa9)
+	proto.RegisterFile("reposerver/repository/repository.proto", fileDescriptor_repository_49651600e73b0b40)
 }
 
-var fileDescriptor_repository_e1170ea85be6baa9 = []byte{
+var fileDescriptor_repository_49651600e73b0b40 = []byte{
 	// 584 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x55, 0xdd, 0x8a, 0xd3, 0x40,
 	0x14, 0xde, 0x6c, 0xbb, 0xdd, 0x76, 0x2a, 0xee, 0x3a, 0x14, 0x09, 0x69, 0x29, 0x21, 0xa0, 0xf4,
