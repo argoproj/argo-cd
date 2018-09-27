@@ -14,7 +14,7 @@ interface ProjectRolePoliciesProps {
 }
 
 function generatePolicy(project: string, role: string, action?: string, object?: string, permission?: string): string {
-    return `p,proj:${project}:${role},applications,${action || ''},${project}/${object || ''},${permission || ''}`;
+    return `p, proj:${project}:${role}, applications, ${action || ''}, ${project}/${object || ''}, ${permission || ''}`;
 }
 
 const actions = ['get', 'create', 'update', 'delete', 'sync', 'rollback', 'terminateop'];
@@ -120,7 +120,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
         if (fields.length !== 6) {
             return '';
         }
-        return fields[3];
+        return fields[3].trim();
     }
 
     private setAction(action: string) {
@@ -129,7 +129,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
             this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, action, '', ''));
             return;
         }
-        fields[3] = action;
+        fields[3] = ` ${action}`;
         this.props.fieldApi.setValue(fields.join());
     }
 
@@ -138,7 +138,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
         if (fields.length !== 6) {
             return '';
         }
-        return fields[4];
+        return fields[4].trim();
     }
 
     private setObject(object: string) {
@@ -147,7 +147,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
             this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', object, ''));
             return;
         }
-        fields[4] = object;
+        fields[4] = ` ${object}`;
         this.props.fieldApi.setValue(fields.join());
     }
 
@@ -156,7 +156,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
         if (fields.length !== 6) {
             return '';
         }
-        return fields[5];
+        return fields[5].trim();
     }
     private setPermission(permission: string) {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
@@ -164,7 +164,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
             this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', permission));
             return;
         }
-        fields[5] = permission;
+        fields[5] = ` ${permission}`;
         this.props.fieldApi.setValue(fields.join());
     }
 }
