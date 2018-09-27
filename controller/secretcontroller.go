@@ -3,16 +3,9 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"runtime/debug"
 	"time"
 
-	"runtime/debug"
-
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/db"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,6 +18,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/git"
 )
 
 type SecretController struct {
@@ -93,22 +92,13 @@ func (ctrl *SecretController) getRepoConnectionState(repo *v1alpha1.Repository) 
 		ModifiedAt: repo.ConnectionState.ModifiedAt,
 		Status:     v1alpha1.ConnectionStatusUnknown,
 	}
-	closer, client, err := ctrl.repoClientset.NewRepositoryClient()
-	if err != nil {
-		log.Errorf("Unable to create repository client: %v", err)
-		return state
-	}
-
-	defer util.Close(closer)
-
-	_, err = client.ListDir(context.Background(), &repository.ListDirRequest{Repo: repo, Path: ".gitignore"})
+	err := git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
 	if err == nil {
 		state.Status = v1alpha1.ConnectionStatusSuccessful
 	} else {
 		state.Status = v1alpha1.ConnectionStatusFailed
 		state.Message = err.Error()
 	}
-
 	return state
 }
 

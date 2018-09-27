@@ -2,11 +2,8 @@ package git
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -29,7 +26,6 @@ type Client interface {
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	CommitSHA() (string, error)
-	Reset() error
 }
 
 // ClientFactory is a factory of Git Clients
@@ -40,12 +36,9 @@ type ClientFactory interface {
 
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
-	repoURL       string
-	root          string
-	username      string
-	password      string
-	sshPrivateKey string
-	auth          transport.AuthMethod
+	repoURL string
+	root    string
+	auth    transport.AuthMethod
 }
 
 type factory struct{}
@@ -56,11 +49,8 @@ func NewFactory() ClientFactory {
 
 func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey string) (Client, error) {
 	clnt := nativeGitClient{
-		repoURL:       repoURL,
-		root:          path,
-		username:      username,
-		password:      password,
-		sshPrivateKey: sshPrivateKey,
+		repoURL: repoURL,
+		root:    path,
 	}
 	if sshPrivateKey != "" {
 		signer, err := ssh.ParsePrivateKey([]byte(sshPrivateKey))
@@ -83,91 +73,61 @@ func (m *nativeGitClient) Root() string {
 
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
-	var needInit bool
-	if _, err := os.Stat(m.root); os.IsNotExist(err) {
-		needInit = true
-	} else {
-		_, err = m.runCmd("git", "status")
-		needInit = err != nil
+	_, err := git.PlainOpen(m.root)
+	if err == nil {
+		return nil
 	}
-	if needInit {
-		log.Infof("Initializing %s to %s", m.repoURL, m.root)
-		_, err := exec.Command("rm", "-rf", m.root).Output()
-		if err != nil {
-			return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
-		}
-		err = os.MkdirAll(m.root, 0755)
-		if err != nil {
-			return err
-		}
-		if _, err := m.runCmd("git", "init"); err != nil {
-			return err
-		}
-		if _, err := m.runCmd("git", "remote", "add", "origin", m.repoURL); err != nil {
-			return err
-		}
+	if err != git.ErrRepositoryNotExists {
+		return err
 	}
-	// always set credentials since it can change
-	err := m.setCredentials()
+	log.Infof("Initializing %s to %s", m.repoURL, m.root)
+	_, err = exec.Command("rm", "-rf", m.root).Output()
+	if err != nil {
+		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
+	}
+	err = os.MkdirAll(m.root, 0755)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// setCredentials sets a local credentials file to connect to a remote git repository
-func (m *nativeGitClient) setCredentials() error {
-	if m.password != "" {
-		log.Debug("Setting password credentials")
-		gitCredentialsFile := path.Join(m.root, ".git", "credentials")
-		urlObj, err := url.ParseRequestURI(m.repoURL)
-		if err != nil {
-			return err
-		}
-		urlObj.User = url.UserPassword(m.username, m.password)
-		cmdURL := urlObj.String()
-		err = ioutil.WriteFile(gitCredentialsFile, []byte(cmdURL), 0600)
-		if err != nil {
-			return fmt.Errorf("failed to set git credentials: %v", err)
-		}
-		_, err = m.runCmd("git", "config", "--local", "credential.helper", fmt.Sprintf("store --file=%s", gitCredentialsFile))
-		if err != nil {
-			return err
-		}
+	repo, err := git.PlainInit(m.root, false)
+	if err != nil {
+		return err
 	}
-	if IsSSHURL(m.repoURL) {
-		sshCmd := gitSSHCommand
-		if m.sshPrivateKey != "" {
-			log.Debug("Setting SSH credentials")
-			sshPrivateKeyFile := path.Join(m.root, ".git", "ssh-private-key")
-			err := ioutil.WriteFile(sshPrivateKeyFile, []byte(m.sshPrivateKey), 0600)
-			if err != nil {
-				return fmt.Errorf("failed to set git credentials: %v", err)
-			}
-			sshCmd += " -i " + sshPrivateKeyFile
-		}
-		_, err := m.runCmd("git", "config", "--local", "core.sshCommand", sshCmd)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: git.DefaultRemoteName,
+		URLs: []string{m.repoURL},
+	})
+	return err
 }
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
-	var err error
 	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
-	if _, err = m.runCmd("git", "fetch", "origin", "--tags", "--force"); err != nil {
+	repo, err := git.PlainOpen(m.root)
+	if err != nil {
 		return err
 	}
+	log.Debug("git fetch origin --tags --force")
+	err = repo.Fetch(&git.FetchOptions{
+		RemoteName: git.DefaultRemoteName,
+		Auth:       m.auth,
+		Tags:       git.AllTags,
+		Force:      true,
+	})
+	if err == git.NoErrAlreadyUpToDate {
+		return nil
+	}
+	return err
 	// git fetch does not update the HEAD reference. The following command will update the local
 	// knowledge of what remote considers the “default branch”
 	// See: https://stackoverflow.com/questions/8839958/how-does-origin-head-get-set
-	if _, err := m.runCmd("git", "remote", "set-head", "origin", "-a"); err != nil {
-		return err
-	}
-	return nil
+	// NOTE(jessesuen): disabling the following code because:
+	// 1. we no longer perform a `git checkout HEAD`, instead relying on `ls-remote` and checking
+	//    out a specific SHA1.
+	// 2. This command is the only other command that we use (excluding fetch/ls-remote) which
+	//    requires remote access, and there appears to be no go-git equivalent to this command.
+	// _, err = m.runCmd("git", "remote", "set-head", "origin", "-a")
+	// return err
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
@@ -179,34 +139,6 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 	// remove last element, which is blank regardless of whether we're using nullbyte or newline
 	ss := strings.Split(out, "\000")
 	return ss[:len(ss)-1], nil
-}
-
-// Reset resets local changes in a repository
-func (m *nativeGitClient) Reset() error {
-	if _, err := m.runCmd("git", "reset", "--hard", "origin/HEAD"); err != nil {
-		return err
-	}
-	// Delete all local branches (we must first detach so we are not checked out a branch we are about to delete)
-	if _, err := m.runCmd("git", "checkout", "--detach", "origin/HEAD"); err != nil {
-		return err
-	}
-	branchesOut, err := m.runCmd("git", "for-each-ref", "--format=%(refname:short)", "refs/heads/")
-	if err != nil {
-		return err
-	}
-	branchesOut = strings.TrimSpace(branchesOut)
-	if branchesOut != "" {
-		branches := strings.Split(branchesOut, "\n")
-		args := []string{"branch", "-D"}
-		args = append(args, branches...)
-		if _, err = m.runCmd("git", args...); err != nil {
-			return err
-		}
-	}
-	if _, err := m.runCmd("git", "clean", "-fd"); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Checkout checkout specified git sha
@@ -310,6 +242,8 @@ func (m *nativeGitClient) runCmd(command string, args ...string) (string, error)
 	log.Debug(strings.Join(cmd.Args, " "))
 	cmd.Dir = m.root
 	env := os.Environ()
+	env = append(env, "HOME=/dev/null")
+	env = append(env, "GIT_CONFIG_NOSYSTEM=true")
 	env = append(env, "GIT_ASKPASS=")
 	cmd.Env = env
 	out, err := cmd.Output()
