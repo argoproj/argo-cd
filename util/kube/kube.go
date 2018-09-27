@@ -226,6 +226,11 @@ func IsCRD(obj *unstructured.Unstructured) bool {
 	return IsCRDGroupVersionKind(obj.GroupVersionKind())
 }
 
+// temporal solution for https://github.com/argoproj/argo-cd/issues/650.
+func isExcludedResourceGroup(resource metav1.APIResource) bool {
+	return resource.Group == "servicecatalog.k8s.io"
+}
+
 func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace string, labelName string) (chan watch.Event, error) {
 	log.Infof("Start watching for resources changes with label %s in cluster %s", labelName, config.Host)
 	dynClientPool := dynamic.NewDynamicClientPool(config)
@@ -249,7 +254,7 @@ func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace
 					break
 				}
 			}
-			if watchSupported {
+			if watchSupported && !isExcludedResourceGroup(apiResource) {
 				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
 				if err != nil {
 					return nil, err
@@ -323,7 +328,7 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 					break
 				}
 			}
-			if listSupported {
+			if listSupported && !isExcludedResourceGroup(apiResource) {
 				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
 				if err != nil {
 					return nil, err
@@ -403,7 +408,9 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 				return err
 			}
 
-			if deleteCollectionSupported || deleteSupported && !IsCRDGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind)) {
+			if (deleteCollectionSupported || deleteSupported) &&
+				!IsCRDGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind)) &&
+				!isExcludedResourceGroup(apiResource) {
 				resourceInterfaces = append(resourceInterfaces, resClient{
 					dclient.Resource(&apiResource, namespace),
 					deleteCollectionSupported,
