@@ -1,9 +1,8 @@
-import { NotificationType } from 'argo-ui';
+import { ErrorNotification, NotificationType } from 'argo-ui';
 import * as React from 'react';
 import { Form, FormApi } from 'react-form';
 
 import { Consumer } from '../../context';
-import { ErrorNotification } from '../error-notification';
 
 interface EditablePanelProps<T> {
     title?: string;
