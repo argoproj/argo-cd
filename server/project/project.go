@@ -313,7 +313,6 @@ func validateProject(p *v1alpha1.AppProject) error {
 		} else {
 			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role.Name)
 		}
-
 	}
 
 	return nil
@@ -367,12 +366,32 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 		return nil, status.Errorf(
 			codes.InvalidArgument, "following source repos are used by one or more application and cannot be removed: %s", strings.Join(removedSrcUsed, ";"))
 	}
+	for i, role := range q.Project.Spec.Roles {
+		var normalizedPolicies []string
+		for _, policy := range role.Policies {
+			normalizedPolicies = append(normalizedPolicies, normalizePolicy(policy))
+		}
+		q.Project.Spec.Roles[i].Policies = normalizedPolicies
+	}
 
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(q.Project)
 	if err == nil {
 		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "updated project")
 	}
 	return res, err
+}
+
+func normalizePolicy(policy string) string {
+	policyComponents := strings.Split(policy, ",")
+	normalizedPolicy := ""
+	for _, component := range policyComponents {
+		if normalizedPolicy == "" {
+			normalizedPolicy = component
+		} else {
+			normalizedPolicy = fmt.Sprintf("%s, %s", normalizedPolicy, strings.Trim(component, " "))
+		}
+	}
+	return normalizedPolicy
 }
 
 // Delete deletes a project
