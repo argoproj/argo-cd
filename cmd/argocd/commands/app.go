@@ -1146,7 +1146,9 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			for _, depInfo := range app.Status.History {
 				switch output {
 				case "wide":
-					paramStr := paramString(depInfo.Params)
+					manifest, err := appIf.GetManifests(context.Background(), &application.ApplicationManifestQuery{Name: &appName, Revision: depInfo.Revision})
+					errors.CheckError(err)
+					paramStr := paramString(manifest.GetParams())
 					fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision, paramStr)
 				default:
 					fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision)
@@ -1159,7 +1161,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
-func paramString(params []argoappv1.ComponentParameter) string {
+func paramString(params []*argoappv1.ComponentParameter) string {
 	if len(params) == 0 {
 		return ""
 	}

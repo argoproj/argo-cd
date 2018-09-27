@@ -394,7 +394,6 @@ func (s *appStateManager) persistDeploymentInfo(
 	history := append(app.Status.History, v1alpha1.DeploymentInfo{
 		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		Revision:                    revision,
-		Params:                      params,
 		DeployedAt:                  metav1.NewTime(time.Now().UTC()),
 		ID:                          nextID,
 	})
