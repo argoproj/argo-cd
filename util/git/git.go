@@ -43,23 +43,32 @@ func IsTruncatedCommitSHA(sha string) bool {
 
 // NormalizeGitURL normalizes a git URL for lookup and storage
 func NormalizeGitURL(repo string) string {
-	// preprocess
 	repo = strings.TrimSpace(repo)
-	repo = ensureSuffix(repo, ".git")
 	if IsSSHURL(repo) {
 		repo = ensurePrefix(repo, "ssh://")
 	}
-
-	// process
+	if !isAzureGitURL(repo) {
+		// NOTE: not all git services support `.git` appended to their URLs (e.g. azure) so this
+		// normalization is not entirely safe.
+		repo = ensureSuffix(repo, ".git")
+	}
 	repoURL, err := url.Parse(repo)
 	if err != nil {
 		return ""
 	}
-
-	// postprocess
 	repoURL.Host = strings.ToLower(repoURL.Host)
 	normalized := repoURL.String()
 	return strings.TrimPrefix(normalized, "ssh://")
+}
+
+// isAzureGitURL returns true if supplied URL is from an Azure domain
+func isAzureGitURL(repo string) bool {
+	repoURL, err := url.Parse(repo)
+	if err != nil {
+		return false
+	}
+	hostname := repoURL.Hostname()
+	return strings.HasSuffix(hostname, "dev.azure.com") || strings.HasSuffix(hostname, "visualstudio.com")
 }
 
 // IsSSHURL returns true if supplied URL is SSH URL
