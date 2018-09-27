@@ -75,10 +75,6 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
-	err = gitClient.Init()
-	if err != nil {
-		return nil, err
-	}
 	commitSHA, err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
@@ -118,10 +114,6 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
-	err = gitClient.Init()
-	if err != nil {
-		return nil, err
-	}
 	commitSHA, err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
@@ -164,10 +156,6 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
-	err = gitClient.Init()
-	if err != nil {
-		return nil, err
-	}
 	commitSHA, err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
@@ -308,13 +296,17 @@ func IdentifyAppSourceTypeByAppPath(appFilePath string) AppSourceType {
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
-	err := gitClient.Fetch()
+	err := gitClient.Init()
 	if err != nil {
-		return "", err
+		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
+	}
+	err = gitClient.Fetch()
+	if err != nil {
+		return "", status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
 	}
 	err = gitClient.Checkout(commitSHA)
 	if err != nil {
-		return "", err
+		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
 	return gitClient.CommitSHA()
 }
