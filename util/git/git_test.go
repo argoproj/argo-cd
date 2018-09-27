@@ -72,20 +72,22 @@ func TestIsSSHURL(t *testing.T) {
 
 func TestNormalizeUrl(t *testing.T) {
 	data := map[string]string{
-		"git@GITHUB.com:argoproj/test":           "git@github.com:argoproj/test.git",
-		"git@GITHUB.com:argoproj/test.git":       "git@github.com:argoproj/test.git",
-		"git@GITHUB.com:test":                    "git@github.com:test.git",
-		"git@GITHUB.com:test.git":                "git@github.com:test.git",
-		"https://GITHUB.com/argoproj/test":       "https://github.com/argoproj/test.git",
-		"https://GITHUB.com/argoproj/test.git":   "https://github.com/argoproj/test.git",
-		"https://github.com/TEST":                "https://github.com/TEST.git",
-		"https://github.com/TEST.git":            "https://github.com/TEST.git",
-		"ssh://git@GITHUB.com:argoproj/test":     "git@github.com:argoproj/test.git",
-		"ssh://git@GITHUB.com:argoproj/test.git": "git@github.com:argoproj/test.git",
-		"ssh://git@GITHUB.com:test.git":          "git@github.com:test.git",
-		"ssh://git@github.com:test":              "git@github.com:test.git",
-		" https://github.com/argoproj/test ":     "https://github.com/argoproj/test.git",
-		"\thttps://github.com/argoproj/test\n":   "https://github.com/argoproj/test.git",
+		"git@GITHUB.com:argoproj/test":                     "git@github.com:argoproj/test.git",
+		"git@GITHUB.com:argoproj/test.git":                 "git@github.com:argoproj/test.git",
+		"git@GITHUB.com:test":                              "git@github.com:test.git",
+		"git@GITHUB.com:test.git":                          "git@github.com:test.git",
+		"https://GITHUB.com/argoproj/test":                 "https://github.com/argoproj/test.git",
+		"https://GITHUB.com/argoproj/test.git":             "https://github.com/argoproj/test.git",
+		"https://github.com/TEST":                          "https://github.com/TEST.git",
+		"https://github.com/TEST.git":                      "https://github.com/TEST.git",
+		"ssh://git@GITHUB.com:argoproj/test":               "git@github.com:argoproj/test.git",
+		"ssh://git@GITHUB.com:argoproj/test.git":           "git@github.com:argoproj/test.git",
+		"ssh://git@GITHUB.com:test.git":                    "git@github.com:test.git",
+		"ssh://git@github.com:test":                        "git@github.com:test.git",
+		" https://github.com/argoproj/test ":               "https://github.com/argoproj/test.git",
+		"\thttps://github.com/argoproj/test\n":             "https://github.com/argoproj/test.git",
+		"https://1234.visualstudio.com/myproj/_git/myrepo": "https://1234.visualstudio.com/myproj/_git/myrepo",
+		"https://dev.azure.com/1234/myproj/_git/myrepo":    "https://dev.azure.com/1234/myproj/_git/myrepo",
 	}
 	for k, v := range data {
 		assert.Equal(t, v, NormalizeGitURL(k))
