@@ -367,6 +367,8 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sensitiveMethods := map[string]bool{
 		"/session.SessionService/Create":         true,
 		"/account.AccountService/UpdatePassword": true,
+		"/repository.RepositoryService/Create":   true,
+		"/repository.RepositoryService/Update":   true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
