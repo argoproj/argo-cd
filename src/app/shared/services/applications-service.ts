@@ -3,6 +3,18 @@ import { Observable } from 'rxjs';
 import * as models from '../models';
 import requests from './requests';
 
+export interface ManifestQuery {
+    name: string;
+    revision?: string;
+}
+export interface ManifestResponse {
+    manifests: string[];
+    namespace: string;
+    server: string;
+    revision: string;
+    params: models.ComponentParameter[];
+}
+
 export class ApplicationsService {
     public list(projects: string[]): Promise<models.Application[]> {
         return requests.get('/applications').query({ project: projects }).then((res) => res.body as models.ApplicationList).then((list) => {
@@ -12,6 +24,10 @@ export class ApplicationsService {
 
     public get(name: string, refresh = false): Promise<models.Application> {
         return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
+    }
+
+    public getManifest(name: string, revision: string): Promise<ManifestResponse> {
+        return requests.get(`/applications/${name}/manifests`).query({name, revision} as ManifestQuery).then((res) => res.body as ManifestResponse);
     }
 
     public update(app: models.Application): Promise<models.Application> {

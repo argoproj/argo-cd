@@ -4,6 +4,8 @@ import * as React from 'react';
 
 import * as models from '../../../shared/models';
 
+import { DataLoader } from '../../../shared/components';
+import { services } from '../../../shared/services';
 import { getParamsWithOverridesInfo } from '../utils';
 
 require('./application-deployment-history.scss');
@@ -23,12 +25,7 @@ export const ApplicationDeploymentHistory = ({
     const recentDeployments = deployments.map((info, i) => {
         const nextDeployedAt = i === 0 ? null : deployments[i - 1].deployedAt;
         const runEnd = nextDeployedAt ? moment(nextDeployedAt) : moment();
-        let params = info.params || [];
-        if (selectedRollbackDeploymentIndex !== i) {
-            params = params.slice(0, 3);
-        }
-        const componentParams = getParamsWithOverridesInfo(params, info.componentParameterOverrides || []);
-        return {...info, componentParams, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
+        return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
 
     return (
@@ -57,21 +54,29 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                        {Array.from(info.componentParams.keys()).map((component) => (
-                            info.componentParams.get(component).map((param) => (
-                                <div className='row' key={component + param.name}>
-                                    <div className='columns small-2 application-deployment-history__param-name'>
-                                        <span>{param.component}.{param.name}:</span>
-                                    </div>
-                                    <div className='columns small-10'>
-                                        <span title={param.value}>
-                                            {param.original && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>}
-                                            {param.value}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))
-                        ))}
+                        {selectedRollbackDeploymentIndex === index ? (
+                            <DataLoader load={() => services.applications.getManifest(app.metadata.name, info.revision)}>
+                                {(manifest) => {
+                                    const componentParams = getParamsWithOverridesInfo(manifest.params, info.componentParameterOverrides || []);
+                                    return Array.from(componentParams.keys()).map((component: string) => (
+                                        componentParams.get(component).map((param: (models.ComponentParameter & {original: string})) => (
+                                            <div className='row' key={param.component + param.name}>
+                                            <div className='columns small-4 application-deployment-history__param-name'>
+                                            <span>{param.component}.{param.name}:</span>
+                                            </div>
+                                            <div className='columns small-8'>
+                                                <span title={param.value}>
+                                                    {param.original && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>}
+                                                    {param.value}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        ))
+                                    ));
+                                }}
+                            </DataLoader>
+                        )
+                        : null }
                     </div>
                 </div>
             ))}
