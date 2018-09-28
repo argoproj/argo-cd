@@ -9,6 +9,7 @@ required = [
   "k8s.io/code-generator/cmd/go-to-protobuf",
   "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
   "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
+  "golang.org/x/sync/errgroup",
 ]
 
 [[constraint]]
