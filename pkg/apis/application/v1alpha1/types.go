@@ -40,7 +40,7 @@ type SyncOperation struct {
 	// If empty, sets no parameter overrides
 	ParameterOverrides ParameterOverrides `json:"parameterOverrides" protobuf:"bytes,5,opt,name=parameterOverrides"`
 	// Resources describes which resources to sync
-	Resources []SyncOperationResource `json:"resources" protobuf:"bytes,6,opt,name=resources"`
+	Resources []SyncOperationResource `json:"resources,omitempty" protobuf:"bytes,6,opt,name=resources"`
 }
 
 // ParameterOverrides masks the value so protobuf can generate
