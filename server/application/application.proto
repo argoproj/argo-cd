@@ -58,7 +58,7 @@ message ApplicationSyncRequest {
 	optional bool prune = 4 [(gogoproto.nullable) = false];
 	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
 	optional ParameterOverrides parameter = 6;
-	optional string resources = 7 [(gogoproto.nullable) = false];
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7 [(gogoproto.nullable) = false];
 }
 
 // ParameterOverrides is a wrapper on a list of parameters. If omitted, the application's overrides
