@@ -17,6 +17,13 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 )
 
+// SyncOperationResource contains resources to sync.
+type SyncOperationResource struct {
+	Group string
+	Kind  string
+	Name  string
+}
+
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
 	// Revision is the git revision in which to sync the application to.
@@ -32,6 +39,8 @@ type SyncOperation struct {
 	// If nil, uses the parameter override set in application.
 	// If empty, sets no parameter overrides
 	ParameterOverrides ParameterOverrides `json:"parameterOverrides" protobuf:"bytes,5,opt,name=parameterOverrides"`
+	// Resources describes which resources to sync
+	Resources []SyncOperationResource `json:"resources" protobuf:"bytes,6,opt,name=resources"`
 }
 
 // ParameterOverrides masks the value so protobuf can generate
