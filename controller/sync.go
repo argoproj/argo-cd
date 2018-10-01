@@ -39,6 +39,7 @@ type syncContext struct {
 	namespace     string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
+	resources     []*appv1.SyncOperationResource
 	opState       *appv1.OperationState
 	manifestInfo  *repository.ManifestResponse
 	log           *log.Entry
@@ -163,6 +164,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		namespace:     app.Spec.Destination.Namespace,
 		syncOp:        &syncOp,
 		syncRes:       syncRes,
+		resources:     syncResources,
 		opState:       state,
 		manifestInfo:  manifestInfo,
 		log:           log.WithFields(log.Fields{"application": app.Name}),
