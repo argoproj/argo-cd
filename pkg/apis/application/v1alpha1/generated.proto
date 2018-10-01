@@ -413,6 +413,18 @@ message SyncOperation {
   // If nil, uses the parameter override set in application.
   // If empty, sets no parameter overrides
   optional ParameterOverrides parameterOverrides = 5;
+
+  // Resources describes which resources to sync
+  repeated SyncOperationResource resources = 6;
+}
+
+// SyncOperationResource contains resources to sync.
+message SyncOperationResource {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
 }
 
 // SyncOperationResult represent result of sync operation
