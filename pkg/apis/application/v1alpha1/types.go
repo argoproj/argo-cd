@@ -19,9 +19,9 @@ import (
 
 // SyncOperationResource contains resources to sync.
 type SyncOperationResource struct {
-	Group string
-	Kind  string
-	Name  string
+	Group string `protobuf:"bytes,1,opt,name=group"`
+	Kind  string `protobuf:"bytes,2,opt,name=kind"`
+	Name  string `protobuf:"bytes,3,opt,name=name"`
 }
 
 // SyncOperation contains sync operation details.
