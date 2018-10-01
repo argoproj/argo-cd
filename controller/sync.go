@@ -61,6 +61,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 
 	if state.Operation.Sync != nil {
 		syncOp = *state.Operation.Sync
+		syncResources = syncOp.Resources
 		overrides = []appv1.ComponentParameter(state.Operation.Sync.ParameterOverrides)
 		if state.SyncResult != nil {
 			syncRes = state.SyncResult
@@ -109,6 +110,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		// Take the value in the requested operation. We will resolve this to a SHA later.
 		revision = syncOp.Revision
 	}
+
 	comparison, manifestInfo, conditions, err := s.CompareAppState(app, revision, overrides)
 	if err != nil {
 		state.Phase = appv1.OperationError
@@ -265,11 +267,25 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		syncTask := syncTask{
-			liveObj:   liveObj,
-			targetObj: targetObj,
+		matchResource := func(uu ...*unstructured.Unstructured) bool {
+			if sc.resources != nil {
+				for _, r := range sc.resources {
+					for _, u := range uu {
+						if u["name"] != r.Name || u["kind"] == r.Kind || u["group"] == r.Group {
+							return false
+						}
+					}
+				}
+			}
+			return true
 		}
-		syncTasks = append(syncTasks, syncTask)
+		if matchResource(liveObj, targetObj) {
+			syncTask := syncTask{
+				liveObj:   liveObj,
+				targetObj: targetObj,
+			}
+			syncTasks = append(syncTasks, syncTask)
+		}
 	}
 	return syncTasks, true
 }
