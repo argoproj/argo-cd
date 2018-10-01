@@ -55,6 +55,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	var revision string
 	var syncOp appv1.SyncOperation
 	var syncRes *appv1.SyncOperationResult
+	var syncResources []*appv1.SyncOperationResource
 	var overrides []appv1.ComponentParameter
 
 	if state.Operation.Sync != nil {
