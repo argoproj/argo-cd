@@ -80,6 +80,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
 		s.newGRPCServer()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
+		assert.True(t, s.enf.EnforceClaims(claims, "projects", "get", existingProj.ObjectMeta.Name))
 		assert.True(t, s.enf.EnforceClaims(claims, "applications", "get", defaultTestObject))
 	})
 

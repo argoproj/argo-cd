@@ -492,6 +492,8 @@ type AppProject struct {
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
 	for _, role := range proj.Spec.Roles {
+		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.ObjectMeta.Name, role.Name, proj.ObjectMeta.Name)
+		policies = append(policies, projectPolicy)
 		policies = append(policies, role.Policies...)
 	}
 	return strings.Join(policies, "\n")
