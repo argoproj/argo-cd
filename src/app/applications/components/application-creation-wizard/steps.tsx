@@ -133,7 +133,7 @@ export class AppParams extends React.Component<{
     needValuesFiles: boolean,
     valuesFiles: string[],
     environments: string[],
-    projects: string[],
+    projects: models.Project[],
     appParams: NewAppParams,
     submitForm: Observable<any>,
     onValidationChanged: (isValid: boolean) => any,
@@ -158,14 +158,14 @@ export class AppParams extends React.Component<{
         return (
             <Form
                 validateError={(params: NewAppParams) => ({
-                    project: !params.project && 'Project is required',
+                    project: this.validateProject(params.project, this.props.projects, params.repoURL),
                     applicationName: !params.applicationName && 'Application name is required',
                     repoURL: !params.repoURL && 'Repository URL is required',
                     revision: !params.revision && 'Revision is required',
                     path: !params.path && 'Path is required',
                     environment: this.props.needEnvironment && !params.environment && 'Environment is required',
                     clusterURL: !params.clusterURL && 'Cluster URL is required',
-                    namespace: !params.namespace && 'Namespace URL is required',
+                    namespace: validateNamespace(params.namespace, this.props.projects.find((proj) => proj.metadata.name === params.project), params.clusterURL ),
                 })}
                 defaultValues={this.props.appParams}
                 getApi={(api) => this.formApi = api}
@@ -184,7 +184,14 @@ export class AppParams extends React.Component<{
                             <FormField formApi={api} label='Path' field='path' component={Text}/>
                         </div>
                         <div className='argo-form-row'>
-                            <FormField formApi={api} label='Project' field='project' component={Select} componentProps={{options: this.props.projects}} />
+                            <FormField
+                                formApi={api}
+                                label='Project'
+                                field='project'
+                                component={Select}
+                                componentProps={{options: (this.props.projects
+                                    .filter((proj) => (proj.spec.sourceRepos.some((repo) => repo === this.props.appParams.repoURL || repo === '*'))) || [])
+                                    .map((proj) => proj.metadata.name)}} />
                         </div>
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Application Name' field='applicationName' component={Text}/>
@@ -202,19 +209,92 @@ export class AppParams extends React.Component<{
                                 }} />
                             </div>
                         )}
-                        <div className='argo-form-row'>
-                            <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
-                                {(clusters) => (
-                                    <FormField  formApi={api} label='Cluster URL' field='clusterURL' componentProps={{options: clusters}} component={Select}/>
-                                )}
-                            </DataLoader>
-                        </div>
-                        <div className='argo-form-row'>
-                            <FormField formApi={api} label='Namespace' field='namespace' component={Text}/>
-                        </div>
+                        <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
+                            {(clusters) => {
+                                const projectField = 'project';
+                                const project = !api.errors[projectField] ?
+                                    this.props.projects.find((proj) => proj.metadata.name === api.getFormState().values.project) : undefined;
+                                return (
+                                <React.Fragment>
+                                    <div className='argo-form-row'>
+                                        <FormField
+                                            formApi={api}
+                                            label='Cluster URL'
+                                            field='clusterURL'
+                                            componentProps={{
+                                                options: clusters.filter((cluster) =>
+                                                    project && project.spec.destinations && project.spec.destinations.some((dest) =>
+                                                        (dest.server === cluster || dest.server === '*'))),
+                                            }}
+                                            component={Select}/>
+                                    </div>
+                                    <NamespaceField
+                                        clusterURL={api.getFormState().values.clusterURL}
+                                        formApi={api}
+                                        proj={project} />
+                                </React.Fragment>
+                                );
+                            }}
+                        </DataLoader>
                     </form>
                 )}
             </Form>
         );
     }
+
+    private validateProject(projectName: string, projects: models.Project[], sourceRepo: string): string {
+        const project = projects.find((proj) => proj.metadata.name === projectName);
+        if (project === null) {
+            return 'Project is required';
+        }
+        if (project.spec.sourceRepos.some((repo) => repo === sourceRepo || repo === '*')) {
+            return '';
+        }
+        return 'No project has access to source repo and a project is required';
+    }
 }
+
+function validateNamespace(namespace: string, project: models.Project, clusterURL: string ): string {
+    if (!namespace) {
+        return 'Namespace is required';
+    }
+    if (!project) {
+        return 'Project is required to validate a namespace';
+    }
+    const destinations = project.spec.destinations;
+    if (!destinations) {
+        return 'A destinition in your project is required';
+    }
+    if (destinations.some((dest) => ((dest.namespace === namespace || dest.namespace === '*') && (dest.server === clusterURL || dest.server === '*')))) {
+        return '';
+    }
+    return 'Project does not have the permission to deploy into this namespace and cluser';
+}
+interface NamespaceFieldProps {
+    proj: models.Project;
+    clusterURL: string;
+    formApi: FormApi;
+}
+
+const NamespaceField = (props: NamespaceFieldProps) => {
+    const namespaceField = 'namespace';
+    const namespace = props.formApi.values.namespace;
+    return (
+        <div className='argo-form-row'>
+            <datalist id='namespaces'>
+            {props.proj && ((props.proj.spec.destinations || [] ) as models.ApplicationDestination[])
+                .filter((dest) => ((dest.server === props.clusterURL || dest.server === '*') && dest.namespace !== '*'))
+                .map((dest) => <option key={dest.namespace}>{dest.namespace}</option>)
+            }
+            </datalist>
+            <label className='argo-label-placeholder'>Namespace</label>
+            <input
+                className='argo-field'
+                list='namespaces'
+                value={validateNamespace(namespace, props.proj, props.clusterURL) === '' ? namespace : ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    props.formApi.setValue('namespace', e.target.value);
+            }}/>
+            {props.formApi.errors[namespaceField] && <div className='argo-form-row__error-msg'>{props.formApi.errors[namespaceField]}</div>}
+        </div>
+    );
+};

@@ -28,7 +28,7 @@ interface State {
     appParamsValid: boolean;
     step: Step;
     loading: boolean;
-    projects: string[];
+    projects: models.Project[];
 }
 
 export interface WizardProps { onStateChanged: (state: WizardStepState) => any; createApp: (params: NewAppParams) => any; }
@@ -65,14 +65,14 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
     }
 
     public async componentDidMount() {
-        const projects = (await services.projects.list()).map((proj) => proj.metadata.name).sort((a, b) => {
-            if (a === 'default') {
+        const projects = (await services.projects.list()).sort((a, b) => {
+            if (a.metadata.name === 'default') {
                 return -1;
             }
-            if (b === 'default') {
+            if (b.metadata.name  === 'default') {
                 return 1;
             }
-            return a.localeCompare(b);
+            return a.metadata.name.localeCompare(b.metadata.name );
         });
         this.setState({projects});
     }
@@ -104,7 +104,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                 clusterURL: '',
                                 namespace: '',
                                 path: '',
-                                project: this.state.projects[0],
+                                project: this.state.projects[0].metadata.name,
                             }, step: Step.SetParams })}>Create app from directory</button>
                             <div className='application-creation-wizard__sub-title'>
                                 Browsing repository <a target='_blank' href={this.state.selectedRepo}>{this.state.selectedRepo}</a>, revision:
@@ -141,7 +141,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                     clusterURL: '',
                                     namespace: '',
                                     path: path.dirname(selectedAppDetails.helm.path),
-                                    project: this.state.projects[0],
+                                    project: this.state.projects[0].metadata.name,
                                 }, step: Step.SetParams });
                             } else if (selectedAppDetails.kustomize) {
                                 this.updateState({ selectedAppDetails, appParams: {
@@ -152,7 +152,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                     clusterURL: '',
                                     namespace: '',
                                     path: path.dirname(selectedAppDetails.kustomize.path),
-                                    project: this.state.projects[0],
+                                    project: this.state.projects[0].metadata.name,
                                 }, step: Step.SetParams });
                             }
                         } catch (e) {
@@ -188,7 +188,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                 clusterURL: selectedEnv.destination.server,
                                 namespace: selectedEnv.destination.namespace,
                                 path: path.dirname(this.state.selectedAppDetails.ksonnet.path),
-                                project: this.state.projects[0],
+                                project: this.state.projects[0].metadata.name,
                             }, step: Step.SetParams,
                         });
                     },
