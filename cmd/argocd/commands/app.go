@@ -852,12 +852,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				for _, r := range *resources {
 					fields := strings.Split(r, resourceFieldDelimiter)
 					if len(fields) != resourceFieldCount {
-						log.Fatalf("Resource should have NAME:KIND:GROUP, but instead got: %s", r)
+						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiterr)
 					}
 					rsrc := argoappv1.SyncOperationResource{
-						Name:  fields[0],
+						Group: fields[0],
 						Kind:  fields[1],
-						Group: fields[2],
+						Name:  fields[2],
 					}
 					syncResources = append(syncResources, rsrc)
 				}
@@ -904,7 +904,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
-	resources = command.Flags().StringArray("resource", nil, fmt.Sprintf("Sync only specific resources as NAME%sKIND%sGROUP. May be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
+	resources = command.Flags().StringArray("resource", nil, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
