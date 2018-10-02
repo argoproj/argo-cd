@@ -1,7 +1,8 @@
+import { FormField, getNestedField } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
-import { EditablePanel, FormField, getNestedField } from '../../../shared/components';
+import { EditablePanel } from '../../../shared/components';
 import * as models from '../../../shared/models';
 
 import { getParamsWithOverridesInfo } from '../utils';

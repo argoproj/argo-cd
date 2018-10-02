@@ -1,10 +1,11 @@
+import { FormAutocomplete, FormField, FormSelect } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
-import { ConnectionStateIcon, DataLoader, FormField, Select } from '../../../shared/components';
+import { ConnectionStateIcon, DataLoader } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -188,7 +189,7 @@ export class AppParams extends React.Component<{
                                 formApi={api}
                                 label='Project'
                                 field='project'
-                                component={Select}
+                                component={FormSelect}
                                 componentProps={{options: (this.props.projects
                                     .filter((proj) => (proj.spec.sourceRepos.some((repo) => repo === this.props.appParams.repoURL || repo === '*'))) || [])
                                     .map((proj) => proj.metadata.name)}} />
@@ -198,12 +199,12 @@ export class AppParams extends React.Component<{
                         </div>
                         {this.props.needEnvironment && (
                             <div className='argo-form-row'>
-                                <FormField formApi={api} label='Environment' field='environment' component={Select}  componentProps={{options: this.props.environments}} />
+                                <FormField formApi={api} label='Environment' field='environment' component={FormSelect}  componentProps={{options: this.props.environments}} />
                             </div>
                         )}
                         {this.props.needValuesFiles && (
                             <div className='argo-form-row'>
-                                <FormField formApi={api} label='Values Files' field='valuesFiles' component={Select} componentProps={{
+                                <FormField formApi={api} label='Values Files' field='valuesFiles' component={FormSelect} componentProps={{
                                     options: this.props.valuesFiles,
                                     multiSelect: true,
                                 }} />
@@ -214,6 +215,9 @@ export class AppParams extends React.Component<{
                                 const projectField = 'project';
                                 const project = !api.errors[projectField] ?
                                     this.props.projects.find((proj) => proj.metadata.name === api.getFormState().values.project) : undefined;
+                                const namespaces = project && ((project.spec.destinations || [] ) as models.ApplicationDestination[])
+                                    .filter((dest) => ((dest.server === api.values.clusterURL || dest.server === '*') && dest.namespace !== '*'))
+                                    .map((item) => item.namespace);
                                 return (
                                 <React.Fragment>
                                     <div className='argo-form-row'>
@@ -226,12 +230,11 @@ export class AppParams extends React.Component<{
                                                     project && project.spec.destinations && project.spec.destinations.some((dest) =>
                                                         (dest.server === cluster || dest.server === '*'))),
                                             }}
-                                            component={Select}/>
+                                            component={FormSelect}/>
                                     </div>
-                                    <NamespaceField
-                                        clusterURL={api.getFormState().values.clusterURL}
-                                        formApi={api}
-                                        proj={project} />
+                                    <div className='argo-form-row'>
+                                        <FormField field='namespace' formApi={api} component={FormAutocomplete} label='Namespace' componentProps={{options: namespaces}} />
+                                    </div>
                                 </React.Fragment>
                                 );
                             }}
@@ -263,38 +266,10 @@ function validateNamespace(namespace: string, project: models.Project, clusterUR
     }
     const destinations = project.spec.destinations;
     if (!destinations) {
-        return 'A destinition in your project is required';
+        return 'A destination in your project is required';
     }
     if (destinations.some((dest) => ((dest.namespace === namespace || dest.namespace === '*') && (dest.server === clusterURL || dest.server === '*')))) {
         return '';
     }
-    return 'Project does not have the permission to deploy into this namespace and cluser';
+    return 'Project does not have the permission to deploy into this namespace and cluster';
 }
-interface NamespaceFieldProps {
-    proj: models.Project;
-    clusterURL: string;
-    formApi: FormApi;
-}
-
-const NamespaceField = (props: NamespaceFieldProps) => {
-    const namespaceField = 'namespace';
-    const namespace = props.formApi.values.namespace;
-    return (
-        <div className='argo-form-row'>
-            <datalist id='namespaces'>
-            {props.proj && ((props.proj.spec.destinations || [] ) as models.ApplicationDestination[])
-                .filter((dest) => ((dest.server === props.clusterURL || dest.server === '*') && dest.namespace !== '*'))
-                .map((dest) => <option key={dest.namespace}>{dest.namespace}</option>)
-            }
-            </datalist>
-            <label className='argo-label-placeholder'>Namespace</label>
-            <input
-                className='argo-field'
-                list='namespaces'
-                value={validateNamespace(namespace, props.proj, props.clusterURL) === '' ? namespace : ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    props.formApi.setValue('namespace', e.target.value);
-            }}/>
-            {props.formApi.errors[namespaceField] && <div className='argo-form-row__error-msg'>{props.formApi.errors[namespaceField]}</div>}
-        </div>
-    );
-};

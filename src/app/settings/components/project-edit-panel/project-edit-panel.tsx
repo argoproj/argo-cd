@@ -1,7 +1,8 @@
+import { FormField, FormSelect } from 'argo-ui';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 
-import { DataLoader, FormField, Select } from '../../../shared/components';
+import { DataLoader } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { ProjectParams, services } from '../../../shared/services';
 
@@ -43,7 +44,7 @@ export const ProjectEditPanel = (props: {
                         {(api.values.sourceRepos as Array<string>).map((_, i) => (
                             <div key={i} className='row project-edit-panel__form-row'>
                                 <div className='columns small-12'>
-                                    <Select field={['sourceRepos', i]} options={repos}/>
+                                    <FormSelect field={['sourceRepos', i]} options={repos}/>
                                     <i className='fa fa-times' onClick={() => api.setValue('sourceRepos', removeEl(api.values.sourceRepos, i))}/>
                                 </div>
                             </div>
@@ -60,7 +61,7 @@ export const ProjectEditPanel = (props: {
                             {(api.values.destinations as Array<models.ApplicationDestination>).map((_, i) => (
                                 <div key={i} className='row project-edit-panel__form-row'>
                                     <div className='columns small-5'>
-                                        <Select field={['destinations', i, 'server']} options={clusters}/>
+                                        <FormSelect field={['destinations', i, 'server']} options={clusters}/>
                                     </div>
                                     <div className='columns small-5'>
                                         <Text className='argo-field' field={['destinations', i, 'namespace']}/>

@@ -1,7 +1,7 @@
+import { FormField } from 'argo-ui';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 
-import { FormField } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import { JwtToken } from '../../../shared/models';
 import { CreateJWTTokenParams, DeleteJWTTokenParams } from '../../../shared/services';

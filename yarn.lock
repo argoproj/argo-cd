@@ -26,6 +26,12 @@
   version "15.5.3"
   resolved "https://registry.yarnpkg.com/@types/prop-types/-/prop-types-15.5.3.tgz#bef071852dca2a2dbb65fecdb7bfb30cedae2de2"
 
+"@types/react-autocomplete@^1.8.4":
+  version "1.8.4"
+  resolved "https://registry.yarnpkg.com/@types/react-autocomplete/-/react-autocomplete-1.8.4.tgz#eeee3575ced20d0e3fe85adfadda9a95cf2d7dfa"
+  dependencies:
+    "@types/react" "*"
+
 "@types/react-dom@^16.0.6":
   version "16.0.6"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-16.0.6.tgz#f1a65a4e7be8ed5d123f8b3b9eacc913e35a1a3c"
@@ -36,6 +42,12 @@
 "@types/react-form@^2.16.0":
   version "2.16.0"
   resolved "https://registry.yarnpkg.com/@types/react-form/-/react-form-2.16.0.tgz#d152fff22483ba026d64607fb3f768d893495302"
+  dependencies:
+    "@types/react" "*"
+
+"@types/react-form@^2.16.1":
+  version "2.16.1"
+  resolved "https://registry.yarnpkg.com/@types/react-form/-/react-form-2.16.1.tgz#7b9393fab90deb0aa7ec7caec401d4fdbb91359b"
   dependencies:
     "@types/react" "*"
 
@@ -188,16 +200,19 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-argo-ui@^2.2.0-alpha3:
-  version "2.2.0-alpha3"
-  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha3.tgz#2448c1d2a1b6add248e0c92004062a95dd97acf7"
+argo-ui@^2.2.0-alpha5:
+  version "2.2.0-alpha5"
+  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha5.tgz#a7692370a9287f12196fd47a7ed213c7ee53b81b"
   dependencies:
+    "@types/react-autocomplete" "^1.8.4"
+    "@types/react-form" "^2.16.1"
     aws-sdk "^2.188.0"
     body-parser "^1.18.2"
     classnames "^2.2.5"
     dagre "^0.8.2"
     deep-equal "^1.0.1"
     express "^4.16.2"
+    express-winston "^3.0.0"
     font-awesome "^4.7.0"
     foundation-sites "^6.4.3"
     history "^4.7.2"
@@ -206,7 +221,9 @@ argo-ui@^2.2.0-alpha3:
     moment "^2.20.1"
     prop-types "^15.6.0"
     react "^16.4.1"
+    react-autocomplete "^1.8.1"
     react-dom "^16.4.1"
+    react-form "2.16.0"
     react-router-dom "^4.2.2"
     rxjs "^5.5.6"
     superagent "^3.8.2"
@@ -1186,7 +1203,7 @@ chalk@^1.1.1, chalk@^1.1.3, chalk@~1.1.0:
     strip-ansi "^3.0.0"
     supports-color "^2.0.0"
 
-chalk@^2.3.0, chalk@^2.3.1:
+chalk@^2.3.0, chalk@^2.3.1, chalk@^2.4.1:
   version "2.4.1"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-2.4.1.tgz#18c49ab16a037b6eb0152cc83e3471338215b66e"
   dependencies:
@@ -1804,6 +1821,10 @@ dom-converter@~0.1:
   dependencies:
     utila "~0.3"
 
+dom-scroll-into-view@1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/dom-scroll-into-view/-/dom-scroll-into-view-1.0.1.tgz#32abb92f0d8feca6215162aef43e4b449ab8d99c"
+
 dom-serializer@0:
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/dom-serializer/-/dom-serializer-0.1.0.tgz#073c697546ce0780ce23be4a28e293e40bc30c82"
@@ -2142,6 +2163,13 @@ expand-range@^1.8.1:
   resolved "https://registry.yarnpkg.com/expand-range/-/expand-range-1.8.2.tgz#a299effd335fe2721ebae8e257ec79644fc85337"
   dependencies:
     fill-range "^2.1.0"
+
+express-winston@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/express-winston/-/express-winston-3.0.0.tgz#4aaf495709bec875f81ae6c3fa99f550e4a544d9"
+  dependencies:
+    chalk "^2.4.1"
+    lodash "^4.17.10"
 
 express@^4.16.2:
   version "4.16.3"
@@ -4594,6 +4622,13 @@ rc@^1.1.7:
     ini "~1.3.0"
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
+
+react-autocomplete@^1.8.1:
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/react-autocomplete/-/react-autocomplete-1.8.1.tgz#ebbbc400006aa91ad538b2d14727b9e7e5d06310"
+  dependencies:
+    dom-scroll-into-view "1.0.1"
+    prop-types "^15.5.10"
 
 react-deep-force-update@^2.1.1:
   version "2.1.1"

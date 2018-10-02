@@ -1,8 +1,8 @@
-import { PopupApi } from 'argo-ui';
+import { FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
-import { DataLoader, EditablePanel, FormField, Select } from '../../../shared/components';
+import { DataLoader, EditablePanel } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -18,7 +18,7 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             view: app.spec.project,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.projects.list().then((items) => items.map((item) => item.metadata.name))}>
-                    {(projects) => <FormField formApi={formApi} field='spec.project' component={Select} componentProps={{options: projects}} />}
+                    {(projects) => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
                 </DataLoader>
             ),
         },
@@ -28,7 +28,7 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
                     {(clusters) => (
-                        <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={Select}/>
+                        <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={FormSelect}/>
                     )}
                 </DataLoader>
             ),

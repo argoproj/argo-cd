@@ -1,11 +1,11 @@
-import { MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
+import { FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Checkbox, Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 import { Observable, Subscription } from 'rxjs';
 
-import { DataLoader, ErrorNotification, FormField, Page } from '../../../shared/components';
+import { DataLoader, ErrorNotification, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import { services } from '../../../shared/services';
