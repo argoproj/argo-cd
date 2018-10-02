@@ -258,11 +258,11 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	matchResource := func(u *unstructured.Unstructured) bool {
 		for _, r := range sc.syncResources {
 			gvk := u.GroupVersionKind()
-			if u.GetName() != r.Name || gvk.Kind != r.Kind || gvk.Group != r.Group {
-				return false
+			if u.GetName() == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+				return true
 			}
 		}
-		return true
+		return false
 	}
 	syncTasks := make([]syncTask, 0)
 	for _, resourceState := range sc.comparison.Resources {
