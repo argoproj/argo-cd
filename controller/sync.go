@@ -39,7 +39,7 @@ type syncContext struct {
 	namespace     string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
-	resources     []appv1.SyncOperationResource
+	syncResources []appv1.SyncOperationResource
 	opState       *appv1.OperationState
 	manifestInfo  *repository.ManifestResponse
 	log           *log.Entry
@@ -166,7 +166,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		namespace:     app.Spec.Destination.Namespace,
 		syncOp:        &syncOp,
 		syncRes:       syncRes,
-		resources:     syncResources,
+		syncResources: syncResources,
 		opState:       state,
 		manifestInfo:  manifestInfo,
 		log:           log.WithFields(log.Fields{"application": app.Name}),
@@ -255,13 +255,11 @@ func (sc *syncContext) forceAppRefresh() {
 
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
-	matchResource := func(uu ...*unstructured.Unstructured) bool {
-		for _, r := range sc.resources {
-			for _, u := range uu {
-				gvk := u.GroupVersionKind()
-				if u.GetName() != r.Name || gvk.Kind != r.Kind || gvk.Group != r.Group {
-					return false
-				}
+	matchResource := func(u *unstructured.Unstructured) bool {
+		for _, r := range sc.syncResources {
+			gvk := u.GroupVersionKind()
+			if u.GetName() != r.Name || gvk.Kind != r.Kind || gvk.Group != r.Group {
+				return false
 			}
 		}
 		return true
@@ -278,7 +276,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		if sc.resources == nil || matchResource(liveObj, targetObj) {
+		if sc.syncResources == nil || (matchResource(liveObj) && matchResource(targetObj)) {
 			syncTask := syncTask{
 				liveObj:   liveObj,
 				targetObj: targetObj,
