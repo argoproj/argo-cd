@@ -852,7 +852,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				for _, r := range *resources {
 					fields := strings.Split(r, resourceFieldDelimiter)
 					if len(fields) != resourceFieldCount {
-						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiterr)
+						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter)
 					}
 					rsrc := argoappv1.SyncOperationResource{
 						Group: fields[0],
