@@ -823,12 +823,13 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision string
-		prune    bool
-		dryRun   bool
-		timeout  uint
-		strategy string
-		force    bool
+		revision  string
+		resources string
+		prune     bool
+		dryRun    bool
+		timeout   uint
+		strategy  string
+		force     bool
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -841,11 +842,13 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
+			splitResources := resources
 			syncReq := application.ApplicationSyncRequest{
-				Name:     &appName,
-				DryRun:   dryRun,
-				Revision: revision,
-				Prune:    prune,
+				Name:      &appName,
+				DryRun:    dryRun,
+				Revision:  revision,
+				Resources: splitResources,
+				Prune:     prune,
 			}
 			switch strategy {
 			case "apply":
@@ -882,6 +885,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
+	command.Flags().StringVar(&resources, "resources", "", "Sync only specific resources")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
