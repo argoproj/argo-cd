@@ -39,7 +39,7 @@ type syncContext struct {
 	namespace     string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
-	resources     []*appv1.SyncOperationResource
+	resources     []appv1.SyncOperationResource
 	opState       *appv1.OperationState
 	manifestInfo  *repository.ManifestResponse
 	log           *log.Entry
@@ -56,7 +56,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	var revision string
 	var syncOp appv1.SyncOperation
 	var syncRes *appv1.SyncOperationResult
-	var syncResources []*appv1.SyncOperationResource
+	var syncResources []appv1.SyncOperationResource
 	var overrides []appv1.ComponentParameter
 
 	if state.Operation.Sync != nil {
@@ -271,7 +271,8 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			if sc.resources != nil {
 				for _, r := range sc.resources {
 					for _, u := range uu {
-						if u["name"] != r.Name || u["kind"] == r.Kind || u["group"] == r.Group {
+						gvk := u.GroupVersionKind()
+						if u.GetName() != r.Name || gvk.Kind != r.Kind || gvk.Group != r.Group {
 							return false
 						}
 					}
