@@ -824,14 +824,17 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		revision  string
-		resources []string
+		resources *[]string
 		prune     bool
 		dryRun    bool
 		timeout   uint
 		strategy  string
 		force     bool
 	)
-	const resourceDelimiter = ":"
+	const (
+		resourceFieldDelimiter = ":"
+		resourceFieldCount     = 3
+	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
 		Short: "Sync an application to its target state",
@@ -843,15 +846,21 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			syncResources := []argoappv1.SyncOperationResource{}
-			for _, r := range resources {
-				fields := strings.split(r, resourceDelimiter)
-				rsrc := argoappv1.SyncOperationResource{
-					Name:  fields[0],
-					Kind:  fields[1],
-					Group: fields[2],
+			var syncResources []argoappv1.SyncOperationResource
+			if resources != nil {
+				syncResources = []argoappv1.SyncOperationResource{}
+				for _, r := range *resources {
+					fields := strings.Split(r, resourceFieldDelimiter)
+					if len(fields) != resourceFieldCount {
+						log.Fatalf("Resource should have NAME:KIND:GROUP, but instead got: %s", r)
+					}
+					rsrc := argoappv1.SyncOperationResource{
+						Name:  fields[0],
+						Kind:  fields[1],
+						Group: fields[2],
+					}
+					syncResources = append(syncResources, rsrc)
 				}
-				syncResources = append(syncResources, rsrc)
 			}
 			syncReq := application.ApplicationSyncRequest{
 				Name:      &appName,
@@ -895,7 +904,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
-	command.Flags().StringArray(&resources, "resource", "", fmt.Sprintf("Sync only specific resources as NAME%sKIND%sGROUP. May be specified repeatedly", resourceDelimiter, resourceDelimiter))
+	resources = command.Flags().StringArray("resource", nil, fmt.Sprintf("Sync only specific resources as NAME%sKIND%sGROUP. May be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
