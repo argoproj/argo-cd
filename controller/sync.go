@@ -255,6 +255,17 @@ func (sc *syncContext) forceAppRefresh() {
 
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
+	matchResource := func(uu ...*unstructured.Unstructured) bool {
+		for _, r := range sc.resources {
+			for _, u := range uu {
+				gvk := u.GroupVersionKind()
+				if u.GetName() != r.Name || gvk.Kind != r.Kind || gvk.Group != r.Group {
+					return false
+				}
+			}
+		}
+		return true
+	}
 	syncTasks := make([]syncTask, 0)
 	for _, resourceState := range sc.comparison.Resources {
 		liveObj, err := resourceState.LiveObject()
@@ -267,20 +278,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		matchResource := func(uu ...*unstructured.Unstructured) bool {
-			if sc.resources != nil {
-				for _, r := range sc.resources {
-					for _, u := range uu {
-						gvk := u.GroupVersionKind()
-						if u.GetName() != r.Name || gvk.Kind != r.Kind || gvk.Group != r.Group {
-							return false
-						}
-					}
-				}
-			}
-			return true
-		}
-		if matchResource(liveObj, targetObj) {
+		if sc.resources == nil || matchResource(liveObj, targetObj) {
 			syncTask := syncTask{
 				liveObj:   liveObj,
 				targetObj: targetObj,
