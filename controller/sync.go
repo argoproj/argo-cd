@@ -284,7 +284,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			syncTasks = append(syncTasks, syncTask)
 		}
 	}
-	return syncTasks, true
+	return syncTasks, len(syncTasks) > 0
 }
 
 // startedPreSyncPhase detects if we already started the PreSync stage of a sync operation.
