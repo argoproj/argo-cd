@@ -227,9 +227,10 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                 };
             case Step.SelectRepo:
             default:
+                const isRepoValid = this.state.selectedRepo && /((git|ssh|http(s)?)|(git@[\w.]+))(:(\/\/)?)([\w.@:/\-~]+)(\/)?/.test(this.state.selectedRepo);
                 return {
                     title: 'Select repository',
-                    canNext: () => !!this.state.selectedRepo,
+                    canNext: () => !!this.state.selectedRepo && isRepoValid,
                     next: async () => this.updateState({ step: Step.SelectApp }),
                     canPrev: () => false,
                     prev: null,
@@ -237,6 +238,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                         <DataLoader key='repos' load={() => services.reposService.list()} loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
                         {(repos) => <RepositoryList
                             selectedRepo={this.state.selectedRepo}
+                            invalidRepoURL={this.state.selectedRepo && !isRepoValid}
                             repos={repos}
                             onSelectedRepo={(repo) => this.updateState({ selectedRepo: repo })}/>}
                         </DataLoader>
