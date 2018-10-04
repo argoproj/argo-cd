@@ -206,7 +206,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     </div>
                                 )}>
                                 {this.showDeployPanel && (
-                                    <Form onSubmit={(params: any) => this.syncApplication(params.revision, params.prune)} getApi={(api) => this.formApi = api}>
+                                    <Form
+                                        defaultValues={{ revision: application.spec.source.targetRevision || 'HEAD'}}
+                                        onSubmit={(params: any) => this.syncApplication(params.revision, params.prune)} getApi={(api) => this.formApi = api}>
+
                                         {(formApi) => (
                                             <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                                 <h6>Synchronizing application manifests from <a href={application.spec.source.repoURL}>
