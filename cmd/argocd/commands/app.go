@@ -702,7 +702,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			_, err := waitOnApplicationStatus(appIf, appName, timeout, watchSync, watchHealth, watchOperations)
+			_, err := waitOnApplicationStatus(appIf, appName, timeout, watchSync, watchHealth, watchOperations, nil)
 			errors.CheckError(err)
 		},
 	}
@@ -883,7 +883,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
+			app, err := waitOnApplicationStatus(appIf, appName, timeout, false, false, true, syncResources)
 			errors.CheckError(err)
 
 			pruningRequired := 0
@@ -959,7 +959,7 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 	return updated
 }
 
-func calculateResourceStates(app *argoappv1.Application) map[string]*resourceState {
+func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
 	for _, res := range app.Status.ComparisonResult.Resources {
 		obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
@@ -967,6 +967,9 @@ func calculateResourceStates(app *argoappv1.Application) map[string]*resourceSta
 		if obj == nil {
 			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
 			errors.CheckError(err)
+		}
+		if syncResources != nil && !argo.ContainsSyncResource(obj, syncResources) {
+			continue
 		}
 		newState := newResourceState(obj.GetKind(), obj.GetName(), string(res.Status), res.Health.Status, "", "")
 		key := newState.Key()
@@ -1011,7 +1014,7 @@ func calculateResourceStates(app *argoappv1.Application) map[string]*resourceSta
 	return resStates
 }
 
-func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperation bool) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1068,7 +1071,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 			return app, nil
 		}
 
-		newStates := calculateResourceStates(app)
+		newStates := calculateResourceStates(app, syncResources)
 		for _, newState := range newStates {
 			var doPrint bool
 			stateKey := newState.Key()
@@ -1235,7 +1238,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
+			_, err = waitOnApplicationStatus(appIf, appName, timeout, false, false, true, nil)
 			errors.CheckError(err)
 		},
 	}
