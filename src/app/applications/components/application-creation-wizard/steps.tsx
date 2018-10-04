@@ -7,6 +7,7 @@ import { Observable, Subscription } from 'rxjs';
 import { DataLoader } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
+import { ValueFiles } from './value-files';
 
 export const AppsList = (props: {
     apps: models.AppInfo[],
@@ -182,10 +183,9 @@ export class AppParams extends React.Component<{
                         )}
                         {this.props.needValuesFiles && (
                             <div className='argo-form-row'>
-                                <FormField formApi={api} label='Values Files' field='valuesFiles' component={FormSelect} componentProps={{
-                                    options: this.props.valuesFiles,
-                                    multiSelect: true,
-                                }} />
+                                <FormField formApi={api} label='Values Files' field='valuesFiles' componentProps={{
+                                    paths: this.props.valuesFiles,
+                                }}  component={ValueFiles} />
                             </div>
                         )}
                         <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
