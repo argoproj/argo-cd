@@ -253,22 +253,6 @@ func (sc *syncContext) forceAppRefresh() {
 	sc.comparison.ComparedAt = metav1.Time{}
 }
 
-// ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
-// ContainsSyncResource returns false if either argument is nil.
-func containsSyncResource(u *unstructured.Unstructured, rr []appv1.SyncOperationResource) bool {
-	if u == nil || rr == nil {
-		return false
-	}
-
-	for _, r := range rr {
-		gvk := u.GroupVersionKind()
-		if u.GetName() == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
-			return true
-		}
-	}
-	return false
-}
-
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	syncTasks := make([]syncTask, 0)
@@ -283,7 +267,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		if sc.syncResources == nil || (containsSyncResource(liveObj, sc.syncResources) && containsSyncResource(targetObj, sc.syncResources)) {
+		if sc.syncResources == nil || (argo.ContainsSyncResource(liveObj, sc.syncResources) && argo.ContainsSyncResource(targetObj, sc.syncResources)) {
 			syncTask := syncTask{
 				liveObj:   liveObj,
 				targetObj: targetObj,
