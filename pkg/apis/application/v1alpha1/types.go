@@ -24,6 +24,15 @@ type SyncOperationResource struct {
 	Name  string `protobuf:"bytes,3,opt,name=name"`
 }
 
+// HasIdentity determines whether a sync operation is identified by a manifest.
+func (r SyncOperationResource) HasIdentity(u *unstructured.Unstructured) bool {
+	gvk := u.GroupVersionKind()
+	if u.GetName() == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+		return true
+	}
+	return false
+}
+
 // SyncOperation contains sync operation details.
 type SyncOperation struct {
 	// Revision is the git revision in which to sync the application to.

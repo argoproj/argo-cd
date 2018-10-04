@@ -467,8 +467,7 @@ func ContainsSyncResource(u *unstructured.Unstructured, rr []argoappv1.SyncOpera
 	}
 
 	for _, r := range rr {
-		gvk := u.GroupVersionKind()
-		if u.GetName() == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+		if r.HasIdentity(u) {
 			return true
 		}
 	}
