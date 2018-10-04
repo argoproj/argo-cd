@@ -62,7 +62,13 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
-		return nil, err
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+			repo = &appsv1.Repository{
+				Repo: q.Repo,
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	// Test the repo
@@ -115,7 +121,13 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
-		return nil, err
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+			repo = &appsv1.Repository{
+				Repo: q.Repo,
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	// Test the repo
