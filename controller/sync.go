@@ -111,7 +111,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
-	comparison, manifestInfo, conditions, err := s.CompareAppState(app, revision, overrides)
+	comparison, manifestInfo, conditions, err := s.CompareAppState(app, revision, overrides, syncResources)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
@@ -253,17 +253,28 @@ func (sc *syncContext) forceAppRefresh() {
 	sc.comparison.ComparedAt = metav1.Time{}
 }
 
-// generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
-func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
-	matchResource := func(u *unstructured.Unstructured) bool {
-		for _, r := range sc.syncResources {
-			gvk := u.GroupVersionKind()
-			if u.GetName() == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
-				return true
-			}
-		}
+// ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
+// ContainsSyncResource returns false if the provided resource is nil.
+// ContainsSyncResource returns true if the slice of resources is nil.
+func containsSyncResource(u *unstructured.Unstructured, rr []appv1.SyncOperationResource) bool {
+	if u == nil {
 		return false
 	}
+	if rr == nil {
+		return true
+	}
+
+	for _, r := range rr {
+		gvk := u.GroupVersionKind()
+		if u.GetName() == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+			return true
+		}
+	}
+	return false
+}
+
+// generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
+func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	syncTasks := make([]syncTask, 0)
 	for _, resourceState := range sc.comparison.Resources {
 		liveObj, err := resourceState.LiveObject()
@@ -276,7 +287,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		if sc.syncResources == nil || (matchResource(liveObj) && matchResource(targetObj)) {
+		if containsSyncResource(liveObj, sc.syncResources) && containsSyncResource(targetObj, sc.syncResources) {
 			syncTask := syncTask{
 				liveObj:   liveObj,
 				targetObj: targetObj,

@@ -31,7 +31,7 @@ const (
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
+	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, syncResources []v1alpha1.SyncOperationResource) (
 		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
@@ -85,7 +85,7 @@ func groupLiveObjects(liveObjs []*unstructured.Unstructured, targetObjs []*unstr
 	return liveByFullName
 }
 
-func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
+func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, syncResources []v1alpha1.SyncOperationResource) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	repo := s.getRepo(app.Spec.Source.RepoURL)
 	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
 	if err != nil {
@@ -138,7 +138,9 @@ func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision stri
 		if isHook(obj) {
 			continue
 		}
-		targetObjs = append(targetObjs, obj)
+		if containsSyncResource(obj, syncResources) {
+			targetObjs = append(targetObjs, obj)
+		}
 	}
 	return targetObjs, manifestInfo, nil
 }
@@ -211,12 +213,12 @@ func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*u
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
+func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, syncResources []v1alpha1.SyncOperationResource) (
 	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error) {
 
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	targetObjs, manifestInfo, err := s.getTargetObjs(app, revision, overrides)
+	targetObjs, manifestInfo, err := s.getTargetObjs(app, revision, overrides, syncResources)
 	if err != nil {
 		targetObjs = make([]*unstructured.Unstructured, 0)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
@@ -262,7 +264,7 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	comparisonStatus := v1alpha1.ComparisonStatusSynced
 
 	resources := make([]v1alpha1.ResourceState, len(targetObjs))
-	for i := 0; i < len(targetObjs); i++ {
+	for i, targetObj := range targetObjs {
 		resState := v1alpha1.ResourceState{
 			ChildLiveResources: make([]v1alpha1.ResourceNode, 0),
 		}
@@ -275,13 +277,13 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			resState.Status = v1alpha1.ComparisonStatusSynced
 		}
 
-		if targetObjs[i] == nil {
+		if targetObj == nil {
 			resState.TargetState = "null"
 			// Set resource state to 'OutOfSync' since target resource is missing and live resource is unexpected
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
 			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
 		} else {
-			targetObjBytes, err := json.Marshal(targetObjs[i].Object)
+			targetObjBytes, err := json.Marshal(targetObj.Object)
 			if err != nil {
 				return nil, nil, nil, err
 			}
