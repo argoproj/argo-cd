@@ -1,9 +1,13 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -25,6 +29,13 @@ type kubectlOutput struct {
 
 type mockKubectlCmd struct {
 	commands map[string]kubectlOutput
+	events   chan watch.Event
+}
+
+func (k mockKubectlCmd) WatchResources(
+	ctx context.Context, config *rest.Config, namespace string, selector func(kind schema.GroupVersionKind) v1.ListOptions) (chan watch.Event, error) {
+
+	return k.events, nil
 }
 
 func (k mockKubectlCmd) DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error {

@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -148,12 +149,28 @@ func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, it
 			}
 		}()
 		config := item.RESTConfig()
-		ch, err := kube.WatchResourcesWithLabel(ctx, config, "", common.LabelApplicationName)
+		watchStartTime := time.Now()
+		ch, err := ctrl.kubectl.WatchResources(ctx, config, "", func(gvk schema.GroupVersionKind) metav1.ListOptions {
+			ops := metav1.ListOptions{}
+			if !kube.IsCRDGroupVersionKind(gvk) {
+				ops.LabelSelector = common.LabelApplicationName
+			}
+			return ops
+		})
+
 		if err != nil {
 			return err
 		}
 		for event := range ch {
 			eventObj := event.Object.(*unstructured.Unstructured)
+			if kube.IsCRD(eventObj) {
+				// restart if new CRD has been created after watch started
+				if event.Type == watch.Added && watchStartTime.Before(eventObj.GetCreationTimestamp().Time) {
+					return fmt.Errorf("Restarting the watch because a new CRD was added.")
+				} else if event.Type == watch.Deleted {
+					return fmt.Errorf("Restarting the watch because a CRD was deleted.")
+				}
+			}
 			objLabels := eventObj.GetLabels()
 			if objLabels == nil {
 				objLabels = make(map[string]string)
