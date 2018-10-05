@@ -1063,31 +1063,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 			refresh = true
 		}
 		// consider skipped checks successful
-		synced := false
-		if syncResources != nil {
-			synced = !watchSync || app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
-		} else if watchSync {
-			synced = true
-			for _, res := range app.Status.ComparisonResult.Resources {
-				if synced == false {
-					break
-				}
-				for _, s := range syncResources {
-					obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-					errors.CheckError(err)
-					if obj == nil {
-						obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-						errors.CheckError(err)
-					}
-					if s.HasIdentity(obj) && res.Status != argoappv1.ComparisonStatusSynced {
-						synced = false
-						break
-					}
-				}
-			}
-		} else {
-			synced = true
-		}
+		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
 		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
 		operational := !watchOperation || appEvent.Application.Operation == nil
 		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {
