@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/common"
@@ -93,4 +94,29 @@ func TestWaitForRefresh(t *testing.T) {
 	app, err = WaitForRefresh(appIf, "test-app", &oneHundredMs)
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
+}
+
+func TestContainsSyncResource(t *testing.T) {
+	var (
+		blankUnstructured unstructured.Unstructured
+		blankResource     argoappv1.SyncOperationResource
+		helloResource     argoappv1.SyncOperationResource = argoappv1.SyncOperationResource{Name: "hello"}
+	)
+	tables := []struct {
+		u        *unstructured.Unstructured
+		rr       []argoappv1.SyncOperationResource
+		expected bool
+	}{
+		{nil, nil, false},
+		{nil, []argoappv1.SyncOperationResource{}, false},
+		{&blankUnstructured, []argoappv1.SyncOperationResource{}, false},
+		{&blankUnstructured, []argoappv1.SyncOperationResource{blankResource}, true},
+		{&blankUnstructured, []argoappv1.SyncOperationResource{helloResource}, false},
+	}
+
+	for _, table := range tables {
+		if out := ContainsSyncResource(table.u, table.rr); out != table.expected {
+			t.Errorf("Expected %t for slice %+v conains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
+		}
+	}
 }
