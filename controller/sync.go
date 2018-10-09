@@ -267,7 +267,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		if sc.syncResources == nil || (argo.ContainsSyncResource(liveObj, sc.syncResources) && argo.ContainsSyncResource(targetObj, sc.syncResources)) {
+		if sc.syncResources == nil || argo.ContainsSyncResource(liveObj, sc.syncResources) || argo.ContainsSyncResource(targetObj, sc.syncResources) {
 			syncTask := syncTask{
 				liveObj:   liveObj,
 				targetObj: targetObj,
