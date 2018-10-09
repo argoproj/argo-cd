@@ -19,9 +19,9 @@ import (
 
 // SyncOperationResource contains resources to sync.
 type SyncOperationResource struct {
-	Group string `protobuf:"bytes,1,opt,name=group"`
-	Kind  string `protobuf:"bytes,2,opt,name=kind"`
-	Name  string `protobuf:"bytes,3,opt,name=name"`
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
