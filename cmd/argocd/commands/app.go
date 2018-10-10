@@ -702,7 +702,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			_, err := waitOnApplicationStatus(appIf, appName, timeout, watchSync, watchHealth, watchOperations)
+			_, err := waitOnApplicationStatus(appIf, appName, timeout, watchSync, watchHealth, watchOperations, nil)
 			errors.CheckError(err)
 		},
 	}
@@ -823,12 +823,17 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision string
-		prune    bool
-		dryRun   bool
-		timeout  uint
-		strategy string
-		force    bool
+		revision  string
+		resources *[]string
+		prune     bool
+		dryRun    bool
+		timeout   uint
+		strategy  string
+		force     bool
+	)
+	const (
+		resourceFieldDelimiter = ":"
+		resourceFieldCount     = 3
 	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
@@ -841,11 +846,28 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
+			var syncResources []argoappv1.SyncOperationResource
+			if resources != nil {
+				syncResources = []argoappv1.SyncOperationResource{}
+				for _, r := range *resources {
+					fields := strings.Split(r, resourceFieldDelimiter)
+					if len(fields) != resourceFieldCount {
+						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
+					}
+					rsrc := argoappv1.SyncOperationResource{
+						Group: fields[0],
+						Kind:  fields[1],
+						Name:  fields[2],
+					}
+					syncResources = append(syncResources, rsrc)
+				}
+			}
 			syncReq := application.ApplicationSyncRequest{
-				Name:     &appName,
-				DryRun:   dryRun,
-				Revision: revision,
-				Prune:    prune,
+				Name:      &appName,
+				DryRun:    dryRun,
+				Revision:  revision,
+				Resources: syncResources,
+				Prune:     prune,
 			}
 			switch strategy {
 			case "apply":
@@ -861,7 +883,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
+			app, err := waitOnApplicationStatus(appIf, appName, timeout, false, false, true, syncResources)
 			errors.CheckError(err)
 
 			pruningRequired := 0
@@ -882,6 +904,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
+	resources = command.Flags().StringArray("resource", nil, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
@@ -936,7 +959,7 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 	return updated
 }
 
-func calculateResourceStates(app *argoappv1.Application) map[string]*resourceState {
+func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
 	for _, res := range app.Status.ComparisonResult.Resources {
 		obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
@@ -944,6 +967,9 @@ func calculateResourceStates(app *argoappv1.Application) map[string]*resourceSta
 		if obj == nil {
 			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
 			errors.CheckError(err)
+		}
+		if syncResources != nil && !argo.ContainsSyncResource(obj, syncResources) {
+			continue
 		}
 		newState := newResourceState(obj.GetKind(), obj.GetName(), string(res.Status), res.Health.Status, "", "")
 		key := newState.Key()
@@ -988,7 +1014,7 @@ func calculateResourceStates(app *argoappv1.Application) map[string]*resourceSta
 	return resStates
 }
 
-func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync, watchHealth, watchOperation bool) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1045,7 +1071,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 			return app, nil
 		}
 
-		newStates := calculateResourceStates(app)
+		newStates := calculateResourceStates(app, syncResources)
 		for _, newState := range newStates {
 			var doPrint bool
 			stateKey := newState.Key()
@@ -1212,7 +1238,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(appIf, appName, timeout, false, false, true)
+			_, err = waitOnApplicationStatus(appIf, appName, timeout, false, false, true, nil)
 			errors.CheckError(err)
 		},
 	}

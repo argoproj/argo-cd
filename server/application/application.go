@@ -748,6 +748,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 			DryRun:             syncReq.DryRun,
 			SyncStrategy:       syncReq.Strategy,
 			ParameterOverrides: parameterOverrides,
+			Resources:          syncReq.Resources,
 		},
 	}
 	a, err = argo.SetAppOperation(ctx, appIf, s.auditLogger, *syncReq.Name, &op)

@@ -1320,6 +1320,12 @@
           "type": "boolean",
           "format": "boolean"
         },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncOperationResource"
+          }
+        },
         "revision": {
           "type": "string"
         },
@@ -2630,12 +2636,34 @@
           "format": "boolean",
           "title": "Prune deletes resources that are no longer tracked in git"
         },
+        "resources": {
+          "type": "array",
+          "title": "Resources describes which resources to sync",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncOperationResource"
+          }
+        },
         "revision": {
           "description": "Revision is the git revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
         },
         "syncStrategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
+        }
+      }
+    },
+    "v1alpha1SyncOperationResource": {
+      "description": "SyncOperationResource contains resources to sync.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
         }
       }
     },

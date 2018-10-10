@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -456,4 +457,19 @@ func SetAppOperation(ctx context.Context, appIf v1alpha1.ApplicationInterface, a
 		}
 		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 	}
+}
+
+// ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
+// ContainsSyncResource returns false if either argument is nil.
+func ContainsSyncResource(u *unstructured.Unstructured, rr []argoappv1.SyncOperationResource) bool {
+	if u == nil || rr == nil {
+		return false
+	}
+
+	for _, r := range rr {
+		if r.HasIdentity(u) {
+			return true
+		}
+	}
+	return false
 }

@@ -39,6 +39,7 @@ type syncContext struct {
 	namespace     string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
+	syncResources []appv1.SyncOperationResource
 	opState       *appv1.OperationState
 	manifestInfo  *repository.ManifestResponse
 	log           *log.Entry
@@ -55,10 +56,12 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	var revision string
 	var syncOp appv1.SyncOperation
 	var syncRes *appv1.SyncOperationResult
+	var syncResources []appv1.SyncOperationResource
 	var overrides []appv1.ComponentParameter
 
 	if state.Operation.Sync != nil {
 		syncOp = *state.Operation.Sync
+		syncResources = syncOp.Resources
 		overrides = []appv1.ComponentParameter(state.Operation.Sync.ParameterOverrides)
 		if state.SyncResult != nil {
 			syncRes = state.SyncResult
@@ -107,6 +110,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		// Take the value in the requested operation. We will resolve this to a SHA later.
 		revision = syncOp.Revision
 	}
+
 	comparison, manifestInfo, conditions, err := s.CompareAppState(app, revision, overrides)
 	if err != nil {
 		state.Phase = appv1.OperationError
@@ -162,6 +166,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		namespace:     app.Spec.Destination.Namespace,
 		syncOp:        &syncOp,
 		syncRes:       syncRes,
+		syncResources: syncResources,
 		opState:       state,
 		manifestInfo:  manifestInfo,
 		log:           log.WithFields(log.Fields{"application": app.Name}),
@@ -262,13 +267,15 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		syncTask := syncTask{
-			liveObj:   liveObj,
-			targetObj: targetObj,
+		if sc.syncResources == nil || argo.ContainsSyncResource(liveObj, sc.syncResources) || argo.ContainsSyncResource(targetObj, sc.syncResources) {
+			syncTask := syncTask{
+				liveObj:   liveObj,
+				targetObj: targetObj,
+			}
+			syncTasks = append(syncTasks, syncTask)
 		}
-		syncTasks = append(syncTasks, syncTask)
 	}
-	return syncTasks, true
+	return syncTasks, len(syncTasks) > 0
 }
 
 // startedPreSyncPhase detects if we already started the PreSync stage of a sync operation.
