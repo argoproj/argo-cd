@@ -45,9 +45,8 @@ function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.Resou
     });
 }
 
-function sortNodes(nodes: models.ResourceNode[]): models.ResourceNode[] {
-    return nodes.slice().sort(
-        (first, second) => `${first.state.metadata.namespace}/${first.state.metadata.name}`.localeCompare(`${second.state.metadata.namespace}/${second.state.metadata.name}`));
+function compareState(first: models.State, second: models.State) {
+    return `${first.kind}/${first.metadata.namespace}/${first.metadata.name}`.localeCompare(`${second.kind}/${second.metadata.namespace}/${second.metadata.name}`);
 }
 
 export const ApplicationResourcesTree = (props: {
@@ -65,16 +64,18 @@ export const ApplicationResourcesTree = (props: {
 
     function addChildren<T extends (models.ResourceNode | models.ResourceState) & { fullName: string, children: models.ResourceNode[] }>(node: T) {
         graph.setNode(node.fullName, Object.assign({}, node, { width: NODE_WIDTH, height: NODE_HEIGHT}));
-        for (const child of sortNodes(node.children || [])) {
+        for (const child of (node.children || []).slice().sort((first, second) => compareState(first.state, second.state))) {
             const fullName = `${child.state.kind}:${child.state.metadata.name}`;
             addChildren({...child, fullName});
             graph.setEdge(node.fullName, fullName);
         }
     }
 
-    for (const node of (props.app.status.comparisonResult.resources || [])) {
-        const state = node.liveState || node.targetState;
-        addChildren({...node, children: node.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
+    const resources = (props.app.status.comparisonResult.resources || []).slice().sort(
+        (first, second) => compareState(first.targetState || first.liveState, second.targetState || second.liveState));
+    for (const res of resources) {
+        const state = res.liveState || res.targetState;
+        addChildren({...res, children: res.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
         graph.setEdge(`${props.app.kind}:${props.app.metadata.name}`, `${state.kind}:${state.metadata.name}`);
     }
 
