@@ -5,7 +5,11 @@ import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
 export const PodsLogsViewer = (props: { applicationName: string, pod: models.ResourceNode & any, containerIndex: number }) => {
-    const container = props.pod.spec.containers[props.containerIndex];
+    const containers = (props.pod.spec.initContainers || []).concat(props.pod.spec.containers || []);
+    const container = containers[props.containerIndex];
+    if (!container) {
+        return <div>Pod does not have container with index {props.containerIndex}</div>;
+    }
     const isRunning = props.pod.status.phase === 'Running';
     return (
         <div style={{height: '100%'}}>

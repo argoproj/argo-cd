@@ -402,6 +402,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             title: 'EVENTS', key: 'events', content: <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={resourceNode}/>,
         });
         if (resourceNode.state.kind === 'Pod') {
+            const containerGroups = [{
+                offset: 0,
+                title: 'INIT CONTAINERS',
+                containers: resourceNode.state.spec.initContainers || [],
+            }, {
+                offset: (resourceNode.state.spec.initContainers || []).length,
+                title: 'CONTAINERS',
+                containers: resourceNode.state.spec.containers || [],
+            }];
             tabs = tabs.concat([{
                 key: 'logs',
                 title: 'LOGS',
@@ -409,11 +418,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     <div className='application-details__tab-content-full-height'>
                         <div className='row'>
                             <div className='columns small-3 medium-2'>
-                                <p>CONTAINERS:</p>
-                                {resourceNode.state.spec.containers.map((container: any, i: number) => (
-                                    <div className='application-details__container' key={container.name} onClick={() => this.selectNode(this.selectedNodeFullName, i)}>
-                                        {i === this.selectedNodeContainer.container && <i className='fa fa-angle-right'/>}
-                                        <span title={container.name}>{container.name}</span>
+                                {containerGroups.map((group) => (
+                                    <div key={group.title} style={{marginBottom: '1em'}}>
+                                        {group.containers.length > 0 && <p>{group.title}:</p>}
+                                        {group.containers.map((container: any, i: number) => (
+                                            <div className='application-details__container' key={container.name} onClick={() => this.selectNode(
+                                                    this.selectedNodeFullName, group.offset + i)}>
+                                                {(group.offset + i) === this.selectedNodeContainer.container && <i className='fa fa-angle-right'/>}
+                                                <span title={container.name}>{container.name}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 ))}
                             </div>
