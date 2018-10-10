@@ -1,5 +1,7 @@
 import { Layout, NavigationManager, NotificationInfo, Notifications, NotificationsManager, Popup, PopupManager, PopupProps } from 'argo-ui';
+import * as cookie from 'cookie';
 import createHistory from 'history/createBrowserHistory';
+import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
@@ -37,10 +39,30 @@ const navItems = [{
     iconClassName: 'argo-icon-docs',
 }];
 
-requests.onError.subscribe((err) => {
+async function isExpiredSSO() {
+    try {
+        const token = cookie.parse(document.cookie)['argocd.token'];
+        if (token) {
+            const jwtToken = jwtDecode(token) as any;
+            if (jwtToken.iss && jwtToken.iss !== 'argocd') {
+                const authSettings = await services.authService.settings();
+                return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0;
+            }
+        }
+    } catch {
+        return false;
+    }
+    return false;
+}
+
+requests.onError.subscribe(async (err) => {
     if (err.status === 401) {
         if (!history.location.pathname.startsWith('/login')) {
-            history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
+            if (await isExpiredSSO()) {
+                window.location.pathname = `/auth/login?return_url=${encodeURIComponent(location.href)}`;
+            } else {
+                history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
+            }
         }
     }
 });
