@@ -275,6 +275,13 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			syncTasks = append(syncTasks, syncTask)
 		}
 	}
+	if len(syncTasks) == 0 {
+		if len(sc.comparison.Resources) == 0 {
+			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Application has no resources"))
+		} else {
+			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Specified resources filter does not match any application resource"))
+		}
+	}
 	return syncTasks, len(syncTasks) > 0
 }
 
