@@ -70,34 +70,6 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 			syncRes = &appv1.SyncOperationResult{}
 			state.SyncResult = syncRes
 		}
-	} else if state.Operation.Rollback != nil {
-		var deploymentInfo *appv1.DeploymentInfo
-		for _, info := range app.Status.History {
-			if info.ID == app.Operation.Rollback.ID {
-				deploymentInfo = &info
-				break
-			}
-		}
-		if deploymentInfo == nil {
-			state.Phase = appv1.OperationFailed
-			state.Message = fmt.Sprintf("application %s does not have deployment with id %v", app.Name, app.Operation.Rollback.ID)
-			return
-		}
-		// Rollback is just a convenience around Sync
-		syncOp = appv1.SyncOperation{
-			Revision:     deploymentInfo.Revision,
-			DryRun:       state.Operation.Rollback.DryRun,
-			Prune:        state.Operation.Rollback.Prune,
-			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
-		}
-		overrides = deploymentInfo.ComponentParameterOverrides
-		if state.RollbackResult != nil {
-			syncRes = state.RollbackResult
-			revision = state.RollbackResult.Revision
-		} else {
-			syncRes = &appv1.SyncOperationResult{}
-			state.RollbackResult = syncRes
-		}
 	} else {
 		state.Phase = appv1.OperationFailed
 		state.Message = "Invalid operation request: no operation specified"

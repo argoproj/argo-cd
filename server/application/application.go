@@ -775,18 +775,36 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "Rollback cannot be initiated when auto-sync is enabled")
 	}
-	op := appv1.Operation{
-		Rollback: &appv1.RollbackOperation{
-			ID:     rollbackReq.ID,
-			Prune:  rollbackReq.Prune,
-			DryRun: rollbackReq.DryRun,
-		},
+
+	var deploymentInfo *appv1.DeploymentInfo
+	for _, info := range a.Status.History {
+		if info.ID == a.Operation.Rollback.ID {
+			deploymentInfo = &info
+			break
+		}
 	}
-	a, err = argo.SetAppOperation(ctx, appIf, s.auditLogger, *rollbackReq.Name, &op)
-	if err == nil {
-		s.logEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
+	if deploymentInfo == nil {
+		return nil, status.Errorf(codes.NotFound, "application %s does not have deployment with id %v", a.Name, a.Operation.Rollback.ID)
 	}
-	return a, err
+
+	overrides := []*Parameter{}
+	for _, o := range deploymentInfo.ComponentParameterOverrides {
+		overrides = append(overrides, &Parameter{
+			Component: o.Component,
+			Name:      o.Name,
+			Value:     o.Value,
+		})
+	}
+	syncReq := ApplicationSyncRequest{
+		Name:      rollbackReq.Name,
+		Revision:  deploymentInfo.Revision,
+		DryRun:    rollbackReq.DryRun,
+		Prune:     rollbackReq.Prune,
+		Strategy:  &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
+		Parameter: &ParameterOverrides{Overrides: overrides},
+		Resources: nil,
+	}
+	return s.Sync(ctx, &syncReq)
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTerminateRequest) (*OperationTerminateResponse, error) {
