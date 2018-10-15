@@ -108,7 +108,11 @@ func UnsetLabel(target *unstructured.Unstructured, key string) {
 	if labels := target.GetLabels(); labels != nil {
 		if _, ok := labels[key]; ok {
 			delete(labels, key)
-			target.SetLabels(labels)
+			if len(labels) == 0 {
+				unstructured.RemoveNestedField(target.Object, "metadata", "labels")
+			} else {
+				target.SetLabels(labels)
+			}
 		}
 	}
 }
