@@ -285,8 +285,6 @@ message JWTToken {
 // Operation contains requested operation parameters.
 message Operation {
   optional SyncOperation sync = 1;
-
-  optional RollbackOperation rollback = 2;
 }
 
 // OperationState contains information about state of currently performing operation on application.
@@ -384,14 +382,6 @@ message ResourceState {
   repeated ResourceNode childLiveResources = 4;
 
   optional HealthStatus health = 5;
-}
-
-message RollbackOperation {
-  optional int64 id = 1;
-
-  optional bool prune = 2;
-
-  optional bool dryRun = 3;
 }
 
 // SyncOperation contains sync operation details.

@@ -2445,9 +2445,6 @@
       "description": "Operation contains requested operation parameters.",
       "type": "object",
       "properties": {
-        "rollback": {
-          "$ref": "#/definitions/v1alpha1RollbackOperation"
-        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncOperation"
         }
@@ -2599,23 +2596,6 @@
         },
         "targetState": {
           "type": "string"
-        }
-      }
-    },
-    "v1alpha1RollbackOperation": {
-      "type": "object",
-      "properties": {
-        "dryRun": {
-          "type": "boolean",
-          "format": "boolean"
-        },
-        "id": {
-          "type": "string",
-          "format": "int64"
-        },
-        "prune": {
-          "type": "boolean",
-          "format": "boolean"
         }
       }
     },
