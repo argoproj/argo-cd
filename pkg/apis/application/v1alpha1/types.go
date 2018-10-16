@@ -61,16 +61,9 @@ func (po ParameterOverrides) String() string {
 	return fmt.Sprintf("%v", []ComponentParameter(po))
 }
 
-type RollbackOperation struct {
-	ID     int64 `json:"id" protobuf:"bytes,1,opt,name=id"`
-	Prune  bool  `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
-	DryRun bool  `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
-}
-
 // Operation contains requested operation parameters.
 type Operation struct {
-	Sync     *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
-	Rollback *RollbackOperation `json:"rollback,omitempty" protobuf:"bytes,2,opt,name=rollback"`
+	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 }
 
 type OperationPhase string
