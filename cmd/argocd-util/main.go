@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -59,6 +60,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewSettingsCommand())
+	command.AddCommand(NewClusterConfig())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
@@ -373,6 +375,42 @@ func NewSettingsCommand() *cobra.Command {
 	command.Flags().BoolVar(&updateSuperuser, "update-superuser", false, "force updating the  superuser password")
 	command.Flags().StringVar(&superuserPassword, "superuser-password", "", "password for super user")
 	command.Flags().BoolVar(&updateSignature, "update-signature", false, "force updating the server-side token signing signature")
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	return command
+}
+
+// NewClusterConfig returns a new instance of `argocd-util cluster-kubeconfig` command
+func NewClusterConfig() *cobra.Command {
+	var (
+		clientConfig clientcmd.ClientConfig
+	)
+	var command = &cobra.Command{
+		Use:   "cluster-kubeconfig CLUSTER_URL OUTPUT_PATH",
+		Short: "Generates kubeconfig for the specified cluster",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			serverUrl := args[0]
+			output := args[1]
+			conf, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
+			namespace, wasSpecified, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			if !(wasSpecified) {
+				namespace = "argocd"
+			}
+
+			kubeclientset, err := kubernetes.NewForConfig(conf)
+			errors.CheckError(err)
+
+			cluster, err := db.NewDB(namespace, kubeclientset).GetCluster(context.Background(), serverUrl)
+			errors.CheckError(err)
+			err = kube.WriteKubeConfig(cluster.RESTConfig(), namespace, output)
+			errors.CheckError(err)
+		},
+	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	return command
 }
