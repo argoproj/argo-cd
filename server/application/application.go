@@ -776,15 +776,17 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 		return nil, status.Errorf(codes.FailedPrecondition, "Rollback cannot be initiated when auto-sync is enabled")
 	}
 
+	log.Infof("initiated rollback to %d", rollbackReq.ID)
+
 	var deploymentInfo *appv1.DeploymentInfo
 	for _, info := range a.Status.History {
-		if info.ID == a.Operation.Rollback.ID {
+		if info.ID == rollbackReq.ID {
 			deploymentInfo = &info
 			break
 		}
 	}
 	if deploymentInfo == nil {
-		return nil, status.Errorf(codes.NotFound, "application %s does not have deployment with id %v", a.Name, a.Operation.Rollback.ID)
+		return nil, status.Errorf(codes.NotFound, "application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
 	}
 
 	overrides := []*Parameter{}
