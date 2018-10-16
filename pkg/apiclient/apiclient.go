@@ -40,6 +40,8 @@ const (
 	EnvArgoCDServer = "ARGOCD_SERVER"
 	// EnvArgoCDAuthToken is the environment variable to look for an ArgoCD auth token
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
+	// MaxGRPCMessageSize contains max grpc message size
+	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
 // Client defines an interface for interaction with an Argo CD server.
@@ -277,7 +279,8 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 	endpointCredentials := jwtCredentials{
 		Token: c.AuthToken,
 	}
-	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, grpc.WithPerRPCCredentials(endpointCredentials))
+	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds,
+		grpc.WithPerRPCCredentials(endpointCredentials), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
 }
 
 func (c *client) tlsConfig() (*tls.Config, error) {
