@@ -364,7 +364,14 @@ func (a *ArgoCDServer) useTLS() bool {
 }
 
 func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
-	var sOpts []grpc.ServerOption
+	sOpts := []grpc.ServerOption{
+		// Set the both send and receive the bytes limit to be 100MB
+		// The proper way to achieve high performance is to have pagination
+		// while we work toward that, we can have high limit first
+		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
+		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
+		grpc.ConnectionTimeout(300 * time.Second),
+	}
 	sensitiveMethods := map[string]bool{
 		"/session.SessionService/Create":         true,
 		"/account.AccountService/UpdatePassword": true,
@@ -438,7 +445,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 		Addr:    endpoint,
 		Handler: &bug21955Workaround{handler: mux},
 	}
-	var dOpts []grpc.DialOption
+	dOpts := []grpc.DialOption{grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize))}
 	if a.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
