@@ -181,7 +181,7 @@ func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *t
 // * the git repository is accessible
 // * the git path contains a valid app.yaml
 // * the specified environment exists
-// * the referenced cluster has been added to ArgoCD
+// * the referenced cluster has been added to Argo CD
 // * the app source repo and destination namespace/cluster are permitted in app project
 func GetSpecErrors(
 	ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, repoClientset reposerver.Clientset, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
@@ -199,7 +199,7 @@ func GetSpecErrors(
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-			// The repo has not been added to ArgoCD so we do not have credentials to access it.
+			// The repo has not been added to Argo CD so we do not have credentials to access it.
 			// We support the mode where apps can be created from public repositories. Test the
 			// repo to make sure it is publicly accessible
 			err = git.TestRepo(spec.Source.RepoURL, "", "", "")
@@ -269,7 +269,7 @@ func GetSpecErrors(
 				Message: fmt.Sprintf("application destination %v is not permitted in project '%s'", spec.Destination, spec.Project),
 			})
 		}
-		// Ensure the k8s cluster the app is referencing, is configured in ArgoCD
+		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
 		_, err = db.GetCluster(ctx, spec.Destination.Server)
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {

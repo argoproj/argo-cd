@@ -1,4 +1,4 @@
-# ArgoCD Release Instructions
+# Argo CD Release Instructions
 
 1. Tag, build, and push argo-cd-ui
 ```bash
@@ -17,7 +17,7 @@ git push upstream release-X.Y
 
 3. Update VERSION and manifests with new version
 ```bash
-vi VERSION # ensure value is desired X.Y.Z semantic version 
+vi VERSION # ensure value is desired X.Y.Z semantic version
 vi manifests/base/kustomization.yaml # update with new image tags
 make manifests
 git commit -a -m "Update manifests to vX.Y.Z"

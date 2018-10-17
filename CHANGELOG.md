@@ -74,7 +74,7 @@ The above command allows the `default` project to deploy any cluster-scoped reso
 the behavior of v0.8.
 
 * The secret keys in the argocd-secret containing the TLS certificate and key, has been renamed from
-  `server.crt` and `server.key` to the standard `tls.crt` and `tls.key` keys. This enables ArgoCD
+  `server.crt` and `server.key` to the standard `tls.crt` and `tls.key` keys. This enables Argo CD
   to integrate better with Ingress and cert-manager. When upgrading to v0.9, the `server.crt` and
   `server.key` keys in argocd-secret should be renamed to the new keys.
 
@@ -85,8 +85,8 @@ the behavior of v0.8.
 + Redact K8s secrets from API server payloads (issue #470)
 + Support --in-cluster authentication without providing a kubeconfig (issue #527)
 + Special handling of CustomResourceDefinitions (issue #613)
-+ ArgoCD should download helm chart dependencies (issue #582)
-+ Export ArgoCD stats as prometheus style metrics (issue #513)
++ Argo CD should download helm chart dependencies (issue #582)
++ Export Argo CD stats as prometheus style metrics (issue #513)
 + Support restricting TLS version (issue #609)
 + Use 'kubectl auth reconcile' before 'kubectl apply' (issue #523)
 + Projects need controls on cluster-scoped resources (issue #330)
@@ -107,7 +107,7 @@ the behavior of v0.8.
 - Fix issue where changes were not pulled when tracking a branch (issue #567)
 - Lazy enforcement of unknown cluster/namespace restricted resources (issue #599)
 - Fix controller hot loop when app source contains bad manifests (issue #568)
-- Fix issue where ArgoCD fails to deploy when resources are in a K8s list format (issue #584)
+- Fix issue where Argo CD fails to deploy when resources are in a K8s list format (issue #584)
 - Fix comparison failure when app contains unregistered custom resource (issue #583)
 - Fix issue where helm hooks were being deployed as part of sync (issue #605)
 - Fix race conditions in kube.GetResourcesWithLabel and DeleteResourceWithLabel (issue #587)
@@ -116,7 +116,7 @@ the behavior of v0.8.
 - Helm hooks are being deployed as resources (issue #605)
 - Disagreement in three way diff calculation (issue #597)
 - SIGSEGV in kube.GetResourcesWithLabel (issue #587)
-- ArgoCD fails to deploy resources list (issue #584)
+- Argo CD fails to deploy resources list (issue #584)
 - Branch tracking not working properly (issue #567)
 - Controller hot loop when application source has bad manifests (issue #568)
 
@@ -238,7 +238,7 @@ RBAC policy rules, need to be rewritten to include one extra column with the eff
 ## v0.5.0 (2018-06-12)
 + RBAC access control
 + Repository/Cluster state monitoring
-+ ArgoCD settings import/export
++ Argo CD settings import/export
 + Application creation UI wizard
 + argocd app manifests for printing the application manifests
 + argocd app unset command to unset parameter overrides

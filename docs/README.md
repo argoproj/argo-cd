@@ -1,4 +1,4 @@
-# ArgoCD Documentation
+# Argo CD Documentation
 
 ## [Getting Started](getting_started.md)
 

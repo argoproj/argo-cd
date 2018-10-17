@@ -48,7 +48,7 @@ func NewCommand() *cobra.Command {
 
 	var command = &cobra.Command{
 		Use:   cliName,
-		Short: "argocd-util has internal tools used by ArgoCD",
+		Short: "argocd-util has internal tools used by Argo CD",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -72,7 +72,7 @@ func NewRunDexCommand() *cobra.Command {
 	)
 	var command = cobra.Command{
 		Use:   "rundex",
-		Short: "Runs dex generating a config using settings from the ArgoCD configmap and secret",
+		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
 			_, err := exec.LookPath("dex")
 			errors.CheckError(err)
@@ -139,7 +139,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 	)
 	var command = cobra.Command{
 		Use:   "gendexcfg",
-		Short: "Generates a dex config from ArgoCD settings",
+		Short: "Generates a dex config from Argo CD settings",
 		RunE: func(c *cobra.Command, args []string) error {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -353,8 +353,8 @@ func NewSettingsCommand() *cobra.Command {
 	)
 	var command = &cobra.Command{
 		Use:   "settings",
-		Short: "Creates or updates ArgoCD settings",
-		Long:  "Creates or updates ArgoCD settings",
+		Short: "Creates or updates Argo CD settings",
+		Long:  "Creates or updates Argo CD settings",
 		Run: func(c *cobra.Command, args []string) {
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)

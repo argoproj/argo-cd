@@ -18,7 +18,7 @@ func NewServer(mgr *settings.SettingsManager) *Server {
 	}
 }
 
-// Get returns ArgoCD settings
+// Get returns Argo CD settings
 func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 	argoCDSettings, err := s.mgr.GetSettings()
 	if err != nil {

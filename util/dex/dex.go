@@ -17,7 +17,7 @@ var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
 
 // NewDexHTTPReverseProxy returns a reverse proxy to the Dex server. Dex is assumed to be configured
 // with the external issuer URL muxed to the same path configured in server.go. In other words, if
-// ArgoCD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
+// Argo CD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy(serverAddr string) func(writer http.ResponseWriter, request *http.Request) {
 	target, err := url.Parse(serverAddr)

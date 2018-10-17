@@ -28,11 +28,11 @@ the desired application state. Kubernetes manifests can be specified in several 
 * Plain directory of YAML/json manifests
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
-Application deployments can track updates to branches, tags, or pinned to a specific version of 
+Application deployments can track updates to branches, tags, or pinned to a specific version of
 manifests at a git commit. See [tracking strategies](docs/tracking_strategies.md) for additional
 details about the different tracking strategies available.
 
-For a quick 10 minute overview of ArgoCD, check out the demo presented to the Sig Apps community
+For a quick 10 minute overview of Argo CD, check out the demo presented to the Sig Apps community
 meeting:
 [![Alt text](https://img.youtube.com/vi/aWDIQMbp1cc/0.jpg)](https://youtu.be/aWDIQMbp1cc?t=1m4s)
 

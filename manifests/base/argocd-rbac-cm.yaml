@@ -11,5 +11,5 @@ metadata:
 #     # Make all members of "my-org:team-beta" admins
 #     g, my-org:team-beta, role:admin
 #
-#   # The default role ArgoCD will fall back to, when authorizing API requests
+#   # The default role Argo CD will fall back to, when authorizing API requests
 #   policy.default: role:readonly

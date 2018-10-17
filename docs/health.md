@@ -1,7 +1,7 @@
 # Resource Health
 
 ## Overview
-ArgoCD provides built-in health assessment for several standard Kubernetes types, which is then
+Argo CD provides built-in health assessment for several standard Kubernetes types, which is then
 surfaced to the overall Application health status as a whole. The following checks are made for
 specific types of kuberentes resources:
 

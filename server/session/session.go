@@ -21,7 +21,7 @@ func NewServer(mgr *sessionmgr.SessionManager) *Server {
 	}
 }
 
-// Create generates a JWT token signed by ArgoCD intended for web/CLI logins of the admin user
+// Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
 func (s *Server) Create(ctx context.Context, q *SessionCreateRequest) (*SessionResponse, error) {
 	if q.Token != "" {

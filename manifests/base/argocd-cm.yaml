@@ -3,11 +3,11 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
 # data:
-#   # ArgoCD's externally facing base URL. Required for configuring SSO
+#   # Argo CD's externally facing base URL. Required for configuring SSO
 #   # url: https://argo-cd-demo.argoproj.io
 #
 #   # A dex connector configuration. See documentation on how to configure SSO:
-#   # https://github.com/argoproj/argo-cd/blob/master/docs/sso.md#2-configure-argocd-for-sso 
+#   # https://github.com/argoproj/argo-cd/blob/master/docs/sso.md#2-configure-argocd-for-sso
 #   dex.config: |
 #     connectors:
 #       # GitHub example

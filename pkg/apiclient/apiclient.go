@@ -36,9 +36,9 @@ import (
 
 const (
 	MetaDataTokenKey = "token"
-	// EnvArgoCDServer is the environment variable to look for an ArgoCD server address
+	// EnvArgoCDServer is the environment variable to look for an Argo CD server address
 	EnvArgoCDServer = "ARGOCD_SERVER"
-	// EnvArgoCDAuthToken is the environment variable to look for an ArgoCD auth token
+	// EnvArgoCDAuthToken is the environment variable to look for an Argo CD auth token
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
 	// MaxGRPCMessageSize contains max grpc message size
 	MaxGRPCMessageSize = 100 * 1024 * 1024
@@ -129,7 +129,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Make sure we got the server address and auth token from somewhere
 	if c.ServerAddr == "" {
-		return nil, errors.New("ArgoCD server address unspecified")
+		return nil, errors.New("Argo CD server address unspecified")
 	}
 	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port

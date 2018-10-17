@@ -186,7 +186,7 @@ func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*u
 		if liveObj == nil && targetObj.GetName() != "" {
 			// If we get here, it indicates we did not find the live resource when querying using
 			// our app label. However, it is possible that the resource was created/modified outside
-			// of ArgoCD. In order to determine that it is truly missing, we fall back to perform a
+			// of Argo CD. In order to determine that it is truly missing, we fall back to perform a
 			// direct lookup of the resource by name. See issue #141
 			gvk := targetObj.GroupVersionKind()
 			apiResource, err := kubeutil.ServerResourceForGroupVersionKind(disco, gvk)

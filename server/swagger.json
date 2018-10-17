@@ -1115,7 +1115,7 @@
         "tags": [
           "SettingsService"
         ],
-        "summary": "Get returns ArgoCD settings",
+        "summary": "Get returns Argo CD settings",
         "operationId": "Get",
         "responses": {
           "200": {
@@ -2773,7 +2773,7 @@
     },
     "versionVersionMessage": {
       "type": "object",
-      "title": "VersionMessage represents version of the ArgoCD API server",
+      "title": "VersionMessage represents version of the Argo CD API server",
       "properties": {
         "BuildDate": {
           "type": "string"

@@ -53,7 +53,7 @@ type ClientApp struct {
 	// secureCookie indicates if the cookie should be set with the Secure flag, meaning it should
 	// only ever be sent over HTTPS. This value is inferred by the scheme of the redirectURI.
 	secureCookie bool
-	// settings holds ArgoCD settings
+	// settings holds Argo CD settings
 	settings *settings.ArgoCDSettings
 	// provider is the OIDC configuration
 	provider *gooidc.Provider
@@ -67,7 +67,7 @@ type appState struct {
 	ReturnURL string `json:"returnURL"`
 }
 
-// NewClientApp will register the ArgoCD client app (either via Dex or external OIDC) and return an
+// NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
 func NewClientApp(settings *settings.ArgoCDSettings) (*ClientApp, error) {
 	a := ClientApp{
@@ -97,7 +97,7 @@ func NewClientApp(settings *settings.ArgoCDSettings) (*ClientApp, error) {
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
-	// NOTE: if we ever have replicas of ArgoCD, this needs to switch to Redis cache
+	// NOTE: if we ever have replicas of Argo CD, this needs to switch to Redis cache
 	a.states = cache.NewInMemoryCache(3 * time.Minute)
 	a.secureCookie = bool(u.Scheme == "https")
 	a.settings = settings

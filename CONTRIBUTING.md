@@ -39,10 +39,10 @@ NOTE: The make command can take a while, and we recommend building the specific 
 * `make codegen` - Builds protobuf and swagger files
 * `make argocd-util` - Make the administrator's utility, used for certain tasks such as import/export
 
-## Generating ArgoCD manifests for a specific image repository/tag
+## Generating Argo CD manifests for a specific image repository/tag
 
 During development, the `update-manifests.sh` script, can be used to conveniently regenerate the
-ArgoCD installation manifests with a customized image namespace and tag. This enables developers
+Argo CD installation manifests with a customized image namespace and tag. This enables developers
 to easily apply manifests which are using the images that they pushed into their personal container
 repository.
 
