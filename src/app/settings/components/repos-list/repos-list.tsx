@@ -104,7 +104,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     <FormField formApi={formApi} label='Username' field='username' component={Text}/>
                                 </div>
                                 <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='Password' field='password' component={Text}/>
+                                    <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}}/>
                                 </div>
                             </form>
                         )}
