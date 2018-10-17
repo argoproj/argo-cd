@@ -249,7 +249,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private async updateApp(app: appModels.Application) {
         try {
-            const updatedApp = await services.applications.update(app);
+            await services.applications.updateSpec(app.metadata.name, app.spec);
+            const updatedApp = await services.applications.get(app.metadata.name);
             this.loader.setData(updatedApp);
         } catch (e) {
             this.appContext.apis.notifications.show({
@@ -365,8 +366,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async deleteApplication() {
-        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext);
-        this.appContext.apis.navigation.goto('/applications');
+        const deleted = await AppUtils.deleteApplication(this.props.match.params.name, this.appContext);
+        if (deleted) {
+            this.appContext.apis.navigation.goto('/applications');
+        }
     }
 
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {

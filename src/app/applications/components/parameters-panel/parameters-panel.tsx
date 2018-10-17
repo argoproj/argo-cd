@@ -47,9 +47,13 @@ export const ParametersPanel = (props: { app: models.Application, updateApp: (ap
                 );
             },
         }));
-    return (
+    return items.length === 0 && (
+        <div className='white-box'>
+            <p>Application has no parameters</p>
+        </div>
+    ) || (
         <EditablePanel save={async (params) => {
-            const diff = jsonDiffPatch.diff(src, params) as {[name: string]: {[name: string]: string[]}};
+            const diff = jsonDiffPatch.diff(src, params) as {[name: string]: {[name: string]: string[]}} || {};
             const overrides = Object.keys(diff).map((component) => Object.keys(diff[component]).map((key) => ({
                 component,
                 name: key,

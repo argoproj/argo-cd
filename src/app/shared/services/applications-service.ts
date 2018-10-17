@@ -30,19 +30,8 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}/manifests`).query({name, revision} as ManifestQuery).then((res) => res.body as ManifestResponse);
     }
 
-    public update(app: models.Application): Promise<models.Application> {
-        (app.status.comparisonResult.resources || []).forEach((resource) => {
-            resource.liveState = JSON.stringify(resource.liveState) as any;
-            resource.targetState = JSON.stringify(resource.targetState) as any;
-            function parseResourceNodes(node: models.ResourceNode) {
-                node.state = JSON.stringify(node.state) as any;
-                (node.children || []).forEach(parseResourceNodes);
-            }
-            (resource.childLiveResources || []).forEach((node) => {
-                parseResourceNodes(node);
-            });
-        });
-        return requests.put(`/applications/${app.metadata.name}`).send(app).then((res) => this.parseAppFields(res.body));
+    public updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
+        return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
     public create(name: string, project: string, source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {

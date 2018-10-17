@@ -37,7 +37,7 @@ export async function syncApplication(appName: string, revision: string, prune: 
     }
 }
 
-export async function deleteApplication(appName: string, context: AppContext) {
+export async function deleteApplication(appName: string, context: AppContext): Promise<boolean> {
     let cascade = false;
     const confirmationForm = class extends React.Component<{}, { cascade: boolean } > {
         constructor(props: any) {
@@ -60,6 +60,7 @@ export async function deleteApplication(appName: string, context: AppContext) {
     if (confirmed) {
         try {
             await services.applications.delete(appName, cascade);
+            return true;
         } catch (e) {
             context.apis.notifications.show({
                 content: <ErrorNotification title='Unable to delete application' e={e}/>,
@@ -67,6 +68,7 @@ export async function deleteApplication(appName: string, context: AppContext) {
             });
         }
     }
+    return false;
 }
 
 export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase }) => {
