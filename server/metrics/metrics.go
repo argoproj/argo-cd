@@ -53,7 +53,7 @@ func NewMetricsServer(port int, appLister applister.ApplicationLister) *http.Ser
 	appRegistry := NewAppRegistry(appLister)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(appRegistry, promhttp.HandlerOpts{}))
 	return &http.Server{
-		Addr:    fmt.Sprintf("localhost:%d", port),
+		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
 		Handler: mux,
 	}
 }
