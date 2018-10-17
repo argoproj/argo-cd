@@ -174,12 +174,12 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
 
     private async deleteJWTToken(params: DeleteJWTTokenParams) {
         await services.projects.deleteJWTToken(params);
-        this.loader.reload();
+        this.loader.setData(await services.projects.get(this.props.match.params.name));
     }
 
     private async createJWTToken(params: CreateJWTTokenParams) {
         const jwtToken = await services.projects.createJWTToken(params);
-        this.loader.reload();
+        this.loader.setData(await services.projects.get(this.props.match.params.name));
         this.setState({token: jwtToken.token});
     }
 

@@ -48,10 +48,10 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
                     </div>
                 </div>
             ) : <div className='white-box'><p>Role has no policies</p></div> }
-            {!props.newRole && <a onClick={() => {
+            <a onClick={() => {
                 const newPolicy = generatePolicy(props.projName, props.roleName);
                 props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));
-            }}>Add policy</a>}
+            }}>Add policy</a>
         </React.Fragment>
     )}
     </DataLoader>
@@ -109,7 +109,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                         }}/>
                     </div>
                     <div className='columns small-1'>
-                        <i className='fa fa-times' onClick={() => this.props.deletePolicy()}/>
+                        <i className='fa fa-times' onClick={() => this.props.deletePolicy()} style={{cursor: 'pointer'}}/>
                     </div>
                 </div>
         );

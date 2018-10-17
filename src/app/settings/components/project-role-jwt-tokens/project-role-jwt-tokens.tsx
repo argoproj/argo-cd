@@ -25,80 +25,78 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
             {(ctx) => (
                 <React.Fragment>
                 <h4>JWT Tokens</h4>
+                {props.tokens !== null && props.tokens.length > 0 ? (
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>ID</div>
+                                <div className='columns small-4'>ISSUED AT</div>
+                                <div className='columns small-4'>EXPIRES AT</div>
+                            </div>
+                        </div>
+                        {props.tokens.map((jwtToken: JwtToken) => (
+                            <div className='argo-table-list__row' key={`${jwtToken.iat}`}>
+                                <div className='row'>
+                                    <div className='columns small-3'>
+                                        {jwtToken.iat}
+                                    </div>
+                                    <div className='columns small-4'>
+                                        {new Date(jwtToken.iat * 1000).toISOString()}
+                                    </div>
+                                    <div className='columns small-4'>
+                                        {jwtToken.exp == null ? 'None' : new Date(jwtToken.exp * 1000).toISOString()}
+                                    </div>
+                                    <div className='columns small-1'>
+                                        <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwtToken.iat, ctx)} style={{cursor: 'pointer'}}/>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : <div className='white-box'><p>Role has no JWT tokens</p></div>}
                 <Form
                     getApi={props.getApi}
-                    defaultValues={{
-                        tokens: props.tokens,
-                        expiresIn: '',
-                    }}
+                    defaultValues={{ expiresIn: ''}}
                     validateError={(params: any) => ({
                         expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format',
                     })}>
                         {(api) => (
                             <form onSubmit={api.submitForm} role='form' className='width-control'>
-                                {api.values.tokens !== null && api.values.tokens.length > 0 ? (
-                                    <div className='argo-table-list'>
-                                        <div className='argo-table-list__head'>
-                                            <div className='row'>
-                                                <div className='columns small-3'>ID</div>
-                                                <div className='columns small-4'>ISSUED AT</div>
-                                                <div className='columns small-4'>EXPIRES AT</div>
+                                <div className='argo-table-list'>
+                                    <div className='argo-table-list__head'>
+                                        <div className='row'>
+                                            <div className='columns small-3'>EXPIRES IN</div>
+                                        </div>
+                                    </div>
+                                    <div className='argo-table-list__row'>
+                                        <div className='row'>
+                                            <div className='columns small-9'>
+                                            <FormField formApi={api} label='' field='expiresIn' component={Text}/>
+                                            </div>
+                                            <div className='columns small-3'>
+                                            <a onClick={() => createJWTToken(props, api, ctx)}>Create token</a>
                                             </div>
                                         </div>
-                                        {api.values.tokens.map((jwtToken: JwtToken) => (
-                                            <div className='argo-table-list__row' key={`${jwtToken.iat}`}>
-                                                <div className='row'>
-                                                    <div className='columns small-3'>
-                                                        {jwtToken.iat}
-                                                    </div>
-                                                    <div className='columns small-4'>
-                                                        {new Date(jwtToken.iat * 1000).toISOString()}
-                                                    </div>
-                                                    <div className='columns small-4'>
-                                                        {jwtToken.exp == null ? 'None' : new Date(jwtToken.exp * 1000).toISOString()}
-                                                    </div>
-                                                    <div className='columns small-1'>
-                                                        <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwtToken.iat, api, ctx)}/>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
                                     </div>
-                                ) : <div className='white-box'><p>Role has no JWT tokens</p></div>}
-                        <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>EXPIRES IN</div>
-                            </div>
-                        </div>
-                        <div className='argo-table-list__row'>
-                            <div className='row'>
-                                <div className='columns small-9'>
-                                <FormField formApi={api} label='' field='expiresIn' component={Text}/>
                                 </div>
-                                <div className='columns small-3'>
-                                <a onClick={() => createJWTToken(props, api, ctx)}>Create token</a>
+                                {props.token && (
+                                <div className='argo-table-list'>
+                                    <div className='argo-table-list__head'>
+                                        <div className='row'>
+                                            <div className='columns small-3'>NEW TOKEN</div>
+                                        </div>
+                                    </div>
+                                    <div className='argo-table-list__row'>
+                                        <div className='white-box'>
+                                        <p style={{overflowWrap: 'break-word'}}>
+                                            {props.token}
+                                            <i className='fa fa-times project-role-jwt-tokens__hide-token' onClick={() => props.hideJWTToken()}/>
+                                        </p>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                    {props.token !== '' ? (
-                        <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns small-3'>NEW TOKEN</div>
-                            </div>
-                        </div>
-                        <div className='argo-table-list__row'>
-                            <div className='white-box'>
-                            <p style={{overflowWrap: 'break-word'}}>
-                                {props.token}
-                                <i className='fa fa-times project-role-jwt-tokens__hide-token' onClick={() => props.hideJWTToken()}/>
-                            </p>
-                            </div>
-                        </div>
-                    </div>) : null}
-                    </form>
+                                )}
+                            </form>
                         )}
                 </Form>
                 </React.Fragment>
@@ -142,7 +140,7 @@ async function createJWTToken(props: ProjectRoleJWTTokensProps, api: FormApi, ct
     }
 }
 
-async function deleteJWTToken(props: ProjectRoleJWTTokensProps, iat: number, api: FormApi, ctx: any) {
+async function deleteJWTToken(props: ProjectRoleJWTTokensProps, iat: number, ctx: any) {
     const confirmed = await ctx.popup.confirm(
         'Delete JWT Token', `Are you sure you want to delete ID '${iat}' for role '${props.roleName}' in project '${props.projName}'?`);
     if (confirmed) {
