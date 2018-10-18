@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.10.0 (TBD)
+
+### Changes since v0.9:
+
++ Allow more fine-grained sync (issue #508)
++ Display init container logs (issue #681)
++ Redirect to /auth/login instead of /login when SSO token is used for authenticaion (issue #348)
++ Support ability to use a helm values files from a URL (issue #624)
++ Support public not-connected repo in app creation UI (issue #426)
++ Use ksonnet CLI instead of ksonnet libs (issue #626)
++ We should be able to select the order of the `yaml` files while creating a Helm App (#664)
+* Remove default params from app history (issue #556)
+* Update to ksonnet v0.13.0
+* Update to kustomize 1.0.8
+- API Server fails to return apps due to grpc max message size limit  (issue #690)
+- App Creation UI for Helm Apps shows only files prefixed with `values-` (issue #663)
+- App creation UI should allow specifying values files outside of helm app directory bug (issue #658)
+- argocd-server logs credentials in plain text when adding git repositories (issue #653)
+- Azure Repos do not work as a repository (issue #643)
+- Better update conflict error handing during app editing (issue #685)
+- Cluster watch needs to be restarted when CRDs get created (issue #627)
+- Credentials not being accepted for Google Source Repositories (issue #651)
+- Default project is created without permission to deploy cluster level resources (issue #679)
+- Generate role token click resets policy changes (issue #655)
+- Input type text instead of password on Connect repo panel (issue #693)
+- Metrics endpoint not reachable through the metrics kubernetes service (issue #672)
+- Operation stuck in 'in progress' state if application has no resources (issue #682)
+- Project should influence options for cluster and namespace during app creation (issue #592)
+- Repo server unable to execute ls-remote for private repos (issue #639)
+- Resource is always out of sync if it has only 'ksonnet.io/component' label (issue #686)
+- Resource nodes are 'jumping' on app details page (issue #683)
+- Sync always suggest using latest revision instead of target UI bug (issue #669)
+- Temporary ignore service catalog resources (issue #650)
+
 ## v0.9.2 (2018-09-28)
 
 * Update to kustomize 1.0.8
