@@ -151,7 +151,10 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 		return nil, err
 	}
 
-	appSourceType := repository.IdentifyAppSourceTypeByAppPath(q.Path)
+	appSourceType, err := repository.IdentifyAppSourceTypeByAppPath(q.Path)
+	if err != nil {
+		return nil, err
+	}
 	switch appSourceType {
 	case repository.AppSourceKsonnet:
 		var appSpec KsonnetAppSpec

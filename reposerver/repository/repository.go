@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
@@ -184,9 +185,11 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	var targetObjs []*unstructured.Unstructured
 	var params []*v1alpha1.ComponentParameter
 	var dest *v1alpha1.ApplicationDestination
-	var err error
 
-	appSourceType := IdentifyAppSourceTypeByAppDir(appPath)
+	appSourceType, err := IdentifyAppSourceTypeByAppDir(appPath)
+	if err != nil {
+		return nil, err
+	}
 	switch appSourceType {
 	case AppSourceKsonnet:
 		targetObjs, params, dest, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
@@ -265,32 +268,48 @@ func tempRepoPath(repo string) string {
 	return path.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
 }
 
+func isValidKsonnet(appDirPath string) bool {
+	var m map[string]interface{}
+	err := config.UnmarshalLocalFile(appDirPath, &m)
+	if err != nil {
+		return false
+	}
+	v, ok := m["kind"]
+	return ok && v == "ksonnet.io/app"
+}
+
 // IdentifyAppSourceTypeByAppDir examines a directory and determines its application source type
-func IdentifyAppSourceTypeByAppDir(appDirPath string) AppSourceType {
-	if pathExists(path.Join(appDirPath, "app.yaml")) {
-		return AppSourceKsonnet
+func IdentifyAppSourceTypeByAppDir(appDirPath string) (AppSourceType, error) {
+	if p := path.Join(appDirPath, "app.yaml"); pathExists(p) {
+		if !isValidKsonnet(p) {
+			return "", fmt.Errorf("invalid Ksonnet manifest")
+		}
+		return AppSourceKsonnet, nil
 	}
 	if pathExists(path.Join(appDirPath, "Chart.yaml")) {
-		return AppSourceHelm
+		return AppSourceHelm, nil
 	}
 	if pathExists(path.Join(appDirPath, "kustomization.yaml")) {
-		return AppSourceKustomize
+		return AppSourceKustomize, nil
 	}
-	return AppSourceDirectory
+	return AppSourceDirectory, nil
 }
 
 // IdentifyAppSourceTypeByAppPath determines application source type by app file path
-func IdentifyAppSourceTypeByAppPath(appFilePath string) AppSourceType {
+func IdentifyAppSourceTypeByAppPath(appFilePath string) (AppSourceType, error) {
 	if strings.HasSuffix(appFilePath, "app.yaml") {
-		return AppSourceKsonnet
+		if !isValidKsonnet(appFilePath) {
+			return "", fmt.Errorf("invalid Ksonnet manifest")
+		}
+		return AppSourceKsonnet, nil
 	}
 	if strings.HasSuffix(appFilePath, "Chart.yaml") {
-		return AppSourceHelm
+		return AppSourceHelm, nil
 	}
 	if strings.HasSuffix(appFilePath, "kustomization.yaml") {
-		return AppSourceKustomize
+		return AppSourceKustomize, nil
 	}
-	return AppSourceDirectory
+	return AppSourceDirectory, nil
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
