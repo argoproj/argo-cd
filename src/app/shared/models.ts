@@ -17,10 +17,13 @@ interface ItemsList<T> {
 
 export interface ApplicationList extends ItemsList<Application> {}
 
+export interface SyncOperationResource {group: string; kind: string; name: string; }
+
 export interface SyncOperation {
     revision: string;
     prune: boolean;
     dryRun: boolean;
+    resources?: SyncOperationResource[];
 }
 
 export interface RollbackOperation {

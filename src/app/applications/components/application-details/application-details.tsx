@@ -54,10 +54,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return new URLSearchParams(this.props.history.location.search).get('conditions') === 'true';
     }
 
-    private get showDeployPanel() {
-        return new URLSearchParams(this.props.history.location.search).get('deploy') === 'true';
-    }
-
     private get selectedRollbackDeploymentIndex() {
         return parseInt(new URLSearchParams(this.props.history.location.search).get('rollback'), 10);
     }
@@ -134,6 +130,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
                     const operationState = application.status.operationState;
                     const conditions = application.status.conditions || [];
+                    const deployParam = new URLSearchParams(this.props.history.location.search).get('deploy');
+                    const showDeployPanel = !!deployParam;
+                    const deployResIndex = deployParam && application.status.comparisonResult.resources.findIndex((item) => {
+                        const res = item.liveState || item.targetState;
+                        return `${res.kind}:${res.metadata.name}` === deployParam;
+                    });
                     return (
                         <Page
                             title='Application Details'
@@ -152,7 +154,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 }, {
                                     iconClassName: 'icon argo-icon-deploy',
                                     title: 'Sync',
-                                    action: () => this.setDeployPanelVisible(true),
+                                    action: () => this.showDeploy('all'),
                                 }, {
                                     iconClassName: 'icon fa fa-history',
                                     title: 'History',
@@ -196,19 +198,26 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 )}
                                 </div>
                             </SlidingPanel>
-                            <SlidingPanel isNarrow={true} isShown={this.showDeployPanel} onClose={() => this.setDeployPanelVisible(false)} header={(
+                            <SlidingPanel isNarrow={true} isShown={showDeployPanel} onClose={() => this.showDeploy(null)} header={(
                                     <div>
                                     <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
                                         Synchronize
-                                    </button> <button onClick={() => this.setDeployPanelVisible(false)} className='argo-button argo-button--base-o'>
+                                    </button> <button onClick={() => this.showDeploy(null)} className='argo-button argo-button--base-o'>
                                         Cancel
                                     </button>
                                     </div>
                                 )}>
-                                {this.showDeployPanel && (
+                                {showDeployPanel && (
                                     <Form
-                                        defaultValues={{ revision: application.spec.source.targetRevision || 'HEAD'}}
-                                        onSubmit={(params: any) => this.syncApplication(params.revision, params.prune)} getApi={(api) => this.formApi = api}>
+                                        defaultValues={{
+                                            revision: application.spec.source.targetRevision || 'HEAD',
+                                            resources: application.status.comparisonResult.resources.map((_, i) => i === deployResIndex || deployResIndex === -1),
+                                        }}
+                                        validateError={(values) => ({
+                                            resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',
+                                        })}
+                                        onSubmit={(params: any) => this.syncApplication(application, params.revision, params.prune, params.resources)}
+                                        getApi={(api) => this.formApi = api}>
 
                                         {(formApi) => (
                                             <form role='form' className='width-control' onSubmit={formApi.submitForm}>
@@ -218,8 +227,34 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Revision' field='revision' component={Text}/>
                                                 </div>
+
                                                 <div className='argo-form-row'>
-                                                    <label htmlFor='prune-on-sync-checkbox'>Prune</label> <Checkbox id='prune-on-sync-checkbox' field='prune'/>
+                                                    <p>
+                                                        <Checkbox id='prune-on-sync-checkbox' field='prune'/> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
+                                                    </p>
+
+                                                    <label>Synchronize resources:</label>
+                                                    <div style={{float: 'right'}}>
+                                                        <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => true))}>all</a> / <a
+                                                            onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => false))}>none</a></div>
+                                                    {!formApi.values.resources.every((item: boolean) => item) && (
+                                                        <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
+                                                    )}
+                                                    <div style={{paddingLeft: '1em'}}>
+                                                    {application.status.comparisonResult.resources.map((item, i) => {
+                                                        const res = item.liveState || item.targetState;
+                                                        const resFullName = `${res.kind}/${res.metadata.name}`;
+                                                        return (
+                                                            <div key={resFullName}>
+                                                                <Checkbox id={resFullName} field={`resources[${i}]`}/> <label htmlFor={resFullName}>
+                                                                    {resFullName} <AppUtils.ComparisonStatusIcon status={item.status}/></label>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {formApi.errors.resources && (
+                                                        <div className='argo-form-row__error-msg'>{formApi.errors.resources}</div>
+                                                    )}
+                                                    </div>
                                                 </div>
                                             </form>
                                         )}
@@ -287,8 +322,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return kinds.split(',').filter((item) => !!item);
     }
 
-    private setDeployPanelVisible(isVisible: boolean) {
-        this.appContext.apis.navigation.goto('.', { deploy: isVisible });
+    private showDeploy(resource: string) {
+        this.appContext.apis.navigation.goto('.', { deploy: resource });
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
@@ -308,9 +343,23 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.appContext.apis.navigation.goto('.', { node });
     }
 
-    private async syncApplication(revision: string, prune: boolean) {
-        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, this.appContext);
-        this.setDeployPanelVisible(false);
+    private async syncApplication(app: appModels.Application, revision: string, prune: boolean, selectedResources: boolean[]) {
+        let resources = selectedResources && app.status.comparisonResult.resources.filter((_, i) => selectedResources[i]).map((item) => {
+            const res = item.targetState || item.liveState;
+            const parts = res.apiVersion.split('/');
+            const group = parts.length === 1 ? '' : parts[0];
+            return {
+                group,
+                kind: res.kind,
+                name: res.metadata.name,
+            };
+        }) || null;
+        // Don't specify resources filter if user selected all resources
+        if (resources && resources.length === app.status.comparisonResult.resources.length) {
+            resources = null;
+        }
+        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, resources, this.appContext);
+        this.showDeploy(null);
     }
 
     private async rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
@@ -340,6 +389,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         }];
 
         if (resourceNode.state.kind !== 'Application') {
+            menuItems.push({
+                title: 'Sync',
+                action: () => this.showDeploy(`${resourceNode.state.kind}:${resourceNode.state.metadata.name}`),
+            });
             menuItems.push({
                 title: 'Delete',
                 action: async () => {

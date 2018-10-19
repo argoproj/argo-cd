@@ -7,6 +7,10 @@
     overflow-y: auto;
     min-height: calc(100vh - 2 * 50px - 115px);
 
+    &__warning {
+        font-size: 0.8em;
+        color: darken($argo-status-warning-color, 20%);
+    }
     &__refreshing-label {
         position: absolute;
         top: 0;

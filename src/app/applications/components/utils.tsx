@@ -26,9 +26,9 @@ export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[
     return componentParams;
 }
 
-export async function syncApplication(appName: string, revision: string, prune: boolean, context: AppContext) {
+export async function syncApplication(appName: string, revision: string, prune: boolean, resources: appModels.SyncOperationResource[], context: AppContext) {
     try {
-        await services.applications.sync(appName, revision, prune);
+        await services.applications.sync(appName, revision, prune, resources);
     } catch (e) {
         context.apis.notifications.show({
             content: <ErrorNotification title='Unable to deploy revision' e={e}/>,

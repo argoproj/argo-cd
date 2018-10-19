@@ -229,7 +229,7 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private async syncApplication(appName: string, revision: string) {
-        await AppUtils.syncApplication(appName, revision, false, this.appContext);
+        await AppUtils.syncApplication(appName, revision, false, null, this.appContext);
         this.appContext.apis.notifications.show({
             type: NotificationType.Success,
             content: `Synced revision`,
