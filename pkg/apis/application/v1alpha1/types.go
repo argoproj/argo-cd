@@ -61,16 +61,9 @@ func (po ParameterOverrides) String() string {
 	return fmt.Sprintf("%v", []ComponentParameter(po))
 }
 
-type RollbackOperation struct {
-	ID     int64 `json:"id" protobuf:"bytes,1,opt,name=id"`
-	Prune  bool  `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
-	DryRun bool  `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
-}
-
 // Operation contains requested operation parameters.
 type Operation struct {
-	Sync     *SyncOperation     `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
-	Rollback *RollbackOperation `json:"rollback,omitempty" protobuf:"bytes,2,opt,name=rollback"`
+	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 }
 
 type OperationPhase string
@@ -105,8 +98,6 @@ type OperationState struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 	// SyncResult is the result of a Sync operation
 	SyncResult *SyncOperationResult `json:"syncResult,omitempty" protobuf:"bytes,4,opt,name=syncResult"`
-	// RollbackResult is the result of a Rollback operation
-	RollbackResult *SyncOperationResult `json:"rollbackResult,omitempty" protobuf:"bytes,5,opt,name=rollbackResult"`
 	// StartedAt contains time of operation start
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion

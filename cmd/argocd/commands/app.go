@@ -778,8 +778,6 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 		if opState != nil {
 			if opState.SyncResult != nil {
 				syncRes = opState.SyncResult
-			} else if opState.RollbackResult != nil {
-				syncRes = opState.RollbackResult
 			}
 		}
 		if syncRes != nil {
@@ -983,8 +981,6 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 	var opResult *argoappv1.SyncOperationResult
 	if app.Status.OperationState != nil {
 		if app.Status.OperationState.SyncResult != nil {
-			opResult = app.Status.OperationState.SyncResult
-		} else if app.Status.OperationState.RollbackResult != nil {
 			opResult = app.Status.OperationState.SyncResult
 		}
 	}
@@ -1253,8 +1249,6 @@ const defaultCheckTimeoutSeconds = 0
 func printOperationResult(opState *argoappv1.OperationState) {
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
-	} else if opState.RollbackResult != nil {
-		fmt.Printf(printOpFmtStr, "Operation:", "Rollback")
 	}
 	fmt.Printf(printOpFmtStr, "Phase:", opState.Phase)
 	fmt.Printf(printOpFmtStr, "Start:", opState.StartedAt)

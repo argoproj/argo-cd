@@ -446,7 +446,7 @@ func SetAppOperation(ctx context.Context, appIf v1alpha1.ApplicationInterface, a
 		a.Operation = op
 		a.Status.OperationState = nil
 		a, err = appIf.Update(a)
-		if op.Sync == nil && op.Rollback == nil {
+		if op.Sync == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
 		}
 		if err == nil {
