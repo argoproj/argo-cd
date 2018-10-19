@@ -9,3 +9,9 @@ rules:
   - '*'
   verbs:
   - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - list
