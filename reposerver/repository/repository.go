@@ -282,7 +282,7 @@ func isValidKsonnet(appDirPath string) bool {
 func IdentifyAppSourceTypeByAppDir(appDirPath string) (AppSourceType, error) {
 	if p := path.Join(appDirPath, "app.yaml"); pathExists(p) {
 		if !isValidKsonnet(p) {
-			return "", fmt.Errorf("invalid Ksonnet manifest")
+			return "", fmt.Errorf("invalid Ksonnet manifest at path %s", p)
 		}
 		return AppSourceKsonnet, nil
 	}
@@ -299,7 +299,7 @@ func IdentifyAppSourceTypeByAppDir(appDirPath string) (AppSourceType, error) {
 func IdentifyAppSourceTypeByAppPath(appFilePath string) (AppSourceType, error) {
 	if strings.HasSuffix(appFilePath, "app.yaml") {
 		if !isValidKsonnet(appFilePath) {
-			return "", fmt.Errorf("invalid Ksonnet manifest")
+			return "", fmt.Errorf("invalid Ksonnet manifest at path %s", appFilePath)
 		}
 		return AppSourceKsonnet, nil
 	}
