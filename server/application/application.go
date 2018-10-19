@@ -775,11 +775,25 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "Rollback cannot be initiated when auto-sync is enabled")
 	}
+
+	var deploymentInfo *appv1.DeploymentInfo
+	for _, info := range a.Status.History {
+		if info.ID == rollbackReq.ID {
+			deploymentInfo = &info
+			break
+		}
+	}
+	if deploymentInfo == nil {
+		return nil, fmt.Errorf("application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
+	}
+	// Rollback is just a convenience around Sync
 	op := appv1.Operation{
-		Rollback: &appv1.RollbackOperation{
-			ID:     rollbackReq.ID,
-			Prune:  rollbackReq.Prune,
-			DryRun: rollbackReq.DryRun,
+		Sync: &appv1.SyncOperation{
+			Revision:           deploymentInfo.Revision,
+			DryRun:             rollbackReq.DryRun,
+			Prune:              rollbackReq.Prune,
+			SyncStrategy:       &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
+			ParameterOverrides: deploymentInfo.ComponentParameterOverrides,
 		},
 	}
 	a, err = argo.SetAppOperation(ctx, appIf, s.auditLogger, *rollbackReq.Name, &op)
