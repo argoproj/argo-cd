@@ -149,7 +149,7 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	if _, err := m.runCmd("git", "checkout", "--force", revision); err != nil {
 		return err
 	}
-	if _, err := m.runCmd("git", "clean", "-fd"); err != nil {
+	if _, err := m.runCmd("git", "clean", "-fdx"); err != nil {
 		return err
 	}
 	return nil
