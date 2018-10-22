@@ -100,8 +100,11 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 
 	items := make([]*AppInfo, 0)
 
-	for i := range ksonnetRes.Items {
-		items = append(items, &AppInfo{Type: string(repository.AppSourceKsonnet), Path: ksonnetRes.Items[i]})
+	for _, i := range ksonnetRes.Items {
+		t, err := repository.IdentifyAppSourceTypeByAppPath(i)
+		if err == nil && t == repository.AppSourceKsonnet {
+			items = append(items, &AppInfo{Type: string(t), Path: i})
+		}
 	}
 
 	for i := range helmRes.Items {
