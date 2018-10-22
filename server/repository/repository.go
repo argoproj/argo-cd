@@ -101,8 +101,8 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 	items := make([]*AppInfo, 0)
 
 	for _, i := range ksonnetRes.Items {
-		t, err := repository.IdentifyAppSourceTypeByAppPath(i)
-		if err == nil && t == repository.AppSourceKsonnet {
+		t := repository.IdentifyAppSourceTypeByAppDir(filepath.Dir(i))
+		if t == repository.AppSourceKsonnet {
 			items = append(items, &AppInfo{Type: string(t), Path: i})
 		}
 	}
@@ -154,10 +154,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 		return nil, err
 	}
 
-	appSourceType, err := repository.IdentifyAppSourceTypeByAppPath(q.Path)
-	if err != nil {
-		return nil, err
-	}
+	appSourceType := repository.IdentifyAppSourceTypeByAppPath(q.Path)
 	switch appSourceType {
 	case repository.AppSourceKsonnet:
 		var appSpec KsonnetAppSpec
