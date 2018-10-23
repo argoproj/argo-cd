@@ -160,7 +160,29 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		verifier := provider.Verifier(&oidc.Config{ClientID: claims.Audience})
 		idToken, err := verifier.Verify(context.Background(), tokenString)
 		if err != nil {
-			return nil, err
+			// HACK: if we failed token verification, it's possible the reason was because dex
+			// restarted and has new JWKS signing keys (we do not back dex with persistent storage
+			// so keys might be regenerated). Detect this by:
+			// 1. looking for the specific error message
+			// 2. re-initializing the OIDC provider
+			// 3. re-attempting token verification
+			// NOTE: the error message is sensitive to implementation of verifier.Verify()
+			if !strings.Contains(err.Error(), "failed to verify signature") {
+				return nil, err
+			}
+			provider, retryErr := mgr.initializeOIDCProvider()
+			if retryErr != nil {
+				// return original error if we fail to re-initialize OIDC
+				return nil, err
+			}
+			verifier = provider.Verifier(&oidc.Config{ClientID: claims.Audience})
+			idToken, err = verifier.Verify(context.Background(), tokenString)
+			if err != nil {
+				return nil, err
+			}
+			// If we get here, we successfully re-initialized OIDC and after re-initialization,
+			// the token is now valid.
+			log.Info("New OIDC settings detected")
 		}
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
@@ -168,6 +190,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	}
 }
 
+// Username is a helper to extract a human readable username from a context
 func Username(ctx context.Context) string {
 	claims, ok := ctx.Value("claims").(jwt.Claims)
 	if !ok {
@@ -194,8 +217,7 @@ func MakeCookieMetadata(key, value string, flags ...string) string {
 	return strings.Join(components, "; ")
 }
 
-// OIDCProvider lazily initializes and returns the OIDC provider, querying the well known oidc
-// configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration).
+// OIDCProvider lazily initializes, memoizes, and returns the OIDC provider.
 // We have to initialize the provider lazily since ArgoCD is an OIDC client to itself, which
 // presents a chicken-and-egg problem of (1) serving dex over HTTP, and (2) querying the OIDC
 // provider (ourselves) to initialize the app.
@@ -203,6 +225,12 @@ func (mgr *SessionManager) OIDCProvider() (*oidc.Provider, error) {
 	if mgr.provider != nil {
 		return mgr.provider, nil
 	}
+	return mgr.initializeOIDCProvider()
+}
+
+// initializeOIDCProvider re-initializes the OIDC provider, querying the well known oidc
+// configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration)
+func (mgr *SessionManager) initializeOIDCProvider() (*oidc.Provider, error) {
 	if !mgr.settings.IsSSOConfigured() {
 		return nil, fmt.Errorf("SSO is not configured")
 	}
@@ -213,7 +241,6 @@ func (mgr *SessionManager) OIDCProvider() (*oidc.Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
 	}
-
 	// Returns the scopes the provider supports
 	// See: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
 	var s struct {
@@ -223,24 +250,27 @@ func (mgr *SessionManager) OIDCProvider() (*oidc.Provider, error) {
 		return nil, fmt.Errorf("Failed to parse provider scopes_supported: %v", err)
 	}
 	log.Infof("OpenID supported scopes: %v", s.ScopesSupported)
+	offlineAsScope := false
 	if len(s.ScopesSupported) == 0 {
 		// scopes_supported is a "RECOMMENDED" discovery claim, not a required
 		// one. If missing, assume that the provider follows the spec and has
 		// an "offline_access" scope.
-		mgr.offlineAsScope = true
+		offlineAsScope = true
 	} else {
 		// See if scopes_supported has the "offline_access" scope.
 		for _, scope := range s.ScopesSupported {
 			if scope == oidc.ScopeOfflineAccess {
-				mgr.offlineAsScope = true
+				offlineAsScope = true
 				break
 			}
 		}
 	}
 	mgr.provider = provider
+	mgr.offlineAsScope = offlineAsScope
 	return mgr.provider, nil
 }
 
+// OfflineAsScope returns whether or not the OIDC provider supports offline as a scope
 func (mgr *SessionManager) OfflineAsScope() bool {
 	_, _ = mgr.OIDCProvider() // forces offlineAsScope to be determined
 	return mgr.offlineAsScope
