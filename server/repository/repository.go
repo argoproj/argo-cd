@@ -102,14 +102,17 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 		return nil, err
 	}
 
-	items := make([]*AppInfo, 0)
+	componentDirs := make(map[string]interface{})
+	for _, i := range componentRes.Items {
+		d := filepath.Dir(i)
+		componentDirs[d] = struct{}{}
+	}
 
-	for _, k := range ksonnetRes.Items {
-		for _, c := range componentRes.Items {
-			if c == k {
-				items = append(items, &AppInfo{Type: string(repository.AppSourceKsonnet), Path: k})
-				break
-			}
+	items := make([]*AppInfo, 0)
+	for _, i := range ksonnetRes.Items {
+		d := filepath.Dir(i)
+		if _, ok := componentDirs[d]; ok {
+			items = append(items, &AppInfo{Type: string(repository.AppSourceKsonnet), Path: i})
 		}
 	}
 
