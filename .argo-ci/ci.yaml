@@ -29,13 +29,7 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - dep ensure && make cli lint
-      - name: test-coverage
-        template: ci-builder
-        arguments:
-          parameters:
-          - name: cmd
-            value: "dep ensure && go get github.com/mattn/goveralls && make test-coverage"
+        - dep ensure && make cli lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out
       - name: test-e2e
         template: ci-builder
         arguments:
@@ -55,15 +49,15 @@ spec:
           revision: "{{workflow.parameters.revision}}"
     container:
       image: argoproj/argo-cd-ci-builder:latest
-      command: [sh, -c]
+      command: [bash, -c]
       args: ["mkfifo pipe; tee /tmp/logs.txt < pipe & {{inputs.parameters.cmd}} > pipe"]
       workingDir: /go/src/github.com/argoproj/argo-cd
       env:
-        - name: COVERALLS_TOKEN
+        - name: CODECOV_TOKEN
           valueFrom:
             secretKeyRef:
-              name: coverall-token
-              key: coverall-token
+              name: codecov-token
+              key: codecov-token
       resources:
         requests:
           memory: 1024Mi
