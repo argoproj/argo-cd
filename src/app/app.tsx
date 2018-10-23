@@ -59,7 +59,7 @@ requests.onError.subscribe(async (err) => {
     if (err.status === 401) {
         if (!history.location.pathname.startsWith('/login')) {
             if (await isExpiredSSO()) {
-                window.location.pathname = `/auth/login?return_url=${encodeURIComponent(location.href)}`;
+                window.location.href = `/auth/login?return_url=${encodeURIComponent(location.href)}`;
             } else {
                 history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
             }
