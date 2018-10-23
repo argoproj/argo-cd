@@ -124,12 +124,7 @@ lint:
 
 .PHONY: test
 test:
-	go test -v `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
-
-.PHONY: test-coverage
-test-coverage:
 	go test -v -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
-	@if [ "$(COVERALLS_TOKEN)" != "" ] ; then goveralls -ignore `find . -name '*.pb*.go' | grep -v vendor/ | sed 's!^./!!' | paste -d, -s -` -coverprofile=coverage.out -service=argo-ci -repotoken "$(COVERALLS_TOKEN)"; else echo 'No COVERALLS_TOKEN env var specified. Skipping submission to Coveralls.io'; fi
 
 .PHONY: test-e2e
 test-e2e:
