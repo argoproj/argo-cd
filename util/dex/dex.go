@@ -20,7 +20,6 @@ import (
 
 	"github.com/coreos/dex/api"
 	oidc "github.com/coreos/go-oidc"
-	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -325,15 +324,9 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := a.verify(rawIDToken)
+	claims, err := a.sessionMgr.VerifyToken(rawIDToken)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to verify ID token: %v", err), http.StatusInternalServerError)
-		return
-	}
-	var claims jwt.MapClaims
-	err = idToken.Claims(&claims)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to unmarshal claims: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
 		return
 	}
 	flags := []string{"path=/"}
