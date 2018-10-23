@@ -87,6 +87,10 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 	if err != nil {
 		return nil, err
 	}
+	componentRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "components"})
+	if err != nil {
+		return nil, err
+	}
 
 	helmRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*Chart.yaml"})
 	if err != nil {
@@ -100,10 +104,12 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 
 	items := make([]*AppInfo, 0)
 
-	for _, i := range ksonnetRes.Items {
-		t := repository.IdentifyAppSourceTypeByAppDir(filepath.Dir(i))
-		if t == repository.AppSourceKsonnet {
-			items = append(items, &AppInfo{Type: string(t), Path: i})
+	for _, k := range ksonnetRes.Items {
+		for _, c := range componentRes.Items {
+			if c == k {
+				items = append(items, &AppInfo{Type: string(repository.AppSourceKsonnet), Path: k})
+				break
+			}
 		}
 	}
 

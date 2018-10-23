@@ -267,7 +267,7 @@ func tempRepoPath(repo string) string {
 
 // IdentifyAppSourceTypeByAppDir examines a directory and determines its application source type
 func IdentifyAppSourceTypeByAppDir(appDirPath string) AppSourceType {
-	if pathExists(appDirPath, "app.yaml") && pathExists(appDirPath, "components") {
+	if pathExists(appDirPath, "app.yaml") {
 		return AppSourceKsonnet
 	}
 	if pathExists(appDirPath, "Chart.yaml") {
