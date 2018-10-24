@@ -9,7 +9,7 @@ An example guestbook application is provided to demonstrate how ArgoCD works.
 ## 1. Install ArgoCD
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.10.0/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.10.1/manifests/install.yaml
 ```
 This will create a new namespace, `argocd`, where ArgoCD services and application resources will live.
 
@@ -31,7 +31,7 @@ brew install argoproj/tap/argocd
 On Linux:
 
 ```bash
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.10.0/argocd-linux-amd64
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.10.1/argocd-linux-amd64
 chmod +x /usr/local/bin/argocd
 ```
 

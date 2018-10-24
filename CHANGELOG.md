@@ -1,6 +1,11 @@
 # Changelog
 
-## v0.10.0 (TBD)
+## v0.10.1 (2018-10-24)
+
+- Handle case where OIDC settings become invalid after dex server restart (issue #710)
+- git clean also needs to clean files under gitignore (issue #711)
+
+## v0.10.0 (2018-10-19)
 
 ### Changes since v0.9:
 
