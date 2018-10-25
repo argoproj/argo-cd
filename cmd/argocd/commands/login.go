@@ -2,15 +2,19 @@ package commands
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
+	oidc "github.com/coreos/go-oidc"
+	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
+	"github.com/skratchdot/open-golang/open"
+	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
+
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/server/session"
@@ -19,11 +23,8 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
-	jwt "github.com/dgrijalva/jwt-go"
-	log "github.com/sirupsen/logrus"
-	"github.com/skratchdot/open-golang/open"
-	"github.com/spf13/cobra"
-	"golang.org/x/oauth2"
+	oidcutil "github.com/argoproj/argo-cd/util/oidc"
+	"github.com/argoproj/argo-cd/util/rand"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -33,6 +34,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		username string
 		password string
 		sso      bool
+		ssoPort  int
 	)
 	var command = &cobra.Command{
 		Use:   "login SERVER",
@@ -81,12 +83,15 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 			if !sso {
 				tokenString = passwordLogin(acdClient, username, password)
 			} else {
-				acdSet, err := setIf.Get(context.Background(), &settings.SettingsQuery{})
+				ctx := context.Background()
+				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
-				if !ssoConfigured(acdSet) {
-					log.Fatalf("ArgoCD instance is not configured with SSO")
-				}
-				tokenString, refreshToken = oauth2Login(server, clientOpts.PlainText)
+				ctx = oidc.ClientContext(ctx, httpClient)
+				acdSet, err := setIf.Get(ctx, &settings.SettingsQuery{})
+				errors.CheckError(err)
+				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
+				errors.CheckError(err)
+				tokenString, refreshToken = oauth2Login(ctx, ssoPort, oauth2conf, provider)
 			}
 
 			parser := &jwt.Parser{
@@ -130,7 +135,8 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.Flags().StringVar(&ctxName, "name", "", "name to use for the context")
 	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
-	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
+	command.Flags().BoolVar(&sso, "sso", false, "perform SSO login")
+	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
 	return command
 }
 
@@ -144,97 +150,107 @@ func userDisplayName(claims jwt.MapClaims) string {
 	return claims["sub"].(string)
 }
 
-func ssoConfigured(set *settings.Settings) bool {
-	return set.DexConfig != nil && len(set.DexConfig.Connectors) > 0
-}
-
-// getFreePort asks the kernel for a free open port that is ready to use.
-func getFreePort() (int, error) {
-	ln, err := net.Listen("tcp", "[::]:0")
-	if err != nil {
-		return 0, err
-	}
-	return ln.Addr().(*net.TCPAddr).Port, ln.Close()
-}
-
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
-func oauth2Login(host string, plaintext bool) (string, string) {
-	ctx := context.Background()
-	port, err := getFreePort()
+func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provider *oidc.Provider) (string, string) {
+	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
+	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
-	var scheme = "https"
-	if plaintext {
-		scheme = "http"
-	}
-	conf := &oauth2.Config{
-		ClientID: common.ArgoCDCLIClientAppID,
-		Scopes:   []string{"openid", "profile", "email", "groups", "offline_access"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  fmt.Sprintf("%s://%s%s/auth", scheme, host, common.DexAPIEndpoint),
-			TokenURL: fmt.Sprintf("%s://%s%s/token", scheme, host, common.DexAPIEndpoint),
-		},
-		RedirectURL: fmt.Sprintf("http://localhost:%d/auth/callback", port),
-	}
-	srv := &http.Server{Addr: ":" + strconv.Itoa(port)}
+	log.Debug("OIDC Configuration:")
+	log.Debugf("  supported_scopes: %v", oidcConf.ScopesSupported)
+	log.Debugf("  response_types_supported: %v", oidcConf.ResponseTypesSupported)
+
+	// handledRequests ensures we do not handle more requests than necessary
+	handledRequests := 0
+	// completionChan is to signal flow completed. Non-empty string indicates error
+	completionChan := make(chan string)
+	// stateNonce is an OAuth2 state nonce
+	stateNonce := rand.RandString(10)
 	var tokenString string
 	var refreshToken string
-	loginCompleted := make(chan struct{})
 
+	handleErr := func(w http.ResponseWriter, errMsg string) {
+		http.Error(w, errMsg, http.StatusBadRequest)
+		completionChan <- errMsg
+	}
+
+	// Authorization redirect callback from OAuth2 auth flow.
+	// Handles both implicit and authorization code flow
 	callbackHandler := func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			loginCompleted <- struct{}{}
-		}()
+		log.Debugf("Callback: %s", r.URL)
 
-		// Authorization redirect callback from OAuth2 auth flow.
-		if errMsg := r.FormValue("error"); errMsg != "" {
-			http.Error(w, errMsg+": "+r.FormValue("error_description"), http.StatusBadRequest)
-			log.Fatal(errMsg)
+		if formErr := r.FormValue("error"); formErr != "" {
+			handleErr(w, formErr+": "+r.FormValue("error_description"))
 			return
 		}
-		code := r.FormValue("code")
-		if code == "" {
-			errMsg := fmt.Sprintf("no code in request: %q", r.Form)
-			http.Error(w, errMsg, http.StatusBadRequest)
-			log.Fatal(errMsg)
-			return
-		}
-		tok, err := conf.Exchange(ctx, code)
-		errors.CheckError(err)
-		log.Info("Authentication successful")
 
-		var ok bool
-		tokenString, ok = tok.Extra("id_token").(string)
-		if !ok {
-			errMsg := "no id_token in token response"
-			http.Error(w, errMsg, http.StatusInternalServerError)
-			log.Fatal(errMsg)
+		handledRequests++
+		if handledRequests > 2 {
+			// Since implicit flow will redirect back to ourselves, this counter ensures we do not
+			// fallinto a redirect loop (e.g. user visits the page by hand)
+			handleErr(w, "Unable to complete login flow: too many redirects")
 			return
 		}
-		refreshToken, _ = tok.Extra("refresh_token").(string)
-		log.Debugf("Token: %s", tokenString)
-		log.Debugf("Refresh Token: %s", tokenString)
+
+		if len(r.Form) == 0 {
+			// If we get here, no form data was set. We presume to be performing an implicit login
+			// flow where the id_token is contained in a URL fragment, making it inaccessible to be
+			// read from the request. This javascript will redirect the browser to send the
+			// fragments as query parameters so our callback handler can read and return token.
+			fmt.Fprintf(w, `<script>window.location.search = window.location.hash.substring(1)</script>`)
+			return
+		}
+
+		if state := r.FormValue("state"); state != stateNonce {
+			handleErr(w, "Unknown state nonce")
+			return
+		}
+
+		tokenString = r.FormValue("id_token")
+		if tokenString == "" {
+			code := r.FormValue("code")
+			if code == "" {
+				handleErr(w, fmt.Sprintf("no code in request: %q", r.Form))
+				return
+			}
+			tok, err := oauth2conf.Exchange(ctx, code)
+			if err != nil {
+				handleErr(w, err.Error())
+				return
+			}
+			var ok bool
+			tokenString, ok = tok.Extra("id_token").(string)
+			if !ok {
+				handleErr(w, "no id_token in token response")
+				return
+			}
+			refreshToken, _ = tok.Extra("refresh_token").(string)
+		}
 		successPage := `
 		<div style="height:100px; width:100%!; display:flex; flex-direction: column; justify-content: center; align-items:center; background-color:#2ecc71; color:white; font-size:22"><div>Authentication successful!</div></div>
 		<p style="margin-top:20px; font-size:18; text-align:center">Authentication was successful, you can now return to CLI. This page will close automatically</p>
 		<script>window.onload=function(){setTimeout(this.close, 4000)}</script>
 		`
 		fmt.Fprintf(w, successPage)
+		completionChan <- ""
 	}
+	srv := &http.Server{Addr: ":" + strconv.Itoa(port)}
 	http.HandleFunc("/auth/callback", callbackHandler)
-
-	// add transport for self-signed certificate to context
-	sslcli := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, sslcli)
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
 	log.Info("Opening browser for authentication")
-	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
-	log.Infof("Authentication URL: %s", url)
+
+	var url string
+	grantType := oidcutil.InferGrantType(oauth2conf, oidcConf)
+	switch grantType {
+	case oidcutil.GrantTypeAuthorizationCode:
+		url = oauth2conf.AuthCodeURL(stateNonce, oauth2.AccessTypeOffline)
+	case oidcutil.GrantTypeImplicit:
+		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, oauth2.AccessTypeOffline)
+	default:
+		log.Fatalf("Unsupported grant type: %v", grantType)
+	}
+	log.Infof("Performing %s flow login: %s", grantType, url)
 	time.Sleep(1 * time.Second)
 	err = open.Run(url)
 	errors.CheckError(err)
@@ -243,8 +259,16 @@ func oauth2Login(host string, plaintext bool) (string, string) {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
-	<-loginCompleted
+	errMsg := <-completionChan
+	if errMsg != "" {
+		log.Fatal(errMsg)
+	}
+	log.Info("Authentication successful")
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
 	_ = srv.Shutdown(ctx)
+	log.Debugf("Token: %s", tokenString)
+	log.Debugf("Refresh Token: %s", refreshToken)
 	return tokenString, refreshToken
 }
 

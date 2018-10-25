@@ -58,9 +58,11 @@ import (
 	dexutil "github.com/argoproj/argo-cd/util/dex"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/healthz"
+	httputil "github.com/argoproj/argo-cd/util/http"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/oidc"
 	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
@@ -104,7 +106,7 @@ func init() {
 type ArgoCDServer struct {
 	ArgoCDServerOpts
 
-	ssoClientApp *dexutil.ClientApp
+	ssoClientApp *oidc.ClientApp
 	settings     *settings_util.ArgoCDSettings
 	log          *log.Entry
 	sessionMgr   *util_session.SessionManager
@@ -121,6 +123,7 @@ type ArgoCDServerOpts struct {
 	DisableAuth         bool
 	Insecure            bool
 	Namespace           string
+	DexServerAddr       string
 	StaticAssetsDir     string
 	KubeClientset       kubernetes.Interface
 	AppClientset        appclientset.Interface
@@ -306,6 +309,8 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	updateCh := make(chan struct{}, 1)
 	a.settingsMgr.Subscribe(updateCh)
 
+	prevURL := a.settings.URL
+	prevOIDCConfig := a.settings.OIDCConfigRAW
 	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
@@ -322,6 +327,14 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 		errors.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
+			break
+		}
+		if prevOIDCConfig != a.settings.OIDCConfigRAW {
+			log.Infof("odic config modified. restarting")
+			break
+		}
+		if prevURL != a.settings.URL {
+			log.Infof("url modified. restarting")
 			break
 		}
 		if prevGitHubSecret != a.settings.WebhookGitHubSecret {
@@ -430,7 +443,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		if !a.Insecure {
 			flags = append(flags, "Secure")
 		}
-		cookie := util_session.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
+		cookie := httputil.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
@@ -523,10 +536,10 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy())
+	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr))
 	tlsConfig := a.settings.TLSConfig()
 	tlsConfig.InsecureSkipVerify = true
-	a.ssoClientApp, err = dexutil.NewClientApp(a.settings, a.sessionMgr)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)

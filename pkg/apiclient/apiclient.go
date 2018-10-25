@@ -44,10 +44,16 @@ const (
 	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
+var (
+	clientScopes = []string{"openid", "profile", "email", "groups", "offline_access"}
+)
+
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
 	ClientOptions() ClientOptions
 	NewConn() (*grpc.ClientConn, error)
+	HTTPClient() (*http.Client, error)
+	OIDCConfig(context.Context, *settings.Settings) (*oauth2.Config, *oidc.Provider, error)
 	NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error)
 	NewRepoClientOrDie() (*grpc.ClientConn, repository.RepositoryServiceClient)
 	NewClusterClient() (*grpc.ClientConn, cluster.ClusterServiceClient, error)
@@ -160,15 +166,61 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	return &c, nil
 }
 
+// OIDCConfig returns OAuth2 client config and a OpenID Provider based on ArgoCD settings
+// ctx can hold an appropriate http.Client to use for the exchange
+func (c *client) OIDCConfig(ctx context.Context, set *settings.Settings) (*oauth2.Config, *oidc.Provider, error) {
+	var clientID string
+	var issuerURL string
+	if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
+		clientID = common.ArgoCDCLIClientAppID
+		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
+	} else if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
+		clientID = set.OIDCConfig.ClientID
+		issuerURL = set.OIDCConfig.Issuer
+	} else {
+		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
+	}
+	provider, err := oidc.NewProvider(ctx, issuerURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
+	}
+	oauth2conf := oauth2.Config{
+		ClientID: clientID,
+		Scopes:   clientScopes,
+		Endpoint: provider.Endpoint(),
+	}
+	return &oauth2conf, provider, nil
+}
+
+// HTTPClient returns a HTTPClient appropriate for performing OAuth, based on TLS settings
+func (c *client) HTTPClient() (*http.Client, error) {
+	tlsConfig, err := c.tlsConfig()
+	if err != nil {
+		return nil, err
+	}
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}, nil
+}
+
 // refreshAuthToken refreshes a JWT auth token if it is invalid (e.g. expired)
 func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, configPath string) error {
-	configCtx, err := localCfg.ResolveContext(ctxName)
-	if err != nil {
-		return err
-	}
 	if c.RefreshToken == "" {
 		// If we have no refresh token, there's no point in doing anything
 		return nil
+	}
+	configCtx, err := localCfg.ResolveContext(ctxName)
+	if err != nil {
+		return err
 	}
 	parser := &jwt.Parser{
 		SkipClaimsValidation: true,
@@ -184,50 +236,10 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	}
 
 	log.Debug("Auth token no longer valid. Refreshing")
-	tlsConfig, err := c.tlsConfig()
+	rawIDToken, refreshToken, err := c.redeemRefreshToken()
 	if err != nil {
 		return err
 	}
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}
-	ctx := oidc.ClientContext(context.Background(), httpClient)
-	var scheme string
-	if c.PlainText {
-		scheme = "http"
-	} else {
-		scheme = "https"
-	}
-	conf := &oauth2.Config{
-		ClientID: common.ArgoCDCLIClientAppID,
-		Scopes:   []string{"openid", "profile", "email", "groups", "offline_access"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  fmt.Sprintf("%s://%s%s/auth", scheme, c.ServerAddr, common.DexAPIEndpoint),
-			TokenURL: fmt.Sprintf("%s://%s%s/token", scheme, c.ServerAddr, common.DexAPIEndpoint),
-		},
-		RedirectURL: fmt.Sprintf("%s://%s/auth/callback", scheme, c.ServerAddr),
-	}
-	t := &oauth2.Token{
-		RefreshToken: c.RefreshToken,
-	}
-	token, err := conf.TokenSource(ctx, t).Token()
-	if err != nil {
-		return err
-	}
-	rawIDToken, ok := token.Extra("id_token").(string)
-	if !ok {
-		return errors.New("no id_token in token response")
-	}
-	refreshToken, _ := token.Extra("refresh_token").(string)
 	c.AuthToken = rawIDToken
 	c.RefreshToken = refreshToken
 	localCfg.UpsertUser(localconfig.User{
@@ -240,6 +252,41 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 		return err
 	}
 	return nil
+}
+
+// redeemRefreshToken performs the exchange of a refresh_token for a new id_token and refresh_token
+func (c *client) redeemRefreshToken() (string, string, error) {
+	setConn, setIf, err := c.NewSettingsClient()
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { _ = setConn.Close() }()
+	httpClient, err := c.HTTPClient()
+	if err != nil {
+		return "", "", err
+	}
+	ctx := oidc.ClientContext(context.Background(), httpClient)
+	acdSet, err := setIf.Get(ctx, &settings.SettingsQuery{})
+	if err != nil {
+		return "", "", err
+	}
+	oauth2conf, _, err := c.OIDCConfig(ctx, acdSet)
+	if err != nil {
+		return "", "", err
+	}
+	t := &oauth2.Token{
+		RefreshToken: c.RefreshToken,
+	}
+	token, err := oauth2conf.TokenSource(ctx, t).Token()
+	if err != nil {
+		return "", "", err
+	}
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		return "", "", errors.New("no id_token in token response")
+	}
+	refreshToken, _ := token.Extra("refresh_token").(string)
+	return rawIDToken, refreshToken, nil
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.

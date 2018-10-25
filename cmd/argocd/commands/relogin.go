@@ -1,15 +1,19 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	oidc "github.com/coreos/go-oidc"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	"github.com/argoproj/argo-cd/server/settings"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/argoproj/argo-cd/util/session"
 )
@@ -18,6 +22,7 @@ import (
 func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		password string
+		ssoPort  int
 	)
 	var command = &cobra.Command{
 		Use:   "relogin",
@@ -45,19 +50,29 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 			var tokenString string
 			var refreshToken string
+			clientOpts := argocdclient.ClientOptions{
+				ConfigPath: "",
+				ServerAddr: configCtx.Server.Server,
+				Insecure:   configCtx.Server.Insecure,
+				PlainText:  configCtx.Server.PlainText,
+			}
+			acdClient := argocdclient.NewClientOrDie(&clientOpts)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
-				clientOpts := argocdclient.ClientOptions{
-					ConfigPath: "",
-					ServerAddr: configCtx.Server.Server,
-					Insecure:   configCtx.Server.Insecure,
-					PlainText:  configCtx.Server.PlainText,
-				}
-				acdClient := argocdclient.NewClientOrDie(&clientOpts)
 				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
 				tokenString = passwordLogin(acdClient, claims.Subject, password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
-				tokenString, refreshToken = oauth2Login(configCtx.Server.Server, configCtx.Server.PlainText)
+				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				defer util.Close(setConn)
+				ctx := context.Background()
+				httpClient, err := acdClient.HTTPClient()
+				errors.CheckError(err)
+				ctx = oidc.ClientContext(ctx, httpClient)
+				acdSet, err := setIf.Get(ctx, &settings.SettingsQuery{})
+				errors.CheckError(err)
+				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
+				errors.CheckError(err)
+				tokenString, refreshToken = oauth2Login(ctx, ssoPort, oauth2conf, provider)
 			}
 
 			localCfg.UpsertUser(localconfig.User{
@@ -71,5 +86,6 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		},
 	}
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
+	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
 	return command
 }

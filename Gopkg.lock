@@ -89,14 +89,6 @@
   version = "v1.5.0"
 
 [[projects]]
-  digest = "1:65bad35bfcdd839cb26bb4ff31de49be39dd6bd2ade0c7c57d010f7d0412a4a5"
-  name = "github.com/coreos/dex"
-  packages = ["api"]
-  pruneopts = ""
-  revision = "218d671a96865df2a4cf7f310efb99b8bfc5a5e2"
-  version = "v2.10.0"
-
-[[projects]]
   branch = "v2"
   digest = "1:d8ee1b165eb7f4fd9ada718e1e7eeb0bc1fd462592d0bd823df694443f448681"
   name = "github.com/coreos/go-oidc"
@@ -1439,7 +1431,6 @@
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
-    "github.com/coreos/dex/api",
     "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
     "github.com/dustin/go-humanize",
@@ -1453,7 +1444,6 @@
     "github.com/gogo/protobuf/proto",
     "github.com/gogo/protobuf/protoc-gen-gofast",
     "github.com/gogo/protobuf/protoc-gen-gogofast",
-    "github.com/golang/glog",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/protoc-gen-go",
     "github.com/golang/protobuf/ptypes/empty",

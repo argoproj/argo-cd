@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
+	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	passwordutil "github.com/argoproj/argo-cd/util/password"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -27,10 +28,6 @@ type SessionManager struct {
 	settings *settings.ArgoCDSettings
 	client   *http.Client
 	provider *oidc.Provider
-
-	// Does the provider use "offline_access" scope to request a refresh token
-	// or does it use "access_type=offline" (e.g. Google)?
-	offlineAsScope bool
 }
 
 const (
@@ -153,7 +150,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		return mgr.Parse(tokenString)
 	default:
 		// Dex signed token
-		provider, err := mgr.OIDCProvider()
+		provider, err := mgr.oidcProvider()
 		if err != nil {
 			return nil, err
 		}
@@ -208,20 +205,11 @@ func Username(ctx context.Context) string {
 	}
 }
 
-// MakeCookieMetadata generates a string representing a Web cookie.  Yum!
-func MakeCookieMetadata(key, value string, flags ...string) string {
-	components := []string{
-		fmt.Sprintf("%s=%s", key, value),
-	}
-	components = append(components, flags...)
-	return strings.Join(components, "; ")
-}
-
-// OIDCProvider lazily initializes, memoizes, and returns the OIDC provider.
-// We have to initialize the provider lazily since ArgoCD is an OIDC client to itself, which
-// presents a chicken-and-egg problem of (1) serving dex over HTTP, and (2) querying the OIDC
-// provider (ourselves) to initialize the app.
-func (mgr *SessionManager) OIDCProvider() (*oidc.Provider, error) {
+// oidcProvider lazily initializes, memoizes, and returns the OIDC provider.
+// We have to initialize the provider lazily since ArgoCD can be an OIDC client to itself (in the
+// case of dex reverse proxy), which presents a chicken-and-egg problem of (1) serving dex over
+// HTTP, and (2) querying the OIDC provider (ourself) to initialize the app.
+func (mgr *SessionManager) oidcProvider() (*oidc.Provider, error) {
 	if mgr.provider != nil {
 		return mgr.provider, nil
 	}
@@ -234,46 +222,12 @@ func (mgr *SessionManager) initializeOIDCProvider() (*oidc.Provider, error) {
 	if !mgr.settings.IsSSOConfigured() {
 		return nil, fmt.Errorf("SSO is not configured")
 	}
-	issuerURL := mgr.settings.IssuerURL()
-	log.Infof("Initializing OIDC provider (issuer: %s)", issuerURL)
-	ctx := oidc.ClientContext(context.Background(), mgr.client)
-	provider, err := oidc.NewProvider(ctx, issuerURL)
+	provider, err := oidcutil.NewOIDCProvider(mgr.settings.IssuerURL(), mgr.client)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
-	}
-	// Returns the scopes the provider supports
-	// See: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
-	var s struct {
-		ScopesSupported []string `json:"scopes_supported"`
-	}
-	if err := provider.Claims(&s); err != nil {
-		return nil, fmt.Errorf("Failed to parse provider scopes_supported: %v", err)
-	}
-	log.Infof("OpenID supported scopes: %v", s.ScopesSupported)
-	offlineAsScope := false
-	if len(s.ScopesSupported) == 0 {
-		// scopes_supported is a "RECOMMENDED" discovery claim, not a required
-		// one. If missing, assume that the provider follows the spec and has
-		// an "offline_access" scope.
-		offlineAsScope = true
-	} else {
-		// See if scopes_supported has the "offline_access" scope.
-		for _, scope := range s.ScopesSupported {
-			if scope == oidc.ScopeOfflineAccess {
-				offlineAsScope = true
-				break
-			}
-		}
+		return nil, err
 	}
 	mgr.provider = provider
-	mgr.offlineAsScope = offlineAsScope
 	return mgr.provider, nil
-}
-
-// OfflineAsScope returns whether or not the OIDC provider supports offline as a scope
-func (mgr *SessionManager) OfflineAsScope() bool {
-	_, _ = mgr.OIDCProvider() // forces offlineAsScope to be determined
-	return mgr.offlineAsScope
 }
 
 type debugTransport struct {

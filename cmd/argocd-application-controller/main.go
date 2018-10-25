@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -48,14 +46,8 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "application-controller is a controller to operate on applications CRD",
 		RunE: func(c *cobra.Command, args []string) error {
-			level, err := log.ParseLevel(logLevel)
-			errors.CheckError(err)
-			log.SetLevel(level)
-
-			// Set the glog level for the k8s go-client
-			_ = flag.CommandLine.Parse([]string{})
-			_ = flag.Lookup("logtostderr").Value.Set("true")
-			_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
+			cli.SetLogLevel(logLevel)
+			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)

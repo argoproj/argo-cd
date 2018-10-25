@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/stats"
@@ -35,9 +36,7 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "Run argocd-repo-server",
 		RunE: func(c *cobra.Command, args []string) error {
-			level, err := log.ParseLevel(logLevel)
-			errors.CheckError(err)
-			log.SetLevel(level)
+			cli.SetLogLevel(logLevel)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
