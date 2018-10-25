@@ -45,14 +45,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f624a361a427f4c9853f1d4d0bd47dff8323cef0054708d8df56cefe03ce4ac5"
+  digest = "1:e8ec0abbf32fdcc9f7eb14c0656c1d0fc2fc7ec8f60dff4b7ac080c50afd8e49"
   name = "github.com/argoproj/pkg"
   packages = [
     "exec",
     "time",
   ]
   pruneopts = ""
-  revision = "fc8a50f323ce16f93a34632f7abf780977386fe8"
+  revision = "88ab0e836a8e8c70bc297c5764669bd7da27afd1"
 
 [[projects]]
   digest = "1:d8a2bb36a048d1571bcc1aee208b61f39dc16c6c53823feffd37449dde162507"

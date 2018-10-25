@@ -206,7 +206,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		}
 	case AppSourceKustomize:
 		k := kustomize.NewKustomizeApp(appPath)
-		targetObjs, err = k.Build()
+		targetObjs, params, err = k.Build(q.Namespace, q.ComponentParameterOverrides)
 	case AppSourceDirectory:
 		targetObjs, err = findManifests(appPath)
 	}
