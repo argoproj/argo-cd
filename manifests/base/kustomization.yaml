@@ -24,10 +24,10 @@ resources:
 
 imageTags:
 - name: argoproj/argocd-server
-  newTag: v0.10.1
+  newTag: v0.10.2
 - name: argoproj/argocd-ui
-  newTag: v0.10.1
+  newTag: v0.10.2
 - name: argoproj/argocd-repo-server
-  newTag: v0.10.1
+  newTag: v0.10.2
 - name: argoproj/argocd-application-controller
-  newTag: v0.10.1
+  newTag: v0.10.2
