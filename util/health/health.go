@@ -3,15 +3,14 @@ package health
 import (
 	"fmt"
 
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/kube"
 	"k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
 	"k8s.io/kubernetes/pkg/apis/apps"
 )
 
@@ -41,8 +40,10 @@ func GetAppHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.
 	}
 
 	if err != nil {
-		health.Status = appv1.HealthStatusUnknown
-		health.StatusDetails = err.Error()
+		health = &appv1.HealthStatus{
+			Status:        appv1.HealthStatusUnknown,
+			StatusDetails: err.Error(),
+		}
 	}
 	return health, err
 }
