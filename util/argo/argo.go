@@ -122,6 +122,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Ap
 }
 
 // WaitForRefresh watches an application until its comparison timestamp is after the refresh timestamp
+// If refresh timestamp is not present, will use current timestamp at time of call
 func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *time.Duration) (*argoappv1.Application, error) {
 	ctx := context.Background()
 	var cancel context.CancelFunc
@@ -136,6 +137,7 @@ func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *t
 		return nil, err
 	}
 	defer watchIf.Stop()
+	now := time.Now().UTC()
 
 	for {
 		select {
@@ -161,6 +163,9 @@ func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *t
 				return nil, fmt.Errorf("Application event object failed conversion: %v", next)
 			}
 			refreshTimestampStr := app.ObjectMeta.Annotations[common.AnnotationKeyRefresh]
+			if refreshTimestampStr == "" {
+				refreshTimestampStr = now.String()
+			}
 			refreshTimestamp, err := time.Parse(time.RFC3339, refreshTimestampStr)
 			if err != nil {
 				return nil, fmt.Errorf("Unable to parse '%s': %v", common.AnnotationKeyRefresh, err)
