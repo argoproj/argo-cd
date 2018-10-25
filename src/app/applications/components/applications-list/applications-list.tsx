@@ -229,15 +229,19 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private async syncApplication(appName: string, revision: string) {
-        await AppUtils.syncApplication(appName, revision, false, null, this.appContext);
-        this.appContext.apis.notifications.show({
-            type: NotificationType.Success,
-            content: `Synced revision`,
-        });
+        const synced = await AppUtils.syncApplication(appName, revision, false, null, this.appContext);
+        if (synced) {
+            this.appContext.apis.notifications.show({
+                type: NotificationType.Success,
+                content: `Synced revision`,
+            });
+        }
     }
 
     private async deleteApplication(appName: string) {
-        await AppUtils.deleteApplication(appName, this.appContext);
-        this.appContext.router.history.push('/applications');
+        const deleted = await AppUtils.deleteApplication(appName, this.appContext);
+        if (deleted) {
+            this.appContext.router.history.push('/applications');
+        }
     }
 }

@@ -29,12 +29,14 @@ export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[
 export async function syncApplication(appName: string, revision: string, prune: boolean, resources: appModels.SyncOperationResource[], context: AppContext) {
     try {
         await services.applications.sync(appName, revision, prune, resources);
+        return true;
     } catch (e) {
         context.apis.notifications.show({
             content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
             type: NotificationType.Error,
         });
     }
+    return false;
 }
 
 export async function deleteApplication(appName: string, context: AppContext): Promise<boolean> {
