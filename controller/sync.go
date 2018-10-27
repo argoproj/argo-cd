@@ -33,7 +33,7 @@ type syncContext struct {
 	proj          *appv1.AppProject
 	comparison    *appv1.ComparisonResult
 	config        *rest.Config
-	dynClientPool dynamic.ClientPool
+	dynamicIf     dynamic.Interface
 	disco         discovery.DiscoveryInterface
 	kubectl       kube.Kubectl
 	namespace     string
@@ -112,11 +112,16 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	}
 
 	restConfig := clst.RESTConfig()
-	dynClientPool := dynamic.NewDynamicClientPool(restConfig)
-	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = fmt.Sprintf("Failed to initialize dynamic client: %v", err)
+		return
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		state.Phase = appv1.OperationError
+		state.Message = fmt.Sprintf("Failed to initialize discovery client: %v", err)
 		return
 	}
 
@@ -132,7 +137,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		proj:          proj,
 		comparison:    comparison,
 		config:        restConfig,
-		dynClientPool: dynClientPool,
+		dynamicIf:     dynamicIf,
 		disco:         disco,
 		kubectl:       s.kubectl,
 		namespace:     app.Spec.Destination.Namespace,
@@ -627,15 +632,12 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	}
 
 	gvk := hook.GroupVersionKind()
-	dclient, err := sc.dynClientPool.ClientForGroupVersionKind(gvk)
-	if err != nil {
-		return false, err
-	}
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
 	if err != nil {
 		return false, err
 	}
-	resIf := dclient.Resource(apiResource, sc.namespace)
+	resource := kube.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
+	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, sc.namespace)
 
 	var liveObj *unstructured.Unstructured
 	existing, err := resIf.Get(hook.GetName(), metav1.GetOptions{})
@@ -938,15 +940,12 @@ func (sc *syncContext) deleteHook(name, kind, apiVersion string) error {
 		Version: groupVersion[1],
 		Kind:    kind,
 	}
-	dclient, err := sc.dynClientPool.ClientForGroupVersionKind(gvk)
-	if err != nil {
-		return err
-	}
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
 	if err != nil {
 		return err
 	}
-	resIf := dclient.Resource(apiResource, sc.namespace)
+	resource := kube.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
+	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, sc.namespace)
 	return resIf.Delete(name, &metav1.DeleteOptions{})
 }
 

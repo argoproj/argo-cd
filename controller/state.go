@@ -171,7 +171,10 @@ func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*u
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 
 	// Move live resources which have corresponding target object to controlledLiveObj
-	dynClientPool := dynamic.NewDynamicClientPool(restConfig)
+	dynamicIf, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return nil, nil, err
+	}
 	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
 		return nil, nil, err
@@ -185,10 +188,6 @@ func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*u
 			// of ArgoCD. In order to determine that it is truly missing, we fall back to perform a
 			// direct lookup of the resource by name. See issue #141
 			gvk := targetObj.GroupVersionKind()
-			dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
-			if err != nil {
-				return nil, nil, err
-			}
 			apiResource, err := kubeutil.ServerResourceForGroupVersionKind(disco, gvk)
 			if err != nil {
 				if !apierr.IsNotFound(err) {
@@ -196,7 +195,7 @@ func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*u
 				}
 				// If we get here, the app is comprised of a custom resource which has yet to be registered
 			} else {
-				liveObj, err = kubeutil.GetLiveResource(dclient, targetObj, apiResource, app.Spec.Destination.Namespace)
+				liveObj, err = kubeutil.GetLiveResource(dynamicIf, targetObj, apiResource, app.Spec.Destination.Namespace)
 				if err != nil {
 					return nil, nil, err
 				}

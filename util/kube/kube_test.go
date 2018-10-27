@@ -100,8 +100,8 @@ func TestGetLiveResource(t *testing.T) {
 	assert.True(t, ok)
 	fakeDiscovery.Fake.Resources = resourceList()
 
-	fakeDynClient := fakedynamic.FakeClient{
-		Fake: &kubetesting.Fake{},
+	fakeDynClient := fakedynamic.FakeDynamicClient{
+		Fake: kubetesting.Fake{},
 	}
 	fakeDynClient.Fake.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		svc, err := kubeclientset.CoreV1().Services(test.TestNamespace).Get(demoSvc.Name, metav1.GetOptions{})
@@ -119,8 +119,8 @@ func TestGetLiveResource(t *testing.T) {
 
 func TestListResources(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(test.DemoService(), test.DemoDeployment())
-	fakeDynClient := fakedynamic.FakeClient{
-		Fake: &kubetesting.Fake{},
+	fakeDynClient := fakedynamic.FakeDynamicClient{
+		Fake: kubetesting.Fake{},
 	}
 	fakeDynClient.Fake.AddReactor("list", "services", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		svcList, err := kubeclientset.CoreV1().Services(test.TestNamespace).List(metav1.ListOptions{})
