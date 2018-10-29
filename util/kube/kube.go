@@ -204,17 +204,32 @@ func FlushServerResourcesCache() {
 	apiResourceCache.Flush()
 }
 
+func ToGroupVersionResource(groupVersion string, apiResource *metav1.APIResource) schema.GroupVersionResource {
+	gvk := schema.FromAPIVersionAndKind(groupVersion, apiResource.Kind)
+	gv := gvk.GroupVersion()
+	return gv.WithResource(apiResource.Name)
+}
+
+func ToResourceInterface(dynamicIf dynamic.Interface, apiResource *metav1.APIResource, resource schema.GroupVersionResource, namespace string) dynamic.ResourceInterface {
+	if apiResource.Namespaced {
+		return dynamicIf.Resource(resource).Namespace(namespace)
+	}
+	return dynamicIf.Resource(resource)
+}
+
 // GetLiveResource returns the corresponding live resource from a unstructured object
-func GetLiveResource(dclient dynamic.Interface, obj *unstructured.Unstructured, apiResource *metav1.APIResource, namespace string) (*unstructured.Unstructured, error) {
+func GetLiveResource(dynamicIf dynamic.Interface, obj *unstructured.Unstructured, apiResource *metav1.APIResource, namespace string) (*unstructured.Unstructured, error) {
 	resourceName := obj.GetName()
 	if resourceName == "" {
 		return nil, fmt.Errorf("resource was supplied without a name")
 	}
-	reIf := dclient.Resource(apiResource, namespace)
+	gvk := obj.GroupVersionKind()
+	resource := ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
+	reIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
 	liveObj, err := reIf.Get(resourceName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			log.Infof("No live counterpart to %s/%s/%s/%s in namespace: '%s'", apiResource.Group, apiResource.Version, apiResource.Name, resourceName, namespace)
+			log.Infof("No live counterpart to %s, %s/%s", gvk.String(), namespace, resourceName)
 			return nil, nil
 		}
 		return nil, errors.WithStack(err)
@@ -235,9 +250,19 @@ func isExcludedResourceGroup(resource metav1.APIResource) bool {
 	return resource.Group == "servicecatalog.k8s.io"
 }
 
-func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace string, labelName string) (chan watch.Event, error) {
-	log.Infof("Start watching for resources changes with label %s in cluster %s", labelName, config.Host)
-	dynClientPool := dynamic.NewDynamicClientPool(config)
+type apiResourceInterface struct {
+	groupVersion string
+	apiResource  metav1.APIResource
+	resourceIf   dynamic.ResourceInterface
+}
+
+type filterFunc func(groupVersion string, apiResource *metav1.APIResource) bool
+
+func filterAPIResources(config *rest.Config, filter filterFunc, namespace string) ([]apiResourceInterface, error) {
+	dynamicIf, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
@@ -246,41 +271,58 @@ func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace
 	if err != nil {
 		return nil, err
 	}
-
-	resources := make([]dynamic.ResourceInterface, 0)
+	apiResIfs := make([]apiResourceInterface, 0)
 	for _, apiResourcesList := range serverResources {
-		for i := range apiResourcesList.APIResources {
-			apiResource := apiResourcesList.APIResources[i]
-			watchSupported := false
-			for _, verb := range apiResource.Verbs {
-				if verb == watchVerb {
-					watchSupported = true
-					break
+		for _, apiResource := range apiResourcesList.APIResources {
+			if filter(apiResourcesList.GroupVersion, &apiResource) {
+				resource := ToGroupVersionResource(apiResourcesList.GroupVersion, &apiResource)
+				resourceIf := ToResourceInterface(dynamicIf, &apiResource, resource, namespace)
+				apiResIf := apiResourceInterface{
+					groupVersion: apiResourcesList.GroupVersion,
+					apiResource:  apiResource,
+					resourceIf:   resourceIf,
 				}
-			}
-			if watchSupported && !isExcludedResourceGroup(apiResource) {
-				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
-				if err != nil {
-					return nil, err
-				}
-				resources = append(resources, dclient.Resource(&apiResource, namespace))
+				apiResIfs = append(apiResIfs, apiResIf)
 			}
 		}
 	}
+	return apiResIfs, nil
+}
+
+// isSupportedVerb returns whether or not a APIResource supports a specific verb
+func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
+	for _, v := range apiResource.Verbs {
+		if v == verb {
+			return true
+		}
+	}
+	return false
+}
+
+func watchSupported(groupVersion string, apiResource *metav1.APIResource) bool {
+	return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(*apiResource)
+}
+
+func WatchResourcesWithLabel(ctx context.Context, config *rest.Config, namespace string, labelName string) (chan watch.Event, error) {
+	log.Infof("Start watching for resources changes with label %s in cluster %s", labelName, config.Host)
+	apiResIfs, err := filterAPIResources(config, watchSupported, namespace)
+	if err != nil {
+		return nil, err
+	}
+
 	ch := make(chan watch.Event)
 	go func() {
 		var wg sync.WaitGroup
-		wg.Add(len(resources))
-		for i := 0; i < len(resources); i++ {
-			resource := resources[i]
-			go func() {
+		wg.Add(len(apiResIfs))
+		for _, apiResIf := range apiResIfs {
+			go func(resourceIf dynamic.ResourceInterface) {
 				defer wg.Done()
-				w, err := resource.Watch(metav1.ListOptions{LabelSelector: labelName})
+				w, err := resourceIf.Watch(metav1.ListOptions{LabelSelector: labelName})
 				if err == nil {
 					defer w.Stop()
 					copyEventsChannel(ctx, w.ResultChan(), ch)
 				}
-			}()
+			}(apiResIf.resourceIf)
 		}
 		wg.Wait()
 		close(ch)
@@ -310,47 +352,23 @@ func copyEventsChannel(ctx context.Context, src <-chan watch.Event, dst chan wat
 
 // GetResourcesWithLabel returns all kubernetes resources with specified label
 func GetResourcesWithLabel(config *rest.Config, namespace string, labelName string, labelValue string) ([]*unstructured.Unstructured, error) {
-	dynClientPool := dynamic.NewDynamicClientPool(config)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	listSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
+		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(*apiResource)
+	}
+	apiResIfs, err := filterAPIResources(config, listSupported, namespace)
 	if err != nil {
 		return nil, err
-	}
-	resources, err := GetCachedServerResources(config.Host, disco)
-	if err != nil {
-		return nil, err
-	}
-
-	var resourceInterfaces []dynamic.ResourceInterface
-
-	for _, apiResourcesList := range resources {
-		for i := range apiResourcesList.APIResources {
-			apiResource := apiResourcesList.APIResources[i]
-			listSupported := false
-			for _, verb := range apiResource.Verbs {
-				if verb == listVerb {
-					listSupported = true
-					break
-				}
-			}
-			if listSupported && !isExcludedResourceGroup(apiResource) {
-				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
-				if err != nil {
-					return nil, err
-				}
-				resourceInterfaces = append(resourceInterfaces, dclient.Resource(&apiResource, namespace))
-			}
-		}
 	}
 
 	var asyncErr error
 	var result []*unstructured.Unstructured
 	var wg sync.WaitGroup
 	var lock sync.Mutex
-	wg.Add(len(resourceInterfaces))
-	for _, c := range resourceInterfaces {
-		go func(client dynamic.ResourceInterface) {
+	wg.Add(len(apiResIfs))
+	for _, apiResIf := range apiResIfs {
+		go func(resourceIf dynamic.ResourceInterface) {
 			defer wg.Done()
-			list, err := client.List(metav1.ListOptions{
+			list, err := resourceIf.List(metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
 			})
 			if err != nil {
@@ -360,8 +378,8 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 				return
 			}
 			// apply client side filtering since not every kubernetes API supports label filtering
-			for i := range list.(*unstructured.UnstructuredList).Items {
-				item := list.(*unstructured.UnstructuredList).Items[i]
+			for i := range list.Items {
+				item := list.Items[i]
 				labels := item.GetLabels()
 				if labels != nil {
 					if value, ok := labels[labelName]; ok && value == labelValue {
@@ -371,86 +389,62 @@ func GetResourcesWithLabel(config *rest.Config, namespace string, labelName stri
 					}
 				}
 			}
-		}(c)
+		}(apiResIf.resourceIf)
 	}
 	wg.Wait()
 	return result, asyncErr
 }
 
-// DeleteResourceWithLabel delete all resources which match to specified label selector
-func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName string, labelValue string) error {
-	dynClientPool := dynamic.NewDynamicClientPool(config)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return err
-	}
-	resources, err := GetCachedServerResources(config.Host, disco)
-	if err != nil {
-		return err
-	}
-
-	type resClient struct {
-		dynamic.ResourceInterface
-		deleteCollectionSupported bool
-	}
-	var resourceInterfaces []resClient
-
-	for _, apiResourcesList := range resources {
-		for i := range apiResourcesList.APIResources {
-			apiResource := apiResourcesList.APIResources[i]
-			deleteCollectionSupported := false
-			deleteSupported := false
-			for _, verb := range apiResource.Verbs {
-				if verb == deleteCollectionVerb {
-					deleteCollectionSupported = true
-				} else if verb == deleteVerb {
-					deleteSupported = true
-				}
-			}
-			dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
-			if err != nil {
-				return err
-			}
-
-			if (deleteCollectionSupported || deleteSupported) &&
-				!IsCRDGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind)) &&
-				!isExcludedResourceGroup(apiResource) {
-				resourceInterfaces = append(resourceInterfaces, resClient{
-					dclient.Resource(&apiResource, namespace),
-					deleteCollectionSupported,
-				})
+// DeleteResourcesWithLabel delete all resources which match to specified label selector
+func DeleteResourcesWithLabel(config *rest.Config, namespace string, labelName string, labelValue string) error {
+	deleteSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
+		if !isSupportedVerb(apiResource, deleteCollectionVerb) {
+			// if we can't delete by collection, we better be able to list and delete
+			if !isSupportedVerb(apiResource, listVerb) || !isSupportedVerb(apiResource, deleteVerb) {
+				return false
 			}
 		}
+		if isExcludedResourceGroup(*apiResource) {
+			return false
+		}
+		if IsCRDGroupVersionKind(schema.FromAPIVersionAndKind(groupVersion, apiResource.Kind)) {
+			return false
+		}
+		return true
 	}
-
+	apiResIfs, err := filterAPIResources(config, deleteSupported, namespace)
+	if err != nil {
+		return err
+	}
 	var asyncErr error
 	propagationPolicy := metav1.DeletePropagationForeground
 
 	var wg sync.WaitGroup
-	wg.Add(len(resourceInterfaces))
-
-	for _, c := range resourceInterfaces {
-		go func(client resClient) {
+	wg.Add(len(apiResIfs))
+	for _, a := range apiResIfs {
+		go func(apiResIf apiResourceInterface) {
 			defer wg.Done()
-			if client.deleteCollectionSupported {
-				err = client.DeleteCollection(&metav1.DeleteOptions{
+			deleteCollectionSupported := isSupportedVerb(&apiResIf.apiResource, deleteCollectionVerb)
+			resourceIf := apiResIf.resourceIf
+			if deleteCollectionSupported {
+				err = resourceIf.DeleteCollection(&metav1.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
 				}, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
 				if err != nil && !apierr.IsNotFound(err) {
 					asyncErr = err
 				}
 			} else {
-				items, err := client.List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
+				items, err := resourceIf.List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
 				if err != nil {
 					asyncErr = err
 					return
 				}
-				for _, item := range items.(*unstructured.UnstructuredList).Items {
+				for _, item := range items.Items {
 					// apply client side filtering since not every kubernetes API supports label filtering
 					labels := item.GetLabels()
 					if labels != nil {
 						if value, ok := labels[labelName]; ok && value == labelValue {
-							err = client.Delete(item.GetName(), &metav1.DeleteOptions{
+							err = resourceIf.Delete(item.GetName(), &metav1.DeleteOptions{
 								PropagationPolicy: &propagationPolicy,
 							})
 							if err != nil && !apierr.IsNotFound(err) {
@@ -461,7 +455,7 @@ func DeleteResourceWithLabel(config *rest.Config, namespace string, labelName st
 					}
 				}
 			}
-		}(c)
+		}(a)
 	}
 	wg.Wait()
 	return asyncErr
@@ -487,8 +481,10 @@ type listResult struct {
 }
 
 // ListResources returns a list of resources of a particular API type using the dynamic client
-func ListResources(dclient dynamic.Interface, apiResource metav1.APIResource, namespace string, listOpts metav1.ListOptions) ([]*unstructured.Unstructured, error) {
-	reIf := dclient.Resource(&apiResource, namespace)
+func ListResources(dynamicIf dynamic.Interface, apiResource metav1.APIResource, namespace string, listOpts metav1.ListOptions) ([]*unstructured.Unstructured, error) {
+	gvk := schema.FromAPIVersionAndKind(apiResource.Version, apiResource.Kind)
+	resource := ToGroupVersionResource(gvk.GroupVersion().String(), &apiResource)
+	reIf := ToResourceInterface(dynamicIf, &apiResource, resource, namespace)
 	liveObjs, err := reIf.List(listOpts)
 	if err != nil {
 		return nil, errors.WithStack(err)

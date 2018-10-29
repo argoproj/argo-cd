@@ -44,7 +44,7 @@ func (c *FakeAppProjects) List(opts v1.ListOptions) (result *v1alpha1.AppProject
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.AppProjectList{}
+	list := &v1alpha1.AppProjectList{ListMeta: obj.(*v1alpha1.AppProjectList).ListMeta}
 	for _, item := range obj.(*v1alpha1.AppProjectList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
