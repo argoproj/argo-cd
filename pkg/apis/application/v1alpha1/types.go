@@ -281,6 +281,8 @@ type ApplicationSource struct {
 	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
 	// ValuesFiles is a list of Helm values files to use when generating a template
 	ValuesFiles []string `json:"valuesFiles,omitempty" protobuf:"bytes,6,opt,name=valuesFiles"`
+	// NamePrefix is a prefix appended to resources for helm and kustomize apps
+	NamePrefix string `json:"namePrefix" protobuf:"bytes,7,opt,name=namePrefix"`
 }
 
 // ApplicationDestination contains deployment destination information

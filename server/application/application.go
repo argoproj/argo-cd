@@ -243,6 +243,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 		AppLabel:                    a.Name,
 		ValueFiles:                  a.Spec.Source.ValuesFiles,
 		Namespace:                   a.Spec.Destination.Namespace,
+		NamePrefix:                  a.Spec.Source.NamePrefix,
 	})
 	if err != nil {
 		return nil, err

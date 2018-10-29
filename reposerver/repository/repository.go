@@ -191,12 +191,17 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	case AppSourceKsonnet:
 		targetObjs, params, dest, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
 	case AppSourceHelm:
+		// TODO: Add prefix
 		h := helm.NewHelmApp(appPath)
 		err = h.DependencyBuild()
 		if err != nil {
 			return nil, err
 		}
-		targetObjs, err = h.Template(q.AppLabel, q.Namespace, q.ValueFiles, q.ComponentParameterOverrides)
+		appName := q.AppLabel
+		if q.NamePrefix != "" {
+			appName = q.NamePrefix + q.AppLabel
+		}
+		targetObjs, err = h.Template(appName, q.Namespace, q.ValueFiles, q.ComponentParameterOverrides)
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +211,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		}
 	case AppSourceKustomize:
 		k := kustomize.NewKustomizeApp(appPath)
-		targetObjs, params, err = k.Build(q.Namespace, q.ComponentParameterOverrides)
+		targetObjs, params, err = k.Build(q.Namespace, q.NamePrefix, q.ComponentParameterOverrides)
 	case AppSourceDirectory:
 		targetObjs, err = findManifests(appPath)
 	}
@@ -314,7 +319,7 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
 	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
 	valuesFiles := strings.Join(q.ValueFiles, ",")
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%s|%s|%s", q.AppLabel, q.Path, q.Environment, commitSHA, string(pStr), valuesFiles, q.Namespace)
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%s|%s|%s|%s", q.AppLabel, q.Path, q.Environment, commitSHA, string(pStr), valuesFiles, q.Namespace, q.NamePrefix)
 }
 
 func listDirCacheKey(commitSHA string, q *ListDirRequest) string {

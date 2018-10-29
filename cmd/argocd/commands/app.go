@@ -115,6 +115,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if appOpts.destNamespace != "" {
 				app.Spec.Destination.Namespace = appOpts.destNamespace
 			}
+			if appOpts.namePrefix != "" {
+				app.Spec.Source.NamePrefix = appOpts.namePrefix
+			}
 			setParameterOverrides(&app, appOpts.parameters)
 			if len(appOpts.valuesFiles) > 0 {
 				app.Spec.Source.ValuesFiles = appOpts.valuesFiles
@@ -193,6 +196,9 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 				if len(app.Spec.Source.ValuesFiles) > 0 {
 					fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(app.Spec.Source.ValuesFiles, ","))
+				}
+				if len(app.Spec.Source.NamePrefix) > 0 {
+					fmt.Printf(printOpFmtStr, "Name Prefix:", app.Spec.Source.NamePrefix)
 				}
 				var syncPolicy string
 				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
@@ -335,6 +341,8 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					app.Spec.Destination.Namespace = appOpts.destNamespace
 				case "project":
 					app.Spec.Project = appOpts.project
+				case "name-prefix":
+					app.Spec.Source.NamePrefix = appOpts.namePrefix
 				case "sync-policy":
 					switch appOpts.syncPolicy {
 					case "automated":
@@ -400,6 +408,7 @@ type appOptions struct {
 	project       string
 	syncPolicy    string
 	autoPrune     bool
+	namePrefix    string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -414,6 +423,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
+	command.Flags().StringVar(&opts.namePrefix, "name-prefix", "", "Set a prefix to add to resource names for kustomize and helm app")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -421,12 +431,13 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	var (
 		parameters  []string
 		valuesFiles []string
+		namePrefix  bool
 	)
 	var command = &cobra.Command{
 		Use:   "unset APPNAME -p COMPONENT=PARAM",
 		Short: "Unset application parameters",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 || (len(parameters) == 0 && len(valuesFiles) == 0) {
+			if len(args) != 1 || (len(parameters) == 0 && len(valuesFiles) == 0 && !namePrefix) {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -472,6 +483,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 					}
 				}
 			}
+			if namePrefix {
+				app.Spec.Source.NamePrefix = ""
+				updated = true
+			}
 
 			if !updated {
 				return
@@ -485,6 +500,8 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	}
 	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "unset a parameter override (e.g. -p guestbook=image)")
 	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "unset one or more helm values files")
+	command.Flags().BoolVar(&namePrefix, "name-prefix", false, "Unset the name prefix")
+
 	return command
 }
 
