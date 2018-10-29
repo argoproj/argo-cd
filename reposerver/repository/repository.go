@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -118,7 +118,7 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	data, err := ioutil.ReadFile(filepath.Join(gitClient.Root(), q.Path))
+	data, err := ioutil.ReadFile(path.Join(gitClient.Root(), q.Path))
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	appPath := filepath.Join(gitClient.Root(), q.Path)
+	appPath := path.Join(gitClient.Root(), q.Path)
 
 	genRes, err := generateManifests(appPath, q)
 	if err != nil {
@@ -262,18 +262,18 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 
 // tempRepoPath returns a formulated temporary directory location to clone a repository
 func tempRepoPath(repo string) string {
-	return filepath.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
+	return path.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
 }
 
 // IdentifyAppSourceTypeByAppDir examines a directory and determines its application source type
 func IdentifyAppSourceTypeByAppDir(appDirPath string) AppSourceType {
-	if pathExists(appDirPath, "app.yaml") {
+	if pathExists(path.Join(appDirPath, "app.yaml")) {
 		return AppSourceKsonnet
 	}
-	if pathExists(appDirPath, "Chart.yaml") {
+	if pathExists(path.Join(appDirPath, "Chart.yaml")) {
 		return AppSourceHelm
 	}
-	if pathExists(appDirPath, "kustomization.yaml") {
+	if pathExists(path.Join(appDirPath, "kustomization.yaml")) {
 		return AppSourceKustomize
 	}
 	return AppSourceDirectory
@@ -367,7 +367,7 @@ func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
 		if f.IsDir() || !manifestFile.MatchString(f.Name()) {
 			continue
 		}
-		out, err := ioutil.ReadFile(filepath.Join(appPath, f.Name()))
+		out, err := ioutil.ReadFile(path.Join(appPath, f.Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -419,9 +419,8 @@ func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
 	return objs, nil
 }
 
-// pathExists reports whether the file or directory at the named concatenation of paths exists.
-func pathExists(ss ...string) bool {
-	name := filepath.Join(ss...)
+// pathExists reports whether the named file or directory exists.
+func pathExists(name string) bool {
 	if _, err := os.Stat(name); err != nil {
 		if os.IsNotExist(err) {
 			return false
