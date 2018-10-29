@@ -124,6 +124,7 @@ func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision stri
 		AppLabel:                    app.Name,
 		ValueFiles:                  app.Spec.Source.ValuesFiles,
 		Namespace:                   app.Spec.Destination.Namespace,
+		NamePrefix:                  app.Spec.Source.NamePrefix,
 	})
 	if err != nil {
 		return nil, nil, err

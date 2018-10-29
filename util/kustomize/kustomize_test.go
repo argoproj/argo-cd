@@ -26,9 +26,9 @@ func testDataDir() (string, error) {
 func TestKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir()
 	assert.Nil(t, err)
-
+	namePrefix := "namePrefix-"
 	kustomize := NewKustomizeApp(appPath)
-	objs, params, err := kustomize.Build("mynamespace", []*v1alpha1.ComponentParameter{{
+	objs, params, err := kustomize.Build("mynamespace", namePrefix, []*v1alpha1.ComponentParameter{{
 		Component: "imagetag",
 		Name:      "k8s.gcr.io/nginx-slim",
 		Value:     "latest",
@@ -41,9 +41,9 @@ func TestKustomizeBuild(t *testing.T) {
 	for _, obj := range objs {
 		switch obj.GetKind() {
 		case "StatefulSet":
-			assert.Equal(t, "web", obj.GetName())
+			assert.Equal(t, namePrefix+"web", obj.GetName())
 		case "Deployment":
-			assert.Equal(t, "nginx-deployment", obj.GetName())
+			assert.Equal(t, namePrefix+"nginx-deployment", obj.GetName())
 		}
 		assert.Equal(t, "mynamespace", obj.GetNamespace())
 	}

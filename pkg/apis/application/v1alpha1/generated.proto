@@ -8,6 +8,7 @@ package github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1;
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
+import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
 option go_package = "v1alpha1";
@@ -119,6 +120,9 @@ message ApplicationSource {
 
   // ValuesFiles is a list of Helm values files to use when generating a template
   repeated string valuesFiles = 6;
+
+  // NamePrefix is a prefix appended to resources for helm and kustomize apps
+  optional string namePrefix = 7;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
