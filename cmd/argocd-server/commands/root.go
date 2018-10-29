@@ -2,11 +2,8 @@ package commands
 
 import (
 	"context"
-	"flag"
-	"strconv"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -20,6 +17,14 @@ import (
 	"github.com/argoproj/argo-cd/util/tls"
 )
 
+const (
+	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
+	DefaultDexServerAddr = "http://dex-server:5556"
+
+	// DefaultRepoServerAddr is the gRPC address of the ArgoCD repo server
+	DefaultRepoServerAddr = "argocd-repo-server:8081"
+)
+
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
@@ -29,6 +34,7 @@ func NewCommand() *cobra.Command {
 		clientConfig           clientcmd.ClientConfig
 		staticAssetsDir        string
 		repoServerAddress      string
+		dexServerAddress       string
 		disableAuth            bool
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
@@ -37,14 +43,8 @@ func NewCommand() *cobra.Command {
 		Short: "Run the argocd API server",
 		Long:  "Run the argocd API server",
 		Run: func(c *cobra.Command, args []string) {
-			level, err := log.ParseLevel(logLevel)
-			errors.CheckError(err)
-			log.SetLevel(level)
-
-			// Set the glog level for the k8s go-client
-			_ = flag.CommandLine.Parse([]string{})
-			_ = flag.Lookup("logtostderr").Value.Set("true")
-			_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
+			cli.SetLogLevel(logLevel)
+			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -66,6 +66,7 @@ func NewCommand() *cobra.Command {
 				KubeClientset:       kubeclientset,
 				AppClientset:        appclientset,
 				RepoClientset:       repoclientset,
+				DexServerAddr:       dexServerAddress,
 				DisableAuth:         disableAuth,
 				TLSConfigCustomizer: tlsConfigCustomizer,
 			}
@@ -89,7 +90,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
-	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
+	command.Flags().StringVar(&repoServerAddress, "repo-server", DefaultRepoServerAddr, "Repo server address")
+	command.Flags().StringVar(&dexServerAddress, "dex-server", DefaultDexServerAddr, "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)

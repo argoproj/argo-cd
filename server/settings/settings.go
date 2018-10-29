@@ -27,10 +27,19 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 	set := Settings{
 		URL: argoCDSettings.URL,
 	}
-	var cfg DexConfig
-	err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
-	if err == nil {
-		set.DexConfig = &cfg
+	if argoCDSettings.DexConfig != "" {
+		var cfg DexConfig
+		err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
+		if err == nil {
+			set.DexConfig = &cfg
+		}
+	}
+	if oidcConfig := argoCDSettings.OIDCConfig(); oidcConfig != nil {
+		set.OIDCConfig = &OIDCConfig{
+			Name:     oidcConfig.Name,
+			Issuer:   oidcConfig.Issuer,
+			ClientID: oidcConfig.ClientID,
+		}
 	}
 	return &set, nil
 }

@@ -1,12 +1,24 @@
 package commands
 
 import (
-	"github.com/argoproj/argo-cd/errors"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/errors"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/localconfig"
 )
+
+func init() {
+	cobra.OnInitialize(initConfig)
+}
+
+var logLevel string
+
+func initConfig() {
+	cli.SetLogLevel(logLevel)
+}
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
@@ -41,6 +53,6 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
 	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
 	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", "", "Authentication token")
-
+	command.PersistentFlags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
 }

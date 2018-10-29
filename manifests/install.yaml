@@ -416,7 +416,7 @@ spec:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.11.0
+        image: quay.io/dexidp/dex:v2.12.0
         name: dex
         ports:
         - containerPort: 5556

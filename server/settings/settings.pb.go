@@ -42,7 +42,7 @@ func (m *SettingsQuery) Reset()         { *m = SettingsQuery{} }
 func (m *SettingsQuery) String() string { return proto.CompactTextString(m) }
 func (*SettingsQuery) ProtoMessage()    {}
 func (*SettingsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_71506a99e4ff7448, []int{0}
+	return fileDescriptor_settings_843b05f20a608370, []int{0}
 }
 func (m *SettingsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -72,18 +72,19 @@ func (m *SettingsQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_SettingsQuery proto.InternalMessageInfo
 
 type Settings struct {
-	URL                  string     `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	DexConfig            *DexConfig `protobuf:"bytes,2,opt,name=dexConfig" json:"dexConfig,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+	URL                  string      `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	DexConfig            *DexConfig  `protobuf:"bytes,2,opt,name=dexConfig" json:"dexConfig,omitempty"`
+	OIDCConfig           *OIDCConfig `protobuf:"bytes,3,opt,name=oidcConfig" json:"oidcConfig,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *Settings) Reset()         { *m = Settings{} }
 func (m *Settings) String() string { return proto.CompactTextString(m) }
 func (*Settings) ProtoMessage()    {}
 func (*Settings) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_71506a99e4ff7448, []int{1}
+	return fileDescriptor_settings_843b05f20a608370, []int{1}
 }
 func (m *Settings) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -126,6 +127,13 @@ func (m *Settings) GetDexConfig() *DexConfig {
 	return nil
 }
 
+func (m *Settings) GetOIDCConfig() *OIDCConfig {
+	if m != nil {
+		return m.OIDCConfig
+	}
+	return nil
+}
+
 type DexConfig struct {
 	Connectors           []*Connector `protobuf:"bytes,1,rep,name=connectors" json:"connectors,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
@@ -137,7 +145,7 @@ func (m *DexConfig) Reset()         { *m = DexConfig{} }
 func (m *DexConfig) String() string { return proto.CompactTextString(m) }
 func (*DexConfig) ProtoMessage()    {}
 func (*DexConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_71506a99e4ff7448, []int{2}
+	return fileDescriptor_settings_843b05f20a608370, []int{2}
 }
 func (m *DexConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -185,7 +193,7 @@ func (m *Connector) Reset()         { *m = Connector{} }
 func (m *Connector) String() string { return proto.CompactTextString(m) }
 func (*Connector) ProtoMessage()    {}
 func (*Connector) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_71506a99e4ff7448, []int{3}
+	return fileDescriptor_settings_843b05f20a608370, []int{3}
 }
 func (m *Connector) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -228,11 +236,75 @@ func (m *Connector) GetType() string {
 	return ""
 }
 
+type OIDCConfig struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Issuer               string   `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	ClientID             string   `protobuf:"bytes,3,opt,name=clientID,proto3" json:"clientID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *OIDCConfig) Reset()         { *m = OIDCConfig{} }
+func (m *OIDCConfig) String() string { return proto.CompactTextString(m) }
+func (*OIDCConfig) ProtoMessage()    {}
+func (*OIDCConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_settings_843b05f20a608370, []int{4}
+}
+func (m *OIDCConfig) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *OIDCConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_OIDCConfig.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *OIDCConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_OIDCConfig.Merge(dst, src)
+}
+func (m *OIDCConfig) XXX_Size() int {
+	return m.Size()
+}
+func (m *OIDCConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_OIDCConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_OIDCConfig proto.InternalMessageInfo
+
+func (m *OIDCConfig) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *OIDCConfig) GetIssuer() string {
+	if m != nil {
+		return m.Issuer
+	}
+	return ""
+}
+
+func (m *OIDCConfig) GetClientID() string {
+	if m != nil {
+		return m.ClientID
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*SettingsQuery)(nil), "cluster.SettingsQuery")
 	proto.RegisterType((*Settings)(nil), "cluster.Settings")
 	proto.RegisterType((*DexConfig)(nil), "cluster.DexConfig")
 	proto.RegisterType((*Connector)(nil), "cluster.Connector")
+	proto.RegisterType((*OIDCConfig)(nil), "cluster.OIDCConfig")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -361,6 +433,16 @@ func (m *Settings) MarshalTo(dAtA []byte) (int, error) {
 		}
 		i += n1
 	}
+	if m.OIDCConfig != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintSettings(dAtA, i, uint64(m.OIDCConfig.Size()))
+		n2, err := m.OIDCConfig.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n2
+	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
 	}
@@ -433,6 +515,45 @@ func (m *Connector) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *OIDCConfig) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *OIDCConfig) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Name) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintSettings(dAtA, i, uint64(len(m.Name)))
+		i += copy(dAtA[i:], m.Name)
+	}
+	if len(m.Issuer) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintSettings(dAtA, i, uint64(len(m.Issuer)))
+		i += copy(dAtA[i:], m.Issuer)
+	}
+	if len(m.ClientID) > 0 {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintSettings(dAtA, i, uint64(len(m.ClientID)))
+		i += copy(dAtA[i:], m.ClientID)
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
 func encodeVarintSettings(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
@@ -460,6 +581,10 @@ func (m *Settings) Size() (n int) {
 	}
 	if m.DexConfig != nil {
 		l = m.DexConfig.Size()
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	if m.OIDCConfig != nil {
+		l = m.OIDCConfig.Size()
 		n += 1 + l + sovSettings(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -491,6 +616,27 @@ func (m *Connector) Size() (n int) {
 		n += 1 + l + sovSettings(uint64(l))
 	}
 	l = len(m.Type)
+	if l > 0 {
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *OIDCConfig) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	l = len(m.Issuer)
+	if l > 0 {
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	l = len(m.ClientID)
 	if l > 0 {
 		n += 1 + l + sovSettings(uint64(l))
 	}
@@ -652,6 +798,39 @@ func (m *Settings) Unmarshal(dAtA []byte) error {
 				m.DexConfig = &DexConfig{}
 			}
 			if err := m.DexConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OIDCConfig", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.OIDCConfig == nil {
+				m.OIDCConfig = &OIDCConfig{}
+			}
+			if err := m.OIDCConfig.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -868,6 +1047,144 @@ func (m *Connector) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *OIDCConfig) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSettings
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: OIDCConfig: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: OIDCConfig: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Issuer", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Issuer = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClientID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSettings(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSettings
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func skipSettings(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
@@ -974,30 +1291,34 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_71506a99e4ff7448)
+	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_843b05f20a608370)
 }
 
-var fileDescriptor_settings_71506a99e4ff7448 = []byte{
-	// 322 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x64, 0x91, 0x41, 0x4b, 0xc3, 0x40,
-	0x10, 0x85, 0xd9, 0x46, 0xac, 0x19, 0x91, 0xea, 0x22, 0x12, 0x8b, 0xc4, 0x92, 0x53, 0x41, 0x4c,
-	0xb4, 0x3d, 0x79, 0x12, 0x5a, 0x41, 0x10, 0x2f, 0xa6, 0x88, 0x20, 0x78, 0x48, 0xd3, 0x71, 0x8d,
-	0xb4, 0x3b, 0x65, 0xb3, 0x29, 0xf6, 0xea, 0x5f, 0xf0, 0x4f, 0x79, 0x14, 0xbc, 0x8b, 0x04, 0x7f,
-	0x88, 0x74, 0xdb, 0x44, 0xab, 0xb7, 0xc7, 0xf7, 0x66, 0x92, 0xb7, 0xf3, 0xc0, 0x4d, 0x51, 0x4d,
-	0x50, 0x05, 0x29, 0x6a, 0x9d, 0x48, 0x91, 0x96, 0xc2, 0x1f, 0x2b, 0xd2, 0xc4, 0xab, 0xf1, 0x30,
-	0x4b, 0x35, 0xaa, 0xfa, 0xb6, 0x20, 0x41, 0x86, 0x05, 0x33, 0x35, 0xb7, 0xeb, 0x7b, 0x82, 0x48,
-	0x0c, 0x31, 0x88, 0xc6, 0x49, 0x10, 0x49, 0x49, 0x3a, 0xd2, 0x09, 0xc9, 0xc5, 0xb2, 0x57, 0x83,
-	0x8d, 0xde, 0xe2, 0x73, 0x57, 0x19, 0xaa, 0xa9, 0x77, 0x03, 0x6b, 0x05, 0xe0, 0xbb, 0x60, 0x65,
-	0x6a, 0xe8, 0xb0, 0x06, 0x6b, 0xda, 0x9d, 0x6a, 0xfe, 0xb1, 0x6f, 0x5d, 0x87, 0x97, 0xe1, 0x8c,
-	0xf1, 0x23, 0xb0, 0x07, 0xf8, 0xd4, 0x25, 0x79, 0x9f, 0x08, 0xa7, 0xd2, 0x60, 0xcd, 0xf5, 0x16,
-	0xf7, 0x17, 0x41, 0xfc, 0xb3, 0xc2, 0x09, 0x7f, 0x86, 0xbc, 0x53, 0xb0, 0x4b, 0xce, 0x5b, 0x00,
-	0x31, 0x49, 0x89, 0xb1, 0x26, 0x95, 0x3a, 0xac, 0x61, 0x2d, 0xed, 0x77, 0x0b, 0x2b, 0xfc, 0x35,
-	0xe5, 0xb5, 0xc1, 0x2e, 0x0d, 0xce, 0x61, 0x45, 0x46, 0x23, 0x9c, 0x67, 0x0b, 0x8d, 0x9e, 0x31,
-	0x3d, 0x1d, 0xa3, 0x89, 0x63, 0x87, 0x46, 0xb7, 0xee, 0xa0, 0x56, 0x3c, 0xa7, 0x87, 0x6a, 0x92,
-	0xc4, 0xc8, 0x2f, 0xc0, 0x3a, 0x47, 0xcd, 0x77, 0xca, 0xdf, 0x2d, 0x1d, 0xa0, 0xbe, 0xf5, 0x8f,
-	0x7b, 0xce, 0xf3, 0xfb, 0xd7, 0x4b, 0x85, 0xf3, 0x4d, 0x73, 0xc4, 0xc9, 0x71, 0xd9, 0x40, 0xe7,
-	0xe4, 0x35, 0x77, 0xd9, 0x5b, 0xee, 0xb2, 0xcf, 0xdc, 0x65, 0xb7, 0x07, 0x22, 0xd1, 0x0f, 0x59,
-	0xdf, 0x8f, 0x69, 0x14, 0x44, 0xca, 0x74, 0xf1, 0x68, 0xc4, 0x61, 0x3c, 0x08, 0xfe, 0xb4, 0xd8,
-	0x5f, 0x35, 0x05, 0xb4, 0xbf, 0x03, 0x00, 0x00, 0xff, 0xff, 0xef, 0x0e, 0xd5, 0xb9, 0xdf, 0x01,
-	0x00, 0x00,
+var fileDescriptor_settings_843b05f20a608370 = []byte{
+	// 397 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x52, 0xcd, 0x8a, 0xdb, 0x30,
+	0x18, 0x44, 0x71, 0x49, 0xe2, 0xaf, 0x3f, 0x69, 0xd5, 0x12, 0xdc, 0x50, 0x9c, 0xe0, 0x53, 0xa0,
+	0xd4, 0x6e, 0x93, 0x53, 0x4f, 0x05, 0x3b, 0x50, 0x52, 0x0a, 0xa5, 0x0a, 0xbd, 0x14, 0x7a, 0x70,
+	0x14, 0xd5, 0x55, 0x71, 0xa4, 0x20, 0xcb, 0xa1, 0xb9, 0xf6, 0x15, 0xf6, 0xba, 0x0f, 0xb4, 0xc7,
+	0x85, 0xbd, 0x87, 0xc5, 0xec, 0x83, 0x2c, 0x51, 0x6c, 0x27, 0xd9, 0xdd, 0xdb, 0x68, 0x46, 0x23,
+	0xbe, 0xd1, 0x37, 0xe0, 0x66, 0x4c, 0xad, 0x99, 0x0a, 0x32, 0xa6, 0x35, 0x17, 0x49, 0x56, 0x03,
+	0x7f, 0xa5, 0xa4, 0x96, 0xb8, 0x45, 0xd3, 0x3c, 0xd3, 0x4c, 0xf5, 0x5e, 0x25, 0x32, 0x91, 0x86,
+	0x0b, 0x76, 0x68, 0x2f, 0xf7, 0xde, 0x24, 0x52, 0x26, 0x29, 0x0b, 0xe2, 0x15, 0x0f, 0x62, 0x21,
+	0xa4, 0x8e, 0x35, 0x97, 0xa2, 0x34, 0x7b, 0x1d, 0x78, 0x3a, 0x2b, 0x9f, 0xfb, 0x9e, 0x33, 0xb5,
+	0xf1, 0xce, 0x11, 0xb4, 0x2b, 0x06, 0xbf, 0x06, 0x2b, 0x57, 0xa9, 0x83, 0x06, 0x68, 0x68, 0x87,
+	0xad, 0x62, 0xdb, 0xb7, 0x7e, 0x90, 0xaf, 0x64, 0xc7, 0xe1, 0xf7, 0x60, 0x2f, 0xd8, 0xbf, 0x48,
+	0x8a, 0xdf, 0x3c, 0x71, 0x1a, 0x03, 0x34, 0x7c, 0x3c, 0xc2, 0x7e, 0x39, 0x89, 0x3f, 0xa9, 0x14,
+	0x72, 0xb8, 0x84, 0x23, 0x00, 0xc9, 0x17, 0xb4, 0xb4, 0x58, 0xc6, 0xf2, 0xb2, 0xb6, 0x7c, 0x9b,
+	0x4e, 0xa2, 0xbd, 0x14, 0x3e, 0x2b, 0xb6, 0x7d, 0x38, 0x9c, 0xc9, 0x91, 0xcd, 0xfb, 0x04, 0x76,
+	0xfd, 0x38, 0x1e, 0x01, 0x50, 0x29, 0x04, 0xa3, 0x5a, 0xaa, 0xcc, 0x41, 0x03, 0xeb, 0x64, 0x88,
+	0xa8, 0x92, 0xc8, 0xd1, 0x2d, 0x6f, 0x0c, 0x76, 0x2d, 0x60, 0x0c, 0x8f, 0x44, 0xbc, 0x64, 0xfb,
+	0x80, 0xc4, 0xe0, 0x1d, 0xa7, 0x37, 0x2b, 0x66, 0x32, 0xd9, 0xc4, 0x60, 0x6f, 0x0e, 0x47, 0xf3,
+	0x3c, 0xe8, 0xea, 0x42, 0x93, 0x67, 0x59, 0xce, 0x54, 0xe9, 0x2b, 0x4f, 0x78, 0x08, 0x6d, 0x9a,
+	0x72, 0x26, 0xf4, 0x74, 0x62, 0x22, 0xdb, 0xe1, 0x93, 0x62, 0xdb, 0x6f, 0x47, 0x25, 0x47, 0x6a,
+	0x75, 0xf4, 0x0b, 0x3a, 0xd5, 0xbf, 0xcf, 0x98, 0x5a, 0x73, 0xca, 0xf0, 0x17, 0xb0, 0x3e, 0x33,
+	0x8d, 0xbb, 0x75, 0xa4, 0x93, 0x55, 0xf5, 0x5e, 0xdc, 0xe3, 0x3d, 0xe7, 0xff, 0xd5, 0xcd, 0x59,
+	0x03, 0xe3, 0xe7, 0x66, 0xdd, 0xeb, 0x0f, 0x75, 0x57, 0xc2, 0x8f, 0x17, 0x85, 0x8b, 0x2e, 0x0b,
+	0x17, 0x5d, 0x17, 0x2e, 0xfa, 0xf9, 0x36, 0xe1, 0xfa, 0x4f, 0x3e, 0xf7, 0xa9, 0x5c, 0x06, 0xb1,
+	0x32, 0xad, 0xf9, 0x6b, 0xc0, 0x3b, 0xba, 0x08, 0xee, 0xf4, 0x6d, 0xde, 0x34, 0x55, 0x19, 0xdf,
+	0x06, 0x00, 0x00, 0xff, 0xff, 0xbf, 0xa2, 0x52, 0xc6, 0x89, 0x02, 0x00, 0x00,
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
-	if !settings.IsSSOConfigured() {
+	if !settings.IsDexConfigured() {
 		return nil, nil
 	}
 	var dexCfg map[string]interface{}
@@ -36,7 +36,7 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 		{
 			"id":     common.ArgoCDClientAppID,
 			"name":   common.ArgoCDClientAppName,
-			"secret": settings.OAuth2ClientSecret(),
+			"secret": settings.DexOAuth2ClientSecret(),
 			"redirectURIs": []string{
 				settings.RedirectURL(),
 			},
@@ -118,10 +118,10 @@ func replaceStringSecret(val string, secretValues map[string]string) string {
 
 // needsRedirectURI returns whether or not the given connector type needs a redirectURI
 // Update this list as necessary, as new connectors are added
-// https://github.com/coreos/dex/tree/master/Documentation/connectors
+// https://github.com/dexidp/dex/tree/master/Documentation/connectors
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
-	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github":
+	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud":
 		return true
 	}
 	return false

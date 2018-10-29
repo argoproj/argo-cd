@@ -1,4 +1,4 @@
-package dex
+package oidc
 
 import (
 	"html/template"

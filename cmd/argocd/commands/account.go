@@ -10,7 +10,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -51,7 +51,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 			}
 			if newPassword == "" {
 				var err error
-				newPassword, err = settings.ReadAndConfirmPassword()
+				newPassword, err = cli.ReadAndConfirmPassword()
 				errors.CheckError(err)
 			}
 

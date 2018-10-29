@@ -1349,11 +1349,28 @@
         }
       }
     },
+    "clusterOIDCConfig": {
+      "type": "object",
+      "properties": {
+        "clientID": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "clusterSettings": {
       "type": "object",
       "properties": {
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
+        },
+        "oidcConfig": {
+          "$ref": "#/definitions/clusterOIDCConfig"
         },
         "url": {
           "type": "string"

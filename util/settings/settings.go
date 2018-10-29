@@ -8,12 +8,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh/terminal"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +22,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
@@ -36,8 +35,10 @@ type ArgoCDSettings struct {
 	// Admin superuser password storage
 	AdminPasswordHash  string    `json:"adminPasswordHash,omitempty"`
 	AdminPasswordMtime time.Time `json:"adminPasswordMtime,omitempty"`
-	// DexConfig is contains portions of a dex config yaml
+	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
+	// OIDCConfigRAW holds OIDC configuration as a raw string
+	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
 	ServerSignature []byte `json:"serverSignature,omitempty"`
 	// Certificate holds the certificate/private key for the ArgoCD API server.
@@ -51,6 +52,13 @@ type ArgoCDSettings struct {
 	WebhookBitbucketUUID string `json:"webhookBitbucketUUID,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
+}
+
+type OIDCConfig struct {
+	Name         string `json:"name,omitempty"`
+	Issuer       string `json:"issuer,omitempty"`
+	ClientID     string `json:"clientID,omitempty"`
+	ClientSecret string `json:"clientSecret,omitempty"`
 }
 
 const (
@@ -68,6 +76,8 @@ const (
 	settingURLKey = "url"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
+	// settingsOIDCConfigKey designates the key for OIDC config
+	settingsOIDCConfigKey = "oidc.config"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
@@ -115,6 +125,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
+	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
 }
 
@@ -183,8 +194,22 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	if argoCDCM.Data == nil {
 		argoCDCM.Data = make(map[string]string)
 	}
-	argoCDCM.Data[settingURLKey] = settings.URL
-	argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
+	if settings.URL != "" {
+		argoCDCM.Data[settingURLKey] = settings.URL
+	} else {
+		delete(argoCDCM.Data, settingURLKey)
+	}
+	if settings.DexConfig != "" {
+		argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
+	} else {
+		delete(argoCDCM.Data, settings.DexConfig)
+	}
+	if settings.OIDCConfigRAW != "" {
+		argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
+	} else {
+		delete(argoCDCM.Data, settingsOIDCConfigKey)
+	}
+
 	if createCM {
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
 	} else {
@@ -253,6 +278,16 @@ func NewSettingsManager(clientset kubernetes.Interface, namespace string) *Setti
 
 // IsSSOConfigured returns whether or not single-sign-on is configured
 func (a *ArgoCDSettings) IsSSOConfigured() bool {
+	if a.IsDexConfigured() {
+		return true
+	}
+	if a.OIDCConfig() != nil {
+		return true
+	}
+	return false
+}
+
+func (a *ArgoCDSettings) IsDexConfigured() bool {
 	if a.URL == "" {
 		return false
 	}
@@ -263,6 +298,19 @@ func (a *ArgoCDSettings) IsSSOConfigured() bool {
 		return false
 	}
 	return len(dexCfg) > 0
+}
+
+func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
+	if a.OIDCConfigRAW == "" {
+		return nil
+	}
+	var oidcConfig OIDCConfig
+	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &oidcConfig)
+	if err != nil {
+		log.Warnf("invalid oidc config: %v", err)
+		return nil
+	}
+	return &oidcConfig
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -282,18 +330,44 @@ func (a *ArgoCDSettings) TLSConfig() *tls.Config {
 }
 
 func (a *ArgoCDSettings) IssuerURL() string {
-	return a.URL + common.DexAPIEndpoint
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.Issuer
+	}
+	if a.DexConfig != "" {
+		return a.URL + common.DexAPIEndpoint
+	}
+	return ""
+}
+
+func (a *ArgoCDSettings) OAuth2ClientID() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.ClientID
+	}
+	if a.DexConfig != "" {
+		return common.ArgoCDClientAppID
+	}
+	return ""
+}
+
+func (a *ArgoCDSettings) OAuth2ClientSecret() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.ClientSecret
+	}
+	if a.DexConfig != "" {
+		return a.DexOAuth2ClientSecret()
+	}
+	return ""
 }
 
 func (a *ArgoCDSettings) RedirectURL() string {
 	return a.URL + common.CallbackEndpoint
 }
 
-// OAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
+// DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
 // from the server secret. This is called by the dex startup wrapper (argocd-util rundex), as well
 // as the API server, such that they both independently come to the same conclusion of what the
 // OAuth2 shared client secret should be.
-func (a *ArgoCDSettings) OAuth2ClientSecret() string {
+func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {
 	h := sha256.New()
 	_, err := h.Write(a.ServerSignature)
 	if err != nil {
@@ -407,27 +481,6 @@ func (mgr *SettingsManager) notifySubscribers() {
 	}
 }
 
-func ReadAndConfirmPassword() (string, error) {
-	for {
-		fmt.Print("*** Enter new password: ")
-		password, err := terminal.ReadPassword(syscall.Stdin)
-		if err != nil {
-			return "", err
-		}
-		fmt.Print("\n")
-		fmt.Print("*** Confirm new password: ")
-		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
-		if err != nil {
-			return "", err
-		}
-		fmt.Print("\n")
-		if string(password) == string(confirmPassword) {
-			return string(password), nil
-		}
-		log.Error("Passwords do not match")
-	}
-}
-
 func isIncompleteSettingsError(err error) bool {
 	_, ok := err.(*incompleteSettingsError)
 	return ok
@@ -454,7 +507,7 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 	if cdSettings.AdminPasswordHash == "" || updateSuperuser {
 		passwordRaw := defaultPassword
 		if passwordRaw == "" {
-			passwordRaw, err = ReadAndConfirmPassword()
+			passwordRaw, err = cli.ReadAndConfirmPassword()
 			if err != nil {
 				return nil, err
 			}

@@ -4,16 +4,20 @@ package cli
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 
-	argocd "github.com/argoproj/argo-cd"
-	"github.com/argoproj/argo-cd/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/client-go/tools/clientcmd"
+
+	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/errors"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -104,4 +108,40 @@ func AskToProceed(message string) bool {
 			return false
 		}
 	}
+}
+
+// ReadAndConfirmPassword is a helper to read and confirm a password from stdin
+func ReadAndConfirmPassword() (string, error) {
+	for {
+		fmt.Print("*** Enter new password: ")
+		password, err := terminal.ReadPassword(syscall.Stdin)
+		if err != nil {
+			return "", err
+		}
+		fmt.Print("\n")
+		fmt.Print("*** Confirm new password: ")
+		confirmPassword, err := terminal.ReadPassword(syscall.Stdin)
+		if err != nil {
+			return "", err
+		}
+		fmt.Print("\n")
+		if string(password) == string(confirmPassword) {
+			return string(password), nil
+		}
+		log.Error("Passwords do not match")
+	}
+}
+
+// SetLogLevel parses and sets a logrus log level
+func SetLogLevel(logLevel string) {
+	level, err := log.ParseLevel(logLevel)
+	errors.CheckError(err)
+	log.SetLevel(level)
+}
+
+// SetGLogLevel set the glog level for the k8s go-client
+func SetGLogLevel(glogLevel int) {
+	_ = flag.CommandLine.Parse([]string{})
+	_ = flag.Lookup("logtostderr").Value.Set("true")
+	_ = flag.Lookup("v").Value.Set(strconv.Itoa(glogLevel))
 }
