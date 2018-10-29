@@ -330,7 +330,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	if err == nil {
 		config := clst.RESTConfig()
-		err = kube.DeleteResourceWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
+		err = kube.DeleteResourcesWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
 		if err == nil {
 			app.SetCascadedDeletion(false)
 			var patch []byte

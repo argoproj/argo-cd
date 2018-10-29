@@ -32,59 +32,30 @@ type KubectlCmd struct{}
 
 // WatchResources Watches all the existing resources with the provided label name in the provided namespace in the cluster provided by the config
 func (k KubectlCmd) WatchResources(
-	ctx context.Context, config *rest.Config, namespace string, selector func(kind schema.GroupVersionKind) metav1.ListOptions) (chan watch.Event, error) {
-
+	ctx context.Context,
+	config *rest.Config,
+	namespace string,
+	selector func(kind schema.GroupVersionKind) metav1.ListOptions,
+) (chan watch.Event, error) {
 	log.Infof("Start watching for resources changes with in cluster %s", config.Host)
-	dynClientPool := dynamic.NewDynamicClientPool(config)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	apiResIfs, err := filterAPIResources(config, watchSupported, namespace)
 	if err != nil {
 		return nil, err
-	}
-	serverResources, err := GetCachedServerResources(config.Host, disco)
-	if err != nil {
-		return nil, err
-	}
-
-	items := make([]struct {
-		resource dynamic.ResourceInterface
-		gvk      schema.GroupVersionKind
-	}, 0)
-	for _, apiResourcesList := range serverResources {
-		for i := range apiResourcesList.APIResources {
-			apiResource := apiResourcesList.APIResources[i]
-			watchSupported := false
-			for _, verb := range apiResource.Verbs {
-				if verb == watchVerb {
-					watchSupported = true
-					break
-				}
-			}
-			if watchSupported && !isExcludedResourceGroup(apiResource) {
-				dclient, err := dynClientPool.ClientForGroupVersionKind(schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind))
-				if err != nil {
-					return nil, err
-				}
-				items = append(items, struct {
-					resource dynamic.ResourceInterface
-					gvk      schema.GroupVersionKind
-				}{resource: dclient.Resource(&apiResource, namespace), gvk: schema.FromAPIVersionAndKind(apiResourcesList.GroupVersion, apiResource.Kind)})
-			}
-		}
 	}
 	ch := make(chan watch.Event)
 	go func() {
 		var wg sync.WaitGroup
-		wg.Add(len(items))
-		for i := 0; i < len(items); i++ {
-			item := items[i]
-			go func() {
+		wg.Add(len(apiResIfs))
+		for _, a := range apiResIfs {
+			go func(apiResIf apiResourceInterface) {
 				defer wg.Done()
-				w, err := item.resource.Watch(selector(item.gvk))
+				gvk := schema.FromAPIVersionAndKind(apiResIf.groupVersion, apiResIf.apiResource.Kind)
+				w, err := apiResIf.resourceIf.Watch(selector(gvk))
 				if err == nil {
 					defer w.Stop()
 					copyEventsChannel(ctx, w.ResultChan(), ch)
 				}
-			}()
+			}(a)
 		}
 		wg.Wait()
 		close(ch)
@@ -95,13 +66,12 @@ func (k KubectlCmd) WatchResources(
 
 // DeleteResource deletes resource
 func (k KubectlCmd) DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error {
-	dynClientPool := dynamic.NewDynamicClientPool(config)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 	gvk := obj.GroupVersionKind()
-	dclient, err := dynClientPool.ClientForGroupVersionKind(gvk)
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return err
 	}
@@ -109,9 +79,10 @@ func (k KubectlCmd) DeleteResource(config *rest.Config, obj *unstructured.Unstru
 	if err != nil {
 		return err
 	}
-	reIf := dclient.Resource(apiResource, namespace)
+	resource := gvk.GroupVersion().WithResource(apiResource.Name)
+	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
 	propagationPolicy := metav1.DeletePropagationForeground
-	return reIf.Delete(obj.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	return resourceIf.Delete(obj.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }
 
 // ApplyResource performs an apply of a unstructured resource
