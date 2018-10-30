@@ -215,6 +215,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                 targetRevision: params.revision,
                 componentParameterOverrides: null,
                 valuesFiles: params.valuesFiles,
+                namePrefix: params.namePrefix,
             }, {
                 server: params.clusterURL,
                 namespace: params.namespace,

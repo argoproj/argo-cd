@@ -159,6 +159,10 @@ export interface ApplicationSource {
      * List of Helm values files to use when generating a template
      */
     valuesFiles: string[];
+    /**
+     * NamePrefix is a prefix to add to the resource labels
+     */
+    namePrefix: string;
 }
 
 export interface SyncPolicy {

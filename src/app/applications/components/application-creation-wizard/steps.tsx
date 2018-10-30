@@ -106,11 +106,13 @@ export interface NewAppParams {
     project: string;
     valuesFiles?: string[];
     revision: string;
+    namePrefix?: string;
 }
 
 export class AppParams extends React.Component<{
     needEnvironment: boolean,
     needValuesFiles: boolean,
+    allowNamePrefix: boolean,
     valuesFiles: string[],
     environments: string[],
     projects: models.Project[],
@@ -186,6 +188,11 @@ export class AppParams extends React.Component<{
                                 <FormField formApi={api} label='Values Files' field='valuesFiles' componentProps={{
                                     paths: this.props.valuesFiles,
                                 }}  component={ValueFiles} />
+                            </div>
+                        )}
+                        {this.props.allowNamePrefix && (
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Name Prefix' field='namePrefix' component={Text} />
                             </div>
                         )}
                         <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>

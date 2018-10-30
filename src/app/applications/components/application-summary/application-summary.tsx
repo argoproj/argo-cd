@@ -39,6 +39,11 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text}/>,
         },
         {
+            title: 'NAME PREFIX',
+            view: app.spec.source.namePrefix,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.namePrefix' component={Text}/>,
+        },
+        {
             title: 'REPO URL',
             view: (
                 <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
