@@ -13,6 +13,10 @@ import * as AppUtils from '../utils';
 
 require('./applications-list.scss');
 
+const APP_FIELDS = ['metadata.name', 'spec', 'status.comparisonResult.status', 'status.health'];
+const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
+const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
+
 type Props = RouteComponentProps<{}>;
 interface State {
     allProjects: string[];
@@ -31,7 +35,9 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private loader: DataLoader<models.Application[], {}>;
-    private appChanges = services.applications.watch().filter(() => this.loader !== null && !!this.loader.getData()).map((applicationChange) => {
+    private appChanges = services
+    .applications.watch(null, { fields: APP_WATCH_FIELDS })
+    .filter(() => this.loader !== null && !!this.loader.getData()).map((applicationChange) => {
         let applications = this.loader.getData().slice();
         const projectsFilter = new URLSearchParams(this.props.history.location.search).getAll('proj');
         if (projectsFilter.length === 0 || projectsFilter.includes(applicationChange.application.spec.project)) {
@@ -88,7 +94,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                         ref={(loader) => this.loader = loader}
                         dataChanges={this.appChanges}
                         input={projectsFilter}
-                        load={(projects) => services.applications.list(projects)}
+                        load={(projects) => services.applications.list(projects, { fields: APP_LIST_FIELDS })}
                         loadingRenderer={() => <MockupList height={300} marginTop={30}/>}>
                         {(applications: models.Application[]) => (
                             <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>

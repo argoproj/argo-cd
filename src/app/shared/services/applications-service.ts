@@ -3,21 +3,21 @@ import { Observable } from 'rxjs';
 import * as models from '../models';
 import requests from './requests';
 
-export interface ManifestQuery {
-    name: string;
-    revision?: string;
+interface QueryOptions {
+    fields: string[];
+    exclude?: boolean;
 }
-export interface ManifestResponse {
-    manifests: string[];
-    namespace: string;
-    server: string;
-    revision: string;
-    params: models.ComponentParameter[];
+
+function optionsToSearch(options?: QueryOptions) {
+    if (options) {
+        return { fields: (options.exclude ? '-' : '') + options.fields.join(',') };
+    }
+    return {};
 }
 
 export class ApplicationsService {
-    public list(projects: string[]): Promise<models.Application[]> {
-        return requests.get('/applications').query({ project: projects }).then((res) => res.body as models.ApplicationList).then((list) => {
+    public list(projects: string[], options?: QueryOptions): Promise<models.Application[]> {
+        return requests.get('/applications').query({ project: projects, ...optionsToSearch(options) }).then((res) => res.body as models.ApplicationList).then((list) => {
             return (list.items || []).map((app) => this.parseAppFields(app));
         });
     }
@@ -26,8 +26,8 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
     }
 
-    public getManifest(name: string, revision: string): Promise<ManifestResponse> {
-        return requests.get(`/applications/${name}/manifests`).query({name, revision} as ManifestQuery).then((res) => res.body as ManifestResponse);
+    public getManifest(name: string, revision: string): Promise<models.ManifestResponse> {
+        return requests.get(`/applications/${name}/manifests`).query({name, revision}).then((res) => res.body as models.ManifestResponse);
     }
 
     public updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
@@ -45,11 +45,17 @@ export class ApplicationsService {
         return requests.delete(`/applications/${name}`).query({cascade}).send({}).then(() => true);
     }
 
-    public watch(query?: {name: string}): Observable<models.ApplicationWatchEvent> {
-        let url = '/stream/applications';
+    public watch(query?: {name: string}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
+        const search = new URLSearchParams();
         if (query) {
-            url = `${url}?name=${query.name}`;
+            search.set('name', query.name);
         }
+        if (options) {
+            const searchOptions = optionsToSearch(options);
+            search.set('fields', searchOptions.fields);
+        }
+        const searchStr = search.toString();
+        const url = `/stream/applications${searchStr && '?' + searchStr || ''}` ;
         return requests.loadEventSource(url).repeat().retry().map((data) => JSON.parse(data).result as models.ApplicationWatchEvent).map((watchEvent) => {
             watchEvent.application = this.parseAppFields(watchEvent.application);
             return watchEvent;
