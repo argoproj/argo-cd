@@ -19,6 +19,16 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     const cntByCategory = (application.status.conditions || []).reduce(
         (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
         new Map<string, number>());
+    let appOperationState = application.status.operationState;
+    if (application.operation && application.status.operationState === undefined) {
+        appOperationState = {
+            phase:  models.OperationPhases.InProgress,
+            startedAt: new Date().toISOString(),
+            operation: {
+                sync: {},
+            } as models.Operation,
+        } as models.OperationState;
+    }
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item columns small-3'>
@@ -29,15 +39,15 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-value'>{daysSinceLastSynchronized}</div>
                 <div className='application-status-panel__item-name'>Days since last synchronized</div>
             </div>
-            {application.status.operationState && (
+            {appOperationState && (
             <div className='application-status-panel__item columns small-3'>
-                <div className={`application-status-panel__item-value application-status-panel__item-value--${application.status.operationState.phase}`}>
-                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application.status.operationState)} <utils.OperationPhaseIcon
-                        phase={application.status.operationState.phase}/></a>
+                <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
+                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(appOperationState)} <utils.OperationPhaseIcon
+                        phase={appOperationState.phase}/></a>
                 </div>
                 <div className='application-status-panel__item-name'>
-                    {application.status.operationState.phase} at {application.status.operationState.finishedAt || application.status.operationState.startedAt}
-                </div>
+                    {appOperationState.phase} at {appOperationState.finishedAt || appOperationState.startedAt}
+               </div>
             </div>
             )}
             {application.status.conditions && (
