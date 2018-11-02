@@ -1198,87 +1198,6 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
-    "apismetav1ObjectMeta": {
-      "description": "ObjectMeta is metadata that all persisted resources must have, which includes all objects\nusers must create.",
-      "type": "object",
-      "properties": {
-        "annotations": {
-          "type": "object",
-          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "clusterName": {
-          "type": "string",
-          "title": "The name of the cluster which the object belongs to.\nThis is used to distinguish resources with same name and namespace in different clusters.\nThis field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.\n+optional"
-        },
-        "creationTimestamp": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "deletionGracePeriodSeconds": {
-          "type": "string",
-          "format": "int64",
-          "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
-        },
-        "deletionTimestamp": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "finalizers": {
-          "type": "array",
-          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\n+optional\n+patchStrategy=merge",
-          "items": {
-            "type": "string"
-          }
-        },
-        "generateName": {
-          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#idempotency\n+optional",
-          "type": "string"
-        },
-        "generation": {
-          "type": "string",
-          "format": "int64",
-          "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
-        },
-        "initializers": {
-          "$ref": "#/definitions/v1Initializers"
-        },
-        "labels": {
-          "type": "object",
-          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "name": {
-          "type": "string",
-          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
-        },
-        "namespace": {
-          "description": "Namespace defines the space within each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
-          "type": "string"
-        },
-        "ownerReferences": {
-          "type": "array",
-          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge",
-          "items": {
-            "$ref": "#/definitions/v1OwnerReference"
-          }
-        },
-        "resourceVersion": {
-          "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional",
-          "type": "string"
-        },
-        "selfLink": {
-          "type": "string",
-          "title": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
-        },
-        "uid": {
-          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
-          "type": "string"
-        }
-      }
-    },
     "applicationApplicationResponse": {
       "type": "object"
     },
@@ -1453,6 +1372,12 @@
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
+        "rbac": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/protobufListValue"
+          }
+        },
         "url": {
           "type": "string"
         }
@@ -1504,6 +1429,69 @@
       "properties": {
         "project": {
           "$ref": "#/definitions/v1alpha1AppProject"
+        }
+      }
+    },
+    "protobufListValue": {
+      "description": "`ListValue` is a wrapper around a repeated field of values.\n\nThe JSON representation for `ListValue` is JSON array.",
+      "type": "object",
+      "properties": {
+        "values": {
+          "description": "Repeated field of dynamically typed values.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufValue"
+          }
+        }
+      }
+    },
+    "protobufNullValue": {
+      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value.",
+      "type": "string",
+      "default": "NULL_VALUE",
+      "enum": [
+        "NULL_VALUE"
+      ]
+    },
+    "protobufStruct": {
+      "description": "`Struct` represents a structured data value, consisting of fields\nwhich map to dynamically typed values. In some languages, `Struct`\nmight be supported by a native representation. For example, in\nscripting languages like JS a struct is represented as an\nobject. The details of that representation are described together\nwith the proto support for the language.\n\nThe JSON representation for `Struct` is JSON object.",
+      "type": "object",
+      "properties": {
+        "fields": {
+          "description": "Unordered map of dynamically typed values.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/protobufValue"
+          }
+        }
+      }
+    },
+    "protobufValue": {
+      "description": "`Value` represents a dynamically typed value which can be either\nnull, a number, a string, a boolean, a recursive struct value, or a\nlist of values. A producer of value is expected to set one of that\nvariants, absence of any variant indicates an error.\n\nThe JSON representation for `Value` is JSON value.",
+      "type": "object",
+      "properties": {
+        "bool_value": {
+          "description": "Represents a boolean value.",
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "list_value": {
+          "$ref": "#/definitions/protobufListValue"
+        },
+        "null_value": {
+          "$ref": "#/definitions/protobufNullValue"
+        },
+        "number_value": {
+          "description": "Represents a double value.",
+          "type": "number",
+          "format": "double"
+        },
+        "string_value": {
+          "description": "Represents a string value.",
+          "type": "string"
+        },
+        "struct_value": {
+          "$ref": "#/definitions/protobufStruct"
         }
       }
     },
@@ -1710,7 +1698,7 @@
           "title": "A human-readable description of the status of this operation.\nTODO: decide on maximum length.\n+optional"
         },
         "metadata": {
-          "$ref": "#/definitions/apismetav1ObjectMeta"
+          "$ref": "#/definitions/v1ObjectMeta"
         },
         "reason": {
           "type": "string",
@@ -1831,7 +1819,7 @@
       "type": "object",
       "properties": {
         "continue": {
-          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nlist may not be possible if the server configuration has changed or more than a few minutes have\npassed. The resourceVersion field returned when using this continue value will be identical to\nthe value in the first response.",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage.",
           "type": "string"
         },
         "resourceVersion": {
@@ -1857,6 +1845,87 @@
           "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1ObjectMeta": {
+      "description": "ObjectMeta is metadata that all persisted resources must have, which includes all objects\nusers must create.",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "clusterName": {
+          "type": "string",
+          "title": "The name of the cluster which the object belongs to.\nThis is used to distinguish resources with same name and namespace in different clusters.\nThis field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.\n+optional"
+        },
+        "creationTimestamp": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "deletionGracePeriodSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
+        },
+        "deletionTimestamp": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "finalizers": {
+          "type": "array",
+          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\n+optional\n+patchStrategy=merge",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generateName": {
+          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#idempotency\n+optional",
+          "type": "string"
+        },
+        "generation": {
+          "type": "string",
+          "format": "int64",
+          "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
+        },
+        "initializers": {
+          "$ref": "#/definitions/v1Initializers"
+        },
+        "labels": {
+          "type": "object",
+          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "type": "string",
+          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
+        },
+        "namespace": {
+          "description": "Namespace defines the space within each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+          "type": "string"
+        },
+        "ownerReferences": {
+          "type": "array",
+          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge",
+          "items": {
+            "$ref": "#/definitions/v1OwnerReference"
+          }
+        },
+        "resourceVersion": {
+          "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional",
+          "type": "string"
+        },
+        "selfLink": {
+          "type": "string",
+          "title": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
+        },
+        "uid": {
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
+          "type": "string"
         }
       }
     },
@@ -2042,7 +2111,7 @@
       "title": "AppProject is a definition of AppProject resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
       "properties": {
         "metadata": {
-          "$ref": "#/definitions/apismetav1ObjectMeta"
+          "$ref": "#/definitions/v1ObjectMeta"
         },
         "spec": {
           "$ref": "#/definitions/v1alpha1AppProjectSpec"
@@ -2113,7 +2182,7 @@
       "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
       "properties": {
         "metadata": {
-          "$ref": "#/definitions/apismetav1ObjectMeta"
+          "$ref": "#/definitions/v1ObjectMeta"
         },
         "operation": {
           "$ref": "#/definitions/v1alpha1Operation"
