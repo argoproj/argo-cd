@@ -8,6 +8,7 @@ package cluster;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
 
 // SettingsQuery is a query for ArgoCD settings
 message SettingsQuery {
@@ -17,6 +18,7 @@ message Settings {
     string url = 1 [(gogoproto.customname) = "URL"];
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
+    map<string, google.protobuf.ListValue> rbac = 4 [(gogoproto.customname) = "RBAC"];
 }
 
 message DexConfig {
