@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
@@ -24,9 +25,35 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	set := Settings{
-		URL:  argoCDSettings.URL,
-		RBAC: map[string][]string{},
+		URL: argoCDSettings.URL,
+		RBAC: map[string][]string{
+			rbac.ClaimsObjectApplications: []string{
+				rbac.ClaimsActionCreate,
+				rbac.ClaimsActionDelete,
+				rbac.ClaimsActionGet,
+				rbac.ClaimsActionSync,
+				rbac.ClaimsActionUpdate,
+			},
+			ClaimsObjectClusters: []string{
+				rbac.ClaimsActionCreate,
+				rbac.ClaimsActionDelete,
+				rbac.ClaimsActionGet,
+				rbac.ClaimsActionUpdate,
+			},
+			ClaimsObjectProjects: []string{
+				rbac.ClaimsActionDelete,
+				rbac.ClaimsActionGet,
+				rbac.ClaimsActionUpdate,
+			},
+			ClaimsObjectRepositories: []string{
+				rbac.ClaimsActionCreate,
+				rbac.ClaimsActionDelete,
+				rbac.ClaimsActionGet,
+				rbac.ClaimsActionUpdate,
+			},
+		},
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg DexConfig
