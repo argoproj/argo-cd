@@ -5,10 +5,10 @@ const ClaimsSubjectKey = "claims"
 
 // RBAC enforcement claim objects
 const (
-	ClaimsObjectApplications = "applications"
-	ClaimsObjectClusters     = "clusters"
-	ClaimsObjectProjects     = "projects"
-	ClaimsObjectRepositories = "repositories"
+	ClaimsResourceApplications = "applications"
+	ClaimsResourceClusters     = "clusters"
+	ClaimsResourceProjects     = "projects"
+	ClaimsResourceRepositories = "repositories"
 )
 
 // RBAC enforcement claim actions

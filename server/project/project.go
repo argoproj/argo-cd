@@ -49,7 +49,7 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionUpdate, q.Project) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionUpdate, q.Project) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
@@ -97,7 +97,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionDelete, q.Project) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionDelete, q.Project) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
@@ -135,7 +135,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 
 // Create a new project.
 func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, "create", q.Project.Name) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, "create", q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -157,7 +157,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 		newItems := make([]v1alpha1.AppProject, 0)
 		for i := range list.Items {
 			project := list.Items[i]
-			if s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionGet, project.Name) {
+			if s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionGet, project.Name) {
 				newItems = append(newItems, project)
 			}
 		}
@@ -168,7 +168,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 
 // Get returns a project by name
 func (s *Server) Get(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionGet, q.Name) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionGet, q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
@@ -320,7 +320,7 @@ func validateProject(p *v1alpha1.AppProject) error {
 
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionUpdate, q.Project.Name) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionUpdate, q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := validateProject(q.Project)
@@ -399,7 +399,7 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	if q.Name == common.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionDelete, q.Name) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionDelete, q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -427,7 +427,7 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 }
 
 func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionGet, q.Name) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionGet, q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})

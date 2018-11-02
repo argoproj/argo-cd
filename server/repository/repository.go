@@ -46,7 +46,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	if repoList != nil {
 		newItems := make([]appsv1.Repository, 0)
 		for _, repo := range repoList.Items {
-			if s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectRepositories, rbac.ClaimsActionGet, repo.Repo) {
+			if s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceRepositories, rbac.ClaimsActionGet, repo.Repo) {
 				newItems = append(newItems, *redact(&repo))
 			}
 		}
@@ -57,7 +57,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectRepositories, rbac.ClaimsActionGet, q.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceRepositories, rbac.ClaimsActionGet, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -128,7 +128,7 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 }
 
 func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*RepoAppDetailsResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectRepositories, rbac.ClaimsActionGet, q.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceRepositories, rbac.ClaimsActionGet, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -218,7 +218,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectRepositories, rbac.ClaimsActionCreate, q.Repo.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceRepositories, rbac.ClaimsActionCreate, q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	r := q.Repo
@@ -251,7 +251,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 
 // Get returns a repository by URL
 func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectRepositories, rbac.ClaimsActionGet, q.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceRepositories, rbac.ClaimsActionGet, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -260,7 +260,7 @@ func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, err
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectRepositories, rbac.ClaimsActionUpdate, q.Repo.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceRepositories, rbac.ClaimsActionUpdate, q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.UpdateRepository(ctx, q.Repo)
@@ -269,7 +269,7 @@ func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repo
 
 // Delete updates a repository
 func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectRepositories, rbac.ClaimsActionDelete, q.Repo) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceRepositories, rbac.ClaimsActionDelete, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := s.db.DeleteRepository(ctx, q.Repo)

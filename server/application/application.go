@@ -149,7 +149,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 	}
 	newItems := make([]appv1.Application, 0)
 	for _, a := range appList.Items {
-		if s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionGet, appRBACName(a)) {
+		if s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionGet, appRBACName(a)) {
 			newItems = append(newItems, a)
 		}
 	}
@@ -165,7 +165,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionCreate, appRBACName(q.Application)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionCreate, appRBACName(q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -185,7 +185,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 			return nil, status.Errorf(codes.Internal, "unable to check existing application details: %v", getErr)
 		}
 		if q.Upsert != nil && *q.Upsert {
-			if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionUpdate, appRBACName(a)) {
+			if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionUpdate, appRBACName(a)) {
 				return nil, grpc.ErrPermissionDenied
 			}
 			existing.Spec = a.Spec
@@ -212,7 +212,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo := s.getRepo(ctx, a.Spec.Source.RepoURL)
@@ -259,7 +259,7 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if q.Refresh {
@@ -282,7 +282,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	var (
@@ -325,7 +325,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionUpdate, appRBACName(*q.Application)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionUpdate, appRBACName(*q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -384,7 +384,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionUpdate, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionUpdate, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err = s.validateApp(ctx, &q.Spec)
@@ -422,7 +422,7 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 	s.projectLock.Lock(a.Spec.Project)
 	defer s.projectLock.Unlock(a.Spec.Project)
 
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionDelete, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionDelete, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -477,7 +477,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 		for next := range w.ResultChan() {
 			a := *next.Object.(*appv1.Application)
 			if q.Name == nil || *q.Name == "" || *q.Name == a.Name {
-				if !s.enf.EnforceClaims(claims, rbac.ClaimsObjectApplications, rbac.ClaimsActionGet, appRBACName(a)) {
+				if !s.enf.EnforceClaims(claims, rbac.ClaimsResourceApplications, rbac.ClaimsActionGet, appRBACName(a)) {
 					// do not emit apps user does not have accessing
 					continue
 				}
@@ -510,7 +510,7 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 		}
 		return err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectProjects, rbac.ClaimsActionGet, proj.Name) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceProjects, rbac.ClaimsActionGet, proj.Name) {
 		return status.Errorf(codes.PermissionDenied, "permission denied for project %s", proj.Name)
 	}
 	conditions, err := argo.GetSpecErrors(ctx, spec, proj, s.repoClientset, s.db)
@@ -556,7 +556,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionDelete, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionDelete, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	found := findResource(a, q)
@@ -620,7 +620,7 @@ func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLo
 	if err != nil {
 		return err
 	}
-	if !s.enf.EnforceClaims(ws.Context().Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ws.Context().Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionGet, appRBACName(*a)) {
 		return grpc.ErrPermissionDenied
 	}
 	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
@@ -713,7 +713,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionSync, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionSync, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
@@ -770,7 +770,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionSync, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionSync, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
@@ -809,7 +809,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsObjectApplications, rbac.ClaimsActionSync, appRBACName(*a)) {
+	if !s.enf.EnforceClaims(ctx.Value(rbac.ClaimsSubjectKey), rbac.ClaimsResourceApplications, rbac.ClaimsActionSync, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
