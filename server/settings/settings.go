@@ -36,18 +36,18 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 				rbac.ClaimsActionSync,
 				rbac.ClaimsActionUpdate,
 			},
-			ClaimsResourceClusters: []string{
+			rbac.ClaimsResourceClusters: []string{
 				rbac.ClaimsActionCreate,
 				rbac.ClaimsActionDelete,
 				rbac.ClaimsActionGet,
 				rbac.ClaimsActionUpdate,
 			},
-			ClaimsResourceProjects: []string{
+			rbac.ClaimsResourceProjects: []string{
 				rbac.ClaimsActionDelete,
 				rbac.ClaimsActionGet,
 				rbac.ClaimsActionUpdate,
 			},
-			ClaimsResourceRepositories: []string{
+			rbac.ClaimsResourceRepositories: []string{
 				rbac.ClaimsActionCreate,
 				rbac.ClaimsActionDelete,
 				rbac.ClaimsActionGet,
