@@ -13,7 +13,7 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
-import _struct "github.com/golang/protobuf/ptypes/struct"
+import _ "github.com/golang/protobuf/ptypes/struct"
 import _ "google.golang.org/genproto/googleapis/api/annotations"
 
 import context "golang.org/x/net/context"
@@ -43,7 +43,7 @@ func (m *SettingsQuery) Reset()         { *m = SettingsQuery{} }
 func (m *SettingsQuery) String() string { return proto.CompactTextString(m) }
 func (*SettingsQuery) ProtoMessage()    {}
 func (*SettingsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_03ac90887518e7b7, []int{0}
+	return fileDescriptor_settings_8052c5f7438791d5, []int{0}
 }
 func (m *SettingsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -72,21 +72,77 @@ func (m *SettingsQuery) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SettingsQuery proto.InternalMessageInfo
 
+// ListOfClaimActions holds a list of claim actions associated with a claim resource.
+type ListOfClaimActions struct {
+	Key                  string   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Values               []string `protobuf:"bytes,2,rep,name=values" json:"values,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListOfClaimActions) Reset()         { *m = ListOfClaimActions{} }
+func (m *ListOfClaimActions) String() string { return proto.CompactTextString(m) }
+func (*ListOfClaimActions) ProtoMessage()    {}
+func (*ListOfClaimActions) Descriptor() ([]byte, []int) {
+	return fileDescriptor_settings_8052c5f7438791d5, []int{1}
+}
+func (m *ListOfClaimActions) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ListOfClaimActions) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ListOfClaimActions.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (dst *ListOfClaimActions) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListOfClaimActions.Merge(dst, src)
+}
+func (m *ListOfClaimActions) XXX_Size() int {
+	return m.Size()
+}
+func (m *ListOfClaimActions) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListOfClaimActions.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListOfClaimActions proto.InternalMessageInfo
+
+func (m *ListOfClaimActions) GetKey() string {
+	if m != nil {
+		return m.Key
+	}
+	return ""
+}
+
+func (m *ListOfClaimActions) GetValues() []string {
+	if m != nil {
+		return m.Values
+	}
+	return nil
+}
+
 type Settings struct {
-	URL                  string                        `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	DexConfig            *DexConfig                    `protobuf:"bytes,2,opt,name=dexConfig" json:"dexConfig,omitempty"`
-	OIDCConfig           *OIDCConfig                   `protobuf:"bytes,3,opt,name=oidcConfig" json:"oidcConfig,omitempty"`
-	RBAC                 map[string]*_struct.ListValue `protobuf:"bytes,4,rep,name=rbac" json:"rbac,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`
-	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
-	XXX_unrecognized     []byte                        `json:"-"`
-	XXX_sizecache        int32                         `json:"-"`
+	URL                  string               `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	DexConfig            *DexConfig           `protobuf:"bytes,2,opt,name=dexConfig" json:"dexConfig,omitempty"`
+	OIDCConfig           *OIDCConfig          `protobuf:"bytes,3,opt,name=oidcConfig" json:"oidcConfig,omitempty"`
+	RBAC                 []ListOfClaimActions `protobuf:"bytes,4,rep,name=rbac" json:"rbac"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *Settings) Reset()         { *m = Settings{} }
 func (m *Settings) String() string { return proto.CompactTextString(m) }
 func (*Settings) ProtoMessage()    {}
 func (*Settings) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_03ac90887518e7b7, []int{1}
+	return fileDescriptor_settings_8052c5f7438791d5, []int{2}
 }
 func (m *Settings) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -136,7 +192,7 @@ func (m *Settings) GetOIDCConfig() *OIDCConfig {
 	return nil
 }
 
-func (m *Settings) GetRBAC() map[string]*_struct.ListValue {
+func (m *Settings) GetRBAC() []ListOfClaimActions {
 	if m != nil {
 		return m.RBAC
 	}
@@ -154,7 +210,7 @@ func (m *DexConfig) Reset()         { *m = DexConfig{} }
 func (m *DexConfig) String() string { return proto.CompactTextString(m) }
 func (*DexConfig) ProtoMessage()    {}
 func (*DexConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_03ac90887518e7b7, []int{2}
+	return fileDescriptor_settings_8052c5f7438791d5, []int{3}
 }
 func (m *DexConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -202,7 +258,7 @@ func (m *Connector) Reset()         { *m = Connector{} }
 func (m *Connector) String() string { return proto.CompactTextString(m) }
 func (*Connector) ProtoMessage()    {}
 func (*Connector) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_03ac90887518e7b7, []int{3}
+	return fileDescriptor_settings_8052c5f7438791d5, []int{4}
 }
 func (m *Connector) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -258,7 +314,7 @@ func (m *OIDCConfig) Reset()         { *m = OIDCConfig{} }
 func (m *OIDCConfig) String() string { return proto.CompactTextString(m) }
 func (*OIDCConfig) ProtoMessage()    {}
 func (*OIDCConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_settings_03ac90887518e7b7, []int{4}
+	return fileDescriptor_settings_8052c5f7438791d5, []int{5}
 }
 func (m *OIDCConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -310,8 +366,8 @@ func (m *OIDCConfig) GetClientID() string {
 
 func init() {
 	proto.RegisterType((*SettingsQuery)(nil), "cluster.SettingsQuery")
+	proto.RegisterType((*ListOfClaimActions)(nil), "cluster.ListOfClaimActions")
 	proto.RegisterType((*Settings)(nil), "cluster.Settings")
-	proto.RegisterMapType((map[string]*_struct.ListValue)(nil), "cluster.Settings.RbacEntry")
 	proto.RegisterType((*DexConfig)(nil), "cluster.DexConfig")
 	proto.RegisterType((*Connector)(nil), "cluster.Connector")
 	proto.RegisterType((*OIDCConfig)(nil), "cluster.OIDCConfig")
@@ -412,6 +468,48 @@ func (m *SettingsQuery) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *ListOfClaimActions) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListOfClaimActions) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Key) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintSettings(dAtA, i, uint64(len(m.Key)))
+		i += copy(dAtA[i:], m.Key)
+	}
+	if len(m.Values) > 0 {
+		for _, s := range m.Values {
+			dAtA[i] = 0x12
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			dAtA[i] = uint8(l)
+			i++
+			i += copy(dAtA[i:], s)
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
 func (m *Settings) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -454,31 +552,15 @@ func (m *Settings) MarshalTo(dAtA []byte) (int, error) {
 		i += n2
 	}
 	if len(m.RBAC) > 0 {
-		for k, _ := range m.RBAC {
+		for _, msg := range m.RBAC {
 			dAtA[i] = 0x22
 			i++
-			v := m.RBAC[k]
-			msgSize := 0
-			if v != nil {
-				msgSize = v.Size()
-				msgSize += 1 + sovSettings(uint64(msgSize))
+			i = encodeVarintSettings(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
 			}
-			mapSize := 1 + len(k) + sovSettings(uint64(len(k))) + msgSize
-			i = encodeVarintSettings(dAtA, i, uint64(mapSize))
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintSettings(dAtA, i, uint64(len(k)))
-			i += copy(dAtA[i:], k)
-			if v != nil {
-				dAtA[i] = 0x12
-				i++
-				i = encodeVarintSettings(dAtA, i, uint64(v.Size()))
-				n3, err := v.MarshalTo(dAtA[i:])
-				if err != nil {
-					return 0, err
-				}
-				i += n3
-			}
+			i += n
 		}
 	}
 	if m.XXX_unrecognized != nil {
@@ -610,6 +692,25 @@ func (m *SettingsQuery) Size() (n int) {
 	return n
 }
 
+func (m *ListOfClaimActions) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Key)
+	if l > 0 {
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	if len(m.Values) > 0 {
+		for _, s := range m.Values {
+			l = len(s)
+			n += 1 + l + sovSettings(uint64(l))
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func (m *Settings) Size() (n int) {
 	var l int
 	_ = l
@@ -626,16 +727,9 @@ func (m *Settings) Size() (n int) {
 		n += 1 + l + sovSettings(uint64(l))
 	}
 	if len(m.RBAC) > 0 {
-		for k, v := range m.RBAC {
-			_ = k
-			_ = v
-			l = 0
-			if v != nil {
-				l = v.Size()
-				l += 1 + sovSettings(uint64(l))
-			}
-			mapEntrySize := 1 + len(k) + sovSettings(uint64(len(k))) + l
-			n += mapEntrySize + 1 + sovSettings(uint64(mapEntrySize))
+		for _, e := range m.RBAC {
+			l = e.Size()
+			n += 1 + l + sovSettings(uint64(l))
 		}
 	}
 	if m.XXX_unrecognized != nil {
@@ -739,6 +833,115 @@ func (m *SettingsQuery) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: SettingsQuery: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSettings(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSettings
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListOfClaimActions) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSettings
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListOfClaimActions: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListOfClaimActions: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Key", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Key = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Values", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Values = append(m.Values, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipSettings(dAtA[iNdEx:])
@@ -911,102 +1114,10 @@ func (m *Settings) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.RBAC == nil {
-				m.RBAC = make(map[string]*_struct.ListValue)
+			m.RBAC = append(m.RBAC, ListOfClaimActions{})
+			if err := m.RBAC[len(m.RBAC)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
 			}
-			var mapkey string
-			var mapvalue *_struct.ListValue
-			for iNdEx < postIndex {
-				entryPreIndex := iNdEx
-				var wire uint64
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return ErrIntOverflowSettings
-					}
-					if iNdEx >= l {
-						return io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					wire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				fieldNum := int32(wire >> 3)
-				if fieldNum == 1 {
-					var stringLenmapkey uint64
-					for shift := uint(0); ; shift += 7 {
-						if shift >= 64 {
-							return ErrIntOverflowSettings
-						}
-						if iNdEx >= l {
-							return io.ErrUnexpectedEOF
-						}
-						b := dAtA[iNdEx]
-						iNdEx++
-						stringLenmapkey |= (uint64(b) & 0x7F) << shift
-						if b < 0x80 {
-							break
-						}
-					}
-					intStringLenmapkey := int(stringLenmapkey)
-					if intStringLenmapkey < 0 {
-						return ErrInvalidLengthSettings
-					}
-					postStringIndexmapkey := iNdEx + intStringLenmapkey
-					if postStringIndexmapkey > l {
-						return io.ErrUnexpectedEOF
-					}
-					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
-					iNdEx = postStringIndexmapkey
-				} else if fieldNum == 2 {
-					var mapmsglen int
-					for shift := uint(0); ; shift += 7 {
-						if shift >= 64 {
-							return ErrIntOverflowSettings
-						}
-						if iNdEx >= l {
-							return io.ErrUnexpectedEOF
-						}
-						b := dAtA[iNdEx]
-						iNdEx++
-						mapmsglen |= (int(b) & 0x7F) << shift
-						if b < 0x80 {
-							break
-						}
-					}
-					if mapmsglen < 0 {
-						return ErrInvalidLengthSettings
-					}
-					postmsgIndex := iNdEx + mapmsglen
-					if mapmsglen < 0 {
-						return ErrInvalidLengthSettings
-					}
-					if postmsgIndex > l {
-						return io.ErrUnexpectedEOF
-					}
-					mapvalue = &_struct.ListValue{}
-					if err := mapvalue.Unmarshal(dAtA[iNdEx:postmsgIndex]); err != nil {
-						return err
-					}
-					iNdEx = postmsgIndex
-				} else {
-					iNdEx = entryPreIndex
-					skippy, err := skipSettings(dAtA[iNdEx:])
-					if err != nil {
-						return err
-					}
-					if skippy < 0 {
-						return ErrInvalidLengthSettings
-					}
-					if (iNdEx + skippy) > postIndex {
-						return io.ErrUnexpectedEOF
-					}
-					iNdEx += skippy
-				}
-			}
-			m.RBAC[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -1465,40 +1576,40 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_03ac90887518e7b7)
+	proto.RegisterFile("server/settings/settings.proto", fileDescriptor_settings_8052c5f7438791d5)
 }
 
-var fileDescriptor_settings_03ac90887518e7b7 = []byte{
-	// 488 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x53, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0x95, 0xe3, 0xd0, 0xc6, 0x53, 0xa0, 0x65, 0x41, 0x95, 0x31, 0x28, 0xa9, 0x7c, 0x8a, 0x84,
-	0xb0, 0x4b, 0x7a, 0xa1, 0x5c, 0x10, 0x76, 0x10, 0x2a, 0xaa, 0x84, 0xd8, 0x08, 0x0e, 0x48, 0x1c,
-	0xec, 0xcd, 0xd6, 0x2c, 0xb8, 0xbb, 0xd1, 0xee, 0x3a, 0x22, 0x57, 0xfe, 0x02, 0x7f, 0x83, 0x1f,
-	0xc2, 0x11, 0x89, 0x7b, 0x84, 0x2c, 0x7e, 0x08, 0xf2, 0xfa, 0x23, 0x51, 0xcb, 0xed, 0xcd, 0x7b,
-	0xf3, 0xe4, 0x99, 0xb7, 0x63, 0x18, 0x2a, 0x2a, 0x97, 0x54, 0x86, 0x8a, 0x6a, 0xcd, 0x78, 0xa6,
-	0x3a, 0x10, 0x2c, 0xa4, 0xd0, 0x02, 0xed, 0x92, 0xbc, 0x50, 0x9a, 0x4a, 0xef, 0x5e, 0x26, 0x32,
-	0x61, 0xb8, 0xb0, 0x42, 0xb5, 0xec, 0x3d, 0xcc, 0x84, 0xc8, 0x72, 0x1a, 0x26, 0x0b, 0x16, 0x26,
-	0x9c, 0x0b, 0x9d, 0x68, 0x26, 0xb8, 0xba, 0xa2, 0x9a, 0x2a, 0x2d, 0x2e, 0x42, 0xa5, 0x65, 0x41,
-	0x74, 0xad, 0xfa, 0xfb, 0x70, 0x6b, 0xd6, 0x7c, 0xec, 0x6d, 0x41, 0xe5, 0xca, 0xff, 0xd1, 0x83,
-	0x41, 0xcb, 0xa0, 0xfb, 0x60, 0x17, 0x32, 0x77, 0xad, 0x23, 0x6b, 0xec, 0x44, 0xbb, 0xe5, 0x7a,
-	0x64, 0xbf, 0xc3, 0xe7, 0xb8, 0xe2, 0xd0, 0x31, 0x38, 0x73, 0xfa, 0x35, 0x16, 0xfc, 0x82, 0x65,
-	0x6e, 0xef, 0xc8, 0x1a, 0xef, 0x4d, 0x50, 0xd0, 0xcc, 0x19, 0x4c, 0x5b, 0x05, 0x6f, 0x9a, 0x50,
-	0x0c, 0x20, 0xd8, 0x9c, 0x34, 0x16, 0xdb, 0x58, 0xee, 0x76, 0x96, 0x37, 0x67, 0xd3, 0xb8, 0x96,
-	0xa2, 0xdb, 0xe5, 0x7a, 0x04, 0x9b, 0x1a, 0x6f, 0xd9, 0xd0, 0x29, 0xf4, 0x65, 0x9a, 0x10, 0xb7,
-	0x7f, 0x64, 0x8f, 0xf7, 0x26, 0x0f, 0x3a, 0x7b, 0x3b, 0x72, 0x80, 0xd3, 0x84, 0xbc, 0xe4, 0x5a,
-	0xae, 0xa2, 0x41, 0xb9, 0x1e, 0xf5, 0x71, 0xf4, 0x22, 0xc6, 0xc6, 0xe2, 0xcd, 0xc0, 0xe9, 0x44,
-	0x74, 0x00, 0xf6, 0x17, 0xba, 0xaa, 0x37, 0xc3, 0x15, 0x44, 0xc7, 0x70, 0x63, 0x99, 0xe4, 0x05,
-	0x6d, 0x96, 0xf1, 0x82, 0x3a, 0xb7, 0xa0, 0xcd, 0x2d, 0x38, 0x67, 0x4a, 0xbf, 0xaf, 0x3a, 0x70,
-	0xdd, 0xf8, 0xac, 0xf7, 0xd4, 0xf2, 0x9f, 0x83, 0xd3, 0x2d, 0x8b, 0x26, 0x00, 0x44, 0x70, 0x4e,
-	0x89, 0x16, 0x52, 0xb9, 0x96, 0x19, 0x71, 0x13, 0x4a, 0xdc, 0x4a, 0x78, 0xab, 0xcb, 0x3f, 0x01,
-	0xa7, 0x13, 0x10, 0x82, 0x3e, 0x4f, 0x2e, 0x69, 0x33, 0x96, 0xc1, 0x15, 0xa7, 0x57, 0x8b, 0x7a,
-	0x2c, 0x07, 0x1b, 0xec, 0xa7, 0xb0, 0x95, 0xcf, 0x7f, 0x5d, 0x87, 0xb0, 0xc3, 0x94, 0x2a, 0xa8,
-	0x6c, 0x7c, 0x4d, 0x85, 0xc6, 0x30, 0x20, 0x39, 0xa3, 0x5c, 0x9f, 0x4d, 0xcd, 0x13, 0x38, 0xd1,
-	0xcd, 0x72, 0x3d, 0x1a, 0xc4, 0x0d, 0x87, 0x3b, 0x75, 0xf2, 0x11, 0xf6, 0xdb, 0x50, 0x67, 0x54,
-	0x2e, 0x19, 0xa1, 0xe8, 0x35, 0xd8, 0xaf, 0xa8, 0x46, 0x87, 0xd7, 0x52, 0x37, 0xa7, 0xe3, 0xdd,
-	0xb9, 0xc6, 0xfb, 0xee, 0xb7, 0xdf, 0x7f, 0xbf, 0xf7, 0x10, 0x3a, 0x30, 0xc7, 0xb9, 0x7c, 0xd2,
-	0x5d, 0x76, 0x74, 0xfa, 0xb3, 0x1c, 0x5a, 0xbf, 0xca, 0xa1, 0xf5, 0xa7, 0x1c, 0x5a, 0x1f, 0x1e,
-	0x65, 0x4c, 0x7f, 0x2a, 0xd2, 0x80, 0x88, 0xcb, 0x30, 0x91, 0xe6, 0xc6, 0x3f, 0x1b, 0xf0, 0x98,
-	0xcc, 0xc3, 0x2b, 0x7f, 0x47, 0xba, 0x63, 0x9e, 0xe4, 0xe4, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff,
-	0x4e, 0xe6, 0x3e, 0xfe, 0x37, 0x03, 0x00, 0x00,
+var fileDescriptor_settings_8052c5f7438791d5 = []byte{
+	// 481 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x53, 0x41, 0x8b, 0xd3, 0x4e,
+	0x1c, 0xfd, 0xa7, 0x29, 0xdd, 0xe6, 0xb7, 0xfb, 0x77, 0xd7, 0x51, 0x4a, 0xac, 0xd2, 0x94, 0x9c,
+	0x02, 0x62, 0xa3, 0xdd, 0x93, 0x07, 0x95, 0x4d, 0x0a, 0xb2, 0xb2, 0xb0, 0x38, 0x8b, 0x17, 0xc1,
+	0x43, 0x32, 0x9d, 0xc6, 0xd1, 0x74, 0xa6, 0xcc, 0x4c, 0x8a, 0xbd, 0xfa, 0x15, 0xfc, 0x52, 0x7b,
+	0x14, 0x3c, 0x0a, 0x41, 0x82, 0x1f, 0x44, 0x3a, 0x4d, 0xd3, 0xba, 0xeb, 0xed, 0xfd, 0xde, 0x9b,
+	0x37, 0xc9, 0xfb, 0xe5, 0x05, 0x06, 0x8a, 0xca, 0x25, 0x95, 0xa1, 0xa2, 0x5a, 0x33, 0x9e, 0xa9,
+	0x06, 0x8c, 0x16, 0x52, 0x68, 0x81, 0x0e, 0x48, 0x5e, 0x28, 0x4d, 0x65, 0xff, 0x7e, 0x26, 0x32,
+	0x61, 0xb8, 0x70, 0x8d, 0x36, 0x72, 0xff, 0x51, 0x26, 0x44, 0x96, 0xd3, 0x30, 0x59, 0xb0, 0x30,
+	0xe1, 0x5c, 0xe8, 0x44, 0x33, 0xc1, 0xd5, 0x0d, 0xd5, 0x4c, 0x69, 0x31, 0x0b, 0x95, 0x96, 0x05,
+	0xd1, 0x1b, 0xd5, 0x3f, 0x86, 0xff, 0xaf, 0xea, 0x87, 0xbd, 0x2d, 0xa8, 0x5c, 0xf9, 0x2f, 0x01,
+	0x5d, 0x30, 0xa5, 0x2f, 0x67, 0x71, 0x9e, 0xb0, 0xf9, 0x19, 0x31, 0x57, 0xa1, 0x13, 0xb0, 0x3f,
+	0xd3, 0x95, 0x6b, 0x0d, 0xad, 0xc0, 0xc1, 0x6b, 0x88, 0x7a, 0xd0, 0x59, 0x26, 0x79, 0x41, 0x95,
+	0xdb, 0x1a, 0xda, 0x81, 0x83, 0xeb, 0xc9, 0xff, 0x69, 0x41, 0x77, 0x7b, 0x23, 0x7a, 0x00, 0x76,
+	0x21, 0xf3, 0x8d, 0x2d, 0x3a, 0xa8, 0x4a, 0xcf, 0x7e, 0x87, 0x2f, 0xf0, 0x9a, 0x43, 0x4f, 0xc1,
+	0x99, 0xd2, 0x2f, 0xb1, 0xe0, 0x33, 0x96, 0xb9, 0xad, 0xa1, 0x15, 0x1c, 0x8e, 0xd1, 0xa8, 0xce,
+	0x39, 0x9a, 0x6c, 0x15, 0xbc, 0x3b, 0x84, 0x62, 0x00, 0xc1, 0xa6, 0xa4, 0xb6, 0xd8, 0xc6, 0x72,
+	0xaf, 0xb1, 0x5c, 0x9e, 0x4f, 0xe2, 0x8d, 0x14, 0xdd, 0xa9, 0x4a, 0x0f, 0x76, 0x33, 0xde, 0xb3,
+	0xa1, 0x17, 0xd0, 0x96, 0x69, 0x42, 0xdc, 0xf6, 0xd0, 0x0e, 0x0e, 0xc7, 0x0f, 0x1b, 0xfb, 0xed,
+	0xcc, 0xd1, 0xd1, 0x75, 0xe9, 0xfd, 0x57, 0x95, 0x5e, 0x1b, 0x47, 0x67, 0x31, 0x36, 0x36, 0xff,
+	0x15, 0x38, 0xcd, 0xbb, 0xa1, 0x31, 0x00, 0x11, 0x9c, 0x53, 0xa2, 0x85, 0x54, 0xae, 0x65, 0x6e,
+	0xdc, 0x65, 0x88, 0xb7, 0x12, 0xde, 0x3b, 0xe5, 0x9f, 0x82, 0xd3, 0x08, 0x08, 0x41, 0x9b, 0x27,
+	0x73, 0x5a, 0xaf, 0xd5, 0xe0, 0x35, 0xa7, 0x57, 0x0b, 0x6a, 0x56, 0xe2, 0x60, 0x83, 0xfd, 0x14,
+	0xf6, 0xe2, 0xfc, 0xd3, 0xd5, 0x83, 0x0e, 0x53, 0xaa, 0xa0, 0xb2, 0xf6, 0xd5, 0x13, 0x0a, 0xa0,
+	0x4b, 0x72, 0x46, 0xb9, 0x3e, 0x9f, 0x98, 0x8d, 0x39, 0xd1, 0x51, 0x55, 0x7a, 0xdd, 0xb8, 0xe6,
+	0x70, 0xa3, 0x8e, 0x3f, 0xc0, 0xf1, 0xf6, 0xb3, 0x5d, 0x51, 0xb9, 0x64, 0x84, 0xa2, 0x37, 0x60,
+	0xbf, 0xa6, 0x1a, 0xf5, 0x9a, 0x48, 0x7f, 0x35, 0xa5, 0x7f, 0xf7, 0x16, 0xef, 0xbb, 0x5f, 0x7f,
+	0xfc, 0xfe, 0xd6, 0x42, 0xe8, 0xc4, 0x74, 0x71, 0xf9, 0xac, 0x29, 0x72, 0xf4, 0xfc, 0xba, 0x1a,
+	0x58, 0xdf, 0xab, 0x81, 0xf5, 0xab, 0x1a, 0x58, 0xef, 0x1f, 0x67, 0x4c, 0x7f, 0x2c, 0xd2, 0x11,
+	0x11, 0xf3, 0x30, 0x91, 0xa6, 0xd2, 0x9f, 0x0c, 0x78, 0x42, 0xa6, 0xe1, 0x8d, 0x9f, 0x21, 0xed,
+	0x98, 0xa6, 0x9e, 0xfe, 0x09, 0x00, 0x00, 0xff, 0xff, 0x93, 0x87, 0x16, 0xde, 0x26, 0x03, 0x00,
+	0x00,
 }

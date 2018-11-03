@@ -1349,6 +1349,21 @@
         }
       }
     },
+    "clusterListOfClaimActions": {
+      "description": "ListOfClaimActions holds a list of claim actions associated with a claim resource.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "clusterOIDCConfig": {
       "type": "object",
       "properties": {
@@ -1373,9 +1388,9 @@
           "$ref": "#/definitions/clusterOIDCConfig"
         },
         "rbac": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/protobufListValue"
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterListOfClaimActions"
           }
         },
         "url": {
@@ -1429,69 +1444,6 @@
       "properties": {
         "project": {
           "$ref": "#/definitions/v1alpha1AppProject"
-        }
-      }
-    },
-    "protobufListValue": {
-      "description": "`ListValue` is a wrapper around a repeated field of values.\n\nThe JSON representation for `ListValue` is JSON array.",
-      "type": "object",
-      "properties": {
-        "values": {
-          "description": "Repeated field of dynamically typed values.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/protobufValue"
-          }
-        }
-      }
-    },
-    "protobufNullValue": {
-      "description": "`NullValue` is a singleton enumeration to represent the null value for the\n`Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`.\n\n - NULL_VALUE: Null value.",
-      "type": "string",
-      "default": "NULL_VALUE",
-      "enum": [
-        "NULL_VALUE"
-      ]
-    },
-    "protobufStruct": {
-      "description": "`Struct` represents a structured data value, consisting of fields\nwhich map to dynamically typed values. In some languages, `Struct`\nmight be supported by a native representation. For example, in\nscripting languages like JS a struct is represented as an\nobject. The details of that representation are described together\nwith the proto support for the language.\n\nThe JSON representation for `Struct` is JSON object.",
-      "type": "object",
-      "properties": {
-        "fields": {
-          "description": "Unordered map of dynamically typed values.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/protobufValue"
-          }
-        }
-      }
-    },
-    "protobufValue": {
-      "description": "`Value` represents a dynamically typed value which can be either\nnull, a number, a string, a boolean, a recursive struct value, or a\nlist of values. A producer of value is expected to set one of that\nvariants, absence of any variant indicates an error.\n\nThe JSON representation for `Value` is JSON value.",
-      "type": "object",
-      "properties": {
-        "bool_value": {
-          "description": "Represents a boolean value.",
-          "type": "boolean",
-          "format": "boolean"
-        },
-        "list_value": {
-          "$ref": "#/definitions/protobufListValue"
-        },
-        "null_value": {
-          "$ref": "#/definitions/protobufNullValue"
-        },
-        "number_value": {
-          "description": "Represents a double value.",
-          "type": "number",
-          "format": "double"
-        },
-        "string_value": {
-          "description": "Represents a string value.",
-          "type": "string"
-        },
-        "struct_value": {
-          "$ref": "#/definitions/protobufStruct"
         }
       }
     },
