@@ -28,30 +28,38 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 
 	set := Settings{
 		URL: argoCDSettings.URL,
-		RBAC: map[string][]string{
-			rbac.ClaimsResourceApplications: []string{
-				rbac.ClaimsActionCreate,
-				rbac.ClaimsActionDelete,
-				rbac.ClaimsActionGet,
-				rbac.ClaimsActionSync,
-				rbac.ClaimsActionUpdate,
+		RBAC: map[string]ClaimsActionList{
+			rbac.ClaimsResourceApplications: ClaimsActionList{
+				Values: []string{
+					rbac.ClaimsActionCreate,
+					rbac.ClaimsActionDelete,
+					rbac.ClaimsActionGet,
+					rbac.ClaimsActionSync,
+					rbac.ClaimsActionUpdate,
+				},
 			},
-			rbac.ClaimsResourceClusters: []string{
-				rbac.ClaimsActionCreate,
-				rbac.ClaimsActionDelete,
-				rbac.ClaimsActionGet,
-				rbac.ClaimsActionUpdate,
+			rbac.ClaimsResourceClusters: ClaimsActionList{
+				Values: []string{
+					rbac.ClaimsActionCreate,
+					rbac.ClaimsActionDelete,
+					rbac.ClaimsActionGet,
+					rbac.ClaimsActionUpdate,
+				},
 			},
-			rbac.ClaimsResourceProjects: []string{
-				rbac.ClaimsActionDelete,
-				rbac.ClaimsActionGet,
-				rbac.ClaimsActionUpdate,
+			rbac.ClaimsResourceProjects: ClaimsActionList{
+				Values: []string{
+					rbac.ClaimsActionDelete,
+					rbac.ClaimsActionGet,
+					rbac.ClaimsActionUpdate,
+				},
 			},
-			rbac.ClaimsResourceRepositories: []string{
-				rbac.ClaimsActionCreate,
-				rbac.ClaimsActionDelete,
-				rbac.ClaimsActionGet,
-				rbac.ClaimsActionUpdate,
+			rbac.ClaimsResourceRepositories: ClaimsActionList{
+				Values: []string{
+					rbac.ClaimsActionCreate,
+					rbac.ClaimsActionDelete,
+					rbac.ClaimsActionGet,
+					rbac.ClaimsActionUpdate,
+				},
 			},
 		},
 	}
