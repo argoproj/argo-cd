@@ -16,7 +16,7 @@ message SettingsQuery {
 
 // ClaimsActionList holds a list of claim action.
 message ClaimsActionList {
-    repeated string item = 1;
+    repeated string values = 1;
 }
 
 message Settings {
