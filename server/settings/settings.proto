@@ -14,16 +14,17 @@ import "google/protobuf/struct.proto";
 message SettingsQuery {
 }
 
-// ClaimsActionList holds a list of claim action.
-message ClaimsActionList {
-    repeated string values = 1;
+// ClaimsActionMap holds a list of claim actions associated with a claim resource.
+message ClaimsActionMap {
+    string key = 1;
+    repeated string values = 2;
 }
 
 message Settings {
     string url = 1 [(gogoproto.customname) = "URL"];
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
-    map<string, ClaimsActionList> rbac = 4 [(gogoproto.customname) = "RBAC"];
+    ClaimsActionMap rbac = 4 [(gogoproto.nullable) = false, (gogoproto.customname) = "RBAC"];
 }
 
 message DexConfig {
