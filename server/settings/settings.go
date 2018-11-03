@@ -28,8 +28,8 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 
 	set := Settings{
 		URL: argoCDSettings.URL,
-		RBAC: map[string]ClaimsActionList{
-			rbac.ClaimsResourceApplications: ClaimsActionList{
+		RBAC: map[string]*ClaimsActionList{
+			rbac.ClaimsResourceApplications: &ClaimsActionList{
 				Values: []string{
 					rbac.ClaimsActionCreate,
 					rbac.ClaimsActionDelete,
@@ -38,7 +38,7 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 					rbac.ClaimsActionUpdate,
 				},
 			},
-			rbac.ClaimsResourceClusters: ClaimsActionList{
+			rbac.ClaimsResourceClusters: &ClaimsActionList{
 				Values: []string{
 					rbac.ClaimsActionCreate,
 					rbac.ClaimsActionDelete,
@@ -46,14 +46,14 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 					rbac.ClaimsActionUpdate,
 				},
 			},
-			rbac.ClaimsResourceProjects: ClaimsActionList{
+			rbac.ClaimsResourceProjects: &ClaimsActionList{
 				Values: []string{
 					rbac.ClaimsActionDelete,
 					rbac.ClaimsActionGet,
 					rbac.ClaimsActionUpdate,
 				},
 			},
-			rbac.ClaimsResourceRepositories: ClaimsActionList{
+			rbac.ClaimsResourceRepositories: &ClaimsActionList{
 				Values: []string{
 					rbac.ClaimsActionCreate,
 					rbac.ClaimsActionDelete,
