@@ -1,14 +1,14 @@
 # Automated Sync Policy
 
-ArgoCD has the ability to automatically sync an application when it detects differences between
+Argo CD has the ability to automatically sync an application when it detects differences between
 the desired manifests in git, and the live state in the cluster. A benefit of automatic sync is that
-CI/CD pipelines no longer need direct access to the ArgoCD API server to perform the deployment.
+CI/CD pipelines no longer need direct access to the Argo CD API server to perform the deployment.
 Instead, the pipeline makes a commit and push to the git repository with the changes to the
 manifests in the tracking git repo.
 
 To configure automated sync run:
 ```bash
-argocd app set <APPNAME> --sync-policy automated 
+argocd app set <APPNAME> --sync-policy automated
 ```
 
 Alternatively, if creating the application an application manifest, specify a syncPolicy with an
@@ -21,7 +21,7 @@ spec:
 
 ## Automatic Pruning
 
-By default (and as a safety mechanism), automated sync will not delete resources when ArgoCD detects
+By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects
 the resource is no longer defined in git. To prune the resources, a manual sync can always be
 performed (with pruning checked). Pruning can also be enabled to happen automatically as part of the
 automated sync by running:

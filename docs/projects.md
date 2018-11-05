@@ -1,6 +1,6 @@
 ## Projects
 
-Projects provide a logical grouping of applications, which is useful when ArgoCD is used by multiple
+Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
 teams. Projects provide the following features:
 
 * ability to restrict *what* may be deployed (the git source repositories)
@@ -77,7 +77,7 @@ Once projects have been defined, RBAC rules can be written to restrict access to
 in the project. The following example configures RBAC for two GitHub teams: `team1` and `team2`,
 both in the GitHub org, `some-github-org`. There are two projects, `project-a` and `project-b`.
 `team1` can only manage applications in `project-a`, while `team2` can only manage applications in
-`project-b`. Both `team1` and `team2` have the ability to manage repositories. 
+`project-b`. Both `team1` and `team2` have the ability to manage repositories.
 
 *ConfigMap `argocd-rbac-cm` example:*
 
@@ -108,7 +108,7 @@ These can be used to give a CI pipeline a restricted set of permissions. For exa
 may only be able to sync a single app (but not change its source or destination).
 
 Projects can have multiple roles, and those roles can have different access granted to them. These
-permissions are called policies, and they are stored within the role as a list of policy strings. 
+permissions are called policies, and they are stored within the role as a list of policy strings.
 A role's policy can only grant access to that role and are limited to applications within the role's
 project.  However, the policies have an option for granting wildcard access to any application
 within a project.
@@ -125,19 +125,19 @@ argoproj proj role add-policy
 argoproj proj role remove-policy
 ```
 
-Project roles in itself are not useful without generating a token to associate to that role. ArgoCD
+Project roles in itself are not useful without generating a token to associate to that role. Argo CD
 supports JWT tokens as the means to authenticate to a role. Since the JWT token is
 associated with a role's policies, any changes to the role's policies will immediately take effect
 for that JWT token.
 
-The following commands are used to manage the JWT tokens. 
+The following commands are used to manage the JWT tokens.
 
 ```bash
 argoproj proj role create-token PROJECT ROLE-NAME
 argoproj proj role delete-token PROJECT ROLE-NAME ISSUED-AT
 ```
 
-Since the JWT tokens aren't stored in ArgoCD, they can only be retrieved when they are created. A
+Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A
 user can leverage them in the cli by either passing them in using the `--auth-token` flag or setting
 the ARGOCD_AUTH_TOKEN environment variable. The JWT tokens can be used until they expire or are
 revoked.  The JWT tokens can created with or without an expiration, but the default on the cli is
@@ -164,7 +164,7 @@ argocd app get $APP --auth-token $JWT
 argocd proj role add-policy $PROJ $ROLE --action get --permission allow --object $APP
 argocd app get $PROJ-$ROLE --auth-token $JWT
 
-# Removing the policy we added and adding one with a wildcard.  
+# Removing the policy we added and adding one with a wildcard.
 argocd proj role remove-policy $PROJ $TOKEN -a get -o $PROJ-$TOKEN
 argocd proj role remove-policy $PROJ $TOKEN -a get -o '*'
 # The wildcard allows us to access the application due to the wildcard.

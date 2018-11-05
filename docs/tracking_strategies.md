@@ -1,26 +1,26 @@
 # Tracking and Deployment Strategies
 
-An ArgoCD application spec provides several different ways of track kubernetes resource manifests in
+An Argo CD application spec provides several different ways of track kubernetes resource manifests in
 git. This document describes the different techniques and the means of deploying those manifests to
 the target environment.
 
 ## HEAD / Branch Tracking
 
-If a branch name, or a symbolic reference (like HEAD) is specified, ArgoCD will continually compare
+If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
 live state against the resource manifests defined at the tip of the specified branch or the
 deferenced commit of the symbolic reference.
 
 To redeploy an application, a user makes changes to the manifests, and commit/pushes those the
-changes to the tracked branch/symbolic reference, which will then be detected by ArgoCD controller. 
+changes to the tracked branch/symbolic reference, which will then be detected by Argo CD controller.
 
 ## Tag Tracking
 
-If a tag is specified, the manifests at the specified git tag will be used to perform the sync 
+If a tag is specified, the manifests at the specified git tag will be used to perform the sync
 comparison. This provides some advantages over branch tracking in that a tag is generally considered
 more stable, and less frequently updated, with some manual judgement of what constitutes a tag.
 
 To redeploy an application, the user uses git to change the meaning of a tag by retagging it to a
-different commit SHA. ArgoCD will detect the new meaning of the tag when performing the
+different commit SHA. Argo CD will detect the new meaning of the tag when performing the
 comparison/sync.
 
 ## Commit Pinning

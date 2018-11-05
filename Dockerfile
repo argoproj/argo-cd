@@ -71,7 +71,7 @@ RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernete
 
 
 ####################################################################################################
-# ArgoCD Build stage which performs the actual build of ArgoCD binaries
+# Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
 FROM golang:1.10.3 as argocd-build
 

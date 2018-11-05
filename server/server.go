@@ -102,7 +102,7 @@ func init() {
 	errors.CheckError(err)
 }
 
-// ArgoCDServer is the API server for ArgoCD
+// ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
 
@@ -115,7 +115,7 @@ type ArgoCDServer struct {
 	appInformer  cache.SharedIndexInformer
 	appLister    applister.ApplicationLister
 
-	// stopCh is the channel which when closed, will shutdown the ArgoCD server
+	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh chan struct{}
 }
 
@@ -168,7 +168,7 @@ func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDS
 	return cdSettings, nil
 }
 
-// NewServer returns a new instance of the ArgoCD API server
+// NewServer returns a new instance of the Argo CD API server
 func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
 

@@ -6,7 +6,7 @@ package settings // import "github.com/argoproj/argo-cd/server/settings"
 /*
 	Settings Service
 
-	Settings Service API retrives ArgoCD settings
+	Settings Service API retrieves Argo CD settings
 */
 
 import proto "github.com/gogo/protobuf/proto"
@@ -31,7 +31,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
-// SettingsQuery is a query for ArgoCD settings
+// SettingsQuery is a query for Argo CD settings
 type SettingsQuery struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -318,7 +318,7 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for SettingsService service
 
 type SettingsServiceClient interface {
-	// Get returns ArgoCD settings
+	// Get returns Argo CD settings
 	Get(ctx context.Context, in *SettingsQuery, opts ...grpc.CallOption) (*Settings, error)
 }
 
@@ -342,7 +342,7 @@ func (c *settingsServiceClient) Get(ctx context.Context, in *SettingsQuery, opts
 // Server API for SettingsService service
 
 type SettingsServiceServer interface {
-	// Get returns ArgoCD settings
+	// Get returns Argo CD settings
 	Get(context.Context, *SettingsQuery) (*Settings, error)
 }
 

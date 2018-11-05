@@ -3,13 +3,13 @@ option go_package = "github.com/argoproj/argo-cd/server/settings";
 
 // Settings Service
 //
-// Settings Service API retrives ArgoCD settings 
+// Settings Service API retrieves Argo CD settings
 package cluster;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
-// SettingsQuery is a query for ArgoCD settings
+// SettingsQuery is a query for Argo CD settings
 message SettingsQuery {
 }
 
@@ -34,10 +34,10 @@ message OIDCConfig {
     string clientID = 3 [(gogoproto.customname) = "ClientID"];
 }
 
-// SettingsService 
+// SettingsService
 service SettingsService {
 
-    // Get returns ArgoCD settings
+    // Get returns Argo CD settings
     rpc Get(SettingsQuery) returns (Settings) {
 		option (google.api.http).get = "/api/v1/settings";
 	}

@@ -9,7 +9,7 @@ package version;
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 
-// VersionMessage represents version of the ArgoCD API server
+// VersionMessage represents version of the Argo CD API server
 message VersionMessage {
 	string Version = 1;
 	string BuildDate = 2;

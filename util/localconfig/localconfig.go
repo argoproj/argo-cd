@@ -9,7 +9,7 @@ import (
 	configUtil "github.com/argoproj/argo-cd/util/config"
 )
 
-// LocalConfig is a local ArgoCD config file
+// LocalConfig is a local Argo CD config file
 type LocalConfig struct {
 	CurrentContext string       `json:"current-context"`
 	Contexts       []ContextRef `json:"contexts"`
@@ -31,9 +31,9 @@ type Context struct {
 	User   User
 }
 
-// Server contains ArgoCD server information
+// Server contains Argo CD server information
 type Server struct {
-	// Server is the ArgoCD server address
+	// Server is the Argo CD server address
 	Server string `json:"server"`
 	// Insecure indicates to connect to the server over TLS insecurely
 	Insecure bool `json:"insecure,omitempty"`

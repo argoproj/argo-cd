@@ -29,7 +29,7 @@ import (
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
-	// URL is the externally facing URL users will visit to reach ArgoCD.
+	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
 	// Admin superuser password storage
@@ -41,7 +41,7 @@ type ArgoCDSettings struct {
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
 	ServerSignature []byte `json:"serverSignature,omitempty"`
-	// Certificate holds the certificate/private key for the ArgoCD API server.
+	// Certificate holds the certificate/private key for the Argo CD API server.
 	// If nil, will run insecure without TLS.
 	Certificate *tls.Certificate `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
@@ -72,7 +72,7 @@ const (
 	settingServerCertificate = "tls.crt"
 	// settingServerPrivateKey designates the key for the private key used in TLS
 	settingServerPrivateKey = "tls.key"
-	// settingURLKey designates the key where ArgoCDs external URL is set
+	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
@@ -104,7 +104,7 @@ func (e *incompleteSettingsError) Error() string {
 	return e.message
 }
 
-// GetSettings retrieves settings from the ArgoCD configmap and secret.
+// GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	var settings ArgoCDSettings
 	argoCDCM, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
@@ -175,7 +175,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 	return nil
 }
 
-// SaveSettings serializes ArgoCD settings and upserts it into K8s secret/configmap
+// SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
 func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	// Upsert the config data
 	argoCDCM, err := mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName, metav1.GetOptions{})
@@ -377,7 +377,7 @@ func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {
 	return base64.URLEncoding.EncodeToString(sha)[:40]
 }
 
-// newInformers returns two new informers on the ArgoCD
+// newInformers returns two new informers on the Argo CD
 func (mgr *SettingsManager) newInformers() (cache.SharedIndexInformer, cache.SharedIndexInformer) {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))

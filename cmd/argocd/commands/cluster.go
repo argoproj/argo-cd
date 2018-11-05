@@ -103,7 +103,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		},
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
-	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates ArgoCD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
+	command.Flags().BoolVar(&inCluster, "in-cluster", false, "Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
 	command.Flags().StringVar(&awsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws-iam-authenticator will be used to access cluster")
 	command.Flags().StringVar(&awsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.")

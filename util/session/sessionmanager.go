@@ -40,7 +40,7 @@ const (
 	badUserError       = "Bad local superuser username"
 )
 
-// NewSessionManager creates a new session manager from ArgoCD settings
+// NewSessionManager creates a new session manager from Argo CD settings
 func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
 	s := SessionManager{
 		settings: settings,
@@ -146,7 +146,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	}
 	switch claims.Issuer {
 	case SessionManagerClaimsIssuer:
-		// ArgoCD signed token
+		// Argo CD signed token
 		return mgr.Parse(tokenString)
 	default:
 		// Dex signed token
@@ -206,7 +206,7 @@ func Username(ctx context.Context) string {
 }
 
 // oidcProvider lazily initializes, memoizes, and returns the OIDC provider.
-// We have to initialize the provider lazily since ArgoCD can be an OIDC client to itself (in the
+// We have to initialize the provider lazily since Argo CD can be an OIDC client to itself (in the
 // case of dex reverse proxy), which presents a chicken-and-egg problem of (1) serving dex over
 // HTTP, and (2) querying the OIDC provider (ourself) to initialize the app.
 func (mgr *SessionManager) oidcProvider() (*oidc.Provider, error) {

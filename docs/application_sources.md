@@ -1,6 +1,6 @@
 # Application Source Types
 
-ArgoCD supports several different ways in which kubernetes manifests can be defined:
+Argo CD supports several different ways in which kubernetes manifests can be defined:
 
 * [ksonnet](https://ksonnet.io) applications
 * [kustomize](https://kustomize.io) applications
@@ -36,7 +36,7 @@ guestbook-ui servicePort   80
 guestbook-ui type          "LoadBalancer"
 ```
 
-When overriding ksonnet parameters in ArgoCD, the component name should also be specified in the
+When overriding ksonnet parameters in Argo CD, the component name should also be specified in the
 `argocd app set` command, in the form of `-p COMPONENT=PARAM=VALUE`. For example:
 ```
 argocd app set guestbook-default -p guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1
@@ -61,7 +61,7 @@ a `values.yaml`. For example, `service.type` is a common parameter which is expo
 ```
 helm template . --set service.type=LoadBalancer
 ```
-Similarly ArgoCD can override values in the `values.yaml` parameters using `argo app set` command,
+Similarly Argo CD can override values in the `values.yaml` parameters using `argo app set` command,
 in the form of `-p PARAM=VALUE`. For example:
 ```
 argocd app set helm-guestbook -p service.type=LoadBalancer
@@ -69,16 +69,16 @@ argocd app set helm-guestbook -p service.type=LoadBalancer
 
 ### Helm Hooks
 
-Helm hooks are equivalent in concept to [ArgoCD resource hooks](resource_hooks.md). In helm, a hook
-is any normal kubernetes resource annotated with the `helm.sh/hook` annotation. When ArgoCD deploys
+Helm hooks are equivalent in concept to [Argo CD resource hooks](resource_hooks.md). In helm, a hook
+is any normal kubernetes resource annotated with the `helm.sh/hook` annotation. When Argo CD deploys
 helm application which contains helm hooks, all helm hook resources are currently ignored during
-the `kubectl apply` of the manifests. There is an 
-[open issue](https://github.com/argoproj/argo-cd/issues/355) to map Helm hooks to ArgoCD's concept
+the `kubectl apply` of the manifests. There is an
+[open issue](https://github.com/argoproj/argo-cd/issues/355) to map Helm hooks to Argo CD's concept
 of Pre/Post/Sync hooks.
- 
+
 ### Random Data
 
-Helm templating has the ability to generate random data during chart rendering via the 
+Helm templating has the ability to generate random data during chart rendering via the
 `randAlphaNum` function. Many helm charts from the [charts repository](https://github.com/helm/charts)
 make use of this feature. For example, the following is the secret for the
 [redis helm chart](https://github.com/helm/charts/blob/master/stable/redis/templates/secrets.yaml):
@@ -92,7 +92,7 @@ data:
   {{- end }}
 ```
 
-The ArgoCD application controller periodically compares git state against the live state, running
+The Argo CD application controller periodically compares git state against the live state, running
 the `helm template <CHART>` command to generate the helm manifests. Because the random value is
 regenerated every time the comparison is made, any application which makes use of the `randAlphaNum`
 function will always be in an `OutOfSync` state. This can be mitigated by explicitly setting a

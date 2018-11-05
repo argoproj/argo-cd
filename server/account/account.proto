@@ -1,9 +1,9 @@
 syntax = "proto3";
 option go_package = "github.com/argoproj/argo-cd/server/account";
 
-// Account Service 
+// Account Service
 //
-// Account Service API updates ArgoCD account settings
+// Account Service API updates Argo CD account settings
 
 package account;
 

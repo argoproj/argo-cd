@@ -29,7 +29,7 @@ func NewCommand() *cobra.Command {
 
 	var command = &cobra.Command{
 		Use:   cliName,
-		Short: "argocd controls a ArgoCD server",
+		Short: "argocd controls a Argo CD server",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -47,8 +47,8 @@ func NewCommand() *cobra.Command {
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
 	errors.CheckError(err)
-	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", defaultLocalConfigPath, "Path to ArgoCD config")
-	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "ArgoCD server address")
+	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", defaultLocalConfigPath, "Path to Argo CD config")
+	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", "", "Argo CD server address")
 	command.PersistentFlags().BoolVar(&clientOpts.PlainText, "plaintext", false, "Disable TLS")
 	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
 	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
