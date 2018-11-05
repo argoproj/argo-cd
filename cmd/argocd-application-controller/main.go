@@ -66,7 +66,6 @@ func newCommand() *cobra.Command {
 				appClient,
 				repoClientset,
 				resyncDuration)
-			secretController := controller.NewSecretController(kubeClient, repoClientset, resyncDuration, namespace)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -76,7 +75,6 @@ func newCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 
-			go secretController.Run(ctx)
 			go appController.Run(ctx, statusProcessors, operationProcessors)
 			// Wait forever
 			select {}

@@ -16,6 +16,8 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -52,6 +54,8 @@ type ArgoCDSettings struct {
 	WebhookBitbucketUUID string `json:"webhookBitbucketUUID,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
+	// Repositories holds list of configured git repositories
+	Repositories []RepoCredentials
 }
 
 type OIDCConfig struct {
@@ -59,6 +63,13 @@ type OIDCConfig struct {
 	Issuer       string `json:"issuer,omitempty"`
 	ClientID     string `json:"clientID,omitempty"`
 	ClientSecret string `json:"clientSecret,omitempty"`
+}
+
+type RepoCredentials struct {
+	URL                 string                   `json:"url,omitempty"`
+	UsernameSecret      *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	PasswordSecret      *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	SshPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKey,omitempty"`
 }
 
 const (
@@ -74,6 +85,8 @@ const (
 	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
+	// repositoriesKey designates the key where ArgoCDs repositories list is set
+	repositoriesKey = "repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
@@ -111,7 +124,10 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err != nil {
 		return nil, err
 	}
-	updateSettingsFromConfigMap(&settings, argoCDCM)
+	err = mgr.updateSettingsFromConfigMap(&settings, argoCDCM)
+	if err != nil {
+		return nil, err
+	}
 	argoCDSecret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(common.ArgoCDSecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -123,17 +139,71 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
+func (mgr *SettingsManager) loadLegacyRepoSettings(settings *ArgoCDSettings) error {
+	listOpts := metav1.ListOptions{}
+	labelSelector := labels.NewSelector()
+	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{"repository"})
+	if err != nil {
+		return err
+	}
+	labelSelector = labelSelector.Add(*req)
+	listOpts.LabelSelector = labelSelector.String()
+	repoSecrets, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).List(listOpts)
+	if err != nil {
+		return err
+	}
+	settings.Repositories = make([]RepoCredentials, len(repoSecrets.Items))
+	for i, s := range repoSecrets.Items {
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(&s)
+		if err != nil {
+			return err
+		}
+		cred := RepoCredentials{URL: string(s.Data["repository"])}
+		if username, ok := s.Data["username"]; ok && string(username) != "" {
+			cred.UsernameSecret = &apiv1.SecretKeySelector{
+				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
+				Key:                  "username",
+			}
+		}
+		if password, ok := s.Data["password"]; ok && string(password) != "" {
+			cred.PasswordSecret = &apiv1.SecretKeySelector{
+				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
+				Key:                  "password",
+			}
+		}
+		if sshPrivateKey, ok := s.Data["sshPrivateKey"]; ok && string(sshPrivateKey) != "" {
+			cred.SshPrivateKeySecret = &apiv1.SecretKeySelector{
+				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
+				Key:                  "sshPrivateKey",
+			}
+		}
+		settings.Repositories[i] = cred
+	}
+	return mgr.SaveSettings(settings)
+}
+
+func (mgr *SettingsManager) updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) error {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
+	repositoriesStr := argoCDCM.Data[repositoriesKey]
+	if repositoriesStr != "" {
+		settings.Repositories = make([]RepoCredentials, 0)
+		err := yaml.Unmarshal([]byte(repositoriesStr), &settings.Repositories)
+		if err != nil {
+			return err
+		}
+		return nil
+	} else {
+		return mgr.loadLegacyRepoSettings(settings)
+	}
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
 func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
 	adminPasswordHash, ok := argoCDSecret.Data[settingAdminPasswordHashKey]
 	if !ok {
-		return &incompleteSettingsError{message: "admin-password is missing"}
+		return &incompleteSettingsError{message: "admin.password is missing"}
 	}
 	settings.AdminPasswordHash = string(adminPasswordHash)
 	settings.AdminPasswordMtime = time.Now().UTC()
@@ -145,7 +215,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if !ok {
-		return &incompleteSettingsError{message: "server-signature-key is missing"}
+		return &incompleteSettingsError{message: "server.secretkey is missing"}
 	}
 	settings.ServerSignature = secretKey
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
@@ -208,6 +278,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
 	} else {
 		delete(argoCDCM.Data, settingsOIDCConfigKey)
+	}
+
+	if len(settings.Repositories) > 0 {
+		yamlStr, err := yaml.Marshal(settings.Repositories)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[repositoriesKey] = string(yamlStr)
+	} else {
+		delete(argoCDCM.Data, repositoriesKey)
 	}
 
 	if createCM {
@@ -400,8 +480,12 @@ func (mgr *SettingsManager) StartNotifier(ctx context.Context, a *ArgoCDSettings
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
-					updateSettingsFromConfigMap(a, cm)
-					mgr.notifySubscribers()
+					err := mgr.updateSettingsFromConfigMap(a, cm)
+					if err == nil {
+						mgr.notifySubscribers()
+					} else {
+						log.Warnf("Unable to parse settings from config map: %v", err)
+					}
 				}
 			},
 			UpdateFunc: func(old, new interface{}) {
@@ -411,8 +495,12 @@ func (mgr *SettingsManager) StartNotifier(ctx context.Context, a *ArgoCDSettings
 					return
 				}
 				log.Infof("%s updated", common.ArgoCDConfigMapName)
-				updateSettingsFromConfigMap(a, newCM)
-				mgr.notifySubscribers()
+				err := mgr.updateSettingsFromConfigMap(a, newCM)
+				if err == nil {
+					mgr.notifySubscribers()
+				} else {
+					log.Warnf("Unable to parse settings from config map: %v", err)
+				}
 			},
 		},
 	)

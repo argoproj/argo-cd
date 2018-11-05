@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	settings_util "github.com/argoproj/argo-cd/util/settings"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,6 +58,7 @@ type ApplicationController struct {
 	db                    db.ArgoDB
 	forceRefreshApps      map[string]bool
 	forceRefreshAppsMutex *sync.Mutex
+	settingsMgr           *settings_util.SettingsManager
 }
 
 type ApplicationControllerConfig struct {
@@ -71,10 +74,12 @@ func NewApplicationController(
 	repoClientset reposerver.Clientset,
 	appResyncPeriod time.Duration,
 ) *ApplicationController {
-	db := db.NewDB(namespace, kubeClientset)
+	settingsMgr := settings_util.NewSettingsManager(kubeClientset, namespace)
+	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	kubectlCmd := kube.KubectlCmd{}
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd)
 	ctrl := ApplicationController{
+		settingsMgr:           settingsMgr,
 		namespace:             namespace,
 		kubeClientset:         kubeClientset,
 		kubectl:               kubectlCmd,

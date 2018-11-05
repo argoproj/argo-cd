@@ -8,109 +8,269 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/settings"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 )
 
-// ListRepositories returns list of repositories
-func (s *db) ListRepositories(ctx context.Context) (*appsv1.RepositoryList, error) {
-	listOpts := metav1.ListOptions{}
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.SecretTypeRepository})
+const (
+	username      = "username"
+	password      = "password"
+	sshPrivateKey = "sshPrivateKey"
+)
+
+// ListRepoURLs returns list of repositories
+func (db *db) ListRepoURLs(ctx context.Context) ([]string, error) {
+	s, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
-	labelSelector = labelSelector.Add(*req)
-	listOpts.LabelSelector = labelSelector.String()
-	repoSecrets, err := s.kubeclientset.CoreV1().Secrets(s.ns).List(listOpts)
-	if err != nil {
-		return nil, err
+
+	urls := make([]string, len(s.Repositories))
+	for i := range s.Repositories {
+		urls[i] = s.Repositories[i].URL
 	}
-	repoList := appsv1.RepositoryList{
-		Items: make([]appsv1.Repository, len(repoSecrets.Items)),
-	}
-	for i, repoSec := range repoSecrets.Items {
-		repoList.Items[i] = *SecretToRepo(&repoSec)
-	}
-	return &repoList, nil
+	return urls, nil
 }
 
 // CreateRepository creates a repository
-func (s *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	shallowCopy := *r
-	r = &shallowCopy
-	r.Repo = git.NormalizeGitURL(r.Repo)
-	r.Username = strings.TrimSpace(r.Username)
-	secName := repoURLToSecretName(r.Repo)
-	repoSecret := &apiv1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.SecretTypeRepository,
-			},
-		},
-	}
-	repoSecret.Data = repoToData(r)
-	repoSecret.Annotations = AnnotationsFromConnectionState(&r.ConnectionState)
-	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Create(repoSecret)
+func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+	s, err := db.settingsMgr.GetSettings()
 	if err != nil {
-		if apierr.IsAlreadyExists(err) {
-			return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
-		}
 		return nil, err
 	}
-	return SecretToRepo(repoSecret), nil
+
+	index := getRepoCredIndex(s, r.Repo)
+	if index > -1 {
+		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
+	}
+
+	data := make(map[string][]byte)
+	if r.Username != "" {
+		data[username] = []byte(r.Username)
+	}
+	if r.Password != "" {
+		data[password] = []byte(r.Password)
+	}
+	if r.SSHPrivateKey != "" {
+		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
+	}
+
+	repoInfo := settings.RepoCredentials{URL: r.Repo}
+	err = db.updateSecrets(&repoInfo, r)
+	if err != nil {
+		return nil, err
+	}
+
+	s.Repositories = append(s.Repositories, repoInfo)
+	err = db.settingsMgr.SaveSettings(s)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 // GetRepository returns a repository by URL
-func (s *db) GetRepository(ctx context.Context, name string) (*appsv1.Repository, error) {
-	repoSecret, err := s.getRepoSecret(name)
+func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	s, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
-	return SecretToRepo(repoSecret), nil
+
+	index := getRepoCredIndex(s, repoURL)
+	if index < 0 {
+		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
+	}
+
+	repoInfo := s.Repositories[index]
+	repo := &appsv1.Repository{Repo: repoURL}
+
+	cache := make(map[string]*apiv1.Secret)
+	getSecret := func(secretName string) (*apiv1.Secret, error) {
+		if _, ok := cache[secretName]; !ok {
+			secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(secretName, metav1.GetOptions{})
+			if err != nil {
+				return nil, err
+			}
+			cache[secretName] = secret
+		}
+		return cache[secretName], nil
+	}
+
+	if repoInfo.UsernameSecret != nil {
+		secret, err := getSecret(repoInfo.UsernameSecret.Name)
+		if err != nil {
+			return nil, err
+		}
+		repo.Username = string(secret.Data[repoInfo.UsernameSecret.Key])
+	}
+	if repoInfo.PasswordSecret != nil {
+		secret, err := getSecret(repoInfo.PasswordSecret.Name)
+		if err != nil {
+			return nil, err
+		}
+		repo.Password = string(secret.Data[repoInfo.PasswordSecret.Key])
+	}
+	if repoInfo.SshPrivateKeySecret != nil {
+		secret, err := getSecret(repoInfo.SshPrivateKeySecret.Name)
+		if err != nil {
+			return nil, err
+		}
+		repo.SSHPrivateKey = string(secret.Data[repoInfo.SshPrivateKeySecret.Key])
+	}
+	return repo, nil
 }
 
 // UpdateRepository updates a repository
-func (s *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
-	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
+func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+	s, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
-	repoSecret, err := s.getRepoSecret(r.Repo)
+
+	index := getRepoCredIndex(s, r.Repo)
+	if index < 0 {
+		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
+	}
+
+	repoInfo := s.Repositories[index]
+	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
 		return nil, err
 	}
-	repoSecret.Data = repoToData(r)
-	repoSecret, err = s.kubeclientset.CoreV1().Secrets(s.ns).Update(repoSecret)
+	s.Repositories[index] = repoInfo
+	err = db.settingsMgr.SaveSettings(s)
 	if err != nil {
 		return nil, err
 	}
-	return SecretToRepo(repoSecret), nil
+	return r, nil
 }
 
 // Delete updates a repository
-func (s *db) DeleteRepository(ctx context.Context, name string) error {
-	secName := repoURLToSecretName(name)
-	return s.kubeclientset.CoreV1().Secrets(s.ns).Delete(secName, &metav1.DeleteOptions{})
+func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
+	s, err := db.settingsMgr.GetSettings()
+	if err != nil {
+		return err
+	}
+
+	index := getRepoCredIndex(s, repoURL)
+	if index < 0 {
+		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
+	}
+	err = db.updateSecrets(&s.Repositories[index], &appsv1.Repository{
+		SSHPrivateKey: "",
+		Password:      "",
+		Username:      "",
+	})
+	if err != nil {
+		return err
+	}
+	s.Repositories = append(s.Repositories[:index], s.Repositories[index+1:]...)
+	return db.settingsMgr.SaveSettings(s)
 }
 
-func (s *db) getRepoSecret(repo string) (*apiv1.Secret, error) {
-	secName := repoURLToSecretName(repo)
-	repoSecret, err := s.kubeclientset.CoreV1().Secrets(s.ns).Get(secName, metav1.GetOptions{})
+func (db *db) updateSecrets(repoInfo *settings.RepoCredentials, r *appsv1.Repository) error {
+	secretsData := make(map[string]map[string][]byte)
+
+	setSecretData := func(secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
+		if secretKey == nil && value != "" {
+			secretKey = &apiv1.SecretKeySelector{
+				LocalObjectReference: apiv1.LocalObjectReference{Name: repoURLToSecretName(r.Repo)},
+				Key:                  defaultKeyName,
+			}
+		}
+
+		if secretKey != nil {
+			data, ok := secretsData[secretKey.Name]
+			if !ok {
+				data = map[string][]byte{}
+			}
+			if value != "" {
+				data[secretKey.Key] = []byte(value)
+			}
+			secretsData[secretKey.Name] = data
+		}
+
+		if value == "" {
+			secretKey = nil
+		}
+
+		return secretKey
+	}
+
+	repoInfo.UsernameSecret = setSecretData(repoInfo.UsernameSecret, r.Username, username)
+	repoInfo.PasswordSecret = setSecretData(repoInfo.PasswordSecret, r.Password, password)
+	repoInfo.SshPrivateKeySecret = setSecretData(repoInfo.SshPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
+	for k, v := range secretsData {
+		err := db.upsertSecret(k, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *db) upsertSecret(name string, data map[string][]byte) error {
+	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repo)
+			if len(data) == 0 {
+				return nil
+			}
+			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Create(&apiv1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+					Annotations: map[string]string{
+						common.ManagedByAnnotation: common.ManagedByArgoCDAnnotationValue,
+					},
+				},
+				Data: data,
+			})
+			if err != nil {
+				return err
+			}
 		}
-		return nil, err
+	} else {
+		for _, key := range []string{username, password, sshPrivateKey} {
+			if secret.Data == nil {
+				secret.Data = make(map[string][]byte)
+			}
+			if val, ok := data[key]; ok && len(val) > 0 {
+				secret.Data[key] = val
+			} else {
+				delete(secret.Data, key)
+			}
+		}
+		if len(secret.Data) == 0 {
+			isManagedByArgo := (secret.Annotations != nil && secret.Annotations[common.ManagedByAnnotation] == common.ManagedByArgoCDAnnotationValue) ||
+				(secret.Labels != nil && secret.Labels[common.LabelKeySecretType] == "repository")
+			if isManagedByArgo {
+				return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(name, &metav1.DeleteOptions{})
+			}
+			return nil
+		} else {
+			_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(secret)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	return repoSecret, nil
+	return nil
+}
+
+func getRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
+	repoURL = git.NormalizeGitURL(repoURL)
+	for i := range s.Repositories {
+		if git.NormalizeGitURL(s.Repositories[i].URL) == repoURL {
+			return i
+		}
+	}
+	return -1
 }
 
 // repoURLToSecretName hashes repo URL to the secret name using a formula.
@@ -122,26 +282,4 @@ func repoURLToSecretName(repo string) string {
 	parts := strings.Split(strings.TrimSuffix(repo, ".git"), "/")
 	shortName := strings.Replace(parts[len(parts)-1], "_", "-", -1)
 	return fmt.Sprintf("repo-%s-%v", shortName, h.Sum32())
-}
-
-// repoToData converts a repository object to secret data for serialization to a secret
-func repoToData(r *appsv1.Repository) map[string][]byte {
-	return map[string][]byte{
-		"repository":    []byte(r.Repo),
-		"username":      []byte(r.Username),
-		"password":      []byte(r.Password),
-		"sshPrivateKey": []byte(r.SSHPrivateKey),
-	}
-}
-
-// SecretToRepo converts a secret into a repository object, optionally redacting sensitive information
-func SecretToRepo(s *apiv1.Secret) *appsv1.Repository {
-	repo := appsv1.Repository{
-		Repo:            string(s.Data["repository"]),
-		Username:        string(s.Data["username"]),
-		Password:        string(s.Data["password"]),
-		SSHPrivateKey:   string(s.Data["sshPrivateKey"]),
-		ConnectionState: ConnectionStateFromAnnotations(s.Annotations),
-	}
-	return &repo
 }

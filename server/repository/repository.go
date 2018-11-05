@@ -1,11 +1,14 @@
 package repository
 
 import (
+	"fmt"
 	"path"
 	"path/filepath"
 	"reflect"
+	"time"
 
-	"github.com/ghodss/yaml"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,10 +17,13 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 )
 
 // Server provides a Repository service
@@ -25,34 +31,73 @@ type Server struct {
 	db            db.ArgoDB
 	repoClientset reposerver.Clientset
 	enf           *rbac.Enforcer
+	cache         cache.Cache
 }
+
+const (
+	DefaultRepoStatusCacheExpiration = 1 * time.Hour
+)
 
 // NewServer returns a new instance of the Repository service
 func NewServer(
 	repoClientset reposerver.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
+	cache cache.Cache,
 ) *Server {
 	return &Server{
 		db:            db,
 		repoClientset: repoClientset,
 		enf:           enf,
+		cache:         cache,
 	}
+}
+
+func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.ConnectionState {
+	cacheKey := fmt.Sprintf("connection-state-%s", url)
+	var connectionState appsv1.ConnectionState
+	if err := s.cache.Get(cacheKey, &connectionState); err == nil {
+		return connectionState
+	}
+	now := v1.Now()
+	connectionState = appsv1.ConnectionState{
+		Status:     appsv1.ConnectionStatusSuccessful,
+		ModifiedAt: &now,
+	}
+	repo, err := s.db.GetRepository(ctx, url)
+	if err == nil {
+		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
+	}
+	if err != nil {
+		connectionState.Status = appsv1.ConnectionStatusFailed
+		connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
+	}
+	err = s.cache.Set(&cache.Item{
+		Object:     &connectionState,
+		Key:        cacheKey,
+		Expiration: DefaultRepoStatusCacheExpiration,
+	})
+	if err != nil {
+		log.Warnf("getConnectionState cache set error %s: %v", cacheKey, err)
+	}
+	return connectionState
 }
 
 // List returns list of repositories
 func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
-	repoList, err := s.db.ListRepositories(ctx)
-	if repoList != nil {
-		newItems := make([]appsv1.Repository, 0)
-		for _, repo := range repoList.Items {
-			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", repo.Repo) {
-				newItems = append(newItems, *redact(&repo))
+	urls, err := s.db.ListRepoURLs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]appsv1.Repository, 0)
+	if urls != nil {
+		for _, url := range urls {
+			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", url) {
+				items = append(items, appsv1.Repository{Repo: url, ConnectionState: s.getConnectionState(ctx, url)})
 			}
 		}
-		repoList.Items = newItems
 	}
-	return repoList, err
+	return &appsv1.RepositoryList{Items: items}, nil
 }
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
@@ -246,16 +291,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
 	}
-	return redact(repo), err
-}
-
-// Get returns a repository by URL
-func (s *Server) Get(ctx context.Context, q *RepoQuery) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", q.Repo) {
-		return nil, grpc.ErrPermissionDenied
-	}
-	repo, err := s.db.GetRepository(ctx, q.Repo)
-	return redact(repo), err
+	return &appsv1.Repository{Repo: repo.Repo}, err
 }
 
 // Update updates a repository
@@ -263,8 +299,8 @@ func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repo
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	repo, err := s.db.UpdateRepository(ctx, q.Repo)
-	return redact(repo), err
+	_, err := s.db.UpdateRepository(ctx, q.Repo)
+	return &appsv1.Repository{Repo: q.Repo.Repo}, err
 }
 
 // Delete updates a repository
@@ -274,13 +310,4 @@ func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error
 	}
 	err := s.db.DeleteRepository(ctx, q.Repo)
 	return &RepoResponse{}, err
-}
-
-func redact(repo *appsv1.Repository) *appsv1.Repository {
-	if repo == nil {
-		return nil
-	}
-	repo.Password = ""
-	repo.SSHPrivateKey = ""
-	return repo
 }

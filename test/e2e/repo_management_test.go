@@ -22,19 +22,30 @@ func TestRepoManagement(t *testing.T) {
 		assert.Nil(t, err)
 		defer util.Close(conn)
 
-		repo, err := repoClient.Get(context.Background(), &repository.RepoQuery{
-			Repo: repoUrl,
-		})
+		repo, err := repoClient.List(context.Background(), &repository.RepoQuery{})
 
 		assert.Nil(t, err)
-		assert.Equal(t, repoUrl, repo.Repo)
+		exists := false
+		for i := range repo.Items {
+			if repo.Items[i].Repo == repoUrl {
+				exists = true
+				break
+			}
+		}
+		assert.True(t, exists)
 
 		_, err = fixture.RunCli("repo", "rm", repoUrl)
 		assert.Nil(t, err)
 
-		_, err = repoClient.Get(context.Background(), &repository.RepoQuery{
-			Repo: repoUrl,
-		})
-		assert.NotNil(t, err)
+		repo, err = repoClient.List(context.Background(), &repository.RepoQuery{})
+		assert.Nil(t, err)
+		exists = false
+		for i := range repo.Items {
+			if repo.Items[i].Repo == repoUrl {
+				exists = true
+				break
+			}
+		}
+		assert.False(t, exists)
 	})
 }

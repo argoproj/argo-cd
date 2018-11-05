@@ -10,9 +10,6 @@ const (
 	// MetadataPrefix is the prefix used for our labels and annotations
 	MetadataPrefix = "argocd.argoproj.io"
 
-	// SecretTypeRepository indicates a secret type of repository
-	SecretTypeRepository = "repository"
-
 	// SecretTypeCluster indicates a secret type of cluster
 	SecretTypeCluster = "cluster"
 
@@ -23,6 +20,11 @@ const (
 
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
 	KubernetesInternalAPIServerAddr = "https://kubernetes.default.svc"
+
+	// ManagedByAnnotation is annotation name which indicates that k8s resource is managed by an application.
+	ManagedByAnnotation = "managed-by"
+	// ManagedByArgoCDAnnotationValue is a 'managed-by' annotation value for resources managed by Argo CD
+	ManagedByArgoCDAnnotationValue = "argocd.argoproj.io"
 )
 
 const (

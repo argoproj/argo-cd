@@ -227,7 +227,7 @@ func NewImportCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
 			err = settingsMgr.SaveSettings(newSettings)
 			errors.CheckError(err)
-			db := db.NewDB(namespace, kubeClientset)
+			db := db.NewDB(namespace, settingsMgr, kubeClientset)
 
 			_, err = kubeClientset.CoreV1().ConfigMaps(namespace).Create(newRBACCM)
 			errors.CheckError(err)
@@ -284,12 +284,18 @@ func NewExportCommand() *cobra.Command {
 			// certificate data is included in secrets that are exported alongside
 			settings.Certificate = nil
 
-			db := db.NewDB(namespace, kubeClientset)
+			db := db.NewDB(namespace, settingsMgr, kubeClientset)
 			clusters, err := db.ListClusters(context.Background())
 			errors.CheckError(err)
 
-			repos, err := db.ListRepositories(context.Background())
+			repoURLs, err := db.ListRepoURLs(context.Background())
 			errors.CheckError(err)
+			repos := make([]*v1alpha1.Repository, len(repoURLs))
+			for i := range repoURLs {
+				repo, err := db.GetRepository(context.Background(), repoURLs[i])
+				errors.CheckError(err)
+				repos = append(repos, repo)
+			}
 
 			appClientset := appclientset.NewForConfigOrDie(config)
 			apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})
@@ -325,7 +331,7 @@ func NewExportCommand() *cobra.Command {
 					out = append(out, string(data))
 				}
 				return strings.Join(out, delimiter)
-			}(yamlSeparator, settings, repos.Items, clusters.Items, apps.Items, rbacCM)
+			}(yamlSeparator, settings, clusters.Items, repos, apps.Items, rbacCM)
 
 			if out == "-" {
 				fmt.Println(output)
@@ -405,7 +411,7 @@ func NewClusterConfig() *cobra.Command {
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 
-			cluster, err := db.NewDB(namespace, kubeclientset).GetCluster(context.Background(), serverUrl)
+			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
 			errors.CheckError(err)
 			err = kube.WriteKubeConfig(cluster.RESTConfig(), namespace, output)
 			errors.CheckError(err)
