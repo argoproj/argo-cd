@@ -24,7 +24,7 @@ message Settings {
     string url = 1 [(gogoproto.customname) = "URL"];
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
-    ListOfClaimActions rbac = 4 [(gogoproto.nullable) = false, (gogoproto.customname) = "RBAC"];
+    repeated ListOfClaimActions rbac = 4 [(gogoproto.nullable) = false, (gogoproto.customname) = "RBAC"];
 }
 
 message DexConfig {
