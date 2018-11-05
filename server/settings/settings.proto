@@ -14,8 +14,8 @@ import "google/protobuf/struct.proto";
 message SettingsQuery {
 }
 
-// ClaimsActionMap holds a list of claim actions associated with a claim resource.
-message ClaimsActionMap {
+// ListOfClaimActions holds a list of claim actions associated with a claim resource.
+message ListOfClaimActions {
     string key = 1;
     repeated string values = 2;
 }
@@ -24,7 +24,7 @@ message Settings {
     string url = 1 [(gogoproto.customname) = "URL"];
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
-    ClaimsActionMap rbac = 4 [(gogoproto.nullable) = false, (gogoproto.customname) = "RBAC"];
+    ListOfClaimActions rbac = 4 [(gogoproto.nullable) = false, (gogoproto.customname) = "RBAC"];
 }
 
 message DexConfig {
