@@ -166,7 +166,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	return &c, nil
 }
 
-// OIDCConfig returns OAuth2 client config and a OpenID Provider based on ArgoCD settings
+// OIDCConfig returns OAuth2 client config and a OpenID Provider based on Argo CD settings
 // ctx can hold an appropriate http.Client to use for the exchange
 func (c *client) OIDCConfig(ctx context.Context, set *settings.Settings) (*oauth2.Config, *oidc.Provider, error) {
 	var clientID string
