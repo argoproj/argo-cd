@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -274,6 +275,52 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 	}
 	hideAppSecrets(a)
 	return a, nil
+}
+
+// DiffManifests compares two manifests and returns the diff
+func (s *Server) DiffManifests(ctx context.Context, q *ApplicationManifestDiffRequest) (*ApplicationManifestDiffResponse, error) {
+
+	appIf := s.appclientset.ArgoprojV1alpha1().Applications(s.ns)
+	a, err := appIf.Get(*q.AppName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	live, err := a.Status.ComparisonResult.LiveObjects()
+	if err != nil {
+		return nil, err
+	}
+	config, err := a.Status.ComparisonResult.TargetObjects()
+	if err != nil {
+		return nil, err
+	}
+	if q.ResourceName != nil || q.ApiVersion != nil || q.Kind != nil {
+		if q.ResourceName == nil || q.ApiVersion == nil || q.Kind == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "Filtering manifest diff requires ResouceName, ApiVersion, and Kind")
+		}
+		liveRes := findResource(a, *q.ResourceName, *q.ApiVersion, *q.Kind, true)
+		live = []*unstructured.Unstructured{liveRes}
+
+		targetRes := findResource(a, *q.ResourceName, *q.ApiVersion, *q.Kind, false)
+		config = []*unstructured.Unstructured{targetRes}
+	}
+
+	diffResults, err := diff.DiffArray(config, live)
+	if err != nil {
+		return nil, err
+	}
+	var results []string
+	for _, result := range diffResults.Diffs {
+		diff, err := result.JSONFormat()
+		if err != nil {
+			log.Error(err)
+		}
+		if diff != "" {
+			results = append(results, diff)
+		}
+	}
+	return &ApplicationManifestDiffResponse{
+		Diffs: results,
+	}, nil
 }
 
 // ListResourceEvents returns a list of event resources
@@ -559,7 +606,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	found := findResource(a, q)
+	found := findResource(a, q.ResourceName, q.APIVersion, q.Kind, true)
 	if found == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.APIVersion, q.ResourceName, *q.Name)
 	}
@@ -575,22 +622,31 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	return &ApplicationResponse{}, nil
 }
 
-func findResource(a *appv1.Application, q *ApplicationDeleteResourceRequest) *unstructured.Unstructured {
+func findResource(a *appv1.Application, resourceName string, APIVersion string, kind string, isLive bool) *unstructured.Unstructured {
 	for _, res := range a.Status.ComparisonResult.Resources {
-		liveObj, err := res.LiveObject()
+		var obj *unstructured.Unstructured
+		var err error
+		if isLive {
+			obj, err = res.LiveObject()
+		} else {
+			obj, err = res.TargetObject()
+		}
 		if err != nil {
-			log.Warnf("Failed to unmarshal live object: %v", err)
+			log.Warnf("Failed to unmarshal object: %v", err)
 			continue
 		}
-		if liveObj == nil {
+		if obj == nil {
 			continue
 		}
-		if q.ResourceName == liveObj.GetName() && q.APIVersion == liveObj.GetAPIVersion() && q.Kind == liveObj.GetKind() {
-			return liveObj
+		if resourceName == obj.GetName() && APIVersion == obj.GetAPIVersion() && kind == obj.GetKind() {
+			return obj
 		}
-		liveObj = recurseResourceNode(q.ResourceName, q.APIVersion, q.Kind, res.ChildLiveResources)
-		if liveObj != nil {
-			return liveObj
+		if isLive {
+			obj = recurseResourceNode(resourceName, APIVersion, kind, res.ChildLiveResources)
+			if obj != nil {
+				return obj
+			}
+
 		}
 	}
 	return nil

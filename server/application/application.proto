@@ -50,6 +50,19 @@ message ApplicationDeleteRequest {
 	optional bool cascade = 2;
 }
 
+// ApplicationManifestDiffRequest is a request to compare two manifests
+message ApplicationManifestDiffRequest {
+	required string appName = 1;
+	optional string resourceName = 2;
+	optional string apiVersion = 3;
+	optional string kind = 4;
+}
+
+// ApplicationManifestDiffResponse is the response to the comparison of two manifests
+message ApplicationManifestDiffResponse {
+	repeated string diffs = 1;
+}
+
 // ApplicationSyncRequest is a request to apply the config state to live state
 message ApplicationSyncRequest {
 	required string name = 1;
@@ -150,6 +163,15 @@ service ApplicationService {
 	rpc GetManifests(ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
 	}
+
+	// DiffManifests compares two manifests and returns the diff
+	rpc DiffManifests(ApplicationManifestDiffRequest) returns (ApplicationManifestDiffResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{appName}/diff"
+			body: "*"
+		};
+	}
+
 
 	// Update updates an application
 	rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {

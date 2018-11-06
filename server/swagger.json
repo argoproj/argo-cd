@@ -106,6 +106,39 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/diff": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "DiffManifests compares two manifests and returns the diff",
+        "operationId": "DiffManifests",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationManifestDiffRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationManifestDiffResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -1175,6 +1208,39 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
+<<<<<<< HEAD
+=======
+    "applicationApplicationManifestDiffRequest": {
+      "type": "object",
+      "title": "ApplicationManifestDiffRequest is a request to compare two manifests",
+      "properties": {
+        "apiVersion": {
+          "type": "string"
+        },
+        "appName": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "resourceName": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationManifestDiffResponse": {
+      "type": "object",
+      "title": "ApplicationManifestDiffResponse is the response to the comparison of two manifests",
+      "properties": {
+        "diffs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+>>>>>>> Add manifest diff endpoint
     "applicationApplicationResponse": {
       "type": "object"
     },

@@ -1,11 +1,14 @@
 package application
 
 import (
-	"golang.org/x/net/context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
+	"golang.org/x/net/context"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
@@ -18,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -77,7 +81,7 @@ func fakeListDirResponse() *repository.FileList {
 }
 
 // return an ApplicationServiceServer which returns fake data
-func newTestAppServer() ApplicationServiceServer {
+func newTestAppServer(app *appsv1.Application) ApplicationServiceServer {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm"},
 	}, &v1.Secret{
@@ -117,11 +121,16 @@ func newTestAppServer() ApplicationServiceServer {
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-
+	var clientSet *apps.Clientset
+	if app != nil {
+		clientSet = apps.NewSimpleClientset(defaultProj, app)
+	} else {
+		clientSet = apps.NewSimpleClientset(defaultProj)
+	}
 	return NewServer(
 		testNamespace,
 		kubeclientset,
-		apps.NewSimpleClientset(defaultProj),
+		clientSet,
 		mockRepoClient,
 		kube.KubectlCmd{},
 		db,
@@ -131,7 +140,7 @@ func newTestAppServer() ApplicationServiceServer {
 }
 
 func TestCreateApp(t *testing.T) {
-	appServer := newTestAppServer()
+	appServer := newTestAppServer(nil)
 	createReq := ApplicationCreateRequest{
 		Application: appsv1.Application{
 			Spec: appsv1.ApplicationSpec{
@@ -151,4 +160,119 @@ func TestCreateApp(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.Nil(t, err)
 	assert.Equal(t, app.Spec.Project, "default")
+}
+
+var replicaManifest = `{
+	"apiVersion": "apps/v1",
+	"kind": "ReplicaSet",
+	"metadata": {
+	  "name": "my-pod"
+	}
+  }
+  `
+
+var podManifest = `{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "my-pod"
+  }
+}
+`
+
+func TestFindResource(t *testing.T) {
+	appName := "defaultApp"
+	app := &appsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: testNamespace},
+		Status: appsv1.ApplicationStatus{
+			ComparisonResult: appsv1.ComparisonResult{
+				Resources: []appsv1.ResourceState{{TargetState: podManifest, LiveState: podManifest}},
+			},
+		},
+	}
+	liveRes := findResource(app, "my-pod", "v1", "Pod", true)
+	assert.NotNil(t, liveRes)
+	targetRes := findResource(app, "my-pod", "v1", "Pod", false)
+	assert.NotNil(t, targetRes)
+
+}
+
+func TestFindChildResource(t *testing.T) {
+	appName := "defaultApp"
+	app := &appsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: testNamespace},
+		Status: appsv1.ApplicationStatus{
+			ComparisonResult: appsv1.ComparisonResult{
+				Resources: []appsv1.ResourceState{{
+					TargetState: replicaManifest,
+					LiveState:   replicaManifest,
+					ChildLiveResources: []appsv1.ResourceNode{{
+						State: podManifest,
+					}},
+				}},
+			},
+		},
+	}
+	liveRes := findResource(app, "my-pod", "v1", "Pod", true)
+	assert.NotNil(t, liveRes)
+	targetRes := findResource(app, "my-pod", "v1", "Pod", false)
+	assert.Nil(t, targetRes)
+
+}
+
+func TestFilterDiffManifest(t *testing.T) {
+	appName := "defaultApp"
+	app := &appsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: testNamespace},
+		Status: appsv1.ApplicationStatus{
+			ComparisonResult: appsv1.ComparisonResult{
+				Resources: []appsv1.ResourceState{{
+					TargetState: replicaManifest,
+					LiveState:   "",
+				}, {
+					TargetState: podManifest,
+					LiveState:   "",
+				}},
+			},
+		},
+	}
+	appServer := newTestAppServer(app)
+	kind := "Pod"
+	apiVersion := "v1"
+	resourceName := "my-pod"
+	diffResponse, err := appServer.DiffManifests(context.Background(), &ApplicationManifestDiffRequest{AppName: &appName, Kind: &kind, ApiVersion: &apiVersion, ResourceName: &resourceName})
+	assert.Nil(t, err)
+	assert.NotNil(t, diffResponse)
+	assert.Len(t, diffResponse.Diffs, 1)
+
+	var config unstructured.Unstructured
+	err = json.Unmarshal([]byte(podManifest), &config)
+	assert.Nil(t, err)
+	expectedDiffResult := diff.Diff(&config, nil)
+	expectedJSON, err := expectedDiffResult.JSONFormat()
+	assert.Nil(t, err)
+
+	assert.Equal(t, diffResponse.Diffs[0], expectedJSON)
+}
+func TestFilterDiffManifestFailureMissingField(t *testing.T) {
+	appName := "defaultApp"
+	expectedErr := fmt.Sprint("rpc error: code = InvalidArgument desc = Filtering manifest diff requires ResouceName, ApiVersion, and Kind")
+
+	appServer := newTestAppServer(&appsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: testNamespace},
+	})
+	kind := "kind"
+	kindDiff, kindErr := appServer.DiffManifests(context.Background(), &ApplicationManifestDiffRequest{AppName: &appName, Kind: &kind})
+	assert.Nil(t, kindDiff)
+	assert.EqualError(t, kindErr, expectedErr)
+
+	apiVersion := "apiVersion"
+	apiVersionDiff, apiVersionErr := appServer.DiffManifests(context.Background(), &ApplicationManifestDiffRequest{AppName: &appName, ApiVersion: &apiVersion})
+	assert.Nil(t, apiVersionDiff)
+	assert.EqualError(t, apiVersionErr, expectedErr)
+
+	resourceName := "resource"
+	resourceNameDiff, resourceNameErr := appServer.DiffManifests(context.Background(), &ApplicationManifestDiffRequest{AppName: &appName, ResourceName: &resourceName})
+	assert.Nil(t, resourceNameDiff)
+	assert.EqualError(t, resourceNameErr, expectedErr)
 }

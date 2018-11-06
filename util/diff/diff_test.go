@@ -317,3 +317,31 @@ func TestRemoveNamespaceAnnotation(t *testing.T) {
 	assert.Equal(t, "", obj.GetNamespace())
 	assert.Nil(t, obj.GetAnnotations())
 }
+
+var JSONDiffStr = `{
+  "spec": {
+    "ports": {
+      "0": {
+        "port": [
+          81,
+          80
+        ],
+        "targetPort": [
+          79,
+          80
+        ]
+      },
+      "_t": "a"
+    }
+  }
+}
+`
+
+func TestUnmarshalDiffString(t *testing.T) {
+	diffResult, err := UnmarshalDiffString(JSONDiffStr)
+	assert.True(t, diffResult.Modified)
+	assert.NoError(t, err)
+	generatedJSONStr, err := diffResult.JSONFormat()
+	assert.NoError(t, err)
+	assert.Equal(t, JSONDiffStr, generatedJSONStr)
+}

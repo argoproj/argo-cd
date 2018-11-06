@@ -27,6 +27,21 @@ type DiffResultList struct {
 	Modified bool
 }
 
+// UnmarshalDiffString Unmarshals diff string into a DiffResult struct
+func UnmarshalDiffString(diffStr string) (*DiffResult, error) {
+	diffUnmarshaller := gojsondiff.NewUnmarshaller()
+	diffResult := &DiffResult{}
+	diff, err := diffUnmarshaller.UnmarshalString(diffStr)
+	if err != nil {
+		return nil, err
+	}
+	diffResult.Diff = diff
+	if diffStr != "" {
+		diffResult.Modified = true
+	}
+	return diffResult, nil
+}
+
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
 func Diff(config, live *unstructured.Unstructured) *DiffResult {
@@ -280,4 +295,13 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 	}
 	asciiFmt := formatter.NewAsciiFormatter(left.Object, formatOpts)
 	return asciiFmt.Format(d.Diff)
+}
+
+// JSONFormat returns the diff as a JSON string
+func (d *DiffResult) JSONFormat() (string, error) {
+	if !d.Diff.Modified() {
+		return "", nil
+	}
+	jsonFmt := formatter.NewDeltaFormatter()
+	return jsonFmt.Format(d.Diff)
 }
