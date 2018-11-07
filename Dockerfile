@@ -55,7 +55,7 @@ RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION
     mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks
 
 # Install helm
-ENV HELM_VERSION=2.9.1
+ENV HELM_VERSION=2.11.0
 RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     tar -C /tmp/ -xf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     mv /tmp/linux-amd64/helm /usr/local/bin/helm
