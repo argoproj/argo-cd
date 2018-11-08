@@ -114,7 +114,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	updateSettingsFromConfigMap(&settings, argoCDCM)
 	argoCDSecret, err := mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(common.ArgoCDSecretName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return &settings, err
 	}
 	err = updateSettingsFromSecret(&settings, argoCDSecret)
 	if err != nil {
