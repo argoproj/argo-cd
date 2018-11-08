@@ -3,8 +3,6 @@ package health
 import (
 	"fmt"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
 	"k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
@@ -12,38 +10,46 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubernetes/pkg/apis/apps"
+
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 // GetAppHealth returns the health of a k8s resource
 func GetAppHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-
 	var err error
 	var health *appv1.HealthStatus
 
-	switch obj.GetKind() {
-	case kube.DeploymentKind:
-		health, err = getDeploymentHealth(kubectl, obj)
-	case kube.ServiceKind:
-		health, err = getServiceHealth(kubectl, obj)
-	case kube.IngressKind:
-		health, err = getIngressHealth(kubectl, obj)
-	case kube.StatefulSetKind:
-		health, err = getStatefulSetHealth(kubectl, obj)
-	case kube.ReplicaSetKind:
-		health, err = getReplicaSetHealth(kubectl, obj)
-	case kube.DaemonSetKind:
-		health, err = getDaemonSetHealth(kubectl, obj)
-	case kube.PersistentVolumeClaimKind:
-		health, err = getPvcHealth(kubectl, obj)
-	default:
-		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
+	gvk := obj.GroupVersionKind()
+	switch gvk.Group {
+	case "apps", "extensions":
+		switch gvk.Kind {
+		case kube.DeploymentKind:
+			health, err = getDeploymentHealth(kubectl, obj)
+		case kube.IngressKind:
+			health, err = getIngressHealth(kubectl, obj)
+		case kube.StatefulSetKind:
+			health, err = getStatefulSetHealth(kubectl, obj)
+		case kube.ReplicaSetKind:
+			health, err = getReplicaSetHealth(kubectl, obj)
+		case kube.DaemonSetKind:
+			health, err = getDaemonSetHealth(kubectl, obj)
+		}
+	case "":
+		switch gvk.Kind {
+		case kube.ServiceKind:
+			health, err = getServiceHealth(kubectl, obj)
+		case kube.PersistentVolumeClaimKind:
+			health, err = getPVCHealth(kubectl, obj)
+		}
 	}
-
 	if err != nil {
 		health = &appv1.HealthStatus{
 			Status:        appv1.HealthStatusUnknown,
 			StatusDetails: err.Error(),
 		}
+	} else if health == nil {
+		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	}
 	return health, err
 }
@@ -72,7 +78,7 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 	return newIndex > currentIndex
 }
 
-func getPvcHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+func getPVCHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	obj, err := kubectl.ConvertToVersion(obj, "", "v1")
 	if err != nil {
 		return nil, err
