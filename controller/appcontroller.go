@@ -58,7 +58,6 @@ type ApplicationController struct {
 	db                    db.ArgoDB
 	forceRefreshApps      map[string]bool
 	forceRefreshAppsMutex *sync.Mutex
-	settingsMgr           *settings_util.SettingsManager
 }
 
 type ApplicationControllerConfig struct {
@@ -79,7 +78,6 @@ func NewApplicationController(
 	kubectlCmd := kube.KubectlCmd{}
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd)
 	ctrl := ApplicationController{
-		settingsMgr:           settingsMgr,
 		namespace:             namespace,
 		kubeClientset:         kubeClientset,
 		kubectl:               kubectlCmd,
