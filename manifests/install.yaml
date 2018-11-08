@@ -260,6 +260,17 @@ type: Opaque
 apiVersion: v1
 kind: Service
 metadata:
+  name: application-controller
+spec:
+  ports:
+  - port: 8083
+    targetPort: 8083
+  selector:
+    app: application-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
   labels:
     app: argocd-metrics
   name: argocd-metrics
@@ -339,7 +350,7 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        image: jessesuen/argocd-application-controller:latest
+        image: argoproj/argocd:latest
         name: application-controller
       serviceAccountName: application-controller
 ---
@@ -360,7 +371,7 @@ spec:
       containers:
       - command:
         - argocd-repo-server
-        image: jessesuen/argocd:latest
+        image: argoproj/argocd:latest
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -388,7 +399,7 @@ spec:
         - argocd-server
         - --staticassets
         - /shared/app
-        image: jessesuen/argocd:latest
+        image: argoproj/argocd:latest
         name: argocd-server
         readinessProbe:
           httpGet:
@@ -405,7 +416,7 @@ spec:
         - -r
         - /app
         - /shared
-        image: jessesuen/argocd-ui:latest
+        image: argoproj/argocd-ui:latest
         name: ui
         volumeMounts:
         - mountPath: /shared
@@ -445,7 +456,7 @@ spec:
         - cp
         - /usr/local/bin/argocd-util
         - /shared
-        image: jessesuen/argocd:latest
+        image: argoproj/argocd:latest
         name: copyutil
         volumeMounts:
         - mountPath: /shared

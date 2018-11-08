@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -439,7 +440,7 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 }
 
 // SetAppOperation updates an application with the specified operation, retrying conflict errors
-func SetAppOperation(ctx context.Context, appIf v1alpha1.ApplicationInterface, audit *AuditLogger, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
+func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
 	for {
 		a, err := appIf.Get(appName, metav1.GetOptions{})
 		if err != nil {
@@ -465,14 +466,9 @@ func SetAppOperation(ctx context.Context, appIf v1alpha1.ApplicationInterface, a
 }
 
 // ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
-// ContainsSyncResource returns false if either argument is nil.
-func ContainsSyncResource(u *unstructured.Unstructured, rr []argoappv1.SyncOperationResource) bool {
-	if u == nil || rr == nil {
-		return false
-	}
-
+func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
 	for _, r := range rr {
-		if r.HasIdentity(u) {
+		if r.HasIdentity(name, gvk) {
 			return true
 		}
 	}

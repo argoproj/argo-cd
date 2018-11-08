@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -9,9 +10,16 @@ import (
 	"sync"
 	"time"
 
-	settings_util "github.com/argoproj/argo-cd/util/settings"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
+
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,14 +35,19 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/argo"
+	cache_util "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
+	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
+	settings_util "github.com/argoproj/argo-cd/util/settings"
+	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
 const (
@@ -58,6 +71,7 @@ type ApplicationController struct {
 	db                    db.ArgoDB
 	forceRefreshApps      map[string]bool
 	forceRefreshAppsMutex *sync.Mutex
+	appResources          cache_util.Cache
 }
 
 type ApplicationControllerConfig struct {
@@ -91,9 +105,110 @@ func NewApplicationController(
 		forceRefreshApps:      make(map[string]bool),
 		forceRefreshAppsMutex: &sync.Mutex{},
 		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
+		appResources:          cache_util.NewInMemoryCache(24 * time.Hour),
 	}
 	ctrl.appInformer = ctrl.newApplicationInformer()
 	return &ctrl
+}
+
+func (ctrl *ApplicationController) setAppResources(appName string, resources []appv1.ResourceState) {
+	err := ctrl.appResources.Set(&cache_util.Item{Object: resources, Key: appName})
+	if err != nil {
+		log.Warnf("Unable to save app resources state in cache: %v", err)
+	}
+}
+
+func (ctrl *ApplicationController) Resources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesResponse, error) {
+	resources := make([]appv1.ResourceState, 0)
+	if q.ApplicationName == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "application name is not specified")
+	}
+	err := ctrl.appResources.Get(*q.ApplicationName, &resources)
+	if err == nil {
+		items := make([]*appv1.ResourceState, 0)
+		for i := range resources {
+			res := resources[i]
+			obj, err := res.TargetObject()
+			if err != nil {
+				return nil, err
+			}
+			if obj == nil {
+				obj, err = res.LiveObject()
+				if err != nil {
+					return nil, err
+				}
+			}
+			if obj == nil {
+				return nil, fmt.Errorf("both live and target objects are nil")
+			}
+			gvk := obj.GroupVersionKind()
+			if q.Version != nil && gvk.Version != *q.Version {
+				continue
+			}
+			if q.Group != nil && gvk.Group != *q.Group {
+				continue
+			}
+			if q.Kind != nil && gvk.Kind != *q.Kind {
+				continue
+			}
+			var data map[string]interface{}
+			res.LiveState, data = hideSecretData(res.LiveState, nil)
+			res.TargetState, _ = hideSecretData(res.TargetState, data)
+			res.ChildLiveResources = hideNodesSecrets(res.ChildLiveResources)
+			items = append(items, &res)
+		}
+		return &services.ResourcesResponse{Items: items}, nil
+	}
+	return &services.ResourcesResponse{Items: make([]*appv1.ResourceState, 0)}, nil
+}
+
+func toString(val interface{}) string {
+	if val == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s", val)
+}
+
+// hideSecretData checks if given object kind is Secret, replaces data keys with stars and returns unchanged data map. The method additionally check if data key if different
+// from corresponding key of optional parameter `otherData` and adds extra star to keep information about difference. So if secret data is out of sync user still can see which
+// fields are different.
+func hideSecretData(state string, otherData map[string]interface{}) (string, map[string]interface{}) {
+	obj, err := appv1.UnmarshalToUnstructured(state)
+	if err == nil {
+		if obj != nil && obj.GetKind() == kube.SecretKind {
+			if data, ok, err := unstructured.NestedMap(obj.Object, "data"); err == nil && ok {
+				unchangedData := make(map[string]interface{})
+				for k, v := range data {
+					unchangedData[k] = v
+				}
+				for k := range data {
+					replacement := "********"
+					if otherData != nil {
+						if val, ok := otherData[k]; ok && toString(val) != toString(data[k]) {
+							replacement = replacement + "*"
+						}
+					}
+					data[k] = replacement
+				}
+				_ = unstructured.SetNestedMap(obj.Object, data, "data")
+				newState, err := json.Marshal(obj)
+				if err == nil {
+					return string(newState), unchangedData
+				}
+			}
+		}
+	}
+	return state, nil
+}
+
+func hideNodesSecrets(nodes []appv1.ResourceNode) []appv1.ResourceNode {
+	for i := range nodes {
+		node := nodes[i]
+		node.State, _ = hideSecretData(node.State, nil)
+		node.Children = hideNodesSecrets(node.Children)
+		nodes[i] = node
+	}
+	return nodes
 }
 
 // Run starts the Application CRD controller.
@@ -125,6 +240,42 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}
 
 	<-ctx.Done()
+}
+
+func (ctrl *ApplicationController) CreateGRPC(tlsConfCustomizer tlsutil.ConfigCustomizer) (*grpc.Server, error) {
+	// generate TLS cert
+	hosts := []string{
+		"localhost",
+		"application-controller",
+	}
+	cert, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
+		Hosts:        hosts,
+		Organization: "Argo CD",
+		IsCA:         true,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
+	tlsConfCustomizer(tlsConfig)
+
+	logEntry := log.NewEntry(log.New())
+	server := grpc.NewServer(
+		grpc.Creds(credentials.NewTLS(tlsConfig)),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			grpc_logrus.StreamServerInterceptor(logEntry),
+			grpc_util.PanicLoggerStreamServerInterceptor(logEntry),
+		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_logrus.UnaryServerInterceptor(logEntry),
+			grpc_util.PanicLoggerUnaryServerInterceptor(logEntry),
+		)),
+	)
+	services.RegisterApplicationServiceServer(server, ctrl)
+	reflection.Register(server)
+	return server, nil
 }
 
 func (ctrl *ApplicationController) forceAppRefresh(appName string) {
@@ -542,7 +693,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
-	comparisonResult, manifestInfo, compConditions, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	comparisonResult, manifestInfo, resources, compConditions, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
@@ -554,10 +705,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		parameters = manifestInfo.Params
 	}
 
-	healthState, err := setApplicationHealth(ctrl.kubectl, comparisonResult)
+	healthState, err := setApplicationHealth(ctrl.kubectl, comparisonResult, resources)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
+	ctrl.setAppResources(app.Name, resources)
 
 	syncErrCond := ctrl.autoSync(app, comparisonResult)
 	if syncErrCond != nil {
@@ -645,13 +797,13 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.ComparisonResult) (*appv1.HealthStatus, error) {
+func setApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.ComparisonResult, resources []appv1.ResourceState) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
 		appHealth.Status = appv1.HealthStatusUnknown
 	}
-	for i, resource := range comparisonResult.Resources {
+	for i, resource := range resources {
 		if resource.LiveState == "null" {
 			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusMissing}
 		} else {
@@ -666,7 +818,8 @@ func setApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.Comparis
 			}
 			resource.Health = *healthState
 		}
-		comparisonResult.Resources[i] = resource
+		resources[i] = resource
+		comparisonResult.Resources[i].Health = resource.Health
 		if health.IsWorse(appHealth.Status, resource.Health.Status) {
 			appHealth.Status = resource.Health.Status
 		}
@@ -776,7 +929,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonRe
 		},
 	}
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-	_, err := argo.SetAppOperation(context.Background(), appIf, ctrl.auditLogger, app.Name, &op)
+	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}

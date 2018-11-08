@@ -99,10 +99,6 @@ func TestAppManagement(t *testing.T) {
 
 	t.Run("TestTrackAppStateAndSyncApp", func(t *testing.T) {
 		app := fixture.CreateApp(t, testApp)
-		WaitUntil(t, func() (done bool, err error) {
-			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status != v1alpha1.ComparisonStatusUnknown, err
-		})
 
 		// sync app and make sure it reaches InSync state
 		_, err := fixture.RunCli("app", "sync", app.Name)
@@ -138,11 +134,6 @@ func TestAppManagement(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unable to update app %v", err)
 		}
-
-		WaitUntil(t, func() (done bool, err error) {
-			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status != v1alpha1.ComparisonStatusUnknown, err
-		})
 
 		// sync app and make sure it reaches InSync state
 		_, err = fixture.RunCli("app", "rollback", app.Name, "1")

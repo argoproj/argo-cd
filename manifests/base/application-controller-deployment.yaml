@@ -20,6 +20,6 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        image: argoproj/argocd-application-controller:latest
+        image: argoproj/argocd:latest
         name: application-controller
       serviceAccountName: application-controller

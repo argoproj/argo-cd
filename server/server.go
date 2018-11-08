@@ -36,6 +36,7 @@ import (
 
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -121,15 +122,16 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth         bool
-	Insecure            bool
-	Namespace           string
-	DexServerAddr       string
-	StaticAssetsDir     string
-	KubeClientset       kubernetes.Interface
-	AppClientset        appclientset.Interface
-	RepoClientset       reposerver.Clientset
-	TLSConfigCustomizer tlsutil.ConfigCustomizer
+	DisableAuth            bool
+	Insecure               bool
+	Namespace              string
+	DexServerAddr          string
+	StaticAssetsDir        string
+	KubeClientset          kubernetes.Interface
+	AppClientset           appclientset.Interface
+	RepoClientset          reposerver.Clientset
+	AppControllerClientset controller.Clientset
+	TLSConfigCustomizer    tlsutil.ConfigCustomizer
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -421,7 +423,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, argocache.NewInMemoryCache(repository.DefaultRepoStatusCacheExpiration))
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, kube.KubectlCmd{}, db, a.enf, projectLock)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.AppControllerClientset, kube.KubectlCmd{}, db, a.enf, projectLock)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)

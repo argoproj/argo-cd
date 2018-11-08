@@ -216,9 +216,9 @@ message ComparisonResult {
 
   optional string status = 5;
 
-  repeated ResourceState resources = 6;
-
   optional string revision = 7;
+
+  repeated ResourceSummary resources = 8;
 }
 
 // ComponentParameter contains information about component parameter value
@@ -381,6 +381,21 @@ message ResourceState {
   repeated ResourceNode childLiveResources = 4;
 
   optional HealthStatus health = 5;
+}
+
+// ResourceSummary holds the resource metadata and aggregated statuses
+message ResourceSummary {
+  optional string group = 1;
+
+  optional string version = 2;
+
+  optional string kind = 3;
+
+  optional string name = 4;
+
+  optional string status = 5;
+
+  optional HealthStatus health = 6;
 }
 
 // SyncOperation contains sync operation details.

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/stats"
+	"github.com/argoproj/argo-cd/util/tls"
 )
 
 const (
@@ -34,13 +36,14 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig        clientcmd.ClientConfig
-		appResyncPeriod     int64
-		repoServerAddress   string
-		statusProcessors    int
-		operationProcessors int
-		logLevel            string
-		glogLevel           int
+		clientConfig           clientcmd.ClientConfig
+		appResyncPeriod        int64
+		repoServerAddress      string
+		statusProcessors       int
+		operationProcessors    int
+		logLevel               string
+		glogLevel              int
+		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -76,6 +79,19 @@ func newCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 
 			go appController.Run(ctx, statusProcessors, operationProcessors)
+			go func() {
+				tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
+				errors.CheckError(err)
+				server, err := appController.CreateGRPC(tlsConfigCustomizer)
+				errors.CheckError(err)
+
+				listener, err := net.Listen("tcp", fmt.Sprintf(":%d", 8083))
+				errors.CheckError(err)
+				log.Infof("application-controller %s serving on %s", argocd.GetVersion(), listener.Addr())
+
+				err = server.Serve(listener)
+				errors.CheckError(err)
+			}()
 			// Wait forever
 			select {}
 		},
@@ -88,6 +104,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
+	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	return &command
 }
 

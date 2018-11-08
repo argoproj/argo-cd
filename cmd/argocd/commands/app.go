@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/controller/services"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -505,6 +506,32 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
+// targetObjects deserializes the list of target states into unstructured objects
+func targetObjects(resources []*argoappv1.ResourceState) ([]*unstructured.Unstructured, error) {
+	objs := make([]*unstructured.Unstructured, len(resources))
+	for i, resState := range resources {
+		obj, err := resState.TargetObject()
+		if err != nil {
+			return nil, err
+		}
+		objs[i] = obj
+	}
+	return objs, nil
+}
+
+// liveObjects deserializes the list of live states into unstructured objects
+func liveObjects(resources []*argoappv1.ResourceState) ([]*unstructured.Unstructured, error) {
+	objs := make([]*unstructured.Unstructured, len(resources))
+	for i, resState := range resources {
+		obj, err := resState.LiveObject()
+		if err != nil {
+			return nil, err
+		}
+		objs[i] = obj
+	}
+	return objs, nil
+}
+
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -525,7 +552,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
 			errors.CheckError(err)
-			liveObjs, err := app.Status.ComparisonResult.LiveObjects()
+			resources, err := appIf.Resources(context.Background(), &services.ResourcesQuery{ApplicationName: &appName})
+			errors.CheckError(err)
+			liveObjs, err := liveObjects(resources.Items)
 			errors.CheckError(err)
 
 			var compareObjs []*unstructured.Unstructured
@@ -545,7 +574,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if env != "" {
 					log.Fatal("--env option invalid when performing git diff")
 				}
-				compareObjs, err = app.Status.ComparisonResult.TargetObjects()
+				compareObjs, err = targetObjects(resources.Items)
 				errors.CheckError(err)
 			}
 
@@ -811,17 +840,11 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
 	}
 	for _, res := range app.Status.ComparisonResult.Resources {
-		obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-		errors.CheckError(err)
-		if obj == nil {
-			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-			errors.CheckError(err)
-		}
 		if showOperation {
-			message := messages[fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status, "", message)
+			message := messages[fmt.Sprintf("%s/%s", res.Kind, res.Name)]
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, res.Health.Status, "", message)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s", obj.GetKind(), obj.GetName(), res.Status, res.Health.Status)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, res.Health.Status)
 		}
 		fmt.Fprint(w, "\n")
 	}
@@ -977,16 +1000,11 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
 	for _, res := range app.Status.ComparisonResult.Resources {
-		obj, err := argoappv1.UnmarshalToUnstructured(res.TargetState)
-		errors.CheckError(err)
-		if obj == nil {
-			obj, err = argoappv1.UnmarshalToUnstructured(res.LiveState)
-			errors.CheckError(err)
-		}
-		if syncResources != nil && !argo.ContainsSyncResource(obj, syncResources) {
+
+		if len(syncResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), syncResources) {
 			continue
 		}
-		newState := newResourceState(obj.GetKind(), obj.GetName(), string(res.Status), res.Health.Status, "", "")
+		newState := newResourceState(res.Kind, res.Name, string(res.Status), res.Health.Status, "", "")
 		key := newState.Key()
 		if prev, ok := resStates[key]; ok {
 			prev.Merge(newState)
@@ -1300,7 +1318,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
+			resources, err := appIf.Resources(ctx, &services.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
 
 			var unstructureds []*unstructured.Unstructured
@@ -1319,12 +1337,12 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						unstructureds = append(unstructureds, obj)
 					}
 				} else {
-					targetObjs, err := app.Status.ComparisonResult.TargetObjects()
+					targetObjs, err := targetObjects(resources.Items)
 					errors.CheckError(err)
 					unstructureds = targetObjs
 				}
 			case "live":
-				liveObjs, err := app.Status.ComparisonResult.LiveObjects()
+				liveObjs, err := liveObjects(resources.Items)
 				errors.CheckError(err)
 				unstructureds = liveObjs
 			default:

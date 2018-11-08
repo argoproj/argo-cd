@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -23,6 +25,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
+	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -39,16 +42,17 @@ import (
 
 // Server provides a Application service
 type Server struct {
-	ns            string
-	kubeclientset kubernetes.Interface
-	appclientset  appclientset.Interface
-	repoClientset reposerver.Clientset
-	kubectl       kube.Kubectl
-	db            db.ArgoDB
-	appComparator controller.AppStateManager
-	enf           *rbac.Enforcer
-	projectLock   *util.KeyLock
-	auditLogger   *argo.AuditLogger
+	ns                  string
+	kubeclientset       kubernetes.Interface
+	appclientset        appclientset.Interface
+	repoClientset       reposerver.Clientset
+	controllerClientset controller.Clientset
+	kubectl             kube.Kubectl
+	db                  db.ArgoDB
+	appComparator       controller.AppStateManager
+	enf                 *rbac.Enforcer
+	projectLock         *util.KeyLock
+	auditLogger         *argo.AuditLogger
 }
 
 // NewServer returns a new instance of the Application service
@@ -57,6 +61,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
+	controllerClientset controller.Clientset,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
@@ -64,81 +69,23 @@ func NewServer(
 ) ApplicationServiceServer {
 
 	return &Server{
-		ns:            namespace,
-		appclientset:  appclientset,
-		kubeclientset: kubeclientset,
-		db:            db,
-		repoClientset: repoClientset,
-		kubectl:       kubectl,
-		appComparator: controller.NewAppStateManager(db, appclientset, repoClientset, namespace, kubectl),
-		enf:           enf,
-		projectLock:   projectLock,
-		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		ns:                  namespace,
+		appclientset:        appclientset,
+		kubeclientset:       kubeclientset,
+		controllerClientset: controllerClientset,
+		db:                  db,
+		repoClientset:       repoClientset,
+		kubectl:             kubectl,
+		appComparator:       controller.NewAppStateManager(db, appclientset, repoClientset, namespace, kubectl),
+		enf:                 enf,
+		projectLock:         projectLock,
+		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 	}
 }
 
 // appRBACName formats fully qualified application name for RBAC check
 func appRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
-}
-
-func toString(val interface{}) string {
-	if val == nil {
-		return ""
-	}
-	return fmt.Sprintf("%s", val)
-}
-
-// hideSecretData checks if given object kind is Secret, replaces data keys with stars and returns unchanged data map. The method additionally check if data key if different
-// from corresponding key of optional parameter `otherData` and adds extra star to keep information about difference. So if secret data is out of sync user still can see which
-// fields are different.
-func hideSecretData(state string, otherData map[string]interface{}) (string, map[string]interface{}) {
-	obj, err := appv1.UnmarshalToUnstructured(state)
-	if err == nil {
-		if obj != nil && obj.GetKind() == kube.SecretKind {
-			if data, ok, err := unstructured.NestedMap(obj.Object, "data"); err == nil && ok {
-				unchangedData := make(map[string]interface{})
-				for k, v := range data {
-					unchangedData[k] = v
-				}
-				for k := range data {
-					replacement := "********"
-					if otherData != nil {
-						if val, ok := otherData[k]; ok && toString(val) != toString(data[k]) {
-							replacement = replacement + "*"
-						}
-					}
-					data[k] = replacement
-				}
-				_ = unstructured.SetNestedMap(obj.Object, data, "data")
-				newState, err := json.Marshal(obj)
-				if err == nil {
-					return string(newState), unchangedData
-				}
-			}
-		}
-	}
-	return state, nil
-}
-
-func hideNodesSecrets(nodes []appv1.ResourceNode) {
-	for i := range nodes {
-		node := nodes[i]
-		node.State, _ = hideSecretData(node.State, nil)
-		hideNodesSecrets(node.Children)
-		nodes[i] = node
-	}
-}
-
-func hideAppSecrets(app *appv1.Application) {
-	for i := range app.Status.ComparisonResult.Resources {
-		res := app.Status.ComparisonResult.Resources[i]
-		var data map[string]interface{}
-		res.LiveState, data = hideSecretData(res.LiveState, nil)
-		res.TargetState, _ = hideSecretData(res.TargetState, data)
-		hideNodesSecrets(res.ChildLiveResources)
-		app.Status.ComparisonResult.Resources[i] = res
-	}
 }
 
 // List returns list of applications
@@ -156,7 +103,6 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 	for i := range newItems {
 		app := newItems[i]
-		hideAppSecrets(&app)
 		newItems[i] = app
 	}
 	appList.Items = newItems
@@ -202,7 +148,6 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 	if err == nil {
 		s.logEvent(out, ctx, argo.EventReasonResourceCreated, "created application")
 	}
-	hideAppSecrets(out)
 	return out, err
 }
 
@@ -272,7 +217,6 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 			return nil, err
 		}
 	}
-	hideAppSecrets(a)
 	return a, nil
 }
 
@@ -338,9 +282,6 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 		return nil, err
 	}
 	out, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
-	if out != nil {
-		hideAppSecrets(out)
-	}
 	if err == nil {
 		s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application")
 	}
@@ -481,7 +422,6 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 					// do not emit apps user does not have accessing
 					continue
 				}
-				hideAppSecrets(&a)
 				err = ws.Send(&appv1.ApplicationWatchEvent{
 					Type:        next.Type,
 					Application: a,
@@ -551,6 +491,15 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 	return nil
 }
 
+func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesResponse, error) {
+	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(closer)
+	return client.Resources(ctx, q)
+}
+
 func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourceRequest) (*ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -559,7 +508,22 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	found := findResource(a, q)
+
+	gv, err := schema.ParseGroupVersion(q.APIVersion)
+	if err != nil {
+		return nil, err
+	}
+	resources, err := s.getAppResources(ctx, &services.ResourcesQuery{
+		ApplicationName: &a.Name,
+		Version:         &gv.Version,
+		Group:           &gv.Group,
+		Kind:            &q.Kind,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	found := findResource(resources.Items, q)
 	if found == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.APIVersion, q.ResourceName, *q.Name)
 	}
@@ -575,8 +539,19 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	return &ApplicationResponse{}, nil
 }
 
-func findResource(a *appv1.Application, q *ApplicationDeleteResourceRequest) *unstructured.Unstructured {
-	for _, res := range a.Status.ComparisonResult.Resources {
+func (s *Server) Resources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	return s.getAppResources(ctx, q)
+}
+
+func findResource(resources []*appv1.ResourceState, q *ApplicationDeleteResourceRequest) *unstructured.Unstructured {
+	for _, res := range resources {
 		liveObj, err := res.LiveObject()
 		if err != nil {
 			log.Warnf("Failed to unmarshal live object: %v", err)
@@ -752,7 +727,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 			Resources:          syncReq.Resources,
 		},
 	}
-	a, err = argo.SetAppOperation(ctx, appIf, s.auditLogger, *syncReq.Name, &op)
+	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
 	if err == nil {
 		rev := syncReq.Revision
 		if syncReq.Revision == "" {
@@ -797,7 +772,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 			ParameterOverrides: deploymentInfo.ComponentParameterOverrides,
 		},
 	}
-	a, err = argo.SetAppOperation(ctx, appIf, s.auditLogger, *rollbackReq.Name, &op)
+	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
 	if err == nil {
 		s.logEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.ID))
 	}
