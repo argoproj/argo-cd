@@ -385,7 +385,6 @@ type ResourceState struct {
 type ConnectionStatus = string
 
 const (
-	ConnectionStatusUnknown    = "Unknown"
 	ConnectionStatusSuccessful = "Successful"
 	ConnectionStatusFailed     = "Failed"
 )

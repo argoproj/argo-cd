@@ -11,7 +11,7 @@ type Server struct {
 	mgr *settings.SettingsManager
 }
 
-// NewServer returns a new instance of the Repository service
+// NewServer returns a new instance of the Settings service
 func NewServer(mgr *settings.SettingsManager) *Server {
 	return &Server{
 		mgr: mgr,

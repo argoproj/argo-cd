@@ -199,7 +199,7 @@ func (f *Fixture) ensureClusterRegistered() error {
 	errors.CheckError(err)
 	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken, nil)
 	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
-	_, err = cluster.NewServer(f.DB, f.Enforcer).Create(context.Background(), &clstCreateReq)
+	_, err = cluster.NewServer(f.DB, f.Enforcer, cache.NewInMemoryCache(1*time.Minute)).Create(context.Background(), &clstCreateReq)
 	return err
 }
 
@@ -260,7 +260,8 @@ func NewFixture() (*Fixture, error) {
 	if err != nil {
 		return nil, err
 	}
-	db := db.NewDB(namespace, kubeClient)
+	settingsMgr := settings.NewSettingsManager(kubeClient, namespace)
+	db := db.NewDB(namespace, settingsMgr, kubeClient)
 	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(server.EnforceClaims(enforcer, appClient, namespace))
 	err = enforcer.SetBuiltinPolicy(test.BuiltinPolicy)

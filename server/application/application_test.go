@@ -1,11 +1,10 @@
 package application
 
 import (
+	"golang.org/x/net/context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"golang.org/x/net/context"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -21,6 +20,9 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 const (
@@ -76,14 +78,25 @@ func fakeListDirResponse() *repository.FileList {
 
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer() ApplicationServiceServer {
-	kubeclientset := fake.NewSimpleClientset()
+	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm"},
+	}, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	})
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(func(rvals ...interface{}) bool {
 		return true
 	})
-	db := db.NewDB(testNamespace, kubeclientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(kubeclientset, testNamespace), kubeclientset)
 	ctx := context.Background()
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	errors.CheckError(err)

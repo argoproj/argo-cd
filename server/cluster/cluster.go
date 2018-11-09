@@ -1,34 +1,76 @@
 package cluster
 
 import (
+	"fmt"
 	"reflect"
+	"time"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
+	log "github.com/sirupsen/logrus"
 )
 
 // Server provides a Cluster service
 type Server struct {
-	db  db.ArgoDB
-	enf *rbac.Enforcer
+	db    db.ArgoDB
+	enf   *rbac.Enforcer
+	cache cache.Cache
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache cache.Cache) *Server {
 	return &Server{
-		db:  db,
-		enf: enf,
+		db:    db,
+		enf:   enf,
+		cache: cache,
 	}
+}
+
+const (
+	DefaultClusterStatusCacheExpiration = 1 * time.Hour
+)
+
+func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) appv1.ConnectionState {
+	cacheKey := fmt.Sprintf("connection-state-%s", cluster.Server)
+	var connectionState appv1.ConnectionState
+	if err := s.cache.Get(cacheKey, &connectionState); err == nil {
+		return connectionState
+	}
+	now := v1.Now()
+	connectionState = appv1.ConnectionState{
+		Status:     appv1.ConnectionStatusSuccessful,
+		ModifiedAt: &now,
+	}
+
+	kubeClientset, err := kubernetes.NewForConfig(cluster.RESTConfig())
+	if err == nil {
+		_, err = kubeClientset.Discovery().ServerVersion()
+	}
+	if err != nil {
+		connectionState.Status = appv1.ConnectionStatusFailed
+		connectionState.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
+	}
+	err = s.cache.Set(&cache.Item{
+		Object:     &connectionState,
+		Key:        cacheKey,
+		Expiration: DefaultClusterStatusCacheExpiration,
+	})
+	if err != nil {
+		log.Warnf("getConnectionState cache set error %s: %v", cacheKey, err)
+	}
+	return connectionState
 }
 
 // List returns list of clusters
@@ -38,6 +80,9 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 		newItems := make([]appv1.Cluster, 0)
 		for _, clust := range clusterList.Items {
 			if s.enf.EnforceClaims(ctx.Value("claims"), "clusters", "get", clust.Server) {
+				if clust.ConnectionState.Status == "" {
+					clust.ConnectionState = s.getConnectionState(ctx, clust)
+				}
 				newItems = append(newItems, *redact(&clust))
 			}
 		}

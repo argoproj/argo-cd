@@ -53,6 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
+	argocache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
 	dexutil "github.com/argoproj/argo-cd/util/dex"
@@ -415,9 +416,9 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	a.enf.SetClaimsEnforcerFunc(EnforceClaims(a.enf, a.AppClientset, a.Namespace))
 	grpcS := grpc.NewServer(sOpts...)
-	db := db.NewDB(a.Namespace, a.KubeClientset)
-	clusterService := cluster.NewServer(db, a.enf)
-	repoService := repository.NewServer(a.RepoClientset, db, a.enf)
+	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
+	clusterService := cluster.NewServer(db, a.enf, argocache.NewInMemoryCache(cluster.DefaultClusterStatusCacheExpiration))
+	repoService := repository.NewServer(a.RepoClientset, db, a.enf, argocache.NewInMemoryCache(repository.DefaultRepoStatusCacheExpiration))
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
 	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, kube.KubectlCmd{}, db, a.enf, projectLock)

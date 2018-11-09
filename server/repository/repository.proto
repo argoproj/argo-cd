@@ -124,11 +124,6 @@ service RepositoryService {
 		};
 	}
 	
-	// Get returns a repo by name
-	rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
-		option (google.api.http).get = "/api/v1/repositories/{repo}";
-	}
-
 	// Update updates a repo
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
