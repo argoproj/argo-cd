@@ -139,7 +139,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-func (mgr *SettingsManager) loadLegacyRepoSettings(settings *ArgoCDSettings) error {
+func (mgr *SettingsManager) LoadLegacyRepoSettings(settings *ArgoCDSettings) error {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{"repository"})
@@ -179,7 +179,7 @@ func (mgr *SettingsManager) loadLegacyRepoSettings(settings *ArgoCDSettings) err
 		}
 		settings.Repositories[i] = cred
 	}
-	return mgr.SaveSettings(settings)
+	return nil
 }
 
 func (mgr *SettingsManager) updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) error {
@@ -193,10 +193,8 @@ func (mgr *SettingsManager) updateSettingsFromConfigMap(settings *ArgoCDSettings
 		if err != nil {
 			return err
 		}
-		return nil
-	} else {
-		return mgr.loadLegacyRepoSettings(settings)
 	}
+	return nil
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
@@ -627,6 +625,13 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 			return nil, err
 		}
 		cdSettings.Certificate = cert
+	}
+
+	if len(cdSettings.Repositories) == 0 {
+		err = settingsMgr.LoadLegacyRepoSettings(cdSettings)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return cdSettings, settingsMgr.SaveSettings(cdSettings)

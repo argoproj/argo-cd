@@ -54,10 +54,7 @@ rules:
   - secrets
   verbs:
   - get
-  - watch
   - list
-  - patch
-  - update
 - apiGroups:
   - argoproj.io
   resources:
@@ -71,6 +68,14 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-cm
+  resources:
+  - configmaps
+  verbs:
+  - get
 - apiGroups:
   - ""
   resources:
