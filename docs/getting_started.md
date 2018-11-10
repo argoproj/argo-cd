@@ -9,7 +9,7 @@ An example guestbook application is provided to demonstrate how Argo CD works.
 ## 1. Install Argo CD
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.10.3/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.10.4/manifests/install.yaml
 ```
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
