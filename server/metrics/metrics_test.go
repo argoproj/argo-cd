@@ -136,18 +136,18 @@ func testApp(t *testing.T, fakeApp string, expectedResponse string) {
 }
 
 type testCombination struct {
-	application string
+	application      string
 	expectedResponse string
 }
 
 func TestMetrics(t *testing.T) {
 	combinations := []testCombination{
 		{
-			application: fakeApp,
+			application:      fakeApp,
 			expectedResponse: expectedResponse,
 		},
 		{
-			application: fakeDefaultApp,
+			application:      fakeDefaultApp,
 			expectedResponse: expectedDefaultResponse,
 		},
 	}

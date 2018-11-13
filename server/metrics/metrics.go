@@ -24,7 +24,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels,"repo", "dest_server", "dest_namespace"),
+		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace"),
 		nil,
 	)
 	descAppCreated = prometheus.NewDesc(
