@@ -172,7 +172,7 @@ export class AppParams extends React.Component<{
                                 field='project'
                                 component={FormSelect}
                                 componentProps={{options: (this.props.projects
-                                    .filter((proj) => (proj.spec.sourceRepos.some((repo) => repo === this.props.appParams.repoURL || repo === '*'))) || [])
+                                    .filter((proj) => ((proj.spec.sourceRepos || []).some((repo) => repo === this.props.appParams.repoURL || repo === '*'))) || [])
                                     .map((proj) => proj.metadata.name)}} />
                         </div>
                         <div className='argo-form-row'>
@@ -202,7 +202,7 @@ export class AppParams extends React.Component<{
                                     this.props.projects.find((proj) => proj.metadata.name === api.getFormState().values.project) : undefined;
                                 const namespaces = project && ((project.spec.destinations || [] ) as models.ApplicationDestination[])
                                     .filter((dest) => ((dest.server === api.values.clusterURL || dest.server === '*') && dest.namespace !== '*'))
-                                    .map((item) => item.namespace);
+                                    .map((item) => item.namespace) || [];
                                 return (
                                 <React.Fragment>
                                     <div className='argo-form-row'>
@@ -235,7 +235,7 @@ export class AppParams extends React.Component<{
         if (project === null) {
             return 'Project is required';
         }
-        if (project.spec.sourceRepos.some((repo) => repo === sourceRepo || repo === '*')) {
+        if ((project.spec.sourceRepos || []).some((repo) => repo === sourceRepo || repo === '*')) {
             return '';
         }
         return 'No project has access to source repo and a project is required';
