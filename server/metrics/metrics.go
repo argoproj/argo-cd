@@ -19,12 +19,12 @@ const (
 )
 
 var (
-	descAppDefaultLabels = []string{"namespace", "name"}
+	descAppDefaultLabels = []string{"namespace", "name", "project"}
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "project", "repo", "dest_server", "dest_namespace"),
+		append(descAppDefaultLabels,"repo", "dest_server", "dest_namespace"),
 		nil,
 	)
 	descAppCreated = prometheus.NewDesc(
@@ -105,14 +105,18 @@ func boolFloat64(b bool) float64 {
 
 func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
-		lv = append([]string{app.Namespace, app.Name}, lv...)
+		project := app.Spec.Project
+		if project == "" {
+			project = "default"
+		}
+		lv = append([]string{app.Namespace, app.Name, project}, lv...)
 		ch <- prometheus.MustNewConstMetric(desc, t, v, lv...)
 	}
 	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
 		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
 
-	addGauge(descAppInfo, 1, app.Spec.Project, app.Spec.Source.RepoURL, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	addGauge(descAppInfo, 1, app.Spec.Source.RepoURL, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
 
