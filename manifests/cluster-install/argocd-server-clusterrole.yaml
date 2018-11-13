@@ -15,3 +15,10 @@ rules:
   - events
   verbs:
   - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/log
+  verbs:
+  - get
