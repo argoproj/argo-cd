@@ -260,6 +260,8 @@ type: Opaque
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    app: argocd-metrics
   name: argocd-metrics
 spec:
   ports:
