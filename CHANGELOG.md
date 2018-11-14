@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.10.5 (2018-11-13)
++ Increase concurrency of application controller
+* Update dependencies to k8s v1.12 and client-go v9.0 (#729)
+- add argo cluster permission to view logs (#766) (@conorfennell)
+- Fix issue where applications could not be deleted on k8s v1.12
+- Allow 'syncApplication' action to reference target revision rather then hard-coding to 'HEAD' (#69) (@chrisgarland)
+- Issue #768 - Fix application wizard crash
+
+## v0.10.4 (2018-11-07)
+* Upgrade to Helm v0.11.0 (@amarrella)
+- Health check is not discerning apiVersion when assessing CRDs (issue #753)
+- Fix nil pointer dereference in util/health (@mduarte)
+
+## v0.10.3 (2018-10-28)
+* Fix applying TLS version settings
+* Update to kustomize 1.0.10 (@twz123)
+
+## v0.10.2 (2018-10-25)
+* Update to kustomize 1.0.9 (@twz123)
+- Fix app refresh err when k8s patch is too slow
+
 ## v0.10.1 (2018-10-24)
 
 - Handle case where OIDC settings become invalid after dex server restart (issue #710)
