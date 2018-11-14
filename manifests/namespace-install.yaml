@@ -261,6 +261,10 @@ spec:
         - /argocd-application-controller
         - --repo-server
         - argocd-repo-server:8081
+        - --status-processors
+        - "20"
+        - --operation-processors
+        - "10"
         image: argoproj/argocd-application-controller:v0.10.5
         name: application-controller
       serviceAccountName: application-controller
