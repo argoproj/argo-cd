@@ -19,4 +19,5 @@
 
 ## Other
 * [Configuring Ingress](ingress.md)
+* [Custom Tooling](custom_tools.md)
 * [F.A.Q.](faq.md)
