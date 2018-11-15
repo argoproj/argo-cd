@@ -18,7 +18,9 @@ import (
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	kubetesting "k8s.io/client-go/testing"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -303,4 +305,25 @@ spec:
 	log.Println(requestsAfter)
 	assert.Equal(t, float64(0.2), requestsBefore["cpu"])
 	assert.Equal(t, "200m", requestsAfter["cpu"])
+}
+
+func TestInClusterKubeConfig(t *testing.T) {
+	restConfig := &rest.Config{}
+	kubeConfig := NewKubeConfig(restConfig, "")
+	assert.NotEmpty(t, kubeConfig.AuthInfos[kubeConfig.CurrentContext].TokenFile)
+
+	restConfig = &rest.Config{
+		Password: "foo",
+	}
+	kubeConfig = NewKubeConfig(restConfig, "")
+	assert.Empty(t, kubeConfig.AuthInfos[kubeConfig.CurrentContext].TokenFile)
+
+	restConfig = &rest.Config{
+		ExecProvider: &clientcmdapi.ExecConfig{
+			APIVersion: "client.authentication.k8s.io/v1alpha1",
+			Command:    "aws-iam-authenticator",
+		},
+	}
+	kubeConfig = NewKubeConfig(restConfig, "")
+	assert.Empty(t, kubeConfig.AuthInfos[kubeConfig.CurrentContext].TokenFile)
 }

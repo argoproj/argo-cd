@@ -522,7 +522,13 @@ func cleanKubectlOutput(s string) string {
 
 // WriteKubeConfig takes a rest.Config and writes it as a kubeconfig at the specified path
 func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error {
-	var kubeConfig = clientcmdapi.Config{
+	kubeConfig := NewKubeConfig(restConfig, namespace)
+	return clientcmd.WriteToFile(*kubeConfig, filename)
+}
+
+// NewKubeConfig converts a clientcmdapi.Config (kubeconfig) from a rest.Config
+func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Config {
+	return &clientcmdapi.Config{
 		CurrentContext: restConfig.Host,
 		Contexts: map[string]*clientcmdapi.Context{
 			restConfig.Host: {
@@ -533,49 +539,62 @@ func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error 
 		},
 		Clusters: map[string]*clientcmdapi.Cluster{
 			restConfig.Host: {
-				Server: restConfig.Host,
+				Server:                   restConfig.Host,
+				InsecureSkipTLSVerify:    restConfig.TLSClientConfig.Insecure,
+				CertificateAuthority:     restConfig.TLSClientConfig.CAFile,
+				CertificateAuthorityData: restConfig.TLSClientConfig.CAData,
 			},
 		},
 		AuthInfos: map[string]*clientcmdapi.AuthInfo{
-			restConfig.Host: {},
+			restConfig.Host: newAuthInfo(restConfig),
 		},
 	}
-	// Set Cluster info
-	if restConfig.TLSClientConfig.Insecure {
-		kubeConfig.Clusters[restConfig.Host].InsecureSkipTLSVerify = true
-	}
-	if restConfig.TLSClientConfig.CAFile != "" {
-		kubeConfig.Clusters[restConfig.Host].CertificateAuthority = restConfig.TLSClientConfig.CAFile
-	}
-	// Set AuthInfo
-	if len(restConfig.TLSClientConfig.CAData) > 0 {
-		kubeConfig.Clusters[restConfig.Host].CertificateAuthorityData = restConfig.TLSClientConfig.CAData
-	}
+}
+
+// newAuthInfo returns an AuthInfo from a rest config, detecting if the rest.Config is an
+// in-cluster config and automatically setting the token path appropriately.
+func newAuthInfo(restConfig *rest.Config) *clientcmdapi.AuthInfo {
+	authInfo := clientcmdapi.AuthInfo{}
+	haveCredentials := false
 	if restConfig.TLSClientConfig.CertFile != "" {
-		kubeConfig.AuthInfos[restConfig.Host].ClientCertificate = restConfig.TLSClientConfig.CertFile
+		authInfo.ClientCertificate = restConfig.TLSClientConfig.CertFile
+		haveCredentials = true
 	}
 	if len(restConfig.TLSClientConfig.CertData) > 0 {
-		kubeConfig.AuthInfos[restConfig.Host].ClientCertificateData = restConfig.TLSClientConfig.CertData
+		authInfo.ClientCertificateData = restConfig.TLSClientConfig.CertData
+		haveCredentials = true
 	}
 	if restConfig.TLSClientConfig.KeyFile != "" {
-		kubeConfig.AuthInfos[restConfig.Host].ClientKey = restConfig.TLSClientConfig.KeyFile
+		authInfo.ClientKey = restConfig.TLSClientConfig.KeyFile
+		haveCredentials = true
 	}
 	if len(restConfig.TLSClientConfig.KeyData) > 0 {
-		kubeConfig.AuthInfos[restConfig.Host].ClientKeyData = restConfig.TLSClientConfig.KeyData
+		authInfo.ClientKeyData = restConfig.TLSClientConfig.KeyData
+		haveCredentials = true
 	}
 	if restConfig.Username != "" {
-		kubeConfig.AuthInfos[restConfig.Host].Username = restConfig.Username
+		authInfo.Username = restConfig.Username
+		haveCredentials = true
 	}
 	if restConfig.Password != "" {
-		kubeConfig.AuthInfos[restConfig.Host].Password = restConfig.Password
+		authInfo.Password = restConfig.Password
+		haveCredentials = true
 	}
 	if restConfig.BearerToken != "" {
-		kubeConfig.AuthInfos[restConfig.Host].Token = restConfig.BearerToken
+		authInfo.Token = restConfig.BearerToken
+		haveCredentials = true
 	}
 	if restConfig.ExecProvider != nil {
-		kubeConfig.AuthInfos[restConfig.Host].Exec = restConfig.ExecProvider
+		authInfo.Exec = restConfig.ExecProvider
+		haveCredentials = true
 	}
-	return clientcmd.WriteToFile(kubeConfig, filename)
+	if restConfig.ExecProvider == nil && !haveCredentials {
+		// If no credentials were set (or there was no exec provider), we assume in-cluster config.
+		// In-cluster configs from the go-client will no longer set bearer tokens, so we set the
+		// well known token path. See issue #774
+		authInfo.TokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	}
+	return &authInfo
 }
 
 var diffSeparator = regexp.MustCompile(`\n---`)
