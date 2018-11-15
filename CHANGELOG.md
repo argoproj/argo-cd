@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.10.6 (2018-11-14)
+- Fix issue preventing in-cluster app sync due to go-client changes (issue #774)
+
 ## v0.10.5 (2018-11-13)
 + Increase concurrency of application controller
 * Update dependencies to k8s v1.12 and client-go v9.0 (#729)
