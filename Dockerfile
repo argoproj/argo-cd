@@ -120,17 +120,8 @@ ENV USER=argocd
 
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/* /usr/local/bin/
 
-# Symlink argocd binaries under root for backwards compatibility that expect it under /
-RUN ln -s /usr/local/bin/argocd /argocd && \
-    ln -s /usr/local/bin/argocd-server /argocd-server && \
-    ln -s /usr/local/bin/argocd-util /argocd-util && \
-    ln -s /usr/local/bin/argocd-application-controller /argocd-application-controller && \
-    ln -s /usr/local/bin/argocd-repo-server /argocd-repo-server
-
 USER argocd
 
 RUN helm init --client-only
 
 WORKDIR /home/argocd
-ARG BINARY
-CMD ${BINARY}

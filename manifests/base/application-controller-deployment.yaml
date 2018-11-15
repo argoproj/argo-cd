@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - command:
-        - /argocd-application-controller
+        - argocd-application-controller
         - --repo-server
         - argocd-repo-server:8081
         - --status-processors

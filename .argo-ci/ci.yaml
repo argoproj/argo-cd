@@ -21,7 +21,7 @@ spec:
           - name: cmd
             value: "{{item}}"
         withItems:
-        - make controller-image server-image repo-server-image
+        - make image
       - name: test
         template: ci-builder
         arguments:
@@ -91,7 +91,7 @@ spec:
           cpu: 200m
     sidecars:
     - name: dind
-      image: docker:17.10-dind
+      image: docker:18.09-dind
       securityContext:
         privileged: true
       mirrorVolumeMounts: true

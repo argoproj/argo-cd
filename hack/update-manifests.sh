@@ -5,10 +5,10 @@ AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
 update_image () {
   if [ ! -z "${IMAGE_NAMESPACE}" ]; then
-    sed -i '' 's| image: \(.*\)/\(argocd-.*\)| image: '"${IMAGE_NAMESPACE}"'/\2|g' ${1}
+    sed -i '' 's| image: \(.*\)/\(argocd.*\)| image: '"${IMAGE_NAMESPACE}"'/\2|g' ${1}
   fi
   if [ ! -z "${IMAGE_TAG}" ]; then
-    sed -i '' 's|\( image: .*/argocd-.*\)\:.*|\1:'"${IMAGE_TAG}"'|g' ${1}
+    sed -i '' 's|\( image: .*/argocd.*\)\:.*|\1:'"${IMAGE_TAG}"'|g' ${1}
   fi
 }
 
