@@ -265,14 +265,14 @@ spec:
     spec:
       containers:
       - command:
-        - /argocd-application-controller
+        - argocd-application-controller
         - --repo-server
         - argocd-repo-server:8081
         - --status-processors
         - "20"
         - --operation-processors
         - "10"
-        image: argoproj/argocd-application-controller:latest
+        image: jessesuen/argocd-application-controller:latest
         name: application-controller
       serviceAccountName: application-controller
 ---
@@ -292,8 +292,8 @@ spec:
       automountServiceAccountToken: false
       containers:
       - command:
-        - /argocd-repo-server
-        image: argoproj/argocd-repo-server:latest
+        - argocd-repo-server
+        image: jessesuen/argocd:latest
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -318,12 +318,10 @@ spec:
     spec:
       containers:
       - command:
-        - /argocd-server
+        - argocd-server
         - --staticassets
         - /shared/app
-        - --repo-server
-        - argocd-repo-server:8081
-        image: argoproj/argocd-server:latest
+        image: jessesuen/argocd:latest
         name: argocd-server
         readinessProbe:
           httpGet:
@@ -340,7 +338,7 @@ spec:
         - -r
         - /app
         - /shared
-        image: argoproj/argocd-ui:latest
+        image: jessesuen/argocd-ui:latest
         name: ui
         volumeMounts:
         - mountPath: /shared
@@ -378,9 +376,9 @@ spec:
       initContainers:
       - command:
         - cp
-        - /argocd-util
+        - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd-server:latest
+        image: jessesuen/argocd:latest
         name: copyutil
         volumeMounts:
         - mountPath: /shared

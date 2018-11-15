@@ -14,8 +14,8 @@ spec:
       serviceAccountName: dex-server
       initContainers:
       - name: copyutil
-        image: argoproj/argocd-server:latest
-        command: [cp, /argocd-util, /shared]
+        image: argoproj/argocd:latest
+        command: [cp, /usr/local/bin/argocd-util, /shared]
         volumeMounts:
         - mountPath: /shared
           name: static-files

@@ -62,14 +62,14 @@ cli: clean-debug
 
 .PHONY: cli-linux
 cli-linux: clean-debug
-	docker build --iidfile /tmp/argocd-linux-id --target argocd-build --build-arg MAKE_TARGET="cli IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-linux-amd64" .
+	docker build --iidfile /tmp/argocd-linux-id --target argocd-build --build-arg MAKE_TARGET="cli CLI_NAME=argocd-linux-amd64" .
 	docker create --name tmp-argocd-linux `cat /tmp/argocd-linux-id`
 	docker cp tmp-argocd-linux:/go/src/github.com/argoproj/argo-cd/dist/argocd-linux-amd64 dist/
 	docker rm tmp-argocd-linux
 
 .PHONY: cli-darwin
 cli-darwin: clean-debug
-	docker build --iidfile /tmp/argocd-darwin-id --target argocd-build --build-arg MAKE_TARGET="cli GOOS=darwin IMAGE_TAG=$(IMAGE_TAG) IMAGE_NAMESPACE=$(IMAGE_NAMESPACE) CLI_NAME=argocd-darwin-amd64" .
+	docker build --iidfile /tmp/argocd-darwin-id --target argocd-build --build-arg MAKE_TARGET="cli GOOS=darwin CLI_NAME=argocd-darwin-amd64" .
 	docker create --name tmp-argocd-darwin `cat /tmp/argocd-darwin-id`
 	docker cp tmp-argocd-darwin:/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
 	docker rm tmp-argocd-darwin
@@ -86,33 +86,18 @@ manifests:
 server: clean-debug
 	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
 	
-.PHONY: server-image
-server-image:
-	docker build --build-arg BINARY=argocd-server -t $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-server:$(IMAGE_TAG) ; fi
-
 .PHONY: repo-server
 repo-server:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
-
-.PHONY: repo-server-image
-repo-server-image:
-	docker build --build-arg BINARY=argocd-repo-server -t $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-repo-server:$(IMAGE_TAG) ; fi
 
 .PHONY: controller
 controller:
 	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
 
-.PHONY: controller-image
-controller-image:
-	docker build --build-arg BINARY=argocd-application-controller -t $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG)  .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-application-controller:$(IMAGE_TAG) ; fi
-
-.PHONY: cli-image
-cli-image:
-	docker build --build-arg BINARY=argocd -t $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd-cli:$(IMAGE_TAG) ; fi
+.PHONY: image
+image:
+	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)  .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
 .PHONY: builder-image
 builder-image:
@@ -149,4 +134,4 @@ release-precheck: manifests
 	@if [ "$(GIT_TAG)" != "v`cat VERSION`" ]; then echo 'VERSION does not match git tag'; exit 1; fi
 
 .PHONY: release
-release: release-precheck precheckin cli-darwin cli-linux server-image controller-image repo-server-image cli-image
+release: release-precheck precheckin cli-darwin cli-linux image
