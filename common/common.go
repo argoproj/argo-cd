@@ -78,6 +78,9 @@ var (
 	// AnnotationHelmHook is the helm hook annotation
 	AnnotationHelmHook = "helm.sh/hook"
 
+	// HelmHookCRDInstall is a value of crd helm hook
+	HelmHookCRDInstall = "crd-install"
+
 	// LabelKeyApplicationControllerInstanceID is the label which allows to separate application among multiple running application controllers.
 	LabelKeyApplicationControllerInstanceID = application.ApplicationFullName + "/controller-instanceid"
 
