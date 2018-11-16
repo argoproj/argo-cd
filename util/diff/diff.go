@@ -137,8 +137,16 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 		metadata := metadataIf.(map[string]interface{})
 		delete(metadata, "namespace")
 		if annotationsIf, ok := metadata["annotations"]; ok {
-			annotation := annotationsIf.(map[string]interface{})
-			if len(annotation) == 0 {
+			shouldDelete := false
+			if annotationsIf == nil {
+				shouldDelete = true
+			} else {
+				annotation := annotationsIf.(map[string]interface{})
+				if len(annotation) == 0 {
+					shouldDelete = true
+				}
+			}
+			if shouldDelete {
 				delete(metadata, "annotations")
 			}
 		}

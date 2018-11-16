@@ -297,3 +297,23 @@ func TestThreeWayDiffExplicitNamespace(t *testing.T) {
 	assert.Nil(t, err)
 	log.Println(ascii)
 }
+
+func TestRemoveNamespaceAnnotation(t *testing.T) {
+	obj := removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"name":      "test",
+			"namespace": "default",
+		},
+	}})
+	assert.Equal(t, "", obj.GetNamespace())
+
+	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"name":        "test",
+			"namespace":   "default",
+			"annotations": make(map[string]interface{}),
+		},
+	}})
+	assert.Equal(t, "", obj.GetNamespace())
+	assert.Nil(t, obj.GetAnnotations())
+}
