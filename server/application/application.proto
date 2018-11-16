@@ -50,7 +50,7 @@ message ApplicationDeleteRequest {
 	optional bool cascade = 2;
 }
 
-// ApplicationManifestDiffRequest is a request to compare two manifests
+// ApplicationManifestDiffRequest is a request to return the diff of an application's configuration manifests against its live manifests
 message ApplicationManifestDiffRequest {
 	required string appName = 1;
 	optional string resourceName = 2;

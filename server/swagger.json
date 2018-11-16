@@ -1208,11 +1208,9 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
-<<<<<<< HEAD
-=======
     "applicationApplicationManifestDiffRequest": {
       "type": "object",
-      "title": "ApplicationManifestDiffRequest is a request to compare two manifests",
+      "title": "ApplicationManifestDiffRequest is a request to return the diff of an application's configuration manifests against its live manifests",
       "properties": {
         "apiVersion": {
           "type": "string"
@@ -1240,7 +1238,6 @@
         }
       }
     },
->>>>>>> Add manifest diff endpoint
     "applicationApplicationResponse": {
       "type": "object"
     },

@@ -506,8 +506,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		refresh bool
-		local   string
-		env     string
 	)
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
@@ -550,14 +548,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Println(out)
 				}
 			}
-			if local != "" && len(app.Spec.Source.ComponentParameterOverrides) > 0 {
-				log.Warnf("Unable to display parameter overrides")
-			}
 		},
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
-	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
-	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
 	return command
 }
 
