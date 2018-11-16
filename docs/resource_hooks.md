@@ -50,12 +50,12 @@ metadata:
   generateName: integration-test-
   annotations:
     argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: OnSuccess
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 ```
 
 The following policies define when the hook will be deleted.
 
 | Policy | Description |
 |--------|-------------|
-| `OnSuccess` | The hook resource is deleted after the hook succeeded (e.g. Job/Workflow completed successfully). |
-| `OnFailure` | The hook resource is deleted after the hook failed. |
+| `HookSucceeded` | The hook resource is deleted after the hook succeeded (e.g. Job/Workflow completed successfully). |
+| `HookFailed` | The hook resource is deleted after the hook failed. |
