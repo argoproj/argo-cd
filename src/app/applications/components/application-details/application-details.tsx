@@ -24,9 +24,22 @@ import * as AppUtils from '../utils';
 
 require('./application-details.scss');
 
-// ContainerStatus holds just the state of a container status, used for type-checking.
-interface ContainerStatus {
-    state: {[name: string]: any};
+function resourcesFromSummaryInfo(application: appModels.Application) {
+    return (application.status.comparisonResult.resources || []).map((summary) => ({
+        targetState: {
+            kind: summary.kind,
+            apiVersion: summary.version,
+            metadata: {
+                name: summary.name,
+            },
+            status: null,
+            spec: {},
+        },
+        childLiveResources: [],
+        liveState: null,
+        status: summary.status,
+        health: summary.health,
+    }));
 }
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { defaultKindFilter: string[], refreshing: boolean}> {
@@ -36,14 +49,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     };
 
     private viewPrefSubscription: Subscription;
-    private appUpdates: Observable<appModels.Application>;
+    private appUpdates: Observable<{application: appModels.Application, resources: appModels.ResourceState[]}>;
     private formApi: FormApi;
-    private loader: DataLoader<appModels.Application>;
+    private loader: DataLoader<{application: appModels.Application, resources: appModels.ResourceState[]}>;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
         super(props);
         this.state = { defaultKindFilter: [], refreshing: false };
-        this.appUpdates = services.applications.watch({name: props.match.params.name}).map((changeEvent) => changeEvent.application);
+        this.appUpdates = services.applications.watch({name: props.match.params.name}).map((changeEvent) => changeEvent.application).flatMap((application) =>
+            Observable.fromPromise(services.applications.resources(application.metadata.name).then((resources) => {
+                return {application, resources: resources.length === 0 ? resourcesFromSummaryInfo(application) : resources};
+            })),
+        ).repeat().retryWhen((errors) => errors.delay(500));
     }
 
     private get showOperationState() {
@@ -98,11 +115,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                 dataChanges={this.appUpdates}
                 input={this.props.match.params.name}
-                load={(name) => services.applications.get(name, false)}>
+                load={async (name) => {
+                    const application = await services.applications.get(name, false);
+                    return {application, resources: resourcesFromSummaryInfo(application)};
+                }}>
 
-                {(application: appModels.Application) => {
+                {({application, resources}: {application: appModels.Application, resources: appModels.ResourceState[]}) => {
                     const kindsSet = new Set<string>();
-                    const toProcess: (appModels.ResourceNode | appModels.ResourceState)[] = [...application.status.comparisonResult.resources || []];
+                    const toProcess: (appModels.ResourceNode | appModels.ResourceState)[] = [...resources || []];
                     while (toProcess.length > 0) {
                         const next = toProcess.pop();
                         const {resourceNode} = AppUtils.getStateAndNode(next);
@@ -124,7 +144,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                         },
                     };
 
-                    const appNodesByName = this.groupAppNodesByName(application);
+                    const appNodesByName = this.groupAppNodesByName(application, resources);
                     const selectedItem = this.selectedNodeFullName && appNodesByName.get(this.selectedNodeFullName) || null;
                     const isAppSelected = selectedItem === application;
                     const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
@@ -132,7 +152,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     const conditions = application.status.conditions || [];
                     const deployParam = new URLSearchParams(this.props.history.location.search).get('deploy');
                     const showDeployPanel = !!deployParam;
-                    const deployResIndex = deployParam && application.status.comparisonResult.resources.findIndex((item) => {
+                    const deployResIndex = deployParam && resources.findIndex((item) => {
                         const res = item.liveState || item.targetState;
                         return `${res.kind}:${res.metadata.name}` === deployParam;
                     });
@@ -146,7 +166,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     action: async () => {
                                         try {
                                             this.setState({ refreshing: true });
-                                            await this.loader.setData(await services.applications.get(this.props.match.params.name, true));
+                                            const [app, res] = await Promise.all([
+                                                services.applications.get(this.props.match.params.name, true), services.applications.resources(this.props.match.params.name)]);
+                                            await this.loader.setData({ application: app, resources: res });
                                         } finally {
                                             this.setState({ refreshing: false });
                                         }
@@ -176,6 +198,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     onNodeClick={(fullName) => this.selectNode(fullName)}
                                     nodeMenuItems={(node) => this.getResourceMenuItems(node)}
                                     nodeLabels={(node) => this.getResourceLabels(node)}
+                                    resources={resources}
                                     app={application}/>
                             </div>
                             <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
@@ -211,12 +234,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     <Form
                                         defaultValues={{
                                             revision: application.spec.source.targetRevision || 'HEAD',
-                                            resources: application.status.comparisonResult.resources.map((_, i) => i === deployResIndex || deployResIndex === -1),
+                                            resources: resources.map((_, i) => i === deployResIndex || deployResIndex === -1),
                                         }}
                                         validateError={(values) => ({
                                             resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',
                                         })}
-                                        onSubmit={(params: any) => this.syncApplication(application, params.revision, params.prune, params.resources)}
+                                        onSubmit={(params: any) => this.syncApplication(application, params.revision, params.prune, params.resources, resources)}
                                         getApi={(api) => this.formApi = api}>
 
                                         {(formApi) => (
@@ -241,7 +264,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                         <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
                                                     )}
                                                     <div style={{paddingLeft: '1em'}}>
-                                                    {application.status.comparisonResult.resources.map((item, i) => {
+                                                    {resources.map((item, i) => {
                                                         const res = item.liveState || item.targetState;
                                                         const resFullName = `${res.kind}/${res.metadata.name}`;
                                                         return (
@@ -285,8 +308,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private async updateApp(app: appModels.Application) {
         try {
             await services.applications.updateSpec(app.metadata.name, app.spec);
-            const updatedApp = await services.applications.get(app.metadata.name);
-            this.loader.setData(updatedApp);
+            const [updatedApp, resources] = await Promise.all([services.applications.get(app.metadata.name), services.applications.resources(app.metadata.name)]);
+            this.loader.setData({application: updatedApp, resources});
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update application' e={e}/>,
@@ -295,7 +318,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         }
     }
 
-    private groupAppNodesByName(application: appModels.Application) {
+    private groupAppNodesByName(application: appModels.Application, resources: appModels.ResourceState[]) {
         const nodeByFullName = new Map<string, appModels.ResourceState | appModels.ResourceNode | appModels.Application>();
         function addChildren<T extends (appModels.ResourceNode | appModels.ResourceState) & { fullName: string, children: appModels.ResourceNode[] }>(node: T) {
             nodeByFullName.set(node.fullName, node);
@@ -306,7 +329,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
         if (application) {
             nodeByFullName.set(`${application.kind}:${application.metadata.name}`, application);
-            for (const node of (application.status.comparisonResult.resources || [])) {
+            for (const node of (resources || [])) {
                 const state = node.liveState || node.targetState;
                 addChildren({...node, children: node.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
             }
@@ -343,8 +366,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.appContext.apis.navigation.goto('.', { node });
     }
 
-    private async syncApplication(app: appModels.Application, revision: string, prune: boolean, selectedResources: boolean[]) {
-        let resources = selectedResources && app.status.comparisonResult.resources.filter((_, i) => selectedResources[i]).map((item) => {
+    private async syncApplication(app: appModels.Application, revision: string, prune: boolean, selectedResources: boolean[], appResources: appModels.ResourceState[]) {
+        let resources = selectedResources && appResources.filter((_, i) => selectedResources[i]).map((item) => {
             const res = item.targetState || item.liveState;
             const parts = res.apiVersion.split('/');
             const group = parts.length === 1 ? '' : parts[0];
@@ -355,7 +378,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             };
         }) || null;
         // Don't specify resources filter if user selected all resources
-        if (resources && resources.length === app.status.comparisonResult.resources.length) {
+        if (resources && resources.length === appResources.length) {
             resources = null;
         }
         await AppUtils.syncApplication(this.props.match.params.name, revision, prune, resources, this.appContext);
@@ -436,7 +459,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 }
 
                 const allStatuses = resourceNode.state.status && resourceNode.state.status.containerStatuses || [];
-                const readyStatuses = allStatuses.filter((s: ContainerStatus) => ('running' in s.state));
+                const readyStatuses = allStatuses.filter((s: { state: {[name: string]: any}; }) => ('running' in s.state));
                 const readyContainers = `${readyStatuses.length}/${allStatuses.length} containers ready`;
                 labels.push(readyContainers);
                 break;

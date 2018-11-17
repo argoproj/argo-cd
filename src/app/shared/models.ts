@@ -216,6 +216,15 @@ export interface ResourceNode {
     children: ResourceNode[];
 }
 
+export interface ResourceSummary {
+    group: string;
+    version: string;
+    kind: string;
+    name: string;
+    status: ComparisonStatus;
+    health: HealthStatus;
+}
+
 export interface ResourceState {
     targetState: State;
     liveState: State;
@@ -228,9 +237,9 @@ export interface ComparisonResult {
     comparedAt: models.Time;
     comparedTo: ApplicationSource;
     status: ComparisonStatus;
-    resources: ResourceState[];
     namespace: string;
     server: string;
+    resources: ResourceSummary[];
 }
 
 export interface ApplicationCondition {

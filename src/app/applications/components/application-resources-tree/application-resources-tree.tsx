@@ -51,6 +51,7 @@ function compareState(first: models.State, second: models.State) {
 
 export const ApplicationResourcesTree = (props: {
     app: models.Application,
+    resources: models.ResourceState[],
     kindsFilter: string[],
     selectedNodeFullName?: string,
     onNodeClick?: (fullName: string) => any,
@@ -71,7 +72,7 @@ export const ApplicationResourcesTree = (props: {
         }
     }
 
-    const resources = (props.app.status.comparisonResult.resources || []).slice().sort(
+    const resources = (props.resources || []).slice().sort(
         (first, second) => compareState(first.targetState || first.liveState, second.targetState || second.liveState));
     for (const res of resources) {
         const state = res.liveState || res.targetState;

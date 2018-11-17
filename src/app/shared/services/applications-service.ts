@@ -26,6 +26,23 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
     }
 
+    public resources(name: string): Promise<models.ResourceState[]> {
+        return requests.get(`/applications/${name}/resources`).then((res) => res.body.items as models.ResourceState[] || []).then((resources) => {
+            resources.forEach((resource) => {
+                resource.liveState = JSON.parse(resource.liveState as any);
+                resource.targetState = JSON.parse(resource.targetState as any);
+                function parseResourceNodes(node: models.ResourceNode) {
+                    node.state = JSON.parse(node.state as any);
+                    (node.children || []).forEach(parseResourceNodes);
+                }
+                (resource.childLiveResources || []).forEach((node) => {
+                    parseResourceNodes(node);
+                });
+            });
+            return resources;
+        });
+    }
+
     public getManifest(name: string, revision: string): Promise<models.ManifestResponse> {
         return requests.get(`/applications/${name}/manifests`).query({name, revision}).then((res) => res.body as models.ManifestResponse);
     }
@@ -94,17 +111,6 @@ export class ApplicationsService {
     private parseAppFields(data: any): models.Application {
         const app = data as models.Application;
         app.spec.project = app.spec.project || 'default';
-        (app.status.comparisonResult.resources || []).forEach((resource) => {
-            resource.liveState = JSON.parse(resource.liveState as any);
-            resource.targetState = JSON.parse(resource.targetState as any);
-            function parseResourceNodes(node: models.ResourceNode) {
-                node.state = JSON.parse(node.state as any);
-                (node.children || []).forEach(parseResourceNodes);
-            }
-            (resource.childLiveResources || []).forEach((node) => {
-                parseResourceNodes(node);
-            });
-        });
         app.kind = app.kind || 'Application';
         return app;
     }
