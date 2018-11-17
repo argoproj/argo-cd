@@ -22,10 +22,13 @@ spec:
       containers:
       - name: argocd-server
         image: argoproj/argocd:latest
+        imagePullPolicy: Always
         command: [argocd-server, --staticassets, /shared/app]
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        ports:
+        - containerPort: 8080
         readinessProbe:
           httpGet:
             path: /healthz

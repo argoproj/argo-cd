@@ -344,14 +344,20 @@ spec:
       containers:
       - command:
         - argocd-application-controller
-        - --repo-server
-        - argocd-repo-server:8081
         - --status-processors
         - "20"
         - --operation-processors
         - "10"
         image: argoproj/argocd:latest
+        imagePullPolicy: Always
         name: application-controller
+        ports:
+        - containerPort: 8083
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          tcpSocket:
+            port: 8083
       serviceAccountName: application-controller
 ---
 apiVersion: apps/v1
@@ -372,6 +378,7 @@ spec:
       - command:
         - argocd-repo-server
         image: argoproj/argocd:latest
+        imagePullPolicy: Always
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -400,7 +407,10 @@ spec:
         - --staticassets
         - /shared/app
         image: argoproj/argocd:latest
+        imagePullPolicy: Always
         name: argocd-server
+        ports:
+        - containerPort: 8080
         readinessProbe:
           httpGet:
             path: /healthz
@@ -444,6 +454,7 @@ spec:
         - /shared/argocd-util
         - rundex
         image: quay.io/dexidp/dex:v2.12.0
+        imagePullPolicy: Always
         name: dex
         ports:
         - containerPort: 5556
@@ -457,6 +468,7 @@ spec:
         - /usr/local/bin/argocd-util
         - /shared
         image: argoproj/argocd:latest
+        imagePullPolicy: Always
         name: copyutil
         volumeMounts:
         - mountPath: /shared
