@@ -157,16 +157,16 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 	for _, i := range ksonnetRes.Items {
 		d := filepath.Dir(i)
 		if _, ok := componentDirs[d]; ok {
-			items = append(items, &AppInfo{Type: string(repository.AppSourceKsonnet), Path: i})
+			items = append(items, &AppInfo{Type: string(appsv1.ApplicationSourceTypeKsonnet), Path: i})
 		}
 	}
 
 	for i := range helmRes.Items {
-		items = append(items, &AppInfo{Type: string(repository.AppSourceHelm), Path: helmRes.Items[i]})
+		items = append(items, &AppInfo{Type: string(appsv1.ApplicationSourceTypeHelm), Path: helmRes.Items[i]})
 	}
 
 	for i := range kustomizationRes.Items {
-		items = append(items, &AppInfo{Type: string(repository.AppSourceKustomize), Path: kustomizationRes.Items[i]})
+		items = append(items, &AppInfo{Type: string(appsv1.ApplicationSourceTypeKustomize), Path: kustomizationRes.Items[i]})
 	}
 
 	return &RepoAppsResponse{Items: items}, nil
@@ -210,7 +210,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 
 	appSourceType := repository.IdentifyAppSourceTypeByAppPath(q.Path)
 	switch appSourceType {
-	case repository.AppSourceKsonnet:
+	case appsv1.ApplicationSourceTypeKsonnet:
 		var appSpec KsonnetAppSpec
 		appSpec.Path = q.Path
 		err = yaml.Unmarshal(appSpecRes.Data, &appSpec)
@@ -221,7 +221,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 			Type:    string(appSourceType),
 			Ksonnet: &appSpec,
 		}, nil
-	case repository.AppSourceHelm:
+	case appsv1.ApplicationSourceTypeHelm:
 		var appSpec HelmAppSpec
 		appSpec.Path = q.Path
 		err = yaml.Unmarshal(appSpecRes.Data, &appSpec)
@@ -249,7 +249,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 			Type: string(appSourceType),
 			Helm: &appSpec,
 		}, nil
-	case repository.AppSourceKustomize:
+	case appsv1.ApplicationSourceTypeKustomize:
 		appSpec := KustomizeAppSpec{
 			Path: q.Path,
 		}

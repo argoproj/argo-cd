@@ -118,3 +118,24 @@ func TestContainsSyncResource(t *testing.T) {
 		}
 	}
 }
+
+func TestVerifyOneSourceType(t *testing.T) {
+	src := argoappv1.ApplicationSource{
+		Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+			Environment: "foo",
+		},
+		Kustomize: &argoappv1.ApplicationSourceKustomize{
+			NamePrefix: "foo",
+		},
+		Helm: &argoappv1.ApplicationSourceHelm{
+			ReleaseName: "foo",
+		},
+	}
+	assert.NotNil(t, verifyOneSourceType(&src))
+	src = argoappv1.ApplicationSource{
+		Helm: &argoappv1.ApplicationSourceHelm{
+			ReleaseName: "foo",
+		},
+	}
+	assert.Nil(t, verifyOneSourceType(&src))
+}

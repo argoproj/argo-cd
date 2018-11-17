@@ -18,6 +18,107 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 )
 
+// Application is a definition of Application resource.
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type Application struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Status            ApplicationStatus `json:"status" protobuf:"bytes,3,opt,name=status"`
+	Operation         *Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
+}
+
+// ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
+type ApplicationSpec struct {
+	// Source is a reference to the location ksonnet application definition
+	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
+	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
+	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
+	// Project is a application project name. Empty name means that application belongs to 'default' project.
+	Project string `json:"project" protobuf:"bytes,3,name=project"`
+	// SyncPolicy controls when a sync will be performed
+	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+}
+
+// ApplicationSource contains information about github repository, path within repository and target application environment.
+type ApplicationSource struct {
+	// RepoURL is the git repository URL of the application manifests
+	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
+	// Path is a directory path within the repository containing a
+	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
+	// Environment is a ksonnet application environment name
+	// DEPRECATED: specify environment in ksonnet.environment instead
+	Environment string `json:"environment,omitempty" protobuf:"bytes,3,opt,name=environment"`
+	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
+	// If omitted, will sync to HEAD
+	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
+	// ComponentParameterOverrides are a list of parameter override values
+	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
+	// ValuesFiles is a list of Helm values files to use when generating a template
+	// DEPRECATED: specify values in helm.valueFiles instead
+	ValuesFiles []string `json:"valuesFiles,omitempty" protobuf:"bytes,6,opt,name=valuesFiles"`
+	// Helm holds helm specific options
+	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
+	// Kustomize holds kustomize specific options
+	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
+	// Ksonnet holds ksonnet specific options
+	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
+}
+
+type ApplicationSourceType string
+
+const (
+	ApplicationSourceTypeHelm      ApplicationSourceType = "Helm"
+	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
+	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
+	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
+)
+
+// ApplicationSourceHelm holds helm specific options
+type ApplicationSourceHelm struct {
+	// The Helm release name. If omitted will use the application name
+	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,1,opt,name=releaseName"`
+	// ValuesFiles is a list of Helm value files to use when generating a template
+	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,2,opt,name=valueFiles"`
+}
+
+// ApplicationSourceKustomize holds kustomize specific options
+type ApplicationSourceKustomize struct {
+	// NamePrefix is a prefix appended to resources for kustomize apps
+	NamePrefix string `json:"namePrefix" protobuf:"bytes,1,opt,name=namePrefix"`
+}
+
+// ApplicationSourceKsonnet holds ksonnet specific options
+type ApplicationSourceKsonnet struct {
+	// Environment is a ksonnet application environment name
+	Environment string `json:"environment,omitempty" protobuf:"bytes,1,opt,name=environment"`
+}
+
+// ApplicationDestination contains deployment destination information
+type ApplicationDestination struct {
+	// Server overrides the environment server value in the ksonnet app.yaml
+	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
+	// Namespace overrides the environment namespace value in the ksonnet app.yaml
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+}
+
+// ApplicationStatus contains information about application status in target environment.
+type ApplicationStatus struct {
+	ComparisonResult ComparisonResult       `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
+	History          []DeploymentInfo       `json:"history" protobuf:"bytes,2,opt,name=history"`
+	Parameters       []ComponentParameter   `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
+	Health           HealthStatus           `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
+	OperationState   *OperationState        `json:"operationState,omitempty" protobuf:"bytes,5,opt,name=operationState"`
+	Conditions       []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,6,opt,name=conditions"`
+}
+
+// Operation contains requested operation parameters.
+type Operation struct {
+	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+}
+
 // SyncOperationResource contains resources to sync.
 type SyncOperationResource struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
@@ -59,11 +160,6 @@ type ParameterOverrides []ComponentParameter
 
 func (po ParameterOverrides) String() string {
 	return fmt.Sprintf("%v", []ComponentParameter(po))
-}
-
-// Operation contains requested operation parameters.
-type Operation struct {
-	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 }
 
 type OperationPhase string
@@ -215,18 +311,6 @@ type DeploymentInfo struct {
 	ID                          int64                `json:"id" protobuf:"bytes,5,opt,name=id"`
 }
 
-// Application is a definition of Application resource.
-// +genclient
-// +genclient:noStatus
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type Application struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            ApplicationStatus `json:"status" protobuf:"bytes,3,opt,name=status"`
-	Operation         *Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
-}
-
 // ApplicationWatchEvent contains information about application change.
 type ApplicationWatchEvent struct {
 	Type watch.EventType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
@@ -247,50 +331,11 @@ type ApplicationList struct {
 	Items           []Application `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-// ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
-type ApplicationSpec struct {
-	// Source is a reference to the location ksonnet application definition
-	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
-	// Destination overrides the kubernetes server and namespace defined in the environment ksonnet app.yaml
-	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
-	// Project is a application project name. Empty name means that application belongs to 'default' project.
-	Project string `json:"project" protobuf:"bytes,3,name=project"`
-	// SyncPolicy controls when a sync will be performed
-	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
-}
-
 // ComponentParameter contains information about component parameter value
 type ComponentParameter struct {
 	Component string `json:"component,omitempty" protobuf:"bytes,1,opt,name=component"`
 	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
-}
-
-// ApplicationSource contains information about github repository, path within repository and target application environment.
-type ApplicationSource struct {
-	// RepoURL is the git repository URL of the application manifests
-	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
-	// Path is a directory path within the repository containing a
-	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
-	// Environment is a ksonnet application environment name
-	Environment string `json:"environment,omitempty" protobuf:"bytes,3,opt,name=environment"`
-	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
-	// If omitted, will sync to HEAD
-	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
-	// ComponentParameterOverrides are a list of parameter override values
-	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
-	// ValuesFiles is a list of Helm values files to use when generating a template
-	ValuesFiles []string `json:"valuesFiles,omitempty" protobuf:"bytes,6,opt,name=valuesFiles"`
-	// NamePrefix is a prefix appended to resources for helm and kustomize apps
-	NamePrefix string `json:"namePrefix" protobuf:"bytes,7,opt,name=namePrefix"`
-}
-
-// ApplicationDestination contains deployment destination information
-type ApplicationDestination struct {
-	// Server overrides the environment server value in the ksonnet app.yaml
-	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
-	// Namespace overrides the environment namespace value in the ksonnet app.yaml
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }
 
 // ComparisonStatus is a type which represents possible comparison results
@@ -302,16 +347,6 @@ const (
 	ComparisonStatusSynced    ComparisonStatus = "Synced"
 	ComparisonStatusOutOfSync ComparisonStatus = "OutOfSync"
 )
-
-// ApplicationStatus contains information about application status in target environment.
-type ApplicationStatus struct {
-	ComparisonResult ComparisonResult       `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
-	History          []DeploymentInfo       `json:"history" protobuf:"bytes,2,opt,name=history"`
-	Parameters       []ComponentParameter   `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
-	Health           HealthStatus           `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
-	OperationState   *OperationState        `json:"operationState,omitempty" protobuf:"bytes,5,opt,name=operationState"`
-	Conditions       []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,6,opt,name=conditions"`
-}
 
 // ApplicationConditionType represents type of application condition. Type name has following convention:
 // prefix "Error" means error condition
@@ -725,4 +760,22 @@ func (r ResourceState) LiveObject() (*unstructured.Unstructured, error) {
 
 func (r ResourceState) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
+}
+
+// KsonnetEnv is helper to get the ksonnet environment from the legacy field or structured field
+// TODO: delete this helper when we drop the top level Environment field
+func KsonnetEnv(source *ApplicationSource) string {
+	if source.Ksonnet != nil && source.Ksonnet.Environment != "" {
+		return source.Ksonnet.Environment
+	}
+	return source.Environment
+}
+
+// HelmValueFiles is helper to get the helm value files from the legacy field or structured field
+// TODO: delete this helper when we drop the top level ValuesFiles field
+func HelmValueFiles(source *ApplicationSource) []string {
+	if source.Helm != nil && len(source.Helm.ValueFiles) > 0 {
+		return source.Helm.ValueFiles
+	}
+	return source.ValuesFiles
 }

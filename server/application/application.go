@@ -179,14 +179,11 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	}
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
-		Environment:                 a.Spec.Source.Environment,
-		Path:                        a.Spec.Source.Path,
 		Revision:                    revision,
 		ComponentParameterOverrides: overrides,
 		AppLabel:                    a.Name,
-		ValueFiles:                  a.Spec.Source.ValuesFiles,
 		Namespace:                   a.Spec.Destination.Namespace,
-		NamePrefix:                  a.Spec.Source.NamePrefix,
+		ApplicationSource:           &a.Spec.Source,
 	})
 	if err != nil {
 		return nil, err
@@ -291,7 +288,7 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 // throws an error is passed override is invalid
 // if passed override and old overrides are invalid, throws error, old overrides not dropped
 func (s *Server) removeInvalidOverrides(a *appv1.Application, q *ApplicationUpdateSpecRequest) (*ApplicationUpdateSpecRequest, error) {
-	if a.Spec.Source.Environment == "" {
+	if appv1.KsonnetEnv(&a.Spec.Source) == "" {
 		// this method is only valid for ksonnet apps
 		return q, nil
 	}

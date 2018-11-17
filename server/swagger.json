@@ -2209,11 +2209,16 @@
         },
         "environment": {
           "type": "string",
-          "title": "Environment is a ksonnet application environment name"
+          "title": "Environment is a ksonnet application environment name\nDEPRECATED: specify environment in ksonnet.environment instead"
         },
-        "namePrefix": {
-          "type": "string",
-          "title": "NamePrefix is a prefix appended to resources for helm and kustomize apps"
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
+        },
+        "ksonnet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKsonnet"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
         "path": {
           "type": "string",
@@ -2229,10 +2234,47 @@
         },
         "valuesFiles": {
           "type": "array",
-          "title": "ValuesFiles is a list of Helm values files to use when generating a template",
+          "title": "ValuesFiles is a list of Helm values files to use when generating a template\nDEPRECATED: specify values in helm.valueFiles instead",
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceHelm": {
+      "type": "object",
+      "title": "ApplicationSourceHelm holds helm specific options",
+      "properties": {
+        "releaseName": {
+          "type": "string",
+          "title": "The Helm release name. If omitted will use the application name"
+        },
+        "valueFiles": {
+          "type": "array",
+          "title": "ValuesFiles is a list of Helm value files to use when generating a template",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceKsonnet": {
+      "type": "object",
+      "title": "ApplicationSourceKsonnet holds ksonnet specific options",
+      "properties": {
+        "environment": {
+          "type": "string",
+          "title": "Environment is a ksonnet application environment name"
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceKustomize": {
+      "type": "object",
+      "title": "ApplicationSourceKustomize holds kustomize specific options",
+      "properties": {
+        "namePrefix": {
+          "type": "string",
+          "title": "NamePrefix is a prefix appended to resources for kustomize apps"
         }
       }
     },

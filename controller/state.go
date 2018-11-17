@@ -117,14 +117,11 @@ func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision stri
 
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
-		Environment:                 app.Spec.Source.Environment,
-		Path:                        app.Spec.Source.Path,
 		Revision:                    revision,
 		ComponentParameterOverrides: mfReqOverrides,
 		AppLabel:                    app.Name,
-		ValueFiles:                  app.Spec.Source.ValuesFiles,
 		Namespace:                   app.Spec.Destination.Namespace,
-		NamePrefix:                  app.Spec.Source.NamePrefix,
+		ApplicationSource:           &app.Spec.Source,
 	})
 	if err != nil {
 		return nil, nil, err

@@ -5,10 +5,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-
-	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/pkg/exec"
 )
 
 func testDataDir() (string, error) {
@@ -28,7 +28,11 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	kustomize := NewKustomizeApp(appPath)
-	objs, params, err := kustomize.Build("mynamespace", namePrefix, []*v1alpha1.ComponentParameter{{
+	opts := KustomizeBuildOpts{
+		Namespace:  "mynamespace",
+		NamePrefix: namePrefix,
+	}
+	objs, params, err := kustomize.Build(opts, []*v1alpha1.ComponentParameter{{
 		Component: "imagetag",
 		Name:      "k8s.gcr.io/nginx-slim",
 		Value:     "latest",

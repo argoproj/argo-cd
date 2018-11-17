@@ -10,14 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
@@ -181,23 +180,34 @@ func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *t
 
 // GetSpecErrors returns list of conditions which indicates that app spec is invalid. Following is checked:
 // * the git repository is accessible
-// * the git path contains a valid app.yaml
-// * the specified environment exists
+// * the git path contains valid manifests
 // * the referenced cluster has been added to Argo CD
 // * the app source repo and destination namespace/cluster are permitted in app project
+// * there are parameters of only one app source type
+// * ksonnet: the specified environment exists
 func GetSpecErrors(
-	ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, repoClientset reposerver.Clientset, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
-
+	ctx context.Context,
+	spec *argoappv1.ApplicationSpec,
+	proj *argoappv1.AppProject,
+	repoClientset reposerver.Clientset,
+	db db.ArgoDB,
+) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
+	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "spec.source.repoURL and spec.source.path are required",
+		})
+		return conditions, nil
+	}
 
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, err
 	}
-
-	repoAccessable := false
 	defer util.Close(conn)
+	repoAccessable := false
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
@@ -220,6 +230,11 @@ func GetSpecErrors(
 		repoAccessable = true
 	}
 
+	// Verify only one source type is defined
+	if multiSourceErr := verifyOneSourceType(&spec.Source); multiSourceErr != nil {
+		conditions = append(conditions, *multiSourceErr)
+	}
+
 	if repoAccessable {
 		appSourceType, err := queryAppSourceType(ctx, spec, repoRes, repoClient)
 		if err != nil {
@@ -229,27 +244,25 @@ func GetSpecErrors(
 			})
 		} else {
 			switch appSourceType {
-			case repository.AppSourceKsonnet:
+			case argoappv1.ApplicationSourceTypeKsonnet:
 				err := verifyAppYAML(ctx, repoRes, spec, repoClient)
 				if err != nil {
 					conditions = append(conditions, argoappv1.ApplicationCondition{
 						Type:    argoappv1.ApplicationConditionInvalidSpecError,
 						Message: err.Error(),
 					})
-
 				}
-			case repository.AppSourceHelm:
+			case argoappv1.ApplicationSourceTypeHelm:
 				helmConditions := verifyHelmChart(ctx, repoRes, spec, repoClient)
 				if len(helmConditions) > 0 {
 					conditions = append(conditions, helmConditions...)
 				}
-			case repository.AppSourceDirectory, repository.AppSourceKustomize:
+			case argoappv1.ApplicationSourceTypeDirectory, argoappv1.ApplicationSourceTypeKustomize:
 				maniDirConditions := verifyGenerateManifests(ctx, repoRes, spec, repoClient)
 				if len(maniDirConditions) > 0 {
 					conditions = append(conditions, maniDirConditions...)
 				}
 			}
-
 		}
 	}
 
@@ -287,6 +300,26 @@ func GetSpecErrors(
 	return conditions, nil
 }
 
+func verifyOneSourceType(source *argoappv1.ApplicationSource) *argoappv1.ApplicationCondition {
+	var appTypes []string
+	if source.Kustomize != nil {
+		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeKustomize))
+	}
+	if source.Helm != nil {
+		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeHelm))
+	}
+	if source.Ksonnet != nil {
+		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeKsonnet))
+	}
+	if len(appTypes) > 1 {
+		return &argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("multiple application sources defined: %s", strings.Join(appTypes, ",")),
+		}
+	}
+	return nil
+}
+
 // GetAppProject returns a project from an application
 func GetAppProject(spec *argoappv1.ApplicationSpec, appclientset appclientset.Interface, ns string) (*argoappv1.AppProject, error) {
 	if spec.BelongsToDefaultProject() {
@@ -297,7 +330,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, appclientset appclientset.In
 
 // queryAppSourceType queries repo server for yaml files in a directory, and determines its
 // application source type based on the files in the directory.
-func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepositoryServiceClient) (repository.AppSourceType, error) {
+func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepositoryServiceClient) (argoappv1.ApplicationSourceType, error) {
 	req := repository.ListDirRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
@@ -319,16 +352,16 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		trimmedPath := strings.TrimPrefix(gitPath, filepath.Clean(spec.Source.Path))
 		trimmedPath = strings.TrimPrefix(trimmedPath, "/")
 		if trimmedPath == "app.yaml" {
-			return repository.AppSourceKsonnet, nil
+			return argoappv1.ApplicationSourceTypeKsonnet, nil
 		}
 		if trimmedPath == "Chart.yaml" {
-			return repository.AppSourceHelm, nil
+			return argoappv1.ApplicationSourceTypeHelm, nil
 		}
 		if trimmedPath == "kustomization.yaml" {
-			return repository.AppSourceKustomize, nil
+			return argoappv1.ApplicationSourceTypeKustomize, nil
 		}
 	}
-	return repository.AppSourceDirectory, nil
+	return argoappv1.ApplicationSourceTypeDirectory, nil
 }
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
@@ -356,7 +389,7 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 	}
 
 	// Verify the specified environment is defined in the app spec
-	dest, err := ksonnet.Destination(getRes.Data, spec.Source.Environment)
+	dest, err := ksonnet.Destination(getRes.Data, argoappv1.KsonnetEnv(&spec.Source))
 	if err != nil {
 		return err
 	}
@@ -416,9 +449,9 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
-		Revision:  spec.Source.TargetRevision,
-		Path:      spec.Source.Path,
-		Namespace: spec.Destination.Namespace,
+		Revision:          spec.Source.TargetRevision,
+		Namespace:         spec.Destination.Namespace,
+		ApplicationSource: &spec.Source,
 	}
 	if repoRes != nil {
 		req.Repo.Username = repoRes.Username
