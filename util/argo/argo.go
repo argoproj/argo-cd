@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -315,7 +316,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 	}
 	for _, gitPath := range getRes.Items {
 		// gitPath may look like: app.yaml, or some/subpath/app.yaml
-		trimmedPath := strings.TrimPrefix(gitPath, spec.Source.Path)
+		trimmedPath := strings.TrimPrefix(gitPath, filepath.Clean(spec.Source.Path))
 		trimmedPath = strings.TrimPrefix(trimmedPath, "/")
 		if trimmedPath == "app.yaml" {
 			return repository.AppSourceKsonnet, nil
