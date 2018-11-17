@@ -41,7 +41,7 @@ IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
 .PHONY: all
-all: cli server-image controller-image repo-server-image argocd-util
+all: cli image argocd-util
 
 .PHONY: protogen
 protogen:

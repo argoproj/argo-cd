@@ -19,17 +19,13 @@ spec:
         arguments:
           parameters:
           - name: cmd
-            value: "{{item}}"
-        withItems:
-        - make image
+            value: make image
       - name: test
         template: ci-builder
         arguments:
           parameters:
           - name: cmd
-            value: "{{item}}"
-        withItems:
-        - dep ensure && make cli lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out
+            value: "dep ensure && make cli lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out"
       - name: test-e2e
         template: ci-builder
         arguments:
@@ -50,22 +46,20 @@ spec:
     container:
       image: argoproj/argo-cd-ci-builder:latest
       command: [bash, -c]
-      args: ["mkfifo pipe; tee /tmp/logs.txt < pipe & {{inputs.parameters.cmd}} > pipe"]
+      args: ["{{inputs.parameters.cmd}}"]
       workingDir: /go/src/github.com/argoproj/argo-cd
       env:
-        - name: CODECOV_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: codecov-token
-              key: codecov-token
+      - name: CODECOV_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: codecov-token
+            key: codecov-token
       resources:
         requests:
           memory: 1024Mi
           cpu: 200m
-    outputs:
-      artifacts:
-      - name: logs
-        path: /tmp/logs.txt
+    archiveLocation:
+      archiveLogs: true
 
   - name: ci-dind
     inputs:
@@ -80,7 +74,7 @@ spec:
     container:
       image: argoproj/argo-cd-ci-builder:latest
       command: [sh, -c]
-      args: ["mkfifo pipe; tee /tmp/logs.txt < pipe & until docker ps; do sleep 3; done && {{inputs.parameters.cmd}} > pipe"]
+      args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}}"]
       workingDir: /go/src/github.com/argoproj/argo-cd
       env:
       - name: DOCKER_HOST
@@ -95,7 +89,5 @@ spec:
       securityContext:
         privileged: true
       mirrorVolumeMounts: true
-    outputs:
-      artifacts:
-      - name: logs
-        path: /tmp/logs.txt
+    archiveLocation:
+      archiveLogs: true
