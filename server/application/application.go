@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -509,16 +507,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	gv, err := schema.ParseGroupVersion(q.APIVersion)
-	if err != nil {
-		return nil, err
-	}
-	resources, err := s.getAppResources(ctx, &services.ResourcesQuery{
-		ApplicationName: &a.Name,
-		Version:         &gv.Version,
-		Group:           &gv.Group,
-		Kind:            &q.Kind,
-	})
+	resources, err := s.getAppResources(ctx, &services.ResourcesQuery{ApplicationName: &a.Name})
 	if err != nil {
 		return nil, err
 	}
