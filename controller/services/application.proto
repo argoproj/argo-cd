@@ -1,0 +1,26 @@
+syntax = "proto2";
+option go_package = "github.com/argoproj/argo-cd/controller/services";
+
+package github.com.argoproj.argo_cd.controller.services;
+
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+
+message ResourcesQuery {
+    required string applicationName = 1;
+    optional string group = 2;
+    optional string version = 3;
+    optional string kind = 4;
+}
+
+message ResourcesResponse {
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceState items = 1;
+}
+
+
+// ApplicationService returns information about application
+service ApplicationService {
+
+    // Resources returns information about expected and observed application resources
+    rpc Resources(ResourcesQuery) returns (ResourcesResponse) {
+    }
+}

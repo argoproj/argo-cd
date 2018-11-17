@@ -1,8 +1,9 @@
 package application
 
 import (
-	"golang.org/x/net/context"
 	"testing"
+
+	"golang.org/x/net/context"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -123,6 +124,7 @@ func newTestAppServer() ApplicationServiceServer {
 		kubeclientset,
 		apps.NewSimpleClientset(defaultProj),
 		mockRepoClient,
+		nil,
 		kube.KubectlCmd{},
 		db,
 		enforcer,

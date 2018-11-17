@@ -100,22 +100,20 @@ func TestContainsSyncResource(t *testing.T) {
 	var (
 		blankUnstructured unstructured.Unstructured
 		blankResource     argoappv1.SyncOperationResource
-		helloResource     argoappv1.SyncOperationResource = argoappv1.SyncOperationResource{Name: "hello"}
+		helloResource     = argoappv1.SyncOperationResource{Name: "hello"}
 	)
 	tables := []struct {
 		u        *unstructured.Unstructured
 		rr       []argoappv1.SyncOperationResource
 		expected bool
 	}{
-		{nil, nil, false},
-		{nil, []argoappv1.SyncOperationResource{}, false},
 		{&blankUnstructured, []argoappv1.SyncOperationResource{}, false},
 		{&blankUnstructured, []argoappv1.SyncOperationResource{blankResource}, true},
 		{&blankUnstructured, []argoappv1.SyncOperationResource{helloResource}, false},
 	}
 
 	for _, table := range tables {
-		if out := ContainsSyncResource(table.u, table.rr); out != table.expected {
+		if out := ContainsSyncResource(table.u.GetName(), table.u.GroupVersionKind(), table.rr); out != table.expected {
 			t.Errorf("Expected %t for slice %+v conains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
 		}
 	}

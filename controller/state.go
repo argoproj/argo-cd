@@ -32,7 +32,7 @@ const (
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error)
+		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ResourceState, []v1alpha1.ApplicationCondition, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -212,7 +212,7 @@ func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*u
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ApplicationCondition, error) {
+	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ResourceState, []v1alpha1.ApplicationCondition, error) {
 
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -256,7 +256,7 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	// Do the actual comparison
 	diffResults, err := diff.DiffArray(targetObjs, controlledLiveObj)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	comparisonStatus := v1alpha1.ComparisonStatusSynced
@@ -283,7 +283,7 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		} else {
 			targetObjBytes, err := json.Marshal(targetObjs[i].Object)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 			resState.TargetState = string(targetObjBytes)
 		}
@@ -296,7 +296,7 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		} else {
 			liveObjBytes, err := json.Marshal(controlledLiveObj[i].Object)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 			resState.LiveState = string(liveObjBytes)
 		}
@@ -309,7 +309,7 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		if liveResource != nil {
 			childResources, err := getChildren(liveResource, liveObjByFullName)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 			resource.ChildLiveResources = childResources
 			resources[i] = resource
@@ -318,17 +318,42 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	if failedToLoadObjs {
 		comparisonStatus = v1alpha1.ComparisonStatusUnknown
 	}
+	resourceSummaries := make([]v1alpha1.ResourceSummary, len(resources))
+	for i := range resources {
+		obj, err := resources[i].LiveObject()
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		if obj == nil {
+			obj, err = resources[i].TargetObject()
+			if err != nil {
+				return nil, nil, nil, nil, err
+			}
+		}
+		if obj == nil {
+			return nil, nil, nil, nil, fmt.Errorf("both target and live object are nil")
+		}
+		gkv := obj.GroupVersionKind()
+		resourceSummaries[i] = v1alpha1.ResourceSummary{
+			Name:    obj.GetName(),
+			Kind:    gkv.Kind,
+			Version: gkv.Version,
+			Group:   gkv.Group,
+			Status:  resources[i].Status,
+			Health:  resources[i].Health,
+		}
+	}
 	compResult := v1alpha1.ComparisonResult{
 		ComparedTo: app.Spec.Source,
 		ComparedAt: metav1.Time{Time: time.Now().UTC()},
-		Resources:  resources,
 		Status:     comparisonStatus,
+		Resources:  resourceSummaries,
 	}
 
 	if manifestInfo != nil {
 		compResult.Revision = manifestInfo.Revision
 	}
-	return &compResult, manifestInfo, conditions, nil
+	return &compResult, manifestInfo, resources, conditions, nil
 }
 
 func hasParent(obj *unstructured.Unstructured) bool {

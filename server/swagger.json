@@ -139,6 +139,45 @@
         }
       }
     },
+    "/api/v1/applications/{applicationName}/resources": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "Resources",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "applicationName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/servicesResourcesResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}": {
       "get": {
         "tags": [
@@ -1552,6 +1591,17 @@
     "repositoryRepoResponse": {
       "type": "object"
     },
+    "servicesResourcesResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceState"
+          }
+        }
+      }
+    },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",
       "type": "object",
@@ -2321,7 +2371,7 @@
         "resources": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceState"
+            "$ref": "#/definitions/v1alpha1ResourceSummary"
           }
         },
         "revision": {
@@ -2590,6 +2640,30 @@
           "type": "string"
         },
         "targetState": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceSummary": {
+      "type": "object",
+      "title": "ResourceSummary holds the resource metadata and aggregated statuses",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "version": {
           "type": "string"
         }
       }

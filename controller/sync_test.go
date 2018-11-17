@@ -99,16 +99,13 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 func TestSyncCreateInSortedOrder(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "",
-			TargetState: "{\"kind\":\"pod\"}",
-		}, {
-			LiveState:   "",
-			TargetState: "{\"kind\":\"service\"}",
-		},
-		},
-	}
+	syncCtx.resources = []v1alpha1.ResourceState{{
+		LiveState:   "",
+		TargetState: "{\"kind\":\"pod\"}",
+	}, {
+		LiveState:   "",
+		TargetState: "{\"kind\":\"service\"}",
+	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
@@ -143,12 +140,10 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 	}
 
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "",
-			TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
-		}},
-	}
+	syncCtx.resources = []v1alpha1.ResourceState{{
+		LiveState:   "",
+		TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
+	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResourceDetailsSyncFailed, syncCtx.syncRes.Resources[0].Status)
@@ -163,12 +158,10 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 	}
 
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "",
-			TargetState: "{\"kind\":\"deployment\"}",
-		}},
-	}
+	syncCtx.resources = []v1alpha1.ResourceState{{
+		LiveState:   "",
+		TargetState: "{\"kind\":\"deployment\"}",
+	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResourceDetailsSyncFailed, syncCtx.syncRes.Resources[0].Status)
@@ -178,16 +171,13 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "",
-			TargetState: "{\"kind\":\"service\"}",
-		}, {
-			LiveState:   "{\"kind\":\"pod\"}",
-			TargetState: "",
-		},
-		},
-	}
+	syncCtx.resources = []v1alpha1.ResourceState{{
+		LiveState:   "",
+		TargetState: "{\"kind\":\"service\"}",
+	}, {
+		LiveState:   "{\"kind\":\"pod\"}",
+		TargetState: "",
+	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
@@ -206,16 +196,13 @@ func TestSyncSuccessfully(t *testing.T) {
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "{\"kind\":\"service\"}",
-			TargetState: "",
-		}, {
-			LiveState:   "{\"kind\":\"pod\"}",
-			TargetState: "",
-		},
-		},
-	}
+	syncCtx.resources = []v1alpha1.ResourceState{{
+		LiveState:   "{\"kind\":\"service\"}",
+		TargetState: "",
+	}, {
+		LiveState:   "{\"kind\":\"pod\"}",
+		TargetState: "",
+	}}
 	syncCtx.sync()
 	for i := range syncCtx.syncRes.Resources {
 		if syncCtx.syncRes.Resources[i].Kind == "pod" {
@@ -240,13 +227,10 @@ func TestSyncCreateFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "",
-			TargetState: "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
-		},
-		},
-	}
+	syncCtx.resources = []v1alpha1.ResourceState{{
+		LiveState:   "",
+		TargetState: "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
+	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResourceDetailsSyncFailed, syncCtx.syncRes.Resources[0].Status)
@@ -262,13 +246,10 @@ func TestSyncPruneFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.comparison = &v1alpha1.ComparisonResult{
-		Resources: []v1alpha1.ResourceState{{
-			LiveState:   "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
-			TargetState: "",
-		},
-		},
-	}
+	syncCtx.resources = []v1alpha1.ResourceState{{
+		LiveState:   "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
+		TargetState: "",
+	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResourceDetailsSyncFailed, syncCtx.syncRes.Resources[0].Status)

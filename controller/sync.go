@@ -32,6 +32,7 @@ type syncContext struct {
 	appName       string
 	proj          *appv1.AppProject
 	comparison    *appv1.ComparisonResult
+	resources     []appv1.ResourceState
 	config        *rest.Config
 	dynamicIf     dynamic.Interface
 	disco         discovery.DiscoveryInterface
@@ -83,7 +84,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
-	comparison, manifestInfo, conditions, err := s.CompareAppState(app, revision, overrides)
+	comparison, manifestInfo, resources, conditions, err := s.CompareAppState(app, revision, overrides)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
@@ -147,6 +148,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		opState:       state,
 		manifestInfo:  manifestInfo,
 		log:           log.WithFields(log.Fields{"application": app.Name}),
+		resources:     resources,
 	}
 
 	if state.Phase == appv1.OperationTerminating {
@@ -233,7 +235,7 @@ func (sc *syncContext) forceAppRefresh() {
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	syncTasks := make([]syncTask, 0)
-	for _, resourceState := range sc.comparison.Resources {
+	for _, resourceState := range sc.resources {
 		liveObj, err := resourceState.LiveObject()
 		if err != nil {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal live object: %v", err))
@@ -244,7 +246,10 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
 			return nil, false
 		}
-		if sc.syncResources == nil || argo.ContainsSyncResource(liveObj, sc.syncResources) || argo.ContainsSyncResource(targetObj, sc.syncResources) {
+		if sc.syncResources == nil ||
+			(liveObj != nil && argo.ContainsSyncResource(liveObj.GetName(), liveObj.GroupVersionKind(), sc.syncResources)) ||
+			(targetObj != nil && argo.ContainsSyncResource(targetObj.GetName(), targetObj.GroupVersionKind(), sc.syncResources)) {
+
 			syncTask := syncTask{
 				liveObj:   liveObj,
 				targetObj: targetObj,
@@ -253,7 +258,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 		}
 	}
 	if len(syncTasks) == 0 {
-		if len(sc.comparison.Resources) == 0 {
+		if len(sc.resources) == 0 {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Application has no resources"))
 		} else {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Specified resources filter does not match any application resource"))
@@ -510,7 +515,7 @@ func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Un
 	// already started the post-sync phase, then we do not need to perform the health check.
 	postSyncHooks, _ := sc.getHooks(appv1.HookTypePostSync)
 	if len(postSyncHooks) > 0 && !sc.startedPostSyncPhase() {
-		healthState, err := setApplicationHealth(sc.kubectl, sc.comparison)
+		healthState, err := setApplicationHealth(sc.kubectl, sc.comparison, sc.resources)
 		sc.log.Infof("PostSync application health check: %s", healthState.Status)
 		if err != nil {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to check application health: %v", err))

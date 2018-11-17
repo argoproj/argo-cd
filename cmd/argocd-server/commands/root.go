@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -23,20 +24,24 @@ const (
 
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
+
+	// DefaultAppControllerServerAddr is the gRPC address of the Argo CD app controller server
+	DefaultAppControllerServerAddr = "application-controller:8083"
 )
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		insecure               bool
-		logLevel               string
-		glogLevel              int
-		clientConfig           clientcmd.ClientConfig
-		staticAssetsDir        string
-		repoServerAddress      string
-		dexServerAddress       string
-		disableAuth            bool
-		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
+		insecure                   bool
+		logLevel                   string
+		glogLevel                  int
+		clientConfig               clientcmd.ClientConfig
+		staticAssetsDir            string
+		repoServerAddress          string
+		appControllerServerAddress string
+		dexServerAddress           string
+		disableAuth                bool
+		tlsConfigCustomizerSrc     func() (tls.ConfigCustomizer, error)
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -58,17 +63,19 @@ func NewCommand() *cobra.Command {
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
 			repoclientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
+			appcontrollerclientset := controller.NewAppControllerClientset(appControllerServerAddress)
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:            insecure,
-				Namespace:           namespace,
-				StaticAssetsDir:     staticAssetsDir,
-				KubeClientset:       kubeclientset,
-				AppClientset:        appclientset,
-				RepoClientset:       repoclientset,
-				DexServerAddr:       dexServerAddress,
-				DisableAuth:         disableAuth,
-				TLSConfigCustomizer: tlsConfigCustomizer,
+				Insecure:               insecure,
+				Namespace:              namespace,
+				StaticAssetsDir:        staticAssetsDir,
+				KubeClientset:          kubeclientset,
+				AppClientset:           appclientset,
+				RepoClientset:          repoclientset,
+				DexServerAddr:          dexServerAddress,
+				DisableAuth:            disableAuth,
+				TLSConfigCustomizer:    tlsConfigCustomizer,
+				AppControllerClientset: appcontrollerclientset,
 			}
 
 			stats.RegisterStackDumper()
@@ -91,6 +98,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", DefaultRepoServerAddr, "Repo server address")
+	command.Flags().StringVar(&appControllerServerAddress, "app-controller-server", DefaultAppControllerServerAddr, "App controller server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", DefaultDexServerAddr, "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))

@@ -51,15 +51,16 @@ const (
 
 // Fixture represents e2e tests fixture.
 type Fixture struct {
-	Config            *rest.Config
-	KubeClient        kubernetes.Interface
-	ExtensionsClient  apiextensionsclient.Interface
-	AppClient         appclientset.Interface
-	DB                db.ArgoDB
-	Namespace         string
-	RepoServerAddress string
-	ApiServerAddress  string
-	Enforcer          *rbac.Enforcer
+	Config                  *rest.Config
+	KubeClient              kubernetes.Interface
+	ExtensionsClient        apiextensionsclient.Interface
+	AppClient               appclientset.Interface
+	DB                      db.ArgoDB
+	Namespace               string
+	RepoServerAddress       string
+	ApiServerAddress        string
+	ControllerServerAddress string
+	Enforcer                *rbac.Enforcer
 
 	tearDownCallback func()
 }
@@ -120,7 +121,17 @@ func (f *Fixture) setup() error {
 		return err
 	}
 
+	repoServerPort, err := getFreePort()
+	if err != nil {
+		return err
+	}
+
 	apiServerPort, err := getFreePort()
+	if err != nil {
+		return err
+	}
+
+	controllerServerPort, err := getFreePort()
 	if err != nil {
 		return err
 	}
@@ -131,20 +142,19 @@ func (f *Fixture) setup() error {
 		return err
 	}
 	repoServerGRPC := repoSrv.CreateGRPC()
-	repoServerListener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return err
-	}
-	f.RepoServerAddress = repoServerListener.Addr().String()
+
+	f.RepoServerAddress = fmt.Sprintf("127.0.0.1:%d", repoServerPort)
 	f.ApiServerAddress = fmt.Sprintf("127.0.0.1:%d", apiServerPort)
+	f.ControllerServerAddress = fmt.Sprintf("127.0.0.1:%d", controllerServerPort)
 
 	apiServer := server.NewServer(server.ArgoCDServerOpts{
-		Namespace:     f.Namespace,
-		AppClientset:  f.AppClient,
-		DisableAuth:   true,
-		Insecure:      true,
-		KubeClientset: f.KubeClient,
-		RepoClientset: reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
+		Namespace:              f.Namespace,
+		AppClientset:           f.AppClient,
+		DisableAuth:            true,
+		Insecure:               true,
+		KubeClientset:          f.KubeClient,
+		RepoClientset:          reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
+		AppControllerClientset: controller.NewAppControllerClientset(f.ControllerServerAddress),
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -166,18 +176,40 @@ func (f *Fixture) setup() error {
 		return err == nil, nil
 	})
 
+	if err != nil {
+		cancel()
+		return err
+	}
+
 	ctrl := f.createController()
+	controllerServerGRPC, err := ctrl.CreateGRPC(func(config *tls.Config) {})
+	if err != nil {
+		cancel()
+		return err
+	}
 	ctrlCtx, cancelCtrl := context.WithCancel(context.Background())
 	go ctrl.Run(ctrlCtx, 1, 1)
+	go func() {
+		var listener net.Listener
+		listener, err = net.Listen("tcp", f.ControllerServerAddress)
+		if err == nil {
+			err = controllerServerGRPC.Serve(listener)
+		}
+	}()
 
 	go func() {
-		err = repoServerGRPC.Serve(repoServerListener)
+		var listener net.Listener
+		listener, err = net.Listen("tcp", f.RepoServerAddress)
+		if err == nil {
+			err = repoServerGRPC.Serve(listener)
+		}
 	}()
 
 	f.tearDownCallback = func() {
 		cancel()
 		cancelCtrl()
 		repoServerGRPC.Stop()
+		controllerServerGRPC.Stop()
 	}
 
 	return err

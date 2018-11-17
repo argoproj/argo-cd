@@ -9,6 +9,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd/api"
@@ -25,9 +26,8 @@ type SyncOperationResource struct {
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
-func (r SyncOperationResource) HasIdentity(u *unstructured.Unstructured) bool {
-	gvk := u.GroupVersionKind()
-	if u.GetName() == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
+func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionKind) bool {
+	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
 		return true
 	}
 	return false
@@ -347,8 +347,8 @@ type ComparisonResult struct {
 	ComparedAt metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
 	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
 	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
-	Resources  []ResourceState   `json:"resources" protobuf:"bytes,6,opt,name=resources"`
 	Revision   string            `json:"revision" protobuf:"bytes,7,opt,name=revision"`
+	Resources  []ResourceSummary `json:"resources,omitempty" protobuf:"bytes,8,opt,name=resources"`
 }
 
 type HealthStatus struct {
@@ -370,6 +370,20 @@ const (
 type ResourceNode struct {
 	State    string         `json:"state,omitempty" protobuf:"bytes,1,opt,name=state"`
 	Children []ResourceNode `json:"children,omitempty" protobuf:"bytes,2,opt,name=children"`
+}
+
+// ResourceSummary holds the resource metadata and aggregated statuses
+type ResourceSummary struct {
+	Group   string           `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version string           `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind    string           `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Name    string           `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	Status  ComparisonStatus `json:"status,omitempty" protobuf:"bytes,5,opt,name=status"`
+	Health  HealthStatus     `json:"health,omitempty" protobuf:"bytes,6,opt,name=health"`
+}
+
+func (r *ResourceSummary) GroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{Group: r.Group, Version: r.Version, Kind: r.Kind}
 }
 
 // ResourceState holds the target state of a resource and live state of a resource
@@ -691,32 +705,6 @@ func (c *Cluster) RESTConfig() *rest.Config {
 		BearerToken:     c.Config.BearerToken,
 		TLSClientConfig: tlsClientConfig,
 	}
-}
-
-// TargetObjects deserializes the list of target states into unstructured objects
-func (cr *ComparisonResult) TargetObjects() ([]*unstructured.Unstructured, error) {
-	objs := make([]*unstructured.Unstructured, len(cr.Resources))
-	for i, resState := range cr.Resources {
-		obj, err := resState.TargetObject()
-		if err != nil {
-			return nil, err
-		}
-		objs[i] = obj
-	}
-	return objs, nil
-}
-
-// LiveObjects deserializes the list of live states into unstructured objects
-func (cr *ComparisonResult) LiveObjects() ([]*unstructured.Unstructured, error) {
-	objs := make([]*unstructured.Unstructured, len(cr.Resources))
-	for i, resState := range cr.Resources {
-		obj, err := resState.LiveObject()
-		if err != nil {
-			return nil, err
-		}
-		objs[i] = obj
-	}
-	return objs, nil
 }
 
 func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error) {
