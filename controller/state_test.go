@@ -38,6 +38,9 @@ func TestIsHook(t *testing.T) {
 	pod.SetAnnotations(map[string]string{"helm.sh/hook": "post-install"})
 	assert.True(t, isHook(pod))
 
+	pod.SetAnnotations(map[string]string{"helm.sh/hook": "crd-install"})
+	assert.False(t, isHook(pod))
+
 	pod = newPod()
 	pod.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": "PreSync"})
 	assert.True(t, isHook(pod))

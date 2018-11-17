@@ -727,8 +727,22 @@ func isHelmHook(obj *unstructured.Unstructured) bool {
 	if annotations == nil {
 		return false
 	}
-	_, ok := annotations[common.AnnotationHelmHook]
+	hooks, ok := annotations[common.AnnotationHelmHook]
+
+	if ok && hasHook(hooks, common.HelmHookCRDInstall) {
+		return false
+	}
+
 	return ok
+}
+
+func hasHook(hooks string, hook string) bool {
+	for _, item := range strings.Split(hooks, ",") {
+		if strings.TrimSpace(item) == hook {
+			return true
+		}
+	}
+	return false
 }
 
 // isArgoHook indicates if the supplied object is an Argo CD application lifecycle hook
