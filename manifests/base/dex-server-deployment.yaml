@@ -15,6 +15,7 @@ spec:
       initContainers:
       - name: copyutil
         image: argoproj/argocd:latest
+        imagePullPolicy: Always
         command: [cp, /usr/local/bin/argocd-util, /shared]
         volumeMounts:
         - mountPath: /shared
@@ -22,6 +23,7 @@ spec:
       containers:
       - name: dex
         image: quay.io/dexidp/dex:v2.12.0
+        imagePullPolicy: Always
         command: [/shared/argocd-util, rundex]
         ports:
         - containerPort: 5556

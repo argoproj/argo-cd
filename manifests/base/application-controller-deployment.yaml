@@ -14,12 +14,18 @@ spec:
       containers:
       - command:
         - argocd-application-controller
-        - --repo-server
-        - argocd-repo-server:8081
         - --status-processors
         - "20"
         - --operation-processors
         - "10"
         image: argoproj/argocd:latest
+        imagePullPolicy: Always
         name: application-controller
+        ports:
+        - containerPort: 8083
+        readinessProbe:
+          tcpSocket:
+            port: 8083
+          initialDelaySeconds: 5
+          periodSeconds: 10
       serviceAccountName: application-controller

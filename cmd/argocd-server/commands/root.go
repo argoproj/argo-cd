@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -16,17 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
-)
-
-const (
-	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
-	DefaultDexServerAddr = "http://dex-server:5556"
-
-	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
-	DefaultRepoServerAddr = "argocd-repo-server:8081"
-
-	// DefaultAppControllerServerAddr is the gRPC address of the Argo CD app controller server
-	DefaultAppControllerServerAddr = "application-controller:8083"
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -97,9 +87,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
-	command.Flags().StringVar(&repoServerAddress, "repo-server", DefaultRepoServerAddr, "Repo server address")
-	command.Flags().StringVar(&appControllerServerAddress, "app-controller-server", DefaultAppControllerServerAddr, "App controller server address")
-	command.Flags().StringVar(&dexServerAddress, "dex-server", DefaultDexServerAddr, "Dex server address")
+	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
+	command.Flags().StringVar(&appControllerServerAddress, "app-controller-server", common.DefaultAppControllerServerAddr, "App controller server address")
+	command.Flags().StringVar(&dexServerAddress, "dex-server", common.DefaultDexServerAddr, "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)

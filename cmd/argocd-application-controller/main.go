@@ -18,6 +18,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
 	"github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -99,7 +100,7 @@ func newCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
-	command.Flags().StringVar(&repoServerAddress, "repo-server", "localhost:8081", "Repo server address.")
+	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
