@@ -17,4 +17,5 @@ type Item struct {
 type Cache interface {
 	Set(item *Item) error
 	Get(key string, obj interface{}) error
+	Delete(key string) error
 }

@@ -31,4 +31,8 @@ func TestCache(t *testing.T) {
 	assert.EqualValues(t, string(obj.Foo), "foo")
 	assert.EqualValues(t, string(obj.Bar), "bar")
 
+	err = c.Delete("key")
+	assert.Nil(t, err)
+	err = c.Get("key", &obj)
+	assert.Equal(t, err, ErrCacheMiss)
 }

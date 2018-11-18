@@ -135,11 +135,10 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 			existing.Spec = a.Spec
 			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
 		} else {
-			if reflect.DeepEqual(existing.Spec, a.Spec) {
-				return existing, nil
-			} else {
+			if !reflect.DeepEqual(existing.Spec, a.Spec) {
 				return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 			}
+			return existing, nil
 		}
 	}
 
@@ -677,6 +676,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
+	if a.DeletionTimestamp != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
+	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
 		if syncReq.Revision != "" && syncReq.Revision != a.Spec.Source.TargetRevision {
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.Revision, a.Spec.Source.TargetRevision)
@@ -734,8 +736,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
+	if a.DeletionTimestamp != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
+	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Rollback cannot be initiated when auto-sync is enabled")
+		return nil, status.Errorf(codes.FailedPrecondition, "rollback cannot be initiated when auto-sync is enabled")
 	}
 
 	var deploymentInfo *appv1.DeploymentInfo

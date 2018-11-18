@@ -1,13 +1,17 @@
 package application
 
 import (
+	"context"
 	"testing"
 
-	"golang.org/x/net/context"
-
+	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -22,8 +26,6 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 const (
@@ -78,7 +80,7 @@ func fakeListDirResponse() *repository.FileList {
 }
 
 // return an ApplicationServiceServer which returns fake data
-func newTestAppServer() ApplicationServiceServer {
+func newTestAppServer() *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm"},
 	}, &v1.Secret{
@@ -119,7 +121,7 @@ func newTestAppServer() ApplicationServiceServer {
 		},
 	}
 
-	return NewServer(
+	server := NewServer(
 		testNamespace,
 		kubeclientset,
 		apps.NewSimpleClientset(defaultProj),
@@ -130,27 +132,85 @@ func newTestAppServer() ApplicationServiceServer {
 		enforcer,
 		util.NewKeyLock(),
 	)
+	return server.(*Server)
+}
+
+const fakeApp = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://git.com/repo.git
+    targetRevision: HEAD
+    environment: default
+  destination:
+    namespace: dummy-namespace
+    server: https://cluster-api.com
+`
+
+func newTestApp() *appsv1.Application {
+	var app appsv1.Application
+	err := yaml.Unmarshal([]byte(fakeApp), &app)
+	if err != nil {
+		panic(err)
+	}
+	return &app
 }
 
 func TestCreateApp(t *testing.T) {
 	appServer := newTestAppServer()
 	createReq := ApplicationCreateRequest{
-		Application: appsv1.Application{
-			Spec: appsv1.ApplicationSpec{
-				Source: appsv1.ApplicationSource{
-					RepoURL:        fakeRepoURL,
-					Path:           "some/path",
-					Environment:    "default",
-					TargetRevision: "HEAD",
-				},
-				Destination: appsv1.ApplicationDestination{
-					Server:    "https://cluster-api.com",
-					Namespace: "default",
-				},
-			},
-		},
+		Application: *newTestApp(),
 	}
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.Nil(t, err)
 	assert.Equal(t, app.Spec.Project, "default")
+}
+
+func TestDeleteApp(t *testing.T) {
+	appServer := newTestAppServer()
+	createReq := ApplicationCreateRequest{
+		Application: *newTestApp(),
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.Nil(t, err)
+
+	app, err = appServer.Get(context.Background(), &ApplicationQuery{Name: &app.Name})
+	assert.Nil(t, err)
+	assert.NotNil(t, app)
+
+	fakeAppCs := appServer.appclientset.(*apps.Clientset)
+	// this removes the default */* reactor so we can set our own patch/delete reactor
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	deleted := false
+	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, nil
+	})
+	fakeAppCs.AddReactor("delete", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		deleted = true
+		return true, nil, nil
+	})
+	appServer.appclientset = fakeAppCs
+
+	trueVar := true
+	_, err = appServer.Delete(context.Background(), &ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
+	assert.Nil(t, err)
+	assert.True(t, patched)
+	assert.True(t, deleted)
+
+	// now call delete with cascade=false. patch should not be called
+	falseVar := false
+	patched = false
+	deleted = false
+	_, err = appServer.Delete(context.Background(), &ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
+	assert.Nil(t, err)
+	assert.False(t, patched)
+	assert.True(t, deleted)
+
 }
