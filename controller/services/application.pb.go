@@ -40,7 +40,7 @@ func (m *ResourcesQuery) Reset()         { *m = ResourcesQuery{} }
 func (m *ResourcesQuery) String() string { return proto.CompactTextString(m) }
 func (*ResourcesQuery) ProtoMessage()    {}
 func (*ResourcesQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_application_b7c966df2a6bd563, []int{0}
+	return fileDescriptor_application_ceea98df6b81388c, []int{0}
 }
 func (m *ResourcesQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -108,7 +108,7 @@ func (m *ResourcesResponse) Reset()         { *m = ResourcesResponse{} }
 func (m *ResourcesResponse) String() string { return proto.CompactTextString(m) }
 func (*ResourcesResponse) ProtoMessage()    {}
 func (*ResourcesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_application_b7c966df2a6bd563, []int{1}
+	return fileDescriptor_application_ceea98df6b81388c, []int{1}
 }
 func (m *ResourcesResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -729,10 +729,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("controller/services/application.proto", fileDescriptor_application_b7c966df2a6bd563)
+	proto.RegisterFile("controller/services/application.proto", fileDescriptor_application_ceea98df6b81388c)
 }
 
-var fileDescriptor_application_b7c966df2a6bd563 = []byte{
+var fileDescriptor_application_ceea98df6b81388c = []byte{
 	// 328 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x52, 0xcb, 0x4a, 0x03, 0x31,
 	0x14, 0x35, 0x7d, 0x20, 0x8d, 0xa0, 0x18, 0x5c, 0x0c, 0x5d, 0x94, 0x52, 0x10, 0x66, 0x63, 0x42,

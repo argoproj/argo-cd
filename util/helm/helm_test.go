@@ -34,7 +34,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			Value: "1234",
 		},
 	}
-	objs, err := h.Template("test", "", nil, overrides)
+	objs, err := h.Template("test", HelmTemplateOpts{}, overrides)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -52,7 +52,7 @@ func TestHelmTemplateParams(t *testing.T) {
 func TestHelmTemplateValues(t *testing.T) {
 	h := NewHelmApp("./testdata/redis")
 	valuesFiles := []string{"values-production.yaml"}
-	objs, err := h.Template("test", "", valuesFiles, nil)
+	objs, err := h.Template("test", HelmTemplateOpts{ValueFiles: valuesFiles}, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -69,7 +69,7 @@ func TestHelmTemplateValues(t *testing.T) {
 func TestHelmTemplateValuesURL(t *testing.T) {
 	h := NewHelmApp("./testdata/redis")
 	valuesFiles := []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"}
-	objs, err := h.Template("test", "", valuesFiles, nil)
+	objs, err := h.Template("test", HelmTemplateOpts{ValueFiles: valuesFiles}, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 	params, err := h.GetParameters(valuesFiles)
@@ -110,10 +110,10 @@ func TestHelmDependencyBuild(t *testing.T) {
 	h.SetHome(helmHome)
 	err = h.Init()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil, nil)
+	_, err = h.Template("wordpress", HelmTemplateOpts{}, nil)
 	assert.Error(t, err)
 	err = h.DependencyBuild()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", "", nil, nil)
+	_, err = h.Template("wordpress", HelmTemplateOpts{}, nil)
 	assert.NoError(t, err)
 }

@@ -4,13 +4,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
 	const countOfManifests = 23
 
-	q := ManifestRequest{}
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+	}
 	res1, err := generateManifests("../../manifests/base", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), countOfManifests)
@@ -22,7 +26,9 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
-	q := ManifestRequest{}
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+	}
 	res1, err := generateManifests("./testdata/jsonnet", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 2)

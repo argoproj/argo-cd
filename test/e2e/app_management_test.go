@@ -71,7 +71,7 @@ func TestAppManagement(t *testing.T) {
 		}
 		assert.Equal(t, appName, app.Name)
 		assert.Equal(t, "https://github.com/argoproj/argo-cd.git", app.Spec.Source.RepoURL)
-		assert.Equal(t, "minikube", app.Spec.Source.Environment)
+		assert.Equal(t, "minikube", v1alpha1.KsonnetEnv(&app.Spec.Source))
 		assert.Equal(t, ".", app.Spec.Source.Path)
 		assert.Equal(t, fixture.Namespace, app.Spec.Destination.Namespace)
 		assert.Equal(t, fixture.Config.Host, app.Spec.Destination.Server)

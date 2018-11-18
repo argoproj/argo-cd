@@ -14,7 +14,7 @@ import (
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(namespace string, namePrefix string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error)
+	Build(opts KustomizeBuildOpts, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -26,9 +26,17 @@ type kustomize struct {
 	path string
 }
 
-func (k *kustomize) Build(namespace string, namePrefix string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
-	if namespace != "" {
-		cmd := exec.Command("kustomize", "edit", "set", "namespace", namespace)
+// KustomizeBuildOpts are options to a `kustomize build` command
+type KustomizeBuildOpts struct {
+	// Namespace will run `kustomize edit set namespace` during manifest generation
+	Namespace string
+	// NamePrefix will run `kustomize edit set nameprefix` during manifest generation
+	NamePrefix string
+}
+
+func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
+	if opts.Namespace != "" {
+		cmd := exec.Command("kustomize", "edit", "set", "namespace", opts.Namespace)
 		cmd.Dir = k.path
 		_, err := argoexec.RunCommandExt(cmd)
 		if err != nil {
@@ -36,8 +44,8 @@ func (k *kustomize) Build(namespace string, namePrefix string, overrides []*v1al
 		}
 	}
 
-	if namePrefix != "" {
-		cmd := exec.Command("kustomize", "edit", "set", "nameprefix", namePrefix)
+	if opts.NamePrefix != "" {
+		cmd := exec.Command("kustomize", "edit", "set", "nameprefix", opts.NamePrefix)
 		cmd.Dir = k.path
 		_, err := argoexec.RunCommandExt(cmd)
 		if err != nil {

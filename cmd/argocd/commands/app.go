@@ -92,48 +92,13 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					}
 					appName = args[0]
 				}
-				if appOpts.repoURL == "" || appOpts.appPath == "" || appName == "" {
-					log.Fatal("name, repo, path are required")
-				}
 				app = argoappv1.Application{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: appName,
 					},
-					Spec: argoappv1.ApplicationSpec{
-						Project: appOpts.project,
-						Source: argoappv1.ApplicationSource{
-							RepoURL:        appOpts.repoURL,
-							Path:           appOpts.appPath,
-							Environment:    appOpts.env,
-							TargetRevision: appOpts.revision,
-						},
-					},
 				}
-			}
-			if appOpts.destServer != "" {
-				app.Spec.Destination.Server = appOpts.destServer
-			}
-			if appOpts.destNamespace != "" {
-				app.Spec.Destination.Namespace = appOpts.destNamespace
-			}
-			if appOpts.namePrefix != "" {
-				app.Spec.Source.NamePrefix = appOpts.namePrefix
-			}
-			setParameterOverrides(&app, appOpts.parameters)
-			if len(appOpts.valuesFiles) > 0 {
-				app.Spec.Source.ValuesFiles = appOpts.valuesFiles
-			}
-			switch appOpts.syncPolicy {
-			case "automated":
-				app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
-					Automated: &argoappv1.SyncPolicyAutomated{
-						Prune: appOpts.autoPrune,
-					},
-				}
-			case "none", "":
-				app.Spec.SyncPolicy = nil
-			default:
-				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
+				setAppOptions(c.Flags(), &app, &appOpts)
+				setParameterOverrides(&app, appOpts.parameters)
 			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
@@ -192,15 +157,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				fmt.Printf(printOpFmtStr, "Repo:", app.Spec.Source.RepoURL)
 				fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
 				fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
-				if app.Spec.Source.Environment != "" {
-					fmt.Printf(printOpFmtStr, "Environment:", app.Spec.Source.Environment)
-				}
-				if len(app.Spec.Source.ValuesFiles) > 0 {
-					fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(app.Spec.Source.ValuesFiles, ","))
-				}
-				if len(app.Spec.Source.NamePrefix) > 0 {
-					fmt.Printf(printOpFmtStr, "Name Prefix:", app.Spec.Source.NamePrefix)
-				}
+				printAppSourceDetails(&app.Spec.Source)
 				var syncPolicy string
 				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
 					syncPolicy = "Automated"
@@ -242,6 +199,21 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	return command
+}
+
+func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
+	if env := argoappv1.KsonnetEnv(appSrc); env != "" {
+		fmt.Printf(printOpFmtStr, "Environment:", env)
+	}
+	valueFiles := argoappv1.HelmValueFiles(appSrc)
+	if len(valueFiles) > 0 {
+		fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(valueFiles, ","))
+	}
+	if appSrc.Kustomize != nil {
+		if appSrc.Kustomize.NamePrefix != "" {
+			fmt.Printf(printOpFmtStr, "Name Prefix:", appSrc.Kustomize.NamePrefix)
+		}
+	}
 }
 
 func printAppConditions(w io.Writer, app *argoappv1.Application) {
@@ -287,8 +259,7 @@ func printParams(app *argoappv1.Application) {
 	}
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	isKsonnet := app.Spec.Source.Environment != ""
-	if isKsonnet {
+	if needsComponentColumn(&app.Spec.Source) {
 		fmt.Fprintf(w, "COMPONENT\tNAME\tVALUE\tOVERRIDE\n")
 		for _, p := range app.Status.Parameters {
 			overrideValue := overrides[fmt.Sprintf("%s/%s", p.Component, p.Name)]
@@ -302,6 +273,16 @@ func printParams(app *argoappv1.Application) {
 
 	}
 	_ = w.Flush()
+}
+
+// needsComponentColumn returns true if the app source is such that it requires parameters in the
+// COMPONENT=PARAM=NAME
+func needsComponentColumn(source *argoappv1.ApplicationSource) bool {
+	ksEnv := argoappv1.KsonnetEnv(source)
+	if ksEnv != "" {
+		return true
+	}
+	return false
 }
 
 // NewApplicationSetCommand returns a new instance of an `argocd app set` command
@@ -322,41 +303,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			defer util.Close(conn)
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			visited := 0
-			c.Flags().Visit(func(f *pflag.Flag) {
-				visited++
-				switch f.Name {
-				case "repo":
-					app.Spec.Source.RepoURL = appOpts.repoURL
-				case "path":
-					app.Spec.Source.Path = appOpts.appPath
-				case "env":
-					app.Spec.Source.Environment = appOpts.env
-				case "revision":
-					app.Spec.Source.TargetRevision = appOpts.revision
-				case "values":
-					app.Spec.Source.ValuesFiles = appOpts.valuesFiles
-				case "dest-server":
-					app.Spec.Destination.Server = appOpts.destServer
-				case "dest-namespace":
-					app.Spec.Destination.Namespace = appOpts.destNamespace
-				case "project":
-					app.Spec.Project = appOpts.project
-				case "name-prefix":
-					app.Spec.Source.NamePrefix = appOpts.namePrefix
-				case "sync-policy":
-					switch appOpts.syncPolicy {
-					case "automated":
-						app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
-							Automated: &argoappv1.SyncPolicyAutomated{},
-						}
-					case "none":
-						app.Spec.SyncPolicy = nil
-					default:
-						log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
-					}
-				}
-			})
+			visited := setAppOptions(c.Flags(), app, &appOpts)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
@@ -368,7 +315,6 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 				app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 			}
-
 			setParameterOverrides(app, appOpts.parameters)
 			oldOverrides := app.Spec.Source.ComponentParameterOverrides
 			updatedSpec, err := appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
@@ -383,6 +329,77 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	}
 	addAppFlags(command, &appOpts)
 	return command
+}
+
+func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *appOptions) int {
+	visited := 0
+	flags.Visit(func(f *pflag.Flag) {
+		visited++
+		switch f.Name {
+		case "repo":
+			app.Spec.Source.RepoURL = appOpts.repoURL
+		case "path":
+			app.Spec.Source.Path = appOpts.appPath
+		case "env":
+			setKsonnetOpt(&app.Spec.Source, &appOpts.env)
+		case "revision":
+			app.Spec.Source.TargetRevision = appOpts.revision
+		case "values":
+			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles, nil)
+		case "release-name":
+			setHelmOpt(&app.Spec.Source, nil, &appOpts.releaseName)
+		case "dest-server":
+			app.Spec.Destination.Server = appOpts.destServer
+		case "dest-namespace":
+			app.Spec.Destination.Namespace = appOpts.destNamespace
+		case "project":
+			app.Spec.Project = appOpts.project
+		case "nameprefix":
+			setKustomizeOpt(&app.Spec.Source, &appOpts.namePrefix)
+		case "sync-policy":
+			switch appOpts.syncPolicy {
+			case "automated":
+				app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
+					Automated: &argoappv1.SyncPolicyAutomated{},
+				}
+			case "none":
+				app.Spec.SyncPolicy = nil
+			default:
+				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
+			}
+		}
+	})
+	return visited
+}
+
+func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
+	if src.Ksonnet == nil {
+		src.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
+	}
+	if env != nil {
+		src.Ksonnet.Environment = *env
+	}
+}
+
+func setKustomizeOpt(src *argoappv1.ApplicationSource, namePrefix *string) {
+	if src.Kustomize == nil {
+		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
+	}
+	if namePrefix != nil {
+		src.Kustomize.NamePrefix = *namePrefix
+	}
+}
+
+func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string, releaseName *string) {
+	if src.Helm == nil {
+		src.Helm = &argoappv1.ApplicationSourceHelm{}
+	}
+	if valueFiles != nil {
+		src.Helm.ValueFiles = valueFiles
+	}
+	if releaseName != nil {
+		src.Helm.ReleaseName = *releaseName
+	}
 }
 
 func checkDroppedParams(newOverrides []argoappv1.ComponentParameter, oldOverrides []argoappv1.ComponentParameter) {
@@ -406,6 +423,7 @@ type appOptions struct {
 	destNamespace string
 	parameters    []string
 	valuesFiles   []string
+	releaseName   string
 	project       string
 	syncPolicy    string
 	autoPrune     bool
@@ -421,10 +439,11 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
 	command.Flags().StringArrayVarP(&opts.parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
+	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
-	command.Flags().StringVar(&opts.namePrefix, "name-prefix", "", "Set a prefix to add to resource names for kustomize and helm app")
+	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -432,13 +451,12 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	var (
 		parameters  []string
 		valuesFiles []string
-		namePrefix  bool
 	)
 	var command = &cobra.Command{
 		Use:   "unset APPNAME -p COMPONENT=PARAM",
 		Short: "Unset application parameters",
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 || (len(parameters) == 0 && len(valuesFiles) == 0 && !namePrefix) {
+			if len(args) != 1 || (len(parameters) == 0 && len(valuesFiles) == 0) {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -447,7 +465,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer util.Close(conn)
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			isKsonnetApp := app.Spec.Source.Environment != ""
+			isKsonnetApp := argoappv1.KsonnetEnv(&app.Spec.Source) != ""
 
 			updated := false
 			for _, paramStr := range parameters {
@@ -475,23 +493,21 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 					}
 				}
 			}
+			specValueFiles := argoappv1.HelmValueFiles(&app.Spec.Source)
 			for _, valuesFile := range valuesFiles {
-				for i, vf := range app.Spec.Source.ValuesFiles {
+				for i, vf := range specValueFiles {
 					if vf == valuesFile {
-						app.Spec.Source.ValuesFiles = append(app.Spec.Source.ValuesFiles[0:i], app.Spec.Source.ValuesFiles[i+1:]...)
+						specValueFiles = append(specValueFiles[0:i], specValueFiles[i+1:]...)
 						updated = true
 						break
 					}
 				}
 			}
-			if namePrefix {
-				app.Spec.Source.NamePrefix = ""
-				updated = true
-			}
-
+			setHelmOpt(&app.Spec.Source, specValueFiles, nil)
 			if !updated {
 				return
 			}
+
 			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
@@ -501,8 +517,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	}
 	command.Flags().StringArrayVarP(&parameters, "parameter", "p", []string{}, "unset a parameter override (e.g. -p guestbook=image)")
 	command.Flags().StringArrayVar(&valuesFiles, "values", []string{}, "unset one or more helm values files")
-	command.Flags().BoolVar(&namePrefix, "name-prefix", false, "Unset the name prefix")
-
 	return command
 }
 
@@ -670,8 +684,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			var fmtStr string
 			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "CONDITIONS"}
 			if output == "wide" {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
-				headers = append(headers, "ENV", "REPO", "PATH", "TARGET")
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				headers = append(headers, "REPO", "PATH", "TARGET")
 			} else {
 				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 			}
@@ -687,7 +701,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					formatConditionsSummary(app),
 				}
 				if output == "wide" {
-					vals = append(vals, app.Spec.Source.Environment, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
+					vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
 				}
 				fmt.Fprintf(w, fmtStr, vals...)
 			}
@@ -1136,10 +1150,10 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 	} else {
 		newParams = make([]argoappv1.ComponentParameter, 0)
 	}
-	isKsonnetApp := app.Spec.Source.Environment != ""
+	needsComponent := needsComponentColumn(&app.Spec.Source)
 	for _, paramStr := range parameters {
 		var newParam argoappv1.ComponentParameter
-		if isKsonnetApp {
+		if needsComponent {
 			parts := strings.SplitN(paramStr, "=", 3)
 			if len(parts) != 3 {
 				log.Fatalf("Expected ksonnet parameter of the form: component=param=value. Received: %s", paramStr)

@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/hash"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -32,15 +33,6 @@ import (
 const (
 	// DefaultRepoCacheExpiration is the duration for items to live in the repo cache
 	DefaultRepoCacheExpiration = 24 * time.Hour
-)
-
-type AppSourceType string
-
-const (
-	AppSourceKsonnet   AppSourceType = "ksonnet"
-	AppSourceHelm      AppSourceType = "helm"
-	AppSourceKustomize AppSourceType = "kustomize"
-	AppSourceDirectory AppSourceType = "directory"
 )
 
 // Service implements ManifestService interface
@@ -160,7 +152,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	appPath := filepath.Join(gitClient.Root(), q.Path)
+	appPath := filepath.Join(gitClient.Root(), q.ApplicationSource.Path)
 
 	genRes, err := generateManifests(appPath, q)
 	if err != nil {
@@ -179,6 +171,29 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	return &res, nil
 }
 
+// helper to formulate helm template options from a manifest request
+func helmOpts(q *ManifestRequest) helm.HelmTemplateOpts {
+	opts := helm.HelmTemplateOpts{
+		Namespace: q.Namespace,
+	}
+	valueFiles := v1alpha1.HelmValueFiles(q.ApplicationSource)
+	if q.ApplicationSource.Helm != nil {
+		opts.ReleaseName = q.ApplicationSource.Helm.ReleaseName
+		opts.ValueFiles = valueFiles
+	}
+	return opts
+}
+
+func kustomizeOpts(q *ManifestRequest) kustomize.KustomizeBuildOpts {
+	opts := kustomize.KustomizeBuildOpts{
+		Namespace: q.Namespace,
+	}
+	if q.ApplicationSource.Kustomize != nil {
+		opts.NamePrefix = q.ApplicationSource.Kustomize.NamePrefix
+	}
+	return opts
+}
+
 // generateManifests generates manifests from a path
 func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
@@ -188,31 +203,29 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 
 	appSourceType := IdentifyAppSourceTypeByAppDir(appPath)
 	switch appSourceType {
-	case AppSourceKsonnet:
-		targetObjs, params, dest, err = ksShow(appPath, q.Environment, q.ComponentParameterOverrides)
-	case AppSourceHelm:
-		// TODO: Add prefix
+	case v1alpha1.ApplicationSourceTypeKsonnet:
+		env := v1alpha1.KsonnetEnv(q.ApplicationSource)
+		targetObjs, params, dest, err = ksShow(appPath, env, q.ComponentParameterOverrides)
+	case v1alpha1.ApplicationSourceTypeHelm:
 		h := helm.NewHelmApp(appPath)
 		err = h.DependencyBuild()
 		if err != nil {
 			return nil, err
 		}
-		appName := q.AppLabel
-		if q.NamePrefix != "" {
-			appName = q.NamePrefix + q.AppLabel
-		}
-		targetObjs, err = h.Template(appName, q.Namespace, q.ValueFiles, q.ComponentParameterOverrides)
+		opts := helmOpts(q)
+		targetObjs, err = h.Template(q.AppLabel, opts, q.ComponentParameterOverrides)
 		if err != nil {
 			return nil, err
 		}
-		params, err = h.GetParameters(q.ValueFiles)
+		params, err = h.GetParameters(opts.ValueFiles)
 		if err != nil {
 			return nil, err
 		}
-	case AppSourceKustomize:
+	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath)
-		targetObjs, params, err = k.Build(q.Namespace, q.NamePrefix, q.ComponentParameterOverrides)
-	case AppSourceDirectory:
+		opts := kustomizeOpts(q)
+		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
+	case v1alpha1.ApplicationSourceTypeDirectory:
 		targetObjs, err = findManifests(appPath)
 	}
 	if err != nil {
@@ -271,31 +284,31 @@ func tempRepoPath(repo string) string {
 }
 
 // IdentifyAppSourceTypeByAppDir examines a directory and determines its application source type
-func IdentifyAppSourceTypeByAppDir(appDirPath string) AppSourceType {
+func IdentifyAppSourceTypeByAppDir(appDirPath string) v1alpha1.ApplicationSourceType {
 	if pathExists(appDirPath, "app.yaml") {
-		return AppSourceKsonnet
+		return v1alpha1.ApplicationSourceTypeKsonnet
 	}
 	if pathExists(appDirPath, "Chart.yaml") {
-		return AppSourceHelm
+		return v1alpha1.ApplicationSourceTypeHelm
 	}
 	if pathExists(appDirPath, "kustomization.yaml") {
-		return AppSourceKustomize
+		return v1alpha1.ApplicationSourceTypeKustomize
 	}
-	return AppSourceDirectory
+	return v1alpha1.ApplicationSourceTypeDirectory
 }
 
 // IdentifyAppSourceTypeByAppPath determines application source type by app file path
-func IdentifyAppSourceTypeByAppPath(appFilePath string) AppSourceType {
+func IdentifyAppSourceTypeByAppPath(appFilePath string) v1alpha1.ApplicationSourceType {
 	if strings.HasSuffix(appFilePath, "app.yaml") {
-		return AppSourceKsonnet
+		return v1alpha1.ApplicationSourceTypeKsonnet
 	}
 	if strings.HasSuffix(appFilePath, "Chart.yaml") {
-		return AppSourceHelm
+		return v1alpha1.ApplicationSourceTypeHelm
 	}
 	if strings.HasSuffix(appFilePath, "kustomization.yaml") {
-		return AppSourceKustomize
+		return v1alpha1.ApplicationSourceTypeKustomize
 	}
-	return AppSourceDirectory
+	return v1alpha1.ApplicationSourceTypeDirectory
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
@@ -317,9 +330,13 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 }
 
 func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
+	appSrc := q.ApplicationSource.DeepCopy()
+	appSrc.RepoURL = ""        // superceded by commitSHA
+	appSrc.TargetRevision = "" // superceded by commitSHA
+	appSrcStr, _ := json.Marshal(appSrc)
 	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
-	valuesFiles := strings.Join(q.ValueFiles, ",")
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%s|%s|%s|%s", q.AppLabel, q.Path, q.Environment, commitSHA, string(pStr), valuesFiles, q.Namespace, q.NamePrefix)
+	fnva := hash.FNVa(string(appSrcStr) + string(pStr))
+	return fmt.Sprintf("mfst|%s|%s|%s|%d", q.AppLabel, commitSHA, q.Namespace, fnva)
 }
 
 func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
@@ -350,7 +367,7 @@ func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) (
 	}
 	dest, err := ksApp.Destination(envName)
 	if err != nil {
-		return nil, nil, nil, status.Errorf(codes.NotFound, "environment %q does not exist in ksonnet app", envName)
+		return nil, nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	targetObjs, err := ksApp.Show(envName)
 	if err != nil {

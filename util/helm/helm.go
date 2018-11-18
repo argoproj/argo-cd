@@ -20,7 +20,7 @@ import (
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(name, namespace string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error)
+	Template(appName string, opts HelmTemplateOpts, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
@@ -29,6 +29,16 @@ type Helm interface {
 	SetHome(path string)
 	// Init runs `helm init --client-only`
 	Init() error
+}
+
+// HelmTemplateOpts are various options to send to a `helm template` command
+type HelmTemplateOpts struct {
+	// Values is list of multiple --values flag
+	ValueFiles []string
+	// Namespace maps to the --namespace flag
+	Namespace string
+	// ReleaseName maps to the --name flag
+	ReleaseName string
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
@@ -41,14 +51,19 @@ type helm struct {
 	home string
 }
 
-func (h *helm) Template(name, namespace string, valuesFiles []string, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
+func (h *helm) Template(appName string, opts HelmTemplateOpts, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
 	args := []string{
-		"template", ".", "--name", name,
+		"template", ".",
 	}
-	if namespace != "" {
-		args = append(args, "--namespace", namespace)
+	if opts.ReleaseName != "" {
+		args = append(args, "--name", appName)
+	} else {
+		args = append(args, "--name", appName)
 	}
-	for _, valuesFile := range valuesFiles {
+	if opts.Namespace != "" {
+		args = append(args, "--namespace", opts.Namespace)
+	}
+	for _, valuesFile := range opts.ValueFiles {
 		args = append(args, "-f", valuesFile)
 	}
 	for _, p := range overrides {
