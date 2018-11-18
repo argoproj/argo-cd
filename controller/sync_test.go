@@ -6,20 +6,19 @@ import (
 	"sort"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
-
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 type kubectlOutput struct {
