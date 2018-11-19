@@ -37,6 +37,11 @@ func (i *InMemoryCache) Get(key string, obj interface{}) error {
 	return gob.NewDecoder(&buf).Decode(obj)
 }
 
+func (i *InMemoryCache) Delete(key string) error {
+	i.memCache.Delete(key)
+	return nil
+}
+
 func (i *InMemoryCache) Flush() {
 	i.memCache.Flush()
 }

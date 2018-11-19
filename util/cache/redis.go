@@ -47,3 +47,7 @@ func (r *redisCache) Get(key string, obj interface{}) error {
 	}
 	return err
 }
+
+func (r *redisCache) Delete(key string) error {
+	return r.codec.Delete(key)
+}

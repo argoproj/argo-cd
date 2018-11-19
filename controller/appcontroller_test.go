@@ -5,9 +5,11 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
@@ -16,7 +18,12 @@ import (
 )
 
 func newFakeController(apps ...runtime.Object) *ApplicationController {
-	kubeClientset := fake.NewSimpleClientset()
+	var clust corev1.Secret
+	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
+	if err != nil {
+		panic(err)
+	}
+	kubeClientset := fake.NewSimpleClientset(&clust)
 	appClientset := appclientset.NewSimpleClientset(apps...)
 	repoClientset := reposerver.Clientset{}
 	return NewApplicationController(
@@ -27,6 +34,28 @@ func newFakeController(apps ...runtime.Object) *ApplicationController {
 		time.Minute,
 	)
 }
+
+var fakeCluster = `
+apiVersion: v1
+data:
+  # {"bearerToken":"fake","tlsClientConfig":{"insecure":true},"awsAuthConfig":null}
+  config: eyJiZWFyZXJUb2tlbiI6ImZha2UiLCJ0bHNDbGllbnRDb25maWciOnsiaW5zZWN1cmUiOnRydWV9LCJhd3NBdXRoQ29uZmlnIjpudWxsfQ==
+  # minikube
+  name: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
+  # https://localhost:6443
+  server: aHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3Zj
+kind: Secret
+metadata:
+  creationTimestamp: 2018-11-18T23:56:59Z
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  name: localhost-6443
+  namespace: argocd
+  resourceVersion: "732433"
+  selfLink: /api/v1/namespaces/argocd/secrets/kubernetes.default.svc-443
+  uid: a31808e1-eb8d-11e8-b3c3-9ae2f452bd03
+type: Opaque
+`
 
 var fakeApp = `
 apiVersion: argoproj.io/v1alpha1
@@ -228,4 +257,24 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications("argocd").Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, app.Operation)
+}
+
+// TestFinalizeAppDeletion verifies application deletion
+func TestFinalizeAppDeletion(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(app)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	patched := false
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, nil
+	})
+	err := ctrl.finalizeApplicationDeletion(app)
+	// TODO: use an interface to fake out the calls to GetResourcesWithLabel and DeleteResourceWithLabel
+	// For now just ensure we have an expected error condition
+	assert.Error(t, err)     // Change this to assert.Nil when we stub out GetResourcesWithLabel/DeleteResourceWithLabel
+	assert.False(t, patched) // Change this to assert.True when we stub out GetResourcesWithLabel/DeleteResourceWithLabel
+
 }

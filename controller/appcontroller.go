@@ -420,10 +420,9 @@ func retryUntilSucceed(action func() error, desc string, ctx context.Context, ti
 			if ctxCompleted {
 				log.Infof("Stop retrying %s", desc)
 				return
-			} else {
-				log.Warnf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
-				time.Sleep(timeout)
 			}
+			log.Warnf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
+			time.Sleep(timeout)
 		}
 
 	}
@@ -434,10 +433,8 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	if shutdown {
 		processNext = false
 		return
-	} else {
-		processNext = true
 	}
-
+	processNext = true
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -462,13 +459,20 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	if app.Operation != nil {
 		ctrl.processRequestedAppOperation(app)
 	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
-		ctrl.finalizeApplicationDeletion(app)
+		err = ctrl.finalizeApplicationDeletion(app)
+		if err != nil {
+			ctrl.setAppCondition(app, appv1.ApplicationCondition{
+				Type:    appv1.ApplicationConditionDeletionError,
+				Message: err.Error(),
+			})
+			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
+			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
+		}
 	}
-
 	return
 }
 
-func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) {
+func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Application) error {
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Deleting resources")
 	// Get refreshed application info, since informer app copy might be stale
@@ -477,37 +481,43 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		if !errors.IsNotFound(err) {
 			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
 		}
-		return
+		return nil
 	}
-
 	clst, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-
-	if err == nil {
-		config := clst.RESTConfig()
-		err = kube.DeleteResourcesWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
-		if err == nil {
-			app.SetCascadedDeletion(false)
-			var patch []byte
-			patch, err = json.Marshal(map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"finalizers": app.Finalizers,
-				},
-			})
-			if err == nil {
-				_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
-			}
-		}
-	}
 	if err != nil {
-		ctrl.setAppCondition(app, appv1.ApplicationCondition{
-			Type:    appv1.ApplicationConditionDeletionError,
-			Message: err.Error(),
-		})
-		message := fmt.Sprintf("Unable to delete application resources: %v", err)
-		ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
-	} else {
-		logCtx.Info("Successfully deleted resources")
+		return err
 	}
+	config := clst.RESTConfig()
+	err = kube.DeleteResourcesWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
+	if err != nil {
+		return err
+	}
+	objs, err := kube.GetResourcesWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
+	if err != nil {
+		return err
+	}
+	if len(objs) > 0 {
+		logCtx.Info("%d objects remaining for deletion", len(objs))
+		return nil
+	}
+	app.SetCascadedDeletion(false)
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": app.Finalizers,
+		},
+	})
+	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
+	if err != nil {
+		return err
+	}
+	// Purge the key from the cache
+	err = ctrl.appResources.Delete(app.Name)
+	if err != nil {
+		logCtx.Warnf("Failed to purge app cache after deletion")
+	}
+	logCtx.Info("Successfully deleted resources")
+	return nil
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
