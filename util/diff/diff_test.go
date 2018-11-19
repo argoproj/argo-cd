@@ -8,13 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/yudai/gojsondiff/formatter"
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/test"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 var (
@@ -44,8 +46,12 @@ func TestDiffWithNils(t *testing.T) {
 	// NOTE: if live is non-nil, and config is nil, this is not considered difference
 	// This "difference" is checked at the comparator.
 	assert.False(t, diffRes.Diff.Modified())
+	diffRes = TwoWayDiff(nil, resource)
+	assert.False(t, diffRes.Diff.Modified())
 
 	diffRes = Diff(resource, nil)
+	assert.True(t, diffRes.Diff.Modified())
+	diffRes = TwoWayDiff(resource, nil)
 	assert.True(t, diffRes.Diff.Modified())
 }
 
@@ -316,4 +322,38 @@ func TestRemoveNamespaceAnnotation(t *testing.T) {
 	}})
 	assert.Equal(t, "", obj.GetNamespace())
 	assert.Nil(t, obj.GetAnnotations())
+}
+
+const customObjConfig = `
+apiVersion: foo.io/v1
+kind: Foo
+metadata:
+  name: my-foo
+  namespace: kube-system
+spec:
+  foo: bar
+`
+
+const customObjLive = `
+apiVersion: foo.io/v1
+kind: Foo
+metadata:
+  creationTimestamp: 2018-07-17 09:17:05 UTC
+  name: my-foo
+  resourceVersion: '10308211'
+  selfLink: "/apis/rbac.authorization.k8s.io/v1/clusterroles/argocd-manager-role"
+  uid: 2c3d5405-89a2-11e8-aff0-42010a8a0fc6
+spec:
+  foo: bar
+`
+
+func TestIgnoreNamespaceForClusterScopedResources(t *testing.T) {
+	var configUn unstructured.Unstructured
+	var liveUn unstructured.Unstructured
+	err := yaml.Unmarshal([]byte(customObjLive), &liveUn)
+	assert.Nil(t, err)
+	err = yaml.Unmarshal([]byte(customObjConfig), &configUn)
+	assert.Nil(t, err)
+	dr := Diff(&configUn, &liveUn)
+	assert.False(t, dr.Modified)
 }

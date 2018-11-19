@@ -53,6 +53,7 @@ func Diff(config, live *unstructured.Unstructured) *DiffResult {
 func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 	var configObj, liveObj map[string]interface{}
 	if config != nil {
+		config = removeNamespaceAnnotation(config)
 		configObj = config.Object
 	}
 	if live != nil {
@@ -128,9 +129,9 @@ func stripTypeInformation(un *unstructured.Unstructured) *unstructured.Unstructu
 }
 
 // removeNamespaceAnnotation remove the namespace and an empty annotation map from the metadata.
-// The namespace field is *always* present in live objects, but not necessarily present in config
-// or last-applied. This results in a diff which we don't care about. We delete the two so that
-// the diff is more relevant.
+// The namespace field is present in live (namespaced) objects, but not necessarily present in
+// config or last-applied. This results in a diff which we don't care about. We delete the two so
+// that the diff is more relevant.
 func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Unstructured {
 	orig = orig.DeepCopy()
 	if metadataIf, ok := orig.Object["metadata"]; ok {
