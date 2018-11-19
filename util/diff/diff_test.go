@@ -112,7 +112,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveUn := kube.MustToUnstructured(liveDep)
 	res := Diff(configUn, liveUn)
 	if !assert.False(t, res.Modified) {
-		ascii, err := res.ASCIIFormat(configUn, formatOpts)
+		ascii, err := res.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -126,7 +126,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveUn = kube.MustToUnstructured(liveDep)
 	res = Diff(configUn, liveUn)
 	if !assert.False(t, res.Modified) {
-		ascii, err := res.ASCIIFormat(configUn, formatOpts)
+		ascii, err := res.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
@@ -147,7 +147,7 @@ func TestThreeWayDiff(t *testing.T) {
 	configUn = kube.MustToUnstructured(configDep)
 	liveUn = kube.MustToUnstructured(liveDep)
 	res = Diff(configUn, liveUn)
-	ascii, err := res.ASCIIFormat(configUn, formatOpts)
+	ascii, err := res.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
 	if ascii != "" {
 		log.Println(ascii)
@@ -206,7 +206,7 @@ func TestThreeWayDiffExample1(t *testing.T) {
 	assert.Nil(t, err)
 	dr := Diff(&configUn, &liveUn)
 	assert.False(t, dr.Modified)
-	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
 	assert.Nil(t, err)
 	if ascii != "" {
 		log.Println(ascii)
@@ -226,7 +226,7 @@ func TestThreeWayDiffExample2(t *testing.T) {
 	assert.NoError(t, err)
 	dr := Diff(&configUn, &liveUn)
 	assert.False(t, dr.Modified)
-	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
 	assert.Nil(t, err)
 	log.Println(ascii)
 }
@@ -254,30 +254,30 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 
 	dr := Diff(&configUn, &liveUn)
 	assert.True(t, dr.Modified)
-	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
 	assert.Nil(t, err)
 	log.Println(ascii)
 
 	// Check that we indicate missing/extra/changed correctly
-	showsMissing := false
-	showsExtra := false
+	showsMissing := 0
+	showsExtra := 0
 	showsChanged := 0
 	for _, line := range strings.Split(ascii, "\n") {
-		if strings.HasPrefix(line, `-      "foo": "bar"`) {
-			showsMissing = true
+		if strings.HasPrefix(line, `+      "foo": "bar"`) {
+			showsMissing++
 		}
-		if strings.HasPrefix(line, `+      "release": "elasticsearch4"`) {
-			showsExtra = true
+		if strings.HasPrefix(line, `-      "release": "elasticsearch4"`) {
+			showsExtra++
 		}
-		if strings.HasPrefix(line, `-      "chart": "elasticsearch-1.7.1"`) {
+		if strings.HasPrefix(line, `+      "chart": "elasticsearch-1.7.1"`) {
 			showsChanged++
 		}
-		if strings.HasPrefix(line, `+      "chart": "elasticsearch-1.7.0"`) {
+		if strings.HasPrefix(line, `-      "chart": "elasticsearch-1.7.0"`) {
 			showsChanged++
 		}
 	}
-	assert.True(t, showsMissing)
-	assert.True(t, showsExtra)
+	assert.Equal(t, 1, showsMissing)
+	assert.Equal(t, 1, showsExtra)
 	assert.Equal(t, 2, showsChanged)
 }
 
@@ -293,7 +293,7 @@ func TestThreeWayDiffExplicitNamespace(t *testing.T) {
 	assert.NoError(t, err)
 	dr := Diff(&configUn, &liveUn)
 	assert.False(t, dr.Modified)
-	ascii, err := dr.ASCIIFormat(&configUn, formatOpts)
+	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
 	assert.Nil(t, err)
 	log.Println(ascii)
 }

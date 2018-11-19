@@ -604,7 +604,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 					}
-					out, err := diffResults.Diffs[i].ASCIIFormat(compareObjs[i], formatOpts)
+					out, err := diffResults.Diffs[i].ASCIIFormat(liveObjs[i], formatOpts)
 					errors.CheckError(err)
 					fmt.Println(out)
 				}

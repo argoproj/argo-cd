@@ -61,3 +61,7 @@ required = [
 [[constraint]]
   branch = "master"
   name = "github.com/argoproj/pkg"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/yudai/gojsondiff"

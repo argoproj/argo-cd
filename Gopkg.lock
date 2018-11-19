@@ -753,15 +753,15 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:529ed3f98838f69e13761788d0cc71b44e130058fab13bae2ce09f7a176bced4"
+  branch = "master"
+  digest = "1:3cf699a0df65293cc8fd2339606950d3e2f6d02a435703951d1da411a23f7cef"
   name = "github.com/yudai/gojsondiff"
   packages = [
     ".",
     "formatter",
   ]
   pruneopts = ""
-  revision = "7b1b7adf999dab73a6eb02669c3d82dbb27a3dd6"
-  version = "1.0.0"
+  revision = "0525c875b75ca60b9e67ddc44496aa16f21066b0"
 
 [[projects]]
   branch = "master"

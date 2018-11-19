@@ -58,7 +58,7 @@ func TwoWayDiff(config, live *unstructured.Unstructured) *DiffResult {
 	if live != nil {
 		liveObj = jsonutil.RemoveMapFields(configObj, live.Object)
 	}
-	gjDiff := gojsondiff.New().CompareObjects(configObj, liveObj)
+	gjDiff := gojsondiff.New().CompareObjects(liveObj, configObj)
 	dr := DiffResult{
 		Diff:     gjDiff,
 		Modified: gjDiff.Modified(),
@@ -103,7 +103,7 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	}
 
 	// 3. diff the live object vs. the patched live object
-	gjDiff := gojsondiff.New().CompareObjects(patchedLive.Object, live.Object)
+	gjDiff := gojsondiff.New().CompareObjects(live.Object, patchedLive.Object)
 	dr := DiffResult{
 		Diff:     gjDiff,
 		Modified: gjDiff.Modified(),
