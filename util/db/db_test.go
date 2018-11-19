@@ -167,6 +167,9 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
   passwordSecret:
     name: managed-secret
     key: password
+  sshPrivateKeySecret:
+    name: managed-secret
+    key: sshPrivateKey
 `}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -177,13 +180,21 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			username: []byte("test-username"),
-			password: []byte("test-password"),
+			username:      []byte("test-username"),
+			password:      []byte("test-password"),
+			sshPrivateKey: []byte("test-ssh-private-key"),
 		},
 	})
 	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
 
-	_, err := db.UpdateRepository(context.Background(), &v1alpha1.Repository{Repo: "https://github.com/argoproj/argocd-example-apps", Password: "", Username: ""})
+	repo, err := db.GetRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
+	assert.Nil(t, err)
+	assert.Equal(t, "test-username", repo.Username)
+	assert.Equal(t, "test-password", repo.Password)
+	assert.Equal(t, "test-ssh-private-key", repo.SSHPrivateKey)
+
+	_, err = db.UpdateRepository(context.Background(), &v1alpha1.Repository{
+		Repo: "https://github.com/argoproj/argocd-example-apps", Password: "", Username: "", SSHPrivateKey: ""})
 	assert.Nil(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get("managed-secret", metav1.GetOptions{})
