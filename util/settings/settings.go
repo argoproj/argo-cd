@@ -69,7 +69,7 @@ type RepoCredentials struct {
 	URL                 string                   `json:"url,omitempty"`
 	UsernameSecret      *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	PasswordSecret      *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	SshPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKey,omitempty"`
+	SshPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 }
 
 const (
