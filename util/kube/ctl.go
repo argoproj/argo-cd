@@ -102,16 +102,8 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 	if err != nil {
 		return "", err
 	}
-
+	// 1. Run kubectl apply
 	var out []string
-	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-		outReconcile, err := runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
-		if err != nil {
-			return "", err
-		}
-		out = append(out, outReconcile)
-	}
-
 	applyArgs := []string{"apply"}
 	if force {
 		applyArgs = append(applyArgs, "--force")
@@ -121,6 +113,18 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 		return "", err
 	}
 	out = append(out, outApply)
+
+	// 2. If it is an RBAC resource, also run `kubectl auth reconcile`
+	// This should come after `kubectl apply` since `kubectl auth reconcile` has a side effect of
+	// auto-creating namespaces (see: https://github.com/kubernetes/kubernetes/issues/71185),
+	// behavior which we do not want. The earlier failed `kubectl apply` will guard us from that
+	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
+		outReconcile, err := runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		if err != nil {
+			return "", err
+		}
+		out = append(out, outReconcile)
+	}
 	return strings.Join(out, "\n"), nil
 }
 
