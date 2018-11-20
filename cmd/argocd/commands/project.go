@@ -3,13 +3,12 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
-	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -22,11 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/git"
-	projectutil "github.com/argoproj/argo-cd/util/project"
-)
-
-const (
-	policyTemplate = "p, proj:%s:%s, applications, %s, %s/%s, %s"
 )
 
 type projectOpts struct {
@@ -69,6 +63,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.AddCommand(NewProjectRoleCommand(clientOpts))
 	command.AddCommand(NewProjectCreateCommand(clientOpts))
+	command.AddCommand(NewProjectGetCommand(clientOpts))
 	command.AddCommand(NewProjectDeleteCommand(clientOpts))
 	command.AddCommand(NewProjectListCommand(clientOpts))
 	command.AddCommand(NewProjectSetCommand(clientOpts))
@@ -94,326 +89,6 @@ func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
 	command.Flags().StringVarP(&opts.action, "action", "a", "", "Action to grant/deny permission on (e.g. get, create, list, update, delete)")
 	command.Flags().StringVarP(&opts.permission, "permission", "p", "allow", "Whether to allow or deny access to object with the action.  This can only be 'allow' or 'deny'")
 	command.Flags().StringVarP(&opts.object, "object", "o", "", "Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'")
-}
-
-// NewProjectRoleCommand returns a new instance of the `argocd proj role` command
-func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	roleCommand := &cobra.Command{
-		Use:   "role",
-		Short: "Manage a project's roles",
-		Run: func(c *cobra.Command, args []string) {
-			c.HelpFunc()(c, args)
-			os.Exit(1)
-		},
-	}
-	roleCommand.AddCommand(NewProjectRoleListCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleGetCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleCreateCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleDeleteCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleCreateTokenCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleDeleteTokenCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleAddPolicyCommand(clientOpts))
-	roleCommand.AddCommand(NewProjectRoleRemovePolicyCommand(clientOpts))
-	return roleCommand
-}
-
-// NewProjectRoleAddPolicyCommand returns a new instance of an `argocd proj role add-policy` command
-func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		opts policyOpts
-	)
-	var command = &cobra.Command{
-		Use:   "add-policy PROJECT ROLE-NAME",
-		Short: "Add a policy to a project role",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			if len(opts.action) <= 0 {
-				log.Fatal("Action needs to longer than 0 characters")
-			}
-			if len(opts.object) <= 0 {
-				log.Fatal("Objects needs to longer than 0 characters")
-
-			}
-
-			projName := args[0]
-			roleName := args[1]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-
-			roleIndex, err := projectutil.GetRoleIndexByName(proj, roleName)
-			if err != nil {
-				log.Fatal(err)
-			}
-			role := proj.Spec.Roles[roleIndex]
-
-			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
-			proj.Spec.Roles[roleIndex].Policies = append(role.Policies, policy)
-
-			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-		},
-	}
-	addPolicyFlags(command, &opts)
-	return command
-}
-
-// NewProjectRoleRemovePolicyCommand returns a new instance of an `argocd proj role remove-policy` command
-func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		opts policyOpts
-	)
-	var command = &cobra.Command{
-		Use:   "remove-policy PROJECT ROLE-NAME",
-		Short: "Remove a policy from a role within a project",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			if opts.permission != "allow" && opts.permission != "deny" {
-				log.Fatal("Permission flag can only have the values 'allow' or 'deny'")
-			}
-
-			if len(opts.action) <= 0 {
-				log.Fatal("Action needs to longer than 0 characters")
-			}
-			if len(opts.object) <= 0 {
-				log.Fatal("Objects needs to longer than 0 characters")
-
-			}
-
-			projName := args[0]
-			roleName := args[1]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-
-			roleIndex, err := projectutil.GetRoleIndexByName(proj, roleName)
-			if err != nil {
-				log.Fatal(err)
-			}
-			role := proj.Spec.Roles[roleIndex]
-
-			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
-			duplicateIndex := -1
-			for i, policy := range role.Policies {
-				if policy == policyToRemove {
-					duplicateIndex = i
-					break
-				}
-			}
-			if duplicateIndex < 0 {
-				return
-			}
-			role.Policies[duplicateIndex] = role.Policies[len(role.Policies)-1]
-			proj.Spec.Roles[roleIndex].Policies = role.Policies[:len(role.Policies)-1]
-			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-		},
-	}
-	addPolicyFlags(command, &opts)
-	return command
-}
-
-// NewProjectRoleCreateCommand returns a new instance of an `argocd proj role create` command
-func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		description string
-	)
-	var command = &cobra.Command{
-		Use:   "create PROJECT ROLE-NAME",
-		Short: "Create a project role",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			roleName := args[1]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-
-			_, err = projectutil.GetRoleIndexByName(proj, roleName)
-			if err == nil {
-				return
-			}
-			proj.Spec.Roles = append(proj.Spec.Roles, v1alpha1.ProjectRole{Name: roleName, Description: description})
-
-			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-		},
-	}
-	command.Flags().StringVarP(&description, "description", "", "", "Project description")
-	return command
-}
-
-// NewProjectRoleDeleteCommand returns a new instance of an `argocd proj role delete` command
-func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
-		Use:   "delete PROJECT ROLE-NAME",
-		Short: "Delete a project role",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			roleName := args[1]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-
-			index, err := projectutil.GetRoleIndexByName(proj, roleName)
-			if err != nil {
-				return
-			}
-			proj.Spec.Roles[index] = proj.Spec.Roles[len(proj.Spec.Roles)-1]
-			proj.Spec.Roles = proj.Spec.Roles[:len(proj.Spec.Roles)-1]
-
-			_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-		},
-	}
-	return command
-}
-
-// NewProjectRoleCreateTokenCommand returns a new instance of an `argocd proj role create-token` command
-func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		expiresIn string
-	)
-	var command = &cobra.Command{
-		Use:   "create-token PROJECT ROLE-NAME",
-		Short: "Create a project token",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			roleName := args[1]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-			duration, err := timeutil.ParseDuration(expiresIn)
-			errors.CheckError(err)
-			token, err := projIf.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projName, Role: roleName, ExpiresIn: int64(duration.Seconds())})
-			errors.CheckError(err)
-			fmt.Println(token.Token)
-		},
-	}
-	command.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
-
-	return command
-}
-
-// NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
-func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
-		Use:   "delete-token PROJECT ROLE-NAME ISSUED-AT",
-		Short: "Delete a project token",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 3 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			roleName := args[1]
-			issuedAt, err := strconv.ParseInt(args[2], 10, 64)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			_, err = projIf.DeleteToken(context.Background(), &project.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
-			errors.CheckError(err)
-		},
-	}
-	return command
-}
-
-// NewProjectRoleListCommand returns a new instance of an `argocd proj roles list` command
-func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
-		Use:   "list PROJECT",
-		Short: "List all the roles in a project",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ROLE-NAME\tDESCRIPTION\n")
-			for _, role := range project.Spec.Roles {
-				fmt.Fprintf(w, "%s\t%s\n", role.Name, role.Description)
-			}
-			_ = w.Flush()
-		},
-	}
-	return command
-}
-
-// NewProjectRoleGetCommand returns a new instance of an `argocd proj roles get` command
-func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
-		Use:   "get PROJECT ROLE-NAME",
-		Short: "Get the details of a specific role",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			projName := args[0]
-			roleName := args[1]
-			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
-			defer util.Close(conn)
-
-			project, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
-			errors.CheckError(err)
-
-			index, err := projectutil.GetRoleIndexByName(project, roleName)
-			errors.CheckError(err)
-			role := project.Spec.Roles[index]
-
-			printRoleFmtStr := "%-15s%s\n"
-			fmt.Printf(printRoleFmtStr, "Role Name:", roleName)
-			fmt.Printf(printRoleFmtStr, "Description:", role.Description)
-			fmt.Printf("Policies:\n")
-			fmt.Printf("%s\n", project.ProjectPoliciesString())
-			fmt.Printf("JWT Tokens:\n")
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
-			for _, token := range role.JWTTokens {
-				expiresAt := "<none>"
-				if token.ExpiresAt > 0 {
-					expiresAt = humanizeTimestamp(token.ExpiresAt)
-				}
-				fmt.Fprintf(w, "%d\t%s\t%s\n", token.IssuedAt, humanizeTimestamp(token.IssuedAt), expiresAt)
-			}
-			_ = w.Flush()
-		},
-	}
-	return command
 }
 
 func humanizeTimestamp(epoch int64) string {
@@ -591,11 +266,11 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			for _, item := range proj.Spec.SourceRepos {
 				if item == "*" && item == url {
-					log.Info("Wildcard source repository is already defined in project")
+					fmt.Printf("Source repository '*' already allowed in project\n")
 					return
 				}
 				if item == git.NormalizeGitURL(url) {
-					log.Info("Specified source repository is already defined in project")
+					fmt.Printf("Source repository '%s' already allowed in project\n", item)
 					return
 				}
 			}
@@ -644,7 +319,7 @@ func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOpti
 			}
 		}
 		if index == -1 {
-			log.Info("Specified cluster resource is not blacklisted")
+			fmt.Printf("Group '%s' and kind '%s' not in blacklisted namespaced resources\n", group, kind)
 			return false
 		}
 		proj.Spec.NamespaceResourceBlacklist = append(proj.Spec.NamespaceResourceBlacklist[:index], proj.Spec.NamespaceResourceBlacklist[index+1:]...)
@@ -659,7 +334,7 @@ func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptio
 	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
 		for _, item := range proj.Spec.NamespaceResourceBlacklist {
 			if item.Group == group && item.Kind == kind {
-				log.Infof("Group '%s' and kind '%s' are already blacklisted in project", item.Group, item.Kind)
+				fmt.Printf("Group '%s' and kind '%s' already present in blacklisted namespaced resources\n", group, kind)
 				return false
 			}
 		}
@@ -681,7 +356,7 @@ func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions
 			}
 		}
 		if index == -1 {
-			log.Info("Specified cluster resource already denied in project")
+			fmt.Printf("Group '%s' and kind '%s' not in whitelisted cluster resources\n", group, kind)
 			return false
 		}
 		proj.Spec.ClusterResourceWhitelist = append(proj.Spec.ClusterResourceWhitelist[:index], proj.Spec.ClusterResourceWhitelist[index+1:]...)
@@ -696,7 +371,7 @@ func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOption
 	return modifyProjectResourceCmd(use, desc, clientOpts, func(proj *v1alpha1.AppProject, group string, kind string) bool {
 		for _, item := range proj.Spec.ClusterResourceWhitelist {
 			if item.Group == group && item.Kind == kind {
-				log.Infof("Group '%s' and kind '%s' are already whitelisted in project", item.Group, item.Kind)
+				fmt.Printf("Group '%s' and kind '%s' already present in whitelisted cluster resources\n", group, kind)
 				return false
 			}
 		}
@@ -735,7 +410,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				}
 			}
 			if index == -1 {
-				log.Info("Specified source repository does not exist in project")
+				fmt.Printf("Source repository '%s' does not exist in project\n", url)
 			} else {
 				proj.Spec.SourceRepos = append(proj.Spec.SourceRepos[:index], proj.Spec.SourceRepos[index+1:]...)
 				_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
@@ -781,9 +456,107 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\n")
 			for _, p := range projects.Items {
-				fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, p.Spec.Destinations, p.Spec.SourceRepos, p.Spec.ClusterResourceWhitelist, p.Spec.NamespaceResourceBlacklist)
+				printProjectLine(w, &p)
 			}
 			_ = w.Flush()
+		},
+	}
+	return command
+}
+
+func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
+	var destinations, sourceRepos, clusterWhitelist, namespaceBlacklist string
+	switch len(p.Spec.Destinations) {
+	case 0:
+		destinations = "<none>"
+	case 1:
+		destinations = fmt.Sprintf("%s,%s", p.Spec.Destinations[0].Server, p.Spec.Destinations[0].Namespace)
+	default:
+		destinations = fmt.Sprintf("%d destinations", len(p.Spec.Destinations))
+	}
+	switch len(p.Spec.SourceRepos) {
+	case 0:
+		sourceRepos = "<none>"
+	case 1:
+		sourceRepos = p.Spec.SourceRepos[0]
+	default:
+		sourceRepos = fmt.Sprintf("%d repos", len(p.Spec.SourceRepos))
+	}
+	switch len(p.Spec.ClusterResourceWhitelist) {
+	case 0:
+		clusterWhitelist = "<none>"
+	case 1:
+		clusterWhitelist = fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[0].Group, p.Spec.ClusterResourceWhitelist[0].Kind)
+	default:
+		clusterWhitelist = fmt.Sprintf("%d resources", len(p.Spec.ClusterResourceWhitelist))
+	}
+	switch len(p.Spec.NamespaceResourceBlacklist) {
+	case 0:
+		namespaceBlacklist = "<none>"
+	default:
+		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
+	}
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist)
+}
+
+// NewProjectGetCommand returns a new instance of an `argocd proj get` command
+func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	const printProjFmtStr = "%-34s%s\n"
+	var command = &cobra.Command{
+		Use:   "get PROJECT",
+		Short: "Get project details",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+			p, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+			fmt.Printf(printProjFmtStr, "Name:", p.Name)
+			fmt.Printf(printProjFmtStr, "Description:", p.Spec.Description)
+
+			// Print destinations
+			dest0 := "<none>"
+			if len(p.Spec.Destinations) > 0 {
+				dest0 = fmt.Sprintf("%s,%s", p.Spec.Destinations[0].Server, p.Spec.Destinations[0].Namespace)
+			}
+			fmt.Printf(printProjFmtStr, "Destinations:", dest0)
+			for i := 1; i < len(p.Spec.Destinations); i++ {
+				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s,%s", p.Spec.Destinations[i].Server, p.Spec.Destinations[i].Namespace))
+			}
+
+			// Print sources
+			src0 := "<none>"
+			if len(p.Spec.SourceRepos) > 0 {
+				src0 = p.Spec.SourceRepos[0]
+			}
+			fmt.Printf(printProjFmtStr, "Repositories:", src0)
+			for i := 1; i < len(p.Spec.SourceRepos); i++ {
+				fmt.Printf(printProjFmtStr, "", p.Spec.SourceRepos[i])
+			}
+
+			// Print whitelisted cluster resources
+			cwl0 := "<none>"
+			if len(p.Spec.ClusterResourceWhitelist) > 0 {
+				cwl0 = fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[0].Group, p.Spec.ClusterResourceWhitelist[0].Kind)
+			}
+			fmt.Printf(printProjFmtStr, "Whitelisted Cluster Resources:", cwl0)
+			for i := 1; i < len(p.Spec.ClusterResourceWhitelist); i++ {
+				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
+			}
+
+			// Print blacklisted namespaced resources
+			rbl0 := "<none>"
+			if len(p.Spec.NamespaceResourceBlacklist) > 0 {
+				rbl0 = fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
+			}
+			fmt.Printf(printProjFmtStr, "Blacklisted Namespaced Resources:", rbl0)
+			for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
+				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+			}
 		},
 	}
 	return command

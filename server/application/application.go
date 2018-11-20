@@ -28,6 +28,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
@@ -94,7 +95,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 	}
 	newItems := make([]appv1.Application, 0)
 	for _, a := range appList.Items {
-		if s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(a)) {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(a)) {
 			newItems = append(newItems, a)
 		}
 	}
@@ -109,7 +110,7 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "create", appRBACName(q.Application)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -129,7 +130,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 			return nil, status.Errorf(codes.Internal, "unable to check existing application details: %v", getErr)
 		}
 		if q.Upsert != nil && *q.Upsert {
-			if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(a)) {
+			if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)) {
 				return nil, grpc.ErrPermissionDenied
 			}
 			existing.Spec = a.Spec
@@ -154,7 +155,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo := s.getRepo(ctx, a.Spec.Source.RepoURL)
@@ -198,7 +199,7 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if q.Refresh {
@@ -220,7 +221,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	var (
@@ -263,7 +264,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv1.Application, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(*q.Application)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*q.Application)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -319,7 +320,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "update", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err = s.validateApp(ctx, &q.Spec)
@@ -357,7 +358,7 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 	s.projectLock.Lock(a.Spec.Project)
 	defer s.projectLock.Unlock(a.Spec.Project)
 
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -412,7 +413,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 		for next := range w.ResultChan() {
 			a := *next.Object.(*appv1.Application)
 			if q.Name == nil || *q.Name == "" || *q.Name == a.Name {
-				if !s.enf.EnforceClaims(claims, "applications", "get", appRBACName(a)) {
+				if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(a)) {
 					// do not emit apps user does not have accessing
 					continue
 				}
@@ -444,7 +445,7 @@ func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) e
 		}
 		return err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", proj.Name) {
+	if !s.enf.Enforce(ctx.Value("claims"), "projects", rbacpolicy.ActionGet, proj.Name) {
 		return status.Errorf(codes.PermissionDenied, "permission denied for project %s", proj.Name)
 	}
 	conditions, err := argo.GetSpecErrors(ctx, spec, proj, s.repoClientset, s.db)
@@ -499,7 +500,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourc
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "delete", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -529,7 +530,7 @@ func (s *Server) Resources(ctx context.Context, q *services.ResourcesQuery) (*se
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "get", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.getAppResources(ctx, q)
@@ -580,7 +581,7 @@ func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLo
 	if err != nil {
 		return err
 	}
-	if !s.enf.EnforceClaims(ws.Context().Value("claims"), "applications", "get", appRBACName(*a)) {
+	if !s.enf.Enforce(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return grpc.ErrPermissionDenied
 	}
 	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
@@ -673,7 +674,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if a.DeletionTimestamp != nil {
@@ -733,7 +734,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	if a.DeletionTimestamp != nil {
@@ -775,7 +776,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "applications", "sync", appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 

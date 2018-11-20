@@ -7,6 +7,7 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	scas "github.com/qiangmzsx/string-adapter"
 	log "github.com/sirupsen/logrus"
@@ -27,9 +28,12 @@ const (
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
 
-// ClaimsEnforcerFunc is func template
-type ClaimsEnforcerFunc func(rvals ...interface{}) bool
-
+// Enforcer is a wrapper around an Casbin enforcer that:
+// * is backed by a kubernetes config map
+// * has a predefined RBAC model
+// * supports a built-in policy
+// * supports a user-defined bolicy
+// * supports a custom JWT claims enforce function
 type Enforcer struct {
 	*casbin.Enforcer
 	adapter            *scas.Adapter
@@ -44,16 +48,22 @@ type Enforcer struct {
 	userDefinedPolicy string
 }
 
-func loadModel() model.Model {
+// ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
+type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
+
+var (
+	builtInModel model.Model
+)
+
+func init() {
 	box := packr.NewBox(".")
 	modelConf := box.String(builtinModelFile)
-	return casbin.NewModel(modelConf)
+	builtInModel = casbin.NewModel(modelConf)
 }
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
-	model := loadModel()
 	adapter := scas.NewAdapter("")
-	enf := casbin.NewEnforcer(model, adapter)
+	enf := casbin.NewEnforcer(builtInModel, adapter)
 	enf.EnableLog(false)
 	return &Enforcer{
 		Enforcer:           enf,
@@ -61,7 +71,7 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 		clientset:          clientset,
 		namespace:          namespace,
 		configmap:          configmap,
-		model:              model,
+		model:              builtInModel,
 		claimsEnforcerFunc: claimsEnforcer,
 	}
 }
@@ -79,36 +89,51 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 	e.claimsEnforcerFunc = claimsEnforcer
 }
 
-// Enforce is a wrapper around casbin.Enforce to additionally enforce a default role
+// Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
+// claims function
 func (e *Enforcer) Enforce(rvals ...interface{}) bool {
-	if e.Enforcer.Enforce(rvals...) {
-		return true
-	}
-	if e.defaultRole == "" {
-		return false
-	}
-	rvals = append([]interface{}{e.defaultRole}, rvals[1:]...)
-	return e.Enforcer.Enforce(rvals...)
+	return enforce(e.Enforcer, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
-// EnforceCustomPolicy enforce a custom policy with the buildin and user defined policies in case of explicit deny of that resource
-func (e *Enforcer) EnforceCustomPolicy(policy string, rvals ...interface{}) bool {
-	model := loadModel()
-	policies := fmt.Sprintf("%s\n%s\n%s", e.builtinPolicy, e.userDefinedPolicy, policy)
-	adapter := scas.NewAdapter(policies)
-	enf := casbin.NewEnforcer(model, adapter)
-	enf.EnableLog(false)
+// EnforceRuntimePolicy enforces a policy defined at run-time which augments the built-in and
+// user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
+// to override the run-time policy. Runs normal enforcement if run-time policy is empty.
+func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) bool {
+	var enf *casbin.Enforcer
+	if policy == "" {
+		enf = e.Enforcer
+	} else {
+		policies := fmt.Sprintf("%s\n%s\n%s", e.builtinPolicy, e.userDefinedPolicy, policy)
+		adapter := scas.NewAdapter(policies)
+		enf = casbin.NewEnforcer(builtInModel, adapter)
+	}
+	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
+}
+
+// enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
+func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
+	// check the default role
+	if defaultRole != "" && len(rvals) >= 2 {
+		rvals = append([]interface{}{defaultRole}, rvals[1:]...)
+		if enf.Enforce(rvals...) {
+			return true
+		}
+	}
+	// check if subject is jwt.Claims vs. a normal subject string and run custom claims
+	// enforcement func (if set)
+	sub := rvals[0]
+	switch sub.(type) {
+	case string:
+		// noop
+	case jwt.Claims:
+		if claimsEnforcerFunc != nil && claimsEnforcerFunc(sub.(jwt.Claims), rvals...) {
+			return true
+		}
+		rvals = append([]interface{}{""}, rvals[1:]...)
+	default:
+		rvals = append([]interface{}{""}, rvals[1:]...)
+	}
 	return enf.Enforce(rvals...)
-}
-
-// EnforceClaims checks if the first value is a jwt.Claims and runs enforce against its groups and sub
-func (e *Enforcer) EnforceClaims(rvals ...interface{}) bool {
-	// Return false if no enforcer is provided
-	if e.claimsEnforcerFunc == nil {
-		return false
-	}
-
-	return e.claimsEnforcerFunc(rvals...)
 }
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies

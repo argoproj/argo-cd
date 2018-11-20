@@ -15,9 +15,9 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -49,14 +49,14 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	err = validateProject(project)
+	err = projectutil.ValidateProject(project)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	index, err := projectutil.GetRoleIndexByName(project, q.Role)
+	_, index, err := projectutil.GetRoleByName(project, q.Role)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "project '%s' does not have role '%s'", q.Project, q.Role)
 	}
@@ -97,14 +97,14 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Project) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Project) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	err = validateProject(project)
+	err = projectutil.ValidateProject(project)
 	if err != nil {
 		return nil, err
 	}
@@ -112,14 +112,11 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 	s.projectLock.Lock(q.Project)
 	defer s.projectLock.Unlock(q.Project)
 
-	roleIndex, err := projectutil.GetRoleIndexByName(project, q.Role)
+	_, roleIndex, err := projectutil.GetRoleByName(project, q.Role)
 	if err != nil {
 		return &EmptyResponse{}, nil
 	}
-	if project.Spec.Roles[roleIndex].JWTTokens == nil {
-		return &EmptyResponse{}, nil
-	}
-	jwtTokenIndex, err := projectutil.GetJWTTokenIndexByIssuedAt(project, roleIndex, q.Iat)
+	_, jwtTokenIndex, err := projectutil.GetJWTToken(project, q.Role, q.Iat)
 	if err != nil {
 		return &EmptyResponse{}, nil
 	}
@@ -135,11 +132,11 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 
 // Create a new project.
 func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "create", q.Project.Name) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	err := validateProject(q.Project)
+	err := projectutil.ValidateProject(q.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +154,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 		newItems := make([]v1alpha1.AppProject, 0)
 		for i := range list.Items {
 			project := list.Items[i]
-			if s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", project.Name) {
+			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, project.Name) {
 				newItems = append(newItems, project)
 			}
 		}
@@ -168,7 +165,7 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 
 // Get returns a project by name
 func (s *Server) Get(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", q.Name) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
@@ -214,116 +211,12 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 	return removed
 }
 
-func validateJWTToken(proj string, token string, policy string) error {
-	err := validatePolicy(proj, policy)
-	if err != nil {
-		return err
-	}
-	policyComponents := strings.Split(policy, ",")
-	if strings.Trim(policyComponents[2], " ") != "applications" {
-		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as JWT tokens can only access applications", policy)
-	}
-	roleComponents := strings.Split(strings.Trim(policyComponents[1], " "), ":")
-	if len(roleComponents) != 3 {
-		return status.Errorf(codes.InvalidArgument, "incorrect number of role arguments for '%s' policy", policy)
-	}
-	if roleComponents[0] != "proj" {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as role should start with 'proj:'", policy)
-	}
-	if roleComponents[1] != proj {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other projects", policy)
-	}
-	if roleComponents[2] != token {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other roles", policy)
-	}
-	return nil
-}
-
-func validatePolicy(proj string, policy string) error {
-	policyComponents := strings.Split(policy, ",")
-	if len(policyComponents) != 6 {
-		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguments for '%s'", policy)
-	}
-	if strings.Trim(policyComponents[0], " ") != "p" {
-		return status.Errorf(codes.InvalidArgument, "policies can only use the policy format: '%s'", policy)
-	}
-	if len(strings.Trim(policyComponents[1], " ")) <= 0 {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as subject must be longer than 0 characters:", policy)
-	}
-	if len(strings.Trim(policyComponents[2], " ")) <= 0 {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as object must be longer than 0 characters:", policy)
-	}
-	if len(strings.Trim(policyComponents[3], " ")) <= 0 {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as action must be longer than 0 characters:", policy)
-	}
-	if !strings.HasPrefix(strings.Trim(policyComponents[4], " "), proj) {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policies can't grant access to other projects", policy)
-	}
-	effect := strings.Trim(policyComponents[5], " ")
-	if effect != "allow" && effect != "deny" {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as effect can only have value 'allow' or 'deny'", policy)
-	}
-	return nil
-}
-
-func validateProject(p *v1alpha1.AppProject) error {
-	destKeys := make(map[string]bool)
-	for _, dest := range p.Spec.Destinations {
-		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
-		if _, ok := destKeys[key]; !ok {
-			destKeys[key] = true
-		} else {
-			return status.Errorf(codes.InvalidArgument, "destination %s should not be listed more than once.", key)
-		}
-	}
-	srcRepos := make(map[string]bool)
-	for i, src := range p.Spec.SourceRepos {
-		if src != "*" {
-			src = git.NormalizeGitURL(src)
-		}
-		p.Spec.SourceRepos[i] = src
-		if _, ok := srcRepos[src]; !ok {
-			srcRepos[src] = true
-		} else {
-			return status.Errorf(codes.InvalidArgument, "source repository %s should not be listed more than once.", src)
-		}
-	}
-
-	roleNames := make(map[string]bool)
-	for _, role := range p.Spec.Roles {
-		existingPolicies := make(map[string]bool)
-		for _, policy := range role.Policies {
-			var err error
-			if role.JWTTokens != nil {
-				err = validateJWTToken(p.Name, role.Name, policy)
-			} else {
-				err = validatePolicy(p.Name, policy)
-			}
-			if err != nil {
-				return err
-			}
-			if _, ok := existingPolicies[policy]; !ok {
-				existingPolicies[policy] = true
-			} else {
-				return status.Errorf(codes.AlreadyExists, "policy '%s' already exists for role '%s'", policy, role.Name)
-			}
-		}
-		if _, ok := roleNames[role.Name]; !ok {
-			roleNames[role.Name] = true
-		} else {
-			return status.Errorf(codes.AlreadyExists, "can't have duplicate roles: role '%s' already exists", role.Name)
-		}
-	}
-
-	return nil
-}
-
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "update", q.Project.Name) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	err := validateProject(q.Project)
+	err := projectutil.ValidateProject(q.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -399,7 +292,7 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	if q.Name == common.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
 	}
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "delete", q.Name) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 
@@ -427,7 +320,7 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 }
 
 func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "projects", "get", q.Name) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})

@@ -96,9 +96,6 @@ func newTestAppServer() *Server {
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	enforcer.SetDefaultRole("role:admin")
-	enforcer.SetClaimsEnforcerFunc(func(rvals ...interface{}) bool {
-		return true
-	})
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(kubeclientset, testNamespace), kubeclientset)
 	ctx := context.Background()
 	_, err := db.CreateRepository(ctx, fakeRepo())

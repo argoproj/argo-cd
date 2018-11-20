@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"encoding/json"
+	"fmt"
 
 	jwtgo "github.com/dgrijalva/jwt-go"
 )
@@ -48,4 +49,18 @@ func GetGroups(claims jwtgo.MapClaims) []string {
 		}
 	}
 	return groups
+}
+
+// GetIssuedAt returns the issued at as an int64
+func GetIssuedAt(m jwtgo.MapClaims) (int64, error) {
+	switch iat := m["iat"].(type) {
+	case float64:
+		return int64(iat), nil
+	case json.Number:
+		return iat.Int64()
+	case int64:
+		return iat, nil
+	default:
+		return 0, fmt.Errorf("iat '%v' is not a number", iat)
+	}
 }

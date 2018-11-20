@@ -147,7 +147,7 @@ func (a *ClientApp) verifyAppState(state string) (*appState, error) {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
 		}
 	}
-	// TODO: purge the state string from the cache so that it is a true nonce
+	_ = a.states.Delete(state)
 	return &aState, nil
 }
 
