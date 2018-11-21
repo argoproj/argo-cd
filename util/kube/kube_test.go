@@ -2,6 +2,7 @@ package kube
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"testing"
 
@@ -253,6 +254,59 @@ func TestSetLabels(t *testing.T) {
 		assert.Equal(t, "my-app", depV1Beta1.Spec.Template.Labels[common.LabelApplicationName])
 	}
 
+}
+
+func TestSetJobLabel(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/job.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetLabel(&obj, common.LabelApplicationName, "my-app")
+	assert.Nil(t, err)
+
+	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+	assert.Nil(t, err)
+	log.Println(string(manifestBytes))
+
+	job := unstructured.Unstructured{}
+	err = json.Unmarshal(manifestBytes, &job)
+	assert.Nil(t, err)
+
+	labels := job.GetLabels()
+	assert.Equal(t, "my-app", labels[common.LabelApplicationName])
+
+	templateLabels, ok, err := unstructured.NestedMap(job.UnstructuredContent(), "spec", "template", "metadata", "labels")
+	assert.True(t, ok)
+	assert.Nil(t, err)
+	assert.Equal(t, "my-app", templateLabels[common.LabelApplicationName])
+}
+
+func TestSetSvcLabel(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+	err = SetLabel(&obj, common.LabelApplicationName, "my-app")
+	assert.Nil(t, err)
+
+	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+	assert.Nil(t, err)
+	log.Println(string(manifestBytes))
+
+	var s apiv1.Service
+	err = json.Unmarshal(manifestBytes, &s)
+	assert.Nil(t, err)
+
+	// // manifestBytes, err = json.MarshalIndent(j, "", "  ")
+	// // assert.Nil(t, err)
+	// // log.Println(string(manifestBytes))
+
+	log.Println(s.Name)
+	log.Println(s.ObjectMeta)
+	assert.Equal(t, "my-app", s.ObjectMeta.Labels[common.LabelApplicationName])
+	//assert.Equal(t, "my-app", j.Spec.Template.ObjectMeta.Labels[common.LabelApplicationName])
 }
 
 func TestCleanKubectlOutput(t *testing.T) {
