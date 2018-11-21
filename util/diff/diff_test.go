@@ -357,3 +357,91 @@ func TestIgnoreNamespaceForClusterScopedResources(t *testing.T) {
 	dr := Diff(&configUn, &liveUn)
 	assert.False(t, dr.Modified)
 }
+
+const secretConfig = `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+stringData:
+  foo: bar
+  bar: "1234"
+data:
+  baz: cXV4
+`
+
+const secretLive = `
+apiVersion: v1
+kind: Secret
+metadata:
+  creationTimestamp: 2018-11-19T11:30:40Z
+  name: my-secret
+  namespace: argocd
+  resourceVersion: "25848035"
+  selfLink: /api/v1/namespaces/argocd/secrets/my-secret
+  uid: 8b4a2766-ebee-11e8-93c0-42010a8a0013
+type: Opaque
+data:
+  foo: YmFy
+  bar: MTIzNA==
+  baz: cXV4
+`
+
+func TestSecretStringData(t *testing.T) {
+	var err error
+	var configUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretConfig), &configUn)
+	assert.Nil(t, err)
+
+	var liveUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretLive), &liveUn)
+	assert.Nil(t, err)
+
+	dr := Diff(&configUn, &liveUn)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
+		assert.Nil(t, err)
+		log.Println(ascii)
+	}
+}
+
+// This is invalid because foo is a number, not a string
+const secretInvalidConfig = `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+stringData:
+  foo: 1234
+`
+
+const secretInvalidLive = `
+apiVersion: v1
+kind: Secret
+metadata:
+  creationTimestamp: 2018-11-19T11:30:40Z
+  name: my-secret
+  namespace: argocd
+  resourceVersion: "25848035"
+  selfLink: /api/v1/namespaces/argocd/secrets/my-secret
+  uid: 8b4a2766-ebee-11e8-93c0-42010a8a0013
+type: Opaque
+data:
+  foo: MTIzNA==
+`
+
+func TestInvalidSecretStringData(t *testing.T) {
+	var err error
+	var configUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretInvalidConfig), &configUn)
+	assert.Nil(t, err)
+
+	var liveUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretInvalidLive), &liveUn)
+	assert.Nil(t, err)
+
+	dr := Diff(&configUn, nil)
+	assert.True(t, dr.Modified)
+}

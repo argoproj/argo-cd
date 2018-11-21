@@ -8,8 +8,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/yudai/gojsondiff"
 	"github.com/yudai/gojsondiff/formatter"
-	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
@@ -32,6 +33,7 @@ type DiffResultList struct {
 func Diff(config, live *unstructured.Unstructured) *DiffResult {
 	if config != nil {
 		config = stripTypeInformation(config)
+		encodeSecretStringData(config)
 	}
 	if live != nil {
 		live = stripTypeInformation(live)
@@ -42,7 +44,7 @@ func Diff(config, live *unstructured.Unstructured) *DiffResult {
 		if err == nil {
 			return dr
 		}
-		log.Warnf("three-way diff calculation failed: %v. Falling back to two-way diff", err)
+		log.Debugf("three-way diff calculation failed: %v. Falling back to two-way diff", err)
 	}
 	return TwoWayDiff(config, live)
 }
@@ -188,7 +190,7 @@ func getLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructur
 	if annots == nil {
 		return nil
 	}
-	lastAppliedStr, ok := annots[v1.LastAppliedConfigAnnotation]
+	lastAppliedStr, ok := annots[corev1.LastAppliedConfigAnnotation]
 	if !ok {
 		return nil
 	}
@@ -281,4 +283,42 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 	}
 	asciiFmt := formatter.NewAsciiFormatter(left.Object, formatOpts)
 	return asciiFmt.Format(d.Diff)
+}
+
+// encodeSecretStringData mutates the supplied object and encodes stringData to data. If the object
+// is not a secret, or is an invalid secret, then returns the same object
+func encodeSecretStringData(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	gvk := un.GroupVersionKind()
+	if gvk.Group != "" || gvk.Kind != "Secret" {
+		return
+	}
+	var secret corev1.Secret
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &secret)
+	if err != nil {
+		log.Warnf("object unable to convert to secret: %v", err)
+		return
+	}
+	if len(secret.StringData) == 0 {
+		return
+	}
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
+	for k, v := range secret.StringData {
+		secret.Data[k] = []byte(v)
+	}
+	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&secret)
+	if err != nil {
+		log.Warnf("object unable to convert from secret: %v", err)
+		return
+	}
+	err = unstructured.SetNestedMap(un.Object, newObj["data"].(map[string]interface{}), "data")
+	if err != nil {
+		log.Warnf("failed to set secret.data: %v", err)
+		return
+	}
+	delete(un.Object, "stringData")
 }
