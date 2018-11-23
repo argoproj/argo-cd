@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -252,17 +253,24 @@ p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
 `
 	enf.SetUserPolicy(policy)
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		return false
+	})
 
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
 
 	enf.EnableEnforce(false)
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
 	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
 }
 
 func TestUpdatePolicy(t *testing.T) {
@@ -299,4 +307,49 @@ func TestNoPolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
+}
+
+// TestClaimsEnforcerFunc tests
+func TestClaimsEnforcerFunc(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	claims := jwt.StandardClaims{
+		Subject: "foo",
+	}
+	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		return true
+	})
+	assert.True(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
+}
+
+// TestDefaultRoleWithRuntimePolicy tests the ability for a default role to still take affect when
+// enforcing a runtime policy
+func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	err := enf.syncUpdate(fakeConfigMap())
+	assert.Nil(t, err)
+	runtimePolicy := box.String(builtinPolicyFile)
+	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+	enf.SetDefaultRole("role:readonly")
+	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
+}
+
+// TestClaimsEnforcerFuncWithRuntimePolicy tests the ability for claims enforcer function to still
+// take effect when enforcing a runtime policy
+func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	err := enf.syncUpdate(fakeConfigMap())
+	assert.Nil(t, err)
+	runtimePolicy := box.String(builtinPolicyFile)
+	claims := jwt.StandardClaims{
+		Subject: "foo",
+	}
+	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		return true
+	})
+	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
 }

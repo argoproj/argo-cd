@@ -455,7 +455,7 @@ func (a *ArgoCDSettings) DexOAuth2ClientSecret() string {
 	return base64.URLEncoding.EncodeToString(sha)[:40]
 }
 
-// newInformers returns two new informers on the Argo CD
+// newInformers returns two new informers for Argo CD's settings (argocd-cm and argocd-secret)
 func (mgr *SettingsManager) newInformers() (cache.SharedIndexInformer, cache.SharedIndexInformer) {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))

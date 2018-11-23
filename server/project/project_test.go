@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,7 +28,7 @@ func TestProjectServer(t *testing.T) {
 	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(), "default", common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	enforcer.SetDefaultRole("role:admin")
-	enforcer.SetClaimsEnforcerFunc(func(rvals ...interface{}) bool {
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
 	existingProj := v1alpha1.AppProject{

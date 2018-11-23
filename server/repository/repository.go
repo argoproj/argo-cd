@@ -16,6 +16,7 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
@@ -92,7 +93,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	items := make([]appsv1.Repository, 0)
 	if urls != nil {
 		for _, url := range urls {
-			if s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", url) {
+			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
 				items = append(items, appsv1.Repository{Repo: url, ConnectionState: s.getConnectionState(ctx, url)})
 			}
 		}
@@ -102,7 +103,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", q.Repo) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -173,7 +174,7 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 }
 
 func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*RepoAppDetailsResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "get", q.Repo) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
@@ -263,7 +264,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "create", q.Repo.Repo) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	r := q.Repo
@@ -296,7 +297,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "update", q.Repo.Repo) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, "update", q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	_, err := s.db.UpdateRepository(ctx, q.Repo)
@@ -305,7 +306,7 @@ func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repo
 
 // Delete updates a repository
 func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
-	if !s.enf.EnforceClaims(ctx.Value("claims"), "repositories", "delete", q.Repo) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, "delete", q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := s.db.DeleteRepository(ctx, q.Repo)

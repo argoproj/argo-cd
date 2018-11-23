@@ -238,7 +238,7 @@ func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provi
 	http.HandleFunc("/auth/callback", callbackHandler)
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
-	log.Info("Opening browser for authentication")
+	fmt.Printf("Opening browser for authentication\n")
 
 	var url string
 	grantType := oidcutil.InferGrantType(oauth2conf, oidcConf)
@@ -250,7 +250,7 @@ func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provi
 	default:
 		log.Fatalf("Unsupported grant type: %v", grantType)
 	}
-	log.Infof("Performing %s flow login: %s", grantType, url)
+	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
 	err = open.Run(url)
 	errors.CheckError(err)
@@ -263,7 +263,7 @@ func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provi
 	if errMsg != "" {
 		log.Fatal(errMsg)
 	}
-	log.Info("Authentication successful")
+	fmt.Printf("Authentication successful\n")
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)

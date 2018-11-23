@@ -449,13 +449,10 @@ type ConnectionState struct {
 type Cluster struct {
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
-
 	// Name of the cluster. If omitted, will use the server address
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
-
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
-
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
 }
@@ -491,7 +488,7 @@ type ClusterConfig struct {
 	TLSClientConfig `json:"tlsClientConfig" protobuf:"bytes,4,opt,name=tlsClientConfig"`
 
 	// AWSAuthConfig contains IAM authentication configuration
-	AWSAuthConfig *AWSAuthConfig `json:"awsAuthConfig" protobuf:"bytes,5,opt,name=awsAuthConfig"`
+	AWSAuthConfig *AWSAuthConfig `json:"awsAuthConfig,omitempty" protobuf:"bytes,5,opt,name=awsAuthConfig"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -499,10 +496,9 @@ type TLSClientConfig struct {
 	// Server should be accessed without verifying the TLS certificate. For testing only.
 	Insecure bool `json:"insecure" protobuf:"bytes,1,opt,name=insecure"`
 	// ServerName is passed to the server for SNI and is used in the client to check server
-	// ceritificates against. If ServerName is empty, the hostname used to contact the
+	// certificates against. If ServerName is empty, the hostname used to contact the
 	// server is used.
 	ServerName string `json:"serverName,omitempty" protobuf:"bytes,2,opt,name=serverName"`
-
 	// CertData holds PEM-encoded bytes (typically read from a client certificate file).
 	// CertData takes precedence over CertFile
 	CertData []byte `json:"certData,omitempty" protobuf:"bytes,3,opt,name=certData"`
@@ -537,7 +533,12 @@ type AppProjectList struct {
 	Items           []AppProject `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-// AppProject is a definition of AppProject resource.
+// AppProject provides a logical grouping of applications, providing controls for:
+// * where the apps may deploy to (cluster whitelist)
+// * what may be deployed (repository whitelist, resource whitelist/blacklist)
+// * who can access these applications (roles, OIDC group claims bindings)
+// * and what they can do (RBAC policies)
+// * automation access to these roles (JWT tokens)
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -547,6 +548,42 @@ type AppProject struct {
 	Spec              AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
+// AppProjectSpec is the specification of an AppProject
+type AppProjectSpec struct {
+	// SourceRepos contains list of git repository URLs which can be used for deployment
+	SourceRepos []string `json:"sourceRepos" protobuf:"bytes,1,name=sourceRepos"`
+	// Destinations contains list of destinations available for deployment
+	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,2,name=destination"`
+	// Description contains optional project description
+	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
+	// Roles are user defined RBAC roles associated with this project
+	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
+	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
+	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
+	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
+	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
+}
+
+// ProjectRole represents a role that has access to a project
+type ProjectRole struct {
+	// Name is a name for this role
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Description is a description of the role
+	Description string `json:"description" protobuf:"bytes,2,opt,name=description"`
+	// Policies Stores a list of casbin formated strings that define access policies for the role in the project
+	Policies []string `json:"policies" protobuf:"bytes,3,rep,name=policies"`
+	// JWTTokens are a list of generated JWT tokens bound to this role
+	JWTTokens []JWTToken `json:"jwtTokens,omitempty" protobuf:"bytes,4,rep,name=jwtTokens"`
+	// Groups are a list of OIDC group claims bound to this role
+	Groups []string `json:"groups,omitempty" protobuf:"bytes,5,rep,name=groups"`
+}
+
+// JWTToken holds the issuedAt and expiresAt values of a token
+type JWTToken struct {
+	IssuedAt  int64 `json:"iat,omitempty" protobuf:"int64,1,opt,name=iat"`
+	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
+}
+
 // ProjectPoliciesString returns Casbin formated string of a project's polcies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
@@ -554,43 +591,11 @@ func (proj *AppProject) ProjectPoliciesString() string {
 		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.ObjectMeta.Name, role.Name, proj.ObjectMeta.Name)
 		policies = append(policies, projectPolicy)
 		policies = append(policies, role.Policies...)
+		for _, groupName := range role.Groups {
+			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.ObjectMeta.Name, role.Name))
+		}
 	}
 	return strings.Join(policies, "\n")
-}
-
-// AppProjectSpec represents
-type AppProjectSpec struct {
-	// SourceRepos contains list of git repository URLs which can be used for deployment
-	SourceRepos []string `json:"sourceRepos" protobuf:"bytes,1,name=sourceRepos"`
-
-	// Destinations contains list of destinations available for deployment
-	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,2,name=destination"`
-
-	// Description contains optional project description
-	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
-
-	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
-
-	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
-	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
-
-	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
-	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
-}
-
-// ProjectRole represents a role that has access to a project
-type ProjectRole struct {
-	Name        string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Description string `json:"description" protobuf:"bytes,2,opt,name=description"`
-	// Policies Stores a list of casbin formated strings that define access policies for the role in the project.
-	Policies  []string   `json:"policies" protobuf:"bytes,3,rep,name=policies"`
-	JWTTokens []JWTToken `json:"jwtTokens" protobuf:"bytes,4,rep,name=jwtTokens"`
-}
-
-// JWTToken holds the issuedAt and expiresAt values of a token
-type JWTToken struct {
-	IssuedAt  int64 `json:"iat,omitempty" protobuf:"int64,1,opt,name=iat"`
-	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
 func (app *Application) getFinalizerIndex(name string) int {
@@ -676,7 +681,6 @@ func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
-
 	normalizedURL := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
 		if repoURL == "*" {
@@ -689,7 +693,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	return false
 }
 
-// IsDestinationPermitted validiates if the provided application's destination is one of the allowed destinations for the project
+// IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	for _, item := range proj.Spec.Destinations {
 		if item.Server == dst.Server || item.Server == "*" {

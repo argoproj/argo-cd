@@ -2066,7 +2066,7 @@
     },
     "v1alpha1AppProject": {
       "type": "object",
-      "title": "AppProject is a definition of AppProject resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "title": "AppProject is a definition of AppProject resource.\nIt provides a logical grouping of applications, providing RBAC and enforcement controls for:\n* where the apps may deploy to (cluster whitelist)\n* what may be deployed (repository and resource whitelist/blacklist)\n* who can access these applications (OIDC group bindings)\n* and what they can do (roles, policies, RBAC)\n* and automation access to these roles (JWT tokens)\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -2093,7 +2093,7 @@
     },
     "v1alpha1AppProjectSpec": {
       "type": "object",
-      "title": "AppProjectSpec represents",
+      "title": "AppProjectSpec is the specification of an AppProject",
       "properties": {
         "clusterResourceWhitelist": {
           "type": "array",
@@ -2122,6 +2122,7 @@
         },
         "roles": {
           "type": "array",
+          "title": "Roles are user defined RBAC roles associated with this project",
           "items": {
             "$ref": "#/definitions/v1alpha1ProjectRole"
           }
@@ -2571,20 +2572,30 @@
       "title": "ProjectRole represents a role that has access to a project",
       "properties": {
         "description": {
-          "type": "string"
+          "type": "string",
+          "title": "Description is a description of the role"
+        },
+        "groups": {
+          "type": "array",
+          "title": "Groups are a list of OIDC group claims bound to this role",
+          "items": {
+            "type": "string"
+          }
         },
         "jwtTokens": {
           "type": "array",
+          "title": "JWTTokens are a list of generated JWT tokens bound to this role",
           "items": {
             "$ref": "#/definitions/v1alpha1JWTToken"
           }
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "title": "Name is a name for this role"
         },
         "policies": {
-          "description": "Policies Stores a list of casbin formated strings that define access policies for the role in the project.",
           "type": "array",
+          "title": "Policies Stores a list of casbin formated strings that define access policies for the role in the project",
           "items": {
             "type": "string"
           }

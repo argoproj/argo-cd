@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -49,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/server/metrics"
 	"github.com/argoproj/argo-cd/server/project"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/server/settings"
@@ -62,10 +62,8 @@ import (
 	"github.com/argoproj/argo-cd/util/healthz"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/oidc"
-	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	util_session "github.com/argoproj/argo-cd/util/session"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
@@ -116,6 +114,7 @@ type ArgoCDServer struct {
 	enf          *rbac.Enforcer
 	appInformer  cache.SharedIndexInformer
 	appLister    applister.ApplicationLister
+	projInformer cache.SharedIndexInformer
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh chan struct{}
@@ -181,15 +180,20 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 	errors.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settings)
 
+	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
+	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+	appLister := factory.Argoproj().V1alpha1().Applications().Lister()
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	projLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
+
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(builtinPolicy)
 	errors.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
-	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
-	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-	appLister := factory.Argoproj().V1alpha1().Applications().Lister()
+	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
+	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
@@ -200,6 +204,7 @@ func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
 		enf:              enf,
 		appInformer:      appInformer,
 		appLister:        appLister,
+		projInformer:     projInformer,
 	}
 }
 
@@ -264,6 +269,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 		argocd.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
 
 	go a.appInformer.Run(ctx.Done())
+	go a.projInformer.Run(ctx.Done())
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
 	if a.useTLS() {
@@ -275,7 +281,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
 	if !cache.WaitForCacheSync(ctx.Done(), a.appInformer.HasSynced) {
-		log.Fatal("Timed out waiting for caches to sync")
+		log.Fatal("Timed out waiting for application cache to sync")
+	}
+	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced) {
+		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
 	a.stopCh = make(chan struct{})
@@ -416,7 +425,6 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc_util.ErrorCodeUnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
 	)))
-	a.enf.SetClaimsEnforcerFunc(EnforceClaims(a.enf, a.AppClientset, a.Namespace))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 	clusterService := cluster.NewServer(db, a.enf, argocache.NewInMemoryCache(cluster.DefaultClusterStatusCacheExpiration))
@@ -681,72 +689,4 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		cu.Cluster.Server = server
 	}
 	return handler(ctx, req)
-}
-
-func EnforceClaims(enf *rbac.Enforcer, a appclientset.Interface, namespace string) func(rvals ...interface{}) bool {
-	return func(rvals ...interface{}) bool {
-		claims, ok := rvals[0].(jwt.Claims)
-		if !ok {
-			if rvals[0] == nil {
-				vals := append([]interface{}{""}, rvals[1:]...)
-				return enf.Enforce(vals...)
-			}
-			return enf.Enforce(rvals...)
-		}
-
-		mapClaims, err := jwtutil.MapClaims(claims)
-		if err != nil {
-			vals := append([]interface{}{""}, rvals[1:]...)
-			return enf.Enforce(vals...)
-		}
-		groups := jwtutil.GetGroups(mapClaims)
-		for _, group := range groups {
-			vals := append([]interface{}{group}, rvals[1:]...)
-			if enf.Enforcer.Enforce(vals...) {
-				return true
-			}
-		}
-
-		user := jwtutil.GetField(mapClaims, "sub")
-		if strings.HasPrefix(user, "proj:") {
-			return enforceProjectToken(enf, a, namespace, user, mapClaims, rvals...)
-		}
-		vals := append([]interface{}{user}, rvals[1:]...)
-		return enf.Enforce(vals...)
-	}
-}
-
-func enforceProjectToken(enf *rbac.Enforcer, a appclientset.Interface, namespace string, user string, claims jwt.MapClaims, rvals ...interface{}) bool {
-	userSplit := strings.Split(user, ":")
-	if len(userSplit) != 3 {
-		return false
-	}
-	projName := userSplit[1]
-	tokenName := userSplit[2]
-	proj, err := a.ArgoprojV1alpha1().AppProjects(namespace).Get(projName, metav1.GetOptions{})
-	if err != nil {
-		return false
-	}
-	index, err := projectutil.GetRoleIndexByName(proj, tokenName)
-	if err != nil {
-		return false
-	}
-	if proj.Spec.Roles[index].JWTTokens == nil {
-		return false
-	}
-	iatField, ok := claims["iat"]
-	if !ok {
-		return false
-	}
-	iatFloat, ok := iatField.(float64)
-	if !ok {
-		return false
-	}
-	iat := int64(iatFloat)
-	_, err = projectutil.GetJWTTokenIndexByIssuedAt(proj, index, iat)
-	if err != nil {
-		return false
-	}
-	vals := append([]interface{}{user}, rvals[1:]...)
-	return enf.EnforceCustomPolicy(proj.ProjectPoliciesString(), vals...)
 }
