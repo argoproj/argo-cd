@@ -1,6 +1,4 @@
 resources:
-- application-crd.yaml
-- appproject-crd.yaml
 - argocd-cm.yaml
 - argocd-secret.yaml
 - argocd-rbac-cm.yaml
