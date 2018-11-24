@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
@@ -102,8 +103,36 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 	if err != nil {
 		return "", err
 	}
-	// 1. Run kubectl apply
 	var out []string
+	// If it is an RBAC resource, run `kubectl auth reconcile`. This is preferred over
+	// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
+	// See: https://github.com/kubernetes/kubernetes/issues/66353
+	// `auth reconcile` will delete and recreate the resource if necessary
+	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
+		// `kubectl auth reconcile` has a side effect of auto-creating namespaces if it doesn't exist.
+		// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
+		// not want. We need to check if the namespace exists, before know if it is safe to run this
+		// command. Skip this for dryRuns.
+		if !dryRun {
+			kubeClient, err := kubernetes.NewForConfig(config)
+			if err != nil {
+				return "", err
+			}
+			_, err = kubeClient.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+			if err != nil {
+				return "", err
+			}
+		}
+		outReconcile, err := runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
+		if err != nil {
+			return "", err
+		}
+		out = append(out, outReconcile)
+		// We still want to fallthrough and run `kubectl apply` in order set the
+		// last-applied-configuration annotation in the object.
+	}
+
+	// Run kubectl apply
 	applyArgs := []string{"apply"}
 	if force {
 		applyArgs = append(applyArgs, "--force")
@@ -113,19 +142,7 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 		return "", err
 	}
 	out = append(out, outApply)
-
-	// 2. If it is an RBAC resource, also run `kubectl auth reconcile`
-	// This should come after `kubectl apply` since `kubectl auth reconcile` has a side effect of
-	// auto-creating namespaces (see: https://github.com/kubernetes/kubernetes/issues/71185),
-	// behavior which we do not want. The earlier failed `kubectl apply` will guard us from that
-	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-		outReconcile, err := runKubectl(f.Name(), namespace, []string{"auth", "reconcile"}, manifestBytes, dryRun)
-		if err != nil {
-			return "", err
-		}
-		out = append(out, outReconcile)
-	}
-	return strings.Join(out, "\n"), nil
+	return strings.Join(out, ". "), nil
 }
 
 func runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
