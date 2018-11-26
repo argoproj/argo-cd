@@ -1,0 +1,3 @@
+resources:
+- application-crd.yaml
+- appproject-crd.yaml

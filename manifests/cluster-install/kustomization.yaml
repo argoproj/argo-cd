@@ -1,5 +1,5 @@
 bases:
-- ../base
+- ../namespace-install
 
 resources:
 - application-controller-clusterrole.yaml

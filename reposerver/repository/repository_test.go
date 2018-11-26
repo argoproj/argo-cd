@@ -10,7 +10,7 @@ import (
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
-	const countOfManifests = 23
+	const countOfManifests = 21
 
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
