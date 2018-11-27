@@ -84,7 +84,7 @@ https://kubernetes.default.svc should be used as the application's K8s API serve
 
 First list all clusters contexts in your current kubconfig:
 ```bash
-argocd cluster add
+argocd cluster list
 ```
 
 Choose a context name from the list and supply it to `argocd cluster add CONTEXTNAME`. For example,
