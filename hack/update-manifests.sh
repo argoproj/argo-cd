@@ -7,12 +7,14 @@ AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
 update_image () {
   if [ ! -z "${IMAGE_NAMESPACE}" ]; then
-    sed -i -- 's| image: \(.*\)/\(argocd.*\)| image: '"${IMAGE_NAMESPACE}"'/\2|g' "${1}"
-  fi
-  if [ ! -z "${IMAGE_TAG}" ]; then
-    sed -i -- 's|\( image: .*/argocd.*\)\:.*|\1:'"${IMAGE_TAG}"'|g' "${1}"
+    sed 's| image: \(.*\)/\(argocd.*\)| image: '"${IMAGE_NAMESPACE}"'/\2|g' "${1}" > "${1}.bak"
+    mv "${1}.bak" "${1}"
   fi
 }
+
+if [ ! -z "${IMAGE_TAG}" ]; then
+  (cd ${SRCROOT}/manifests/base && kustomize edit set imagetag argoproj/argocd:${IMAGE_TAG} argoproj/argocd-ui:${IMAGE_TAG})
+fi
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
 kustomize build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
