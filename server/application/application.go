@@ -33,6 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
@@ -52,6 +53,7 @@ type Server struct {
 	enf                 *rbac.Enforcer
 	projectLock         *util.KeyLock
 	auditLogger         *argo.AuditLogger
+	gitFactory          git.ClientFactory
 }
 
 // NewServer returns a new instance of the Application service
@@ -79,6 +81,7 @@ func NewServer(
 		enf:                 enf,
 		projectLock:         projectLock,
 		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		gitFactory:          git.NewFactory(),
 	}
 }
 
@@ -706,9 +709,14 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 		}
 	}
 
+	commitSHA, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+	}
+
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:           syncReq.Revision,
+			Revision:           commitSHA,
 			Prune:              syncReq.Prune,
 			DryRun:             syncReq.DryRun,
 			SyncStrategy:       syncReq.Strategy,
@@ -718,12 +726,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
 	if err == nil {
-		rev := syncReq.Revision
-		if syncReq.Revision == "" {
-			rev = a.Spec.Source.TargetRevision
+		partial := ""
+		if len(syncReq.Resources) > 0 {
+			partial = "partial "
 		}
-		message := fmt.Sprintf("initiated sync to %s", rev)
-		s.logEvent(a, ctx, argo.EventReasonOperationStarted, message)
+		s.logEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated %ssync to %s", partial, displayRevision))
 	}
 	return a, err
 }
@@ -771,6 +778,34 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	return a, err
 }
 
+// resolveRevision resolves the git revision specified either in the sync request, or the
+// application source, into a concrete commit SHA that will be used for a sync operation.
+func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *ApplicationSyncRequest) (string, string, error) {
+	ambiguousRevision := syncReq.Revision
+	if ambiguousRevision == "" {
+		ambiguousRevision = app.Spec.Source.TargetRevision
+	}
+	if git.IsCommitSHA(ambiguousRevision) {
+		// If it's already a commit SHA, then no need to look it up
+		return ambiguousRevision, ambiguousRevision, nil
+	}
+	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+	if err != nil {
+		// If we couldn't retrieve from the repo service, assume public repositories
+		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL}
+	}
+	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", repo.Username, repo.Password, repo.SSHPrivateKey)
+	if err != nil {
+		return "", "", err
+	}
+	commitSHA, err := gitClient.LsRemote(ambiguousRevision)
+	if err != nil {
+		return "", "", err
+	}
+	displayRevision := fmt.Sprintf("%s (%s)", ambiguousRevision, commitSHA)
+	return commitSHA, displayRevision, nil
+}
+
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTerminateRequest) (*OperationTerminateResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*termOpReq.Name, metav1.GetOptions{})
 	if err != nil {
@@ -797,9 +832,8 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 		a, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*termOpReq.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
-		} else {
-			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
 		}
+		s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
