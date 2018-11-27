@@ -442,10 +442,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async deleteApplication() {
-        const deleted = await AppUtils.deleteApplication(this.props.match.params.name, this.appContext);
-        if (deleted) {
-            this.appContext.apis.navigation.goto('/applications');
-        }
+        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext);
     }
 
     private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {

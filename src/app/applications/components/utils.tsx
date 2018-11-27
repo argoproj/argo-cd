@@ -152,11 +152,12 @@ export function getStateAndNode(resource: appModels.ResourceNode | appModels.Res
     return {resourceState, resourceNode};
 }
 
-export function getOperationType(state: appModels.OperationState) {
-    if (state.operation.sync) {
+export function getOperationType(application: appModels.Application) {
+    if (application.metadata.deletionTimestamp) {
+        return 'deletion';
+    }
+    if (application.status.operationState && application.status.operationState.operation.sync) {
         return 'synchronization';
-    } else if (state.operation.rollback) {
-        return 'rollback';
     }
     return 'unknown operation';
 }

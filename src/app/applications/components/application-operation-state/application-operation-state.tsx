@@ -14,7 +14,7 @@ interface Props { application: models.Application; operationState: models.Operat
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
 
     const operationAttributes = [
-        {title: 'OPERATION', value: utils.getOperationType(operationState)},
+        {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
         ...(operationState.message ? [{title: 'MESSAGE', value: operationState.message}] : []),
         {title: 'STARTED AT', value: operationState.startedAt},

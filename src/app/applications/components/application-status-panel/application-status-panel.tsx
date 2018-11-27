@@ -20,7 +20,13 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         (map, next) => map.set(utils.getConditionCategory(next), (map.get(utils.getConditionCategory(next)) || 0) + 1),
         new Map<string, number>());
     let appOperationState = application.status.operationState;
-    if (application.operation && application.status.operationState === undefined) {
+    if (application.metadata.deletionTimestamp) {
+        appOperationState = {
+            phase:  models.OperationPhases.InProgress,
+            startedAt: application.metadata.deletionTimestamp,
+        } as models.OperationState;
+        showOperation = null;
+    } else if (application.operation && application.status.operationState === undefined) {
         appOperationState = {
             phase:  models.OperationPhases.InProgress,
             startedAt: new Date().toISOString(),
@@ -42,7 +48,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             {appOperationState && (
             <div className='application-status-panel__item columns small-3'>
                 <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(appOperationState)} <utils.OperationPhaseIcon
+                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application)} <utils.OperationPhaseIcon
                         phase={appOperationState.phase}/></a>
                 </div>
                 <div className='application-status-panel__item-name'>
