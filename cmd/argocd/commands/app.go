@@ -100,6 +100,10 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				setAppOptions(c.Flags(), &app, &appOpts)
 				setParameterOverrides(&app, appOpts.parameters)
 			}
+			if app.Name == "" {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appCreateRequest := application.ApplicationCreateRequest{

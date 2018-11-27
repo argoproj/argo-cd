@@ -54,49 +54,42 @@ clientgen:
 .PHONY: codegen
 codegen: protogen clientgen
 
-# NOTE: we use packr to do the build instead of go, since we embed .yaml files into the go binary.
-# This enables ease of maintenance of the yaml files.
 .PHONY: cli
 cli: clean-debug
-	${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+	go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
-.PHONY: cli-linux
-cli-linux: clean-debug
-	docker build --iidfile /tmp/argocd-linux-id --target argocd-build --build-arg MAKE_TARGET="cli CLI_NAME=argocd-linux-amd64" .
-	docker create --name tmp-argocd-linux `cat /tmp/argocd-linux-id`
-	docker cp tmp-argocd-linux:/go/src/github.com/argoproj/argo-cd/dist/argocd-linux-amd64 dist/
+.PHONY: release-cli
+release-cli: clean-debug image
+	docker create --name tmp-argocd-linux $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)
+	docker cp tmp-argocd-linux:/usr/local/bin/argocd ${DIST_DIR}/argocd-linux-amd64
+	docker cp tmp-argocd-linux:/usr/local/bin/argocd-darwin-amd64 ${DIST_DIR}/argocd-darwin-amd64
 	docker rm tmp-argocd-linux
-
-.PHONY: cli-darwin
-cli-darwin: clean-debug
-	docker build --iidfile /tmp/argocd-darwin-id --target argocd-build --build-arg MAKE_TARGET="cli GOOS=darwin CLI_NAME=argocd-darwin-amd64" .
-	docker create --name tmp-argocd-darwin `cat /tmp/argocd-darwin-id`
-	docker cp tmp-argocd-darwin:/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64 dist/
-	docker rm tmp-argocd-darwin
 
 .PHONY: argocd-util
 argocd-util: clean-debug
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
+	go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/argocd-util ./cmd/argocd-util
 
 .PHONY: manifests
 manifests:
 	./hack/update-manifests.sh
 
+# NOTE: we use packr to do the build instead of go, since we embed swagger files and policy.csv
+# files into the go binary
 .PHONY: server
 server: clean-debug
-	CGO_ENABLED=0 ${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
+	${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd/argocd-server
 	
 .PHONY: repo-server
 repo-server:
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
+	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd/argocd-repo-server
 
 .PHONY: controller
 controller:
-	CGO_ENABLED=0 go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
+	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
 
 .PHONY: image
 image:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)  .
+	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
 .PHONY: builder-image
@@ -134,4 +127,4 @@ release-precheck: manifests
 	@if [ "$(GIT_TAG)" != "v`cat VERSION`" ]; then echo 'VERSION does not match git tag'; exit 1; fi
 
 .PHONY: release
-release: release-precheck precheckin cli-darwin cli-linux image
+release: release-precheck precheckin image release-cli
