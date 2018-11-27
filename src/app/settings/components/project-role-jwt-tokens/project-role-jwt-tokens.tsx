@@ -25,7 +25,7 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
             {(ctx) => (
                 <React.Fragment>
                 <h4>JWT Tokens</h4>
-                {props.tokens !== null && props.tokens.length > 0 ? (
+                {props.tokens && props.tokens.length > 0 ? (
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
