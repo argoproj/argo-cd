@@ -29,12 +29,12 @@ export const Help = () => (
                     <h3>ArgoCD CLI</h3>
                     <div className='row text-left help-box__download'>
                         <div className='columns small-6'>
-                            <a href={`https://github.com/argoproj/argo-cd/releases/download/${SYSTEM_INFO.version}/argocd-linux-amd64`}><i
+                            <a href={`download/argocd-linux-amd64`}><i
                                     className='fa fa-linux' aria-hidden='true'/> Linux
                             </a>
                         </div>
                         <div className='columns small-6'>
-                            <a href={`https://github.com/argoproj/argo-cd/releases/download/${SYSTEM_INFO.version}/argocd-darwin-amd64`}><i
+                            <a href={`download/argocd-darwin-amd64`}><i
                                     className='fa fa-apple' aria-hidden='true'/> macOS
                             </a><br/>
                         </div>
