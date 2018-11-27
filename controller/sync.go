@@ -173,6 +173,14 @@ func (sc *syncContext) sync() {
 	if !successful {
 		return
 	}
+
+	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
+	// set the sync operation as successful.
+	if len(syncTasks) == 0 {
+		sc.setOperationPhase(appv1.OperationSucceeded, "successfully synced (no manifests)")
+		return
+	}
+
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
 	// will not not detect if they are mutating immutable fields). If anything fails, we will refuse
@@ -250,15 +258,9 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			syncTasks = append(syncTasks, syncTask)
 		}
 	}
-	if len(syncTasks) == 0 {
-		if len(sc.resources) == 0 {
-			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Application has no resources"))
-		} else {
-			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Specified resources filter does not match any application resource"))
-		}
-	}
+
 	sort.Sort(newKindSorter(syncTasks, resourceOrder))
-	return syncTasks, len(syncTasks) > 0
+	return syncTasks, true
 }
 
 // startedPreSyncPhase detects if we already started the PreSync stage of a sync operation.
