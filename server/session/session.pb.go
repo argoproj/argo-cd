@@ -47,7 +47,7 @@ func (m *SessionCreateRequest) Reset()         { *m = SessionCreateRequest{} }
 func (m *SessionCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*SessionCreateRequest) ProtoMessage()    {}
 func (*SessionCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_8e535ce77fc5e082, []int{0}
+	return fileDescriptor_session_217b926c109d1cc2, []int{0}
 }
 func (m *SessionCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -108,7 +108,7 @@ func (m *SessionDeleteRequest) Reset()         { *m = SessionDeleteRequest{} }
 func (m *SessionDeleteRequest) String() string { return proto.CompactTextString(m) }
 func (*SessionDeleteRequest) ProtoMessage()    {}
 func (*SessionDeleteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_8e535ce77fc5e082, []int{1}
+	return fileDescriptor_session_217b926c109d1cc2, []int{1}
 }
 func (m *SessionDeleteRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -149,7 +149,7 @@ func (m *SessionResponse) Reset()         { *m = SessionResponse{} }
 func (m *SessionResponse) String() string { return proto.CompactTextString(m) }
 func (*SessionResponse) ProtoMessage()    {}
 func (*SessionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_session_8e535ce77fc5e082, []int{2}
+	return fileDescriptor_session_217b926c109d1cc2, []int{2}
 }
 func (m *SessionResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -827,10 +827,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/session/session.proto", fileDescriptor_session_8e535ce77fc5e082)
+	proto.RegisterFile("server/session/session.proto", fileDescriptor_session_217b926c109d1cc2)
 }
 
-var fileDescriptor_session_8e535ce77fc5e082 = []byte{
+var fileDescriptor_session_217b926c109d1cc2 = []byte{
 	// 356 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x92, 0xb1, 0x4e, 0xeb, 0x30,
 	0x14, 0x86, 0xe5, 0x5e, 0xdd, 0xde, 0x7b, 0x3d, 0xdc, 0x8a, 0x28, 0x82, 0x28, 0x2a, 0x15, 0xca,

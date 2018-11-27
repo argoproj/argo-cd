@@ -6,13 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/dynamic"
+	statecache "github.com/argoproj/argo-cd/controller/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -23,71 +17,56 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
 	maxHistoryCnt = 5
 )
 
+type ControlledResource struct {
+	Target    *unstructured.Unstructured
+	Live      *unstructured.Unstructured
+	Diff      diff.DiffResult
+	Group     string
+	Version   string
+	Kind      string
+	Namespace string
+	Name      string
+}
+
+func GetLiveObjs(res []ControlledResource) []*unstructured.Unstructured {
+	objs := make([]*unstructured.Unstructured, len(res))
+	for i := range res {
+		objs[i] = res[i].Live
+	}
+	return objs
+}
+
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ResourceState, []v1alpha1.ApplicationCondition, error)
+		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ControlledResource, []v1alpha1.ApplicationCondition, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
+	GetTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error)
 }
 
 // appStateManager allows to compare application using KSonnet CLI
 type appStateManager struct {
-	db            db.ArgoDB
-	appclientset  appclientset.Interface
-	kubectl       kubeutil.Kubectl
-	repoClientset reposerver.Clientset
-	namespace     string
+	db             db.ArgoDB
+	appclientset   appclientset.Interface
+	kubectl        kubeutil.Kubectl
+	repoClientset  reposerver.Clientset
+	liveStateCache statecache.LiveStateCache
+	namespace      string
 }
 
-// groupLiveObjects deduplicate list of kubernetes resources and choose correct version of resource: if resource has corresponding expected application resource then method pick
-// kubernetes resource with matching version, otherwise chooses single kubernetes resource with any version
-func groupLiveObjects(liveObjs []*unstructured.Unstructured, targetObjs []*unstructured.Unstructured) map[string]*unstructured.Unstructured {
-	targetByFullName := make(map[string]*unstructured.Unstructured)
-	for _, obj := range targetObjs {
-		targetByFullName[getResourceFullName(obj)] = obj
-	}
-
-	liveListByFullName := make(map[string][]*unstructured.Unstructured)
-	for _, obj := range liveObjs {
-		list := liveListByFullName[getResourceFullName(obj)]
-		if list == nil {
-			list = make([]*unstructured.Unstructured, 0)
-		}
-		list = append(list, obj)
-		liveListByFullName[getResourceFullName(obj)] = list
-	}
-
-	liveByFullName := make(map[string]*unstructured.Unstructured)
-
-	for fullName, list := range liveListByFullName {
-		targetObj := targetByFullName[fullName]
-		var liveObj *unstructured.Unstructured
-		if targetObj != nil {
-			for i := range list {
-				if list[i].GetAPIVersion() == targetObj.GetAPIVersion() {
-					liveObj = list[i]
-					break
-				}
-			}
-		} else {
-			liveObj = list[0]
-		}
-		if liveObj != nil {
-			liveByFullName[getResourceFullName(liveObj)] = liveObj
-		}
-	}
-	return liveByFullName
-}
-
-func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
-	repo := s.getRepo(app.Spec.Source.RepoURL)
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+func (m *appStateManager) GetTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
+	repo := m.getRepo(app.Spec.Source.RepoURL)
+	conn, repoClient, err := m.repoClientset.NewRepositoryClient()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -141,94 +120,29 @@ func (s *appStateManager) getTargetObjs(app *v1alpha1.Application, revision stri
 	return targetObjs, manifestInfo, nil
 }
 
-func (s *appStateManager) getLiveObjs(app *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (
-	[]*unstructured.Unstructured, map[string]*unstructured.Unstructured, error) {
-
-	// Get the REST config for the cluster corresponding to the environment
-	clst, err := s.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		return nil, nil, err
-	}
-	restConfig := clst.RESTConfig()
-
-	// Retrieve the live versions of the objects. exclude any hook objects
-	labeledObjs, err := kubeutil.GetResourcesWithLabel(restConfig, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
-	if err != nil {
-		return nil, nil, err
-	}
-	liveObjs := make([]*unstructured.Unstructured, 0)
-	for _, obj := range labeledObjs {
-		if isHook(obj) {
-			continue
-		}
-		liveObjs = append(liveObjs, obj)
-	}
-
-	liveObjByFullName := groupLiveObjects(liveObjs, targetObjs)
-
-	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
-
-	// Move live resources which have corresponding target object to controlledLiveObj
-	dynamicIf, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-	disco, err := discovery.NewDiscoveryClientForConfig(restConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-	for i, targetObj := range targetObjs {
-		fullName := getResourceFullName(targetObj)
-		liveObj := liveObjByFullName[fullName]
-		if liveObj == nil && targetObj.GetName() != "" {
-			// If we get here, it indicates we did not find the live resource when querying using
-			// our app label. However, it is possible that the resource was created/modified outside
-			// of Argo CD. In order to determine that it is truly missing, we fall back to perform a
-			// direct lookup of the resource by name. See issue #141
-			gvk := targetObj.GroupVersionKind()
-			apiResource, err := kubeutil.ServerResourceForGroupVersionKind(disco, gvk)
-			if err != nil {
-				if !apierr.IsNotFound(err) {
-					return nil, nil, err
-				}
-				// If we get here, the app is comprised of a custom resource which has yet to be registered
-			} else {
-				liveObj, err = kubeutil.GetLiveResource(dynamicIf, targetObj, apiResource, app.Spec.Destination.Namespace)
-				if err != nil {
-					return nil, nil, err
-				}
-			}
-		}
-		controlledLiveObj[i] = liveObj
-		delete(liveObjByFullName, fullName)
-	}
-	return controlledLiveObj, liveObjByFullName, nil
-}
-
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []v1alpha1.ResourceState, []v1alpha1.ApplicationCondition, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
+	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ControlledResource, []v1alpha1.ApplicationCondition, error) {
 
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	targetObjs, manifestInfo, err := s.getTargetObjs(app, revision, overrides)
+	targetObjs, manifestInfo, err := m.GetTargetObjs(app, revision, overrides)
 	if err != nil {
 		targetObjs = make([]*unstructured.Unstructured, 0)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
 
-	controlledLiveObj, liveObjByFullName, err := s.getLiveObjs(app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetControlledLiveObjs(app, targetObjs)
 	if err != nil {
-		controlledLiveObj = make([]*unstructured.Unstructured, len(targetObjs))
-		liveObjByFullName = make(map[string]*unstructured.Unstructured)
+		liveObjByKey = make(map[string]*unstructured.Unstructured)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
 
-	for _, liveObj := range controlledLiveObj {
+	for _, liveObj := range liveObjByKey {
 		if liveObj != nil && liveObj.GetLabels() != nil {
 			if appLabelVal, ok := liveObj.GetLabels()[common.LabelApplicationName]; ok && appLabelVal != "" && appLabelVal != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
@@ -239,13 +153,20 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 	}
 
-	// Move root level live resources to controlledLiveObj and add nil to targetObjs to indicate that target object is missing
-	for fullName := range liveObjByFullName {
-		liveObj := liveObjByFullName[fullName]
-		if !hasParent(liveObj) {
-			targetObjs = append(targetObjs, nil)
-			controlledLiveObj = append(controlledLiveObj, liveObj)
+	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
+	for i, obj := range targetObjs {
+		gvk := obj.GroupVersionKind()
+		key := kubeutil.FormatResourceKey(gvk.Group, gvk.Kind, util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace), obj.GetName())
+		if liveObj, ok := liveObjByKey[key]; ok {
+			controlledLiveObj[i] = liveObj
+			delete(liveObjByKey, key)
+		} else {
+			controlledLiveObj[i] = nil
 		}
+	}
+	for _, obj := range liveObjByKey {
+		targetObjs = append(targetObjs, nil)
+		controlledLiveObj = append(controlledLiveObj, obj)
 	}
 
 	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
@@ -258,12 +179,27 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	comparisonStatus := v1alpha1.ComparisonStatusSynced
 
-	resources := make([]v1alpha1.ResourceState, len(targetObjs))
+	controlledResources := make([]ControlledResource, len(targetObjs))
+	resourceSummaries := make([]v1alpha1.ResourceSummary, len(targetObjs))
 	for i := 0; i < len(targetObjs); i++ {
-		resState := v1alpha1.ResourceState{
-			ChildLiveResources: make([]v1alpha1.ResourceNode, 0),
+		obj := controlledLiveObj[i]
+		if obj == nil {
+			obj = targetObjs[i]
+		}
+		if obj == nil {
+			continue
+		}
+		gvk := obj.GroupVersionKind()
+
+		resState := v1alpha1.ResourceSummary{
+			Namespace: util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace),
+			Name:      obj.GetName(),
+			Kind:      gvk.Kind,
+			Version:   gvk.Version,
+			Group:     gvk.Group,
 		}
 		diffResult := diffResults.Diffs[i]
+
 		if diffResult.Modified {
 			// Set resource state to 'OutOfSync' since target and corresponding live resource are different
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
@@ -273,73 +209,34 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 
 		if targetObjs[i] == nil {
-			resState.TargetState = "null"
 			// Set resource state to 'OutOfSync' since target resource is missing and live resource is unexpected
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
 			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
-		} else {
-			targetObjBytes, err := json.Marshal(targetObjs[i].Object)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			resState.TargetState = string(targetObjBytes)
 		}
 
 		if controlledLiveObj[i] == nil {
-			resState.LiveState = "null"
 			// Set resource state to 'OutOfSync' since target resource present but corresponding live resource is missing
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
 			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
-		} else {
-			liveObjBytes, err := json.Marshal(controlledLiveObj[i].Object)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			resState.LiveState = string(liveObjBytes)
 		}
 
-		resources[i] = resState
+		controlledResources[i] = ControlledResource{
+			Name:      resState.Name,
+			Namespace: resState.Namespace,
+			Group:     resState.Group,
+			Kind:      resState.Kind,
+			Version:   resState.Version,
+			Live:      controlledLiveObj[i],
+			Target:    targetObjs[i],
+			Diff:      diffResult,
+		}
+		resourceSummaries[i] = resState
 	}
 
-	for i, resource := range resources {
-		liveResource := controlledLiveObj[i]
-		if liveResource != nil {
-			childResources, err := getChildren(liveResource, liveObjByFullName)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			resource.ChildLiveResources = childResources
-			resources[i] = resource
-		}
-	}
 	if failedToLoadObjs {
 		comparisonStatus = v1alpha1.ComparisonStatusUnknown
 	}
-	resourceSummaries := make([]v1alpha1.ResourceSummary, len(resources))
-	for i := range resources {
-		obj, err := resources[i].LiveObject()
-		if err != nil {
-			return nil, nil, nil, nil, err
-		}
-		if obj == nil {
-			obj, err = resources[i].TargetObject()
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-		}
-		if obj == nil {
-			return nil, nil, nil, nil, fmt.Errorf("both target and live object are nil")
-		}
-		gkv := obj.GroupVersionKind()
-		resourceSummaries[i] = v1alpha1.ResourceSummary{
-			Name:    obj.GetName(),
-			Kind:    gkv.Kind,
-			Version: gkv.Version,
-			Group:   gkv.Group,
-			Status:  resources[i].Status,
-			Health:  resources[i].Health,
-		}
-	}
+
 	compResult := v1alpha1.ComparisonResult{
 		ComparedTo: app.Spec.Source,
 		ComparedAt: metav1.Time{Time: time.Now().UTC()},
@@ -350,50 +247,11 @@ func (s *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	if manifestInfo != nil {
 		compResult.Revision = manifestInfo.Revision
 	}
-	return &compResult, manifestInfo, resources, conditions, nil
+	return &compResult, manifestInfo, controlledResources, conditions, nil
 }
 
-func hasParent(obj *unstructured.Unstructured) bool {
-	// TODO: remove special case after Service and Endpoint get explicit relationship ( https://github.com/kubernetes/kubernetes/issues/28483 )
-	return obj.GetKind() == kubeutil.EndpointsKind || metav1.GetControllerOf(obj) != nil
-}
-
-func isControlledBy(obj *unstructured.Unstructured, parent *unstructured.Unstructured) bool {
-	// TODO: remove special case after Service and Endpoint get explicit relationship ( https://github.com/kubernetes/kubernetes/issues/28483 )
-	if obj.GetKind() == kubeutil.EndpointsKind && parent.GetKind() == kubeutil.ServiceKind {
-		return obj.GetName() == parent.GetName()
-	}
-	return metav1.IsControlledBy(obj, parent)
-}
-
-func getChildren(parent *unstructured.Unstructured, liveObjByFullName map[string]*unstructured.Unstructured) ([]v1alpha1.ResourceNode, error) {
-	children := make([]v1alpha1.ResourceNode, 0)
-	for fullName, obj := range liveObjByFullName {
-		if isControlledBy(obj, parent) {
-			delete(liveObjByFullName, fullName)
-			childResource := v1alpha1.ResourceNode{}
-			json, err := json.Marshal(obj)
-			if err != nil {
-				return nil, err
-			}
-			childResource.State = string(json)
-			childResourceChildren, err := getChildren(obj, liveObjByFullName)
-			if err != nil {
-				return nil, err
-			}
-			childResource.Children = childResourceChildren
-			children = append(children, childResource)
-		}
-	}
-	return children, nil
-}
-
-func getResourceFullName(obj *unstructured.Unstructured) string {
-	return fmt.Sprintf("%s:%s", obj.GetKind(), obj.GetName())
-}
-
-func (s *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
-	repo, err := s.db.GetRepository(context.Background(), repoURL)
+func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
+	repo, err := m.db.GetRepository(context.Background(), repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &v1alpha1.Repository{Repo: repoURL}
@@ -401,7 +259,7 @@ func (s *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	return repo
 }
 
-func (s *appStateManager) persistDeploymentInfo(
+func (m *appStateManager) persistDeploymentInfo(
 	app *v1alpha1.Application, revision string, envParams []*v1alpha1.ComponentParameter, overrides *[]v1alpha1.ComponentParameter) error {
 
 	params := make([]v1alpha1.ComponentParameter, len(envParams))
@@ -432,7 +290,7 @@ func (s *appStateManager) persistDeploymentInfo(
 	if err != nil {
 		return err
 	}
-	_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.namespace).Patch(app.Name, types.MergePatchType, patch)
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(app.Name, types.MergePatchType, patch)
 	return err
 }
 
@@ -443,12 +301,14 @@ func NewAppStateManager(
 	repoClientset reposerver.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
+	liveStateCache statecache.LiveStateCache,
 ) AppStateManager {
 	return &appStateManager{
-		db:            db,
-		appclientset:  appclientset,
-		kubectl:       kubectl,
-		repoClientset: repoClientset,
-		namespace:     namespace,
+		liveStateCache: liveStateCache,
+		db:             db,
+		appclientset:   appclientset,
+		kubectl:        kubectl,
+		repoClientset:  repoClientset,
+		namespace:      namespace,
 	}
 }

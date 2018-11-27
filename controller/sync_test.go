@@ -6,6 +6,9 @@ import (
 	"sort"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
@@ -31,14 +34,22 @@ type mockKubectlCmd struct {
 	events   chan watch.Event
 }
 
+func (k mockKubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
+func (k mockKubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	return nil, nil
+}
+
 func (k mockKubectlCmd) WatchResources(
-	ctx context.Context, config *rest.Config, namespace string, selector func(kind schema.GroupVersionKind) v1.ListOptions) (chan watch.Event, error) {
+	ctx context.Context, config *rest.Config, namespace string) (chan watch.Event, error) {
 
 	return k.events, nil
 }
 
-func (k mockKubectlCmd) DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error {
-	command, ok := k.commands[obj.GetName()]
+func (k mockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) error {
+	command, ok := k.commands[name]
 	if !ok {
 		return nil
 	}
@@ -98,12 +109,12 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 func TestSyncCreateInSortedOrder(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"pod\"}",
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
 	}, {
-		LiveState:   "",
-		TargetState: "{\"kind\":\"service\"}",
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
@@ -139,9 +150,11 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 	}
 
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
+	syncCtx.resources = []ControlledResource{{
+		Live: nil,
+		Target: kube.MustToUnstructured(&rbacv1.ClusterRole{
+			TypeMeta:   v1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
+			ObjectMeta: v1.ObjectMeta{Name: "argo-ui-cluster-role"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -157,9 +170,9 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 	}
 
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"deployment\"}",
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&appsv1.Deployment{TypeMeta: v1.TypeMeta{Kind: "deployment"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -170,12 +183,12 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"service\"}",
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
 	}, {
-		LiveState:   "{\"kind\":\"pod\"}",
-		TargetState: "",
+		Live:   kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+		Target: nil,
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
@@ -195,12 +208,12 @@ func TestSyncSuccessfully(t *testing.T) {
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "{\"kind\":\"service\"}",
-		TargetState: "",
+	syncCtx.resources = []ControlledResource{{
+		Live:   kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
+		Target: nil,
 	}, {
-		LiveState:   "{\"kind\":\"pod\"}",
-		TargetState: "",
+		Live:   kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+		Target: nil,
 	}}
 	syncCtx.sync()
 	for i := range syncCtx.syncRes.Resources {
@@ -226,9 +239,9 @@ func TestSyncCreateFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -245,9 +258,9 @@ func TestSyncPruneFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
-		TargetState: "",
+	syncCtx.resources = []ControlledResource{{
+		Live:   kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
+		Target: nil,
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)

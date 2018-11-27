@@ -15,7 +15,6 @@ import (
 	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -49,7 +48,6 @@ type Server struct {
 	controllerClientset controller.Clientset
 	kubectl             kube.Kubectl
 	db                  db.ArgoDB
-	appComparator       controller.AppStateManager
 	enf                 *rbac.Enforcer
 	projectLock         *util.KeyLock
 	auditLogger         *argo.AuditLogger
@@ -77,7 +75,6 @@ func NewServer(
 		db:                  db,
 		repoClientset:       repoClientset,
 		kubectl:             kubectl,
-		appComparator:       controller.NewAppStateManager(db, appclientset, repoClientset, namespace, kubectl),
 		enf:                 enf,
 		projectLock:         projectLock,
 		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
@@ -489,91 +486,98 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 	return nil
 }
 
-func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesResponse, error) {
+func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesTreeResponse, error) {
 	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(closer)
-	return client.Resources(ctx, q)
+	return client.ResourcesTree(ctx, q)
 }
 
-func (s *Server) DeleteResource(ctx context.Context, q *ApplicationDeleteResourceRequest) (*ApplicationResponse, error) {
+func (s *Server) getAppResource(ctx context.Context, q *ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+		return nil, nil, nil, grpc.ErrPermissionDenied
 	}
 
-	resources, err := s.getAppResources(ctx, &services.ResourcesQuery{ApplicationName: &a.Name})
+	resources, err := s.getAppResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	found := findResource(resources.Items, q)
 	if found == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.APIVersion, q.ResourceName, *q.Name)
+		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
-	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
+	config, _, err := s.getApplicationClusterConfig(*q.Name)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return found, config, a, nil
+}
+
+func (s *Server) GetResource(ctx context.Context, q *ApplicationResourceRequest) (*ApplicationResourceResponse, error) {
+	res, config, _, err := s.getAppResource(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	err = s.kubectl.DeleteResource(config, found, namespace)
+	obj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.APIVersion, q.Kind, q.ResourceName))
+	data, err := json.Marshal(obj.Object)
+	if err != nil {
+		return nil, err
+	}
+	return &ApplicationResourceResponse{Manifest: string(data)}, nil
+}
+
+func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceRequest) (*ApplicationResponse, error) {
+	res, config, a, err := s.getAppResource(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
+		return nil, grpc.ErrPermissionDenied
+	}
+	err = s.kubectl.DeleteResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	s.logEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
 	return &ApplicationResponse{}, nil
 }
 
-func (s *Server) Resources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesResponse, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
+func (s *Server) ResourcesTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesTreeResponse, error) {
+	return s.getAppResources(ctx, q)
+}
+
+func (s *Server) ControlledResources(ctx context.Context, q *services.ResourcesQuery) (*services.ControlledResourcesResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	return s.getAppResources(ctx, q)
-}
-
-func findResource(resources []*appv1.ResourceState, q *ApplicationDeleteResourceRequest) *unstructured.Unstructured {
-	for _, res := range resources {
-		liveObj, err := res.LiveObject()
-		if err != nil {
-			log.Warnf("Failed to unmarshal live object: %v", err)
-			continue
-		}
-		if liveObj == nil {
-			continue
-		}
-		if q.ResourceName == liveObj.GetName() && q.APIVersion == liveObj.GetAPIVersion() && q.Kind == liveObj.GetKind() {
-			return liveObj
-		}
-		liveObj = recurseResourceNode(q.ResourceName, q.APIVersion, q.Kind, res.ChildLiveResources)
-		if liveObj != nil {
-			return liveObj
-		}
+	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	defer util.Close(closer)
+	return client.ControlledResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
 }
 
-func recurseResourceNode(name, apiVersion, kind string, nodes []appv1.ResourceNode) *unstructured.Unstructured {
-	for _, node := range nodes {
-		var childObj unstructured.Unstructured
-		err := json.Unmarshal([]byte(node.State), &childObj)
-		if err != nil {
-			log.Warnf("Failed to unmarshal child live object: %v", err)
-			continue
-		}
-		if name == childObj.GetName() && apiVersion == childObj.GetAPIVersion() && kind == childObj.GetKind() {
-			return &childObj
-		}
-		recurseChildObj := recurseResourceNode(name, apiVersion, kind, node.Children)
-		if recurseChildObj != nil {
-			return recurseChildObj
+func findResource(resources []*appv1.ResourceNode, q *ApplicationResourceRequest) *appv1.ResourceNode {
+	for i := range resources {
+		node := resources[i].FindNode(q.Group, q.Kind, q.Namespace, q.ResourceName)
+		if node != nil {
+			return node
 		}
 	}
 	return nil

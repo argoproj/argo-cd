@@ -37,7 +37,7 @@ func (m *UpdatePasswordRequest) Reset()         { *m = UpdatePasswordRequest{} }
 func (m *UpdatePasswordRequest) String() string { return proto.CompactTextString(m) }
 func (*UpdatePasswordRequest) ProtoMessage()    {}
 func (*UpdatePasswordRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_c12a236fbb4926f3, []int{0}
+	return fileDescriptor_account_3e64cf795478a98b, []int{0}
 }
 func (m *UpdatePasswordRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -90,7 +90,7 @@ func (m *UpdatePasswordResponse) Reset()         { *m = UpdatePasswordResponse{}
 func (m *UpdatePasswordResponse) String() string { return proto.CompactTextString(m) }
 func (*UpdatePasswordResponse) ProtoMessage()    {}
 func (*UpdatePasswordResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_account_c12a236fbb4926f3, []int{1}
+	return fileDescriptor_account_3e64cf795478a98b, []int{1}
 }
 func (m *UpdatePasswordResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -566,10 +566,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("server/account/account.proto", fileDescriptor_account_c12a236fbb4926f3)
+	proto.RegisterFile("server/account/account.proto", fileDescriptor_account_3e64cf795478a98b)
 }
 
-var fileDescriptor_account_c12a236fbb4926f3 = []byte{
+var fileDescriptor_account_3e64cf795478a98b = []byte{
 	// 268 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x29, 0x4e, 0x2d, 0x2a,
 	0x4b, 0x2d, 0xd2, 0x4f, 0x4c, 0x4e, 0xce, 0x2f, 0xcd, 0x2b, 0x81, 0xd1, 0x7a, 0x05, 0x45, 0xf9,

@@ -87,11 +87,18 @@ message ApplicationRollbackRequest {
 	optional bool prune = 4 [(gogoproto.nullable) = false];
 }
 
-message ApplicationDeleteResourceRequest {
+message ApplicationResourceRequest {
 	required string name = 1;
-	required string resourceName = 2 [(gogoproto.nullable) = false];
-	required string apiVersion = 3 [(gogoproto.customname) = "APIVersion", (gogoproto.nullable) = false];
-	required string kind = 4 [(gogoproto.nullable) = false];
+	required string namespace = 2 [(gogoproto.nullable) = false];
+	required string resourceName = 3 [(gogoproto.nullable) = false];
+	required string version = 4 [(gogoproto.nullable) = false];
+	required string group = 5 [(gogoproto.nullable) = false];
+	required string kind = 6 [(gogoproto.nullable) = false];
+}
+
+
+message ApplicationResourceResponse {
+	required string manifest = 1 [(gogoproto.nullable) = false];
 }
 
 message ApplicationPodLogsQuery {
@@ -181,8 +188,12 @@ service ApplicationService {
 		};
 	}
 
-	rpc Resources(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ResourcesResponse) {
-		option (google.api.http).get = "/api/v1/applications/{applicationName}/resources";
+	rpc ControlledResources(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ControlledResourcesResponse) {
+		option (google.api.http).get = "/api/v1/applications/{applicationName}/controlled-resources";
+	}
+
+	rpc ResourcesTree(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ResourcesTreeResponse) {
+		option (google.api.http).get = "/api/v1/applications/{applicationName}/resources-tree";
 	}
 
 	// Rollback syncs an application to its target state
@@ -200,8 +211,13 @@ service ApplicationService {
 		};
 	}
 
+	// GetResource returns single application resource
+	rpc GetResource(ApplicationResourceRequest) returns (ApplicationResourceResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/resource";
+	}
+
 	// DeleteResource deletes a single application resource
-	rpc DeleteResource(ApplicationDeleteResourceRequest) returns (ApplicationResponse) {
+	rpc DeleteResource(ApplicationResourceRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}/resource";
 	}
 

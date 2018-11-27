@@ -139,40 +139,49 @@
         }
       }
     },
-    "/api/v1/applications/{applicationName}/resources": {
+    "/api/v1/applications/{applicationName}/controlled-resources": {
       "get": {
         "tags": [
           "ApplicationService"
         ],
-        "operationId": "Resources",
+        "operationId": "ControlledResources",
         "parameters": [
           {
             "type": "string",
             "name": "applicationName",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "version",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "kind",
-            "in": "query"
           }
         ],
         "responses": {
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesResourcesResponse"
+              "$ref": "#/definitions/servicesControlledResourcesResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{applicationName}/resources-tree": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "ResourcesTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "applicationName",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/servicesResourcesTreeResponse"
             }
           }
         }
@@ -399,6 +408,54 @@
       }
     },
     "/api/v1/applications/{name}/resource": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetResource returns single application resource",
+        "operationId": "GetResource",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResourceResponse"
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "ApplicationService"
@@ -1214,6 +1271,14 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
+    "applicationApplicationResourceResponse": {
+      "type": "object",
+      "properties": {
+        "manifest": {
+          "type": "string"
+        }
+      }
+    },
     "applicationApplicationResponse": {
       "type": "object"
     },
@@ -1591,13 +1656,24 @@
     "repositoryRepoResponse": {
       "type": "object"
     },
-    "servicesResourcesResponse": {
+    "servicesControlledResourcesResponse": {
       "type": "object",
       "properties": {
         "items": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceState"
+          }
+        }
+      }
+    },
+    "servicesResourcesTreeResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         }
       }
@@ -2066,7 +2142,7 @@
     },
     "v1alpha1AppProject": {
       "type": "object",
-      "title": "AppProject is a definition of AppProject resource.\nIt provides a logical grouping of applications, providing RBAC and enforcement controls for:\n* where the apps may deploy to (cluster whitelist)\n* what may be deployed (repository and resource whitelist/blacklist)\n* who can access these applications (OIDC group bindings)\n* and what they can do (roles, policies, RBAC)\n* and automation access to these roles (JWT tokens)\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
+      "title": "AppProject provides a logical grouping of applications, providing controls for:\n* where the apps may deploy to (cluster whitelist)\n* what may be deployed (repository whitelist, resource whitelist/blacklist)\n* who can access these applications (roles, OIDC group claims bindings)\n* and what they can do (RBAC policies)\n* automation access to these roles (JWT tokens)\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -2668,7 +2744,25 @@
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         },
-        "state": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "version": {
           "type": "string"
         }
       }
@@ -2677,19 +2771,22 @@
       "type": "object",
       "title": "ResourceState holds the target state of a resource and live state of a resource",
       "properties": {
-        "childLiveResources": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
+        "diff": {
+          "type": "string"
         },
-        "health": {
-          "$ref": "#/definitions/v1alpha1HealthStatus"
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
         },
         "liveState": {
           "type": "string"
         },
-        "status": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
           "type": "string"
         },
         "targetState": {
@@ -2711,6 +2808,9 @@
           "type": "string"
         },
         "name": {
+          "type": "string"
+        },
+        "namespace": {
           "type": "string"
         },
         "status": {
@@ -2870,7 +2970,7 @@
           "title": "KeyData holds PEM-encoded bytes (typically read from a client certificate key file).\nKeyData takes precedence over KeyFile"
         },
         "serverName": {
-          "description": "ServerName is passed to the server for SNI and is used in the client to check server\nceritificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
+          "description": "ServerName is passed to the server for SNI and is used in the client to check server\ncertificates against. If ServerName is empty, the hostname used to contact the\nserver is used.",
           "type": "string"
         }
       }

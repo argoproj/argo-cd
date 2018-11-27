@@ -15,6 +15,32 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
+// SetApplicationHealth updates the health statuses of all resources performed in the comparison
+func SetApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.ComparisonResult, liveObjs []*unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	var savedErr error
+	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
+	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
+		appHealth.Status = appv1.HealthStatusUnknown
+	}
+	for i, liveObj := range liveObjs {
+		resource := comparisonResult.Resources[i]
+		if liveObj == nil {
+			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusMissing}
+		} else {
+			healthState, err := GetAppHealth(kubectl, liveObj)
+			if err != nil && savedErr == nil {
+				savedErr = err
+			}
+			resource.Health = *healthState
+		}
+		comparisonResult.Resources[i].Health = resource.Health
+		if IsWorse(appHealth.Status, resource.Health.Status) {
+			appHealth.Status = resource.Health.Status
+		}
+	}
+	return &appHealth, savedErr
+}
+
 // GetAppHealth returns the health of a k8s resource
 func GetAppHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	var err error

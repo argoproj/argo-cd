@@ -21,13 +21,12 @@ message AWSAuthConfig {
   optional string roleARN = 2;
 }
 
-// AppProject is a definition of AppProject resource.
-// It provides a logical grouping of applications, providing RBAC and enforcement controls for:
+// AppProject provides a logical grouping of applications, providing controls for:
 // * where the apps may deploy to (cluster whitelist)
-// * what may be deployed (repository and resource whitelist/blacklist)
-// * who can access these applications (OIDC group bindings)
-// * and what they can do (roles, policies, RBAC)
-// * and automation access to these roles (JWT tokens)
+// * what may be deployed (repository whitelist, resource whitelist/blacklist)
+// * who can access these applications (roles, OIDC group claims bindings)
+// * and what they can do (RBAC policies)
+// * automation access to these roles (JWT tokens)
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -407,22 +406,36 @@ message ResourceDetails {
 
 // ResourceNode contains information about live resource and its children
 message ResourceNode {
-  optional string state = 1;
+  optional string kind = 1;
 
-  repeated ResourceNode children = 2;
+  optional string namespace = 2;
+
+  optional string name = 3;
+
+  optional string group = 4;
+
+  optional string version = 5;
+
+  repeated string tags = 6;
+
+  repeated ResourceNode children = 7;
 }
 
 // ResourceState holds the target state of a resource and live state of a resource
 message ResourceState {
-  optional string targetState = 1;
+  optional string group = 1;
 
-  optional string liveState = 2;
+  optional string kind = 2;
 
-  optional string status = 3;
+  optional string namespace = 3;
 
-  repeated ResourceNode childLiveResources = 4;
+  optional string name = 4;
 
-  optional HealthStatus health = 5;
+  optional string targetState = 5;
+
+  optional string liveState = 6;
+
+  optional string diff = 7;
 }
 
 // ResourceSummary holds the resource metadata and aggregated statuses
@@ -433,11 +446,13 @@ message ResourceSummary {
 
   optional string kind = 3;
 
-  optional string name = 4;
+  optional string namespace = 4;
 
-  optional string status = 5;
+  optional string name = 5;
 
-  optional HealthStatus health = 6;
+  optional string status = 6;
+
+  optional HealthStatus health = 7;
 }
 
 // SyncOperation contains sync operation details.
@@ -527,7 +542,7 @@ message TLSClientConfig {
   optional bool insecure = 1;
 
   // ServerName is passed to the server for SNI and is used in the client to check server
-  // ceritificates against. If ServerName is empty, the hostname used to contact the
+  // certificates against. If ServerName is empty, the hostname used to contact the
   // server is used.
   optional string serverName = 2;
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -25,19 +26,61 @@ import (
 type Kubectl interface {
 	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
-	DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error
-	WatchResources(ctx context.Context, config *rest.Config, namespace string, selector func(kind schema.GroupVersionKind) metav1.ListOptions) (chan watch.Event, error)
+	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) error
+	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
+	WatchResources(ctx context.Context, config *rest.Config, namespace string) (chan watch.Event, error)
+	GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error)
 }
 
 type KubectlCmd struct{}
+
+// GetResources returns all kubernetes resources
+func (k KubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {
+
+	listSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
+		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(*apiResource)
+	}
+	apiResIfs, err := filterAPIResources(config, listSupported, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	var asyncErr error
+	var result []*unstructured.Unstructured
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	wg.Add(len(apiResIfs))
+	for _, apiResIf := range apiResIfs {
+		go func(resourceIf dynamic.ResourceInterface) {
+			defer wg.Done()
+			list, err := resourceIf.List(metav1.ListOptions{})
+			if err != nil {
+				if !apierr.IsNotFound(err) {
+					asyncErr = err
+				}
+				return
+			}
+			for i := range list.Items {
+				item := list.Items[i]
+				lock.Lock()
+				result = append(result, &item)
+				lock.Unlock()
+			}
+		}(apiResIf.resourceIf)
+	}
+	wg.Wait()
+	return result, asyncErr
+}
 
 // WatchResources Watches all the existing resources with the provided label name in the provided namespace in the cluster provided by the config
 func (k KubectlCmd) WatchResources(
 	ctx context.Context,
 	config *rest.Config,
 	namespace string,
-	selector func(kind schema.GroupVersionKind) metav1.ListOptions,
 ) (chan watch.Event, error) {
+	watchSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
+		return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(*apiResource)
+	}
 	log.Infof("Start watching for resources changes with in cluster %s", config.Host)
 	apiResIfs, err := filterAPIResources(config, watchSupported, namespace)
 	if err != nil {
@@ -50,8 +93,7 @@ func (k KubectlCmd) WatchResources(
 		for _, a := range apiResIfs {
 			go func(apiResIf apiResourceInterface) {
 				defer wg.Done()
-				gvk := schema.FromAPIVersionAndKind(apiResIf.groupVersion, apiResIf.apiResource.Kind)
-				w, err := apiResIf.resourceIf.Watch(selector(gvk))
+				w, err := apiResIf.resourceIf.Watch(metav1.ListOptions{})
 				if err == nil {
 					defer w.Stop()
 					copyEventsChannel(ctx, w.ResultChan(), ch)
@@ -65,13 +107,31 @@ func (k KubectlCmd) WatchResources(
 	return ch, nil
 }
 
+// GetResource returns resource
+func (k KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	dynamicIf, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	if err != nil {
+		return nil, err
+	}
+	resource := gvk.GroupVersion().WithResource(apiResource.Name)
+	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
+	return resourceIf.Get(name, metav1.GetOptions{})
+}
+
 // DeleteResource deletes resource
-func (k KubectlCmd) DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error {
+func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) error {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
 	}
-	gvk := obj.GroupVersionKind()
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return err
@@ -83,7 +143,7 @@ func (k KubectlCmd) DeleteResource(config *rest.Config, obj *unstructured.Unstru
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
 	propagationPolicy := metav1.DeletePropagationForeground
-	return resourceIf.Delete(obj.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	return resourceIf.Delete(name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }
 
 // ApplyResource performs an apply of a unstructured resource
@@ -200,6 +260,9 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, vers
 	err = json.Unmarshal(out, &convertedObj)
 	if err != nil {
 		return nil, err
+	}
+	if convertedObj.GetNamespace() == "" {
+		convertedObj.SetNamespace(obj.GetNamespace())
 	}
 	return &convertedObj, nil
 }

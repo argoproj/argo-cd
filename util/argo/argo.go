@@ -171,7 +171,7 @@ func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *t
 			if err != nil {
 				return nil, fmt.Errorf("Unable to parse '%s': %v", common.AnnotationKeyRefresh, err)
 			}
-			if app.Status.ComparisonResult.ComparedAt.After(refreshTimestamp) {
+			if app.Status.ComparisonResult.ComparedAt.After(refreshTimestamp) || app.Status.ComparisonResult.ComparedAt.Time.Equal(refreshTimestamp) {
 				return app, nil
 			}
 		}

@@ -3,6 +3,9 @@ package controller
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/util/kube"
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -19,15 +22,6 @@ var clusterRoleHook = `
     "annotations": {
       "argocd.argoproj.io/hook": "PostSync"
 	}
-  }
-}`
-
-var testPod = `
-{
-  "apiVersion": "v1",
-  "kind": "Pod",
-  "metadata": {
-    "name": "foo"
   }
 }`
 
@@ -48,8 +42,8 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 	syncCtx.manifestInfo = &repository.ManifestResponse{
 		Manifests: []string{clusterRoleHook},
 	}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		TargetState: testPod,
+	syncCtx.resources = []ControlledResource{{
+		Target: kube.MustToUnstructured(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: "foo"}, TypeMeta: v1.TypeMeta{Kind: "pod"}}),
 	}}
 	syncCtx.proj.Spec.ClusterResourceWhitelist = []v1.GroupKind{}
 
