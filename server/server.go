@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -503,6 +504,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(settings.RegisterSettingsServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
+	// Swagger UI
 	swagger.ServeSwaggerUI(mux, packr.NewBox("."), "/swagger-ui")
 	healthz.ServeHealthCheck(mux, func() error {
 		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
@@ -516,27 +518,12 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings)
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
-	if a.StaticAssetsDir != "" {
-		mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-			acceptHTML := false
-			for _, acceptType := range strings.Split(request.Header.Get("Accept"), ",") {
-				if acceptType == "text/html" || acceptType == "html" {
-					acceptHTML = true
-					break
-				}
-			}
-			fileRequest := request.URL.Path != "/index.html" && strings.Contains(request.URL.Path, ".")
+	// Serve cli binaries directly from API server
+	registerDownloadHandlers(mux, "/download")
 
-			// serve index.html for non file requests to support HTML5 History API
-			if acceptHTML && !fileRequest && (request.Method == "GET" || request.Method == "HEAD") {
-				for k, v := range noCacheHeaders {
-					writer.Header().Set(k, v)
-				}
-				http.ServeFile(writer, request, a.StaticAssetsDir+"/index.html")
-			} else {
-				http.ServeFile(writer, request, a.StaticAssetsDir+request.URL.Path)
-			}
-		})
+	// Serve UI static assets
+	if a.StaticAssetsDir != "" {
+		mux.HandleFunc("/", newStaticAssetsHandler(a.StaticAssetsDir))
 	}
 	return &httpS
 }
@@ -568,6 +555,51 @@ func newRedirectServer(port int) *http.Server {
 			}
 			http.Redirect(w, req, target, http.StatusTemporaryRedirect)
 		}),
+	}
+}
+
+// registerDownloadHandlers registers HTTP handlers to support downloads directly from the API server
+// (e.g. argocd CLI)
+func registerDownloadHandlers(mux *http.ServeMux, base string) {
+	linuxPath, err := exec.LookPath("argocd")
+	if err != nil {
+		log.Warnf("argocd not in PATH")
+	} else {
+		mux.HandleFunc(base+"/argocd-linux-amd64", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, linuxPath)
+		})
+	}
+	darwinPath, err := exec.LookPath("argocd-darwin-amd64")
+	if err != nil {
+		log.Warnf("argocd-darwin-amd64 not in PATH")
+	} else {
+		mux.HandleFunc(base+"/argocd-darwin-amd64", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, darwinPath)
+		})
+	}
+}
+
+// newStaticAssetsHandler returns an HTTP handler to serve UI static assets
+func newStaticAssetsHandler(dir string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		acceptHTML := false
+		for _, acceptType := range strings.Split(r.Header.Get("Accept"), ",") {
+			if acceptType == "text/html" || acceptType == "html" {
+				acceptHTML = true
+				break
+			}
+		}
+		fileRequest := r.URL.Path != "/index.html" && strings.Contains(r.URL.Path, ".")
+
+		// serve index.html for non file requests to support HTML5 History API
+		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {
+			for k, v := range noCacheHeaders {
+				w.Header().Set(k, v)
+			}
+			http.ServeFile(w, r, dir+"/index.html")
+		} else {
+			http.ServeFile(w, r, dir+r.URL.Path)
+		}
 	}
 }
 

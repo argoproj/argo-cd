@@ -66,7 +66,7 @@ RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kusto
     chmod +x /usr/local/bin/kustomize
 
 ENV AWS_IAM_AUTHENTICATOR_VERSION=0.3.0
-RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v0.3.0/heptio-authenticator-aws_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
+RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/v${AWS_IAM_AUTHENTICATOR_VERSION}/heptio-authenticator-aws_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/aws-iam-authenticator
 
 
@@ -91,8 +91,8 @@ RUN cd ${GOPATH}/src/dummy && \
 # Perform the build
 WORKDIR /go/src/github.com/argoproj/argo-cd
 COPY . .
-ARG MAKE_TARGET="cli server controller repo-server argocd-util"
-RUN make ${MAKE_TARGET}
+RUN make cli server controller repo-server argocd-util && \
+    make CLI_NAME=argocd-darwin-amd64 GOOS=darwin cli
 
 
 ####################################################################################################
