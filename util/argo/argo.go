@@ -458,18 +458,17 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
 	}
-	manRes, err := repoClient.GenerateManifest(ctx, &req)
+
+	// Only check whether we can access the application's path,
+	// and not whether it actually contains any manifests.
+	_, err := repoClient.GenerateManifest(ctx, &req)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("Unable to generate manifests in %s: %v", spec.Source.Path, err),
 		})
-	} else if len(manRes.Manifests) == 0 {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Path '%s' contained no kubernetes manifests", spec.Source.Path),
-		})
 	}
+
 	return conditions
 }
 
