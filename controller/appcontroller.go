@@ -7,19 +7,18 @@ import (
 	"fmt"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	log "github.com/sirupsen/logrus"
-
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -646,15 +645,23 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
 		if state.Phase.Completed() {
 			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
-			var message string
+			var messages []string
+			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+				messages = []string{"Partial sync operation"}
+			} else {
+				messages = []string{"Sync operation"}
+			}
+			if state.SyncResult != nil {
+				messages = append(messages, "to", state.SyncResult.Revision)
+			}
 			if state.Phase.Successful() {
 				eventInfo.Type = v1.EventTypeNormal
-				message = "Operation succeeded"
+				messages = append(messages, "succeeded")
 			} else {
 				eventInfo.Type = v1.EventTypeWarning
-				message = fmt.Sprintf("Operation failed: %v", state.Message)
+				messages = append(messages, "failed:", state.Message)
 			}
-			ctrl.auditLogger.LogAppEvent(app, eventInfo, message)
+			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 		}
 		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -169,14 +170,15 @@ func TestCreateApp(t *testing.T) {
 }
 
 func TestDeleteApp(t *testing.T) {
+	ctx := context.Background()
 	appServer := newTestAppServer()
 	createReq := ApplicationCreateRequest{
 		Application: *newTestApp(),
 	}
-	app, err := appServer.Create(context.Background(), &createReq)
+	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
 
-	app, err = appServer.Get(context.Background(), &ApplicationQuery{Name: &app.Name})
+	app, err = appServer.Get(ctx, &ApplicationQuery{Name: &app.Name})
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 
@@ -196,7 +198,7 @@ func TestDeleteApp(t *testing.T) {
 	appServer.appclientset = fakeAppCs
 
 	trueVar := true
-	_, err = appServer.Delete(context.Background(), &ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
+	_, err = appServer.Delete(ctx, &ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
 	assert.Nil(t, err)
 	assert.True(t, patched)
 	assert.True(t, deleted)
@@ -205,9 +207,49 @@ func TestDeleteApp(t *testing.T) {
 	falseVar := false
 	patched = false
 	deleted = false
-	_, err = appServer.Delete(context.Background(), &ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
+	_, err = appServer.Delete(ctx, &ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
 	assert.Nil(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
+}
 
+func TestSyncAndTerminate(t *testing.T) {
+	ctx := context.Background()
+	appServer := newTestAppServer()
+	testApp := newTestApp()
+	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
+	createReq := ApplicationCreateRequest{
+		Application: *testApp,
+	}
+	app, err := appServer.Create(ctx, &createReq)
+	assert.Nil(t, err)
+
+	app, err = appServer.Sync(ctx, &ApplicationSyncRequest{Name: &app.Name})
+	assert.Nil(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Operation)
+
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(metav1.ListOptions{})
+	assert.Nil(t, err)
+	event := events.Items[1]
+
+	assert.Regexp(t, ".*initiated sync to HEAD \\([0-9A-Fa-f]{40}\\).*", event.Message)
+
+	// set status.operationState to pretend that an operation has started by controller
+	app.Status.OperationState = &appsv1.OperationState{
+		Operation: *app.Operation,
+		Phase:     appsv1.OperationRunning,
+		StartedAt: metav1.NewTime(time.Now()),
+	}
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(app)
+	assert.Nil(t, err)
+
+	resp, err := appServer.TerminateOperation(ctx, &OperationTerminateRequest{Name: &app.Name})
+	assert.Nil(t, err)
+	assert.NotNil(t, resp)
+
+	app, err = appServer.Get(ctx, &ApplicationQuery{Name: &app.Name})
+	assert.Nil(t, err)
+	assert.NotNil(t, app)
+	assert.Equal(t, appsv1.OperationTerminating, app.Status.OperationState.Phase)
 }
