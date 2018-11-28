@@ -73,6 +73,13 @@ import (
 	"github.com/argoproj/argo-cd/util/webhook"
 )
 
+const (
+	// minClientVersion is the minimum client version that can interface with this API server.
+	// When introducing breaking changes to the API or datastructures, this number should be bumped.
+	// The value here may be lower than the current value in VERSION
+	minClientVersion = "0.11.0"
+)
+
 var (
 	// ErrNoSession indicates no auth token was supplied as part of a request
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -93,8 +100,9 @@ var backoff = wait.Backoff{
 }
 
 var (
-	box           = packr.NewBox("../util/rbac")
-	builtinPolicy string
+	box              = packr.NewBox("../util/rbac")
+	builtinPolicy    string
+	clientConstraint = fmt.Sprintf(">= %s", minClientVersion)
 )
 
 func init() {
@@ -255,7 +263,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 		tlsConfig := tls.Config{
 			Certificates: []tls.Certificate{*a.settings.Certificate},
 		}
-		a.TLSConfigCustomizer(&tlsConfig)
+		if a.TLSConfigCustomizer != nil {
+			a.TLSConfigCustomizer(&tlsConfig)
+		}
 		tlsl = tls.NewListener(tlsl, &tlsConfig)
 
 		// Now, we build another mux recursively to match HTTPS and gRPC.
@@ -307,6 +317,7 @@ func (a *ArgoCDServer) checkServeErr(name string, err error) {
 	}
 }
 
+// Shutdown stops the Argo CD server
 func (a *ArgoCDServer) Shutdown() {
 	log.Info("Shut down requested")
 	stopCh := a.stopCh
@@ -410,6 +421,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_auth.StreamServerInterceptor(a.authenticate),
+		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
@@ -420,6 +432,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		bug21955WorkaroundInterceptor,
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_auth.UnaryServerInterceptor(a.authenticate),
+		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
@@ -471,14 +484,18 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 		Addr:    endpoint,
 		Handler: &bug21955Workaround{handler: mux},
 	}
-	dOpts := []grpc.DialOption{grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize))}
+	var dOpts []grpc.DialOption
+	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
+	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, argocd.GetVersion().Version)))
 	if a.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
 		// so we need to supply the same certificates to establish the connections that a normal,
 		// external gRPC client would need.
 		tlsConfig := a.settings.TLSConfig()
-		a.ArgoCDServerOpts.TLSConfigCustomizer(tlsConfig)
+		if a.TLSConfigCustomizer != nil {
+			a.TLSConfigCustomizer(tlsConfig)
+		}
 		tlsConfig.InsecureSkipVerify = true
 		dCreds := credentials.NewTLS(tlsConfig)
 		dOpts = append(dOpts, grpc.WithTransportCredentials(dCreds))

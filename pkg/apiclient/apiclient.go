@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
@@ -81,6 +82,7 @@ type ClientOptions struct {
 	AuthToken  string
 	ConfigPath string
 	Context    string
+	UserAgent  string
 }
 
 type client struct {
@@ -90,6 +92,7 @@ type client struct {
 	CertPEMData  []byte
 	AuthToken    string
 	RefreshToken string
+	UserAgent    string
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -162,6 +165,11 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+	if opts.UserAgent != "" {
+		c.UserAgent = opts.UserAgent
+	} else {
+		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, argocd.GetVersion().Version)
 	}
 	return &c, nil
 }
@@ -326,8 +334,13 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 	endpointCredentials := jwtCredentials{
 		Token: c.AuthToken,
 	}
-	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds,
-		grpc.WithPerRPCCredentials(endpointCredentials), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
+	var dialOpts []grpc.DialOption
+	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
+	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize)))
+	if c.UserAgent != "" {
+		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
+	}
+	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, dialOpts...)
 }
 
 func (c *client) tlsConfig() (*tls.Config, error) {

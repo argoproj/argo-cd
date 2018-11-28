@@ -60,6 +60,8 @@ const (
 	ArgoCDCLIClientAppName = "Argo CD CLI"
 	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
 	ArgoCDCLIClientAppID = "argo-cd-cli"
+	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
+	ArgoCDUserAgentName = "argocd-client"
 	// EnvVarSSODebug is an environment variable to enable additional OAuth debugging in the API server
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server

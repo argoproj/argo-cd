@@ -6,9 +6,9 @@ import (
 )
 
 // Version information set by link flags during build. We fall back to these sane
-// default values when we build outside the Makefile context (e.g. go build or go test).
+// default values when we build outside the Makefile context (e.g. go run, go build, or go test).
 var (
-	version      = "0.0.0"                // value from VERSION file
+	version      = "99.99.99"             // value from VERSION file
 	buildDate    = "1970-01-01T00:00:00Z" // output from `date -u +'%Y-%m-%dT%H:%M:%SZ'`
 	gitCommit    = ""                     // output from `git rev-parse HEAD`
 	gitTag       = ""                     // output from `git describe --exact-match --tags HEAD` (if clean tree state)
