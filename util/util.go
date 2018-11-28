@@ -1,9 +1,16 @@
 package util
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	"fmt"
+	"runtime/debug"
+	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Closer interface {
@@ -50,4 +57,62 @@ func MakeSignature(size int) ([]byte, error) {
 	// base64 encode it so signing key can be typed into validation utilities
 	b = []byte(base64.StdEncoding.EncodeToString(b))
 	return b, err
+}
+
+// RetryUntilSucceed keep retrying given action with specified timeout until action succeed or specified context is done.
+func RetryUntilSucceed(action func() error, desc string, ctx context.Context, timeout time.Duration) {
+	ctxCompleted := false
+	go func() {
+		select {
+		case <-ctx.Done():
+			ctxCompleted = true
+		}
+	}()
+	for {
+		err := action()
+		if err == nil {
+			return
+		}
+		if err != nil {
+			if ctxCompleted {
+				log.Infof("Stop retrying %s", desc)
+				return
+			}
+			log.Warnf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
+			time.Sleep(timeout)
+		}
+
+	}
+}
+
+func FirstNonEmpty(args ...string) string {
+	for _, value := range args {
+		if len(value) > 0 {
+			return value
+		}
+	}
+	return ""
+}
+
+func RunAllAsync(count int, action func(i int) error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			message := fmt.Sprintf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.Error(message)
+			err = errors.New(message)
+		}
+	}()
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			err = action(index)
+		}(i)
+		if err != nil {
+			break
+		}
+	}
+	wg.Wait()
+	return err
 }

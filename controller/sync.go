@@ -25,7 +25,7 @@ type syncContext struct {
 	appName       string
 	proj          *appv1.AppProject
 	comparison    *appv1.ComparisonResult
-	resources     []appv1.ResourceState
+	resources     []ControlledResource
 	config        *rest.Config
 	dynamicIf     dynamic.Interface
 	disco         discovery.DiscoveryInterface
@@ -41,7 +41,7 @@ type syncContext struct {
 	lock sync.Mutex
 }
 
-func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
+func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult and
@@ -77,7 +77,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
-	comparison, manifestInfo, resources, conditions, err := s.CompareAppState(app, revision, overrides)
+	comparison, manifestInfo, resources, conditions, err := m.CompareAppState(app, revision, overrides)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
@@ -98,7 +98,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = manifestInfo.Revision
 
-	clst, err := s.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
@@ -119,7 +119,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		return
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, s.appclientset, s.namespace)
+	proj, err := argo.GetAppProject(&app.Spec, m.appclientset, m.namespace)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -133,7 +133,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		config:        restConfig,
 		dynamicIf:     dynamicIf,
 		disco:         disco,
-		kubectl:       s.kubectl,
+		kubectl:       m.kubectl,
 		namespace:     app.Spec.Destination.Namespace,
 		syncOp:        &syncOp,
 		syncRes:       syncRes,
@@ -151,7 +151,7 @@ func (s *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	}
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && syncCtx.opState.Phase.Successful() {
-		err := s.persistDeploymentInfo(app, manifestInfo.Revision, manifestInfo.Params, nil)
+		err := m.persistDeploymentInfo(app, manifestInfo.Revision, manifestInfo.Params, nil)
 		if err != nil {
 			state.Phase = appv1.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -237,23 +237,13 @@ func (sc *syncContext) forceAppRefresh() {
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	syncTasks := make([]syncTask, 0)
 	for _, resourceState := range sc.resources {
-		liveObj, err := resourceState.LiveObject()
-		if err != nil {
-			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal live object: %v", err))
-			return nil, false
-		}
-		targetObj, err := resourceState.TargetObject()
-		if err != nil {
-			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("Failed to unmarshal target object: %v", err))
-			return nil, false
-		}
 		if sc.syncResources == nil ||
-			(liveObj != nil && argo.ContainsSyncResource(liveObj.GetName(), liveObj.GroupVersionKind(), sc.syncResources)) ||
-			(targetObj != nil && argo.ContainsSyncResource(targetObj.GetName(), targetObj.GroupVersionKind(), sc.syncResources)) {
+			(resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
+			(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources)) {
 
 			syncTask := syncTask{
-				liveObj:   liveObj,
-				targetObj: targetObj,
+				liveObj:   resourceState.Live,
+				targetObj: resourceState.Target,
 			}
 			syncTasks = append(syncTasks, syncTask)
 		}
@@ -339,7 +329,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			resDetails.Message = "pruned (dry run)"
 			resDetails.Status = appv1.ResourceDetailsSyncedAndPruned
 		} else {
-			err := sc.kubectl.DeleteResource(sc.config, liveObj, sc.namespace)
+			err := sc.kubectl.DeleteResource(sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace())
 			if err != nil {
 				resDetails.Message = err.Error()
 				resDetails.Status = appv1.ResourceDetailsSyncFailed

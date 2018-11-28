@@ -2,7 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	fmt "fmt"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -403,18 +403,46 @@ const (
 
 // ResourceNode contains information about live resource and its children
 type ResourceNode struct {
-	State    string         `json:"state,omitempty" protobuf:"bytes,1,opt,name=state"`
-	Children []ResourceNode `json:"children,omitempty" protobuf:"bytes,2,opt,name=children"`
+	Kind            string         `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
+	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	Name            string         `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Group           string         `json:"group,omitempty" protobuf:"bytes,4,opt,name=group"`
+	Version         string         `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
+	Tags            []string       `json:"tags,omitempty" protobuf:"bytes,6,opt,name=tags"`
+	Children        []ResourceNode `json:"children,omitempty" protobuf:"bytes,7,opt,name=children"`
+	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,8,opt,name=resourceVersion"`
+}
+
+func (n *ResourceNode) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
+	if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
+		return n
+	}
+	for i := range n.Children {
+		res := n.Children[i].FindNode(group, kind, namespace, name)
+		if res != nil {
+			return res
+		}
+	}
+	return nil
+}
+
+func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   n.Group,
+		Version: n.Version,
+		Kind:    n.Kind,
+	}
 }
 
 // ResourceSummary holds the resource metadata and aggregated statuses
 type ResourceSummary struct {
-	Group   string           `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version string           `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind    string           `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Name    string           `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
-	Status  ComparisonStatus `json:"status,omitempty" protobuf:"bytes,5,opt,name=status"`
-	Health  HealthStatus     `json:"health,omitempty" protobuf:"bytes,6,opt,name=health"`
+	Group     string           `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version   string           `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind      string           `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string           `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name      string           `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	Status    ComparisonStatus `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Health    HealthStatus     `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 }
 
 func (r *ResourceSummary) GroupVersionKind() schema.GroupVersionKind {
@@ -423,11 +451,13 @@ func (r *ResourceSummary) GroupVersionKind() schema.GroupVersionKind {
 
 // ResourceState holds the target state of a resource and live state of a resource
 type ResourceState struct {
-	TargetState        string           `json:"targetState,omitempty" protobuf:"bytes,1,opt,name=targetState"`
-	LiveState          string           `json:"liveState,omitempty" protobuf:"bytes,2,opt,name=liveState"`
-	Status             ComparisonStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
-	ChildLiveResources []ResourceNode   `json:"childLiveResources,omitempty" protobuf:"bytes,4,opt,name=childLiveResources"`
-	Health             HealthStatus     `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
+	Group       string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind        string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	Namespace   string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+	Name        string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	TargetState string `json:"targetState,omitempty" protobuf:"bytes,5,opt,name=targetState"`
+	LiveState   string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
+	Diff        string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
 }
 
 // ConnectionStatus represents connection status

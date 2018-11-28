@@ -13,6 +13,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -24,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/services"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -33,9 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/ksonnet"
-	kubeutil "github.com/argoproj/argo-cd/util/kube"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -570,45 +567,21 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
 			errors.CheckError(err)
-			resources, err := appIf.Resources(context.Background(), &services.ResourcesQuery{ApplicationName: &appName})
+			resources, err := appIf.ControlledResources(context.Background(), &services.ResourcesQuery{ApplicationName: appName})
 			errors.CheckError(err)
 			liveObjs, err := liveObjects(resources.Items)
 			errors.CheckError(err)
 
-			var compareObjs []*unstructured.Unstructured
-			if local != "" {
-				if env == "" {
-					log.Fatal("--env required when performing local diff")
-				}
-				ksApp, err := ksonnet.NewKsonnetApp(local)
+			for i := range resources.Items {
+				item := resources.Items[i]
+				diffRes, err := diff.UnmarshalDiffString(item.Diff)
 				errors.CheckError(err)
-				compareObjs, err = ksApp.Show(env)
-				errors.CheckError(err)
-				if len(app.Spec.Source.ComponentParameterOverrides) > 0 {
-					log.Warnf("Unable to display parameter overrides")
-				}
-				compareObjs, liveObjs = diff.MatchObjectLists(compareObjs, liveObjs)
-			} else {
-				if env != "" {
-					log.Fatal("--env option invalid when performing git diff")
-				}
-				compareObjs, err = targetObjects(resources.Items)
-				errors.CheckError(err)
-			}
-
-			// In order for the diff to be clean, need to set our app labels
-			setAppLabels(appName, compareObjs)
-			diffResults, err := diff.DiffArray(compareObjs, liveObjs)
-			errors.CheckError(err)
-			for i := 0; i < len(compareObjs); i++ {
-				kind, name := getObjKindName(compareObjs[i], liveObjs[i])
-				diffRes := diffResults.Diffs[i]
-				fmt.Printf("===== %s %s ======\n", kind, name)
+				fmt.Printf("===== %s %s ======\n", item.Kind, item.Name)
 				if diffRes.Modified {
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 					}
-					out, err := diffResults.Diffs[i].ASCIIFormat(liveObjs[i], formatOpts)
+					out, err := diffRes.ASCIIFormat(liveObjs[i], formatOpts)
 					errors.CheckError(err)
 					fmt.Println(out)
 				}
@@ -622,22 +595,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
 	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
 	return command
-}
-
-func getObjKindName(compare, live *unstructured.Unstructured) (string, string) {
-	if compare == nil {
-		return live.GetKind(), live.GetName()
-	}
-	return compare.GetKind(), compare.GetName()
-}
-
-func setAppLabels(appName string, compareObjs []*unstructured.Unstructured) {
-	for _, obj := range compareObjs {
-		if obj == nil {
-			continue
-		}
-		_ = kubeutil.SetLabel(obj, common.LabelApplicationName, appName)
-	}
 }
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
@@ -1336,7 +1293,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
-			resources, err := appIf.Resources(ctx, &services.ResourcesQuery{ApplicationName: &appName})
+			resources, err := appIf.ControlledResources(context.Background(), &services.ResourcesQuery{ApplicationName: appName})
 			errors.CheckError(err)
 
 			var unstructureds []*unstructured.Unstructured

@@ -11,66 +11,66 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/argoproj/argo-cd/common"
+	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/reposerver"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	cache_util "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	watchResourcesRetryTimeout  = 10 * time.Second
 	updateOperationStateTimeout = 1 * time.Second
 )
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	namespace             string
-	kubeClientset         kubernetes.Interface
-	kubectl               kube.Kubectl
-	applicationClientset  appclientset.Interface
-	auditLogger           *argo.AuditLogger
-	appRefreshQueue       workqueue.RateLimitingInterface
-	appOperationQueue     workqueue.RateLimitingInterface
-	appInformer           cache.SharedIndexInformer
-	appStateManager       AppStateManager
-	statusRefreshTimeout  time.Duration
-	repoClientset         reposerver.Clientset
-	db                    db.ArgoDB
-	forceRefreshApps      map[string]bool
-	forceRefreshAppsMutex *sync.Mutex
-	appResources          cache_util.Cache
+	namespace                string
+	kubeClientset            kubernetes.Interface
+	kubectl                  kube.Kubectl
+	applicationClientset     appclientset.Interface
+	auditLogger              *argo.AuditLogger
+	appRefreshQueue          workqueue.RateLimitingInterface
+	appOperationQueue        workqueue.RateLimitingInterface
+	appInformer              cache.SharedIndexInformer
+	appStateManager          AppStateManager
+	stateCache               statecache.LiveStateCache
+	statusRefreshTimeout     time.Duration
+	repoClientset            reposerver.Clientset
+	db                       db.ArgoDB
+	forceRefreshApps         map[string]bool
+	forceRefreshAppsMutex    *sync.Mutex
+	controlledResources      map[string][]ControlledResource
+	controlledResourcesMutex *sync.Mutex
 }
 
 type ApplicationControllerConfig struct {
@@ -89,76 +89,132 @@ func NewApplicationController(
 	settingsMgr := settings_util.NewSettingsManager(kubeClientset, namespace)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	kubectlCmd := kube.KubectlCmd{}
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd)
 	ctrl := ApplicationController{
-		namespace:             namespace,
-		kubeClientset:         kubeClientset,
-		kubectl:               kubectlCmd,
-		applicationClientset:  applicationClientset,
-		repoClientset:         repoClientset,
-		appRefreshQueue:       workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		appOperationQueue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		appStateManager:       appStateManager,
-		db:                    db,
-		statusRefreshTimeout:  appResyncPeriod,
-		forceRefreshApps:      make(map[string]bool),
-		forceRefreshAppsMutex: &sync.Mutex{},
-		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
-		appResources:          cache_util.NewInMemoryCache(24 * time.Hour),
+		namespace:                namespace,
+		kubeClientset:            kubeClientset,
+		kubectl:                  kubectlCmd,
+		applicationClientset:     applicationClientset,
+		repoClientset:            repoClientset,
+		appRefreshQueue:          workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		appOperationQueue:        workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		db:                       db,
+		statusRefreshTimeout:     appResyncPeriod,
+		forceRefreshApps:         make(map[string]bool),
+		forceRefreshAppsMutex:    &sync.Mutex{},
+		auditLogger:              argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
+		controlledResources:      make(map[string][]ControlledResource),
+		controlledResourcesMutex: &sync.Mutex{},
 	}
-	ctrl.appInformer = ctrl.newApplicationInformer()
+	appInformer := ctrl.newApplicationInformer()
+	stateCache := statecache.NewLiveStateCache(db, appInformer, kubectlCmd, func(appName string) {
+		ctrl.forceAppRefresh(appName)
+		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
+	})
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, stateCache)
+	ctrl.appInformer = appInformer
+	ctrl.appStateManager = appStateManager
+	ctrl.stateCache = stateCache
 	return &ctrl
 }
 
-func (ctrl *ApplicationController) setAppResources(appName string, resources []appv1.ResourceState) {
-	err := ctrl.appResources.Set(&cache_util.Item{Object: resources, Key: appName})
+func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, error) {
+	obj, exists, err := ctrl.appInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ctrl.namespace, name))
 	if err != nil {
-		log.Warnf("Unable to save app resources state in cache: %v", err)
+		return nil, err
 	}
+	if !exists {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("unable to find application with name %s", name))
+	}
+	a, ok := (obj).(*appv1.Application)
+	if !ok {
+		return nil, status.Errorf(codes.Internal, fmt.Sprintf("unexpected object type in app informer"))
+	}
+	return a, nil
 }
 
-func (ctrl *ApplicationController) Resources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesResponse, error) {
-	resources := make([]appv1.ResourceState, 0)
-	if q.ApplicationName == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "application name is not specified")
+func (ctrl *ApplicationController) setAppControlledResources(appName string, resources []ControlledResource) {
+	ctrl.controlledResourcesMutex.Lock()
+	defer ctrl.controlledResourcesMutex.Unlock()
+	ctrl.controlledResources[appName] = resources
+}
+
+func (ctrl *ApplicationController) getAppControlledResources(appName string) []ControlledResource {
+	ctrl.controlledResourcesMutex.Lock()
+	defer ctrl.controlledResourcesMutex.Unlock()
+	return ctrl.controlledResources[appName]
+}
+
+func (ctrl *ApplicationController) ResourcesTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesTreeResponse, error) {
+	a, err := ctrl.getApp(q.ApplicationName)
+	if err != nil {
+		return nil, err
 	}
-	err := ctrl.appResources.Get(*q.ApplicationName, &resources)
-	if err == nil {
-		items := make([]*appv1.ResourceState, 0)
-		for i := range resources {
-			res := resources[i]
-			obj, err := res.TargetObject()
+	controlledResources := ctrl.getAppControlledResources(q.ApplicationName)
+	items := make([]*appv1.ResourceNode, 0)
+	for i := range controlledResources {
+		controlledResource := controlledResources[i]
+		node := appv1.ResourceNode{
+			Name:      controlledResource.Name,
+			Version:   controlledResource.Version,
+			Kind:      controlledResource.Kind,
+			Group:     controlledResource.Group,
+			Namespace: controlledResource.Namespace,
+		}
+		if controlledResource.Live != nil {
+			node.ResourceVersion = controlledResource.Live.GetResourceVersion()
+			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, controlledResource.Live)
 			if err != nil {
 				return nil, err
 			}
-			if obj == nil {
-				obj, err = res.LiveObject()
-				if err != nil {
-					return nil, err
-				}
-			}
-			if obj == nil {
-				return nil, fmt.Errorf("both live and target objects are nil")
-			}
-			gvk := obj.GroupVersionKind()
-			if q.Version != nil && gvk.Version != *q.Version {
-				continue
-			}
-			if q.Group != nil && gvk.Group != *q.Group {
-				continue
-			}
-			if q.Kind != nil && gvk.Kind != *q.Kind {
-				continue
-			}
-			var data map[string]interface{}
-			res.LiveState, data = hideSecretData(res.LiveState, nil)
-			res.TargetState, _ = hideSecretData(res.TargetState, data)
-			res.ChildLiveResources = hideNodesSecrets(res.ChildLiveResources)
-			items = append(items, &res)
+			node.Children = children
 		}
-		return &services.ResourcesResponse{Items: items}, nil
+		items = append(items, &node)
 	}
-	return &services.ResourcesResponse{Items: make([]*appv1.ResourceState, 0)}, nil
+	return &services.ResourcesTreeResponse{Items: items}, nil
+}
+
+func (ctrl *ApplicationController) ControlledResources(ctx context.Context, q *services.ResourcesQuery) (*services.ControlledResourcesResponse, error) {
+	resources := ctrl.getAppControlledResources(q.ApplicationName)
+	items := make([]*appv1.ResourceState, len(resources))
+	for i := range resources {
+		res := resources[i]
+		item := appv1.ResourceState{
+			Namespace: res.Namespace,
+			Name:      res.Name,
+			Group:     res.Group,
+			Kind:      res.Kind,
+		}
+		live, data := hideSecretData(res.Live, nil)
+		target, _ := hideSecretData(res.Target, data)
+
+		if live != nil {
+			data, err := json.Marshal(live)
+			if err != nil {
+				return nil, err
+			}
+			item.LiveState = string(data)
+		} else {
+			item.LiveState = "null"
+		}
+
+		if target != nil {
+			data, err := json.Marshal(target)
+			if err != nil {
+				return nil, err
+			}
+			item.TargetState = string(data)
+		} else {
+			item.TargetState = "null"
+		}
+		jsonDiff, err := res.Diff.JSONFormat()
+		if err != nil {
+			return nil, err
+		}
+		item.Diff = jsonDiff
+
+		items[i] = &item
+	}
+	return &services.ControlledResourcesResponse{Items: items}, nil
 }
 
 func toString(val interface{}) string {
@@ -171,43 +227,29 @@ func toString(val interface{}) string {
 // hideSecretData checks if given object kind is Secret, replaces data keys with stars and returns unchanged data map. The method additionally check if data key if different
 // from corresponding key of optional parameter `otherData` and adds extra star to keep information about difference. So if secret data is out of sync user still can see which
 // fields are different.
-func hideSecretData(state string, otherData map[string]interface{}) (string, map[string]interface{}) {
-	obj, err := appv1.UnmarshalToUnstructured(state)
-	if err == nil {
-		if obj != nil && obj.GetKind() == kube.SecretKind {
-			if data, ok, err := unstructured.NestedMap(obj.Object, "data"); err == nil && ok {
-				unchangedData := make(map[string]interface{})
-				for k, v := range data {
-					unchangedData[k] = v
-				}
-				for k := range data {
-					replacement := "********"
-					if otherData != nil {
-						if val, ok := otherData[k]; ok && toString(val) != toString(data[k]) {
-							replacement = replacement + "*"
-						}
-					}
-					data[k] = replacement
-				}
-				_ = unstructured.SetNestedMap(obj.Object, data, "data")
-				newState, err := json.Marshal(obj)
-				if err == nil {
-					return string(newState), unchangedData
-				}
+func hideSecretData(state *unstructured.Unstructured, otherData map[string]interface{}) (*unstructured.Unstructured, map[string]interface{}) {
+	obj := state.DeepCopy()
+	if obj != nil && obj.GroupVersionKind().Group == "" && obj.GetKind() == kube.SecretKind {
+		if data, ok, err := unstructured.NestedMap(obj.Object, "data"); err == nil && ok {
+			unchangedData := make(map[string]interface{})
+			for k, v := range data {
+				unchangedData[k] = v
 			}
+			for k := range data {
+				replacement := "********"
+				if otherData != nil {
+					if val, ok := otherData[k]; ok && toString(val) != toString(data[k]) {
+						replacement = replacement + "*"
+					}
+				}
+				data[k] = replacement
+			}
+			_ = unstructured.SetNestedMap(obj.Object, data, "data")
+
+			return obj, unchangedData
 		}
 	}
-	return state, nil
-}
-
-func hideNodesSecrets(nodes []appv1.ResourceNode) []appv1.ResourceNode {
-	for i := range nodes {
-		node := nodes[i]
-		node.State, _ = hideSecretData(node.State, nil)
-		node.Children = hideNodesSecrets(node.Children)
-		nodes[i] = node
-	}
-	return nodes
+	return obj, nil
 }
 
 // Run starts the Application CRD controller.
@@ -222,7 +264,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		return
 	}
 
-	go ctrl.watchAppsResources()
+	go ctrl.stateCache.Run(ctx)
 
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {
@@ -293,140 +335,6 @@ func (ctrl *ApplicationController) isRefreshForced(appName string) bool {
 	return ok
 }
 
-// watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
-func (ctrl *ApplicationController) watchClusterResources(ctx context.Context, item appv1.Cluster) {
-	retryUntilSucceed(func() (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				err = fmt.Errorf("Recovered from panic: %v\n", r)
-			}
-		}()
-		config := item.RESTConfig()
-		watchStartTime := time.Now()
-		ch, err := ctrl.kubectl.WatchResources(ctx, config, "", func(gvk schema.GroupVersionKind) metav1.ListOptions {
-			ops := metav1.ListOptions{}
-			if !kube.IsCRDGroupVersionKind(gvk) {
-				ops.LabelSelector = common.LabelApplicationName
-			}
-			return ops
-		})
-
-		if err != nil {
-			return err
-		}
-		for event := range ch {
-			eventObj := event.Object.(*unstructured.Unstructured)
-			if kube.IsCRD(eventObj) {
-				// restart if new CRD has been created after watch started
-				if event.Type == watch.Added && watchStartTime.Before(eventObj.GetCreationTimestamp().Time) {
-					return fmt.Errorf("Restarting the watch because a new CRD was added.")
-				} else if event.Type == watch.Deleted {
-					return fmt.Errorf("Restarting the watch because a CRD was deleted.")
-				}
-			}
-			objLabels := eventObj.GetLabels()
-			if objLabels == nil {
-				objLabels = make(map[string]string)
-			}
-			if appName, ok := objLabels[common.LabelApplicationName]; ok {
-				ctrl.forceAppRefresh(appName)
-				ctrl.appRefreshQueue.Add(ctrl.namespace + "/" + appName)
-			}
-		}
-		return fmt.Errorf("resource updates channel has closed")
-	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, watchResourcesRetryTimeout)
-
-}
-
-func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
-	for _, obj := range apps {
-		if app, ok := obj.(*appv1.Application); ok && app.Spec.Destination.Server == cluster.Server {
-			return true
-		}
-	}
-	return false
-}
-
-// WatchAppsResources watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
-func (ctrl *ApplicationController) watchAppsResources() {
-	watchingClusters := make(map[string]struct {
-		cancel  context.CancelFunc
-		cluster *appv1.Cluster
-	})
-
-	retryUntilSucceed(func() error {
-		clusterEventCallback := func(event *db.ClusterEvent) {
-			info, ok := watchingClusters[event.Cluster.Server]
-			hasApps := isClusterHasApps(ctrl.appInformer.GetStore().List(), event.Cluster)
-
-			// cluster resources must be watched only if cluster has at least one app
-			if (event.Type == watch.Deleted || !hasApps) && ok {
-				info.cancel()
-				delete(watchingClusters, event.Cluster.Server)
-			} else if event.Type != watch.Deleted && !ok && hasApps {
-				ctx, cancel := context.WithCancel(context.Background())
-				watchingClusters[event.Cluster.Server] = struct {
-					cancel  context.CancelFunc
-					cluster *appv1.Cluster
-				}{
-					cancel:  cancel,
-					cluster: event.Cluster,
-				}
-				go ctrl.watchClusterResources(ctx, *event.Cluster)
-			}
-		}
-
-		onAppModified := func(obj interface{}) {
-			if app, ok := obj.(*appv1.Application); ok {
-				var cluster *appv1.Cluster
-				info, infoOk := watchingClusters[app.Spec.Destination.Server]
-				if infoOk {
-					cluster = info.cluster
-				} else {
-					cluster, _ = ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-				}
-				if cluster != nil {
-					// trigger cluster event every time when app created/deleted to either start or stop watching resources
-					clusterEventCallback(&db.ClusterEvent{Cluster: cluster, Type: watch.Modified})
-				}
-			}
-		}
-
-		ctrl.appInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{AddFunc: onAppModified, DeleteFunc: onAppModified})
-
-		return ctrl.db.WatchClusters(context.Background(), clusterEventCallback)
-
-	}, "watch clusters", context.Background(), watchResourcesRetryTimeout)
-
-	<-context.Background().Done()
-}
-
-// retryUntilSucceed keep retrying given action with specified timeout until action succeed or specified context is done.
-func retryUntilSucceed(action func() error, desc string, ctx context.Context, timeout time.Duration) {
-	ctxCompleted := false
-	go func() {
-		select {
-		case <-ctx.Done():
-			ctxCompleted = true
-		}
-	}()
-	for {
-		err := action()
-		if err == nil {
-			return
-		}
-		if err != nil {
-			if ctxCompleted {
-				log.Infof("Stop retrying %s", desc)
-				return
-			}
-			log.Warnf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
-			time.Sleep(timeout)
-		}
-
-	}
-}
-
 func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext bool) {
 	appKey, shutdown := ctrl.appOperationQueue.Get()
 	if shutdown {
@@ -487,16 +395,28 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return err
 	}
 	config := clst.RESTConfig()
-	err = kube.DeleteResourcesWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
+	objsMap, err := ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
 	}
-	objs, err := kube.GetResourcesWithLabel(config, app.Spec.Destination.Namespace, common.LabelApplicationName, app.Name)
+	objs := make([]*unstructured.Unstructured, 0)
+	for k := range objsMap {
+		objs = append(objs, objsMap[k])
+	}
+	err = util.RunAllAsync(len(objs), func(i int) error {
+		obj := objs[i]
+		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+	})
 	if err != nil {
 		return err
 	}
-	if len(objs) > 0 {
-		logCtx.Info("%d objects remaining for deletion", len(objs))
+
+	objsMap, err = ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
+	if err != nil {
+		return err
+	}
+	if len(objsMap) > 0 {
+		logCtx.Infof("%d objects remaining for deletion", len(objsMap))
 		return nil
 	}
 	app.SetCascadedDeletion(false)
@@ -510,11 +430,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return err
 	}
-	// Purge the key from the cache
-	err = ctrl.appResources.Delete(app.Name)
-	if err != nil {
-		logCtx.Warnf("Failed to purge app cache after deletion")
-	}
+
 	logCtx.Info("Successfully deleted resources")
 	return nil
 }
@@ -610,7 +526,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
-	retryUntilSucceed(func() error {
+	util.RetryUntilSucceed(func() error {
 		if state.Phase == "" {
 			// expose any bugs where we neglect to set phase
 			panic("no phase was set")
@@ -704,9 +620,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		comparisonResult := app.Status.ComparisonResult.DeepCopy()
 		comparisonResult.Status = appv1.ComparisonStatusUnknown
-		health := app.Status.Health.DeepCopy()
-		health.Status = appv1.HealthStatusUnknown
-		ctrl.updateAppStatus(app, comparisonResult, health, nil, conditions)
+		appHealth := app.Status.Health.DeepCopy()
+		appHealth.Status = appv1.HealthStatusUnknown
+		ctrl.updateAppStatus(app, comparisonResult, appHealth, nil, conditions)
 		return
 	}
 
@@ -716,17 +632,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	} else {
 		conditions = append(conditions, compConditions...)
 	}
+	ctrl.setAppControlledResources(app.Name, resources)
 
 	var parameters []*appv1.ComponentParameter
 	if manifestInfo != nil {
 		parameters = manifestInfo.Params
 	}
 
-	healthState, err := setApplicationHealth(ctrl.kubectl, comparisonResult, resources)
+	healthState, err := health.SetApplicationHealth(ctrl.kubectl, comparisonResult, GetLiveObjs(resources))
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
-	ctrl.setAppResources(app.Name, resources)
 
 	syncErrCond := ctrl.autoSync(app, comparisonResult)
 	if syncErrCond != nil {
@@ -811,37 +727,6 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 
 	}
 	return appConditions, hasErrors
-}
-
-// setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.ComparisonResult, resources []appv1.ResourceState) (*appv1.HealthStatus, error) {
-	var savedErr error
-	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
-	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
-		appHealth.Status = appv1.HealthStatusUnknown
-	}
-	for i, resource := range resources {
-		if resource.LiveState == "null" {
-			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusMissing}
-		} else {
-			var obj unstructured.Unstructured
-			err := json.Unmarshal([]byte(resource.LiveState), &obj)
-			if err != nil {
-				return nil, err
-			}
-			healthState, err := health.GetAppHealth(kubectl, &obj)
-			if err != nil && savedErr == nil {
-				savedErr = err
-			}
-			resource.Health = *healthState
-		}
-		resources[i] = resource
-		comparisonResult.Resources[i].Health = resource.Health
-		if health.IsWorse(appHealth.Status, resource.Health.Status) {
-			appHealth.Status = resource.Health.Status
-		}
-	}
-	return &appHealth, savedErr
 }
 
 // updateAppStatus persists updates to application status. Detects if there patch

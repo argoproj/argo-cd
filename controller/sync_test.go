@@ -1,18 +1,20 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"testing"
+
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
+
+	appsv1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
@@ -20,43 +22,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
 )
-
-type kubectlOutput struct {
-	output string
-	err    error
-}
-
-type mockKubectlCmd struct {
-	commands map[string]kubectlOutput
-	events   chan watch.Event
-}
-
-func (k mockKubectlCmd) WatchResources(
-	ctx context.Context, config *rest.Config, namespace string, selector func(kind schema.GroupVersionKind) v1.ListOptions) (chan watch.Event, error) {
-
-	return k.events, nil
-}
-
-func (k mockKubectlCmd) DeleteResource(config *rest.Config, obj *unstructured.Unstructured, namespace string) error {
-	command, ok := k.commands[obj.GetName()]
-	if !ok {
-		return nil
-	}
-	return command.err
-}
-
-func (k mockKubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error) {
-	command, ok := k.commands[obj.GetName()]
-	if !ok {
-		return "", nil
-	}
-	return command.output, command.err
-}
-
-// ConvertToVersion converts an unstructured object into the specified group/version
-func (k mockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
-	return obj, nil
-}
 
 func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
@@ -97,13 +62,13 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 
 func TestSyncCreateInSortedOrder(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"pod\"}",
+	syncCtx.kubectl = kubetest.MockKubectlCmd{}
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
 	}, {
-		LiveState:   "",
-		TargetState: "{\"kind\":\"service\"}",
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
@@ -138,10 +103,12 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 		{Group: "argoproj.io", Kind: "*"},
 	}
 
-	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: `{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": {"name": "argo-ui-cluster-role" }}`,
+	syncCtx.kubectl = kubetest.MockKubectlCmd{}
+	syncCtx.resources = []ControlledResource{{
+		Live: nil,
+		Target: kube.MustToUnstructured(&rbacv1.ClusterRole{
+			TypeMeta:   v1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
+			ObjectMeta: v1.ObjectMeta{Name: "argo-ui-cluster-role"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -156,10 +123,10 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 		{Group: "*", Kind: "deployment"},
 	}
 
-	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"deployment\"}",
+	syncCtx.kubectl = kubetest.MockKubectlCmd{}
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&appsv1.Deployment{TypeMeta: v1.TypeMeta{Kind: "deployment"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -169,13 +136,13 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"service\"}",
+	syncCtx.kubectl = kubetest.MockKubectlCmd{}
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
 	}, {
-		LiveState:   "{\"kind\":\"pod\"}",
-		TargetState: "",
+		Live:   kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+		Target: nil,
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
@@ -194,13 +161,13 @@ func TestSyncSuccessfully(t *testing.T) {
 
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = mockKubectlCmd{}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "{\"kind\":\"service\"}",
-		TargetState: "",
+	syncCtx.kubectl = kubetest.MockKubectlCmd{}
+	syncCtx.resources = []ControlledResource{{
+		Live:   kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
+		Target: nil,
 	}, {
-		LiveState:   "{\"kind\":\"pod\"}",
-		TargetState: "",
+		Live:   kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+		Target: nil,
 	}}
 	syncCtx.sync()
 	for i := range syncCtx.syncRes.Resources {
@@ -218,17 +185,17 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 
 func TestSyncCreateFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = mockKubectlCmd{
-		commands: map[string]kubectlOutput{
+	syncCtx.kubectl = kubetest.MockKubectlCmd{
+		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
-				output: "",
-				err:    fmt.Errorf("error: error validating \"test.yaml\": error validating data: apiVersion not set; if you choose to ignore these errors, turn validation off with --validate=false"),
+				Output: "",
+				Err:    fmt.Errorf("error: error validating \"test.yaml\": error validating data: apiVersion not set; if you choose to ignore these errors, turn validation off with --validate=false"),
 			},
 		},
 	}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "",
-		TargetState: "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -237,17 +204,17 @@ func TestSyncCreateFailure(t *testing.T) {
 
 func TestSyncPruneFailure(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = mockKubectlCmd{
-		commands: map[string]kubectlOutput{
+	syncCtx.kubectl = kubetest.MockKubectlCmd{
+		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
-				output: "",
-				err:    fmt.Errorf(" error: timed out waiting for \"test-service\" to be synced"),
+				Output: "",
+				Err:    fmt.Errorf(" error: timed out waiting for \"test-service\" to be synced"),
 			},
 		},
 	}
-	syncCtx.resources = []v1alpha1.ResourceState{{
-		LiveState:   "{\"kind\":\"service\", \"metadata\":{\"name\":\"test-service\"}}",
-		TargetState: "",
+	syncCtx.resources = []ControlledResource{{
+		Live:   kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
+		Target: nil,
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)

@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/argoproj/argo-cd/util/health"
+
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -56,7 +58,7 @@ func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Un
 	// already started the post-sync phase, then we do not need to perform the health check.
 	postSyncHooks, _ := sc.getHooks(appv1.HookTypePostSync)
 	if len(postSyncHooks) > 0 && !sc.startedPostSyncPhase() {
-		healthState, err := setApplicationHealth(sc.kubectl, sc.comparison, sc.resources)
+		healthState, err := health.SetApplicationHealth(sc.kubectl, sc.comparison, GetLiveObjs(sc.resources))
 		sc.log.Infof("PostSync application health check: %s", healthState.Status)
 		if err != nil {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to check application health: %v", err))
