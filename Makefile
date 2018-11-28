@@ -23,12 +23,6 @@ ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 endif
-ifneq (${IMAGE_NAMESPACE},)
-override LDFLAGS += -X ${PACKAGE}/install.imageNamespace=${IMAGE_NAMESPACE}
-endif
-ifneq (${IMAGE_TAG},)
-override LDFLAGS += -X ${PACKAGE}/install.imageTag=${IMAGE_TAG}
-endif
 
 ifeq (${DOCKER_PUSH},true)
 ifndef IMAGE_NAMESPACE
