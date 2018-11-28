@@ -97,5 +97,9 @@ func getPodTags(un *unstructured.Unstructured) []string {
 		reason = "Terminating"
 	}
 
-	return []string{reason, fmt.Sprintf("%d/%d", readyContainers, totalContainers)}
+	tags := make([]string, 0)
+	if reason != "" {
+		tags = append(tags, reason)
+	}
+	return append(tags, fmt.Sprintf("%d/%d", readyContainers, totalContainers))
 }

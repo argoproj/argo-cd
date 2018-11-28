@@ -36,10 +36,8 @@ import (
 )
 
 const (
-	listVerb             = "list"
-	deleteVerb           = "delete"
-	deleteCollectionVerb = "deletecollection"
-	watchVerb            = "watch"
+	listVerb  = "list"
+	watchVerb = "watch"
 )
 
 const (

@@ -3,6 +3,8 @@ package controller
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
+
 	"github.com/argoproj/argo-cd/util/kube"
 	corev1 "k8s.io/api/core/v1"
 
@@ -38,7 +40,7 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 		},
 	})
 
-	syncCtx.kubectl = mockKubectlCmd{}
+	syncCtx.kubectl = kubetest.MockKubectlCmd{}
 	syncCtx.manifestInfo = &repository.ManifestResponse{
 		Manifests: []string{clusterRoleHook},
 	}

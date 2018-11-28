@@ -125,32 +125,43 @@ func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*
 			controlledObjs[key] = o.resource
 		}
 	}
-	for _, targetObj := range targetObjs {
+	lock := &sync.Mutex{}
+	err := util.RunAllAsync(len(targetObjs), func(i int) error {
+		targetObj := targetObjs[i]
 		key := kube.GetResourceKeyNS(targetObj, util.FirstNonEmpty(targetObj.GetNamespace(), a.Spec.Destination.Namespace))
+		lock.Lock()
 		controlledObj := controlledObjs[key]
-		var err error
+		lock.Unlock()
 
 		if controlledObj == nil {
 			if existingObj, exists := c.nodes[key]; exists {
 				if existingObj.resource != nil {
 					controlledObj = existingObj.resource
 				} else {
+					var err error
 					controlledObj, err = c.kubectl.GetResource(c.cluster.RESTConfig(), targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
-					if err != nil && errors.IsNotFound(err) {
-						err = nil
+					if err != nil && !errors.IsNotFound(err) {
+						return err
 					}
 				}
 			}
 		}
 
 		if controlledObj != nil {
-			controlledObj, err = c.kubectl.ConvertToVersion(controlledObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
+			controlledObj, err := c.kubectl.ConvertToVersion(controlledObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
 			if err != nil {
-				return nil, err
+				return err
 			}
+			lock.Lock()
 			controlledObjs[key] = controlledObj
+			lock.Unlock()
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
+
 	return controlledObjs, nil
 }
 
@@ -198,29 +209,33 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 		}
 	} else if exists {
 		obj.resourceVersion = un.GetResourceVersion()
-		appName := obj.appName
-		newAppName := ""
-		if un.GetLabels() != nil {
-			newAppName = un.GetLabels()[common.LabelApplicationName]
+		toNotify := make([]string, 0)
+		if obj.appName != "" {
+			toNotify = append(toNotify, obj.appName)
 		}
-		obj.appName = newAppName
-		if obj.isAppRoot() {
+
+		if len(obj.ownerRefs) == 0 {
+			newAppName := ""
+			if un.GetLabels() != nil {
+				newAppName = un.GetLabels()[common.LabelApplicationName]
+			}
+			if newAppName != obj.appName {
+				obj.setAppName(newAppName)
+				if newAppName != "" {
+					toNotify = append(toNotify, newAppName)
+				}
+			}
+		}
+
+		if len(obj.parents) == 0 && obj.appName != "" {
 			obj.resource = un
 		} else {
 			obj.resource = nil
 		}
 		obj.tags = getTags(un)
-		appNames := make(map[string]bool)
-		if appName != "" {
-			appNames[appName] = true
-		}
-		if newAppName != "" {
-			appNames[newAppName] = true
-		}
-		for name := range appNames {
-			if name != "" {
-				c.onAppUpdated(name)
-			}
+
+		for _, name := range toNotify {
+			c.onAppUpdated(name)
 		}
 	}
 
