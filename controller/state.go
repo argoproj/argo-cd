@@ -137,7 +137,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	liveObjByKey, err := m.liveStateCache.GetControlledLiveObjs(app, targetObjs)
 	if err != nil {
-		liveObjByKey = make(map[string]*unstructured.Unstructured)
+		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
@@ -156,7 +156,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
-		key := kubeutil.FormatResourceKey(gvk.Group, gvk.Kind, util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace), obj.GetName())
+		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace), obj.GetName())
 		if liveObj, ok := liveObjByKey[key]; ok {
 			controlledLiveObj[i] = liveObj
 			delete(liveObjByKey, key)

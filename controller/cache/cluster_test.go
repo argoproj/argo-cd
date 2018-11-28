@@ -75,7 +75,7 @@ var (
 func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
 	return &clusterInfo{
 		lock:         &sync.Mutex{},
-		nodes:        make(map[string]*node),
+		nodes:        make(map[kube.ResourceKey]*node),
 		onAppUpdated: func(appName string) {},
 		kubectl: kubetest.MockKubectlCmd{
 			Resources: resources,
@@ -130,8 +130,8 @@ metadata:
 		},
 	}, []*unstructured.Unstructured{targetDeploy})
 	assert.Nil(t, err)
-	assert.Equal(t, controlledObjs, map[string]*unstructured.Unstructured{
-		"apps:Deployment:default:helm-guestbook": testDeploy,
+	assert.Equal(t, controlledObjs, map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,
 	})
 }
 

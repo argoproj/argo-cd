@@ -26,7 +26,7 @@ type LiveStateCache interface {
 	// Returns child nodes for a given k8s resource
 	GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error)
 	// Returns state of live nodes which correspond for target nodes of specified application.
-	GetControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[string]*unstructured.Unstructured, error)
+	GetControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context)
 }
@@ -77,7 +77,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 
 		info = &clusterInfo{
 			lock:         &sync.Mutex{},
-			nodes:        make(map[string]*node),
+			nodes:        make(map[kube.ResourceKey]*node),
 			onAppUpdated: c.onAppUpdated,
 			kubectl:      c.kubectl,
 			cluster:      cluster,
@@ -103,7 +103,7 @@ func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructur
 	return clusterInfo.getChildren(obj), nil
 }
 
-func (c *liveStateCache) GetControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[string]*unstructured.Unstructured, error) {
+func (c *liveStateCache) GetControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	clusterInfo, err := c.getCluster(a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err

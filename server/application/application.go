@@ -542,7 +542,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceReque
 		return nil, err
 	}
 
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err = s.kubectl.DeleteResource(config, res.GroupKindVersion(), res.Name, res.Namespace)

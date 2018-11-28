@@ -24,7 +24,7 @@ const (
 )
 
 type clusterInfo struct {
-	nodes        map[string]*node
+	nodes        map[kube.ResourceKey]*node
 	lock         *sync.Mutex
 	onAppUpdated func(appName string)
 	kubectl      kube.Kubectl
@@ -36,7 +36,7 @@ type clusterInfo struct {
 func createObjInfo(un *unstructured.Unstructured) *node {
 	ownerRefs := un.GetOwnerReferences()
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
-	if un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
+	if un.GroupVersionKind().Group == "" && un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
 		ownerRefs = append(ownerRefs, metav1.OwnerReference{
 			Name:       un.GetName(),
 			Kind:       kube.ServiceKind,
@@ -52,8 +52,8 @@ func createObjInfo(un *unstructured.Unstructured) *node {
 			Namespace:  un.GetNamespace(),
 		},
 		ownerRefs: ownerRefs,
-		parents:   make(map[string]*node),
-		children:  make(map[string]*node),
+		parents:   make(map[kube.ResourceKey]*node),
+		children:  make(map[kube.ResourceKey]*node),
 		tags:      getTags(un),
 	}
 	if labels := un.GetLabels(); len(ownerRefs) == 0 && labels != nil && labels[common.LabelApplicationName] != "" {
@@ -77,7 +77,7 @@ func (c *clusterInfo) ensureSynced() error {
 		return nil
 	}
 	log.Infof("Start syncing cluster %s", c.cluster.Server)
-	c.nodes = make(map[string]*node)
+	c.nodes = make(map[kube.ResourceKey]*node)
 	resources, err := c.kubectl.GetResources(c.cluster.RESTConfig(), "")
 	if err != nil {
 		log.Errorf("Failed to sync cluster %s: %v", c.cluster.Server, err)
@@ -88,7 +88,7 @@ func (c *clusterInfo) ensureSynced() error {
 		c.nodes[kube.GetResourceKey(resources[i])] = createObjInfo(resources[i])
 	}
 
-	nodes := make(map[string]*node)
+	nodes := make(map[kube.ResourceKey]*node)
 	for k, v := range c.nodes {
 		nodes[k] = v
 	}
@@ -115,11 +115,11 @@ func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.Resour
 	return children
 }
 
-func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[string]*unstructured.Unstructured, error) {
+func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	controlledObjs := make(map[string]*unstructured.Unstructured)
+	controlledObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for key, o := range c.nodes {
 		if o.appName == a.Name && o.resource != nil && len(o.parents) == 0 {
 			controlledObjs[key] = o.resource
@@ -192,14 +192,14 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 		newObj := createObjInfo(un)
 		c.nodes[newObj.resourceKey()] = newObj
 		if len(newObj.ownerRefs) > 0 {
-			sameNamespace := make(map[string]*node)
+			sameNamespace := make(map[kube.ResourceKey]*node)
 			for k := range c.nodes {
 				if c.nodes[k].ref.Namespace == un.GetNamespace() {
 					sameNamespace[k] = c.nodes[k]
 				}
 			}
 			for _, ownerRef := range newObj.ownerRefs {
-				if owner, ok := sameNamespace[kube.FormatResourceKey(ownerRefGV(ownerRef).Group, ownerRef.Kind, un.GetNamespace(), ownerRef.Name)]; ok {
+				if owner, ok := sameNamespace[kube.NewResourceKey(ownerRefGV(ownerRef).Group, ownerRef.Kind, un.GetNamespace(), ownerRef.Name)]; ok {
 					owner.fillChildren(sameNamespace)
 				}
 			}

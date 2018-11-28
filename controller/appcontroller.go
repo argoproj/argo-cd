@@ -228,7 +228,7 @@ func toString(val interface{}) string {
 // fields are different.
 func hideSecretData(state *unstructured.Unstructured, otherData map[string]interface{}) (*unstructured.Unstructured, map[string]interface{}) {
 	obj := state.DeepCopy()
-	if obj != nil && obj.GetKind() == kube.SecretKind {
+	if obj != nil && obj.GroupVersionKind().Group == "" && obj.GetKind() == kube.SecretKind {
 		if data, ok, err := unstructured.NestedMap(obj.Object, "data"); err == nil && ok {
 			unchangedData := make(map[string]interface{})
 			for k, v := range data {
@@ -409,12 +409,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return err
 	}
-	for _, obj := range objs {
-		err := ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
-		if err != nil {
-			return err
-		}
-	}
+
 	objsMap, err = ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err

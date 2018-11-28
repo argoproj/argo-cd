@@ -73,21 +73,28 @@ func init() {
 	}
 }
 
-func FormatResourceKey(group string, kind string, namespace string, name string) string {
+type ResourceKey struct {
+	Group     string
+	Kind      string
+	Namespace string
+	Name      string
+}
+
+func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
 	if group == "extensions" {
 		group = "apps"
 	}
 
-	return fmt.Sprintf("%s:%s:%s:%s", group, kind, namespace, name)
+	return ResourceKey{Group: group, Kind: kind, Namespace: namespace, Name: name}
 }
 
-func GetResourceKey(obj *unstructured.Unstructured) string {
+func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
 	return GetResourceKeyNS(obj, "")
 }
 
-func GetResourceKeyNS(obj *unstructured.Unstructured, namespace string) string {
+func GetResourceKeyNS(obj *unstructured.Unstructured, namespace string) ResourceKey {
 	gvk := obj.GroupVersionKind()
-	return FormatResourceKey(gvk.Group, gvk.Kind, util.FirstNonEmpty(obj.GetNamespace(), namespace), obj.GetName())
+	return NewResourceKey(gvk.Group, gvk.Kind, util.FirstNonEmpty(obj.GetNamespace(), namespace), obj.GetName())
 }
 
 // TestConfig tests to make sure the REST config is usable

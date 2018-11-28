@@ -13,15 +13,15 @@ type node struct {
 	resourceVersion string
 	ref             v1.ObjectReference
 	ownerRefs       []metav1.OwnerReference
-	children        map[string]*node
-	parents         map[string]*node
+	children        map[kube.ResourceKey]*node
+	parents         map[kube.ResourceKey]*node
 	tags            []string
 	appName         string
 	resource        *unstructured.Unstructured
 }
 
-func (n *node) resourceKey() string {
-	return kube.FormatResourceKey(n.ref.GroupVersionKind().Group, n.ref.Kind, n.ref.Namespace, n.ref.Name)
+func (n *node) resourceKey() kube.ResourceKey {
+	return kube.NewResourceKey(n.ref.GroupVersionKind().Group, n.ref.Kind, n.ref.Namespace, n.ref.Name)
 }
 
 func (n *node) isParentOf(child *node) bool {
@@ -30,7 +30,7 @@ func (n *node) isParentOf(child *node) bool {
 	}
 	ownerGvk := n.ref.GroupVersionKind()
 	for _, ownerRef := range child.ownerRefs {
-		if kube.FormatResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name) == n.resourceKey() {
+		if kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name) == n.resourceKey() {
 			return true
 		}
 	}
@@ -45,7 +45,7 @@ func (n *node) setAppName(appName string) {
 	}
 }
 
-func (n *node) fillChildren(nodes map[string]*node) {
+func (n *node) fillChildren(nodes map[kube.ResourceKey]*node) {
 	for k, child := range nodes {
 		if n.isParentOf(child) {
 			delete(nodes, k)

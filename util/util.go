@@ -104,12 +104,11 @@ func RunAllAsync(count int, action func(i int) error) (err error) {
 	}()
 	var wg sync.WaitGroup
 	for i := 0; i < count; i++ {
-		index := i
 		wg.Add(1)
-		go func() {
+		go func(index int) {
 			defer wg.Done()
 			err = action(index)
-		}()
+		}(i)
 		if err != nil {
 			break
 		}
