@@ -4,55 +4,56 @@ import * as React from 'react';
 
 import * as models from '../../../shared/models';
 import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
-import { ComparisonStatusIcon, getPodStateReason, getStateAndNode, HealthStatusIcon } from '../utils';
+import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon, ResourceTreeNode } from '../utils';
 
 require('./application-node-info.scss');
 
-export const ApplicationNodeInfo = (props: { node: models.ResourceNode | models.ResourceState}) => {
-    const {resourceNode, resourceState} = getStateAndNode(props.node);
-
+export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: models.State, controlled: { summary: models.ResourceSummary, state: models.ResourceState } }) => {
     const attributes = [
-        {title: 'KIND', value: resourceNode.state.kind},
-        {title: 'NAME', value: resourceNode.state.metadata.name},
-        {title: 'NAMESPACE', value: resourceNode.state.metadata.namespace},
+        {title: 'KIND', value: props.node.kind},
+        {title: 'NAME', value: props.node.name},
+        {title: 'NAMESPACE', value: props.node.namespace},
     ];
-    if (resourceNode.state.kind === 'Pod') {
-        const {reason, message} = getPodStateReason(resourceNode.state);
-        attributes.push({title: 'STATE', value: reason });
-        if (message) {
-            attributes.push({title: 'STATE DETAILS', value: message });
+    if (props.live) {
+        if (props.node.kind === 'Pod') {
+            const {reason, message} = getPodStateReason(props.live);
+            attributes.push({title: 'STATE', value: reason });
+            if (message) {
+                attributes.push({title: 'STATE DETAILS', value: message });
+            }
+        } else if (props.node.kind === 'Service') {
+            attributes.push({title: 'TYPE', value: props.live.spec.type});
+            let hostNames = '';
+            const status = props.live.status;
+            if (status && status.loadBalancer && status.loadBalancer.ingress) {
+                hostNames = (status.loadBalancer.ingress || []).map((item: any) => item.hostname).join(', ');
+            }
+            attributes.push({title: 'HOSTNAMES', value: hostNames});
         }
-    } else if (resourceNode.state.kind === 'Service') {
-        attributes.push({title: 'TYPE', value: resourceNode.state.spec.type});
-        let hostNames = '';
-        const status = resourceNode.state.status;
-        if (status && status.loadBalancer && status.loadBalancer.ingress) {
-            hostNames = (status.loadBalancer.ingress || []).map((item: any) => item.hostname).join(', ');
-        }
-        attributes.push({title: 'HOSTNAMES', value: hostNames});
     }
-    if (resourceState) {
+
+    if (props.controlled) {
         attributes.push({title: 'STATUS', value: (
-            <span><ComparisonStatusIcon status={resourceState.status}/> {resourceState.status}</span>
+            <span><ComparisonStatusIcon status={props.controlled.summary.status}/> {props.controlled.summary.status}</span>
         )} as any);
         attributes.push({title: 'HEALTH', value: (
-            <span><HealthStatusIcon state={resourceState.health}/> {resourceState.health.status}</span>
+            <span><HealthStatusIcon state={props.controlled.summary.health}/> {props.controlled.summary.health.status}</span>
         )} as any);
-        if (resourceState.health.statusDetails) {
-            attributes.push({title: 'HEALTH DETAILS', value: resourceState.health.statusDetails});
+        if (props.controlled.summary.health.statusDetails) {
+            attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.statusDetails});
         }
     }
 
     const tabs: Tab[] = [{
         key: 'manifest',
         title: 'Manifest',
-        content: <div className='application-node-info__manifest application-node-info__manifest--raw'>{jsYaml.safeDump(resourceNode.state, {indent: 2 })}</div>,
+        content: <div className='application-node-info__manifest application-node-info__manifest--raw'>{jsYaml.safeDump(props.live, {indent: 2 })}</div>,
     }];
-    if (resourceState) {
+    if (props.controlled) {
         tabs.unshift({
             key: 'diff',
             title: 'Diff',
-            content: <ApplicationResourceDiff targetState={resourceState.targetState} liveState={resourceState.liveState}/>,
+            content: <ApplicationResourceDiff state={props.controlled.state}/>,
         });
     }
 

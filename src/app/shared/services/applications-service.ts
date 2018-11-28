@@ -26,20 +26,17 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
     }
 
-    public resources(name: string): Promise<models.ResourceState[]> {
-        return requests.get(`/applications/${name}/resources`).then((res) => res.body.items as models.ResourceState[] || []).then((resources) => {
-            resources.forEach((resource) => {
-                resource.liveState = JSON.parse(resource.liveState as any);
-                resource.targetState = JSON.parse(resource.targetState as any);
-                function parseResourceNodes(node: models.ResourceNode) {
-                    node.state = JSON.parse(node.state as any);
-                    (node.children || []).forEach(parseResourceNodes);
-                }
-                (resource.childLiveResources || []).forEach((node) => {
-                    parseResourceNodes(node);
-                });
+    public resourcesTree(name: string): Promise<models.ResourceNode[]> {
+        return requests.get(`/applications/${name}/resources-tree`).then((res) => res.body.items as models.ResourceNode[] || []);
+    }
+
+    public controlledResources(name: string): Promise<models.ResourceState[]> {
+        return requests.get(`/applications/${name}/controlled-resources`).then((res) => res.body.items as any[] || []).then((items) => {
+            items.forEach((item) => {
+                item.liveState = JSON.parse(item.liveState);
+                item.targetState = JSON.parse(item.targetState);
             });
-            return resources;
+            return items as models.ResourceState[];
         });
     }
 
@@ -92,16 +89,34 @@ export class ApplicationsService {
             (data) => JSON.parse(data).result as models.LogEntry);
     }
 
-    public deleteResource(applicationName: string, resourceName: string, apiVersion: string, kind: string): Promise<any> {
-        return requests.delete(`/applications/${applicationName}/resource`).query({resourceName, apiVersion, kind}).send().then(() => true);
+    public getResource(name: string, resource: models.ResourceNode): Promise<models.State> {
+        return requests.get(`/applications/${name}/resource`).query({
+            name: resource.name,
+            namespace: resource.namespace,
+            resourceName: resource.name,
+            version: resource.version,
+            kind: resource.kind,
+            group: resource.group,
+        }).then((res) => res.body as { manifest: string }).then((res) => JSON.parse(res.manifest) as models.State);
+    }
+
+    public deleteResource(applicationName: string, resource: models.ResourceNode): Promise<any> {
+        return requests.delete(`/applications/${applicationName}/resource`).query({
+            name: resource.name,
+            namespace: resource.namespace,
+            resourceName: resource.name,
+            version: resource.version,
+            kind: resource.kind,
+            group: resource.group,
+        }).send().then(() => true);
     }
 
     public events(applicationName: string): Promise<models.Event[]> {
-        return this.resourceEvents(applicationName, null, null);
+        return this.resourceEvents(applicationName, null);
     }
 
-    public resourceEvents(applicationName: string, resourceUID: string, resourceName: string): Promise<models.Event[]> {
-        return requests.get(`/applications/${applicationName}/events`).query({resourceName, resourceUID}).send().then((res) => (res.body as models.EventList).items || []);
+    public resourceEvents(applicationName: string, resource: models.ResourceNode): Promise<models.Event[]> {
+        return requests.get(`/applications/${applicationName}/events`).query({  }).send().then((res) => (res.body as models.EventList).items || []);
     }
 
     public terminateOperation(applicationName: string): Promise<boolean> {

@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, getStateAndNode, HealthStatusIcon } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, nodeKey, ResourceTreeNode } from '../utils';
 
 require('./application-resources-tree.scss');
 
@@ -29,9 +29,9 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     return {width, height};
 }
 
-function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.ResourceNode | models.ResourceState) => boolean) {
+function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.ResourceNode) => boolean) {
     graph.nodes().forEach((nodeId) => {
-        const node = graph.node(nodeId) as (models.ResourceNode | models.ResourceState) & dagre.Node;
+        const node = graph.node(nodeId) as models.ResourceNode & dagre.Node;
         if (!predicate(node)) {
             const childIds = graph.successors(nodeId);
             const parentIds = graph.predecessors(nodeId);
@@ -45,45 +45,55 @@ function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.Resou
     });
 }
 
-function compareState(first: models.State, second: models.State) {
-    return `${first.kind}/${first.metadata.namespace}/${first.metadata.name}`.localeCompare(`${second.kind}/${second.metadata.namespace}/${second.metadata.name}`);
+function compareNodes(first: models.ResourceNode, second: models.ResourceNode) {
+    return nodeKey(first).localeCompare(nodeKey(second));
+}
+
+function appNodeKey(app: models.Application) {
+    return nodeKey({group: app.apiVersion, kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace });
 }
 
 export const ApplicationResourcesTree = (props: {
     app: models.Application,
-    resources: models.ResourceState[],
+    resources: ResourceTreeNode [],
     kindsFilter: string[],
     selectedNodeFullName?: string,
     onNodeClick?: (fullName: string) => any,
-    nodeMenuItems?: (node: models.ResourceNode | models.ResourceState) => MenuItem[],
-    nodeLabels?: (node: models.ResourceNode | models.ResourceState) => string[];
+    nodeMenuItems?: (node: models.ResourceNode) => MenuItem[],
 }) => {
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR', marginx: -100 });
     graph.setDefaultEdgeLabel(() => ({}));
-    graph.setNode(`${props.app.kind}:${props.app.metadata.name}`, { state: props.app, width: NODE_WIDTH, height: NODE_HEIGHT });
+    const appNode: models.ResourceNode = {
+        kind: props.app.kind,
+        name: props.app.metadata.name,
+        namespace: props.app.metadata.namespace,
+        resourceVersion: props.app.metadata.resourceVersion,
+        group: '',
+        version: '',
+        children: [],
+        tags: (props.app.spec.source.componentParameterOverrides || []).length > 0 ? [`${props.app.spec.source.componentParameterOverrides.length} parameter override(s)`] : [],
+    };
+    graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
 
-    function addChildren<T extends (models.ResourceNode | models.ResourceState) & { fullName: string, children: models.ResourceNode[] }>(node: T) {
-        graph.setNode(node.fullName, Object.assign({}, node, { width: NODE_WIDTH, height: NODE_HEIGHT}));
-        for (const child of (node.children || []).slice().sort((first, second) => compareState(first.state, second.state))) {
-            const fullName = `${child.state.kind}:${child.state.metadata.name}`;
-            addChildren({...child, fullName});
-            graph.setEdge(node.fullName, fullName);
+    function addChildren<T extends (models.ResourceNode | models.ResourceState) & { key: string, children: models.ResourceNode[] }>(node: T) {
+        graph.setNode(node.key, Object.assign({}, node, { width: NODE_WIDTH, height: NODE_HEIGHT}));
+        for (const child of (node.children || []).slice().sort(compareNodes)) {
+            const key = nodeKey(child);
+            addChildren({...child, key});
+            graph.setEdge(node.key, key);
         }
     }
 
-    const resources = (props.resources || []).slice().sort(
-        (first, second) => compareState(first.targetState || first.liveState, second.targetState || second.liveState));
+    const resources = (props.resources || []).slice().sort(compareNodes);
     for (const res of resources) {
-        const state = res.liveState || res.targetState;
-        addChildren({...res, children: res.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
-        graph.setEdge(`${props.app.kind}:${props.app.metadata.name}`, `${state.kind}:${state.metadata.name}`);
+        addChildren({...res, children: res.children, key: nodeKey(res)});
+        graph.setEdge(appNodeKey(props.app), nodeKey(res));
     }
 
     if (props.kindsFilter.length > 0) {
         filterGraph(graph, (res) => {
-            const {resourceNode} = getStateAndNode(res);
-            return resourceNode.state.kind === 'Application' || props.kindsFilter.indexOf(resourceNode.state.kind) > -1;
+            return res.kind === 'Application' || props.kindsFilter.indexOf(res.kind) > -1;
         });
     }
 
@@ -104,46 +114,35 @@ export const ApplicationResourcesTree = (props: {
     return (
         <div className='application-resources-tree' style={{width: size.width + 150, height: size.height + 150}}>
             {graph.nodes().map((fullName) => {
-                const node = graph.node(fullName) as (models.ResourceNode | models.ResourceState) & dagre.Node;
-                let kubeState: models.State;
+                const node = graph.node(fullName) as (models.ResourceNode) & dagre.Node;
                 let comparisonStatus: models.ComparisonStatus = null;
                 let healthState: models.HealthStatus = null;
-                if (node.liveState || node.targetState) {
-                    const resourceState = node as models.ResourceState;
-                    kubeState = resourceState.targetState || resourceState.liveState;
-                    comparisonStatus = resourceState.status;
-                    healthState = resourceState.health;
-                } else {
-                    const resourceNode = node as models.ResourceNode;
-                    kubeState = resourceNode.state;
-                    if (kubeState.kind === 'Application') {
-                        const appState = kubeState as models.Application;
-                        comparisonStatus = appState.status.comparisonResult.status;
-                        healthState = appState.status.health;
-                    }
+                if (node.status || node.health) {
+                    comparisonStatus = node.status;
+                    healthState = node.health;
                 }
-                const kindIcon = ICON_CLASS_BY_KIND[kubeState.kind.toLocaleLowerCase()] || 'fa fa-gears';
+                const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-gears';
                 return (
                     <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resources-tree__node', {
                         active: fullName === props.selectedNodeFullName,
                     })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                         <div className={classNames('application-resources-tree__node-kind-icon', {
-                            'application-resources-tree__node-kind-icon--big': kubeState.kind === 'Application',
+                            'application-resources-tree__node-kind-icon--big': node.kind === 'Application',
                         })}>
-                            <i title={kubeState.kind} className={`icon ${kindIcon}`}/>
+                            <i title={node.kind} className={`icon ${kindIcon}`}/>
                         </div>
                         <div className='application-resources-tree__node-content'>
-                            <span className='application-resources-tree__node-title' title={kubeState.metadata.name}>{kubeState.metadata.name}</span>
+                            <span className='application-resources-tree__node-title' title={node.name}>{node.name}</span>
                             <div className={classNames('application-resources-tree__node-status-icon', {
-                                'application-resources-tree__node-status-icon--offset': kubeState.kind === 'Application',
+                                'application-resources-tree__node-status-icon--offset': node.kind === 'Application',
                             })}>
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
                                 {healthState != null && <HealthStatusIcon state={healthState}/>}
                             </div>
                         </div>
                         <div className='application-resources-tree__node-labels'>
-                            {props.nodeLabels && props.nodeLabels(node).map((label) => <span key={label}>{label}</span>)}
-                            <span>{kubeState.kind}</span>
+                            {(node.tags || []).map((tag) => <span key={tag}>{tag}</span>)}
+                            <span>{node.kind}</span>
                         </div>
                         {props.nodeMenuItems && (
                             <div className='application-resources-tree__node-menu'>

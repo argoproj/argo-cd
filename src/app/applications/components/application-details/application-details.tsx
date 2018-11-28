@@ -21,25 +21,31 @@ import { ApplicationSummary } from '../application-summary/application-summary';
 import { ParametersPanel } from '../parameters-panel/parameters-panel';
 import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
+import { isSameNode, nodeKey, ResourceTreeNode } from '../utils';
 
 require('./application-details.scss');
 
-function resourcesFromSummaryInfo(application: appModels.Application) {
-    return (application.status.comparisonResult.resources || []).map((summary) => ({
-        targetState: {
+function resourcesFromSummaryInfo(application: appModels.Application, roots: appModels.ResourceNode[]): ResourceTreeNode[] {
+    const rootByKey = new Map<string, ResourceTreeNode>();
+    for (const node of roots || []) {
+        rootByKey.set(nodeKey(node), node);
+    }
+
+    return (application.status.comparisonResult.resources || []).map((summary) => {
+        const root = rootByKey.get(nodeKey(summary));
+        return {
+            name: summary.name,
+            namespace: summary.namespace || application.metadata.namespace,
             kind: summary.kind,
-            apiVersion: summary.version,
-            metadata: {
-                name: summary.name,
-            },
-            status: null,
-            spec: {},
-        },
-        childLiveResources: [],
-        liveState: null,
-        status: summary.status,
-        health: summary.health,
-    }));
+            group: summary.group,
+            version: summary.version,
+            children: root && root.children || [],
+            status: summary.status,
+            health: summary.health,
+            tags: [],
+            resourceVersion: root && root.resourceVersion || '',
+        };
+    });
 }
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { defaultKindFilter: string[], refreshing: boolean}> {
@@ -49,16 +55,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     };
 
     private viewPrefSubscription: Subscription;
-    private appUpdates: Observable<{application: appModels.Application, resources: appModels.ResourceState[]}>;
+    private appUpdates: Observable<{application: appModels.Application, resources: ResourceTreeNode[]}>;
     private formApi: FormApi;
-    private loader: DataLoader<{application: appModels.Application, resources: appModels.ResourceState[]}>;
+    private loader: DataLoader<{application: appModels.Application, resources: ResourceTreeNode[]}>;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
         super(props);
         this.state = { defaultKindFilter: [], refreshing: false };
         this.appUpdates = services.applications.watch({name: props.match.params.name}).map((changeEvent) => changeEvent.application).flatMap((application) =>
-            Observable.fromPromise(services.applications.resources(application.metadata.name).then((resources) => {
-                return {application, resources: resources.length === 0 ? resourcesFromSummaryInfo(application) : resources};
+            Observable.fromPromise(services.applications.resourcesTree(application.metadata.name).then((resources) => {
+                return {application, resources: resourcesFromSummaryInfo(application, resources)};
             })),
         ).repeat().retryWhen((errors) => errors.delay(500));
     }
@@ -75,23 +81,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return parseInt(new URLSearchParams(this.props.history.location.search).get('rollback'), 10);
     }
 
-    private get selectedNodeContainer() {
-        const nodeContainer = {
-            fullName: '',
-            container: 0,
-        };
+    private get selectedNodeInfo() {
+        const nodeContainer = { key: '', container: 0 };
         const node = new URLSearchParams(this.props.location.search).get('node');
         if (node) {
             const parts = node.split(':');
-            nodeContainer.fullName = parts.slice(0, 2).join(':');
-            nodeContainer.container = parseInt(parts[2] || '0', 10);
+            nodeContainer.key = parts.slice(0, 4).join(':');
+            nodeContainer.container = parseInt(parts[4] || '0', 10);
         }
         return nodeContainer;
     }
 
-    private get selectedNodeFullName() {
-        const nodeContainer = this.selectedNodeContainer;
-        return nodeContainer.fullName;
+    private get selectedNodeKey() {
+        const nodeContainer = this.selectedNodeInfo;
+        return nodeContainer.key;
     }
 
     public async componentDidMount() {
@@ -117,17 +120,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 input={this.props.match.params.name}
                 load={async (name) => {
                     const application = await services.applications.get(name, false);
-                    return {application, resources: resourcesFromSummaryInfo(application)};
+                    return {application, resources: resourcesFromSummaryInfo(application, [])};
                 }}>
 
-                {({application, resources}: {application: appModels.Application, resources: appModels.ResourceState[]}) => {
+                {({application, resources}: {application: appModels.Application, resources: ResourceTreeNode[]}) => {
                     const kindsSet = new Set<string>();
-                    const toProcess: (appModels.ResourceNode | appModels.ResourceState)[] = [...resources || []];
+                    const toProcess: ResourceTreeNode[] = [...resources || []];
                     while (toProcess.length > 0) {
                         const next = toProcess.pop();
-                        const {resourceNode} = AppUtils.getStateAndNode(next);
-                        kindsSet.add(resourceNode.state.kind);
-                        (resourceNode.children || []).forEach((child) => toProcess.push(child));
+                        kindsSet.add(next.kind);
+                        (next.children || []).forEach((child) => toProcess.push(child));
                     }
                     const kinds = Array.from(kindsSet);
                     const kindsFilter = this.getKindsFilter().filter((kind) => kinds.indexOf(kind) > -1);
@@ -144,17 +146,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                         },
                     };
 
-                    const appNodesByName = this.groupAppNodesByName(application, resources);
-                    const selectedItem = this.selectedNodeFullName && appNodesByName.get(this.selectedNodeFullName) || null;
+                    const appNodesByName = this.groupAppNodesByKey(application, resources);
+                    const selectedItem = this.selectedNodeKey && appNodesByName.get(this.selectedNodeKey) || null;
                     const isAppSelected = selectedItem === application;
-                    const selectedNode = !isAppSelected && selectedItem as appModels.ResourceNode | appModels.ResourceState || null;
+                    const selectedNode = !isAppSelected && selectedItem as ResourceTreeNode;
                     const operationState = application.status.operationState;
                     const conditions = application.status.conditions || [];
                     const deployParam = new URLSearchParams(this.props.history.location.search).get('deploy');
                     const showDeployPanel = !!deployParam;
                     const deployResIndex = deployParam && resources.findIndex((item) => {
-                        const res = item.liveState || item.targetState;
-                        return `${res.kind}:${res.metadata.name}` === deployParam;
+                        return nodeKey(item) === deployParam;
                     });
                     return (
                         <Page
@@ -167,7 +168,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         try {
                                             this.setState({ refreshing: true });
                                             const [app, res] = await Promise.all([
-                                                services.applications.get(this.props.match.params.name, true), services.applications.resources(this.props.match.params.name)]);
+                                                services.applications.get(this.props.match.params.name, true),
+                                                services.applications.resourcesTree(
+                                                    this.props.match.params.name).then((items) => resourcesFromSummaryInfo(application, items)),
+                                            ]);
                                             await this.loader.setData({ application: app, resources: res });
                                         } finally {
                                             this.setState({ refreshing: false });
@@ -194,20 +198,32 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 {this.state.refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                 <ApplicationResourcesTree
                                     kindsFilter={kindsFilter}
-                                    selectedNodeFullName={this.selectedNodeFullName}
+                                    selectedNodeFullName={this.selectedNodeKey}
                                     onNodeClick={(fullName) => this.selectNode(fullName)}
                                     nodeMenuItems={(node) => this.getResourceMenuItems(node)}
-                                    nodeLabels={(node) => this.getResourceLabels(node)}
                                     resources={resources}
                                     app={application}/>
                             </div>
                             <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                 <div>
-                                {selectedNode && <Tabs
-                                    navTransparent={true}
-                                    tabs={this.getResourceTabs(
-                                        application, selectedNode, [{title: 'SUMMARY', key: 'summary', content: <ApplicationNodeInfo node={selectedNode}/>}])} />
-                                }
+                                {selectedNode && (
+                                    <DataLoader input={selectedNode.resourceVersion} load={async () => {
+                                        const controlledResources = await services.applications.controlledResources(application.metadata.name);
+                                        const controlled = controlledResources.find((item) => isSameNode(selectedNode, item));
+                                        const summary = application.status.comparisonResult.resources.find((item) => isSameNode(selectedNode, item));
+                                        const controlledState = controlled && summary && { summary, state: controlled } || null;
+                                        const liveState = controlled && controlled.liveState || await services.applications.getResource(
+                                            application.metadata.name, selectedNode).catch(() => null);
+                                        return { controlledState, liveState };
+
+                                    }}>{(data) =>
+                                        <Tabs navTransparent={true} tabs={this.getResourceTabs(application, selectedNode, data.liveState, [
+                                                {title: 'SUMMARY', key: 'summary', content: (
+                                                    <ApplicationNodeInfo live={data.liveState} controlled={data.controlledState} node={selectedNode}/>
+                                                ),
+                                            }])} />
+                                    }</DataLoader>
+                                )}
                                 {isAppSelected && (
                                     <Tabs navTransparent={true} tabs={[{
                                         title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)}/>,
@@ -239,7 +255,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         validateError={(values) => ({
                                             resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',
                                         })}
-                                        onSubmit={(params: any) => this.syncApplication(application, params.revision, params.prune, params.resources, resources)}
+                                        onSubmit={(params: any) => this.syncApplication(params.revision, params.prune, params.resources, resources)}
                                         getApi={(api) => this.formApi = api}>
 
                                         {(formApi) => (
@@ -265,12 +281,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                     )}
                                                     <div style={{paddingLeft: '1em'}}>
                                                     {resources.map((item, i) => {
-                                                        const res = item.liveState || item.targetState;
-                                                        const resFullName = `${res.kind}/${res.metadata.name}`;
+                                                        const resKey = nodeKey(item);
                                                         return (
-                                                            <div key={resFullName}>
-                                                                <Checkbox id={resFullName} field={`resources[${i}]`}/> <label htmlFor={resFullName}>
-                                                                    {resFullName} <AppUtils.ComparisonStatusIcon status={item.status}/></label>
+                                                            <div key={resKey}>
+                                                                <Checkbox id={resKey} field={`resources[${i}]`}/> <label htmlFor={resKey}>
+                                                                    {resKey} <AppUtils.ComparisonStatusIcon status={item.status}/></label>
                                                             </div>
                                                         );
                                                     })}
@@ -308,7 +323,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private async updateApp(app: appModels.Application) {
         try {
             await services.applications.updateSpec(app.metadata.name, app.spec);
-            const [updatedApp, resources] = await Promise.all([services.applications.get(app.metadata.name), services.applications.resources(app.metadata.name)]);
+            const [updatedApp, resources] = await Promise.all([services.applications.get(app.metadata.name), services.applications.resourcesTree(app.metadata.name)]);
             this.loader.setData({application: updatedApp, resources});
         } catch (e) {
             this.appContext.apis.notifications.show({
@@ -318,23 +333,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         }
     }
 
-    private groupAppNodesByName(application: appModels.Application, resources: appModels.ResourceState[]) {
-        const nodeByFullName = new Map<string, appModels.ResourceState | appModels.ResourceNode | appModels.Application>();
-        function addChildren<T extends (appModels.ResourceNode | appModels.ResourceState) & { fullName: string, children: appModels.ResourceNode[] }>(node: T) {
-            nodeByFullName.set(node.fullName, node);
+    private groupAppNodesByKey(application: appModels.Application, resources: ResourceTreeNode[]) {
+        const nodeByKey = new Map<string, appModels.ResourceState | appModels.ResourceNode | appModels.Application>();
+        function addChildren<T extends (appModels.ResourceNode | appModels.ResourceState) & { key: string, children: appModels.ResourceNode[] }>(node: T) {
+            nodeByKey.set(node.key, node);
             for (const child of (node.children || [])) {
-                addChildren({...child, fullName: `${child.state.kind}:${child.state.metadata.name}`});
+                addChildren({...child, key: nodeKey(child)});
             }
         }
 
         if (application) {
-            nodeByFullName.set(`${application.kind}:${application.metadata.name}`, application);
+            nodeByKey.set(nodeKey({
+                group: application.apiVersion, kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace,
+            }), application);
             for (const node of (resources || [])) {
-                const state = node.liveState || node.targetState;
-                addChildren({...node, children: node.childLiveResources, fullName: `${state.kind}:${state.metadata.name}`});
+                addChildren({...node, children: node.children, key: nodeKey(node)});
             }
         }
-        return nodeByFullName;
+        return nodeByKey;
     }
 
     private getKindsFilter() {
@@ -366,15 +382,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.appContext.apis.navigation.goto('.', { node });
     }
 
-    private async syncApplication(app: appModels.Application, revision: string, prune: boolean, selectedResources: boolean[], appResources: appModels.ResourceState[]) {
+    private async syncApplication(revision: string, prune: boolean, selectedResources: boolean[], appResources: appModels.ResourceNode[]) {
         let resources = selectedResources && appResources.filter((_, i) => selectedResources[i]).map((item) => {
-            const res = item.targetState || item.liveState;
-            const parts = res.apiVersion.split('/');
-            const group = parts.length === 1 ? '' : parts[0];
             return {
-                group,
-                kind: res.kind,
-                name: res.metadata.name,
+                group: item.group,
+                kind: item.kind,
+                name: item.name,
             };
         }) || null;
         // Don't specify resources filter if user selected all resources
@@ -404,25 +417,31 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return this.context as AppContext;
     }
 
-    private getResourceMenuItems(resource: appModels.ResourceNode | appModels.ResourceState): MenuItem[] {
-        const {resourceNode} = AppUtils.getStateAndNode(resource);
+    private getResourceMenuItems(resource: appModels.ResourceNode): MenuItem[] {
         const menuItems: {title: string, action: () => any}[] = [{
             title: 'Details',
-            action: () => this.selectNode(`${resourceNode.state.kind}:${resourceNode.state.metadata.name}`),
+            action: () => this.selectNode(nodeKey(resource)),
         }];
 
-        if (resourceNode.state.kind !== 'Application') {
+        if (resource.kind !== 'Application') {
             menuItems.push({
                 title: 'Sync',
-                action: () => this.showDeploy(`${resourceNode.state.kind}:${resourceNode.state.metadata.name}`),
+                action: () => this.showDeploy(nodeKey(resource)),
             });
             menuItems.push({
                 title: 'Delete',
                 action: async () => {
                     const confirmed = await this.appContext.apis.popup.confirm('Delete resource',
-                        `Are your sure you want to delete ${resourceNode.state.kind} '${resourceNode.state.metadata.name}'?`);
+                        `Are your sure you want to delete ${resource.kind} '${resource.name}'?`);
                     if (confirmed) {
-                        this.deleteResource(resourceNode.state.metadata.name, resourceNode.state.apiVersion, resourceNode.state.kind);
+                        try {
+                            await services.applications.deleteResource(this.props.match.params.name, resource);
+                        } catch (e) {
+                            this.appContext.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to delete resource' e={e}/>,
+                                type: NotificationType.Error,
+                            });
+                        }
                     }
                 },
             });
@@ -430,62 +449,23 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return menuItems;
     }
 
-    private async deleteResource(resourceName: string, apiVersion: string, kind: string) {
-        try {
-            await services.applications.deleteResource(this.props.match.params.name, resourceName, apiVersion, kind);
-        } catch (e) {
-            this.appContext.apis.notifications.show({
-                content: <ErrorNotification title='Unable to delete pod' e={e}/>,
-                type: NotificationType.Error,
-            });
-        }
-    }
-
     private async deleteApplication() {
         await AppUtils.deleteApplication(this.props.match.params.name, this.appContext);
     }
 
-    private getResourceLabels(resource: appModels.ResourceNode | appModels.ResourceState): string[] {
-        const labels: string[] = [];
-        const {resourceNode} = AppUtils.getStateAndNode(resource);
-        switch (resourceNode.state.kind) {
-            case 'Pod':
-                const {reason}  = AppUtils.getPodStateReason(resourceNode.state);
-                if (reason) {
-                    labels.push(reason);
-                }
-
-                const allStatuses = resourceNode.state.status && resourceNode.state.status.containerStatuses || [];
-                const readyStatuses = allStatuses.filter((s: { state: {[name: string]: any}; }) => ('running' in s.state));
-                const readyContainers = `${readyStatuses.length}/${allStatuses.length} containers ready`;
-                labels.push(readyContainers);
-                break;
-
-            case 'Application':
-                const appSrc = resourceNode.state.spec.source;
-                const countOfOverrides = 'componentParameterOverrides' in appSrc && appSrc.componentParameterOverrides.length || 0;
-                if (countOfOverrides > 0) {
-                    labels.push('' + countOfOverrides + ' parameter override(s)');
-                }
-                break;
-        }
-        return labels;
-    }
-
-    private getResourceTabs(application: appModels.Application, resource: appModels.ResourceNode | appModels.ResourceState, tabs: Tab[]) {
-        const {resourceNode} = AppUtils.getStateAndNode(resource);
+    private getResourceTabs(application: appModels.Application, node: ResourceTreeNode, state: appModels.State, tabs: Tab[]) {
         tabs.push({
-            title: 'EVENTS', key: 'events', content: <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={resourceNode}/>,
+            title: 'EVENTS', key: 'events', content: <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={node}/>,
         });
-        if (resourceNode.state.kind === 'Pod') {
+        if (node.kind === 'Pod') {
             const containerGroups = [{
                 offset: 0,
                 title: 'INIT CONTAINERS',
-                containers: resourceNode.state.spec.initContainers || [],
+                containers: state.spec.initContainers || [],
             }, {
-                offset: (resourceNode.state.spec.initContainers || []).length,
+                offset: (state.spec.initContainers || []).length,
                 title: 'CONTAINERS',
-                containers: resourceNode.state.spec.containers || [],
+                containers: state.spec.containers || [],
             }];
             tabs = tabs.concat([{
                 key: 'logs',
@@ -499,8 +479,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         {group.containers.length > 0 && <p>{group.title}:</p>}
                                         {group.containers.map((container: any, i: number) => (
                                             <div className='application-details__container' key={container.name} onClick={() => this.selectNode(
-                                                    this.selectedNodeFullName, group.offset + i)}>
-                                                {(group.offset + i) === this.selectedNodeContainer.container && <i className='fa fa-angle-right'/>}
+                                                    this.selectedNodeKey, group.offset + i)}>
+                                                {(group.offset + i) === this.selectedNodeInfo.container && <i className='fa fa-angle-right'/>}
                                                 <span title={container.name}>{container.name}</span>
                                             </div>
                                         ))}
@@ -509,7 +489,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             </div>
                             <div className='columns small-9 medium-10'>
                                 <PodsLogsViewer
-                                    pod={resourceNode.state} applicationName={application.metadata.name} containerIndex={this.selectedNodeContainer.container} />
+                                    pod={state} applicationName={application.metadata.name} containerIndex={this.selectedNodeInfo.container} />
                             </div>
                         </div>
                     </div>

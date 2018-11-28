@@ -211,26 +211,35 @@ export interface HealthStatus {
 
 export type State = models.TypeMeta & { metadata: models.ObjectMeta } & { status: any, spec: any };
 
-export interface ResourceNode {
-    state: State;
-    children: ResourceNode[];
-}
-
 export interface ResourceSummary {
     group: string;
     version: string;
     kind: string;
+    namespace: string;
     name: string;
     status: ComparisonStatus;
     health: HealthStatus;
 }
 
+export interface ResourceNode {
+    kind: string;
+    namespace: string;
+    name: string;
+    version: string;
+    group: string;
+    tags: string[];
+    children: ResourceNode[];
+    resourceVersion: string;
+}
+
 export interface ResourceState {
+    group: string;
+    kind: string;
+    namespace: string;
+    name: string;
     targetState: State;
     liveState: State;
-    status: ComparisonStatus;
-    health: HealthStatus;
-    childLiveResources: ResourceNode[];
+    diff: string;
 }
 
 export interface ComparisonResult {

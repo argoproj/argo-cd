@@ -1,12 +1,14 @@
-import { Checkbox, models } from 'argo-ui';
+import { Checkbox } from 'argo-ui';
 import * as React from 'react';
 
 const jsonDiffPatch = require('jsondiffpatch');
+
+import * as models from '../../../shared/models';
+
 require('./application-resource-diff.scss');
 
 export interface ApplicationComponentDiffProps {
-    liveState: models.TypeMeta & { metadata: models.ObjectMeta };
-    targetState: models.TypeMeta & { metadata: models.ObjectMeta };
+    state: models.ResourceState;
 }
 
 export class ApplicationResourceDiff extends React.Component<ApplicationComponentDiffProps, { hideDefaultedFields: boolean }> {
@@ -16,12 +18,11 @@ export class ApplicationResourceDiff extends React.Component<ApplicationComponen
     }
 
     public render() {
-        let liveState = this.props.liveState || {};
+        let liveState = this.props.state.liveState || {};
         if (this.state.hideDefaultedFields) {
-            liveState = this.removeDefaultedFields(this.props.targetState || {}, liveState);
+            liveState = this.removeDefaultedFields(this.props.state.targetState, this.props.state.liveState);
         }
-        const delta = jsonDiffPatch.diff(this.props.targetState || {}, liveState) || {};
-        const html = jsonDiffPatch.formatters.html.format(delta, this.props.targetState);
+        const html = jsonDiffPatch.formatters.html.format(this.props.state.diff ? JSON.parse(this.props.state.diff) : {}, liveState);
         return (
             <div className='application-component-diff'>
                 <div className='application-component-diff__checkbox'>

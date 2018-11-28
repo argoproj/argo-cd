@@ -6,6 +6,26 @@ import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
+export interface ResourceTreeNode extends appModels.ResourceNode {
+    status?: appModels.ComparisonStatus;
+    health?: appModels.HealthStatus;
+}
+
+export interface NodeId {
+    kind: string;
+    namespace: string;
+    name: string;
+    group: string;
+}
+
+export function nodeKey(node: NodeId) {
+    return [node.group === 'extensions' ? 'apps' : node.group, node.kind, node.namespace, node.name].join(':');
+}
+
+export function isSameNode(first: NodeId, second: NodeId) {
+    return nodeKey(first) === nodeKey(second);
+}
+
 export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[], overrides: appModels.ComponentParameter[]) {
     const componentParams = new Map<string, (appModels.ComponentParameter & {original: string})[]>();
     (params || []).map((param) => ({component: '', ...param})).map((param) => {
@@ -139,18 +159,6 @@ export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => 
     }
     return <i title={title} className='fa fa-heartbeat' style={{ color }} />;
 };
-
-export function getStateAndNode(resource: appModels.ResourceNode | appModels.ResourceState) {
-    let resourceNode: appModels.ResourceNode;
-    let resourceState = resource as appModels.ResourceState;
-    if (resourceState.liveState || resourceState.targetState) {
-        resourceNode = { state: resourceState.liveState || resourceState.targetState, children: resourceState.childLiveResources };
-    } else {
-        resourceState = null;
-        resourceNode = resource as appModels.ResourceNode;
-    }
-    return {resourceState, resourceNode};
-}
 
 export function getOperationType(application: appModels.Application) {
     if (application.metadata.deletionTimestamp) {
