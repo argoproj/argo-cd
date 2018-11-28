@@ -18,6 +18,14 @@
   version = "v3.0.0"
 
 [[projects]]
+  digest = "1:b856d8248663c39265a764561c1a1a149783f6cc815feb54a1f3a591b91f6eca"
+  name = "github.com/Masterminds/semver"
+  packages = ["."]
+  pruneopts = ""
+  revision = "c7af12943936e8c39859482e61f0574c2fd7fc75"
+  version = "v1.4.2"
+
+[[projects]]
   digest = "1:71c0dfb843260bfb9b03357cae8eac261b8d82e149ad8f76938b87a23aa47c43"
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
@@ -1358,6 +1366,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/Masterminds/semver",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/time",
