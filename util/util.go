@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	"fmt"
+	"runtime/debug"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -88,4 +92,28 @@ func FirstNonEmpty(args ...string) string {
 		}
 	}
 	return ""
+}
+
+func RunAllAsync(count int, action func(i int) error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			message := fmt.Sprintf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.Error(message)
+			err = errors.New(message)
+		}
+	}()
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		index := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err = action(index)
+		}()
+		if err != nil {
+			break
+		}
+	}
+	wg.Wait()
+	return err
 }

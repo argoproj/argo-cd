@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/util"
@@ -344,72 +343,6 @@ func copyEventsChannel(ctx context.Context, src <-chan watch.Event, dst chan wat
 	case <-ctx.Done():
 		stopped = true
 	}
-}
-
-// DeleteResourcesWithLabel delete all resources which match to specified label selector
-func DeleteResourcesWithLabel(config *rest.Config, namespace string, labelName string, labelValue string) error {
-	deleteSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		if !isSupportedVerb(apiResource, deleteCollectionVerb) {
-			// if we can't delete by collection, we better be able to list and delete
-			if !isSupportedVerb(apiResource, listVerb) || !isSupportedVerb(apiResource, deleteVerb) {
-				return false
-			}
-		}
-		if isExcludedResourceGroup(*apiResource) {
-			return false
-		}
-		if IsCRDGroupVersionKind(schema.FromAPIVersionAndKind(groupVersion, apiResource.Kind)) {
-			return false
-		}
-		return true
-	}
-	apiResIfs, err := filterAPIResources(config, deleteSupported, namespace)
-	if err != nil {
-		return err
-	}
-	var asyncErr error
-	propagationPolicy := metav1.DeletePropagationForeground
-
-	var wg sync.WaitGroup
-	wg.Add(len(apiResIfs))
-	for _, a := range apiResIfs {
-		go func(apiResIf apiResourceInterface) {
-			defer wg.Done()
-			deleteCollectionSupported := isSupportedVerb(&apiResIf.apiResource, deleteCollectionVerb)
-			resourceIf := apiResIf.resourceIf
-			if deleteCollectionSupported {
-				err = resourceIf.DeleteCollection(&metav1.DeleteOptions{
-					PropagationPolicy: &propagationPolicy,
-				}, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
-				if err != nil && !apierr.IsNotFound(err) {
-					asyncErr = err
-				}
-			} else {
-				items, err := resourceIf.List(metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue)})
-				if err != nil {
-					asyncErr = err
-					return
-				}
-				for _, item := range items.Items {
-					// apply client side filtering since not every kubernetes API supports label filtering
-					labels := item.GetLabels()
-					if labels != nil {
-						if value, ok := labels[labelName]; ok && value == labelValue {
-							err = resourceIf.Delete(item.GetName(), &metav1.DeleteOptions{
-								PropagationPolicy: &propagationPolicy,
-							})
-							if err != nil && !apierr.IsNotFound(err) {
-								asyncErr = err
-								return
-							}
-						}
-					}
-				}
-			}
-		}(a)
-	}
-	wg.Wait()
-	return asyncErr
 }
 
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go

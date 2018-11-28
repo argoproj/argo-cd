@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -395,16 +394,33 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return err
 	}
 	config := clst.RESTConfig()
-	err = kube.DeleteResourcesWithLabel(config, "", common.LabelApplicationName, app.Name)
+	objsMap, err := ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
 	}
-	objs, err := ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
+	objs := make([]*unstructured.Unstructured, 0)
+	for k := range objsMap {
+		objs = append(objs, objsMap[k])
+	}
+	err = util.RunAllAsync(len(objs), func(i int) error {
+		obj := objs[i]
+		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+	})
 	if err != nil {
 		return err
 	}
-	if len(objs) > 0 {
-		logCtx.Infof("%d objects remaining for deletion", len(objs))
+	for _, obj := range objs {
+		err := ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+		if err != nil {
+			return err
+		}
+	}
+	objsMap, err = ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
+	if err != nil {
+		return err
+	}
+	if len(objsMap) > 0 {
+		logCtx.Infof("%d objects remaining for deletion", len(objsMap))
 		return nil
 	}
 	app.SetCascadedDeletion(false)
