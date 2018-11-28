@@ -143,7 +143,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 					cluster *appv1.Cluster
 				}{
 					cancel: func() {
-						c.removeCluster(info.cluster.Server)
+						c.removeCluster(event.Cluster.Server)
 						cancel()
 					},
 					cluster: event.Cluster,

@@ -161,6 +161,7 @@ func (ctrl *ApplicationController) ResourcesTree(ctx context.Context, q *service
 			Namespace: controlledResource.Namespace,
 		}
 		if controlledResource.Live != nil {
+			node.ResourceVersion = controlledResource.Live.GetResourceVersion()
 			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, controlledResource.Live)
 			if err != nil {
 				return nil, err

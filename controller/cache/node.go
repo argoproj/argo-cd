@@ -67,12 +67,13 @@ func (n *node) childResourceNodes() appv1.ResourceNode {
 		gv = schema.GroupVersion{}
 	}
 	return appv1.ResourceNode{
-		Name:      n.ref.Name,
-		Group:     gv.Group,
-		Version:   gv.Version,
-		Kind:      n.ref.Kind,
-		Namespace: n.ref.Namespace,
-		Tags:      n.tags,
-		Children:  children,
+		Name:            n.ref.Name,
+		Group:           gv.Group,
+		Version:         gv.Version,
+		Kind:            n.ref.Kind,
+		Namespace:       n.ref.Namespace,
+		Tags:            n.tags,
+		Children:        children,
+		ResourceVersion: n.resourceVersion,
 	}
 }

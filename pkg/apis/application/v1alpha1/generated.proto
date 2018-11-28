@@ -419,6 +419,8 @@ message ResourceNode {
   repeated string tags = 6;
 
   repeated ResourceNode children = 7;
+
+  optional string resourceVersion = 8;
 }
 
 // ResourceState holds the target state of a resource and live state of a resource

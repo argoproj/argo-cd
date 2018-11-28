@@ -403,13 +403,14 @@ const (
 
 // ResourceNode contains information about live resource and its children
 type ResourceNode struct {
-	Kind      string         `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
-	Namespace string         `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	Name      string         `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Group     string         `json:"group,omitempty" protobuf:"bytes,4,opt,name=group"`
-	Version   string         `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
-	Tags      []string       `json:"tags,omitempty" protobuf:"bytes,6,opt,name=tags"`
-	Children  []ResourceNode `json:"children,omitempty" protobuf:"bytes,7,opt,name=children"`
+	Kind            string         `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
+	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	Name            string         `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Group           string         `json:"group,omitempty" protobuf:"bytes,4,opt,name=group"`
+	Version         string         `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
+	Tags            []string       `json:"tags,omitempty" protobuf:"bytes,6,opt,name=tags"`
+	Children        []ResourceNode `json:"children,omitempty" protobuf:"bytes,7,opt,name=children"`
+	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,8,opt,name=resourceVersion"`
 }
 
 func (n *ResourceNode) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
