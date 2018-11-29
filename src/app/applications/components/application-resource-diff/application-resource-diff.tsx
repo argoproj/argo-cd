@@ -20,7 +20,7 @@ export class ApplicationResourceDiff extends React.Component<ApplicationComponen
     public render() {
         let liveState = this.props.state.liveState || {};
         if (this.state.hideDefaultedFields) {
-            liveState = this.removeDefaultedFields(this.props.state.targetState, this.props.state.liveState);
+            liveState = this.removeDefaultedFields(this.props.state.targetState, liveState);
         }
         const html = jsonDiffPatch.formatters.html.format(this.props.state.diff ? JSON.parse(this.props.state.diff) : {}, liveState);
         return (
