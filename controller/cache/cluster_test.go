@@ -4,17 +4,15 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/argoproj/argo-cd/common"
-
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/argoproj/argo-cd/util/kube"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 
@@ -83,6 +81,7 @@ func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
 		cluster:  &appv1.Cluster{},
 		syncTime: nil,
 		syncLock: &sync.Mutex{},
+		apis:     make(map[schema.GroupVersionKind]v1.APIResource),
 	}
 }
 
@@ -93,18 +92,26 @@ func TestGetChildren(t *testing.T) {
 
 	rsChildren := cluster.getChildren(testRS)
 	assert.Equal(t, []appv1.ResourceNode{{
-		Kind: "Pod", Namespace: "default", Name: "helm-guestbook-pod", Group: "", Version: "v1", Tags: []string{"0/0"}, Children: make([]appv1.ResourceNode, 0),
+		Kind:            "Pod",
+		Namespace:       "default",
+		Name:            "helm-guestbook-pod",
+		Group:           "",
+		Version:         "v1",
+		Tags:            []string{"0/0"},
+		Children:        make([]appv1.ResourceNode, 0),
+		ResourceVersion: "123",
 	}}, rsChildren)
 	deployChildren := cluster.getChildren(testDeploy)
 
 	assert.Equal(t, []appv1.ResourceNode{{
-		Kind:      "ReplicaSet",
-		Namespace: "default",
-		Name:      "helm-guestbook-rs",
-		Group:     "extensions",
-		Version:   "v1beta1",
-		Children:  rsChildren,
-		Tags:      []string{},
+		Kind:            "ReplicaSet",
+		Namespace:       "default",
+		Name:            "helm-guestbook-rs",
+		Group:           "extensions",
+		Version:         "v1beta1",
+		ResourceVersion: "123",
+		Children:        rsChildren,
+		Tags:            []string{},
 	}}, deployChildren)
 }
 
@@ -169,9 +176,23 @@ func TestProcessNewChildEvent(t *testing.T) {
 
 	rsChildren := cluster.getChildren(testRS)
 	assert.Equal(t, []appv1.ResourceNode{{
-		Kind: "Pod", Namespace: "default", Name: "helm-guestbook-pod", Group: "", Version: "v1", Tags: []string{"0/0"}, Children: make([]appv1.ResourceNode, 0),
+		Kind:            "Pod",
+		Namespace:       "default",
+		Name:            "helm-guestbook-pod",
+		Group:           "",
+		Version:         "v1",
+		Tags:            []string{"0/0"},
+		Children:        make([]appv1.ResourceNode, 0),
+		ResourceVersion: "123",
 	}, {
-		Kind: "Pod", Namespace: "default", Name: "helm-guestbook-pod2", Group: "", Version: "v1", Tags: []string{"0/0"}, Children: make([]appv1.ResourceNode, 0),
+		Kind:            "Pod",
+		Namespace:       "default",
+		Name:            "helm-guestbook-pod2",
+		Group:           "",
+		Version:         "v1",
+		Tags:            []string{"0/0"},
+		Children:        make([]appv1.ResourceNode, 0),
+		ResourceVersion: "123",
 	}}, rsChildren)
 }
 

@@ -10,7 +10,6 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -31,6 +30,7 @@ type syncContext struct {
 	disco         discovery.DiscoveryInterface
 	kubectl       kube.Kubectl
 	namespace     string
+	server        string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
 	syncResources []appv1.SyncOperationResource
@@ -135,6 +135,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		disco:         disco,
 		kubectl:       m.kubectl,
 		namespace:     app.Spec.Destination.Namespace,
+		server:        app.Spec.Destination.Server,
 		syncOp:        &syncOp,
 		syncRes:       syncRes,
 		syncResources: syncResources,
@@ -163,14 +164,16 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 // indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
 // be deployed
 type syncTask struct {
-	liveObj   *unstructured.Unstructured
-	targetObj *unstructured.Unstructured
+	liveObj    *unstructured.Unstructured
+	targetObj  *unstructured.Unstructured
+	skipDryRun bool
 }
 
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
 	syncTasks, successful := sc.generateSyncTasks()
 	if !successful {
+		sc.setOperationPhase(appv1.OperationFailed, "one or more synchronization tasks are not valid")
 		return
 	}
 
@@ -236,21 +239,70 @@ func (sc *syncContext) forceAppRefresh() {
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	syncTasks := make([]syncTask, 0)
+	successful := true
 	for _, resourceState := range sc.resources {
 		if sc.syncResources == nil ||
 			(resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
 			(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources)) {
 
+			skipDryRun := false
+			var targetObj *unstructured.Unstructured
+			if resourceState.Target != nil {
+				targetObj = resourceState.Target.DeepCopy()
+				if targetObj.GetNamespace() == "" {
+					targetObj.SetNamespace(sc.namespace)
+				}
+				gvk := targetObj.GroupVersionKind()
+				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+				if err != nil {
+					// Special case for custom resources: if custom resource definition is not supported by the cluster by defined in application then
+					// skip verification using `kubectl apply --dry-run` and since CRD should be created during app synchronization.
+					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.resources, gvk.Group, gvk.Kind) {
+						skipDryRun = true
+					} else {
+						sc.setResourceDetails(&appv1.ResourceDetails{
+							Name:      targetObj.GetName(),
+							Kind:      targetObj.GetKind(),
+							Namespace: targetObj.GetNamespace(),
+							Message:   err.Error(),
+							Status:    appv1.ResourceDetailsSyncFailed,
+						})
+					}
+				} else {
+					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
+						sc.setResourceDetails(&appv1.ResourceDetails{
+							Name:      targetObj.GetName(),
+							Kind:      targetObj.GetKind(),
+							Namespace: targetObj.GetNamespace(),
+							Message:   fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name),
+							Status:    appv1.ResourceDetailsSyncFailed,
+						})
+						successful = false
+					}
+
+					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(appv1.ApplicationDestination{Namespace: targetObj.GetNamespace(), Server: sc.server}) {
+						sc.setResourceDetails(&appv1.ResourceDetails{
+							Name:      targetObj.GetName(),
+							Kind:      targetObj.GetKind(),
+							Namespace: targetObj.GetNamespace(),
+							Message:   fmt.Sprintf("namespace %v is not permitted in project '%s'", targetObj.GetNamespace(), sc.proj.Name),
+							Status:    appv1.ResourceDetailsSyncFailed,
+						})
+						successful = false
+					}
+				}
+			}
 			syncTask := syncTask{
-				liveObj:   resourceState.Live,
-				targetObj: resourceState.Target,
+				liveObj:    resourceState.Live,
+				targetObj:  targetObj,
+				skipDryRun: skipDryRun,
 			}
 			syncTasks = append(syncTasks, syncTask)
 		}
 	}
 
 	sort.Sort(newKindSorter(syncTasks, resourceOrder))
-	return syncTasks, true
+	return syncTasks, successful
 }
 
 // startedPreSyncPhase detects if we already started the PreSync stage of a sync operation.
@@ -303,9 +355,9 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 	resDetails := appv1.ResourceDetails{
 		Name:      targetObj.GetName(),
 		Kind:      targetObj.GetKind(),
-		Namespace: sc.namespace,
+		Namespace: targetObj.GetNamespace(),
 	}
-	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, sc.namespace, dryRun, force)
+	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force)
 	if err != nil {
 		resDetails.Message = err.Error()
 		resDetails.Status = appv1.ResourceDetailsSyncFailed
@@ -345,14 +397,14 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	return resDetails
 }
 
-func hasCRDOfGroupKind(tasks []syncTask, group, kind string) bool {
-	for _, task := range tasks {
-		if kube.IsCRD(task.targetObj) {
-			crdGroup, ok, err := unstructured.NestedString(task.targetObj.Object, "spec", "group")
+func hasCRDOfGroupKind(resources []ControlledResource, group string, kind string) bool {
+	for _, res := range resources {
+		if res.Target != nil && kube.IsCRD(res.Target) {
+			crdGroup, ok, err := unstructured.NestedString(res.Target.Object, "spec", "group")
 			if err != nil || !ok {
 				continue
 			}
-			crdKind, ok, err := unstructured.NestedString(task.targetObj.Object, "spec", "names", "kind")
+			crdKind, ok, err := unstructured.NestedString(res.Target.Object, "spec", "names", "kind")
 			if err != nil || !ok {
 				continue
 			}
@@ -397,43 +449,12 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 	}
 	wg.Wait()
 
-	processCreateTasks := func(tasks []syncTask, gvk schema.GroupVersionKind) {
-		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
-		if err != nil {
-			// Special case for custom resources: if custom resource definition is not supported by the cluster by defined in application then
-			// skip verification using `kubectl apply --dry-run` and since CRD should be created during app synchronization.
-			if dryRun && apierr.IsNotFound(err) && hasCRDOfGroupKind(createTasks, gvk.Group, gvk.Kind) {
-				return
-			}
-			syncSuccessful = false
-			for _, task := range tasks {
-				sc.setResourceDetails(&appv1.ResourceDetails{
-					Name:      task.targetObj.GetName(),
-					Kind:      task.targetObj.GetKind(),
-					Namespace: sc.namespace,
-					Message:   err.Error(),
-					Status:    appv1.ResourceDetailsSyncFailed,
-				})
-			}
-			return
-		}
-
-		if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
-			syncSuccessful = false
-			for _, task := range tasks {
-				sc.setResourceDetails(&appv1.ResourceDetails{
-					Name:      task.targetObj.GetName(),
-					Kind:      task.targetObj.GetKind(),
-					Namespace: sc.namespace,
-					Message:   fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name),
-					Status:    appv1.ResourceDetailsSyncFailed,
-				})
-			}
-			return
-		}
-
+	processCreateTasks := func(tasks []syncTask) {
 		var createWg sync.WaitGroup
 		for i := range tasks {
+			if dryRun && tasks[i].skipDryRun {
+				continue
+			}
 			createWg.Add(1)
 			go func(t syncTask) {
 				defer createWg.Done()
@@ -456,14 +477,14 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 	for _, task := range createTasks {
 		//Only wait if the type of the next task is different than the previous type
 		if len(tasksGroup) > 0 && tasksGroup[0].targetObj.GetKind() != task.targetObj.GetKind() {
-			processCreateTasks(tasksGroup, tasksGroup[0].targetObj.GroupVersionKind())
+			processCreateTasks(tasksGroup)
 			tasksGroup = []syncTask{task}
 		} else {
 			tasksGroup = append(tasksGroup, task)
 		}
 	}
 	if len(tasksGroup) > 0 {
-		processCreateTasks(tasksGroup, tasksGroup[0].targetObj.GroupVersionKind())
+		processCreateTasks(tasksGroup)
 	}
 	return syncSuccessful
 }

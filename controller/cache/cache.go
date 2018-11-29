@@ -8,8 +8,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/cache"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -23,12 +26,21 @@ const (
 )
 
 type LiveStateCache interface {
+	IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error)
 	// Returns child nodes for a given k8s resource
 	GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error)
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context)
+}
+
+func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
+	key := kube.GetResourceKey(un)
+	if isNamespaced && key.Namespace == "" {
+		key.Namespace = a.Spec.Destination.Namespace
+	}
+	return key
 }
 
 func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, kubectl kube.Kubectl, onAppUpdated func(appName string)) LiveStateCache {
@@ -76,6 +88,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		}
 
 		info = &clusterInfo{
+			apis:         make(map[schema.GroupVersionKind]v1.APIResource),
 			lock:         &sync.Mutex{},
 			nodes:        make(map[kube.ResourceKey]*node),
 			onAppUpdated: c.onAppUpdated,
@@ -86,6 +99,23 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		}
 
 		c.clusters[cluster.Server] = info
+		disco, err := discovery.NewDiscoveryClientForConfig(cluster.RESTConfig())
+		if err != nil {
+			return nil, err
+		}
+		resources, err := disco.ServerResources()
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range resources {
+			gv, err := schema.ParseGroupVersion(r.GroupVersion)
+			if err != nil {
+				gv = schema.GroupVersion{}
+			}
+			for i := range r.APIResources {
+				info.apis[gv.WithKind(r.APIResources[i].Kind)] = r.APIResources[i]
+			}
+		}
 	}
 	c.lock.Unlock()
 	err := info.ensureSynced()
@@ -93,6 +123,14 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func (c *liveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error) {
+	clusterInfo, err := c.getCluster(server)
+	if err != nil {
+		return false, err
+	}
+	return clusterInfo.isNamespaced(gvk), nil
 }
 
 func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error) {

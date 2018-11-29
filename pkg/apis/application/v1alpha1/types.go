@@ -270,6 +270,8 @@ type HookStatus struct {
 	Status OperationPhase `json:"status" protobuf:"bytes,5,opt,name=status"`
 	// A human readable message indicating details about why the resource is in this condition.
 	Message string `json:"message,omitempty" protobuf:"bytes,6,opt,name=message"`
+	// Namespace is a hook object namespace
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,7,opt,name=namespace"`
 }
 
 // SyncOperationResult represent result of sync operation
