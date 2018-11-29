@@ -61,13 +61,13 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                     title: 'Summary',
                                     content: this.summaryTab(proj),
                                 }, {
-                                    key: 'events',
-                                    title: 'Events',
-                                    content: this.eventsTab(proj),
-                                }, {
                                     key: 'roles',
                                     title: 'Roles',
                                     content: this.rolesTab(proj, ctx),
+                                }, {
+                                    key: 'events',
+                                    title: 'Events',
+                                    content: this.eventsTab(proj),
                                 }]}/>
                                 <SlidingPanel isMiddle={true} isShown={params.get('edit') === 'true'}
                                     onClose={() => ctx.navigation.goto('.', {edit: null})} header={(
@@ -84,6 +84,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                         description: proj.spec.description,
                                         destinations: proj.spec.destinations || [],
                                         sourceRepos: proj.spec.sourceRepos || [],
+                                        clusterResourceWhitelist: proj.spec.clusterResourceWhitelist || [],
+                                        namespaceResourceBlacklist: proj.spec.namespaceResourceBlacklist || [],
                                         roles: proj.spec.roles || [],
                                         }} getApi={(api) => this.projectFormApi = api} submit={async (projParams) => {
                                             try {
@@ -280,6 +282,52 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                     </div>
                 ))}
             </div>) || <div className='white-box'><p>Project has no destinations</p></div>}
+
+            <h4>Whitelisted cluster resources</h4>
+            {(proj.spec.clusterResourceWhitelist || []).length > 0 && (
+            <div className='argo-table-list'>
+                <div className='argo-table-list__head'>
+                    <div className='row'>
+                        <div className='columns small-3'>GROUP</div>
+                        <div className='columns small-6'>KIND</div>
+                    </div>
+                </div>
+                {(proj.spec.clusterResourceWhitelist || []).map((res) => (
+                    <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
+                        <div className='row'>
+                            <div className='columns small-3'>
+                                {res.group}
+                            </div>
+                            <div className='columns small-6'>
+                                {res.kind}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>) || <div className='white-box'><p>No cluster-scoped resources are permitted to deploy</p></div>}
+
+            <h4>Blacklisted namespaced resources</h4>
+            {(proj.spec.namespaceResourceBlacklist || []).length > 0 && (
+            <div className='argo-table-list'>
+                <div className='argo-table-list__head'>
+                    <div className='row'>
+                        <div className='columns small-3'>GROUP</div>
+                        <div className='columns small-6'>KIND</div>
+                    </div>
+                </div>
+                {(proj.spec.namespaceResourceBlacklist || []).map((res) => (
+                    <div className='argo-table-list__row' key={`${res.group}/${res.kind}`}>
+                        <div className='row'>
+                            <div className='columns small-3'>
+                                {res.group}
+                            </div>
+                            <div className='columns small-6'>
+                                {res.kind}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>) || <div className='white-box'><p>All namespaced-scoped resources are permitted to deploy</p></div>}
         </div>
         );
     }

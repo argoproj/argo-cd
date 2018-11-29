@@ -55,7 +55,6 @@ export interface OperationState {
     phase: OperationPhase;
     message: string;
     syncResult: SyncOperationResult;
-    rollbackResult: SyncOperationResult;
     startedAt: models.Time;
     finishedAt: models.Time;
 }
@@ -147,22 +146,28 @@ export interface ApplicationSource {
     path: string;
 
     /**
-     * Environment is a ksonnet project environment name.
-     */
-    environment: string;
-
-    /**
      * Overridden component parameters.
      */
     componentParameterOverrides: ComponentParameter[];
-    /**
-     * List of Helm values files to use when generating a template
-     */
-    valuesFiles: string[];
-    /**
-     * NamePrefix is a prefix to add to the resource labels
-     */
+
+    helm?: ApplicationSourceHelm;
+
+    kustomize?: ApplicationSourceKustomize;
+
+    ksonnet?: ApplicationSourceKsonnet;
+}
+
+export interface ApplicationSourceHelm {
+    releaseName: string;
+    valueFiles: string[];
+}
+
+export interface ApplicationSourceKustomize {
     namePrefix: string;
+}
+
+export interface ApplicationSourceKsonnet {
+    environment: string;
 }
 
 export interface SyncPolicy {
@@ -392,17 +397,26 @@ export interface ProjectRole {
     policies: string[];
     name: string;
     jwtTokens: JwtToken[];
+    groups: string[];
 }
 
 export interface JwtToken {
     iat: number;
     exp: number;
 }
+
+export interface GroupKind {
+    group: string;
+    kind: string;
+}
+
 export interface ProjectSpec {
     sourceRepos: string[];
     destinations: ApplicationDestination[];
     description: string;
     roles: ProjectRole[];
+    clusterResourceWhitelist: GroupKind[];
+    namespaceResourceBlacklist: GroupKind[];
 }
 
 export interface Project {

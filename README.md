@@ -1,4 +1,4 @@
-# ArgoCD UI
+# Argo CD UI
 
 ![Argo Image](https://github.com/argoproj/argo/blob/master/argo.png?raw=true)
 

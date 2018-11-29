@@ -100,20 +100,21 @@ export interface NewAppParams {
     applicationName: string;
     path: string;
     repoURL: string;
-    environment: string;
     clusterURL: string;
     namespace: string;
     project: string;
-    valuesFiles?: string[];
     revision: string;
+    environment?: string;
+    releaseName?: string;
+    valueFiles?: string[];
     namePrefix?: string;
 }
 
 export class AppParams extends React.Component<{
-    needEnvironment: boolean,
-    needValuesFiles: boolean,
-    allowNamePrefix: boolean,
-    valuesFiles: string[],
+    needKsonnetParams: boolean,
+    needHelmParams: boolean,
+    needKustomizeParams: boolean,
+    valueFiles: string[],
     environments: string[],
     projects: models.Project[],
     appParams: NewAppParams,
@@ -145,7 +146,7 @@ export class AppParams extends React.Component<{
                     repoURL: !params.repoURL && 'Repository URL is required',
                     revision: !params.revision && 'Revision is required',
                     path: !params.path && 'Path is required',
-                    environment: this.props.needEnvironment && !params.environment && 'Environment is required',
+                    environment: this.props.needKsonnetParams && !params.environment && 'Environment is required',
                     clusterURL: !params.clusterURL && 'Cluster URL is required',
                     namespace: validateNamespace(params.namespace, this.props.projects.find((proj) => proj.metadata.name === params.project), params.clusterURL ),
                 })}
@@ -178,19 +179,19 @@ export class AppParams extends React.Component<{
                         <div className='argo-form-row'>
                             <FormField formApi={api} label='Application Name' field='applicationName' component={Text}/>
                         </div>
-                        {this.props.needEnvironment && (
+                        {this.props.needKsonnetParams && (
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Environment' field='environment' component={FormSelect}  componentProps={{options: this.props.environments}} />
                             </div>
                         )}
-                        {this.props.needValuesFiles && (
+                        {this.props.needHelmParams && (
                             <div className='argo-form-row'>
-                                <FormField formApi={api} label='Values Files' field='valuesFiles' componentProps={{
-                                    paths: this.props.valuesFiles,
+                                <FormField formApi={api} label='Values Files' field='valueFiles' componentProps={{
+                                    paths: this.props.valueFiles,
                                 }}  component={ValueFiles} />
                             </div>
                         )}
-                        {this.props.allowNamePrefix && (
+                        {this.props.needKustomizeParams && (
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Name Prefix' field='namePrefix' component={Text} />
                             </div>

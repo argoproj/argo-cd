@@ -213,12 +213,12 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     },
                     render: () => (
                         <AppParams
-                            needEnvironment={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet)}
-                            needValuesFiles={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.helm)}
-                            allowNamePrefix={!!(this.state.selectedAppDetails && (this.state.selectedAppDetails.helm || this.state.selectedAppDetails.kustomize))}
-                            environments={this.state.selectedAppDetails &&
-                                this.state.selectedAppDetails.ksonnet && Object.keys(this.state.selectedAppDetails.ksonnet.environments) || []}
-                            valuesFiles={this.state.selectedAppDetails && this.state.selectedAppDetails.helm && this.state.selectedAppDetails.helm.valueFiles || []}
+                            needKsonnetParams={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet)}
+                            needHelmParams={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.helm)}
+                            needKustomizeParams={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.kustomize)}
+                            environments={this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet
+                                && Object.keys(this.state.selectedAppDetails.ksonnet.environments) || []}
+                            valueFiles={this.state.selectedAppDetails && this.state.selectedAppDetails.helm && this.state.selectedAppDetails.helm.valueFiles || []}
                             projects={this.state.projects}
                             appParams={this.state.appParams}
                             submitForm={this.submitAppParamsForm}

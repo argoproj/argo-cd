@@ -11,7 +11,7 @@ export const Help = () => (
                 <div className='help-box'>
                     <div className='help-box__ico help-box__ico--manual'/>
                     <h3>Documentation</h3>
-                    <a href='https://github.com/argoproj/argo-cd/tree/master/docs' target='_blank' className='help-box__link'>ArgoCD Docs</a>
+                    <a href='https://github.com/argoproj/argo-cd/tree/master/docs' target='_blank' className='help-box__link'>Argo CD Docs</a>
                     <a href='/swagger-ui' target='_blank' className='help-box__link'>Swagger UI</a>
                 </div>
             </div>
@@ -26,7 +26,7 @@ export const Help = () => (
             <div className='columns large-4 medium-12'>
                 <div className='help-box'>
                     <div className='help-box__ico help-box__ico--download'/>
-                    <h3>ArgoCD CLI</h3>
+                    <h3>Argo CD CLI</h3>
                     <div className='row text-left help-box__download'>
                         <div className='columns small-6'>
                             <a href={`download/argocd-linux-amd64`}><i

@@ -4,6 +4,7 @@ import { Form, FormApi, Text } from 'react-form';
 
 import * as models from '../../../shared/models';
 import { CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams } from '../../../shared/services';
+import { ProjectRoleGroupsEdit } from '../project-role-groups-edit/project-role-groups-edit';
 import { ProjectRoleJWTTokens } from '../project-role-jwt-tokens/project-role-jwt-tokens';
 import { ProjectRolePoliciesEdit } from '../project-role-policies-edit/project-role-policies-edit';
 
@@ -38,6 +39,7 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                     policies: (props.defaultParams.role !== undefined && props.defaultParams.role.policies !== null
                         ? props.defaultParams.role.policies : []),
                     jwtTokens: (props.defaultParams.role !== undefined ? props.defaultParams.role.jwtTokens : []),
+                    groups: (props.defaultParams.role !== undefined ? props.defaultParams.role.groups : []),
                 }}
                 validateError={(params: ProjectRoleParams) => ({
                     projName: !params.projName && 'Project name is required',
@@ -57,6 +59,12 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                             projName={api.values.projName}
                             roleName={api.values.roleName}
                             formApi={api} policies={api.values.policies}
+                            newRole={props.defaultParams.newRole}/>
+                        <ProjectRoleGroupsEdit
+                            projName={api.values.projName}
+                            roleName={api.values.roleName}
+                            formApi={api}
+                            groups={api.values.groups}
                             newRole={props.defaultParams.newRole}/>
                     </form>
                 )}

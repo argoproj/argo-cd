@@ -39,11 +39,6 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text}/>,
         },
         {
-            title: 'NAME PREFIX',
-            view: app.spec.source.namePrefix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.namePrefix' component={Text}/>,
-        },
-        {
             title: 'REPO URL',
             view: (
                 <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
@@ -63,8 +58,13 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
         },
         {
             title: 'ENVIRONMENT',
-            view: app.spec.source.environment,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.environment' component={Text}/>,
+            view: app.spec.source.ksonnet && app.spec.source.ksonnet.environment,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.ksonnet.environment' component={Text}/>,
+        },
+        {
+            title: 'NAME PREFIX',
+            view: app.spec.source.kustomize && app.spec.source.kustomize.namePrefix,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text}/>,
         },
         {title: 'STATUS', view: (
             <span><ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}</span>

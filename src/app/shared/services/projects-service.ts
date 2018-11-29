@@ -8,6 +8,8 @@ export interface ProjectParams {
     sourceRepos: string[];
     destinations: models.ApplicationDestination[];
     roles: models.ProjectRole[];
+    clusterResourceWhitelist: models.GroupKind[];
+    namespaceResourceBlacklist: models.GroupKind[];
 }
 
 export interface CreateJWTTokenParams {
@@ -32,6 +34,7 @@ export interface ProjectRoleParams {
     description: string;
     policies: string[] | string;
     jwtTokens: models.JwtToken[];
+    groups: string[];
     deleteRole: boolean;
     expiresIn: string;
 }
@@ -50,6 +53,7 @@ function paramsToProjRole(params: ProjectRoleParams): models.ProjectRole {
         description: params.description,
         policies: newPolicies,
         jwtTokens: params.jwtTokens,
+        groups: params.groups,
     };
 }
 
@@ -61,6 +65,8 @@ function paramsToProj(params: ProjectParams) {
             sourceRepos: params.sourceRepos,
             destinations: params.destinations,
             roles: params.roles,
+            clusterResourceWhitelist: params.clusterResourceWhitelist,
+            namespaceResourceBlacklist: params.namespaceResourceBlacklist,
         },
     };
 }

@@ -150,10 +150,6 @@ export class ApplicationsList extends React.Component<Props, State> {
                                                         <div className='columns small-9'>{app.spec.source.path}</div>
                                                     </div>
                                                     <div className='row'>
-                                                        <div className='columns small-3'>Environment:</div>
-                                                        <div className='columns small-9'>{app.spec.source.environment}</div>
-                                                    </div>
-                                                    <div className='row'>
                                                         <div className='columns applications-list__entry--actions'>
                                                             <DropDownMenu anchor={() =>
                                                                 <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'/></button>
@@ -214,15 +210,29 @@ export class ApplicationsList extends React.Component<Props, State> {
 
     private async createApplication(params: NewAppParams) {
         try {
-            await services.applications.create(params.applicationName, params.project, {
-                environment: params.environment,
+            const source = {
                 path: params.path,
                 repoURL: params.repoURL,
                 targetRevision: params.revision,
                 componentParameterOverrides: null,
-                valuesFiles: params.valuesFiles,
-                namePrefix: params.namePrefix,
-            }, {
+            } as models.ApplicationSource;
+            if (params.valueFiles || params.releaseName) {
+                source.helm = {
+                    valueFiles: params.valueFiles,
+                    releaseName: params.releaseName,
+                } as models.ApplicationSourceHelm;
+            }
+            if (params.environment) {
+                source.ksonnet = {
+                    environment: params.environment,
+                } as models.ApplicationSourceKsonnet;
+            }
+            if (params.namePrefix) {
+                source.kustomize = {
+                    namePrefix: params.namePrefix,
+                } as models.ApplicationSourceKustomize;
+            }
+            await services.applications.create(params.applicationName, params.project, source, {
                 server: params.clusterURL,
                 namespace: params.namespace,
             });

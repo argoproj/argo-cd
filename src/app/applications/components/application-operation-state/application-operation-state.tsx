@@ -49,7 +49,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     }
 
     const resultAttributes: {title: string, value: string}[] = [];
-    const syncResult = operationState.syncResult || operationState.rollbackResult;
+    const syncResult = operationState.syncResult;
     if (operationState.finishedAt) {
         if (syncResult) {
             (syncResult.resources || []).forEach((res) => {
