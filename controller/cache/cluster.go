@@ -24,6 +24,7 @@ const (
 )
 
 type clusterInfo struct {
+	apis         map[schema.GroupVersionKind]metav1.APIResource
 	nodes        map[kube.ResourceKey]*node
 	lock         *sync.Mutex
 	onAppUpdated func(appName string)
@@ -115,6 +116,13 @@ func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.Resour
 	return children
 }
 
+func (c *clusterInfo) isNamespaced(gvk schema.GroupVersionKind) bool {
+	if api, ok := c.apis[gvk]; ok && !api.Namespaced {
+		return false
+	}
+	return true
+}
+
 func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -128,7 +136,7 @@ func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*
 	lock := &sync.Mutex{}
 	err := util.RunAllAsync(len(targetObjs), func(i int) error {
 		targetObj := targetObjs[i]
-		key := kube.GetResourceKeyNS(targetObj, util.FirstNonEmpty(targetObj.GetNamespace(), a.Spec.Destination.Namespace))
+		key := GetTargetObjKey(a, targetObj, c.isNamespaced(targetObj.GroupVersionKind()))
 		lock.Lock()
 		controlledObj := controlledObjs[key]
 		lock.Unlock()

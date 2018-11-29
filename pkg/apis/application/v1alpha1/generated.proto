@@ -310,6 +310,9 @@ message HookStatus {
 
   // A human readable message indicating details about why the resource is in this condition.
   optional string message = 6;
+
+  // Namespace is a hook object namespace
+  optional string namespace = 7;
 }
 
 // JWTToken holds the issuedAt and expiresAt values of a token

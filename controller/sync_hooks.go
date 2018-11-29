@@ -90,6 +90,17 @@ func (sc *syncContext) verifyPermittedHooks(hooks []*unstructured.Unstructured) 
 			sc.setOperationPhase(appv1.OperationFailed, fmt.Sprintf("Hook resource %s:%s is not permitted in project %s", gvk.Group, gvk.Kind, sc.proj.Name))
 			return false
 		}
+
+		if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(appv1.ApplicationDestination{Namespace: hook.GetNamespace(), Server: sc.server}) {
+			sc.setResourceDetails(&appv1.ResourceDetails{
+				Name:      hook.GetName(),
+				Kind:      hook.GetKind(),
+				Namespace: hook.GetNamespace(),
+				Message:   fmt.Sprintf("namespace %v is not permitted in project '%s'", hook.GetNamespace(), sc.proj.Name),
+				Status:    appv1.ResourceDetailsSyncFailed,
+			})
+			return false
+		}
 	}
 	return true
 }
@@ -102,6 +113,9 @@ func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Un
 		err := json.Unmarshal([]byte(manifest), &hook)
 		if err != nil {
 			return nil, err
+		}
+		if hook.GetNamespace() == "" {
+			hook.SetNamespace(sc.namespace)
 		}
 		if !isArgoHook(&hook) {
 			// TODO: in the future, if we want to map helm hooks to Argo CD lifecycles, we should
@@ -138,7 +152,7 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 			sc.setResourceDetails(&appv1.ResourceDetails{
 				Name:      hook.GetName(),
 				Kind:      hook.GetKind(),
-				Namespace: sc.namespace,
+				Namespace: hook.GetNamespace(),
 				Message:   "Skipped",
 			})
 			continue
@@ -223,7 +237,7 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 		return false, err
 	}
 	resource := kube.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
-	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, sc.namespace)
+	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, hook.GetNamespace())
 
 	var liveObj *unstructured.Unstructured
 	existing, err := resIf.Get(hook.GetName(), metav1.GetOptions{})
@@ -236,7 +250,7 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 		if err != nil {
 			sc.log.Warnf("Failed to set application label on hook %v: %v", hook, err)
 		}
-		_, err := sc.kubectl.ApplyResource(sc.config, hook, sc.namespace, false, false)
+		_, err := sc.kubectl.ApplyResource(sc.config, hook, hook.GetNamespace(), false, false)
 		if err != nil {
 			return false, fmt.Errorf("Failed to create %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
 		}
@@ -253,7 +267,7 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	hookStatus := newHookStatus(liveObj, hookType)
 	if hookStatus.Status.Completed() {
 		if enforceHookDeletePolicy(hook, hookStatus.Status) {
-			err = sc.deleteHook(hook.GetName(), hook.GetKind(), hook.GetAPIVersion())
+			err = sc.deleteHook(hook.GetName(), hook.GetKind(), hook.GetAPIVersion(), hook.GetNamespace())
 			if err != nil {
 				hookStatus.Status = appv1.OperationFailed
 				hookStatus.Message = fmt.Sprintf("failed to delete %s hook: %v", hookStatus.Status, err)
@@ -348,6 +362,7 @@ func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) app
 		Kind:       hook.GetKind(),
 		APIVersion: hook.GetAPIVersion(),
 		Type:       hookType,
+		Namespace:  hook.GetNamespace(),
 	}
 	gvk := schema.FromAPIVersionAndKind(hookStatus.APIVersion, hookStatus.Kind)
 	if isBatchJob(gvk) {
@@ -542,7 +557,7 @@ func (sc *syncContext) terminate() {
 		}
 		if isRunnable(hookStatus) {
 			hookStatus.Status = appv1.OperationFailed
-			err := sc.deleteHook(hookStatus.Name, hookStatus.Kind, hookStatus.APIVersion)
+			err := sc.deleteHook(hookStatus.Name, hookStatus.Kind, hookStatus.APIVersion, hookStatus.Namespace)
 			if err != nil {
 				hookStatus.Message = fmt.Sprintf("Failed to delete %s hook %s/%s: %v", hookStatus.Type, hookStatus.Kind, hookStatus.Name, err)
 				terminateSuccessful = false
@@ -559,14 +574,14 @@ func (sc *syncContext) terminate() {
 	}
 }
 
-func (sc *syncContext) deleteHook(name, kind, apiVersion string) error {
+func (sc *syncContext) deleteHook(name, kind, apiVersion string, namespace string) error {
 	gvk := schema.FromAPIVersionAndKind(apiVersion, kind)
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
 	if err != nil {
 		return err
 	}
 	resource := kube.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
-	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, sc.namespace)
+	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, namespace)
 	propagationPolicy := metav1.DeletePropagationForeground
 	return resIf.Delete(name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }

@@ -155,8 +155,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 	for i, obj := range targetObjs {
+
 		gvk := obj.GroupVersionKind()
-		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace), obj.GetName())
+
+		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
+		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind()); err == nil && !namespaced {
+			ns = ""
+		}
+		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
 		if liveObj, ok := liveObjByKey[key]; ok {
 			controlledLiveObj[i] = liveObj
 			delete(liveObjByKey, key)

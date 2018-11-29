@@ -37,6 +37,7 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		comparison: &v1alpha1.ComparisonResult{},
 		config:     &rest.Config{},
 		namespace:  "test-namespace",
+		server:     "https://test-server",
 		syncRes:    &v1alpha1.SyncOperationResult{},
 		syncOp: &v1alpha1.SyncOperation{
 			Prune: true,
@@ -49,6 +50,10 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 				Name: "test",
 			},
 			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{{
+					Server:    "https://test-server",
+					Namespace: "test-namespace",
+				}},
 				ClusterResourceWhitelist: []v1.GroupKind{
 					{Group: "*", Kind: "*"},
 				},
@@ -58,6 +63,21 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		disco:   fakeDisco,
 		log:     log.WithFields(log.Fields{"application": "fake-app"}),
 	}
+}
+
+func TestSyncNotPermittedNamespace(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	syncCtx.kubectl = kubetest.MockKubectlCmd{}
+	syncCtx.resources = []ControlledResource{{
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}, ObjectMeta: v1.ObjectMeta{Namespace: "kube-system"}}),
+	}, {
+		Live:   nil,
+		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
+	}}
+	syncCtx.sync()
+	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
+	assert.Contains(t, syncCtx.syncRes.Resources[0].Message, "not permitted in project")
 }
 
 func TestSyncCreateInSortedOrder(t *testing.T) {

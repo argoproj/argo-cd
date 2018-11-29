@@ -2584,6 +2584,10 @@
           "type": "string",
           "title": "Name is the resource name"
         },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace is a hook object namespace"
+        },
         "status": {
           "type": "string",
           "title": "Status a simple, high-level summary of where the resource is in its lifecycle"

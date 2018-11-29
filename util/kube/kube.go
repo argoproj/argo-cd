@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/util"
-
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -80,6 +78,10 @@ type ResourceKey struct {
 	Name      string
 }
 
+func (k *ResourceKey) String() string {
+	return fmt.Sprintf("%s/%s/%s/%s", k.Group, k.Kind, k.Namespace, k.Name)
+}
+
 func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
 	if group == "extensions" {
 		group = "apps"
@@ -89,12 +91,8 @@ func NewResourceKey(group string, kind string, namespace string, name string) Re
 }
 
 func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
-	return GetResourceKeyNS(obj, "")
-}
-
-func GetResourceKeyNS(obj *unstructured.Unstructured, namespace string) ResourceKey {
 	gvk := obj.GroupVersionKind()
-	return NewResourceKey(gvk.Group, gvk.Kind, util.FirstNonEmpty(obj.GetNamespace(), namespace), obj.GetName())
+	return NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
 }
 
 // TestConfig tests to make sure the REST config is usable
