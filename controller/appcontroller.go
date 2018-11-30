@@ -390,11 +390,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 		return nil
 	}
-	clst, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		return err
-	}
-	config := clst.RESTConfig()
+
 	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
@@ -405,7 +401,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	err = util.RunAllAsync(len(objs), func(i int) error {
 		obj := objs[i]
-		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+		return ctrl.stateCache.Delete(app.Spec.Destination.Server, obj)
 	})
 	if err != nil {
 		return err

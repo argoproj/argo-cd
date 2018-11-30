@@ -4,12 +4,11 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +31,7 @@ type clusterInfo struct {
 	cluster      *appv1.Cluster
 	syncLock     *sync.Mutex
 	syncTime     *time.Time
+	log          *log.Entry
 }
 
 func createObjInfo(un *unstructured.Unstructured) *node {
@@ -77,7 +77,7 @@ func (c *clusterInfo) ensureSynced() error {
 	if c.synced() {
 		return nil
 	}
-	log.Infof("Start syncing cluster %s", c.cluster.Server)
+	c.log.Info("Start syncing cluster")
 	c.nodes = make(map[kube.ResourceKey]*node)
 	resources, err := c.kubectl.GetResources(c.cluster.RESTConfig(), "")
 	if err != nil {
@@ -100,7 +100,7 @@ func (c *clusterInfo) ensureSynced() error {
 	}
 	resyncTime := time.Now()
 	c.syncTime = &resyncTime
-	log.Infof("Cluster %s successfully synced", c.cluster.Server)
+	c.log.Info("Cluster successfully synced")
 	return nil
 }
 
@@ -148,6 +148,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 				} else {
 					var err error
 					managedObj, err = c.kubectl.GetResource(c.cluster.RESTConfig(), targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
+					err = c.handleError(targetObj.GroupVersionKind(), existingObj.ref.Namespace, existingObj.ref.Name, err)
 					if err != nil && !errors.IsNotFound(err) {
 						return err
 					}
@@ -179,6 +180,29 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 		gv = schema.GroupVersion{}
 	}
 	return gv
+}
+
+func (c *clusterInfo) delete(obj *unstructured.Unstructured) error {
+	err := c.kubectl.DeleteResource(c.cluster.RESTConfig(), obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+	err = c.handleError(obj.GroupVersionKind(), obj.GetNamespace(), obj.GetName(), err)
+	if err != nil && errors.IsNotFound(err) {
+		err = nil
+	}
+	return err
+}
+
+func (c *clusterInfo) handleError(gvk schema.GroupVersionKind, namespace string, name string, err error) error {
+	if err != nil && errors.IsNotFound(err) {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+		if _, ok := c.nodes[kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name)]; ok {
+			if c.syncTime != nil {
+				c.log.Warn("Dropped stale cache")
+				c.syncTime = nil
+			}
+		}
+	}
+	return err
 }
 
 func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) error {

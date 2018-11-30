@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"sort"
+	"strings"
 	"sync"
 	"testing"
 
@@ -10,14 +12,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
+	log "github.com/sirupsen/logrus"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -82,6 +85,7 @@ func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
 		syncTime: nil,
 		syncLock: &sync.Mutex{},
 		apis:     make(map[schema.GroupVersionKind]v1.APIResource),
+		log:      log.WithField("cluster", "test"),
 	}
 }
 
@@ -175,6 +179,9 @@ func TestProcessNewChildEvent(t *testing.T) {
 	assert.Nil(t, err)
 
 	rsChildren := cluster.getChildren(testRS)
+	sort.Slice(rsChildren, func(i, j int) bool {
+		return strings.Compare(rsChildren[i].Name, rsChildren[j].Name) < 0
+	})
 	assert.Equal(t, []appv1.ResourceNode{{
 		Kind:            "Pod",
 		Namespace:       "default",
