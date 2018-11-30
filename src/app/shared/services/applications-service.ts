@@ -84,8 +84,8 @@ export class ApplicationsService {
         return requests.post(`/applications/${name}/rollback`).send({id}).then(() => true);
     }
 
-    public getContainerLogs(applicationName: string, podName: string, containerName: string): Observable<models.LogEntry> {
-        return requests.loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true`).repeat().retry().map(
+    public getContainerLogs(applicationName: string, namespace: string, podName: string, containerName: string): Observable<models.LogEntry> {
+        return requests.loadEventSource(`/applications/${applicationName}/pods/${podName}/logs?container=${containerName}&follow=true&namespace=${namespace}`).repeat().retry().map(
             (data) => JSON.parse(data).result as models.LogEntry);
     }
 
