@@ -105,10 +105,7 @@ func boolFloat64(b bool) float64 {
 
 func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
-		project := app.Spec.Project
-		if project == "" {
-			project = "default"
-		}
+		project := app.Spec.GetProject()
 		lv = append([]string{app.Namespace, app.Name, project}, lv...)
 		ch <- prometheus.MustNewConstMetric(desc, t, v, lv...)
 	}

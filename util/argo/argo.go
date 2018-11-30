@@ -266,10 +266,6 @@ func GetSpecErrors(
 		}
 	}
 
-	if spec.Project == "" {
-		spec.Project = common.DefaultAppProjectName
-	}
-
 	if !proj.IsSourcePermitted(spec.Source) {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -322,10 +318,7 @@ func verifyOneSourceType(source *argoappv1.ApplicationSource) *argoappv1.Applica
 
 // GetAppProject returns a project from an application
 func GetAppProject(spec *argoappv1.ApplicationSpec, appclientset appclientset.Interface, ns string) (*argoappv1.AppProject, error) {
-	if spec.BelongsToDefaultProject() {
-		return appclientset.ArgoprojV1alpha1().AppProjects(ns).Get(common.DefaultAppProjectName, metav1.GetOptions{})
-	}
-	return appclientset.ArgoprojV1alpha1().AppProjects(ns).Get(spec.Project, metav1.GetOptions{})
+	return appclientset.ArgoprojV1alpha1().AppProjects(ns).Get(spec.GetProject(), metav1.GetOptions{})
 }
 
 // queryAppSourceType queries repo server for yaml files in a directory, and determines its
@@ -506,4 +499,36 @@ func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoapp
 		}
 	}
 	return false
+}
+
+// NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
+// for migrating application objects which are using deprecated legacy fields into the new fields,
+// and defaulting fields in the spec (e.g. spec.project)
+func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.ApplicationSpec {
+	spec = spec.DeepCopy()
+	if spec.Project == "" {
+		spec.Project = common.DefaultAppProjectName
+	}
+	// 1. carry over legacy fields (v0.10 and below) into the new fields (v0.11) if missing
+	if spec.Source.Environment != "" && (spec.Source.Ksonnet == nil || spec.Source.Ksonnet.Environment == "") {
+		spec.Source.Ksonnet = &argoappv1.ApplicationSourceKsonnet{
+			Environment: spec.Source.Environment,
+		}
+	}
+	if len(spec.Source.ValuesFiles) > 0 && spec.Source.Helm == nil {
+		spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
+			ValueFiles: spec.Source.ValuesFiles,
+		}
+	}
+	// 2. duplicate the new fields into legacy fields so that the legacy and new are always in sync
+	// NOTE: this step effectively ignore any changes which made only to the legacy fields. This
+	// *should* be OK since older CLIs are blocked, and the UI will be using the new fields. This
+	// may break custom REST API clients
+	if spec.Source.Ksonnet != nil {
+		spec.Source.Environment = spec.Source.Ksonnet.Environment
+	}
+	if spec.Source.Helm != nil {
+		spec.Source.ValuesFiles = spec.Source.Helm.ValueFiles
+	}
+	return spec
 }

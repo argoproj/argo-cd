@@ -114,7 +114,7 @@ message ApplicationSource {
   optional string path = 2;
 
   // Environment is a ksonnet application environment name
-  // DEPRECATED: specify environment in ksonnet.environment instead
+  // DEPRECATED: specify environment in spec.source.ksonnet.environment instead
   optional string environment = 3;
 
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
@@ -125,7 +125,7 @@ message ApplicationSource {
   repeated ComponentParameter componentParameterOverrides = 5;
 
   // ValuesFiles is a list of Helm values files to use when generating a template
-  // DEPRECATED: specify values in helm.valueFiles instead
+  // DEPRECATED: specify values in spec.source.helm.valueFiles instead
   repeated string valuesFiles = 6;
 
   // Helm holds helm specific options

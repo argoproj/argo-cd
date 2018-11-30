@@ -81,7 +81,7 @@ func fakeListDirResponse() *repository.FileList {
 }
 
 // return an ApplicationServiceServer which returns fake data
-func newTestAppServer() *Server {
+func newTestAppServer(objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm"},
 	}, &v1.Secret{
@@ -119,10 +119,11 @@ func newTestAppServer() *Server {
 		},
 	}
 
+	objects = append(objects, defaultProj)
 	server := NewServer(
 		testNamespace,
 		kubeclientset,
-		apps.NewSimpleClientset(defaultProj),
+		apps.NewSimpleClientset(objects...),
 		mockRepoClient,
 		nil,
 		kube.KubectlCmd{},
@@ -160,13 +161,38 @@ func newTestApp() *appsv1.Application {
 }
 
 func TestCreateApp(t *testing.T) {
+	testApp := newTestApp()
 	appServer := newTestAppServer()
+	testApp.Spec.Project = ""
 	createReq := ApplicationCreateRequest{
-		Application: *newTestApp(),
+		Application: *testApp,
 	}
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.Nil(t, err)
 	assert.Equal(t, app.Spec.Project, "default")
+}
+
+func TestUpdateApp(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(testApp)
+	testApp.Spec.Project = ""
+	app, err := appServer.Update(context.Background(), &ApplicationUpdateRequest{
+		Application: testApp,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, app.Spec.Project, "default")
+}
+
+func TestUpdateAppSpec(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(testApp)
+	testApp.Spec.Project = ""
+	spec, err := appServer.UpdateSpec(context.Background(), &ApplicationUpdateSpecRequest{
+		Name: &testApp.Name,
+		Spec: testApp.Spec,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, spec.Project, "default")
 }
 
 func TestDeleteApp(t *testing.T) {

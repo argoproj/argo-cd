@@ -11,19 +11,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -38,14 +39,12 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/diff"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -610,15 +609,15 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if !ctrl.needRefreshAppStatus(app, ctrl.statusRefreshTimeout) {
 		return
 	}
+	app = ctrl.normalizeApplication(app)
 
-	app = app.DeepCopy()
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
 		comparisonResult := app.Status.ComparisonResult.DeepCopy()
 		comparisonResult.Status = appv1.ComparisonStatusUnknown
 		appHealth := app.Status.Health.DeepCopy()
 		appHealth.Status = appv1.HealthStatusUnknown
-		ctrl.updateAppStatus(app, comparisonResult, appHealth, nil, conditions)
+		ctrl.persistAppStatus(app, comparisonResult, appHealth, nil, conditions)
 		return
 	}
 
@@ -645,7 +644,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		conditions = append(conditions, *syncErrCond)
 	}
 
-	ctrl.updateAppStatus(app, comparisonResult, healthState, parameters, conditions)
+	ctrl.persistAppStatus(app, comparisonResult, healthState, parameters, conditions)
 	return
 }
 
@@ -725,8 +724,30 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 	return appConditions, hasErrors
 }
 
-// updateAppStatus persists updates to application status. Detects if there patch
-func (ctrl *ApplicationController) updateAppStatus(
+// normalizeApplication normalizes an application.spec and additionally persists updates if it changed
+// Always returns a copy of the application
+func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) *appv1.Application {
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
+	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+	modifiedApp := app.DeepCopy()
+	modifiedApp.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
+	patch, modified, err := diff.CreateTwoWayMergePatch(app, modifiedApp, appv1.Application{})
+	if err != nil {
+		logCtx.Errorf("error constructing app spec patch: %v", err)
+		return modifiedApp
+	} else if modified {
+		_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
+		if err != nil {
+			logCtx.Errorf("Error persisting normalized application spec: %v", err)
+		} else {
+			logCtx.Infof("Normalized app spec: %s", string(patch))
+		}
+	}
+	return modifiedApp
+}
+
+// persistAppStatus persists updates to application status. If no changes were made, it is a no-op
+func (ctrl *ApplicationController) persistAppStatus(
 	app *appv1.Application,
 	comparisonResult *appv1.ComparisonResult,
 	healthState *appv1.HealthStatus,
@@ -759,22 +780,12 @@ func (ctrl *ApplicationController) updateAppStatus(
 	if conditions != nil {
 		modifiedApp.Status.Conditions = conditions
 	}
-	origBytes, err := json.Marshal(app)
+	patch, modified, err := diff.CreateTwoWayMergePatch(app, modifiedApp, appv1.Application{})
 	if err != nil {
-		logCtx.Errorf("Error updating (marshal orig app): %v", err)
+		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
 	}
-	modifiedBytes, err := json.Marshal(modifiedApp)
-	if err != nil {
-		logCtx.Errorf("Error updating (marshal modified app): %v", err)
-		return
-	}
-	patch, err := strategicpatch.CreateTwoWayMergePatch(origBytes, modifiedBytes, appv1.Application{})
-	if err != nil {
-		logCtx.Errorf("Error calculating patch for update: %v", err)
-		return
-	}
-	if string(patch) == "{}" {
+	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}

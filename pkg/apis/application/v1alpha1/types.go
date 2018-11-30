@@ -49,7 +49,7 @@ type ApplicationSource struct {
 	// Path is a directory path within the repository containing a
 	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
 	// Environment is a ksonnet application environment name
-	// DEPRECATED: specify environment in ksonnet.environment instead
+	// DEPRECATED: specify environment in spec.source.ksonnet.environment instead
 	Environment string `json:"environment,omitempty" protobuf:"bytes,3,opt,name=environment"`
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
@@ -57,7 +57,7 @@ type ApplicationSource struct {
 	// ComponentParameterOverrides are a list of parameter override values
 	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
 	// ValuesFiles is a list of Helm values files to use when generating a template
-	// DEPRECATED: specify values in helm.valueFiles instead
+	// DEPRECATED: specify values in spec.source.helm.valueFiles instead
 	ValuesFiles []string `json:"valuesFiles,omitempty" protobuf:"bytes,6,opt,name=valuesFiles"`
 	// Helm holds helm specific options
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
@@ -679,10 +679,7 @@ func (source ApplicationSource) Equals(other ApplicationSource) bool {
 	return reflect.DeepEqual(source, other)
 }
 
-func (spec ApplicationSpec) BelongsToDefaultProject() bool {
-	return spec.GetProject() == common.DefaultAppProjectName
-}
-
+// GetProject returns the application's project. This is preferred over spec.Project which may be empty
 func (spec ApplicationSpec) GetProject() string {
 	if spec.Project == "" {
 		return common.DefaultAppProjectName

@@ -45,7 +45,6 @@ spec:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
     path: guestbook
-    environment: default
   destination:
     server: https://kubernetes.default.svc
     namespace: default
