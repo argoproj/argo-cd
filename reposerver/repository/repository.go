@@ -208,14 +208,20 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		targetObjs, params, dest, err = ksShow(appPath, env, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeHelm:
 		h := helm.NewHelmApp(appPath)
-		err = h.DependencyBuild()
-		if err != nil {
-			return nil, err
-		}
 		opts := helmOpts(q)
 		targetObjs, err = h.Template(q.AppLabel, opts, q.ComponentParameterOverrides)
 		if err != nil {
-			return nil, err
+			if !helm.IsMissingDependencyErr(err) {
+				return nil, err
+			}
+			err = h.DependencyBuild()
+			if err != nil {
+				return nil, err
+			}
+			targetObjs, err = h.Template(q.AppLabel, opts, q.ComponentParameterOverrides)
+			if err != nil {
+				return nil, err
+			}
 		}
 		params, err = h.GetParameters(opts.ValueFiles)
 		if err != nil {

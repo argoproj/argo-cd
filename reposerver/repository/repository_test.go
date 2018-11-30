@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +33,17 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	res1, err := generateManifests("./testdata/jsonnet", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 2)
+}
+
+func TestGenerateHelmChartWithDependencies(t *testing.T) {
+	clean := func() {
+		_ = os.RemoveAll("../../util/helm/testdata/wordpress/charts")
+	}
+	defer clean()
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+	}
+	res1, err := generateManifests("../../util/helm/testdata/wordpress", &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 12, len(res1.Manifests))
 }

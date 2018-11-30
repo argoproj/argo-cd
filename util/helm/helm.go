@@ -51,6 +51,11 @@ type helm struct {
 	home string
 }
 
+// IsMissingDependencyErr tests if the error is related to a missing chart dependency
+func IsMissingDependencyErr(err error) bool {
+	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
+}
+
 func (h *helm) Template(appName string, opts HelmTemplateOpts, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
 	args := []string{
 		"template", ".",
