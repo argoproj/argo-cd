@@ -269,7 +269,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 					fmt.Printf("Source repository '*' already allowed in project\n")
 					return
 				}
-				if item == git.NormalizeGitURL(url) {
+				if git.SameURL(item, url) {
 					fmt.Printf("Source repository '%s' already allowed in project\n", item)
 					return
 				}
@@ -400,11 +400,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			index := -1
 			for i, item := range proj.Spec.SourceRepos {
-				if item == "*" && item == url {
-					index = i
-					break
-				}
-				if item == git.NormalizeGitURL(url) {
+				if item == url {
 					index = i
 					break
 				}

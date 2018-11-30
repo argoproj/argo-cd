@@ -139,7 +139,8 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-func (mgr *SettingsManager) LoadLegacyRepoSettings(settings *ArgoCDSettings) error {
+// MigrateLegacyRepoSettings migrates legacy (v0.10 and below) repo secrets into the v0.11 configmap
+func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) error {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{"repository"})
@@ -628,7 +629,7 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 	}
 
 	if len(cdSettings.Repositories) == 0 {
-		err = settingsMgr.LoadLegacyRepoSettings(cdSettings)
+		err = settingsMgr.MigrateLegacyRepoSettings(cdSettings)
 		if err != nil {
 			return nil, err
 		}

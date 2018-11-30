@@ -455,8 +455,9 @@ func pathExists(ss ...string) bool {
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
-	appRepoPath := tempRepoPath(repo.Repo)
-	gitClient, err := s.gitFactory.NewClient(repo.Repo, appRepoPath, repo.Username, repo.Password, repo.SSHPrivateKey)
+	repoURL := git.NormalizeGitURL(repo.Repo)
+	appRepoPath := tempRepoPath(repoURL)
+	gitClient, err := s.gitFactory.NewClient(repoURL, appRepoPath, repo.Username, repo.Password, repo.SSHPrivateKey)
 	if err != nil {
 		return nil, "", err
 	}

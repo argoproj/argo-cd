@@ -14,10 +14,10 @@ func ensurePrefix(s, prefix string) string {
 	return s
 }
 
-// EnsureSuffix idempotently ensures that a base string has a given suffix.
-func ensureSuffix(s, suffix string) string {
-	if !strings.HasSuffix(s, suffix) {
-		s += suffix
+// removeSuffix idempotently removes a given suffix
+func removeSuffix(s, suffix string) string {
+	if strings.HasSuffix(s, suffix) {
+		return s[0 : len(s)-len(suffix)]
 	}
 	return s
 }
@@ -36,34 +36,27 @@ func IsTruncatedCommitSHA(sha string) bool {
 	return truncatedCommitSHARegex.MatchString(sha)
 }
 
-// NormalizeGitURL normalizes a git URL for lookup and storage
+// SameURL returns whether or not the two repository URLs are equivalent in location
+func SameURL(leftRepo, rightRepo string) bool {
+	return NormalizeGitURL(leftRepo) == NormalizeGitURL(rightRepo)
+}
+
+// NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
+// local clones (by normalizing various forms of a URL to a consistent location).
+// Prefer using SameURL() over this function when possible. This algorithm may change over time
+// and should not be considered stable from release to release
 func NormalizeGitURL(repo string) string {
-	repo = strings.TrimSpace(repo)
+	repo = strings.ToLower(strings.TrimSpace(repo))
 	if IsSSHURL(repo) {
 		repo = ensurePrefix(repo, "ssh://")
 	}
-	if !isAzureGitURL(repo) {
-		// NOTE: not all git services support `.git` appended to their URLs (e.g. azure) so this
-		// normalization is not entirely safe.
-		repo = ensureSuffix(repo, ".git")
-	}
+	repo = removeSuffix(repo, ".git")
 	repoURL, err := url.Parse(repo)
 	if err != nil {
 		return ""
 	}
-	repoURL.Host = strings.ToLower(repoURL.Host)
 	normalized := repoURL.String()
 	return strings.TrimPrefix(normalized, "ssh://")
-}
-
-// isAzureGitURL returns true if supplied URL is from an Azure domain
-func isAzureGitURL(repo string) bool {
-	repoURL, err := url.Parse(repo)
-	if err != nil {
-		return false
-	}
-	hostname := repoURL.Hostname()
-	return strings.HasSuffix(hostname, "dev.azure.com") || strings.HasSuffix(hostname, "visualstudio.com")
 }
 
 // IsSSHURL returns true if supplied URL is SSH URL

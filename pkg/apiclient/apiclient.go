@@ -123,6 +123,11 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			ctxName = configCtx.Name
 		}
 	}
+	if opts.UserAgent != "" {
+		c.UserAgent = opts.UserAgent
+	} else {
+		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, argocd.GetVersion().Version)
+	}
 	// Override server address if specified in env or CLI flag
 	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
 		c.ServerAddr = serverFromEnv
@@ -165,11 +170,6 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-	if opts.UserAgent != "" {
-		c.UserAgent = opts.UserAgent
-	} else {
-		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, argocd.GetVersion().Version)
 	}
 	return &c, nil
 }
