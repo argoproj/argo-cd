@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -475,21 +474,6 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 	return config, namespace, err
 }
 
-func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespace string, kubeClientset *kubernetes.Clientset) error {
-	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(podName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	wrongPodError := status.Errorf(codes.InvalidArgument, "pod %s does not belong to application %s", podName, applicationName)
-	if pod.Labels == nil {
-		return wrongPodError
-	}
-	if value, ok := pod.Labels[common.LabelApplicationName]; !ok || value != applicationName {
-		return wrongPodError
-	}
-	return nil
-}
-
 func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
 	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
 	if err != nil {
@@ -499,12 +483,12 @@ func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery
 	return client.ResourceTree(ctx, q)
 }
 
-func (s *Server) getAppResource(ctx context.Context, q *ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
+func (s *Server) getAppResource(ctx context.Context, action string, q *ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, appRBACName(*a)) {
 		return nil, nil, nil, grpc.ErrPermissionDenied
 	}
 
@@ -525,7 +509,7 @@ func (s *Server) getAppResource(ctx context.Context, q *ApplicationResourceReque
 }
 
 func (s *Server) GetResource(ctx context.Context, q *ApplicationResourceRequest) (*ApplicationResourceResponse, error) {
-	res, config, _, err := s.getAppResource(ctx, q)
+	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +525,7 @@ func (s *Server) GetResource(ctx context.Context, q *ApplicationResourceRequest)
 }
 
 func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceRequest) (*ApplicationResponse, error) {
-	res, config, a, err := s.getAppResource(ctx, q)
+	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionDelete, q)
 	if err != nil {
 		return nil, err
 	}
@@ -595,22 +579,20 @@ func findResource(resources []*appv1.ResourceNode, q *ApplicationResourceRequest
 }
 
 func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLogsServer) error {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	pod, config, _, err := s.getAppResource(ws.Context(), rbacpolicy.ActionGet, &ApplicationResourceRequest{
+		Name:         q.Name,
+		Namespace:    q.Namespace,
+		Kind:         kube.PodKind,
+		Group:        "",
+		Version:      "v1",
+		ResourceName: *q.PodName,
+	})
+
 	if err != nil {
 		return err
 	}
-	if !s.enf.Enforce(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
-		return grpc.ErrPermissionDenied
-	}
-	config, namespace, err := s.getApplicationClusterConfig(*q.Name)
-	if err != nil {
-		return err
-	}
+
 	kubeClientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-	err = s.ensurePodBelongsToApp(*q.Name, *q.PodName, namespace, kubeClientset)
 	if err != nil {
 		return err
 	}
@@ -622,7 +604,7 @@ func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLo
 	if q.TailLines > 0 {
 		tailLines = &q.TailLines
 	}
-	stream, err := kubeClientset.CoreV1().Pods(namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
+	stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(*q.PodName, &v1.PodLogOptions{
 		Container:    q.Container,
 		Follow:       q.Follow,
 		Timestamps:   true,

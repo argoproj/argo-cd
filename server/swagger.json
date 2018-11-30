@@ -361,6 +361,11 @@
           },
           {
             "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "name": "container",
             "in": "query"
           },
