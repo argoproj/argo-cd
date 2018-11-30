@@ -32,7 +32,6 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 			{Kind: "service", Namespaced: true},
 		},
 	})
-	kube.FlushServerResourcesCache()
 	return &syncContext{
 		comparison: &v1alpha1.ComparisonResult{},
 		config:     &rest.Config{},

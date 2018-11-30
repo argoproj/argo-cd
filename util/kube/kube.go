@@ -2,17 +2,14 @@
 package kube
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -20,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -29,7 +25,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
-	"github.com/argoproj/argo-cd/util/cache"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 )
 
@@ -53,15 +48,9 @@ const (
 	PodKind                      = "Pod"
 )
 
-const (
-	apiResourceCacheDuration = 10 * time.Minute
-)
-
 var (
 	// location to use for generating temporary files, such as the kubeconfig needed by kubectl
 	kubectlTempDir string
-	// apiResourceCache is a in-memory cache of api resources supported by a k8s server
-	apiResourceCache = cache.NewInMemoryCache(apiResourceCacheDuration)
 )
 
 func init() {
@@ -211,43 +200,6 @@ func SetLabel(target *unstructured.Unstructured, key, val string) error {
 	return nil
 }
 
-// GetCachedServerResources discovers API resources supported by a Kube API server.
-// Caches the results for apiResourceCacheDuration (per host)
-func GetCachedServerResources(host string, disco discovery.DiscoveryInterface) ([]*metav1.APIResourceList, error) {
-	var resList []*metav1.APIResourceList
-	cacheKey := fmt.Sprintf("apires|%s", host)
-	err := apiResourceCache.Get(cacheKey, &resList)
-	if err == nil {
-		log.Debugf("cache hit: %s", cacheKey)
-		return resList, nil
-	}
-	if err == cache.ErrCacheMiss {
-		log.Infof("cache miss: %s", cacheKey)
-	} else {
-		log.Warnf("cache error %s: %v", cacheKey, err)
-	}
-	resList, err = disco.ServerPreferredResources()
-	if err != nil {
-		if len(resList) == 0 {
-			return nil, errors.WithStack(err)
-		}
-		// It's possible for ServerResources to return error as well as a resource list
-		log.Warnf("Resource discovery partially successful. Encountered error: %v", err)
-	}
-	err = apiResourceCache.Set(&cache.Item{
-		Key:    cacheKey,
-		Object: resList,
-	})
-	if err != nil {
-		log.Warnf("Failed to cache %s: %v", cacheKey, err)
-	}
-	return resList, nil
-}
-
-func FlushServerResourcesCache() {
-	apiResourceCache.Flush()
-}
-
 func ToGroupVersionResource(groupVersion string, apiResource *metav1.APIResource) schema.GroupVersionResource {
 	gvk := schema.FromAPIVersionAndKind(groupVersion, apiResource.Kind)
 	gv := gvk.GroupVersion()
@@ -291,7 +243,7 @@ func filterAPIResources(config *rest.Config, filter filterFunc, namespace string
 	if err != nil {
 		return nil, err
 	}
-	serverResources, err := GetCachedServerResources(config.Host, disco)
+	serverResources, err := disco.ServerPreferredResources()
 	if err != nil {
 		return nil, err
 	}
@@ -327,25 +279,6 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 		}
 	}
 	return false
-}
-
-func copyEventsChannel(ctx context.Context, src <-chan watch.Event, dst chan watch.Event) {
-	stopped := false
-	done := make(chan bool)
-	go func() {
-		for event := range src {
-			if stopped {
-				break
-			}
-			dst <- event
-		}
-		done <- true
-	}()
-	select {
-	case <-done:
-	case <-ctx.Done():
-		stopped = true
-	}
 }
 
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go

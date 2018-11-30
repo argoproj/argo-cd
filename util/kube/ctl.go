@@ -7,11 +7,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"runtime/debug"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/argoproj/argo-cd/util"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -72,6 +77,8 @@ func (k KubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unst
 	return result, asyncErr
 }
 
+const watchResourcesRetryTimeout = 1 * time.Second
+
 // WatchResources Watches all the existing resources with the provided label name in the provided namespace in the cluster provided by the config
 func (k KubectlCmd) WatchResources(
 	ctx context.Context,
@@ -93,11 +100,41 @@ func (k KubectlCmd) WatchResources(
 		for _, a := range apiResIfs {
 			go func(apiResIf apiResourceInterface) {
 				defer wg.Done()
-				w, err := apiResIf.resourceIf.Watch(metav1.ListOptions{})
-				if err == nil {
+
+				util.RetryUntilSucceed(func() (err error) {
+					defer func() {
+						if r := recover(); r != nil {
+							message := fmt.Sprintf("Recovered from panic: %+v\n%s", r, debug.Stack())
+							log.Error(message)
+							err = errors.New(message)
+						}
+					}()
+					var w watch.Interface
+					w, err = apiResIf.resourceIf.Watch(metav1.ListOptions{})
+					if err != nil {
+						return err
+					}
 					defer w.Stop()
-					copyEventsChannel(ctx, w.ResultChan(), ch)
-				}
+					stopped := false
+					for !stopped {
+						select {
+						case event := <-w.ResultChan():
+							if event.Object != nil {
+								ch <- event
+							} else if !stopped {
+								// Workaround for https://github.com/kubernetes/client-go/issues/334. Issue is closed but still not resolved.
+								return fmt.Errorf("got empty event object. restarting watch")
+							}
+
+						case <-ctx.Done():
+							stopped = true
+						}
+					}
+					if !stopped {
+						return fmt.Errorf("channel got closed. restarting watch")
+					}
+					return nil
+				}, fmt.Sprintf("watch resources %s %s/%s", config.ServerName, apiResIf.groupVersion, apiResIf.apiResource.Kind), ctx, watchResourcesRetryTimeout)
 			}(a)
 		}
 		wg.Wait()

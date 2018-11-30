@@ -33,6 +33,8 @@ type LiveStateCache interface {
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context)
+	// Deletes specified resource from cluster.
+	Delete(server string, obj *unstructured.Unstructured) error
 }
 
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
@@ -96,6 +98,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			cluster:      cluster,
 			syncTime:     nil,
 			syncLock:     &sync.Mutex{},
+			log:          log.WithField("server", cluster.Server),
 		}
 
 		c.clusters[cluster.Server] = info
@@ -123,6 +126,14 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func (c *liveStateCache) Delete(server string, obj *unstructured.Unstructured) error {
+	clusterInfo, err := c.getCluster(server)
+	if err != nil {
+		return err
+	}
+	return clusterInfo.delete(obj)
 }
 
 func (c *liveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error) {
