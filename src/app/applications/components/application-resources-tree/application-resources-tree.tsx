@@ -64,14 +64,16 @@ export const ApplicationResourcesTree = (props: {
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR', marginx: -100 });
     graph.setDefaultEdgeLabel(() => ({}));
-    const appNode: models.ResourceNode = {
+    const appNode = {
         kind: props.app.kind,
         name: props.app.metadata.name,
         namespace: props.app.metadata.namespace,
         resourceVersion: props.app.metadata.resourceVersion,
         group: '',
         version: '',
-        children: [],
+        children: Array(),
+        status: props.app.status.comparisonResult.status,
+        health: props.app.status.health,
         tags: (props.app.spec.source.componentParameterOverrides || []).length > 0 ? [`${props.app.spec.source.componentParameterOverrides.length} parameter override(s)`] : [],
     };
     graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
