@@ -1,6 +1,6 @@
 @import 'node_modules/argo-ui/bundle/app/shared/styles/config';
 
-.application-resources-tree {
+.application-resource-tree {
     position: relative;
     overflow: hidden;
 
@@ -11,7 +11,7 @@
     }
 
     &__edge {
-        .application-resources-tree__line {
+        .application-resource-tree__line {
             &:last-child {
                 &:after {
                     content: '\25BA';

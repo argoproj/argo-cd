@@ -5,7 +5,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import { ComparisonStatusIcon, HealthStatusIcon, nodeKey, ResourceTreeNode } from '../utils';
 
-require('./application-resources-tree.scss');
+require('./application-resource-tree.scss');
 
 interface Line { x1: number; y1: number; x2: number; y2: number; }
 
@@ -53,7 +53,7 @@ function appNodeKey(app: models.Application) {
     return nodeKey({group: app.apiVersion, kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace });
 }
 
-export const ApplicationResourcesTree = (props: {
+export const ApplicationResourceTree = (props: {
     app: models.Application,
     resources: ResourceTreeNode [],
     kindsFilter: string[],
@@ -114,7 +114,7 @@ export const ApplicationResourcesTree = (props: {
     });
     const size = getGraphSize(graph.nodes().map((id) => graph.node(id)));
     return (
-        <div className='application-resources-tree' style={{width: size.width + 150, height: size.height + 150}}>
+        <div className='application-resource-tree' style={{width: size.width + 150, height: size.height + 150}}>
             {graph.nodes().map((fullName) => {
                 const node = graph.node(fullName) as (models.ResourceNode) & dagre.Node;
                 let comparisonStatus: models.ComparisonStatus = null;
@@ -125,29 +125,29 @@ export const ApplicationResourcesTree = (props: {
                 }
                 const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-gears';
                 return (
-                    <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resources-tree__node', {
+                    <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resource-tree__node', {
                         active: fullName === props.selectedNodeFullName,
                     })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
-                        <div className={classNames('application-resources-tree__node-kind-icon', {
-                            'application-resources-tree__node-kind-icon--big': node.kind === 'Application',
+                        <div className={classNames('application-resource-tree__node-kind-icon', {
+                            'application-resource-tree__node-kind-icon--big': node.kind === 'Application',
                         })}>
                             <i title={node.kind} className={`icon ${kindIcon}`}/>
                         </div>
-                        <div className='application-resources-tree__node-content'>
-                            <span className='application-resources-tree__node-title' title={node.name}>{node.name}</span>
-                            <div className={classNames('application-resources-tree__node-status-icon', {
-                                'application-resources-tree__node-status-icon--offset': node.kind === 'Application',
+                        <div className='application-resource-tree__node-content'>
+                            <span className='application-resource-tree__node-title' title={node.name}>{node.name}</span>
+                            <div className={classNames('application-resource-tree__node-status-icon', {
+                                'application-resource-tree__node-status-icon--offset': node.kind === 'Application',
                             })}>
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
                                 {healthState != null && <HealthStatusIcon state={healthState}/>}
                             </div>
                         </div>
-                        <div className='application-resources-tree__node-labels'>
+                        <div className='application-resource-tree__node-labels'>
                             {(node.tags || []).map((tag) => <span key={tag}>{tag}</span>)}
                             <span>{node.kind}</span>
                         </div>
                         {props.nodeMenuItems && (
-                            <div className='application-resources-tree__node-menu'>
+                            <div className='application-resource-tree__node-menu'>
                                 <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                     <i className='fa fa-ellipsis-v'/>
                                 </button>} items={props.nodeMenuItems(node)}/>
@@ -157,14 +157,14 @@ export const ApplicationResourcesTree = (props: {
                 );
             })}
             {edges.map((edge) => (
-                <div key={`${edge.from}-${edge.to}`} className='application-resources-tree__edge'>
+                <div key={`${edge.from}-${edge.to}`} className='application-resource-tree__edge'>
                 {edge.lines.map((line, i) => {
                     const distance = Math.sqrt(Math.pow(line.x1 - line.x2, 2) + Math.pow(line.y1 - line.y2, 2));
                     const xMid = (line.x1 + line.x2) / 2;
                     const yMid = (line.y1 + line.y2) / 2;
                     const angle = Math.atan2(line.y1 - line.y2, line.x1 - line.x2) * 180 / Math.PI;
                     return (
-                        <div className='application-resources-tree__line' key={i}
+                        <div className='application-resource-tree__line' key={i}
                             style={{ width: distance, left: xMid - (distance / 2), top: yMid, transform: `translate(150px, 35px) rotate(${angle}deg)`}} />
                     );
                 })}</div>

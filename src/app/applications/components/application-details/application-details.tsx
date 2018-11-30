@@ -15,7 +15,7 @@ import { ApplicationDeploymentHistory } from '../application-deployment-history/
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
 import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
-import { ApplicationResourcesTree } from '../application-resources-tree/application-resources-tree';
+import { ApplicationResourceTree } from '../application-resource-tree/application-resource-tree';
 import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
 import { ApplicationSummary } from '../application-summary/application-summary';
 import { ParametersPanel } from '../parameters-panel/parameters-panel';
@@ -63,7 +63,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         super(props);
         this.state = { defaultKindFilter: [], refreshing: false };
         this.appUpdates = services.applications.watch({name: props.match.params.name}).map((changeEvent) => changeEvent.application).flatMap((application) =>
-            Observable.fromPromise(services.applications.resourcesTree(application.metadata.name).then((resources) => {
+            Observable.fromPromise(services.applications.resourceTree(application.metadata.name).then((resources) => {
                 return {application, resources: resourcesFromSummaryInfo(application, resources)};
             })),
         ).repeat().retryWhen((errors) => errors.delay(500));
@@ -169,7 +169,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                             this.setState({ refreshing: true });
                                             const [app, res] = await Promise.all([
                                                 services.applications.get(this.props.match.params.name, true),
-                                                services.applications.resourcesTree(
+                                                services.applications.resourceTree(
                                                     this.props.match.params.name).then((items) => resourcesFromSummaryInfo(application, items)),
                                             ]);
                                             await this.loader.setData({ application: app, resources: res });
@@ -196,7 +196,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 showConditions={() => this.setConditionsStatusVisible(true)}/>
                             <div className='application-details'>
                                 {this.state.refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                <ApplicationResourcesTree
+                                <ApplicationResourceTree
                                     kindsFilter={kindsFilter}
                                     selectedNodeFullName={this.selectedNodeKey}
                                     onNodeClick={(fullName) => this.selectNode(fullName)}
@@ -208,8 +208,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 <div>
                                 {selectedNode && (
                                     <DataLoader input={selectedNode.resourceVersion} load={async () => {
-                                        const controlledResources = await services.applications.controlledResources(application.metadata.name);
-                                        const controlled = controlledResources.find((item) => isSameNode(selectedNode, item));
+                                        const managedResources = await services.applications.managedResources(application.metadata.name);
+                                        const controlled = managedResources.find((item) => isSameNode(selectedNode, item));
                                         const summary = application.status.comparisonResult.resources.find((item) => isSameNode(selectedNode, item));
                                         const controlledState = controlled && summary && { summary, state: controlled } || null;
                                         const liveState = controlled && controlled.liveState || await services.applications.getResource(
@@ -323,7 +323,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private async updateApp(app: appModels.Application) {
         try {
             await services.applications.updateSpec(app.metadata.name, app.spec);
-            const [updatedApp, resources] = await Promise.all([services.applications.get(app.metadata.name), services.applications.resourcesTree(app.metadata.name)]);
+            const [updatedApp, resources] = await Promise.all([services.applications.get(app.metadata.name), services.applications.resourceTree(app.metadata.name)]);
             this.loader.setData({application: updatedApp, resources});
         } catch (e) {
             this.appContext.apis.notifications.show({

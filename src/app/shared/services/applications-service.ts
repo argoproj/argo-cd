@@ -26,12 +26,12 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
     }
 
-    public resourcesTree(name: string): Promise<models.ResourceNode[]> {
-        return requests.get(`/applications/${name}/resources-tree`).then((res) => res.body.items as models.ResourceNode[] || []);
+    public resourceTree(name: string): Promise<models.ResourceNode[]> {
+        return requests.get(`/applications/${name}/resource-tree`).then((res) => res.body.items as models.ResourceNode[] || []);
     }
 
-    public controlledResources(name: string): Promise<models.ResourceState[]> {
-        return requests.get(`/applications/${name}/controlled-resources`).then((res) => res.body.items as any[] || []).then((items) => {
+    public managedResources(name: string): Promise<models.ResourceState[]> {
+        return requests.get(`/applications/${name}/managed-resources`).then((res) => res.body.items as any[] || []).then((items) => {
             items.forEach((item) => {
                 item.liveState = JSON.parse(item.liveState);
                 item.targetState = JSON.parse(item.targetState);
