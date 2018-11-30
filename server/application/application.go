@@ -486,13 +486,13 @@ func (s *Server) ensurePodBelongsToApp(applicationName string, podName, namespac
 	return nil
 }
 
-func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesTreeResponse, error) {
+func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
 	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(closer)
-	return client.ResourcesTree(ctx, q)
+	return client.ResourceTree(ctx, q)
 }
 
 func (s *Server) getAppResource(ctx context.Context, q *ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
@@ -553,11 +553,18 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceReque
 	return &ApplicationResponse{}, nil
 }
 
-func (s *Server) ResourcesTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesTreeResponse, error) {
+func (s *Server) ResourceTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.ApplicationName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
+		return nil, grpc.ErrPermissionDenied
+	}
 	return s.getAppResources(ctx, q)
 }
 
-func (s *Server) ControlledResources(ctx context.Context, q *services.ResourcesQuery) (*services.ControlledResourcesResponse, error) {
+func (s *Server) ManagedResources(ctx context.Context, q *services.ResourcesQuery) (*services.ManagedResourcesResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -570,7 +577,7 @@ func (s *Server) ControlledResources(ctx context.Context, q *services.ResourcesQ
 		return nil, err
 	}
 	defer util.Close(closer)
-	return client.ControlledResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
+	return client.ManagedResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
 }
 
 func findResource(resources []*appv1.ResourceNode, q *ApplicationResourceRequest) *appv1.ResourceNode {

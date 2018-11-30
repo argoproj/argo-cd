@@ -123,14 +123,14 @@ func (c *clusterInfo) isNamespaced(gvk schema.GroupVersionKind) bool {
 	return true
 }
 
-func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	controlledObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
+	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for key, o := range c.nodes {
 		if o.appName == a.Name && o.resource != nil && len(o.parents) == 0 {
-			controlledObjs[key] = o.resource
+			managedObjs[key] = o.resource
 		}
 	}
 	lock := &sync.Mutex{}
@@ -138,16 +138,16 @@ func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*
 		targetObj := targetObjs[i]
 		key := GetTargetObjKey(a, targetObj, c.isNamespaced(targetObj.GroupVersionKind()))
 		lock.Lock()
-		controlledObj := controlledObjs[key]
+		managedObj := managedObjs[key]
 		lock.Unlock()
 
-		if controlledObj == nil {
+		if managedObj == nil {
 			if existingObj, exists := c.nodes[key]; exists {
 				if existingObj.resource != nil {
-					controlledObj = existingObj.resource
+					managedObj = existingObj.resource
 				} else {
 					var err error
-					controlledObj, err = c.kubectl.GetResource(c.cluster.RESTConfig(), targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
+					managedObj, err = c.kubectl.GetResource(c.cluster.RESTConfig(), targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
 					if err != nil && !errors.IsNotFound(err) {
 						return err
 					}
@@ -155,13 +155,13 @@ func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*
 			}
 		}
 
-		if controlledObj != nil {
-			controlledObj, err := c.kubectl.ConvertToVersion(controlledObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
+		if managedObj != nil {
+			managedObj, err := c.kubectl.ConvertToVersion(managedObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
 			if err != nil {
 				return err
 			}
 			lock.Lock()
-			controlledObjs[key] = controlledObj
+			managedObjs[key] = managedObj
 			lock.Unlock()
 		}
 		return nil
@@ -170,7 +170,7 @@ func (c *clusterInfo) getControlledLiveObjs(a *appv1.Application, targetObjs []*
 		return nil, err
 	}
 
-	return controlledObjs, nil
+	return managedObjs, nil
 }
 
 func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {

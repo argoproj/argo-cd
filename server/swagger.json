@@ -139,12 +139,12 @@
         }
       }
     },
-    "/api/v1/applications/{applicationName}/controlled-resources": {
+    "/api/v1/applications/{applicationName}/managed-resources": {
       "get": {
         "tags": [
           "ApplicationService"
         ],
-        "operationId": "ControlledResources",
+        "operationId": "ManagedResources",
         "parameters": [
           {
             "type": "string",
@@ -157,18 +157,18 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesControlledResourcesResponse"
+              "$ref": "#/definitions/servicesManagedResourcesResponse"
             }
           }
         }
       }
     },
-    "/api/v1/applications/{applicationName}/resources-tree": {
+    "/api/v1/applications/{applicationName}/resource-tree": {
       "get": {
         "tags": [
           "ApplicationService"
         ],
-        "operationId": "ResourcesTree",
+        "operationId": "ResourceTree",
         "parameters": [
           {
             "type": "string",
@@ -181,7 +181,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesResourcesTreeResponse"
+              "$ref": "#/definitions/servicesResourceTreeResponse"
             }
           }
         }
@@ -1656,7 +1656,7 @@
     "repositoryRepoResponse": {
       "type": "object"
     },
-    "servicesControlledResourcesResponse": {
+    "servicesManagedResourcesResponse": {
       "type": "object",
       "properties": {
         "items": {
@@ -1667,7 +1667,7 @@
         }
       }
     },
-    "servicesResourcesTreeResponse": {
+    "servicesResourceTreeResponse": {
       "type": "object",
       "properties": {
         "items": {

@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	statecache "github.com/argoproj/argo-cd/controller/cache"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
+	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -17,17 +21,13 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
 	maxHistoryCnt = 5
 )
 
-type ControlledResource struct {
+type ManagedResource struct {
 	Target    *unstructured.Unstructured
 	Live      *unstructured.Unstructured
 	Diff      diff.DiffResult
@@ -38,7 +38,7 @@ type ControlledResource struct {
 	Name      string
 }
 
-func GetLiveObjs(res []ControlledResource) []*unstructured.Unstructured {
+func GetLiveObjs(res []ManagedResource) []*unstructured.Unstructured {
 	objs := make([]*unstructured.Unstructured, len(res))
 	for i := range res {
 		objs[i] = res[i].Live
@@ -49,7 +49,7 @@ func GetLiveObjs(res []ControlledResource) []*unstructured.Unstructured {
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ControlledResource, []v1alpha1.ApplicationCondition, error)
+		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ManagedResource, []v1alpha1.ApplicationCondition, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 	GetTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error)
 }
@@ -124,7 +124,7 @@ func (m *appStateManager) GetTargetObjs(app *v1alpha1.Application, revision stri
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ControlledResource, []v1alpha1.ApplicationCondition, error) {
+	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ManagedResource, []v1alpha1.ApplicationCondition, error) {
 
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -135,7 +135,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		failedToLoadObjs = true
 	}
 
-	liveObjByKey, err := m.liveStateCache.GetControlledLiveObjs(app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
@@ -153,7 +153,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 	}
 
-	controlledLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
+	managedLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 	for i, obj := range targetObjs {
 
 		gvk := obj.GroupVersionKind()
@@ -164,31 +164,31 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
 		if liveObj, ok := liveObjByKey[key]; ok {
-			controlledLiveObj[i] = liveObj
+			managedLiveObj[i] = liveObj
 			delete(liveObjByKey, key)
 		} else {
-			controlledLiveObj[i] = nil
+			managedLiveObj[i] = nil
 		}
 	}
 	for _, obj := range liveObjByKey {
 		targetObjs = append(targetObjs, nil)
-		controlledLiveObj = append(controlledLiveObj, obj)
+		managedLiveObj = append(managedLiveObj, obj)
 	}
 
 	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(targetObjs, controlledLiveObj)
+	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 
 	comparisonStatus := v1alpha1.ComparisonStatusSynced
 
-	controlledResources := make([]ControlledResource, len(targetObjs))
+	managedResources := make([]ManagedResource, len(targetObjs))
 	resourceSummaries := make([]v1alpha1.ResourceSummary, len(targetObjs))
 	for i := 0; i < len(targetObjs); i++ {
-		obj := controlledLiveObj[i]
+		obj := managedLiveObj[i]
 		if obj == nil {
 			obj = targetObjs[i]
 		}
@@ -220,19 +220,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
 		}
 
-		if controlledLiveObj[i] == nil {
+		if managedLiveObj[i] == nil {
 			// Set resource state to 'OutOfSync' since target resource present but corresponding live resource is missing
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
 			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
 		}
 
-		controlledResources[i] = ControlledResource{
+		managedResources[i] = ManagedResource{
 			Name:      resState.Name,
 			Namespace: resState.Namespace,
 			Group:     resState.Group,
 			Kind:      resState.Kind,
 			Version:   resState.Version,
-			Live:      controlledLiveObj[i],
+			Live:      managedLiveObj[i],
 			Target:    targetObjs[i],
 			Diff:      diffResult,
 		}
@@ -253,7 +253,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	if manifestInfo != nil {
 		compResult.Revision = manifestInfo.Revision
 	}
-	return &compResult, manifestInfo, controlledResources, conditions, nil
+	return &compResult, manifestInfo, managedResources, conditions, nil
 }
 
 func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {

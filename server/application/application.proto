@@ -188,12 +188,12 @@ service ApplicationService {
 		};
 	}
 
-	rpc ControlledResources(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ControlledResourcesResponse) {
-		option (google.api.http).get = "/api/v1/applications/{applicationName}/controlled-resources";
+	rpc ManagedResources(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ManagedResourcesResponse) {
+		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
-	rpc ResourcesTree(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ResourcesTreeResponse) {
-		option (google.api.http).get = "/api/v1/applications/{applicationName}/resources-tree";
+	rpc ResourceTree(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ResourceTreeResponse) {
+		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
 
 	// Rollback syncs an application to its target state
