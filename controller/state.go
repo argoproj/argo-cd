@@ -147,7 +147,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			if appLabelVal, ok := liveObj.GetLabels()[common.LabelApplicationName]; ok && appLabelVal != "" && appLabelVal != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message: fmt.Sprintf("Resource %s/%s is controller by applications '%s' and '%s'", liveObj.GetKind(), liveObj.GetName(), app.Name, appLabelVal),
+					Message: fmt.Sprintf("%s/%s is part of multiple application: %s, %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appLabelVal),
 				})
 			}
 		}

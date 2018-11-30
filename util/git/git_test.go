@@ -35,20 +35,14 @@ func TestEnsurePrefix(t *testing.T) {
 	}
 }
 
-func TestEnsureSuffix(t *testing.T) {
+func TestRemoveSuffix(t *testing.T) {
 	data := [][]string{
-		{"hello", "world", "helloworld"},
-		{"helloworld", "world", "helloworld"},
-		{"repo", ".git", "repo.git"},
-		{"repo.git", ".git", "repo.git"},
-		{"", "repo.git", "repo.git"},
-		{"argo", "cd", "argocd"},
-		{"argocd", "cd", "argocd"},
-		{"argocd", "", "argocd"},
-		{"", "argocd", "argocd"},
+		{"hello.git", ".git", "hello"},
+		{"hello", ".git", "hello"},
+		{".git", ".git", ""},
 	}
 	for _, table := range data {
-		result := ensureSuffix(table[0], table[1])
+		result := removeSuffix(table[0], table[1])
 		assert.Equal(t, table[2], result)
 	}
 }
@@ -70,7 +64,7 @@ func TestIsSSHURL(t *testing.T) {
 	}
 }
 
-func TestNormalizeUrl(t *testing.T) {
+func TestSameURL(t *testing.T) {
 	data := map[string]string{
 		"git@GITHUB.com:argoproj/test":                     "git@github.com:argoproj/test.git",
 		"git@GITHUB.com:argoproj/test.git":                 "git@github.com:argoproj/test.git",
@@ -78,6 +72,7 @@ func TestNormalizeUrl(t *testing.T) {
 		"git@GITHUB.com:test.git":                          "git@github.com:test.git",
 		"https://GITHUB.com/argoproj/test":                 "https://github.com/argoproj/test.git",
 		"https://GITHUB.com/argoproj/test.git":             "https://github.com/argoproj/test.git",
+		"https://github.com/FOO":                           "https://github.com/foo",
 		"https://github.com/TEST":                          "https://github.com/TEST.git",
 		"https://github.com/TEST.git":                      "https://github.com/TEST.git",
 		"ssh://git@GITHUB.com:argoproj/test":               "git@github.com:argoproj/test.git",
@@ -90,7 +85,7 @@ func TestNormalizeUrl(t *testing.T) {
 		"https://dev.azure.com/1234/myproj/_git/myrepo":    "https://dev.azure.com/1234/myproj/_git/myrepo",
 	}
 	for k, v := range data {
-		assert.Equal(t, v, NormalizeGitURL(k))
+		assert.True(t, SameURL(k, v))
 	}
 }
 

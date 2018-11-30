@@ -88,7 +88,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	}
 
 	repoInfo := s.Repositories[index]
-	repo := &appsv1.Repository{Repo: repoURL}
+	repo := &appsv1.Repository{Repo: repoInfo.URL}
 
 	cache := make(map[string]*apiv1.Secret)
 	getSecret := func(secretName string) (*apiv1.Secret, error) {
@@ -264,22 +264,23 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 }
 
 func getRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
-	repoURL = git.NormalizeGitURL(repoURL)
-	for i := range s.Repositories {
-		if git.NormalizeGitURL(s.Repositories[i].URL) == repoURL {
+	for i, cred := range s.Repositories {
+		if git.SameURL(cred.URL, repoURL) {
 			return i
 		}
 	}
 	return -1
 }
 
-// repoURLToSecretName hashes repo URL to the secret name using a formula.
-// Part of the original repo name is incorporated for debugging purposes
+// repoURLToSecretName hashes repo URL to a secret name using a formula. This is used when
+// repositories are _imperatively_ created and need its credentials to be stored in a secret.
+// NOTE: this formula should not be considered stable and may change in future releases.
+// Do NOT rely on this formula as a means of secret lookup, only secret creation.
 func repoURLToSecretName(repo string) string {
-	repo = strings.ToLower(git.NormalizeGitURL(repo))
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
+	// Part of the original repo name is incorporated into the secret name for debugging purposes
 	parts := strings.Split(strings.TrimSuffix(repo, ".git"), "/")
-	shortName := strings.Replace(parts[len(parts)-1], "_", "-", -1)
+	shortName := strings.ToLower(strings.Replace(parts[len(parts)-1], "_", "-", -1))
 	return fmt.Sprintf("repo-%s-%v", shortName, h.Sum32())
 }

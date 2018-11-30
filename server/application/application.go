@@ -177,7 +177,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if q.Revision != "" {
 		revision = q.Revision
 	}
-	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
+	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:                        repo,
 		Revision:                    revision,
 		ComponentParameterOverrides: overrides,

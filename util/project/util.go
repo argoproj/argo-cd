@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/git"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -41,19 +40,15 @@ func ValidateProject(p *v1alpha1.AppProject) error {
 		if _, ok := destKeys[key]; !ok {
 			destKeys[key] = true
 		} else {
-			return status.Errorf(codes.InvalidArgument, "destination %s should not be listed more than once.", key)
+			return status.Errorf(codes.InvalidArgument, "destination '%s' already added", key)
 		}
 	}
 	srcRepos := make(map[string]bool)
-	for i, src := range p.Spec.SourceRepos {
-		if src != "*" {
-			src = git.NormalizeGitURL(src)
-		}
-		p.Spec.SourceRepos[i] = src
+	for _, src := range p.Spec.SourceRepos {
 		if _, ok := srcRepos[src]; !ok {
 			srcRepos[src] = true
 		} else {
-			return status.Errorf(codes.InvalidArgument, "source repository %s should not be listed more than once.", src)
+			return status.Errorf(codes.InvalidArgument, "source repository '%s' already added", src)
 		}
 	}
 

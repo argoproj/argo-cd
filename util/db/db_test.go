@@ -5,20 +5,17 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/argoproj/argo-cd/common"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -326,4 +323,32 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, 0, len(secret.Labels))
+}
+
+func TestFuzzyEquivalence(t *testing.T) {
+	clientset := getClientset(nil)
+	ctx := context.Background()
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+
+	repo, err := db.CreateRepository(ctx, &v1alpha1.Repository{
+		Repo: "https://github.com/argoproj/argocd-example-apps",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
+
+	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
+		Repo: "https://github.com/argoproj/argocd-example-apps.git",
+	})
+	assert.Contains(t, err.Error(), "already exists")
+	assert.Nil(t, repo)
+
+	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
+		Repo: "https://github.com/argoproj/argocd-example-APPS",
+	})
+	assert.Contains(t, err.Error(), "already exists")
+	assert.Nil(t, repo)
+
+	repo, err = db.GetRepository(ctx, "https://github.com/argoproj/argocd-example-APPS")
+	assert.Nil(t, err)
+	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 }

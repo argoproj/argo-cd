@@ -268,7 +268,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, grpc.ErrPermissionDenied
 	}
 	r := q.Repo
-	err := git.TestRepo(git.NormalizeGitURL(r.Repo), r.Username, r.Password, r.SSHPrivateKey)
+	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
 	if err != nil {
 		return nil, err
 	}
