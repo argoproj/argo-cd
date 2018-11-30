@@ -16,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
@@ -26,6 +25,7 @@ import (
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -80,16 +80,6 @@ func fakeSecret(policy ...string) *apiv1.Secret {
 	return &secret
 }
 
-// startInformer is a helper to start an informer, wait for its cache to sync and return a cancel func
-func startInformer(informer cache.SharedIndexInformer) context.CancelFunc {
-	ctx, cancel := context.WithCancel(context.Background())
-	go informer.Run(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
-		log.Fatal("Timed out waiting for informer cache to sync")
-	}
-	return cancel
-}
-
 func TestEnforceProjectToken(t *testing.T) {
 	projectName := "testProj"
 	roleName := "testRole"
@@ -116,7 +106,7 @@ func TestEnforceProjectToken(t *testing.T) {
 
 	t.Run("TestEnforceProjectTokenSuccessful", func(t *testing.T) {
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
-		cancel := startInformer(s.projInformer)
+		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
@@ -162,7 +152,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		proj.Spec.Roles[0] = role
 
 		s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj)})
-		cancel := startInformer(s.projInformer)
+		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		allowedObject := fmt.Sprintf("%s/%s", projectName, "test")
@@ -314,7 +304,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 	}
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap(), fakeSecret())
 	s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
-	cancel := startInformer(s.projInformer)
+	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{
 		"iat":    defaultIssuedAt,
@@ -370,7 +360,7 @@ func TestRevokedToken(t *testing.T) {
 	}
 
 	s := NewServer(ArgoCDServerOpts{Namespace: fakeNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
-	cancel := startInformer(s.projInformer)
+	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
@@ -385,7 +375,7 @@ func TestRevokedToken(t *testing.T) {
 
 func TestUserAgent(t *testing.T) {
 	s := fakeServer()
-	cancelInformer := startInformer(s.projInformer)
+	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
 	port, err := getFreePort()
 	assert.NoError(t, err)

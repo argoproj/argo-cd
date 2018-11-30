@@ -118,6 +118,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
+	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
@@ -272,6 +273,7 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
+	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
 	err := s.validateApp(ctx, &a.Spec)
 	if err != nil {
 		return nil, err
@@ -323,6 +325,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
+	q.Spec = *argo.NormalizeApplicationSpec(&q.Spec)
 	err = s.validateApp(ctx, &q.Spec)
 	if err != nil {
 		return nil, err
@@ -331,7 +334,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	if err != nil {
 		return nil, err
 	}
-	for {
+	for i := 0; i < 10; i++ {
 		a.Spec = q.Spec
 		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
@@ -346,6 +349,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 			return nil, err
 		}
 	}
+	return nil, status.Errorf(codes.Internal, "Failed to update application spec. Too many conflicts")
 }
 
 // Delete removes an application and all associated resources

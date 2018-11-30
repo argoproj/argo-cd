@@ -139,3 +139,40 @@ func TestVerifyOneSourceType(t *testing.T) {
 	}
 	assert.Nil(t, verifyOneSourceType(&src))
 }
+
+func TestNormalizeApplicationSpec(t *testing.T) {
+	spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{})
+	assert.Equal(t, spec.Project, "default")
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{
+			Environment: "foo",
+		},
+	})
+	assert.Equal(t, spec.Source.Ksonnet.Environment, "foo")
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{
+			Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+				Environment: "foo",
+			},
+		},
+	})
+	assert.Equal(t, spec.Source.Environment, "foo")
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{
+			ValuesFiles: []string{"values-prod.yaml"},
+		},
+	})
+	assert.Equal(t, spec.Source.Helm.ValueFiles[0], "values-prod.yaml")
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-prod.yaml"},
+			},
+		},
+	})
+	assert.Equal(t, spec.Source.ValuesFiles[0], "values-prod.yaml")
+}

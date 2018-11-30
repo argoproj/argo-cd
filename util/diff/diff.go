@@ -323,7 +323,7 @@ func encodeSecretStringData(un *unstructured.Unstructured) {
 	delete(un.Object, "stringData")
 }
 
-// UnmarshalDiffString Unmarshals diff string into a DiffResult struct
+// UnmarshalDiffString unmarshals diff string into a DiffResult struct
 func UnmarshalDiffString(diffStr string) (*DiffResult, error) {
 	diffUnmarshaller := gojsondiff.NewUnmarshaller()
 	diffResult := &DiffResult{}
@@ -345,4 +345,21 @@ func (d *DiffResult) JSONFormat() (string, error) {
 	}
 	jsonFmt := formatter.NewDeltaFormatter()
 	return jsonFmt.Format(d.Diff)
+}
+
+// CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)
+func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, error) {
+	origBytes, err := json.Marshal(orig)
+	if err != nil {
+		return nil, false, err
+	}
+	newBytes, err := json.Marshal(new)
+	if err != nil {
+		return nil, false, err
+	}
+	patch, err := strategicpatch.CreateTwoWayMergePatch(origBytes, newBytes, dataStruct)
+	if err != nil {
+		return nil, false, err
+	}
+	return patch, string(patch) != "{}", nil
 }

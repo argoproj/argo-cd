@@ -2286,7 +2286,7 @@
         },
         "environment": {
           "type": "string",
-          "title": "Environment is a ksonnet application environment name\nDEPRECATED: specify environment in ksonnet.environment instead"
+          "title": "Environment is a ksonnet application environment name\nDEPRECATED: specify environment in spec.source.ksonnet.environment instead"
         },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
@@ -2311,7 +2311,7 @@
         },
         "valuesFiles": {
           "type": "array",
-          "title": "ValuesFiles is a list of Helm values files to use when generating a template\nDEPRECATED: specify values in helm.valueFiles instead",
+          "title": "ValuesFiles is a list of Helm values files to use when generating a template\nDEPRECATED: specify values in spec.source.helm.valueFiles instead",
           "items": {
             "type": "string"
           }

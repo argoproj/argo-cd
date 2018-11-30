@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -10,10 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	reposerver "github.com/argoproj/argo-cd/reposerver/mocks"
+	"github.com/argoproj/argo-cd/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -276,5 +279,54 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	// For now just ensure we have an expected error condition
 	assert.Error(t, err)     // Change this to assert.Nil when we stub out GetResourcesWithLabel/DeleteResourceWithLabel
 	assert.False(t, patched) // Change this to assert.True when we stub out GetResourcesWithLabel/DeleteResourceWithLabel
+}
 
+// TestNormalizeApplication verifies we normalize an application during reconciliation
+func TestNormalizeApplication(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = ""
+	ctrl := newFakeController(app)
+	cancel := test.StartInformer(ctrl.appInformer)
+	defer cancel()
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	ctrl.appRefreshQueue.Add(key)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	normalized := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+				normalized = true
+			}
+		}
+		return true, nil, nil
+	})
+	ctrl.processAppRefreshQueueItem()
+	assert.True(t, normalized)
+}
+
+// TestDontNormalizeApplication verifies we dont unnecessarily normalize an application
+func TestDontNormalizeApplication(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	ctrl := newFakeController(app)
+	cancel := test.StartInformer(ctrl.appInformer)
+	defer cancel()
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	ctrl.appRefreshQueue.Add(key)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	normalized := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			if strings.HasPrefix(string(patchAction.GetPatch()), `{"spec":`) {
+				normalized = true
+			}
+		}
+		return true, nil, nil
+	})
+	ctrl.processAppRefreshQueueItem()
+	assert.False(t, normalized)
 }
