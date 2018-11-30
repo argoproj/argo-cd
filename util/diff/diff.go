@@ -323,21 +323,6 @@ func encodeSecretStringData(un *unstructured.Unstructured) {
 	delete(un.Object, "stringData")
 }
 
-// UnmarshalDiffString unmarshals diff string into a DiffResult struct
-func UnmarshalDiffString(diffStr string) (*DiffResult, error) {
-	diffUnmarshaller := gojsondiff.NewUnmarshaller()
-	diffResult := &DiffResult{}
-	diff, err := diffUnmarshaller.UnmarshalString(diffStr)
-	if err != nil {
-		return nil, err
-	}
-	diffResult.Diff = diff
-	if diffStr != "" {
-		diffResult.Modified = true
-	}
-	return diffResult, nil
-}
-
 // JSONFormat returns the diff as a JSON string
 func (d *DiffResult) JSONFormat() (string, error) {
 	if !d.Diff.Modified() {

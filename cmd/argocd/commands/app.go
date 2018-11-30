@@ -571,11 +571,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			liveObjs, err := liveObjects(resources.Items)
 			errors.CheckError(err)
+			targetObjs, err := targetObjects(resources.Items)
+			errors.CheckError(err)
 
 			for i := range resources.Items {
 				item := resources.Items[i]
-				diffRes, err := diff.UnmarshalDiffString(item.Diff)
-				errors.CheckError(err)
+				// Diff is already available in ManagedResource Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
+				diffRes := diff.Diff(targetObjs[i], liveObjs[i])
 				fmt.Printf("===== %s %s ======\n", item.Kind, item.Name)
 				if diffRes.Modified {
 					formatOpts := formatter.AsciiFormatterConfig{
