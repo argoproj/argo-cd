@@ -24,7 +24,7 @@ type syncContext struct {
 	appName       string
 	proj          *appv1.AppProject
 	comparison    *appv1.ComparisonResult
-	resources     []ControlledResource
+	resources     []ManagedResource
 	config        *rest.Config
 	dynamicIf     dynamic.Interface
 	disco         discovery.DiscoveryInterface
@@ -397,7 +397,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	return resDetails
 }
 
-func hasCRDOfGroupKind(resources []ControlledResource, group string, kind string) bool {
+func hasCRDOfGroupKind(resources []ManagedResource, group string, kind string) bool {
 	for _, res := range resources {
 		if res.Target != nil && kube.IsCRD(res.Target) {
 			crdGroup, ok, err := unstructured.NestedString(res.Target.Object, "spec", "group")

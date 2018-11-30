@@ -115,7 +115,7 @@ func TestGetChildren(t *testing.T) {
 	}}, deployChildren)
 }
 
-func TestGetControlledLiveObjs(t *testing.T) {
+func TestGetManagedLiveObjs(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
 	err := cluster.ensureSynced()
 	assert.Nil(t, err)
@@ -128,7 +128,7 @@ metadata:
   labels:
     app: helm-guestbook`)
 
-	controlledObjs, err := cluster.getControlledLiveObjs(&appv1.Application{
+	managedObjs, err := cluster.getManagedLiveObjs(&appv1.Application{
 		ObjectMeta: v1.ObjectMeta{Name: "helm-guestbook"},
 		Spec: appv1.ApplicationSpec{
 			Destination: appv1.ApplicationDestination{
@@ -137,7 +137,7 @@ metadata:
 		},
 	}, []*unstructured.Unstructured{targetDeploy})
 	assert.Nil(t, err)
-	assert.Equal(t, controlledObjs, map[kube.ResourceKey]*unstructured.Unstructured{
+	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): testDeploy,
 	})
 }

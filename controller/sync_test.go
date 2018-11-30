@@ -68,7 +68,7 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 func TestSyncNotPermittedNamespace(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live:   nil,
 		Target: kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}, ObjectMeta: v1.ObjectMeta{Namespace: "kube-system"}}),
 	}, {
@@ -83,7 +83,7 @@ func TestSyncNotPermittedNamespace(t *testing.T) {
 func TestSyncCreateInSortedOrder(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live:   nil,
 		Target: kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
 	}, {
@@ -124,7 +124,7 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 	}
 
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live: nil,
 		Target: kube.MustToUnstructured(&rbacv1.ClusterRole{
 			TypeMeta:   v1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
@@ -144,7 +144,7 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 	}
 
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live:   nil,
 		Target: kube.MustToUnstructured(&appsv1.Deployment{TypeMeta: v1.TypeMeta{Kind: "deployment"}}),
 	}}
@@ -157,7 +157,7 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live:   nil,
 		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
 	}, {
@@ -182,7 +182,7 @@ func TestSyncSuccessfully(t *testing.T) {
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live:   kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
 		Target: nil,
 	}, {
@@ -213,7 +213,7 @@ func TestSyncCreateFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live:   nil,
 		Target: kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
 	}}
@@ -232,7 +232,7 @@ func TestSyncPruneFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Live:   kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
 		Target: nil,
 	}}

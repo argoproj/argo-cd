@@ -9,11 +9,11 @@ message ResourcesQuery {
     string applicationName = 1;
 }
 
-message ResourcesTreeResponse {
+message ResourceTreeResponse {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceNode items = 1;
 }
 
-message ControlledResourcesResponse {
+message ManagedResourcesResponse {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceState items = 1;
 }
 
@@ -21,9 +21,9 @@ message ControlledResourcesResponse {
 // ApplicationService returns information about application
 service ApplicationService {
 
-    rpc ResourcesTree(ResourcesQuery) returns (ResourcesTreeResponse) {
+    rpc ResourceTree(ResourcesQuery) returns (ResourceTreeResponse) {
     }
 
-    rpc ControlledResources(ResourcesQuery) returns (ControlledResourcesResponse) {
+    rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
     }
 }

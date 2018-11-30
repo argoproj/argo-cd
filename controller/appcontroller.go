@@ -54,23 +54,23 @@ const (
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	namespace                string
-	kubeClientset            kubernetes.Interface
-	kubectl                  kube.Kubectl
-	applicationClientset     appclientset.Interface
-	auditLogger              *argo.AuditLogger
-	appRefreshQueue          workqueue.RateLimitingInterface
-	appOperationQueue        workqueue.RateLimitingInterface
-	appInformer              cache.SharedIndexInformer
-	appStateManager          AppStateManager
-	stateCache               statecache.LiveStateCache
-	statusRefreshTimeout     time.Duration
-	repoClientset            reposerver.Clientset
-	db                       db.ArgoDB
-	forceRefreshApps         map[string]bool
-	forceRefreshAppsMutex    *sync.Mutex
-	controlledResources      map[string][]ControlledResource
-	controlledResourcesMutex *sync.Mutex
+	namespace             string
+	kubeClientset         kubernetes.Interface
+	kubectl               kube.Kubectl
+	applicationClientset  appclientset.Interface
+	auditLogger           *argo.AuditLogger
+	appRefreshQueue       workqueue.RateLimitingInterface
+	appOperationQueue     workqueue.RateLimitingInterface
+	appInformer           cache.SharedIndexInformer
+	appStateManager       AppStateManager
+	stateCache            statecache.LiveStateCache
+	statusRefreshTimeout  time.Duration
+	repoClientset         reposerver.Clientset
+	db                    db.ArgoDB
+	forceRefreshApps      map[string]bool
+	forceRefreshAppsMutex *sync.Mutex
+	managedResources      map[string][]ManagedResource
+	managedResourcesMutex *sync.Mutex
 }
 
 type ApplicationControllerConfig struct {
@@ -90,20 +90,20 @@ func NewApplicationController(
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
-		namespace:                namespace,
-		kubeClientset:            kubeClientset,
-		kubectl:                  kubectlCmd,
-		applicationClientset:     applicationClientset,
-		repoClientset:            repoClientset,
-		appRefreshQueue:          workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		appOperationQueue:        workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		db:                       db,
-		statusRefreshTimeout:     appResyncPeriod,
-		forceRefreshApps:         make(map[string]bool),
-		forceRefreshAppsMutex:    &sync.Mutex{},
-		auditLogger:              argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
-		controlledResources:      make(map[string][]ControlledResource),
-		controlledResourcesMutex: &sync.Mutex{},
+		namespace:             namespace,
+		kubeClientset:         kubeClientset,
+		kubectl:               kubectlCmd,
+		applicationClientset:  applicationClientset,
+		repoClientset:         repoClientset,
+		appRefreshQueue:       workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		appOperationQueue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		db:                    db,
+		statusRefreshTimeout:  appResyncPeriod,
+		forceRefreshApps:      make(map[string]bool),
+		forceRefreshAppsMutex: &sync.Mutex{},
+		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
+		managedResources:      make(map[string][]ManagedResource),
+		managedResourcesMutex: &sync.Mutex{},
 	}
 	appInformer := ctrl.newApplicationInformer()
 	stateCache := statecache.NewLiveStateCache(db, appInformer, kubectlCmd, func(appName string) {
@@ -132,37 +132,37 @@ func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, erro
 	return a, nil
 }
 
-func (ctrl *ApplicationController) setAppControlledResources(appName string, resources []ControlledResource) {
-	ctrl.controlledResourcesMutex.Lock()
-	defer ctrl.controlledResourcesMutex.Unlock()
-	ctrl.controlledResources[appName] = resources
+func (ctrl *ApplicationController) setAppManagedResources(appName string, resources []ManagedResource) {
+	ctrl.managedResourcesMutex.Lock()
+	defer ctrl.managedResourcesMutex.Unlock()
+	ctrl.managedResources[appName] = resources
 }
 
-func (ctrl *ApplicationController) getAppControlledResources(appName string) []ControlledResource {
-	ctrl.controlledResourcesMutex.Lock()
-	defer ctrl.controlledResourcesMutex.Unlock()
-	return ctrl.controlledResources[appName]
+func (ctrl *ApplicationController) getAppManagedResources(appName string) []ManagedResource {
+	ctrl.managedResourcesMutex.Lock()
+	defer ctrl.managedResourcesMutex.Unlock()
+	return ctrl.managedResources[appName]
 }
 
-func (ctrl *ApplicationController) ResourcesTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourcesTreeResponse, error) {
+func (ctrl *ApplicationController) ResourceTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
 	a, err := ctrl.getApp(q.ApplicationName)
 	if err != nil {
 		return nil, err
 	}
-	controlledResources := ctrl.getAppControlledResources(q.ApplicationName)
+	managedResources := ctrl.getAppManagedResources(q.ApplicationName)
 	items := make([]*appv1.ResourceNode, 0)
-	for i := range controlledResources {
-		controlledResource := controlledResources[i]
+	for i := range managedResources {
+		managedResource := managedResources[i]
 		node := appv1.ResourceNode{
-			Name:      controlledResource.Name,
-			Version:   controlledResource.Version,
-			Kind:      controlledResource.Kind,
-			Group:     controlledResource.Group,
-			Namespace: controlledResource.Namespace,
+			Name:      managedResource.Name,
+			Version:   managedResource.Version,
+			Kind:      managedResource.Kind,
+			Group:     managedResource.Group,
+			Namespace: managedResource.Namespace,
 		}
-		if controlledResource.Live != nil {
-			node.ResourceVersion = controlledResource.Live.GetResourceVersion()
-			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, controlledResource.Live)
+		if managedResource.Live != nil {
+			node.ResourceVersion = managedResource.Live.GetResourceVersion()
+			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, managedResource.Live)
 			if err != nil {
 				return nil, err
 			}
@@ -170,11 +170,11 @@ func (ctrl *ApplicationController) ResourcesTree(ctx context.Context, q *service
 		}
 		items = append(items, &node)
 	}
-	return &services.ResourcesTreeResponse{Items: items}, nil
+	return &services.ResourceTreeResponse{Items: items}, nil
 }
 
-func (ctrl *ApplicationController) ControlledResources(ctx context.Context, q *services.ResourcesQuery) (*services.ControlledResourcesResponse, error) {
-	resources := ctrl.getAppControlledResources(q.ApplicationName)
+func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *services.ResourcesQuery) (*services.ManagedResourcesResponse, error) {
+	resources := ctrl.getAppManagedResources(q.ApplicationName)
 	items := make([]*appv1.ResourceState, len(resources))
 	for i := range resources {
 		res := resources[i]
@@ -214,7 +214,7 @@ func (ctrl *ApplicationController) ControlledResources(ctx context.Context, q *s
 
 		items[i] = &item
 	}
-	return &services.ControlledResourcesResponse{Items: items}, nil
+	return &services.ManagedResourcesResponse{Items: items}, nil
 }
 
 func toString(val interface{}) string {
@@ -395,7 +395,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return err
 	}
 	config := clst.RESTConfig()
-	objsMap, err := ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
+	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
 	}
@@ -411,7 +411,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return err
 	}
 
-	objsMap, err = ctrl.stateCache.GetControlledLiveObjs(app, []*unstructured.Unstructured{})
+	objsMap, err = ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 	if err != nil {
 		return err
 	}
@@ -632,7 +632,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	} else {
 		conditions = append(conditions, compConditions...)
 	}
-	ctrl.setAppControlledResources(app.Name, resources)
+	ctrl.setAppManagedResources(app.Name, resources)
 
 	var parameters []*appv1.ComponentParameter
 	if manifestInfo != nil {

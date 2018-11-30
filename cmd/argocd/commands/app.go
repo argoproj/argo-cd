@@ -567,7 +567,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
 			errors.CheckError(err)
-			resources, err := appIf.ControlledResources(context.Background(), &services.ResourcesQuery{ApplicationName: appName})
+			resources, err := appIf.ManagedResources(context.Background(), &services.ResourcesQuery{ApplicationName: appName})
 			errors.CheckError(err)
 			liveObjs, err := liveObjects(resources.Items)
 			errors.CheckError(err)
@@ -1293,7 +1293,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
-			resources, err := appIf.ControlledResources(context.Background(), &services.ResourcesQuery{ApplicationName: appName})
+			resources, err := appIf.ManagedResources(context.Background(), &services.ResourcesQuery{ApplicationName: appName})
 			errors.CheckError(err)
 
 			var unstructureds []*unstructured.Unstructured

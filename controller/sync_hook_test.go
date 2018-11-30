@@ -44,7 +44,7 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 	syncCtx.manifestInfo = &repository.ManifestResponse{
 		Manifests: []string{clusterRoleHook},
 	}
-	syncCtx.resources = []ControlledResource{{
+	syncCtx.resources = []ManagedResource{{
 		Target: kube.MustToUnstructured(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: "foo"}, TypeMeta: v1.TypeMeta{Kind: "pod"}}),
 	}}
 	syncCtx.proj.Spec.ClusterResourceWhitelist = []v1.GroupKind{}
