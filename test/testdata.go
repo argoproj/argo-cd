@@ -1,17 +1,21 @@
 package test
 
 import (
+	"encoding/json"
+
 	"github.com/gobuffalo/packr"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/errors"
 )
 
 const (
-	TestNamespace       = "test-namespace"
+	FakeArgoCDNamespace = "fake-argocd-ns"
+	FakeDestNamespace   = "fake-dest-ns"
+	FakeClusterURL      = "https://fake-cluster:443"
 	TestAppInstanceName = "test-app-instance"
 )
 
@@ -26,30 +30,118 @@ func init() {
 	errors.CheckError(err)
 }
 
-func DemoService() *apiv1.Service {
-	return &apiv1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: TestNamespace,
-		},
-		Spec: apiv1.ServiceSpec{
-			Ports: []apiv1.ServicePort{
-				{
-					Port:       80,
-					TargetPort: intstr.FromInt(80),
-				},
-			},
-			Selector: map[string]string{
-				"app": "demo",
-			},
-			Type: "ClusterIP",
-		},
-	}
+var PodManifest = []byte(`
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "my-pod"
+  },
+  "spec": {
+    "containers": [
+      {
+        "image": "nginx:1.7.9",
+        "name": "nginx",
+        "resources": {
+          "requests": {
+            "cpu": 0.2
+          }
+        }
+      }
+    ]
+  }
+}
+`)
 
+func NewPod() *unstructured.Unstructured {
+	var un unstructured.Unstructured
+	err := json.Unmarshal(PodManifest, &un)
+	if err != nil {
+		panic(err)
+	}
+	return &un
+}
+
+var ServiceManifest = []byte(`
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "my-service"
+  },
+  "spec": {
+    "ports": [
+      {
+        "name": "http",
+        "protocol": "TCP",
+        "port": 80,
+        "targetPort": 8080
+      }
+    ],
+    "selector": {
+      "app": "my-service"
+    }
+  }
+}
+`)
+
+func NewService() *unstructured.Unstructured {
+	var un unstructured.Unstructured
+	err := json.Unmarshal(ServiceManifest, &un)
+	if err != nil {
+		panic(err)
+	}
+	return &un
+}
+
+var DeploymentManifest = []byte(`
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "nginx-deployment",
+    "labels": {
+      "app": "nginx"
+    }
+  },
+  "spec": {
+    "replicas": 3,
+    "selector": {
+      "matchLabels": {
+        "app": "nginx"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "nginx"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "nginx",
+            "image": "nginx:1.15.4",
+            "ports": [
+              {
+                "containerPort": 80
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+`)
+
+func NewDeployment() *unstructured.Unstructured {
+	var un unstructured.Unstructured
+	err := json.Unmarshal(DeploymentManifest, &un)
+	if err != nil {
+		panic(err)
+	}
+	return &un
 }
 
 func DemoDeployment() *appsv1.Deployment {
@@ -61,7 +153,7 @@ func DemoDeployment() *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo",
-			Namespace: TestNamespace,
+			Namespace: FakeArgoCDNamespace,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &two,

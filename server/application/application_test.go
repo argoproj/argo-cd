@@ -147,7 +147,7 @@ spec:
     targetRevision: HEAD
     environment: default
   destination:
-    namespace: dummy-namespace
+    namespace: ` + test.FakeDestNamespace + `
     server: https://cluster-api.com
 `
 

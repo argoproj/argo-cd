@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -18,7 +19,7 @@ func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthS
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetAppHealth(kube.KubectlCmd{}, &obj)
+	health, err := GetResourceHealth(kube.KubectlCmd{}, &obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, expectedStatus, health.Status)
@@ -53,4 +54,67 @@ func TestIngressHealth(t *testing.T) {
 func TestCRD(t *testing.T) {
 	// This ensures we do not try to compare only based on "Kind"
 	assertAppHealth(t, "./testdata/knative-service.yaml", appv1.HealthStatusHealthy)
+}
+
+func TestJob(t *testing.T) {
+	assertAppHealth(t, "./testdata/job-running.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/job-failed.yaml", appv1.HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/job-succeeded.yaml", appv1.HealthStatusHealthy)
+}
+
+func TestPod(t *testing.T) {
+	assertAppHealth(t, "./testdata/pod-pending.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-running-not-ready.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-crashloop.yaml", appv1.HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-error.yaml", appv1.HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-running-restart-always.yaml", appv1.HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pod-running-restart-never.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-running-restart-onfailure.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-failed.yaml", appv1.HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-succeeded.yaml", appv1.HealthStatusHealthy)
+}
+
+func TestSetApplicationHealth(t *testing.T) {
+	yamlBytes, err := ioutil.ReadFile("./testdata/job-failed.yaml")
+	assert.Nil(t, err)
+	var failedJob unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &failedJob)
+	assert.Nil(t, err)
+
+	yamlBytes, err = ioutil.ReadFile("./testdata/pod-running-restart-always.yaml")
+	assert.Nil(t, err)
+	var runningPod unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &runningPod)
+	assert.Nil(t, err)
+
+	compRes := appv1.ComparisonResult{
+		Resources: []appv1.ResourceSummary{
+			{
+				Group:   "",
+				Version: "v1",
+				Kind:    "Pod",
+				Name:    runningPod.GetName(),
+			},
+			{
+				Group:   "batch",
+				Version: "v1",
+				Kind:    "Job",
+				Name:    failedJob.GetName(),
+			},
+		},
+	}
+	liveObjs := []*unstructured.Unstructured{
+		&runningPod,
+		&failedJob,
+	}
+	healthStatus, err := SetApplicationHealth(kube.KubectlCmd{}, &compRes, liveObjs)
+	assert.NoError(t, err)
+	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
+
+	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
+	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	healthStatus, err = SetApplicationHealth(kube.KubectlCmd{}, &compRes, liveObjs)
+	assert.NoError(t, err)
+	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
+
 }

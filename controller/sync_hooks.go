@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util/health"
-
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +17,8 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/health"
+	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -94,6 +94,7 @@ func (sc *syncContext) verifyPermittedHooks(hooks []*unstructured.Unstructured) 
 		if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(appv1.ApplicationDestination{Namespace: hook.GetNamespace(), Server: sc.server}) {
 			sc.setResourceDetails(&appv1.ResourceDetails{
 				Name:      hook.GetName(),
+				Group:     hook.GroupVersionKind().Group,
 				Kind:      hook.GetKind(),
 				Namespace: hook.GetNamespace(),
 				Message:   fmt.Sprintf("namespace %v is not permitted in project '%s'", hook.GetNamespace(), sc.proj.Name),
@@ -117,7 +118,7 @@ func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Un
 		if hook.GetNamespace() == "" {
 			hook.SetNamespace(sc.namespace)
 		}
-		if !isArgoHook(&hook) {
+		if !hookutil.IsArgoHook(&hook) {
 			// TODO: in the future, if we want to map helm hooks to Argo CD lifecycles, we should
 			// include helm hooks in the returned list
 			continue
@@ -151,6 +152,7 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 			// was skipped due to annotation
 			sc.setResourceDetails(&appv1.ResourceDetails{
 				Name:      hook.GetName(),
+				Group:     hook.GroupVersionKind().Group,
 				Kind:      hook.GetKind(),
 				Namespace: hook.GetNamespace(),
 				Message:   "Skipped",
@@ -300,51 +302,6 @@ func isHookType(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
 	resHookTypes := strings.Split(annotations[common.AnnotationKeyHook], ",")
 	for _, ht := range resHookTypes {
 		if string(hookType) == strings.TrimSpace(ht) {
-			return true
-		}
-	}
-	return false
-}
-
-// isHook indicates if the object is either a Argo CD or Helm hook
-func isHook(obj *unstructured.Unstructured) bool {
-	return isArgoHook(obj) || isHelmHook(obj)
-}
-
-// isHelmHook indicates if the supplied object is a helm hook
-func isHelmHook(obj *unstructured.Unstructured) bool {
-	annotations := obj.GetAnnotations()
-	if annotations == nil {
-		return false
-	}
-	hooks, ok := annotations[common.AnnotationKeyHelmHook]
-	if ok && hasHook(hooks, common.AnnotationValueHelmHookCRDInstall) {
-		return false
-	}
-	return ok
-}
-
-func hasHook(hooks string, hook string) bool {
-	for _, item := range strings.Split(hooks, ",") {
-		if strings.TrimSpace(item) == hook {
-			return true
-		}
-	}
-	return false
-}
-
-// isArgoHook indicates if the supplied object is an Argo CD application lifecycle hook
-// (vs. a normal, synced application resource)
-func isArgoHook(obj *unstructured.Unstructured) bool {
-	annotations := obj.GetAnnotations()
-	if annotations == nil {
-		return false
-	}
-	resHookTypes := strings.Split(annotations[common.AnnotationKeyHook], ",")
-	for _, hookType := range resHookTypes {
-		hookType = strings.TrimSpace(hookType)
-		switch appv1.HookType(hookType) {
-		case appv1.HookTypePreSync, appv1.HookTypeSync, appv1.HookTypePostSync:
 			return true
 		}
 	}

@@ -68,7 +68,7 @@ type ApplicationController struct {
 	db                    db.ArgoDB
 	forceRefreshApps      map[string]bool
 	forceRefreshAppsMutex *sync.Mutex
-	managedResources      map[string][]ManagedResource
+	managedResources      map[string][]managedResource
 	managedResourcesMutex *sync.Mutex
 }
 
@@ -101,7 +101,7 @@ func NewApplicationController(
 		forceRefreshApps:      make(map[string]bool),
 		forceRefreshAppsMutex: &sync.Mutex{},
 		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
-		managedResources:      make(map[string][]ManagedResource),
+		managedResources:      make(map[string][]managedResource),
 		managedResourcesMutex: &sync.Mutex{},
 	}
 	appInformer := ctrl.newApplicationInformer()
@@ -131,13 +131,13 @@ func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, erro
 	return a, nil
 }
 
-func (ctrl *ApplicationController) setAppManagedResources(appName string, resources []ManagedResource) {
+func (ctrl *ApplicationController) setAppManagedResources(appName string, resources []managedResource) {
 	ctrl.managedResourcesMutex.Lock()
 	defer ctrl.managedResourcesMutex.Unlock()
 	ctrl.managedResources[appName] = resources
 }
 
-func (ctrl *ApplicationController) getAppManagedResources(appName string) []ManagedResource {
+func (ctrl *ApplicationController) getAppManagedResources(appName string) []managedResource {
 	ctrl.managedResourcesMutex.Lock()
 	defer ctrl.managedResourcesMutex.Unlock()
 	return ctrl.managedResources[appName]

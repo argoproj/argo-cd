@@ -17,6 +17,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util/argo"
+	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -24,7 +25,7 @@ type syncContext struct {
 	appName       string
 	proj          *appv1.AppProject
 	comparison    *appv1.ComparisonResult
-	resources     []ManagedResource
+	resources     []managedResource
 	config        *rest.Config
 	dynamicIf     dynamic.Interface
 	disco         discovery.DiscoveryInterface
@@ -241,6 +242,9 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	syncTasks := make([]syncTask, 0)
 	successful := true
 	for _, resourceState := range sc.resources {
+		if resourceState.Hook {
+			continue
+		}
 		if sc.syncResources == nil ||
 			(resourceState.Live != nil && argo.ContainsSyncResource(resourceState.Live.GetName(), resourceState.Live.GroupVersionKind(), sc.syncResources)) ||
 			(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources)) {
@@ -262,6 +266,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 					} else {
 						sc.setResourceDetails(&appv1.ResourceDetails{
 							Name:      targetObj.GetName(),
+							Group:     targetObj.GroupVersionKind().Group,
 							Kind:      targetObj.GetKind(),
 							Namespace: targetObj.GetNamespace(),
 							Message:   err.Error(),
@@ -272,6 +277,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
 						sc.setResourceDetails(&appv1.ResourceDetails{
 							Name:      targetObj.GetName(),
+							Group:     targetObj.GroupVersionKind().Group,
 							Kind:      targetObj.GetKind(),
 							Namespace: targetObj.GetNamespace(),
 							Message:   fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name),
@@ -283,6 +289,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(appv1.ApplicationDestination{Namespace: targetObj.GetNamespace(), Server: sc.server}) {
 						sc.setResourceDetails(&appv1.ResourceDetails{
 							Name:      targetObj.GetName(),
+							Group:     targetObj.GroupVersionKind().Group,
 							Kind:      targetObj.GetKind(),
 							Namespace: targetObj.GetNamespace(),
 							Message:   fmt.Sprintf("namespace %v is not permitted in project '%s'", targetObj.GetNamespace(), sc.proj.Name),
@@ -354,6 +361,7 @@ func (sc *syncContext) setOperationPhase(phase appv1.OperationPhase, message str
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) appv1.ResourceDetails {
 	resDetails := appv1.ResourceDetails{
 		Name:      targetObj.GetName(),
+		Group:     targetObj.GroupVersionKind().Group,
 		Kind:      targetObj.GetKind(),
 		Namespace: targetObj.GetNamespace(),
 	}
@@ -373,6 +381,7 @@ func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun 
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) appv1.ResourceDetails {
 	resDetails := appv1.ResourceDetails{
 		Name:      liveObj.GetName(),
+		Group:     liveObj.GroupVersionKind().Group,
 		Kind:      liveObj.GetKind(),
 		Namespace: liveObj.GetNamespace(),
 	}
@@ -397,7 +406,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	return resDetails
 }
 
-func hasCRDOfGroupKind(resources []ManagedResource, group string, kind string) bool {
+func hasCRDOfGroupKind(resources []managedResource, group string, kind string) bool {
 	for _, res := range resources {
 		if res.Target != nil && kube.IsCRD(res.Target) {
 			crdGroup, ok, err := unstructured.NestedString(res.Target.Object, "spec", "group")
@@ -458,7 +467,7 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 			createWg.Add(1)
 			go func(t syncTask) {
 				defer createWg.Done()
-				if isHook(t.targetObj) {
+				if hookutil.IsHook(t.targetObj) {
 					return
 				}
 				resDetails := sc.applyObject(t.targetObj, dryRun, force)
@@ -494,7 +503,7 @@ func (sc *syncContext) setResourceDetails(details *appv1.ResourceDetails) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	for i, res := range sc.syncRes.Resources {
-		if res.Kind == details.Kind && res.Name == details.Name {
+		if res.Group == details.Group && res.Kind == details.Kind && res.Name == details.Name {
 			// update existing value
 			if res.Status != details.Status {
 				sc.log.Infof("updated resource %s/%s status: %s -> %s", res.Kind, res.Name, res.Status, details.Status)

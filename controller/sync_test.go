@@ -5,38 +5,45 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
-
-	appsv1 "k8s.io/api/apps/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
-	fakeDisco.Resources = append(resources, &v1.APIResourceList{
-		APIResources: []v1.APIResource{
-			{Kind: "pod", Namespaced: true},
-			{Kind: "deployment", Namespaced: true},
-			{Kind: "service", Namespaced: true},
+	fakeDisco.Resources = append(resources,
+		&v1.APIResourceList{
+			GroupVersion: "v1",
+			APIResources: []v1.APIResource{
+				{Kind: "Pod", Group: "", Version: "v1", Namespaced: true},
+				{Kind: "Service", Group: "", Version: "v1", Namespaced: true},
+			},
 		},
-	})
-	return &syncContext{
+		&v1.APIResourceList{
+			GroupVersion: "apps/v1",
+			APIResources: []v1.APIResource{
+				{Kind: "Deployment", Group: "apps", Version: "v1", Namespaced: true},
+			},
+		})
+	sc := syncContext{
 		comparison: &v1alpha1.ComparisonResult{},
 		config:     &rest.Config{},
-		namespace:  "test-namespace",
-		server:     "https://test-server",
+		namespace:  test.FakeArgoCDNamespace,
+		server:     test.FakeClusterURL,
 		syncRes:    &v1alpha1.SyncOperationResult{},
 		syncOp: &v1alpha1.SyncOperation{
 			Prune: true,
@@ -45,13 +52,13 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 			},
 		},
 		proj: &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: "test",
 			},
 			Spec: v1alpha1.AppProjectSpec{
 				Destinations: []v1alpha1.ApplicationDestination{{
-					Server:    "https://test-server",
-					Namespace: "test-namespace",
+					Server:    test.FakeClusterURL,
+					Namespace: test.FakeArgoCDNamespace,
 				}},
 				ClusterResourceWhitelist: []v1.GroupKind{
 					{Group: "*", Kind: "*"},
@@ -62,17 +69,20 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		disco:   fakeDisco,
 		log:     log.WithFields(log.Fields{"application": "fake-app"}),
 	}
+	sc.kubectl = kubetest.MockKubectlCmd{}
+	return &sc
 }
 
 func TestSyncNotPermittedNamespace(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ManagedResource{{
+	targetPod := test.NewPod()
+	targetPod.SetNamespace("kube-system")
+	syncCtx.resources = []managedResource{{
 		Live:   nil,
-		Target: kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}, ObjectMeta: v1.ObjectMeta{Namespace: "kube-system"}}),
+		Target: targetPod,
 	}, {
 		Live:   nil,
-		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
+		Target: test.NewService(),
 	}}
 	syncCtx.sync()
 	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
@@ -81,20 +91,19 @@ func TestSyncNotPermittedNamespace(t *testing.T) {
 
 func TestSyncCreateInSortedOrder(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ManagedResource{{
+	syncCtx.resources = []managedResource{{
 		Live:   nil,
-		Target: kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+		Target: test.NewPod(),
 	}, {
 		Live:   nil,
-		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
+		Target: test.NewService(),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
-		if syncCtx.syncRes.Resources[i].Kind == "pod" {
+		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
 			assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[i].Status)
-		} else if syncCtx.syncRes.Resources[i].Kind == "service" {
+		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
 			assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[i].Status)
 		} else {
 			t.Error("Resource isn't a pod or a service")
@@ -123,11 +132,11 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 	}
 
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ManagedResource{{
+	syncCtx.resources = []managedResource{{
 		Live: nil,
 		Target: kube.MustToUnstructured(&rbacv1.ClusterRole{
-			TypeMeta:   v1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
-			ObjectMeta: v1.ObjectMeta{Name: "argo-ui-cluster-role"}}),
+			TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
+			ObjectMeta: metav1.ObjectMeta{Name: "argo-ui-cluster-role"}}),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -139,13 +148,12 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 
 	syncCtx.proj.Spec.NamespaceResourceBlacklist = []v1.GroupKind{
-		{Group: "*", Kind: "deployment"},
+		{Group: "*", Kind: "Deployment"},
 	}
 
-	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ManagedResource{{
+	syncCtx.resources = []managedResource{{
 		Live:   nil,
-		Target: kube.MustToUnstructured(&appsv1.Deployment{TypeMeta: v1.TypeMeta{Kind: "deployment"}}),
+		Target: test.NewDeployment(),
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -155,20 +163,19 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ManagedResource{{
+	syncCtx.resources = []managedResource{{
 		Live:   nil,
-		Target: kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
+		Target: test.NewService(),
 	}, {
-		Live:   kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+		Live:   test.NewPod(),
 		Target: nil,
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
-		if syncCtx.syncRes.Resources[i].Kind == "pod" {
+		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
 			assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[i].Status)
-		} else if syncCtx.syncRes.Resources[i].Kind == "service" {
+		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
 			assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[i].Status)
 		} else {
 			t.Error("Resource isn't a pod or a service")
@@ -180,19 +187,18 @@ func TestSyncSuccessfully(t *testing.T) {
 
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.resources = []ManagedResource{{
-		Live:   kube.MustToUnstructured(&apiv1.Service{TypeMeta: v1.TypeMeta{Kind: "service"}}),
+	syncCtx.resources = []managedResource{{
+		Live:   test.NewService(),
 		Target: nil,
 	}, {
-		Live:   kube.MustToUnstructured(&apiv1.Pod{TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+		Live:   test.NewPod(),
 		Target: nil,
 	}}
 	syncCtx.sync()
 	for i := range syncCtx.syncRes.Resources {
-		if syncCtx.syncRes.Resources[i].Kind == "pod" {
+		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
 			assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[i].Status)
-		} else if syncCtx.syncRes.Resources[i].Kind == "service" {
+		} else if syncCtx.syncRes.Resources[i].Kind == "Service" {
 			assert.Equal(t, v1alpha1.ResourceDetailsSyncedAndPruned, syncCtx.syncRes.Resources[i].Status)
 		} else {
 			t.Error("Resource isn't a pod or a service")
@@ -212,9 +218,11 @@ func TestSyncCreateFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.resources = []ManagedResource{{
+	testSvc := test.NewService()
+	testSvc.SetAPIVersion("")
+	syncCtx.resources = []managedResource{{
 		Live:   nil,
-		Target: kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
+		Target: testSvc,
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
@@ -231,19 +239,15 @@ func TestSyncPruneFailure(t *testing.T) {
 			},
 		},
 	}
-	syncCtx.resources = []ManagedResource{{
-		Live:   kube.MustToUnstructured(&apiv1.Service{ObjectMeta: v1.ObjectMeta{Name: "test-service"}}),
+	testSvc := test.NewService()
+	testSvc.SetName("test-service")
+	syncCtx.resources = []managedResource{{
+		Live:   testSvc,
 		Target: nil,
 	}}
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResourceDetailsSyncFailed, syncCtx.syncRes.Resources[0].Status)
-}
-
-func TestRunWorkflows(t *testing.T) {
-	// syncCtx := newTestSyncCtx()
-	// syncCtx.doWorkflowSync(nil, nil)
-
 }
 
 func unsortedManifest() []syncTask {
@@ -364,5 +368,28 @@ func TestSortManifestHandleNil(t *testing.T) {
 	sort.Sort(ks)
 	assert.Equal(t, task, manifest[0])
 	assert.Nil(t, manifest[1].targetObj)
+}
 
+func TestDontSyncOrPruneHooks(t *testing.T) {
+	syncCtx := newTestSyncCtx()
+	targetPod := test.NewPod()
+	targetPod.SetName("dont-create-me")
+	targetPod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+	liveSvc := test.NewService()
+	liveSvc.SetName("dont-prune-me")
+	liveSvc.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
+
+	syncCtx.resources = []managedResource{{
+		Live:   nil,
+		Target: targetPod,
+		Hook:   true,
+	}, {
+		Live:   liveSvc,
+		Target: nil,
+		Hook:   true,
+	}}
+	syncCtx.sync()
+	assert.Len(t, syncCtx.syncRes.Resources, 0)
+	syncCtx.sync()
+	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }

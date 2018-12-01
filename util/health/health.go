@@ -5,13 +5,16 @@ import (
 
 	"k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	coreV1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/apis/apps"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -23,26 +26,28 @@ func SetApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.Comparis
 		appHealth.Status = appv1.HealthStatusUnknown
 	}
 	for i, liveObj := range liveObjs {
-		resource := comparisonResult.Resources[i]
+		var resHealth *appv1.HealthStatus
+		var err error
 		if liveObj == nil {
-			resource.Health = appv1.HealthStatus{Status: appv1.HealthStatusMissing}
+			resHealth = &appv1.HealthStatus{Status: appv1.HealthStatusMissing}
 		} else {
-			healthState, err := GetAppHealth(kubectl, liveObj)
+			resHealth, err = GetResourceHealth(kubectl, liveObj)
 			if err != nil && savedErr == nil {
 				savedErr = err
 			}
-			resource.Health = *healthState
 		}
-		comparisonResult.Resources[i].Health = resource.Health
-		if IsWorse(appHealth.Status, resource.Health.Status) {
-			appHealth.Status = resource.Health.Status
+		comparisonResult.Resources[i].Health = *resHealth
+		// Don't allow resource hooks to affect health status
+		isHook := liveObj != nil && hookutil.IsHook(liveObj)
+		if !isHook && IsWorse(appHealth.Status, resHealth.Status) {
+			appHealth.Status = resHealth.Status
 		}
 	}
 	return &appHealth, savedErr
 }
 
-// GetAppHealth returns the health of a k8s resource
-func GetAppHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+// GetResourceHealth returns the health of a k8s resource
+func GetResourceHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	var err error
 	var health *appv1.HealthStatus
 
@@ -67,6 +72,13 @@ func GetAppHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.
 			health, err = getServiceHealth(kubectl, obj)
 		case kube.PersistentVolumeClaimKind:
 			health, err = getPVCHealth(kubectl, obj)
+		case kube.PodKind:
+			health, err = getPodHealth(kubectl, obj)
+		}
+	case "batch":
+		switch gvk.Kind {
+		case kube.JobKind:
+			health, err = getJobHealth(kubectl, obj)
 		}
 	}
 	if err != nil {
@@ -105,12 +117,8 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 }
 
 func getPVCHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kubectl.ConvertToVersion(obj, "", "v1")
-	if err != nil {
-		return nil, err
-	}
 	var pvc coreV1.PersistentVolumeClaim
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pvc)
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pvc)
 	if err != nil {
 		return nil, err
 	}
@@ -149,12 +157,8 @@ func getIngressHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*ap
 }
 
 func getServiceHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kubectl.ConvertToVersion(obj, "", "v1")
-	if err != nil {
-		return nil, err
-	}
 	var service coreV1.Service
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &service)
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &service)
 	if err != nil {
 		return nil, err
 	}
@@ -362,4 +366,105 @@ func getReplicaSetCondition(status v1.ReplicaSetStatus, condType v1.ReplicaSetCo
 		}
 	}
 	return nil
+}
+
+func getJobHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	var job batchv1.Job
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &job)
+	if err != nil {
+		return nil, err
+	}
+	failed := false
+	var failMsg string
+	complete := false
+	var message string
+	for _, condition := range job.Status.Conditions {
+		switch condition.Type {
+		case batchv1.JobFailed:
+			failed = true
+			complete = true
+			failMsg = condition.Message
+		case batchv1.JobComplete:
+			complete = true
+			message = condition.Message
+		}
+	}
+	if !complete {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: message,
+		}, nil
+	} else if failed {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusDegraded,
+			StatusDetails: failMsg,
+		}, nil
+	} else {
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusHealthy,
+			StatusDetails: message,
+		}, nil
+	}
+}
+
+func getPodHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	var pod coreV1.Pod
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pod)
+	if err != nil {
+		return nil, err
+	}
+	switch pod.Status.Phase {
+	case coreV1.PodPending:
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusProgressing,
+			StatusDetails: pod.Status.Message,
+		}, nil
+	case coreV1.PodSucceeded:
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusHealthy,
+			StatusDetails: pod.Status.Message,
+		}, nil
+	case coreV1.PodFailed:
+		return &appv1.HealthStatus{
+			Status:        appv1.HealthStatusDegraded,
+			StatusDetails: pod.Status.Message,
+		}, nil
+	case coreV1.PodRunning:
+		switch pod.Spec.RestartPolicy {
+		case coreV1.RestartPolicyAlways:
+			// if pod is ready, it is automatically healthy
+			if podutil.IsPodReady(&pod) {
+				return &appv1.HealthStatus{
+					Status:        appv1.HealthStatusHealthy,
+					StatusDetails: pod.Status.Message,
+				}, nil
+			}
+			// if it's not ready, check to see if any container terminated, if so, it's degraded
+			for _, ctrStatus := range pod.Status.ContainerStatuses {
+				if ctrStatus.LastTerminationState.Terminated != nil {
+					return &appv1.HealthStatus{
+						Status:        appv1.HealthStatusDegraded,
+						StatusDetails: pod.Status.Message,
+					}, nil
+				}
+			}
+			// otherwise we are progressing towards a ready state
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: pod.Status.Message,
+			}, nil
+		case coreV1.RestartPolicyOnFailure, coreV1.RestartPolicyNever:
+			// pods set with a restart policy of OnFailure or Never, have a finite life.
+			// These pods are typically resource hooks. Thus, we consider these as Progressing
+			// instead of healthy.
+			return &appv1.HealthStatus{
+				Status:        appv1.HealthStatusProgressing,
+				StatusDetails: pod.Status.Message,
+			}, nil
+		}
+	}
+	return &appv1.HealthStatus{
+		Status:        appv1.HealthStatusUnknown,
+		StatusDetails: pod.Status.Message,
+	}, nil
 }

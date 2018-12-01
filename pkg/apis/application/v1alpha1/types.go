@@ -297,10 +297,11 @@ func (s ResourceSyncStatus) Successful() bool {
 
 type ResourceDetails struct {
 	Name      string             `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Kind      string             `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Namespace string             `json:"namespace" protobuf:"bytes,3,opt,name=namespace"`
-	Message   string             `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
-	Status    ResourceSyncStatus `json:"status,omitempty" protobuf:"bytes,5,opt,name=status"`
+	Group     string             `json:"group" protobuf:"bytes,2,opt,name=group"`
+	Kind      string             `json:"kind" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string             `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	Message   string             `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
+	Status    ResourceSyncStatus `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 }
 
 // DeploymentInfo contains information relevant to an application deployment
@@ -443,6 +444,7 @@ type ResourceSummary struct {
 	Name      string           `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
 	Status    ComparisonStatus `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	Health    HealthStatus     `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Hook      bool             `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 }
 
 func (r *ResourceSummary) GroupVersionKind() schema.GroupVersionKind {
@@ -698,6 +700,7 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 	return false
 }
 
+// IsResourcePermitted validates if the given resource group/kind is permitted to be deployed in the project
 func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool) bool {
 	if namespaced {
 		return !isResourceInList(res, proj.Spec.NamespaceResourceBlacklist)

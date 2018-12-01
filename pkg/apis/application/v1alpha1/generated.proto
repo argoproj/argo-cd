@@ -395,13 +395,15 @@ message RepositoryList {
 message ResourceDetails {
   optional string name = 1;
 
-  optional string kind = 2;
+  optional string group = 2;
 
-  optional string namespace = 3;
+  optional string kind = 3;
 
-  optional string message = 4;
+  optional string namespace = 4;
 
-  optional string status = 5;
+  optional string message = 5;
+
+  optional string status = 6;
 }
 
 // ResourceNode contains information about live resource and its children
@@ -455,6 +457,8 @@ message ResourceSummary {
   optional string status = 6;
 
   optional HealthStatus health = 7;
+
+  optional bool hook = 8;
 }
 
 // SyncOperation contains sync operation details.
