@@ -3,6 +3,7 @@ import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
+import { Observable } from 'rxjs';
 
 import { DataLoader, ErrorNotification, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
@@ -13,7 +14,7 @@ import * as AppUtils from '../utils';
 
 require('./applications-list.scss');
 
-const APP_FIELDS = ['metadata.name', 'spec', 'status.comparisonResult.status', 'status.health'];
+const APP_FIELDS = ['metadata.name', 'metadata.resourceVersion', 'spec', 'status.comparisonResult.status', 'status.health'];
 const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
@@ -33,31 +34,6 @@ export class ApplicationsList extends React.Component<Props, State> {
     private get showNewAppPanel() {
         return new URLSearchParams(this.props.location.search).get('new') === 'true';
     }
-
-    private loader: DataLoader<models.Application[], {}>;
-    private appChanges = services
-    .applications.watch(null, { fields: APP_WATCH_FIELDS })
-    .filter(() => this.loader !== null && !!this.loader.getData()).map((applicationChange) => {
-        let applications = this.loader.getData().slice();
-        const projectsFilter = new URLSearchParams(this.props.history.location.search).getAll('proj');
-        if (projectsFilter.length === 0 || projectsFilter.includes(applicationChange.application.spec.project)) {
-            switch (applicationChange.type) {
-                case 'ADDED':
-                case 'MODIFIED':
-                    const index = applications.findIndex((item) => item.metadata.name === applicationChange.application.metadata.name);
-                    if (index > -1) {
-                        applications[index] = applicationChange.application;
-                    } else {
-                        applications.unshift(applicationChange.application);
-                    }
-                    break;
-                case 'DELETED':
-                    applications = applications.filter((item) => item.metadata.name !== applicationChange.application.metadata.name);
-                    break;
-            }
-        }
-        return applications;
-    });
 
     constructor(props: Props) {
         super(props);
@@ -91,10 +67,36 @@ export class ApplicationsList extends React.Component<Props, State> {
             }} >
                 <div className='argo-container applications-list'>
                     <DataLoader
-                        ref={(loader) => this.loader = loader}
-                        dataChanges={this.appChanges}
                         input={projectsFilter}
-                        load={(projects) => services.applications.list(projects, { fields: APP_LIST_FIELDS })}
+                        load={(projects) =>
+                            Observable.fromPromise(services.applications.list(projects, { fields: APP_LIST_FIELDS })).flatMap((applications) =>
+                            Observable.merge(
+                                Observable.from([applications]),
+                                services.applications.watch(null, { fields: APP_WATCH_FIELDS }).filter((appChange) =>
+                                    projects.length === 0 || projectsFilter.includes(appChange.application.spec.project),
+                                ).map((appChange) => {
+                                    const index = applications.findIndex((item) => item.metadata.name === appChange.application.metadata.name);
+                                    if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
+                                        return {applications, updated: false};
+                                    }
+                                    switch (appChange.type) {
+                                        case 'DELETED':
+                                            if (index > -1) {
+                                                applications.splice(index, 1);
+                                            }
+                                            break;
+                                        default:
+                                            if (index > -1) {
+                                                applications[index] = appChange.application;
+                                            } else {
+                                                applications.unshift(appChange.application);
+                                            }
+                                            break;
+                                    }
+                                    return {applications, updated: true};
+                                }).filter((item) => item.updated).map((item) => item.applications)),
+                            )
+                        }
                         loadingRenderer={() => <MockupList height={300} marginTop={30}/>}>
                         {(applications: models.Application[]) => (
                             <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>

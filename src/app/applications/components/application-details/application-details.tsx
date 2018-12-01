@@ -55,18 +55,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     };
 
     private viewPrefSubscription: Subscription;
-    private appUpdates: Observable<{application: appModels.Application, resources: ResourceTreeNode[]}>;
     private formApi: FormApi;
     private loader: DataLoader<{application: appModels.Application, resources: ResourceTreeNode[]}>;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
         super(props);
         this.state = { defaultKindFilter: [], refreshing: false };
-        this.appUpdates = services.applications.watch({name: props.match.params.name}).map((changeEvent) => changeEvent.application).flatMap((application) =>
-            Observable.fromPromise(services.applications.resourceTree(application.metadata.name).then((resources) => {
-                return {application, resources: resourcesFromSummaryInfo(application, resources)};
-            })),
-        ).repeat().retryWhen((errors) => errors.delay(500));
     }
 
     private get showOperationState() {
@@ -113,15 +107,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     public render() {
         return (
             <DataLoader
-                ref={(loader) => this.loader = loader}
                 errorRenderer={(error) => <Page title='Application Details'>{error}</Page>}
                 loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
-                dataChanges={this.appUpdates}
                 input={this.props.match.params.name}
-                load={async (name) => {
-                    const application = await services.applications.get(name, false);
-                    return {application, resources: resourcesFromSummaryInfo(application, [])};
-                }}>
+                ref={(loader) => this.loader  = loader}
+                load={(name) =>
+                    Observable.merge(
+                        Observable.fromPromise(services.applications.get(name, false).then((application) => ({application, resources: resourcesFromSummaryInfo(application, [])}))),
+                        services.applications.watch({name: this.props.match.params.name}).map((changeEvent) => changeEvent.application).flatMap((application) =>
+                        Observable.fromPromise(services.applications.resourceTree(application.metadata.name).then((resources) => {
+                            return {application, resources: resourcesFromSummaryInfo(application, resources)};
+                        })),
+                    ).repeat().retryWhen((errors) => errors.delay(500)))
+                }>
 
                 {({application, resources}: {application: appModels.Application, resources: ResourceTreeNode[]}) => {
                     const kindsSet = new Set<string>();
