@@ -5,7 +5,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "600"
   creationTimestamp: 2018-06-05T23:34:58Z
   labels:
-    applications.argoproj.io/app-name: argocd-cdp
+    app.kubernetes.io/instance: argocd-cdp
   name: argocd-server
   namespace: argocd
   resourceVersion: "32559487"

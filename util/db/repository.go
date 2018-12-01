@@ -226,7 +226,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Annotations: map[string]string{
-						common.ManagedByAnnotation: common.ManagedByArgoCDAnnotationValue,
+						common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 					},
 				},
 				Data: data,
@@ -247,7 +247,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 			}
 		}
 		if len(secret.Data) == 0 {
-			isManagedByArgo := (secret.Annotations != nil && secret.Annotations[common.ManagedByAnnotation] == common.ManagedByArgoCDAnnotationValue) ||
+			isManagedByArgo := (secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD) ||
 				(secret.Labels != nil && secret.Labels[common.LabelKeySecretType] == "repository")
 			if isManagedByArgo {
 				return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(name, &metav1.DeleteOptions{})

@@ -128,13 +128,13 @@ func TestVerifyOneSourceType(t *testing.T) {
 			NamePrefix: "foo",
 		},
 		Helm: &argoappv1.ApplicationSourceHelm{
-			ReleaseName: "foo",
+			ValueFiles: []string{"foo"},
 		},
 	}
 	assert.NotNil(t, verifyOneSourceType(&src))
 	src = argoappv1.ApplicationSource{
 		Helm: &argoappv1.ApplicationSourceHelm{
-			ReleaseName: "foo",
+			ValueFiles: []string{"foo"},
 		},
 	}
 	assert.Nil(t, verifyOneSourceType(&src))

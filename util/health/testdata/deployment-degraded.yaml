@@ -4,11 +4,11 @@ metadata:
   annotations:
     deployment.kubernetes.io/revision: "4"
     kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"apps/v1beta2","kind":"Deployment","metadata":{"annotations":{},"labels":{"applications.argoproj.io/app-name":"guestbook-default"},"name":"guestbook-ui","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"guestbook-ui"}},"template":{"metadata":{"labels":{"app":"guestbook-ui","applications.argoproj.io/app-name":"guestbook-default"}},"spec":{"containers":[{"image":"gcr.io/heptio-images/ks-guestbook-demo:0.3","name":"guestbook-ui","ports":[{"containerPort":80}]}]}}}}
+      {"apiVersion":"apps/v1beta2","kind":"Deployment","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"guestbook-default"},"name":"guestbook-ui","namespace":"default"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"guestbook-ui"}},"template":{"metadata":{"labels":{"app":"guestbook-ui","app.kubernetes.io/instance":"guestbook-default"}},"spec":{"containers":[{"image":"gcr.io/heptio-images/ks-guestbook-demo:0.3","name":"guestbook-ui","ports":[{"containerPort":80}]}]}}}}
   creationTimestamp: 2018-07-18T04:40:44Z
   generation: 4
   labels:
-    applications.argoproj.io/app-name: guestbook-default
+    app.kubernetes.io/instance: guestbook-default
   name: guestbook-ui
   namespace: default
   resourceVersion: "13660"
@@ -31,7 +31,7 @@ spec:
       creationTimestamp: null
       labels:
         app: guestbook-ui
-        applications.argoproj.io/app-name: guestbook-default
+        app.kubernetes.io/instance: guestbook-default
     spec:
       containers:
       - image: gcr.io/heptio-images/ks-guestbook-demo:0.3

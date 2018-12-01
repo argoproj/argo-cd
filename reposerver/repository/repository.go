@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
@@ -178,7 +177,6 @@ func helmOpts(q *ManifestRequest) helm.HelmTemplateOpts {
 	}
 	valueFiles := v1alpha1.HelmValueFiles(q.ApplicationSource)
 	if q.ApplicationSource.Helm != nil {
-		opts.ReleaseName = q.ApplicationSource.Helm.ReleaseName
 		opts.ValueFiles = valueFiles
 	}
 	return opts
@@ -260,7 +258,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 
 		for _, target := range targets {
 			if q.AppLabel != "" && !kube.IsCRD(target) {
-				err = kube.SetLabel(target, common.LabelApplicationName, q.AppLabel)
+				err = kube.SetAppInstanceLabel(target, q.AppLabel)
 				if err != nil {
 					return nil, err
 				}

@@ -78,20 +78,6 @@ func createNamespace(kubeClient *kubernetes.Clientset) (string, error) {
 	return cns.Name, nil
 }
 
-func getFreePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-	defer util.Close(l)
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
 func (f *Fixture) setup() error {
 	_, err := exec.Command("kubectl", "apply", "-f", "../../manifests/crds/application-crd.yaml", "-f", "../../manifests/crds/appproject-crd.yaml").Output()
 	if err != nil {
@@ -121,17 +107,17 @@ func (f *Fixture) setup() error {
 		return err
 	}
 
-	repoServerPort, err := getFreePort()
+	repoServerPort, err := test.GetFreePort()
 	if err != nil {
 		return err
 	}
 
-	apiServerPort, err := getFreePort()
+	apiServerPort, err := test.GetFreePort()
 	if err != nil {
 		return err
 	}
 
-	controllerServerPort, err := getFreePort()
+	controllerServerPort, err := test.GetFreePort()
 	if err != nil {
 		return err
 	}

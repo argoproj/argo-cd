@@ -25,6 +25,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
+	"github.com/argoproj/argo-cd/common"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
 )
 
@@ -51,6 +52,8 @@ const (
 var (
 	// location to use for generating temporary files, such as the kubeconfig needed by kubectl
 	kubectlTempDir string
+	// legacyLabeling decides whether or not to use legacy (v0.10 and below) labeling
+	legacyLabeling = false
 )
 
 func init() {
@@ -58,6 +61,8 @@ func init() {
 	if err == nil && fileInfo.IsDir() {
 		kubectlTempDir = "/dev/shm"
 	}
+	val, _ := os.LookupEnv(common.EnvVarLegacyLabels)
+	legacyLabeling = bool(val == "1" || val == "true")
 }
 
 type ResourceKey struct {
@@ -115,6 +120,14 @@ func MustToUnstructured(obj interface{}) *unstructured.Unstructured {
 	return uObj
 }
 
+// GetAppInstanceLabel returns the application instance name from labels
+func GetAppInstanceLabel(un *unstructured.Unstructured) string {
+	if labels := un.GetLabels(); labels != nil {
+		return labels[labelKey()]
+	}
+	return ""
+}
+
 // UnsetLabel removes our app labels from an unstructured object
 func UnsetLabel(target *unstructured.Unstructured, key string) {
 	if labels := target.GetLabels(); labels != nil {
@@ -129,14 +142,27 @@ func UnsetLabel(target *unstructured.Unstructured, key string) {
 	}
 }
 
-// SetLabel sets our app labels against an unstructured object
-func SetLabel(target *unstructured.Unstructured, key, val string) error {
+func labelKey() string {
+	if legacyLabeling {
+		return common.LabelKeyLegacyApplicationName
+	}
+	return common.LabelKeyAppInstance
+}
+
+// SetAppInstanceLabel the recommended app.kubernetes.io/instance label against an unstructured object
+// Uses the legacy labeling if environment variable is set
+func SetAppInstanceLabel(target *unstructured.Unstructured, val string) error {
 	labels := target.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
+	key := labelKey()
 	labels[key] = val
 	target.SetLabels(labels)
+	if !legacyLabeling {
+		// we no longer label the pod template sub resources in v0.11
+		return nil
+	}
 
 	gvk := schema.FromAPIVersionAndKind(target.GetAPIVersion(), target.GetKind())
 	// special case for deployment and job types: make sure that derived replicaset, and pod has

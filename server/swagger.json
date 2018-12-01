@@ -2327,10 +2327,6 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
-        "releaseName": {
-          "type": "string",
-          "title": "The Helm release name. If omitted will use the application name"
-        },
         "valueFiles": {
           "type": "array",
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",

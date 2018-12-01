@@ -167,7 +167,7 @@ var demoConfig = `
   "kind": "ServiceAccount",
   "metadata": {
     "labels": {
-      "applications.argoproj.io/app-name": "argocd-demo"
+      "app.kubernetes.io/instance": "argocd-demo"
     },
     "name": "application-controller"
   }
@@ -180,11 +180,11 @@ var demoLive = `
   "kind": "ServiceAccount",
   "metadata": {
     "annotations": {
-      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"applications.argoproj.io/app-name\":\"argocd-demo\"},\"name\":\"application-controller\",\"namespace\":\"argocd-demo\"}}\n"
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"argocd-demo\"},\"name\":\"application-controller\",\"namespace\":\"argocd-demo\"}}\n"
     },
     "creationTimestamp": "2018-04-16T22:08:57Z",
     "labels": {
-      "applications.argoproj.io/app-name": "argocd-demo"
+      "app.kubernetes.io/instance": "argocd-demo"
     },
     "name": "application-controller",
     "namespace": "argocd-demo",

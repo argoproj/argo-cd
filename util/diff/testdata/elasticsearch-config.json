@@ -4,7 +4,7 @@
   "metadata": {
     "labels": {
       "app": "elasticsearch",
-      "applications.argoproj.io/app-name": "elasticsearch4",
+      "app.kubernetes.io/instance": "elasticsearch4",
       "chart": "elasticsearch-1.7.0",
       "component": "data",
       "heritage": "Tiller",
@@ -26,7 +26,7 @@
       "metadata": {
         "labels": {
           "app": "elasticsearch",
-          "applications.argoproj.io/app-name": "elasticsearch4",
+          "app.kubernetes.io/instance": "elasticsearch4",
           "component": "data",
           "release": "elasticsearch4"
         }

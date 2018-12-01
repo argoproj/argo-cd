@@ -43,9 +43,6 @@ func TestUnsetLabels(t *testing.T) {
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
 		assert.Nil(t, err)
 
-		err = SetLabel(&obj, "foo", "bar")
-		assert.Nil(t, err)
-
 		UnsetLabel(&obj, "foo")
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
@@ -105,7 +102,38 @@ func TestSetLabels(t *testing.T) {
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
 		assert.Nil(t, err)
 
-		err = SetLabel(&obj, common.LabelApplicationName, "my-app")
+		err = SetAppInstanceLabel(&obj, "my-app")
+		assert.Nil(t, err)
+
+		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+		assert.Nil(t, err)
+		log.Println(string(manifestBytes))
+
+		var depV1Beta1 extv1beta1.Deployment
+		err = json.Unmarshal(manifestBytes, &depV1Beta1)
+		assert.Nil(t, err)
+
+		// the following makes sure we are not falling into legacy code which injects labels
+		if yamlStr == depWithoutSelector {
+			assert.Nil(t, depV1Beta1.Spec.Selector)
+		} else if yamlStr == depWithSelector {
+			assert.Equal(t, 1, len(depV1Beta1.Spec.Selector.MatchLabels))
+			assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
+		}
+		assert.Equal(t, 1, len(depV1Beta1.Spec.Template.Labels))
+		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
+	}
+}
+
+func TestSetLegacyLabels(t *testing.T) {
+	legacyLabeling = true
+	defer func() { legacyLabeling = false }()
+	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
+		var obj unstructured.Unstructured
+		err := yaml.Unmarshal([]byte(yamlStr), &obj)
+		assert.Nil(t, err)
+
+		err = SetAppInstanceLabel(&obj, "my-app")
 		assert.Nil(t, err)
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
@@ -119,18 +147,20 @@ func TestSetLabels(t *testing.T) {
 		assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
 		assert.Equal(t, 2, len(depV1Beta1.Spec.Template.Labels))
 		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
-		assert.Equal(t, "my-app", depV1Beta1.Spec.Template.Labels[common.LabelApplicationName])
+		assert.Equal(t, "my-app", depV1Beta1.Spec.Template.Labels[common.LabelKeyLegacyApplicationName])
 	}
-
 }
 
-func TestSetJobLabel(t *testing.T) {
+func TestSetLegacyJobLabel(t *testing.T) {
+	legacyLabeling = true
+	defer func() { legacyLabeling = false }()
+
 	yamlBytes, err := ioutil.ReadFile("testdata/job.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetLabel(&obj, common.LabelApplicationName, "my-app")
+	err = SetAppInstanceLabel(&obj, "my-app")
 	assert.Nil(t, err)
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
@@ -142,12 +172,12 @@ func TestSetJobLabel(t *testing.T) {
 	assert.Nil(t, err)
 
 	labels := job.GetLabels()
-	assert.Equal(t, "my-app", labels[common.LabelApplicationName])
+	assert.Equal(t, "my-app", labels[common.LabelKeyLegacyApplicationName])
 
 	templateLabels, ok, err := unstructured.NestedMap(job.UnstructuredContent(), "spec", "template", "metadata", "labels")
 	assert.True(t, ok)
 	assert.Nil(t, err)
-	assert.Equal(t, "my-app", templateLabels[common.LabelApplicationName])
+	assert.Equal(t, "my-app", templateLabels[common.LabelKeyLegacyApplicationName])
 }
 
 func TestSetSvcLabel(t *testing.T) {
@@ -156,7 +186,7 @@ func TestSetSvcLabel(t *testing.T) {
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	err = SetLabel(&obj, common.LabelApplicationName, "my-app")
+	err = SetAppInstanceLabel(&obj, "my-app")
 	assert.Nil(t, err)
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
@@ -167,14 +197,9 @@ func TestSetSvcLabel(t *testing.T) {
 	err = json.Unmarshal(manifestBytes, &s)
 	assert.Nil(t, err)
 
-	// // manifestBytes, err = json.MarshalIndent(j, "", "  ")
-	// // assert.Nil(t, err)
-	// // log.Println(string(manifestBytes))
-
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
-	assert.Equal(t, "my-app", s.ObjectMeta.Labels[common.LabelApplicationName])
-	//assert.Equal(t, "my-app", j.Spec.Template.ObjectMeta.Labels[common.LabelApplicationName])
+	assert.Equal(t, "my-app", s.ObjectMeta.Labels[common.LabelKeyAppInstance])
 }
 
 func TestCleanKubectlOutput(t *testing.T) {

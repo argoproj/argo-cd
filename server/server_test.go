@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"strings"
 	"testing"
 	"time"
@@ -377,11 +376,14 @@ func TestUserAgent(t *testing.T) {
 	s := fakeServer()
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
-	port, err := getFreePort()
+	port, err := test.GetFreePort()
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go s.Run(ctx, port)
+
+	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+	assert.NoError(t, err)
 
 	type testData struct {
 		userAgent string
@@ -430,12 +432,4 @@ func TestUserAgent(t *testing.T) {
 		}
 		_ = conn.Close()
 	}
-}
-
-func getFreePort() (int, error) {
-	ln, err := net.Listen("tcp", "[::]:0")
-	if err != nil {
-		return 0, err
-	}
-	return ln.Addr().(*net.TCPAddr).Port, ln.Close()
 }

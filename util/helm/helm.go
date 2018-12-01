@@ -37,8 +37,6 @@ type HelmTemplateOpts struct {
 	ValueFiles []string
 	// Namespace maps to the --namespace flag
 	Namespace string
-	// ReleaseName maps to the --name flag
-	ReleaseName string
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
@@ -58,12 +56,7 @@ func IsMissingDependencyErr(err error) bool {
 
 func (h *helm) Template(appName string, opts HelmTemplateOpts, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
 	args := []string{
-		"template", ".",
-	}
-	if opts.ReleaseName != "" {
-		args = append(args, "--name", appName)
-	} else {
-		args = append(args, "--name", appName)
+		"template", ".", "--name", appName,
 	}
 	if opts.Namespace != "" {
 		args = append(args, "--namespace", opts.Namespace)

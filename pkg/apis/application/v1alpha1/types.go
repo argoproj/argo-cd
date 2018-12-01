@@ -78,10 +78,8 @@ const (
 
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
-	// The Helm release name. If omitted will use the application name
-	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,1,opt,name=releaseName"`
 	// ValuesFiles is a list of Helm value files to use when generating a template
-	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,2,opt,name=valueFiles"`
+	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
 }
 
 // ApplicationSourceKustomize holds kustomize specific options

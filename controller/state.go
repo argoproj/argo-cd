@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -143,11 +142,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	for _, liveObj := range liveObjByKey {
-		if liveObj != nil && liveObj.GetLabels() != nil {
-			if appLabelVal, ok := liveObj.GetLabels()[common.LabelApplicationName]; ok && appLabelVal != "" && appLabelVal != app.Name {
+		if liveObj != nil {
+			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj)
+			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message: fmt.Sprintf("%s/%s is part of multiple application: %s, %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appLabelVal),
+					Message: fmt.Sprintf("%s/%s is part of a different application: %s", liveObj.GetKind(), liveObj.GetName(), appInstanceName),
 				})
 			}
 		}

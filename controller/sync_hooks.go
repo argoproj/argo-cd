@@ -200,7 +200,7 @@ func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) bool {
 			nonHookTasks = append(nonHookTasks, task)
 		} else {
 			annotations := task.targetObj.GetAnnotations()
-			if annotations != nil && annotations[common.AnnotationHook] != "" {
+			if annotations != nil && annotations[common.AnnotationKeyHook] != "" {
 				// we are doing a hook sync and this resource is annotated with a hook annotation
 				continue
 			}
@@ -245,11 +245,6 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 		if !apierr.IsNotFound(err) {
 			return false, fmt.Errorf("Failed to get status of %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
 		}
-		hook = hook.DeepCopy()
-		err = kube.SetLabel(hook, common.LabelApplicationName, sc.appName)
-		if err != nil {
-			sc.log.Warnf("Failed to set application label on hook %v: %v", hook, err)
-		}
 		_, err := sc.kubectl.ApplyResource(sc.config, hook, hook.GetNamespace(), false, false)
 		if err != nil {
 			return false, fmt.Errorf("Failed to create %s hook %s '%s': %v", hookType, gvk, hook.GetName(), err)
@@ -283,7 +278,7 @@ func enforceHookDeletePolicy(hook *unstructured.Unstructured, phase appv1.Operat
 	if annotations == nil {
 		return false
 	}
-	deletePolicies := strings.Split(annotations[common.AnnotationHookDeletePolicy], ",")
+	deletePolicies := strings.Split(annotations[common.AnnotationKeyHookDeletePolicy], ",")
 	for _, dp := range deletePolicies {
 		policy := appv1.HookDeletePolicy(strings.TrimSpace(dp))
 		if policy == appv1.HookDeletePolicyHookSucceeded && phase == appv1.OperationSucceeded {
@@ -302,7 +297,7 @@ func isHookType(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
 	if annotations == nil {
 		return false
 	}
-	resHookTypes := strings.Split(annotations[common.AnnotationHook], ",")
+	resHookTypes := strings.Split(annotations[common.AnnotationKeyHook], ",")
 	for _, ht := range resHookTypes {
 		if string(hookType) == strings.TrimSpace(ht) {
 			return true
@@ -322,8 +317,8 @@ func isHelmHook(obj *unstructured.Unstructured) bool {
 	if annotations == nil {
 		return false
 	}
-	hooks, ok := annotations[common.AnnotationHelmHook]
-	if ok && hasHook(hooks, common.HelmHookCRDInstall) {
+	hooks, ok := annotations[common.AnnotationKeyHelmHook]
+	if ok && hasHook(hooks, common.AnnotationValueHelmHookCRDInstall) {
 		return false
 	}
 	return ok
@@ -345,7 +340,7 @@ func isArgoHook(obj *unstructured.Unstructured) bool {
 	if annotations == nil {
 		return false
 	}
-	resHookTypes := strings.Split(annotations[common.AnnotationHook], ",")
+	resHookTypes := strings.Split(annotations[common.AnnotationKeyHook], ",")
 	for _, hookType := range resHookTypes {
 		hookType = strings.TrimSpace(hookType)
 		switch appv1.HookType(hookType) {
