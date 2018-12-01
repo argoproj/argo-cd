@@ -3,12 +3,12 @@
     "kind": "ServiceAccount",
     "metadata": {
       "annotations": {
-        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"spinnaker-spinnaker\",\"applications.argoproj.io/app-name\":\"spinnaker\",\"chart\":\"spinnaker-1.1.3\",\"heritage\":\"Tiller\",\"release\":\"spinnaker\"},\"name\":\"spinnaker-spinnaker-halyard\",\"namespace\":\"spinnaker\"}}\n"
+        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"app\":\"spinnaker-spinnaker\",\"app.kubernetes.io/instance\":\"spinnaker\",\"chart\":\"spinnaker-1.1.3\",\"heritage\":\"Tiller\",\"release\":\"spinnaker\"},\"name\":\"spinnaker-spinnaker-halyard\",\"namespace\":\"spinnaker\"}}\n"
       },
       "creationTimestamp": "2018-09-20T20:49:20Z",
       "labels": {
         "app": "spinnaker-spinnaker",
-        "applications.argoproj.io/app-name": "spinnaker",
+        "app.kubernetes.io/instance": "spinnaker",
         "chart": "spinnaker-1.1.3",
         "heritage": "Tiller",
         "release": "spinnaker"

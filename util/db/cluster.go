@@ -31,7 +31,7 @@ var (
 func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.SecretTypeCluster})
+	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +68,10 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
 			Labels: map[string]string{
-				common.LabelKeySecretType: common.SecretTypeCluster,
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Annotations: map[string]string{
-				common.ManagedByAnnotation: common.ManagedByArgoCDAnnotationValue,
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 			},
 		},
 	}
@@ -96,7 +96,7 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) error {
 	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.SecretTypeCluster})
+	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func (db *db) DeleteCluster(ctx context.Context, name string) error {
 		}
 	}
 
-	canDelete := secret.Annotations != nil && secret.Annotations[common.ManagedByAnnotation] == common.ManagedByArgoCDAnnotationValue || secret.Name == legacySecName
+	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD || secret.Name == legacySecName
 
 	if canDelete {
 		return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(secret.Name, &metav1.DeleteOptions{})

@@ -59,7 +59,7 @@ func TestCreateRepository(t *testing.T) {
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(repoURLToSecretName(repo.Repo), metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	assert.Equal(t, common.ManagedByArgoCDAnnotationValue, secret.Annotations[common.ManagedByAnnotation])
+	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
 	assert.Equal(t, string(secret.Data[password]), "test-password")
 	assert.Nil(t, secret.Data[sshPrivateKey])
@@ -96,7 +96,7 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 			Name:      "managed-secret",
 			Namespace: testNamespace,
 			Annotations: map[string]string{
-				common.ManagedByAnnotation: common.ManagedByArgoCDAnnotationValue,
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 			},
 		},
 		Data: map[string][]byte{
@@ -173,7 +173,7 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 			Name:      "managed-secret",
 			Namespace: testNamespace,
 			Annotations: map[string]string{
-				common.ManagedByAnnotation: common.ManagedByArgoCDAnnotationValue,
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 			},
 		},
 		Data: map[string][]byte{
@@ -269,7 +269,7 @@ func TestCreateClusterSuccessful(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, clusterURL, string(secret.Data["server"]))
-	assert.Equal(t, common.ManagedByArgoCDAnnotationValue, secret.Annotations[common.ManagedByAnnotation])
+	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 }
 
 func TestDeleteClusterWithLegacyName(t *testing.T) {
@@ -306,7 +306,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 			Name:      clusterName,
 			Namespace: testNamespace,
 			Labels: map[string]string{
-				common.LabelKeySecretType: common.SecretTypeCluster,
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 		},
 		Data: map[string][]byte{

@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -57,8 +56,9 @@ func createObjInfo(un *unstructured.Unstructured) *node {
 		children:  make(map[kube.ResourceKey]*node),
 		tags:      getTags(un),
 	}
-	if labels := un.GetLabels(); len(ownerRefs) == 0 && labels != nil && labels[common.LabelApplicationName] != "" {
-		info.appName = labels[common.LabelApplicationName]
+	appName := kube.GetAppInstanceLabel(un)
+	if len(ownerRefs) == 0 && appName != "" {
+		info.appName = appName
 		info.resource = un
 	}
 	return info
@@ -247,10 +247,7 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 		}
 
 		if len(obj.ownerRefs) == 0 {
-			newAppName := ""
-			if un.GetLabels() != nil {
-				newAppName = un.GetLabels()[common.LabelApplicationName]
-			}
+			newAppName := kube.GetAppInstanceLabel(un)
 			if newAppName != obj.appName {
 				obj.setAppName(newAppName)
 				if newAppName != "" {

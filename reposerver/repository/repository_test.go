@@ -1,12 +1,14 @@
 package repository
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/pkg/exec"
 )
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
@@ -36,10 +38,16 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 }
 
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
-	clean := func() {
+	helmHome, err := ioutil.TempDir("", "")
+	assert.NoError(t, err)
+	os.Setenv("HELM_HOME", helmHome)
+	_, err = exec.RunCommand("helm", "init", "--client-only", "--skip-refresh")
+	assert.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(helmHome)
 		_ = os.RemoveAll("../../util/helm/testdata/wordpress/charts")
-	}
-	defer clean()
+		os.Unsetenv("HELM_HOME")
+	}()
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}

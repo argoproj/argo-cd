@@ -13,6 +13,26 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// ArgoCDManagerServiceAccount is the name of the service account for managing a cluster
+const (
+	ArgoCDManagerServiceAccount     = "argocd-manager"
+	ArgoCDManagerClusterRole        = "argocd-manager-role"
+	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
+)
+
+// ArgoCDManagerPolicyRules are the policies to give argocd-manager
+var ArgoCDManagerPolicyRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{"*"},
+		Resources: []string{"*"},
+		Verbs:     []string{"*"},
+	},
+	{
+		NonResourceURLs: []string{"*"},
+		Verbs:           []string{"*"},
+	},
+}
+
 // CreateServiceAccount creates a service account
 func CreateServiceAccount(
 	clientset kubernetes.Interface,

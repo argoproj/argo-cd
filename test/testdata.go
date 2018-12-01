@@ -7,7 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 )
 
@@ -36,9 +35,6 @@ func DemoService() *apiv1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo",
 			Namespace: TestNamespace,
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: TestAppInstanceName,
-			},
 		},
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{
@@ -66,9 +62,6 @@ func DemoDeployment() *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo",
 			Namespace: TestNamespace,
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: TestAppInstanceName,
-			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &two,

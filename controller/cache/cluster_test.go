@@ -67,7 +67,7 @@ var (
   kind: Deployment
   metadata:
     labels:
-      applications.argoproj.io/app-name: helm-guestbook
+      app.kubernetes.io/instance: helm-guestbook
     name: helm-guestbook
     namespace: default
     resourceVersion: "123"`)
@@ -272,7 +272,7 @@ func TestUpdateRootAppResource(t *testing.T) {
 	}
 
 	updatedDeploy := testDeploy.DeepCopy()
-	updatedDeploy.SetLabels(map[string]string{common.LabelApplicationName: "helm-guestbook2"})
+	updatedDeploy.SetLabels(map[string]string{common.LabelKeyAppInstance: "helm-guestbook2"})
 
 	err = cluster.processEvent(watch.Modified, updatedDeploy)
 	assert.Nil(t, err)
