@@ -158,7 +158,6 @@ export interface ApplicationSource {
 }
 
 export interface ApplicationSourceHelm {
-    releaseName: string;
     valueFiles: string[];
 }
 

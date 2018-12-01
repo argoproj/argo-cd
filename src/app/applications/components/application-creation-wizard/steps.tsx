@@ -105,7 +105,6 @@ export interface NewAppParams {
     project: string;
     revision: string;
     environment?: string;
-    releaseName?: string;
     valueFiles?: string[];
     namePrefix?: string;
 }

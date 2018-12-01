@@ -218,10 +218,9 @@ export class ApplicationsList extends React.Component<Props, State> {
                 targetRevision: params.revision,
                 componentParameterOverrides: null,
             } as models.ApplicationSource;
-            if (params.valueFiles || params.releaseName) {
+            if (params.valueFiles) {
                 source.helm = {
                     valueFiles: params.valueFiles,
-                    releaseName: params.releaseName,
                 } as models.ApplicationSourceHelm;
             }
             if (params.environment) {
