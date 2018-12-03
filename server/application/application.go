@@ -241,8 +241,9 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 			"involvedObject.namespace": a.Namespace,
 		}).String()
 	} else {
+		namespace = q.ResourceNamespace
 		var config *rest.Config
-		config, namespace, err = s.getApplicationClusterConfig(*q.Name)
+		config, _, err = s.getApplicationClusterConfig(*q.Name)
 		if err != nil {
 			return nil, err
 		}

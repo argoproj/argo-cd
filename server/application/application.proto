@@ -25,8 +25,9 @@ message ApplicationQuery {
 // ApplicationEventsQuery is a query for application resource events
 message ApplicationResourceEventsQuery {
 	required string name = 1;
-	required string resourceName = 2 [(gogoproto.nullable) = false];
-	required string resourceUID = 3 [(gogoproto.nullable) = false];
+	required string resourceNamespace = 2 [(gogoproto.nullable) = false];
+	required string resourceName = 3 [(gogoproto.nullable) = false];
+	required string resourceUID = 4 [(gogoproto.nullable) = false];
 }
 
 // ManifestQuery is a query for manifest resources

@@ -265,6 +265,11 @@
           },
           {
             "type": "string",
+            "name": "resourceNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "name": "resourceName",
             "in": "query"
           },
