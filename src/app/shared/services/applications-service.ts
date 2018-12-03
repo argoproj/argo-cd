@@ -115,8 +115,16 @@ export class ApplicationsService {
         return this.resourceEvents(applicationName, null);
     }
 
-    public resourceEvents(applicationName: string, resource: models.ResourceNode): Promise<models.Event[]> {
-        return requests.get(`/applications/${applicationName}/events`).query({  }).send().then((res) => (res.body as models.EventList).items || []);
+    public resourceEvents(applicationName: string, resource: {
+        namespace: string,
+        name: string,
+        uid: string,
+    }): Promise<models.Event[]> {
+        return requests.get(`/applications/${applicationName}/events`).query({
+            resourceUID: resource.uid,
+            resourceNamespace: resource.namespace,
+            resourceName: resource.name,
+        }).send().then((res) => (res.body as models.EventList).items || []);
     }
 
     public terminateOperation(applicationName: string): Promise<boolean> {

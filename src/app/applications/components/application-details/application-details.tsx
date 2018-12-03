@@ -452,10 +452,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private getResourceTabs(application: appModels.Application, node: ResourceTreeNode, state: appModels.State, tabs: Tab[]) {
-        tabs.push({
-            title: 'EVENTS', key: 'events', content: <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={node}/>,
-        });
-        if (node.kind === 'Pod') {
+        if (state) {
+            tabs.push({
+                title: 'EVENTS', key: 'events', content: (
+                <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={{
+                    name: state.metadata.name,
+                    namespace: state.metadata.namespace,
+                    uid: state.metadata.uid,
+                }}/>),
+            });
+        }
+        if (node.kind === 'Pod' && state) {
             const containerGroups = [{
                 offset: 0,
                 title: 'INIT CONTAINERS',

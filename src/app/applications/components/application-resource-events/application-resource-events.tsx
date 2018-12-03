@@ -2,10 +2,9 @@ import { MockupList } from 'argo-ui';
 import * as React from 'react';
 
 import { DataLoader, EventsList } from '../../../shared/components';
-import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
-export const ApplicationResourceEvents = (props: { applicationName: string, resource?: models.ResourceNode }) => (
+export const ApplicationResourceEvents = (props: { applicationName: string, resource?: {namespace: string, name: string, uid: string} }) => (
     <div className='application-resource-events'>
         <DataLoader load={() => props.resource ?
             services.applications.resourceEvents(props.applicationName, props.resource) :
