@@ -186,7 +186,7 @@ func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionK
 // ApplyResource performs an apply of a unstructured resource
 func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error) {
 	log.Infof("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), config.Host, namespace)
-	f, err := ioutil.TempFile(kubectlTempDir, "")
+	f, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate temp file for kubeconfig: %v", err)
 	}
@@ -195,7 +195,7 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 	if err != nil {
 		return "", fmt.Errorf("Failed to write kubeconfig: %v", err)
 	}
-	defer deleteFile(f.Name())
+	defer util.DeleteFile(f.Name())
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return "", err
@@ -271,7 +271,7 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, vers
 	if err != nil {
 		return nil, err
 	}
-	f, err := ioutil.TempFile(kubectlTempDir, "")
+	f, err := ioutil.TempFile(util.TempDir, "")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to generate temp file for kubectl: %v", err)
 	}
@@ -279,7 +279,7 @@ func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, vers
 	if err := ioutil.WriteFile(f.Name(), manifestBytes, 0600); err != nil {
 		return nil, err
 	}
-	defer deleteFile(f.Name())
+	defer util.DeleteFile(f.Name())
 	outputVersion := fmt.Sprintf("%s/%s", group, version)
 	cmd := exec.Command("kubectl", "convert", "--output-version", outputVersion, "-o", "json", "--local=true", "-f", f.Name())
 	cmd.Stdin = bytes.NewReader(manifestBytes)

@@ -2,6 +2,8 @@ package db
 
 import (
 	"github.com/argoproj/argo-cd/util/settings"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"golang.org/x/net/context"
@@ -32,6 +34,9 @@ type ArgoDB interface {
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository updates a repository
 	DeleteRepository(ctx context.Context, name string) error
+
+	// ListHelmRepoURLs lists configured helm repositories
+	ListHelmRepos(ctx context.Context) ([]*appv1.HelmRepository, error)
 }
 
 type db struct {
@@ -47,4 +52,48 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
+}
+
+func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
+	secret, ok := cache[name]
+	if !ok {
+		var err error
+		secret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		if secret.Data == nil {
+			secret.Data = make(map[string][]byte)
+		}
+		cache[name] = secret
+	}
+	return secret, nil
+}
+
+func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector) error {
+	cache := make(map[string]*v1.Secret)
+	for dst, src := range secrets {
+		if src != nil {
+			secret, err := db.getSecret(src.Name, cache)
+			if err != nil {
+				return err
+			}
+			*dst = string(secret.Data[src.Key])
+		}
+	}
+	return nil
+}
+
+func (db *db) unmarshalFromSecretsBytes(secrets map[*[]byte]*v1.SecretKeySelector) error {
+	cache := make(map[string]*v1.Secret)
+	for dst, src := range secrets {
+		if src != nil {
+			secret, err := db.getSecret(src.Name, cache)
+			if err != nil {
+				return err
+			}
+			*dst = secret.Data[src.Key]
+		}
+	}
+	return nil
 }

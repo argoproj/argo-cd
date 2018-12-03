@@ -352,3 +352,40 @@ func TestFuzzyEquivalence(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 }
+
+func TestListHelmRepositories(t *testing.T) {
+	config := map[string]string{
+		"helm.repositories": `
+- url: https://argoproj.github.io/argo-helm
+  name: argo
+  caSecret:
+    name: test-secret
+    key: ca
+  certSecret:
+    name: test-secret
+    key: cert
+  keySecret:
+    name: test-secret
+    key: key
+`}
+	clientset := getClientset(config, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"ca":   []byte("test-ca"),
+			"cert": []byte("test-cert"),
+			"key":  []byte("test-key"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+
+	repos, err := db.ListHelmRepos(context.Background())
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(repos))
+	repo := repos[0]
+	assert.Equal(t, []byte("test-ca"), repo.CAData)
+	assert.Equal(t, []byte("test-cert"), repo.CertData)
+	assert.Equal(t, []byte("test-key"), repo.KeyData)
+}

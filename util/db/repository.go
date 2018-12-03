@@ -86,42 +86,16 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
-
 	repoInfo := s.Repositories[index]
 	repo := &appsv1.Repository{Repo: repoInfo.URL}
 
-	cache := make(map[string]*apiv1.Secret)
-	getSecret := func(secretName string) (*apiv1.Secret, error) {
-		if _, ok := cache[secretName]; !ok {
-			secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(secretName, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			cache[secretName] = secret
-		}
-		return cache[secretName], nil
-	}
-
-	if repoInfo.UsernameSecret != nil {
-		secret, err := getSecret(repoInfo.UsernameSecret.Name)
-		if err != nil {
-			return nil, err
-		}
-		repo.Username = string(secret.Data[repoInfo.UsernameSecret.Key])
-	}
-	if repoInfo.PasswordSecret != nil {
-		secret, err := getSecret(repoInfo.PasswordSecret.Name)
-		if err != nil {
-			return nil, err
-		}
-		repo.Password = string(secret.Data[repoInfo.PasswordSecret.Key])
-	}
-	if repoInfo.SshPrivateKeySecret != nil {
-		secret, err := getSecret(repoInfo.SshPrivateKeySecret.Name)
-		if err != nil {
-			return nil, err
-		}
-		repo.SSHPrivateKey = string(secret.Data[repoInfo.SshPrivateKeySecret.Key])
+	err = db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
+		&repo.Username:      repoInfo.UsernameSecret,
+		&repo.Password:      repoInfo.PasswordSecret,
+		&repo.SSHPrivateKey: repoInfo.SshPrivateKeySecret,
+	})
+	if err != nil {
+		return nil, err
 	}
 	return repo, nil
 }

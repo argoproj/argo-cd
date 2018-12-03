@@ -23,7 +23,7 @@ func findParameter(params []*argoappv1.ComponentParameter, name string) *argoapp
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h := NewHelmApp("./testdata/minio")
+	h := NewHelmApp("./testdata/minio", []*argoappv1.HelmRepository{})
 	overrides := []*argoappv1.ComponentParameter{
 		{
 			Name:  "service.type",
@@ -50,7 +50,7 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h := NewHelmApp("./testdata/redis")
+	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
 	valuesFiles := []string{"values-production.yaml"}
 	objs, err := h.Template("test", HelmTemplateOpts{ValueFiles: valuesFiles}, nil)
 	assert.Nil(t, err)
@@ -67,7 +67,7 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmTemplateValuesURL(t *testing.T) {
-	h := NewHelmApp("./testdata/redis")
+	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
 	valuesFiles := []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"}
 	objs, err := h.Template("test", HelmTemplateOpts{ValueFiles: valuesFiles}, nil)
 	assert.Nil(t, err)
@@ -78,7 +78,7 @@ func TestHelmTemplateValuesURL(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h := NewHelmApp("./testdata/redis")
+	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
 	params, err := h.GetParameters([]string{})
 	assert.Nil(t, err)
 
@@ -88,7 +88,7 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h := NewHelmApp("./testdata/redis")
+	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
 	params, err := h.GetParameters([]string{"values-production.yaml"})
 	assert.Nil(t, err)
 
@@ -103,7 +103,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 	}
 	clean()
 	defer clean()
-	h := NewHelmApp("./testdata/wordpress")
+	h := NewHelmApp("./testdata/wordpress", []*argoappv1.HelmRepository{})
 	helmHome, err := ioutil.TempDir("", "")
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(helmHome) }()

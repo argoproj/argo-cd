@@ -205,7 +205,11 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		env := v1alpha1.KsonnetEnv(q.ApplicationSource)
 		targetObjs, params, dest, err = ksShow(appPath, env, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		h := helm.NewHelmApp(appPath)
+		h := helm.NewHelmApp(appPath, q.HelmRepos)
+		err := h.Init()
+		if err != nil {
+			return nil, err
+		}
 		opts := helmOpts(q)
 		targetObjs, err = h.Template(q.AppLabel, opts, q.ComponentParameterOverrides)
 		if err != nil {

@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
+
+	"github.com/argoproj/argo-cd/util"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -40,13 +43,15 @@ type HelmTemplateOpts struct {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(path string) Helm {
-	return &helm{path: path}
+func NewHelmApp(path string, helmRepos []*argoappv1.HelmRepository) Helm {
+	return &helm{path: path, helmRepos: helmRepos}
 }
 
 type helm struct {
-	path string
-	home string
+	path             string
+	home             string
+	helmRepos        []*argoappv1.HelmRepository
+	reposInitialized bool
 }
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
@@ -75,6 +80,39 @@ func (h *helm) Template(appName string, opts HelmTemplateOpts, overrides []*argo
 }
 
 func (h *helm) DependencyBuild() error {
+	if !h.reposInitialized {
+		var files []*os.File
+		defer func() {
+			for i := range files {
+				util.DeleteFile(files[i].Name())
+			}
+		}()
+
+		for _, repo := range h.helmRepos {
+			args := []string{"repo", "add"}
+
+			for flag, data := range map[string][]byte{"--ca-file": repo.CAData, "--cert-file": repo.CertData, "--key-file": repo.KeyData} {
+				if repo.KeyData != nil {
+					f, err := ioutil.TempFile(util.TempDir, "")
+					if err != nil {
+						return fmt.Errorf("failed to generate temp file for %s: %v", flag, err)
+					}
+					files = append(files, f)
+					_, err = f.Write(data)
+					if err != nil {
+						return fmt.Errorf("failed to write temp file for %s: %v", flag, err)
+					}
+					_ = f.Close()
+					args = append(args, flag, f.Name())
+				}
+			}
+
+			_, err := h.helmCmd(append(args, repo.Name, repo.URL)...)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	_, err := h.helmCmd("dependency", "build")
 	return err
 }
@@ -84,7 +122,14 @@ func (h *helm) SetHome(home string) {
 }
 
 func (h *helm) Init() error {
-	_, err := h.helmCmd("init", "--client-only")
+	if h.home == "" {
+		home, err := ioutil.TempDir("", "helm")
+		if err != nil {
+			return err
+		}
+		h.home = home
+	}
+	_, err := h.helmCmd("init", "--client-only", "--skip-refresh")
 	return err
 }
 

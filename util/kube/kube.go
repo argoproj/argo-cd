@@ -50,17 +50,11 @@ const (
 )
 
 var (
-	// location to use for generating temporary files, such as the kubeconfig needed by kubectl
-	kubectlTempDir string
 	// legacyLabeling decides whether or not to use legacy (v0.10 and below) labeling
 	legacyLabeling = false
 )
 
 func init() {
-	fileInfo, err := os.Stat("/dev/shm")
-	if err == nil && fileInfo.IsDir() {
-		kubectlTempDir = "/dev/shm"
-	}
 	val, _ := os.LookupEnv(common.EnvVarLegacyLabels)
 	legacyLabeling = bool(val == "1" || val == "true")
 }
@@ -320,14 +314,6 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 		}
 	}
 	return nil, apierr.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
-}
-
-// deleteFile is best effort deletion of a file
-func deleteFile(path string) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return
-	}
-	_ = os.Remove(path)
 }
 
 // cleanKubectlOutput makes the error output of kubectl a little better to read

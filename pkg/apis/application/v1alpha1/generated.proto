@@ -288,6 +288,18 @@ message HealthStatus {
   optional string statusDetails = 2;
 }
 
+message HelmRepository {
+  optional string url = 1;
+
+  optional string name = 2;
+
+  optional bytes caData = 3;
+
+  optional bytes certData = 4;
+
+  optional bytes keyData = 5;
+}
+
 // HookStatus contains status about a hook invocation
 message HookStatus {
   // Name is the resource name

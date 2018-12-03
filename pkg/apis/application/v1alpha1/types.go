@@ -542,6 +542,14 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
+type HelmRepository struct {
+	URL      string `json:"url" protobuf:"bytes,1,opt,name=url"`
+	Name     string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	CAData   []byte `json:"caData,omitempty" protobuf:"bytes,3,opt,name=caData"`
+	CertData []byte `json:"certData,omitempty" protobuf:"bytes,4,opt,name=certData"`
+	KeyData  []byte `json:"keyData,omitempty" protobuf:"bytes,5,opt,name=keyData"`
+}
+
 // Repository is a Git repository holding application configurations
 type Repository struct {
 	Repo            string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`

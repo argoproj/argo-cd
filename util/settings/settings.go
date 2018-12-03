@@ -56,6 +56,8 @@ type ArgoCDSettings struct {
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// Repositories holds list of configured git repositories
 	Repositories []RepoCredentials
+	// Repositories holds list of configured helm repositories
+	HelmRepositories []HelmRepoCredentials
 }
 
 type OIDCConfig struct {
@@ -70,6 +72,14 @@ type RepoCredentials struct {
 	UsernameSecret      *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	PasswordSecret      *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	SshPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+}
+
+type HelmRepoCredentials struct {
+	URL        string                   `json:"url,omitempty"`
+	Name       string                   `json:"name,omitempty"`
+	CASecret   *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
+	CertSecret *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
+	KeySecret  *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
 const (
@@ -87,6 +97,8 @@ const (
 	settingURLKey = "url"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
+	// helmRepositoriesKey designates the key where list of helm repositories is set
+	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
@@ -191,6 +203,14 @@ func (mgr *SettingsManager) updateSettingsFromConfigMap(settings *ArgoCDSettings
 	if repositoriesStr != "" {
 		settings.Repositories = make([]RepoCredentials, 0)
 		err := yaml.Unmarshal([]byte(repositoriesStr), &settings.Repositories)
+		if err != nil {
+			return err
+		}
+	}
+	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
+	if helmRepositoriesStr != "" {
+		settings.HelmRepositories = make([]HelmRepoCredentials, 0)
+		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &settings.HelmRepositories)
 		if err != nil {
 			return err
 		}
