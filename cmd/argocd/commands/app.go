@@ -13,7 +13,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -29,10 +28,16 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -540,12 +545,75 @@ func liveObjects(resources []*argoappv1.ResourceState) ([]*unstructured.Unstruct
 	return objs, nil
 }
 
+func getLocalObjects(app *argoappv1.Application, local string, env string, values []string) []*unstructured.Unstructured {
+	var localObjs []*unstructured.Unstructured
+	var err error
+	appType := repository.IdentifyAppSourceTypeByAppDir(local)
+	switch appType {
+	case argoappv1.ApplicationSourceTypeKsonnet:
+		if env == "" {
+			log.Fatal("--env required when performing local diff on ksonnet application")
+		}
+		if len(values) > 0 {
+			log.Fatal("--values option invalid when performing local diff on ksonnet application")
+		}
+		ksApp, err := ksonnet.NewKsonnetApp(local)
+		errors.CheckError(err)
+		localObjs, err = ksApp.Show(env)
+		errors.CheckError(err)
+	case argoappv1.ApplicationSourceTypeHelm:
+		if env != "" {
+			log.Fatal("--env option invalid when performing local diff on helm application")
+		}
+		h := helm.NewHelmApp(local)
+		opts := helm.HelmTemplateOpts{
+			Namespace: app.Namespace,
+		}
+		opts.ValueFiles = values
+		localObjs, err = h.Template(app.Name, opts, []*argoappv1.ComponentParameter{})
+		if err != nil {
+			if !helm.IsMissingDependencyErr(err) {
+				errors.CheckError(err)
+			}
+			err = h.DependencyBuild()
+			errors.CheckError(err)
+		}
+	case argoappv1.ApplicationSourceTypeKustomize:
+		if len(values) > 0 {
+			log.Fatal("--values option invalid when performing local diff on Kustomize application")
+		}
+		if env != "" {
+			log.Fatal("--env option invalid when performing local diff on Kustomize application")
+		}
+		k := kustomize.NewKustomizeApp(local)
+		opts := kustomize.KustomizeBuildOpts{
+			Namespace: app.Namespace,
+		}
+		if app.Spec.Source.Kustomize != nil {
+			opts.NamePrefix = app.Spec.Source.Kustomize.NamePrefix
+		}
+		localObjs, _, err = k.Build(opts, []*argoappv1.ComponentParameter{})
+		errors.CheckError(err)
+	case argoappv1.ApplicationSourceTypeDirectory:
+		if len(values) > 0 {
+			log.Fatal("--values option invalid when performing local diff on a directory")
+		}
+		if env != "" {
+			log.Fatal("--env option invalid when performing local diff on a directory")
+		}
+		localObjs, err = repository.FindManifests(local)
+		errors.CheckError(err)
+	}
+	return localObjs
+}
+
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		refresh bool
 		local   string
 		env     string
+		values  []string
 	)
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
@@ -555,6 +623,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
@@ -566,12 +635,28 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			targetObjs, err := targetObjects(resources.Items)
 			errors.CheckError(err)
+			localObjs := []*unstructured.Unstructured{}
+			if local != "" {
+				localObjs = getLocalObjects(app, local, env, values)
+				if len(resources.Items) != len(localObjs) {
+					log.Fatal("Local comparison doesn't have the same number of resources as the live resource")
+				}
+			} else if env != "" || len(values) > 0 {
+				log.Fatal("--env option invalid when performing git diff")
+			}
 
 			for i := range resources.Items {
 				item := resources.Items[i]
 				// Diff is already available in ManagedResource Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(targetObjs[i], liveObjs[i])
 				fmt.Printf("===== %s %s ======\n", item.Kind, item.Name)
+				if local != "" {
+					liveObj, err := item.LiveObject()
+					errors.CheckError(err)
+					err = kube.SetAppInstanceLabel(localObjs[i], appName)
+					errors.CheckError(err)
+					diffRes = diff.Diff(localObjs[i], liveObj)
+				}
 				if diffRes.Modified {
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
@@ -581,14 +666,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Println(out)
 				}
 			}
-			if local != "" && len(app.Spec.Source.ComponentParameterOverrides) > 0 {
-				log.Warnf("Unable to display parameter overrides")
-			}
+
 		},
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
 	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
+	command.Flags().StringArrayVar(&values, "values", []string{}, "Helm values file(s) in the helm directory to use")
 	return command
 }
 
