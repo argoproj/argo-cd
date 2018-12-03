@@ -7,8 +7,9 @@ import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
 export interface ResourceTreeNode extends appModels.ResourceNode {
-    status?: appModels.ComparisonStatus;
+    status?: appModels.SyncStatusCode;
     health?: appModels.HealthStatus;
+    hook?: boolean;
 }
 
 export interface NodeId {
@@ -46,9 +47,9 @@ export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[
     return componentParams;
 }
 
-export async function syncApplication(appName: string, revision: string, prune: boolean, resources: appModels.SyncOperationResource[], context: AppContext) {
+export async function syncApplication(appName: string, revision: string, prune: boolean, dryRun: boolean, resources: appModels.SyncOperationResource[], context: AppContext) {
     try {
-        await services.applications.sync(appName, revision, prune, resources);
+        await services.applications.sync(appName, revision, prune, dryRun, resources);
         return true;
     } catch (e) {
         context.apis.notifications.show({
@@ -115,20 +116,20 @@ export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase })
     return <i title={phase} className={className} style={{ color }} />;
 };
 
-export const ComparisonStatusIcon = ({status}: { status: appModels.ComparisonStatus }) => {
+export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCode }) => {
     let className = '';
     let color = '';
 
     switch (status) {
-        case appModels.ComparisonStatuses.Synced:
+        case appModels.SyncStatuses.Synced:
             className = 'fa fa-check-circle';
             color = ARGO_SUCCESS_COLOR;
             break;
-        case appModels.ComparisonStatuses.OutOfSync:
+        case appModels.SyncStatuses.OutOfSync:
             className = 'fa fa-times';
             color = ARGO_FAILED_COLOR;
             break;
-        case appModels.ComparisonStatuses.Unknown:
+        case appModels.SyncStatuses.Unknown:
             className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
             color = ARGO_RUNNING_COLOR;
             break;
@@ -154,10 +155,66 @@ export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => 
             break;
     }
     let title: string = state.status;
-    if (state.statusDetails) {
-        title = `${state.status}: ${state.statusDetails};`;
+    if (state.message) {
+        title = `${state.status}: ${state.message};`;
     }
     return <i title={title} className='fa fa-heartbeat' style={{ color }} />;
+};
+
+export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceResult }) => {
+    let color = '';
+
+    if (resource.status) {
+        switch (resource.status) {
+            case appModels.ResultCodes.Synced:
+                color = ARGO_SUCCESS_COLOR;
+                break;
+            case appModels.ResultCodes.SyncedAndPruned:
+                color = ARGO_SUCCESS_COLOR;
+                break;
+            case appModels.ResultCodes.SyncFailed:
+                color = ARGO_FAILED_COLOR;
+                break;
+            case appModels.ResultCodes.PruningRequired:
+                color = ARGO_RUNNING_COLOR;
+                break;
+        }
+        let title: string = resource.message;
+        if (resource.message) {
+            title = `${resource.status}: ${resource.message};`;
+        }
+        return <i title={title} className='fa fa-heartbeat' style={{ color }} />;
+    }
+    if (resource.hookPhase) {
+        let className = '';
+        switch (resource.hookPhase) {
+            case appModels.OperationPhases.Running:
+                color = ARGO_RUNNING_COLOR;
+                className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
+                break;
+            case appModels.OperationPhases.Failed:
+                color = ARGO_FAILED_COLOR;
+                className = 'fa fa-heartbeat';
+                break;
+            case appModels.OperationPhases.Error:
+                color = ARGO_FAILED_COLOR;
+                className = 'fa fa-heartbeat';
+                break;
+            case appModels.OperationPhases.Succeeded:
+                color = ARGO_SUCCESS_COLOR;
+                className = 'fa fa-heartbeat';
+                break;
+            case appModels.OperationPhases.Terminating:
+                color = ARGO_RUNNING_COLOR;
+                className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
+                break;
+        }
+        let title: string = resource.message;
+        if (resource.message) {
+            title = `${resource.hookPhase}: ${resource.message};`;
+        }
+        return <i title={title} className={className} style={{ color }} />;
+    }
 };
 
 export function getOperationType(application: appModels.Application) {

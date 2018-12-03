@@ -22,13 +22,13 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     let appOperationState = application.status.operationState;
     if (application.metadata.deletionTimestamp) {
         appOperationState = {
-            phase:  models.OperationPhases.InProgress,
+            phase:  models.OperationPhases.Running,
             startedAt: application.metadata.deletionTimestamp,
         } as models.OperationState;
         showOperation = null;
     } else if (application.operation && application.status.operationState === undefined) {
         appOperationState = {
-            phase:  models.OperationPhases.InProgress,
+            phase:  models.OperationPhases.Running,
             startedAt: new Date().toISOString(),
             operation: {
                 sync: {},

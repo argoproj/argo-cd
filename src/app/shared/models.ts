@@ -37,10 +37,10 @@ export interface Operation {
     rollback: RollbackOperation;
 }
 
-export type OperationPhase = 'InProgress' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
+export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
 
 export const OperationPhases = {
-    InProgress: 'InProgress' as OperationPhase,
+    Running: 'Running' as OperationPhase,
     Failed: 'Failed' as OperationPhase,
     Error: 'Error' as OperationPhase,
     Succeeded: 'Succeeded' as OperationPhase,
@@ -61,43 +61,29 @@ export interface OperationState {
 
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'Skip';
 
-export interface HookStatus {
-    /**
-     * Name is the resource name
-     */
-    name: string;
-    /**
-     * Name is the resource name
-     */
-    kind: string;
-    /**
-     * Name is the resource name
-     */
-    apiVersion: string;
-    /**
-     * Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)
-     */
-    type: HookType;
-    /**
-     * Status a simple, high-level summary of where the resource is in its lifecycle
-     */
-    status: OperationPhase;
-    /**
-     * A human readable message indicating details about why the resource is in this condition.
-     */
-    message: string;
-}
-
 export interface SyncOperationResult {
-    resources: ResourceDetails[];
-    hooks?: HookStatus[];
+    resources: ResourceResult[];
 }
 
-export interface ResourceDetails {
+export type ResultCode = 'Synced' | 'SyncFailed' | 'SyncedAndPruned' | 'PruningRequired';
+
+export const ResultCodes = {
+    Synced: 'Synced',
+    SyncFailed: 'SyncFailed',
+    SyncedAndPruned: 'SyncedAndPruned',
+    PruningRequired: 'PruningRequired',
+};
+
+export interface ResourceResult {
     name: string;
+    group: string;
     kind: string;
+    version: string;
     namespace: string;
+    status: ResultCode;
     message: string;
+    hookType: HookType;
+    hookPhase: OperationPhase;
 }
 
 export interface Application {
@@ -191,9 +177,9 @@ export interface DeploymentInfo {
     deployedAt: models.Time;
 }
 
-export type ComparisonStatus = 'Unknown' | 'Synced' | 'OutOfSync';
+export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
 
-export const ComparisonStatuses = {
+export const SyncStatuses = {
     Unknown: 'Unknown',
     Synced: 'Synced' ,
     OutOfSync: 'OutOfSync',
@@ -210,19 +196,20 @@ export const HealthStatuses = {
 
 export interface HealthStatus {
     status: HealthStatusCode;
-    statusDetails: string;
+    message: string;
 }
 
 export type State = models.TypeMeta & { metadata: models.ObjectMeta } & { status: any, spec: any };
 
-export interface ResourceSummary {
+export interface ResourceStatus {
     group: string;
     version: string;
     kind: string;
     namespace: string;
     name: string;
-    status: ComparisonStatus;
+    status: SyncStatusCode;
     health: HealthStatus;
+    hook?: boolean;
 }
 
 export interface ResourceNode {
@@ -236,7 +223,7 @@ export interface ResourceNode {
     resourceVersion: string;
 }
 
-export interface ResourceState {
+export interface ResourceDiff {
     group: string;
     kind: string;
     namespace: string;
@@ -249,10 +236,10 @@ export interface ResourceState {
 export interface ComparisonResult {
     comparedAt: models.Time;
     comparedTo: ApplicationSource;
-    status: ComparisonStatus;
+    status: SyncStatusCode;
     namespace: string;
     server: string;
-    resources: ResourceSummary[];
+    resources: ResourceStatus[];
     revision: string;
 }
 

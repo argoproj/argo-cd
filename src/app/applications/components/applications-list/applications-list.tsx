@@ -247,7 +247,7 @@ export class ApplicationsList extends React.Component<Props, State> {
     }
 
     private async syncApplication(appName: string, revision: string) {
-        const synced = await AppUtils.syncApplication(appName, revision, false, null, this.appContext);
+        const synced = await AppUtils.syncApplication(appName, revision, false, false, null, this.appContext);
         if (synced) {
             this.appContext.apis.notifications.show({
                 type: NotificationType.Success,

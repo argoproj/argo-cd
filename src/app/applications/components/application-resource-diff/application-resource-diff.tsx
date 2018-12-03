@@ -8,7 +8,7 @@ import * as models from '../../../shared/models';
 require('./application-resource-diff.scss');
 
 export interface ApplicationComponentDiffProps {
-    state: models.ResourceState;
+    state: models.ResourceDiff;
 }
 
 export class ApplicationResourceDiff extends React.Component<ApplicationComponentDiffProps, { hideDefaultedFields: boolean }> {

@@ -78,7 +78,7 @@ export const ApplicationResourceTree = (props: {
     };
     graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
 
-    function addChildren<T extends (models.ResourceNode | models.ResourceState) & { key: string, children: models.ResourceNode[] }>(node: T) {
+    function addChildren<T extends (models.ResourceNode | models.ResourceDiff) & { key: string, children: models.ResourceNode[] }>(node: T) {
         graph.setNode(node.key, Object.assign({}, node, { width: NODE_WIDTH, height: NODE_HEIGHT}));
         for (const child of (node.children || []).slice().sort(compareNodes)) {
             const key = nodeKey(child);
@@ -116,8 +116,8 @@ export const ApplicationResourceTree = (props: {
     return (
         <div className='application-resource-tree' style={{width: size.width + 150, height: size.height + 150}}>
             {graph.nodes().map((fullName) => {
-                const node = graph.node(fullName) as (models.ResourceNode) & dagre.Node;
-                let comparisonStatus: models.ComparisonStatus = null;
+                const node = graph.node(fullName) as (ResourceTreeNode) & dagre.Node;
+                let comparisonStatus: models.SyncStatusCode = null;
                 let healthState: models.HealthStatus = null;
                 if (node.status || node.health) {
                     comparisonStatus = node.status;
@@ -139,6 +139,7 @@ export const ApplicationResourceTree = (props: {
                                 'application-resource-tree__node-status-icon--offset': node.kind === 'Application',
                             })}>
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
+                                {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                                 {healthState != null && <HealthStatusIcon state={healthState}/>}
                             </div>
                         </div>

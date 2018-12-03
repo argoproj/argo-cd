@@ -8,7 +8,7 @@ import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon, ResourceTree
 
 require('./application-node-info.scss');
 
-export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: models.State, controlled: { summary: models.ResourceSummary, state: models.ResourceState } }) => {
+export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: models.State, controlled: { summary: models.ResourceStatus, state: models.ResourceDiff } }) => {
     const attributes = [
         {title: 'KIND', value: props.node.kind},
         {title: 'NAME', value: props.node.name},
@@ -33,14 +33,16 @@ export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: model
     }
 
     if (props.controlled) {
-        attributes.push({title: 'STATUS', value: (
-            <span><ComparisonStatusIcon status={props.controlled.summary.status}/> {props.controlled.summary.status}</span>
-        )} as any);
+        if (!props.controlled.summary.hook) {
+            attributes.push({title: 'STATUS', value: (
+                <span><ComparisonStatusIcon status={props.controlled.summary.status}/> {props.controlled.summary.status}</span>
+            )} as any);
+        }
         attributes.push({title: 'HEALTH', value: (
             <span><HealthStatusIcon state={props.controlled.summary.health}/> {props.controlled.summary.health.status}</span>
         )} as any);
-        if (props.controlled.summary.health.statusDetails) {
-            attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.statusDetails});
+        if (props.controlled.summary.health.message) {
+            attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.message});
         }
     }
 
@@ -49,7 +51,7 @@ export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: model
         title: 'Manifest',
         content: <div className='application-node-info__manifest application-node-info__manifest--raw'>{jsYaml.safeDump(props.live, {indent: 2 })}</div>,
     }];
-    if (props.controlled) {
+    if (props.controlled && !props.controlled.summary.hook) {
         tabs.unshift({
             key: 'diff',
             title: 'Diff',

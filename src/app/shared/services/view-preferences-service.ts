@@ -7,7 +7,7 @@ export interface ViewPreferences {
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
 const DEFAULT_PREFERENCES = {
-    appDetails: { defaultKindFilter: ['Deployment', 'Service', 'Pod', 'StatefulSet', 'Ingress', 'ConfigMap'] },
+    appDetails: { defaultKindFilter: ['Deployment', 'Service', 'Pod', 'StatefulSet', 'Ingress', 'ConfigMap', 'Job', 'DaemonSet', 'Workflow'] },
 };
 
 export class ViewPreferencesService {

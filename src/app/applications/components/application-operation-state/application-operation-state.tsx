@@ -9,6 +9,8 @@ import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import * as utils from '../utils';
 
+require('./application-operation-state.scss');
+
 interface Props { application: models.Application; operationState: models.OperationState; }
 
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
@@ -75,69 +77,68 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     ))}
                 </div>
             </div>
-            {syncResult && syncResult.hooks && syncResult.hooks.length > 0 && (
+            {syncResult && syncResult.resources && syncResult.resources.length > 0 && (
                 <React.Fragment>
-                    <h4>Hooks:</h4>
+                    <h4>Result:</h4>
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
-                                <div className='columns small-2'>
+                                <div className='columns small-1 application-operation-state__icons_container_padding'>
+                                    API VERSION
+                                </div>
+                                <div className='columns small-1'>
                                     KIND
+                                </div>
+                                <div className='columns small-1'>
+                                    NAMESPACE
                                 </div>
                                 <div className='columns small-2'>
                                     NAME
                                 </div>
-                                <div className='columns small-2'>
+                                <div className='columns small-1'>
                                     STATUS
                                 </div>
-                                <div className='columns small-2'>
-                                    TYPE
+                                <div className='columns small-1'>
+                                    HOOK
                                 </div>
                                 <div className='columns small-4'>
                                     MESSAGE
                                 </div>
                             </div>
                         </div>
-                    {syncResult.hooks.map((hook, i) => (
+                    {syncResult.resources.map((resource, i) => (
                         <div className='argo-table-list__row' key={i}>
                             <div className='row'>
-                                <div className='columns small-2'>
-                                    {hook.kind}
+                                <div className='columns small-1 application-operation-state__icons_container_padding'>
+                                    <div className='application-operation-state__icons_container'>
+                                        {resource.hookType && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
+                                   </div>
+                                   {resource.group ? resource.group + '/' + resource.version : resource.version}
+                                </div>
+                                <div className='columns small-1'>
+                                    {resource.kind}
+                                </div>
+                                <div className='columns small-1'>
+                                    {resource.namespace}
                                 </div>
                                 <div className='columns small-2'>
-                                    {hook.name}
+                                    {resource.name}
                                 </div>
-                                <div className='columns small-2'>
-                                    {hook.status}
+                                <div className='columns small-1'>
+                                    <utils.ResourceResultIcon
+                                        resource={resource}/> {resource.status || resource.hookPhase}
                                 </div>
-                                <div className='columns small-2'>
-                                    {hook.type}
+                                <div className='columns small-1'>
+                                    {resource.hookType}
                                 </div>
                                 <div className='columns small-4'>
-                                    {hook.message}
+                                    {resource.message}
                                 </div>
                             </div>
                         </div>
                     ))}
                     </div>
                 </React.Fragment>
-            )}
-            {resultAttributes.length > 0 && (
-                <h4>Result details:</h4>
-            )}
-            { resultAttributes.length > 0 && (
-                <div className='white-box'>
-                    <div className='white-box__details'>
-                        {resultAttributes.map((attr) => (
-                            <div className='row white-box__details-row' key={attr.title}>
-                                <div className='columns small-3'>
-                                    {attr.title}
-                                </div>
-                                <div className='columns small-9'>{attr.value}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             )}
         </div>
     );

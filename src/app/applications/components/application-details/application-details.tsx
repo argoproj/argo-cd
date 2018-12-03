@@ -42,6 +42,7 @@ function resourcesFromSummaryInfo(application: appModels.Application, roots: app
             children: root && root.children || [],
             status: summary.status,
             health: summary.health,
+            hook: summary.hook,
             tags: [],
             resourceVersion: root && root.resourceVersion || '',
         };
@@ -235,7 +236,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 )}
                                 </div>
                             </SlidingPanel>
-                            <SlidingPanel isNarrow={true} isShown={showDeployPanel} onClose={() => this.showDeploy(null)} header={(
+                            <SlidingPanel isMiddle={true} isShown={showDeployPanel} onClose={() => this.showDeploy(null)} header={(
                                     <div>
                                     <button className='argo-button argo-button--base' onClick={() => this.formApi.submitForm(null)}>
                                         Synchronize
@@ -248,12 +249,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     <Form
                                         defaultValues={{
                                             revision: application.spec.source.targetRevision || 'HEAD',
-                                            resources: resources.map((_, i) => i === deployResIndex || deployResIndex === -1),
+                                            resources: resources.filter((item) => !item.hook).map((_, i) => i === deployResIndex || deployResIndex === -1),
                                         }}
                                         validateError={(values) => ({
                                             resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',
                                         })}
-                                        onSubmit={(params: any) => this.syncApplication(params.revision, params.prune, params.resources, resources)}
+                                        onSubmit={(params: any) => this.syncApplication(params.revision, params.prune, params.dryRun, params.resources, resources)}
                                         getApi={(api) => this.formApi = api}>
 
                                         {(formApi) => (
@@ -266,10 +267,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 </div>
 
                                                 <div className='argo-form-row'>
-                                                    <p>
-                                                        <Checkbox id='prune-on-sync-checkbox' field='prune'/> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
-                                                    </p>
-
+                                                    <div>
+                                                        <span>
+                                                            <Checkbox id='prune-on-sync-checkbox' field='prune'/> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
+                                                        </span> <span>
+                                                            <Checkbox id='dry-run-checkbox' field='dryRun'/> <label htmlFor='dry-run-checkbox'>Dry Run</label>
+                                                        </span>
+                                                    </div>
                                                     <label>Synchronize resources:</label>
                                                     <div style={{float: 'right'}}>
                                                         <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => true))}>all</a> / <a
@@ -278,7 +282,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                         <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
                                                     )}
                                                     <div style={{paddingLeft: '1em'}}>
-                                                    {resources.map((item, i) => {
+                                                    {resources.filter((item) => !item.hook).map((item, i) => {
                                                         const resKey = nodeKey(item);
                                                         return (
                                                             <div key={resKey}>
@@ -332,8 +336,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private groupAppNodesByKey(application: appModels.Application, resources: ResourceTreeNode[]) {
-        const nodeByKey = new Map<string, appModels.ResourceState | appModels.ResourceNode | appModels.Application>();
-        function addChildren<T extends (appModels.ResourceNode | appModels.ResourceState) & { key: string, children: appModels.ResourceNode[] }>(node: T) {
+        const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
+        function addChildren<T extends (appModels.ResourceNode | appModels.ResourceDiff) & { key: string, children: appModels.ResourceNode[] }>(node: T) {
             nodeByKey.set(node.key, node);
             for (const child of (node.children || [])) {
                 addChildren({...child, key: nodeKey(child)});
@@ -380,7 +384,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.appContext.apis.navigation.goto('.', { node });
     }
 
-    private async syncApplication(revision: string, prune: boolean, selectedResources: boolean[], appResources: appModels.ResourceNode[]) {
+    private async syncApplication(revision: string, prune: boolean, dryRun: boolean, selectedResources: boolean[], appResources: appModels.ResourceNode[]) {
         let resources = selectedResources && appResources.filter((_, i) => selectedResources[i]).map((item) => {
             return {
                 group: item.group,
@@ -392,7 +396,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         if (resources && resources.length === appResources.length) {
             resources = null;
         }
-        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, resources, this.appContext);
+        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, dryRun, resources, this.appContext);
         this.showDeploy(null);
     }
 

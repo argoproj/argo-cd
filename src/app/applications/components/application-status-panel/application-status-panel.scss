@@ -46,7 +46,7 @@
             color: $argo-color-teal-6;
         }
 
-        &--InProgress a, &--Terminating a {
+        &--Running a, &--Terminating a {
             color: $argo-running-color;
         }
 

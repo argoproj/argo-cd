@@ -30,13 +30,13 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}/resource-tree`).then((res) => res.body.items as models.ResourceNode[] || []);
     }
 
-    public managedResources(name: string): Promise<models.ResourceState[]> {
+    public managedResources(name: string): Promise<models.ResourceDiff[]> {
         return requests.get(`/applications/${name}/managed-resources`).then((res) => res.body.items as any[] || []).then((items) => {
             items.forEach((item) => {
                 item.liveState = JSON.parse(item.liveState);
                 item.targetState = JSON.parse(item.targetState);
             });
-            return items as models.ResourceState[];
+            return items as models.ResourceDiff[];
         });
     }
 
@@ -76,8 +76,8 @@ export class ApplicationsService {
         });
     }
 
-    public sync(name: string, revision: string, prune: boolean, resources: models.SyncOperationResource[]): Promise<boolean> {
-        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, resources}).then(() => true);
+    public sync(name: string, revision: string, prune: boolean, dryRun: boolean, resources: models.SyncOperationResource[]): Promise<boolean> {
+        return requests.post(`/applications/${name}/sync`).send({revision, prune: !!prune, dryRun: !!dryRun, resources}).then(() => true);
     }
 
     public rollback(name: string, id: number): Promise<boolean> {
