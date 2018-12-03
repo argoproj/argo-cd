@@ -67,7 +67,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	pod := test.NewPod()
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
-	key := kube.ResourceKey{"", "Pod", test.FakeDestNamespace, app.Name}
+	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},
@@ -124,7 +124,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	pod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 	pod.SetNamespace(test.FakeDestNamespace)
 	app := newFakeApp()
-	key := kube.ResourceKey{"", "Pod", test.FakeDestNamespace, app.Name}
+	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &repository.ManifestResponse{
 			Manifests: []string{},

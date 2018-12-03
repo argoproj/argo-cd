@@ -45,9 +45,26 @@ func newFakeController(data *fakeData) *ApplicationController {
 	mockRepoClientset := mockreposerver.Clientset{}
 	mockRepoClientset.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoClient, nil)
 
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	}
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Data: nil,
+	}
 	ctrl := NewApplicationController(
 		test.FakeArgoCDNamespace,
-		fake.NewSimpleClientset(&clust),
+		fake.NewSimpleClientset(&clust, &cm, &secret),
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
 		time.Minute,

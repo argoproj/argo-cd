@@ -16,6 +16,7 @@ message ManifestRequest {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 6;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmRepository helmRepos = 11;
 }
 
 message ManifestResponse {

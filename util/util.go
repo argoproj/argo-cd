@@ -6,12 +6,25 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"runtime/debug"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
+
+var (
+	// location to use for generating temporary files, such as the kubeconfig needed by kubectl
+	TempDir string
+)
+
+func init() {
+	fileInfo, err := os.Stat("/dev/shm")
+	if err == nil && fileInfo.IsDir() {
+		TempDir = "/dev/shm"
+	}
+}
 
 type Closer interface {
 	Close() error
@@ -21,6 +34,14 @@ type Closer interface {
 // Used to satisfy errcheck lint
 func Close(c Closer) {
 	_ = c.Close()
+}
+
+// DeleteFile is best effort deletion of a file
+func DeleteFile(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return
+	}
+	_ = os.Remove(path)
 }
 
 // Wait takes a check interval and timeout and waits for a function to return `true`.

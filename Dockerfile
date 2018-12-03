@@ -122,6 +122,4 @@ COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/* /usr/local/b
 
 USER argocd
 
-RUN helm init --client-only
-
 WORKDIR /home/argocd

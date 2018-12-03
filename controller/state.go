@@ -66,6 +66,10 @@ type appStateManager struct {
 }
 
 func (m *appStateManager) GetTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error) {
+	helmRepos, err := m.db.ListHelmRepos(context.Background())
+	if err != nil {
+		return nil, nil, err
+	}
 	repo := m.getRepo(app.Spec.Source.RepoURL)
 	conn, repoClient, err := m.repoClientset.NewRepositoryClient()
 	if err != nil {
@@ -97,6 +101,7 @@ func (m *appStateManager) GetTargetObjs(app *v1alpha1.Application, revision stri
 
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
+		HelmRepos:                   helmRepos,
 		Revision:                    revision,
 		ComponentParameterOverrides: mfReqOverrides,
 		AppLabel:                    app.Name,
