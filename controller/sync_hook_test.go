@@ -3,10 +3,8 @@ package controller
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
-
-	"github.com/argoproj/argo-cd/util/kube"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +29,7 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 	syncCtx := newTestSyncCtx(&v1.APIResourceList{
 		GroupVersion: "v1",
 		APIResources: []v1.APIResource{
-			{Name: "pod", Namespaced: true, Kind: "Pod", Group: ""},
+			{Name: "pod", Namespaced: true, Kind: "Pod", Group: "v1"},
 		},
 	}, &v1.APIResourceList{
 		GroupVersion: "rbac.authorization.k8s.io/v1",
@@ -44,8 +42,8 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 	syncCtx.manifestInfo = &repository.ManifestResponse{
 		Manifests: []string{clusterRoleHook},
 	}
-	syncCtx.resources = []ManagedResource{{
-		Target: kube.MustToUnstructured(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: "foo"}, TypeMeta: v1.TypeMeta{Kind: "pod"}}),
+	syncCtx.resources = []managedResource{{
+		Target: test.NewPod(),
 	}}
 	syncCtx.proj.Spec.ClusterResourceWhitelist = []v1.GroupKind{}
 

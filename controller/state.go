@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
+	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -26,7 +27,7 @@ const (
 	maxHistoryCnt = 5
 )
 
-type ManagedResource struct {
+type managedResource struct {
 	Target    *unstructured.Unstructured
 	Live      *unstructured.Unstructured
 	Diff      diff.DiffResult
@@ -35,9 +36,10 @@ type ManagedResource struct {
 	Kind      string
 	Namespace string
 	Name      string
+	Hook      bool
 }
 
-func GetLiveObjs(res []ManagedResource) []*unstructured.Unstructured {
+func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 	objs := make([]*unstructured.Unstructured, len(res))
 	for i := range res {
 		objs[i] = res[i].Live
@@ -48,7 +50,7 @@ func GetLiveObjs(res []ManagedResource) []*unstructured.Unstructured {
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ManagedResource, []v1alpha1.ApplicationCondition, error)
+		*v1alpha1.ComparisonResult, *repository.ManifestResponse, []managedResource, []v1alpha1.ApplicationCondition, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 	GetTargetObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, *repository.ManifestResponse, error)
 }
@@ -111,7 +113,8 @@ func (m *appStateManager) GetTargetObjs(app *v1alpha1.Application, revision stri
 		if err != nil {
 			return nil, nil, err
 		}
-		if isHook(obj) {
+		if hookutil.IsHook(obj) {
+			// Hooks are not target-state objects, so don't include them in the list
 			continue
 		}
 		targetObjs = append(targetObjs, obj)
@@ -123,7 +126,7 @@ func (m *appStateManager) GetTargetObjs(app *v1alpha1.Application, revision stri
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (
-	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []ManagedResource, []v1alpha1.ApplicationCondition, error) {
+	*v1alpha1.ComparisonResult, *repository.ManifestResponse, []managedResource, []v1alpha1.ApplicationCondition, error) {
 
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -155,9 +158,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	managedLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 	for i, obj := range targetObjs {
-
 		gvk := obj.GroupVersionKind()
-
 		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
 		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind()); err == nil && !namespaced {
 			ns = ""
@@ -170,6 +171,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			managedLiveObj[i] = nil
 		}
 	}
+
+	// Everything remaining in liveObjByKey are "extra" resources that aren't tracked in git.
+	// The following adds all the extras to the managedLiveObj list and backfills the targetObj
+	// list with nils, so that the lists are of equal lengths for comparison purposes.
 	for _, obj := range liveObjByKey {
 		targetObjs = append(targetObjs, nil)
 		managedLiveObj = append(managedLiveObj, obj)
@@ -185,7 +190,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	comparisonStatus := v1alpha1.ComparisonStatusSynced
 
-	managedResources := make([]ManagedResource, len(targetObjs))
+	managedResources := make([]managedResource, len(targetObjs))
 	resourceSummaries := make([]v1alpha1.ResourceSummary, len(targetObjs))
 	for i := 0; i < len(targetObjs); i++ {
 		obj := managedLiveObj[i]
@@ -203,30 +208,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Kind:      gvk.Kind,
 			Version:   gvk.Version,
 			Group:     gvk.Group,
+			Hook:      hookutil.IsHook(obj),
 		}
-		diffResult := diffResults.Diffs[i]
 
-		if diffResult.Modified {
-			// Set resource state to 'OutOfSync' since target and corresponding live resource are different
+		diffResult := diffResults.Diffs[i]
+		if resState.Hook {
+			// For resource hooks, don't store sync status, and do not affect overall sync status
+		} else if diffResult.Modified || targetObjs[i] == nil || managedLiveObj[i] == nil {
+			// Set resource state to OutOfSync since one of the following is true:
+			// * target and live resource are different
+			// * target resource not defined and live resource is extra
+			// * target resource present but live resource is missing
 			resState.Status = v1alpha1.ComparisonStatusOutOfSync
 			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
 		} else {
 			resState.Status = v1alpha1.ComparisonStatusSynced
 		}
-
-		if targetObjs[i] == nil {
-			// Set resource state to 'OutOfSync' since target resource is missing and live resource is unexpected
-			resState.Status = v1alpha1.ComparisonStatusOutOfSync
-			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
-		}
-
-		if managedLiveObj[i] == nil {
-			// Set resource state to 'OutOfSync' since target resource present but corresponding live resource is missing
-			resState.Status = v1alpha1.ComparisonStatusOutOfSync
-			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
-		}
-
-		managedResources[i] = ManagedResource{
+		managedResources[i] = managedResource{
 			Name:      resState.Name,
 			Namespace: resState.Namespace,
 			Group:     resState.Group,
@@ -235,6 +233,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			Live:      managedLiveObj[i],
 			Target:    targetObjs[i],
 			Diff:      diffResult,
+			Hook:      resState.Hook,
 		}
 		resourceSummaries[i] = resState
 	}

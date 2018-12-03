@@ -1140,6 +1140,7 @@
     "pkg/client/clientset/clientset",
     "pkg/client/clientset/clientset/scheme",
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
+    "pkg/features",
   ]
   pruneopts = ""
   revision = "ca1024863b48cf0701229109df75ac5f0bb4907e"
@@ -1197,6 +1198,17 @@
   revision = "f71dbbc36e126f5a371b85f6cca96bc8c57db2b6"
 
 [[projects]]
+  branch = "master"
+  digest = "1:cb3ac215bfac54696f64a6e5c46524a7fc0f7a8f9b7a22cccb2e1e83ac2d013f"
+  name = "k8s.io/apiserver"
+  packages = [
+    "pkg/features",
+    "pkg/util/feature",
+  ]
+  pruneopts = ""
+  revision = "19cf388d0a374e95329bf7d98e9bfd7da8853be0"
+
+[[projects]]
   branch = "release-9.0"
   digest = "1:77bf3d9f18ec82e08ac6c4c7e2d9d1a2ef8d16b25d3ff72fcefcf9256d751573"
   name = "k8s.io/client-go"
@@ -1204,7 +1216,6 @@
     "discovery",
     "discovery/fake",
     "dynamic",
-    "dynamic/fake",
     "informers/core/v1",
     "informers/internalinterfaces",
     "kubernetes",
@@ -1335,6 +1346,14 @@
   revision = "8394c995ab8fbe52216f38d0e1a37de36d820528"
 
 [[projects]]
+  digest = "1:4f5eb833037cc0ba0bf8fe9cae6be9df62c19dd1c869415275c708daa8ccfda5"
+  name = "k8s.io/klog"
+  packages = ["."]
+  pruneopts = ""
+  revision = "a5bc97fbc634d635061f3146511332c7e313a55a"
+  version = "v0.1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:9a648ff9eb89673d2870c22fc011ec5db0fcff6c4e5174a650298e51be71bbf1"
   name = "k8s.io/kube-openapi"
@@ -1349,6 +1368,7 @@
   digest = "1:6061aa42761235df375f20fa4a1aa6d1845cba3687575f3adb2ef3f3bc540af5"
   name = "k8s.io/kubernetes"
   packages = [
+    "pkg/api/v1/pod",
     "pkg/apis/apps",
     "pkg/apis/autoscaling",
     "pkg/apis/batch",
@@ -1356,7 +1376,10 @@
     "pkg/apis/extensions",
     "pkg/apis/networking",
     "pkg/apis/policy",
+    "pkg/features",
     "pkg/kubectl/scheme",
+    "pkg/kubelet/apis",
+    "pkg/util/node",
   ]
   pruneopts = ""
   revision = "17c77c7898218073f14c8d573582e8d2313dc740"
@@ -1439,8 +1462,7 @@
     "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh",
     "gopkg.in/src-d/go-git.v4/storage/memory",
     "k8s.io/api/apps/v1",
-    "k8s.io/api/apps/v1beta1",
-    "k8s.io/api/apps/v1beta2",
+    "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
@@ -1456,7 +1478,6 @@
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/selection",
     "k8s.io/apimachinery/pkg/types",
-    "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/strategicpatch",
     "k8s.io/apimachinery/pkg/util/wait",
@@ -1464,7 +1485,6 @@
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/discovery/fake",
     "k8s.io/client-go/dynamic",
-    "k8s.io/client-go/dynamic/fake",
     "k8s.io/client-go/informers/core/v1",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
@@ -1478,10 +1498,12 @@
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/go-to-protobuf",
+    "k8s.io/kubernetes/pkg/api/v1/pod",
     "k8s.io/kubernetes/pkg/apis/apps",
     "k8s.io/kubernetes/pkg/apis/batch",
     "k8s.io/kubernetes/pkg/apis/core",
     "k8s.io/kubernetes/pkg/kubectl/scheme",
+    "k8s.io/kubernetes/pkg/util/node",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

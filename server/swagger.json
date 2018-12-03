@@ -2722,6 +2722,9 @@
     "v1alpha1ResourceDetails": {
       "type": "object",
       "properties": {
+        "group": {
+          "type": "string"
+        },
         "kind": {
           "type": "string"
         },
@@ -2811,6 +2814,10 @@
         },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "hook": {
+          "type": "boolean",
+          "format": "boolean"
         },
         "kind": {
           "type": "string"
