@@ -634,7 +634,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		parameters = manifestInfo.Params
 	}
 
-	healthState, err := health.SetApplicationHealth(ctrl.kubectl, comparisonResult, GetLiveObjs(resources))
+	healthState, err := health.SetApplicationHealth(comparisonResult, GetLiveObjs(resources))
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}

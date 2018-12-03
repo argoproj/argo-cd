@@ -10,7 +10,6 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthStatusCode) {
@@ -19,7 +18,7 @@ func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthS
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetResourceHealth(kube.KubectlCmd{}, &obj)
+	health, err := GetResourceHealth(&obj)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, expectedStatus, health.Status)
@@ -107,13 +106,13 @@ func TestSetApplicationHealth(t *testing.T) {
 		&runningPod,
 		&failedJob,
 	}
-	healthStatus, err := SetApplicationHealth(kube.KubectlCmd{}, &compRes, liveObjs)
+	healthStatus, err := SetApplicationHealth(&compRes, liveObjs)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = SetApplicationHealth(kube.KubectlCmd{}, &compRes, liveObjs)
+	healthStatus, err = SetApplicationHealth(&compRes, liveObjs)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 

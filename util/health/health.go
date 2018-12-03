@@ -9,9 +9,9 @@ import (
 	coreV1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/apis/apps"
+	"k8s.io/kubernetes/pkg/kubectl/scheme"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
@@ -19,7 +19,7 @@ import (
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
-func SetApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.ComparisonResult, liveObjs []*unstructured.Unstructured) (*appv1.HealthStatus, error) {
+func SetApplicationHealth(comparisonResult *appv1.ComparisonResult, liveObjs []*unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
@@ -31,7 +31,7 @@ func SetApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.Comparis
 		if liveObj == nil {
 			resHealth = &appv1.HealthStatus{Status: appv1.HealthStatusMissing}
 		} else {
-			resHealth, err = GetResourceHealth(kubectl, liveObj)
+			resHealth, err = GetResourceHealth(liveObj)
 			if err != nil && savedErr == nil {
 				savedErr = err
 			}
@@ -47,7 +47,7 @@ func SetApplicationHealth(kubectl kube.Kubectl, comparisonResult *appv1.Comparis
 }
 
 // GetResourceHealth returns the health of a k8s resource
-func GetResourceHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+func GetResourceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	var err error
 	var health *appv1.HealthStatus
 
@@ -56,29 +56,29 @@ func GetResourceHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*a
 	case "apps", "extensions":
 		switch gvk.Kind {
 		case kube.DeploymentKind:
-			health, err = getDeploymentHealth(kubectl, obj)
+			health, err = getDeploymentHealth(obj)
 		case kube.IngressKind:
-			health, err = getIngressHealth(kubectl, obj)
+			health, err = getIngressHealth(obj)
 		case kube.StatefulSetKind:
-			health, err = getStatefulSetHealth(kubectl, obj)
+			health, err = getStatefulSetHealth(obj)
 		case kube.ReplicaSetKind:
-			health, err = getReplicaSetHealth(kubectl, obj)
+			health, err = getReplicaSetHealth(obj)
 		case kube.DaemonSetKind:
-			health, err = getDaemonSetHealth(kubectl, obj)
+			health, err = getDaemonSetHealth(obj)
 		}
 	case "":
 		switch gvk.Kind {
 		case kube.ServiceKind:
-			health, err = getServiceHealth(kubectl, obj)
+			health, err = getServiceHealth(obj)
 		case kube.PersistentVolumeClaimKind:
-			health, err = getPVCHealth(kubectl, obj)
+			health, err = getPVCHealth(obj)
 		case kube.PodKind:
-			health, err = getPodHealth(kubectl, obj)
+			health, err = getPodHealth(obj)
 		}
 	case "batch":
 		switch gvk.Kind {
 		case kube.JobKind:
-			health, err = getJobHealth(kubectl, obj)
+			health, err = getJobHealth(obj)
 		}
 	}
 	if err != nil {
@@ -116,13 +116,12 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 	return newIndex > currentIndex
 }
 
-func getPVCHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	var pvc coreV1.PersistentVolumeClaim
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pvc)
+func getPVCHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	pvc := &coreV1.PersistentVolumeClaim{}
+	err := scheme.Scheme.Convert(obj, pvc, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, pvc, err)
 	}
-
 	switch pvc.Status.Phase {
 	case coreV1.ClaimLost:
 		return &appv1.HealthStatus{Status: appv1.HealthStatusDegraded}, nil
@@ -135,17 +134,12 @@ func getPVCHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.
 	}
 }
 
-func getIngressHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kubectl.ConvertToVersion(obj, "extensions", "v1beta1")
+func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	ingress := &extv1beta1.Ingress{}
+	err := scheme.Scheme.Convert(obj, ingress, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, ingress, err)
 	}
-	var ingress extv1beta1.Ingress
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &ingress)
-	if err != nil {
-		return nil, err
-	}
-
 	health := appv1.HealthStatus{Status: appv1.HealthStatusProgressing}
 	for _, ingress := range ingress.Status.LoadBalancer.Ingress {
 		if ingress.Hostname != "" || ingress.IP != "" {
@@ -156,11 +150,11 @@ func getIngressHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*ap
 	return &health, nil
 }
 
-func getServiceHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	var service coreV1.Service
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &service)
+func getServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	service := &coreV1.Service{}
+	err := scheme.Scheme.Convert(obj, service, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, service, err)
 	}
 	health := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if service.Spec.Type == coreV1.ServiceTypeLoadBalancer {
@@ -175,17 +169,12 @@ func getServiceHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*ap
 	return &health, nil
 }
 
-func getDeploymentHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
+func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	deployment := &appsv1.Deployment{}
+	err := scheme.Scheme.Convert(obj, deployment, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, deployment, err)
 	}
-	var deployment appsv1.Deployment
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &deployment)
-	if err != nil {
-		return nil, err
-	}
-
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L80
 	if deployment.Generation <= deployment.Status.ObservedGeneration {
 		cond := getDeploymentCondition(deployment.Status, v1.DeploymentProgressing)
@@ -222,18 +211,12 @@ func getDeploymentHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (
 	}, nil
 }
 
-func getDaemonSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
+func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	daemon := &appsv1.DaemonSet{}
+	err := scheme.Scheme.Convert(obj, daemon, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, daemon, err)
 	}
-	var daemon appsv1.DaemonSet
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &daemon)
-
-	if err != nil {
-		return nil, err
-	}
-
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L110
 	if daemon.Generation <= daemon.Status.ObservedGeneration {
 		if daemon.Status.UpdatedNumberScheduled < daemon.Status.DesiredNumberScheduled {
@@ -260,17 +243,12 @@ func getDaemonSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*
 	}, nil
 }
 
-func getStatefulSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
+func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	sts := &appsv1.StatefulSet{}
+	err := scheme.Scheme.Convert(obj, sts, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, sts, err)
 	}
-	var sts appsv1.StatefulSet
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &sts)
-	if err != nil {
-		return nil, err
-	}
-
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L131
 	if sts.Status.ObservedGeneration == 0 || sts.Generation > sts.Status.ObservedGeneration {
 		return &appv1.HealthStatus{
@@ -311,18 +289,12 @@ func getStatefulSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) 
 	}, nil
 }
 
-func getReplicaSetHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	obj, err := kubectl.ConvertToVersion(obj, "apps", "v1")
+func getReplicaSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	replicaSet := &appsv1.ReplicaSet{}
+	err := scheme.Scheme.Convert(obj, replicaSet, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, replicaSet, err)
 	}
-	var replicaSet appsv1.ReplicaSet
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &replicaSet)
-
-	if err != nil {
-		return nil, err
-	}
-
 	if replicaSet.Generation <= replicaSet.Status.ObservedGeneration {
 		cond := getReplicaSetCondition(replicaSet.Status, v1.ReplicaSetReplicaFailure)
 		if cond != nil && cond.Status == coreV1.ConditionTrue {
@@ -368,11 +340,11 @@ func getReplicaSetCondition(status v1.ReplicaSetStatus, condType v1.ReplicaSetCo
 	return nil
 }
 
-func getJobHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	var job batchv1.Job
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &job)
+func getJobHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	job := &batchv1.Job{}
+	err := scheme.Scheme.Convert(obj, job, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, job, err)
 	}
 	failed := false
 	var failMsg string
@@ -407,11 +379,11 @@ func getJobHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.
 	}
 }
 
-func getPodHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
-	var pod coreV1.Pod
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pod)
+func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	pod := &coreV1.Pod{}
+	err := scheme.Scheme.Convert(obj, pod, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, pod, err)
 	}
 	switch pod.Status.Phase {
 	case coreV1.PodPending:
@@ -433,7 +405,7 @@ func getPodHealth(kubectl kube.Kubectl, obj *unstructured.Unstructured) (*appv1.
 		switch pod.Spec.RestartPolicy {
 		case coreV1.RestartPolicyAlways:
 			// if pod is ready, it is automatically healthy
-			if podutil.IsPodReady(&pod) {
+			if podutil.IsPodReady(pod) {
 				return &appv1.HealthStatus{
 					Status:        appv1.HealthStatusHealthy,
 					StatusDetails: pod.Status.Message,

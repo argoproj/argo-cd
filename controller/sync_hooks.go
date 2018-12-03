@@ -58,7 +58,7 @@ func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Un
 	// already started the post-sync phase, then we do not need to perform the health check.
 	postSyncHooks, _ := sc.getHooks(appv1.HookTypePostSync)
 	if len(postSyncHooks) > 0 && !sc.startedPostSyncPhase() {
-		healthState, err := health.SetApplicationHealth(sc.kubectl, sc.comparison, GetLiveObjs(sc.resources))
+		healthState, err := health.SetApplicationHealth(sc.comparison, GetLiveObjs(sc.resources))
 		sc.log.Infof("PostSync application health check: %s", healthState.Status)
 		if err != nil {
 			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to check application health: %v", err))
