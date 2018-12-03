@@ -47,9 +47,13 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             ),
         },
         {
-            title: 'REVISION',
+            title: 'TARGET REVISION',
             view: app.spec.source.targetRevision || 'HEAD',
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text}/>,
+        },
+        {
+            title: 'SYNCED TO REVISION',
+            view: app.status.comparisonResult.revision || '',
         },
         {
             title: 'PATH',

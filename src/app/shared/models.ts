@@ -253,6 +253,7 @@ export interface ComparisonResult {
     namespace: string;
     server: string;
     resources: ResourceSummary[];
+    revision: string;
 }
 
 export interface ApplicationCondition {
