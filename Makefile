@@ -80,7 +80,7 @@ repo-server:
 
 .PHONY: controller
 controller:
-	go build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
+	${PACKR_CMD} build -v -i -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd/argocd-application-controller
 
 .PHONY: image
 image:
