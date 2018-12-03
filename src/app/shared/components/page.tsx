@@ -20,7 +20,7 @@ export class Page extends React.Component<TopBarProps> {
     }
 
     private async logout() {
-        await services.userService.logout();
+        await services.users.logout();
         this.appContext.history.push('/login');
     }
 

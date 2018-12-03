@@ -128,7 +128,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     next: async () => {
                         try {
                             this.updateState({ loading: true });
-                            const selectedAppDetails = await services.reposService.appDetails(this.state.selectedRepo, this.state.selectedApp.path, this.state.revision);
+                            const selectedAppDetails = await services.repos.appDetails(this.state.selectedRepo, this.state.selectedApp.path, this.state.revision);
 
                             if (selectedAppDetails.ksonnet) {
                                 this.updateState({ selectedAppDetails, envs: selectedAppDetails.ksonnet.environments || {}, step: Step.SelectEnvironments});
@@ -165,7 +165,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     prev: () => this.updateState({ step: Step.SelectRepo, revision: 'HEAD' }),
                 render: () => (
                     <DataLoader ref={(loader) => this.appsLoader = loader} key='apps'
-                            load={() => services.reposService.apps(this.state.selectedRepo, this.state.revision)}
+                            load={() => services.repos.apps(this.state.selectedRepo, this.state.revision)}
                             loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
                         {(apps: models.AppInfo[]) => (
                             <AppsList apps={apps} selectedApp={this.state.selectedApp} onAppSelected={(selectedApp) => this.updateState({ selectedApp })}/>
@@ -236,7 +236,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     canPrev: () => false,
                     prev: null,
                     render: () => (
-                        <DataLoader key='repos' load={() => services.reposService.list()} loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
+                        <DataLoader key='repos' load={() => services.repos.list()} loadingRenderer={() => <MockupList height={50} marginTop={10}/>}>
                         {(repos) => <RepositoryList
                             selectedRepo={this.state.selectedRepo}
                             invalidRepoURL={this.state.selectedRepo && !isRepoValid}

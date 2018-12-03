@@ -1,4 +1,4 @@
-import { NotificationType, SlidingPanel, Tabs } from 'argo-ui';
+import { NotificationsApi, NotificationType, SlidingPanel, Tabs } from 'argo-ui';
 import * as React from 'react';
 import { FormApi } from 'react-form';
 import { RouteComponentProps } from 'react-router';
@@ -69,7 +69,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                     title: 'Events',
                                     content: this.eventsTab(proj),
                                 }]}/>
-                                <SlidingPanel isMiddle={true} isShown={params.get('edit') === 'true'}
+                                <SlidingPanel isShown={params.get('edit') === 'true'}
                                     onClose={() => ctx.navigation.goto('.', {edit: null})} header={(
                                     <div>
                                         <button onClick={() => ctx.navigation.goto('.', {edit: null})} className='argo-button argo-button--base-o'>
@@ -158,8 +158,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
                                             }
                                         }}
                                         token={this.state.token}
-                                        createJWTToken={async (jwtTokenParams: CreateJWTTokenParams) => this.createJWTToken(jwtTokenParams)}
-                                        deleteJWTToken={async (jwtTokenParams: DeleteJWTTokenParams) => this.deleteJWTToken(jwtTokenParams)}
+                                        createJWTToken={async (jwtTokenParams: CreateJWTTokenParams) => this.createJWTToken(jwtTokenParams, ctx.notifications)}
+                                        deleteJWTToken={async (jwtTokenParams: DeleteJWTTokenParams) => this.deleteJWTToken(jwtTokenParams, ctx.notifications)}
                                         hideJWTToken={() => this.setState({token: ''})}
                                     />}
                                 </SlidingPanel>
@@ -174,15 +174,29 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
         );
     }
 
-    private async deleteJWTToken(params: DeleteJWTTokenParams) {
-        await services.projects.deleteJWTToken(params);
-        this.loader.setData(await services.projects.get(this.props.match.params.name));
+    private async deleteJWTToken(params: DeleteJWTTokenParams, notifications: NotificationsApi) {
+        try {
+            await services.projects.deleteJWTToken(params);
+            this.loader.setData(await services.projects.get(this.props.match.params.name));
+        } catch (e) {
+            notifications.show({
+                content: <ErrorNotification title='Unable to delete JWT token' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
     }
 
-    private async createJWTToken(params: CreateJWTTokenParams) {
-        const jwtToken = await services.projects.createJWTToken(params);
-        this.loader.setData(await services.projects.get(this.props.match.params.name));
-        this.setState({token: jwtToken.token});
+    private async createJWTToken(params: CreateJWTTokenParams, notifications: NotificationsApi) {
+        try {
+            const jwtToken = await services.projects.createJWTToken(params);
+            this.loader.setData(await services.projects.get(this.props.match.params.name));
+            this.setState({token: jwtToken.token});
+        } catch (e) {
+            notifications.show({
+                content: <ErrorNotification title='Unable to create JWT token' e={e}/>,
+                type: NotificationType.Error,
+            });
+        }
     }
 
     private eventsTab(proj: Project) {

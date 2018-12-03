@@ -106,7 +106,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
         try {
             this.setState({loginError: ''});
             this.appContext.apis.navigation.goto('.', { sso_error: null });
-            await services.userService.login(username, password);
+            await services.users.login(username, password);
             if (returnURL) {
                 const url = new URL(returnURL);
                 this.appContext.apis.navigation.goto(url.pathname + url.search);

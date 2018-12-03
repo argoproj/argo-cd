@@ -195,7 +195,7 @@ export class AppParams extends React.Component<{
                                 <FormField formApi={api} label='Name Prefix' field='namePrefix' component={Text} />
                             </div>
                         )}
-                        <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
+                        <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((item) => item.server))}>
                             {(clusters) => {
                                 const projectField = 'project';
                                 const project = !api.errors[projectField] ?

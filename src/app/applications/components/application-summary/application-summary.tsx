@@ -26,7 +26,7 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             title: 'CLUSTER',
             view: app.spec.destination.server,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.clustersService.list().then((clusters) => clusters.map((item) => item.server))}>
+                <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((item) => item.server))}>
                     {(clusters) => (
                         <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={FormSelect}/>
                     )}

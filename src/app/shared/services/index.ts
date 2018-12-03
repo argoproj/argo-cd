@@ -8,10 +8,10 @@ import { ViewPreferencesService } from './view-preferences-service';
 
 export interface Services {
     applications: ApplicationsService;
-    userService: UserService;
+    users: UserService;
     authService: AuthService;
-    reposService: RepositoriesService;
-    clustersService: ClustersService;
+    repos: RepositoriesService;
+    clusters: ClustersService;
     projects: ProjectsService;
     viewPreferences: ViewPreferencesService;
 }
@@ -19,9 +19,9 @@ export interface Services {
 export const services: Services = {
     applications: new ApplicationsService(),
     authService: new AuthService(),
-    clustersService: new ClustersService(),
-    userService: new UserService(),
-    reposService: new RepositoriesService(),
+    clusters: new ClustersService(),
+    users: new UserService(),
+    repos: new RepositoriesService(),
     projects: new ProjectsService(),
     viewPreferences: new ViewPreferencesService(),
 };

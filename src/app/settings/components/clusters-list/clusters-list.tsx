@@ -8,7 +8,7 @@ export const ClustersList = () => (
     <Page title='Clusters' toolbar={{ breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Clusters'}] }}>
         <div className='repos-list'>
             <div className='argo-container'>
-                <DataLoader load={() => services.clustersService.list()}>
+                <DataLoader load={() => services.clusters.list()}>
                 {(clusters: models.Cluster[]) => (
                     clusters.length > 0 && (
                     <div className='argo-table-list'>

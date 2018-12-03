@@ -47,7 +47,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                         </div>
                     </div>
                     <div className='argo-container'>
-                    <DataLoader load={() => services.reposService.list()} ref={(loader) => this.loader = loader}>
+                    <DataLoader load={() => services.repos.list()} ref={(loader) => this.loader = loader}>
                     {(repos: models.Repository[]) => (
                         repos.length > 0 && (
                         <div className='argo-table-list'>
@@ -116,7 +116,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
 
     private async connectRepo(params: NewRepoParams) {
         try {
-            await services.reposService.create(params);
+            await services.repos.create(params);
             this.showConnectRepo = false;
             this.loader.reload();
         } catch (e) {
@@ -131,7 +131,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
         const confirmed = await this.appContext.apis.popup.confirm(
             'Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
-            await services.reposService.delete(repo);
+            await services.repos.delete(repo);
             this.loader.reload();
         }
     }
