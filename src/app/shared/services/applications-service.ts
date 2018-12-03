@@ -112,7 +112,7 @@ export class ApplicationsService {
     }
 
     public events(applicationName: string): Promise<models.Event[]> {
-        return this.resourceEvents(applicationName, null);
+        return requests.get(`/applications/${applicationName}/events`).send().then((res) => (res.body as models.EventList).items || []);
     }
 
     public resourceEvents(applicationName: string, resource: {
