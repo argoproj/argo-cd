@@ -254,54 +254,50 @@ const (
 	HookDeletePolicyHookFailed    HookDeletePolicy = "HookFailed"
 )
 
-// HookStatus contains status about a hook invocation
-type HookStatus struct {
-	// Name is the resource name
-	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	// Kind is the resource kind
-	Kind string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	// APIVersion is the resource API version
-	APIVersion string `json:"apiVersion" protobuf:"bytes,3,opt,name=apiVersion"`
-	// Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)
-	Type HookType `json:"type" protobuf:"bytes,4,opt,name=type"`
-	// Status a simple, high-level summary of where the resource is in its lifecycle
-	Status OperationPhase `json:"status" protobuf:"bytes,5,opt,name=status"`
-	// A human readable message indicating details about why the resource is in this condition.
-	Message string `json:"message,omitempty" protobuf:"bytes,6,opt,name=message"`
-	// Namespace is a hook object namespace
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,7,opt,name=namespace"`
-}
-
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources holds the sync result of each individual resource
-	Resources []*ResourceDetails `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Resources []*ResourceResult `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	// Revision holds the git commit SHA of the sync
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	// Hooks contains list of hook resource statuses associated with this operation
-	Hooks []*HookStatus `json:"hooks,omitempty" protobuf:"bytes,3,opt,name=hooks"`
 }
 
-type ResourceSyncStatus string
+type ResultCode string
 
 const (
-	ResourceDetailsSynced          ResourceSyncStatus = "Synced"
-	ResourceDetailsSyncFailed      ResourceSyncStatus = "SyncFailed"
-	ResourceDetailsSyncedAndPruned ResourceSyncStatus = "SyncedAndPruned"
-	ResourceDetailsPruningRequired ResourceSyncStatus = "PruningRequired"
+	ResultCodeSynced          ResultCode = "Synced"
+	ResultCodeSyncFailed      ResultCode = "SyncFailed"
+	ResultCodeSyncedAndPruned ResultCode = "SyncedAndPruned"
+	ResultCodePruningRequired ResultCode = "PruningRequired"
 )
 
-func (s ResourceSyncStatus) Successful() bool {
-	return s != ResourceDetailsSyncFailed
+func (s ResultCode) Successful() bool {
+	return s != ResultCodeSyncFailed
 }
 
-type ResourceDetails struct {
-	Name      string             `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Group     string             `json:"group" protobuf:"bytes,2,opt,name=group"`
-	Kind      string             `json:"kind" protobuf:"bytes,3,opt,name=kind"`
-	Namespace string             `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
-	Message   string             `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
-	Status    ResourceSyncStatus `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+// ResourceResult holds the operation result details of a specific resource
+type ResourceResult struct {
+	Group     string         `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Version   string         `json:"version" protobuf:"bytes,2,opt,name=version"`
+	Kind      string         `json:"kind" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string         `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	Name      string         `json:"name" protobuf:"bytes,5,opt,name=name"`
+	Status    ResultCode     `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Message   string         `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
+	HookType  HookType       `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
+	HookPhase OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
+}
+
+func (r *ResourceResult) IsHook() bool {
+	return r.HookType != ""
+}
+
+func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   r.Group,
+		Version: r.Version,
+		Kind:    r.Kind,
+	}
 }
 
 // DeploymentInfo contains information relevant to an application deployment
@@ -339,14 +335,14 @@ type ComponentParameter struct {
 	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
 }
 
-// ComparisonStatus is a type which represents possible comparison results
-type ComparisonStatus string
+// SyncStatusCode is a type which represents possible comparison results
+type SyncStatusCode string
 
 // Possible comparison results
 const (
-	ComparisonStatusUnknown   ComparisonStatus = "Unknown"
-	ComparisonStatusSynced    ComparisonStatus = "Synced"
-	ComparisonStatusOutOfSync ComparisonStatus = "OutOfSync"
+	SyncStatusCodeUnknown   SyncStatusCode = "Unknown"
+	SyncStatusCodeSynced    SyncStatusCode = "Synced"
+	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
 )
 
 // ApplicationConditionType represents type of application condition. Type name has following convention:
@@ -382,33 +378,33 @@ type ApplicationCondition struct {
 type ComparisonResult struct {
 	ComparedAt metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
 	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Status     ComparisonStatus  `json:"status" protobuf:"bytes,5,opt,name=status,casttype=ComparisonStatus"`
+	Status     SyncStatusCode    `json:"status" protobuf:"bytes,5,opt,name=status,casttype=SyncStatusCode"`
 	Revision   string            `json:"revision" protobuf:"bytes,7,opt,name=revision"`
-	Resources  []ResourceSummary `json:"resources,omitempty" protobuf:"bytes,8,opt,name=resources"`
+	Resources  []ResourceStatus  `json:"resources,omitempty" protobuf:"bytes,8,opt,name=resources"`
 }
 
 type HealthStatus struct {
-	Status        HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
-	StatusDetails string           `json:"statusDetails,omitempty" protobuf:"bytes,2,opt,name=statusDetails"`
+	Status  HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	Message string           `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 }
 
 type HealthStatusCode = string
 
 const (
-	HealthStatusUnknown     = "Unknown"
-	HealthStatusProgressing = "Progressing"
-	HealthStatusHealthy     = "Healthy"
-	HealthStatusDegraded    = "Degraded"
-	HealthStatusMissing     = "Missing"
+	HealthStatusUnknown     HealthStatusCode = "Unknown"
+	HealthStatusProgressing HealthStatusCode = "Progressing"
+	HealthStatusHealthy     HealthStatusCode = "Healthy"
+	HealthStatusDegraded    HealthStatusCode = "Degraded"
+	HealthStatusMissing     HealthStatusCode = "Missing"
 )
 
 // ResourceNode contains information about live resource and its children
 type ResourceNode struct {
-	Kind            string         `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
-	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	Name            string         `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Group           string         `json:"group,omitempty" protobuf:"bytes,4,opt,name=group"`
-	Version         string         `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
+	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind            string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name            string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
 	Tags            []string       `json:"tags,omitempty" protobuf:"bytes,6,opt,name=tags"`
 	Children        []ResourceNode `json:"children,omitempty" protobuf:"bytes,7,opt,name=children"`
 	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,8,opt,name=resourceVersion"`
@@ -435,24 +431,24 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	}
 }
 
-// ResourceSummary holds the resource metadata and aggregated statuses
-type ResourceSummary struct {
-	Group     string           `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version   string           `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind      string           `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Namespace string           `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Name      string           `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Status    ComparisonStatus `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Health    HealthStatus     `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	Hook      bool             `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+// ResourceStatus holds the current sync and health status of a resource
+type ResourceStatus struct {
+	Group     string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version   string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind      string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name      string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	Status    SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Health    HealthStatus   `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Hook      bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 }
 
-func (r *ResourceSummary) GroupVersionKind() schema.GroupVersionKind {
+func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{Group: r.Group, Version: r.Version, Kind: r.Kind}
 }
 
-// ResourceState holds the target state of a resource and live state of a resource
-type ResourceState struct {
+// ResourceDiff holds the diff of a live and target resource object
+type ResourceDiff struct {
 	Group       string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind        string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
 	Namespace   string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
@@ -795,11 +791,11 @@ func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error
 	return &obj, nil
 }
 
-func (r ResourceState) LiveObject() (*unstructured.Unstructured, error) {
+func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.LiveState)
 }
 
-func (r ResourceState) TargetObject() (*unstructured.Unstructured, error) {
+func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 

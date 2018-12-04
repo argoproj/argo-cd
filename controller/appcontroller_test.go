@@ -155,7 +155,7 @@ func TestAutoSync(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	compRes := argoappv1.ComparisonResult{
-		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
 	cond := ctrl.autoSync(app, &compRes)
@@ -173,7 +173,7 @@ func TestSkipAutoSync(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	compRes := argoappv1.ComparisonResult{
-		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
 	cond := ctrl.autoSync(app, &compRes)
@@ -186,7 +186,7 @@ func TestSkipAutoSync(t *testing.T) {
 	app = newFakeApp()
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
 	compRes = argoappv1.ComparisonResult{
-		Status:   argoappv1.ComparisonStatusSynced,
+		Status:   argoappv1.SyncStatusCodeSynced,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
 	cond = ctrl.autoSync(app, &compRes)
@@ -200,7 +200,7 @@ func TestSkipAutoSync(t *testing.T) {
 	app.Spec.SyncPolicy = nil
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
 	compRes = argoappv1.ComparisonResult{
-		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
 	cond = ctrl.autoSync(app, &compRes)
@@ -223,7 +223,7 @@ func TestSkipAutoSync(t *testing.T) {
 	}
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
 	compRes = argoappv1.ComparisonResult{
-		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
 	cond = ctrl.autoSync(app, &compRes)
@@ -244,7 +244,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	compRes := argoappv1.ComparisonResult{
-		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
 	app.Status.OperationState = &argoappv1.OperationState{
@@ -281,7 +281,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	compRes := argoappv1.ComparisonResult{
-		Status:   argoappv1.ComparisonStatusOutOfSync,
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
 	app.Status.OperationState = &argoappv1.OperationState{

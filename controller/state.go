@@ -193,10 +193,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		return nil, nil, nil, nil, err
 	}
 
-	comparisonStatus := v1alpha1.ComparisonStatusSynced
+	comparisonStatus := v1alpha1.SyncStatusCodeSynced
 
 	managedResources := make([]managedResource, len(targetObjs))
-	resourceSummaries := make([]v1alpha1.ResourceSummary, len(targetObjs))
+	resourceSummaries := make([]v1alpha1.ResourceStatus, len(targetObjs))
 	for i := 0; i < len(targetObjs); i++ {
 		obj := managedLiveObj[i]
 		if obj == nil {
@@ -207,7 +207,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 		gvk := obj.GroupVersionKind()
 
-		resState := v1alpha1.ResourceSummary{
+		resState := v1alpha1.ResourceStatus{
 			Namespace: util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace),
 			Name:      obj.GetName(),
 			Kind:      gvk.Kind,
@@ -224,10 +224,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
 			// * target resource present but live resource is missing
-			resState.Status = v1alpha1.ComparisonStatusOutOfSync
-			comparisonStatus = v1alpha1.ComparisonStatusOutOfSync
+			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
+			comparisonStatus = v1alpha1.SyncStatusCodeOutOfSync
 		} else {
-			resState.Status = v1alpha1.ComparisonStatusSynced
+			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
 		managedResources[i] = managedResource{
 			Name:      resState.Name,
@@ -244,7 +244,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	if failedToLoadObjs {
-		comparisonStatus = v1alpha1.ComparisonStatusUnknown
+		comparisonStatus = v1alpha1.SyncStatusCodeUnknown
 	}
 
 	compResult := v1alpha1.ComparisonResult{

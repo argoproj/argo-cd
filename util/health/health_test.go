@@ -87,7 +87,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	assert.Nil(t, err)
 
 	compRes := appv1.ComparisonResult{
-		Resources: []appv1.ResourceSummary{
+		Resources: []appv1.ResourceStatus{
 			{
 				Group:   "",
 				Version: "v1",

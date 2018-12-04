@@ -14,7 +14,7 @@ message ResourceTreeResponse {
 }
 
 message ManagedResourcesResponse {
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceState items = 1;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
 }
 
 

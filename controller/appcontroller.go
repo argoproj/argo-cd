@@ -174,10 +174,10 @@ func (ctrl *ApplicationController) ResourceTree(ctx context.Context, q *services
 
 func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *services.ResourcesQuery) (*services.ManagedResourcesResponse, error) {
 	resources := ctrl.getAppManagedResources(q.ApplicationName)
-	items := make([]*appv1.ResourceState, len(resources))
+	items := make([]*appv1.ResourceDiff, len(resources))
 	for i := range resources {
 		res := resources[i]
-		item := appv1.ResourceState{
+		item := appv1.ResourceDiff{
 			Namespace: res.Namespace,
 			Name:      res.Name,
 			Group:     res.Group,
@@ -614,7 +614,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
 		comparisonResult := app.Status.ComparisonResult.DeepCopy()
-		comparisonResult.Status = appv1.ComparisonStatusUnknown
+		comparisonResult.Status = appv1.SyncStatusCodeUnknown
 		appHealth := app.Status.Health.DeepCopy()
 		appHealth.Status = appv1.HealthStatusUnknown
 		ctrl.persistAppStatus(app, comparisonResult, appHealth, nil, conditions)
@@ -656,7 +656,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	expired := app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if ctrl.isRefreshForced(app.Name) {
 		reason = "force refresh"
-	} else if app.Status.ComparisonResult.Status == appv1.ComparisonStatusUnknown && expired {
+	} else if app.Status.ComparisonResult.Status == appv1.SyncStatusCodeUnknown && expired {
 		reason = "comparison status unknown"
 	} else if !app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) {
 		reason = "spec.source differs"
@@ -810,7 +810,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonRe
 	}
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
-	if comparisonResult.Status != appv1.ComparisonStatusOutOfSync {
+	if comparisonResult.Status != appv1.SyncStatusCodeOutOfSync {
 		logCtx.Infof("Skipping auto-sync: application status is %s", comparisonResult.Status)
 		return nil
 	}
