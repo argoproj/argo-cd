@@ -114,8 +114,23 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 ref={(loader) => this.loader  = loader}
                 load={(name) =>
                     Observable.merge(
-                        Observable.fromPromise(services.applications.get(name, false).then((application) => ({application, resources: resourcesFromSummaryInfo(application, [])}))),
-                        services.applications.watch({name: this.props.match.params.name}).map((changeEvent) => changeEvent.application).flatMap((application) =>
+                        Observable.fromPromise(
+                            services.applications.get(name, false).
+                            catch((e) => {
+                                if (e.status === 404) {
+                                    this.onAppDeleted();
+                                }
+                                throw e;
+                            }).
+                            then((application) => ({application, resources: resourcesFromSummaryInfo(application, [])})),
+                        ),
+                        services.applications.watch({name: this.props.match.params.name})
+                            .do((changeEvent) => {
+                                if (changeEvent.type === 'DELETED') {
+                                    this.onAppDeleted();
+                                }
+                            })
+                            .map((changeEvent) => changeEvent.application).flatMap((application) =>
                         Observable.fromPromise(services.applications.resourceTree(application.metadata.name).then((resources) => {
                             return {application, resources: resourcesFromSummaryInfo(application, resources)};
                         })),
@@ -320,6 +335,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 }}
             </DataLoader>
         );
+    }
+
+    private onAppDeleted() {
+        this.appContext.apis.notifications.show({ type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted` });
+        this.appContext.apis.navigation.goto('/applications');
     }
 
     private async updateApp(app: appModels.Application) {
