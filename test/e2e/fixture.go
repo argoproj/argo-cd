@@ -381,7 +381,7 @@ func waitUntilE(condition wait.ConditionFunc) error {
 func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 	err := waitUntilE(condition)
 	if err != nil {
-		t.Fatal("Failed to wait for expected condition")
+		t.Fatalf("Failed to wait for expected condition: %v", err)
 	}
 }
 
