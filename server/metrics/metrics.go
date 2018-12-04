@@ -33,7 +33,7 @@ var (
 		descAppDefaultLabels,
 		nil,
 	)
-	descAppSyncStatus = prometheus.NewDesc(
+	descAppSyncStatusCode = prometheus.NewDesc(
 		"argocd_app_sync_status",
 		"The application current sync status.",
 		append(descAppDefaultLabels, "sync_status"),
@@ -80,7 +80,7 @@ func NewAppRegistry(appLister applister.ApplicationLister) *prometheus.Registry 
 func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descAppInfo
 	ch <- descAppCreated
-	ch <- descAppSyncStatus
+	ch <- descAppSyncStatusCode
 	ch <- descAppHealthStatus
 }
 
@@ -118,9 +118,9 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
 
 	syncStatus := app.Status.ComparisonResult.Status
-	addGauge(descAppSyncStatus, boolFloat64(syncStatus == argoappv1.ComparisonStatusSynced), string(argoappv1.ComparisonStatusSynced))
-	addGauge(descAppSyncStatus, boolFloat64(syncStatus == argoappv1.ComparisonStatusOutOfSync), string(argoappv1.ComparisonStatusOutOfSync))
-	addGauge(descAppSyncStatus, boolFloat64(syncStatus == argoappv1.ComparisonStatusUnknown || syncStatus == ""), string(argoappv1.ComparisonStatusUnknown))
+	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeSynced), string(argoappv1.SyncStatusCodeSynced))
+	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
+	addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
 
 	healthStatus := app.Status.Health.Status
 	addGauge(descAppHealthStatus, boolFloat64(healthStatus == argoappv1.HealthStatusUnknown || healthStatus == ""), string(argoappv1.HealthStatusUnknown))

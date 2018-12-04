@@ -22,7 +22,7 @@ import (
 func SetApplicationHealth(comparisonResult *appv1.ComparisonResult, liveObjs []*unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
-	if comparisonResult.Status == appv1.ComparisonStatusUnknown {
+	if comparisonResult.Status == appv1.SyncStatusCodeUnknown {
 		appHealth.Status = appv1.HealthStatusUnknown
 	}
 	for i, liveObj := range liveObjs {
@@ -83,8 +83,8 @@ func GetResourceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, err
 	}
 	if err != nil {
 		health = &appv1.HealthStatus{
-			Status:        appv1.HealthStatusUnknown,
-			StatusDetails: err.Error(),
+			Status:  appv1.HealthStatusUnknown,
+			Message: err.Error(),
 		}
 	} else if health == nil {
 		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
@@ -180,29 +180,29 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 		cond := getDeploymentCondition(deployment.Status, v1.DeploymentProgressing)
 		if cond != nil && cond.Reason == "ProgressDeadlineExceeded" {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusDegraded,
-				StatusDetails: fmt.Sprintf("Deployment %q exceeded its progress deadline", obj.GetName()),
+				Status:  appv1.HealthStatusDegraded,
+				Message: fmt.Sprintf("Deployment %q exceeded its progress deadline", obj.GetName()),
 			}, nil
 		} else if deployment.Spec.Replicas != nil && deployment.Status.UpdatedReplicas < *deployment.Spec.Replicas {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas have been updated...", deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas),
+				Status:  appv1.HealthStatusProgressing,
+				Message: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas have been updated...", deployment.Status.UpdatedReplicas, *deployment.Spec.Replicas),
 			}, nil
 		} else if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d old replicas are pending termination...", deployment.Status.Replicas-deployment.Status.UpdatedReplicas),
+				Status:  appv1.HealthStatusProgressing,
+				Message: fmt.Sprintf("Waiting for rollout to finish: %d old replicas are pending termination...", deployment.Status.Replicas-deployment.Status.UpdatedReplicas),
 			}, nil
 		} else if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d of %d updated replicas are available...", deployment.Status.AvailableReplicas, deployment.Status.UpdatedReplicas),
+				Status:  appv1.HealthStatusProgressing,
+				Message: fmt.Sprintf("Waiting for rollout to finish: %d of %d updated replicas are available...", deployment.Status.AvailableReplicas, deployment.Status.UpdatedReplicas),
 			}, nil
 		}
 	} else {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: "Waiting for rollout to finish: observed deployment generation less then desired generation",
+			Status:  appv1.HealthStatusProgressing,
+			Message: "Waiting for rollout to finish: observed deployment generation less then desired generation",
 		}, nil
 	}
 
@@ -221,21 +221,21 @@ func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, er
 	if daemon.Generation <= daemon.Status.ObservedGeneration {
 		if daemon.Status.UpdatedNumberScheduled < daemon.Status.DesiredNumberScheduled {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for daemon set %q rollout to finish: %d out of %d new pods have been updated...", daemon.Name, daemon.Status.UpdatedNumberScheduled, daemon.Status.DesiredNumberScheduled),
+				Status:  appv1.HealthStatusProgressing,
+				Message: fmt.Sprintf("Waiting for daemon set %q rollout to finish: %d out of %d new pods have been updated...", daemon.Name, daemon.Status.UpdatedNumberScheduled, daemon.Status.DesiredNumberScheduled),
 			}, nil
 		}
 		if daemon.Status.NumberAvailable < daemon.Status.DesiredNumberScheduled {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for daemon set %q rollout to finish: %d of %d updated pods are available...", daemon.Name, daemon.Status.NumberAvailable, daemon.Status.DesiredNumberScheduled),
+				Status:  appv1.HealthStatusProgressing,
+				Message: fmt.Sprintf("Waiting for daemon set %q rollout to finish: %d of %d updated pods are available...", daemon.Name, daemon.Status.NumberAvailable, daemon.Status.DesiredNumberScheduled),
 			}, nil
 		}
 
 	} else {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: "Waiting for rollout to finish: observed daemon set generation less then desired generation",
+			Status:  appv1.HealthStatusProgressing,
+			Message: "Waiting for rollout to finish: observed daemon set generation less then desired generation",
 		}, nil
 	}
 	return &appv1.HealthStatus{
@@ -252,14 +252,14 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, 
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L131
 	if sts.Status.ObservedGeneration == 0 || sts.Generation > sts.Status.ObservedGeneration {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: "Waiting for statefulset spec update to be observed...",
+			Status:  appv1.HealthStatusProgressing,
+			Message: "Waiting for statefulset spec update to be observed...",
 		}, nil
 	}
 	if sts.Spec.Replicas != nil && sts.Status.ReadyReplicas < *sts.Spec.Replicas {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: fmt.Sprintf("Waiting for %d pods to be ready...", *sts.Spec.Replicas-sts.Status.ReadyReplicas),
+			Status:  appv1.HealthStatusProgressing,
+			Message: fmt.Sprintf("Waiting for %d pods to be ready...", *sts.Spec.Replicas-sts.Status.ReadyReplicas),
 		}, nil
 	}
 	if sts.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType && sts.Spec.UpdateStrategy.RollingUpdate != nil {
@@ -267,25 +267,25 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, 
 			if sts.Status.UpdatedReplicas < (*sts.Spec.Replicas - *sts.Spec.UpdateStrategy.RollingUpdate.Partition) {
 				return &appv1.HealthStatus{
 					Status: appv1.HealthStatusProgressing,
-					StatusDetails: fmt.Sprintf("Waiting for partitioned roll out to finish: %d out of %d new pods have been updated...",
+					Message: fmt.Sprintf("Waiting for partitioned roll out to finish: %d out of %d new pods have been updated...",
 						sts.Status.UpdatedReplicas, (*sts.Spec.Replicas - *sts.Spec.UpdateStrategy.RollingUpdate.Partition)),
 				}, nil
 			}
 		}
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusHealthy,
-			StatusDetails: fmt.Sprintf("partitioned roll out complete: %d new pods have been updated...", sts.Status.UpdatedReplicas),
+			Status:  appv1.HealthStatusHealthy,
+			Message: fmt.Sprintf("partitioned roll out complete: %d new pods have been updated...", sts.Status.UpdatedReplicas),
 		}, nil
 	}
 	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: fmt.Sprintf("waiting for statefulset rolling update to complete %d pods at revision %s...", sts.Status.UpdatedReplicas, sts.Status.UpdateRevision),
+			Status:  appv1.HealthStatusProgressing,
+			Message: fmt.Sprintf("waiting for statefulset rolling update to complete %d pods at revision %s...", sts.Status.UpdatedReplicas, sts.Status.UpdateRevision),
 		}, nil
 	}
 	return &appv1.HealthStatus{
-		Status:        appv1.HealthStatusHealthy,
-		StatusDetails: fmt.Sprintf("statefulset rolling update complete %d pods at revision %s...", sts.Status.CurrentReplicas, sts.Status.CurrentRevision),
+		Status:  appv1.HealthStatusHealthy,
+		Message: fmt.Sprintf("statefulset rolling update complete %d pods at revision %s...", sts.Status.CurrentReplicas, sts.Status.CurrentRevision),
 	}, nil
 }
 
@@ -299,19 +299,19 @@ func getReplicaSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 		cond := getReplicaSetCondition(replicaSet.Status, v1.ReplicaSetReplicaFailure)
 		if cond != nil && cond.Status == coreV1.ConditionTrue {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusDegraded,
-				StatusDetails: cond.Message,
+				Status:  appv1.HealthStatusDegraded,
+				Message: cond.Message,
 			}, nil
 		} else if replicaSet.Spec.Replicas != nil && replicaSet.Status.AvailableReplicas < *replicaSet.Spec.Replicas {
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas are available...", replicaSet.Status.AvailableReplicas, *replicaSet.Spec.Replicas),
+				Status:  appv1.HealthStatusProgressing,
+				Message: fmt.Sprintf("Waiting for rollout to finish: %d out of %d new replicas are available...", replicaSet.Status.AvailableReplicas, *replicaSet.Spec.Replicas),
 			}, nil
 		}
 	} else {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: "Waiting for rollout to finish: observed replica set generation less then desired generation",
+			Status:  appv1.HealthStatusProgressing,
+			Message: "Waiting for rollout to finish: observed replica set generation less then desired generation",
 		}, nil
 	}
 
@@ -363,18 +363,18 @@ func getJobHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	}
 	if !complete {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: message,
+			Status:  appv1.HealthStatusProgressing,
+			Message: message,
 		}, nil
 	} else if failed {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusDegraded,
-			StatusDetails: failMsg,
+			Status:  appv1.HealthStatusDegraded,
+			Message: failMsg,
 		}, nil
 	} else {
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusHealthy,
-			StatusDetails: message,
+			Status:  appv1.HealthStatusHealthy,
+			Message: message,
 		}, nil
 	}
 }
@@ -388,18 +388,18 @@ func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	switch pod.Status.Phase {
 	case coreV1.PodPending:
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusProgressing,
-			StatusDetails: pod.Status.Message,
+			Status:  appv1.HealthStatusProgressing,
+			Message: pod.Status.Message,
 		}, nil
 	case coreV1.PodSucceeded:
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusHealthy,
-			StatusDetails: pod.Status.Message,
+			Status:  appv1.HealthStatusHealthy,
+			Message: pod.Status.Message,
 		}, nil
 	case coreV1.PodFailed:
 		return &appv1.HealthStatus{
-			Status:        appv1.HealthStatusDegraded,
-			StatusDetails: pod.Status.Message,
+			Status:  appv1.HealthStatusDegraded,
+			Message: pod.Status.Message,
 		}, nil
 	case coreV1.PodRunning:
 		switch pod.Spec.RestartPolicy {
@@ -407,36 +407,36 @@ func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 			// if pod is ready, it is automatically healthy
 			if podutil.IsPodReady(pod) {
 				return &appv1.HealthStatus{
-					Status:        appv1.HealthStatusHealthy,
-					StatusDetails: pod.Status.Message,
+					Status:  appv1.HealthStatusHealthy,
+					Message: pod.Status.Message,
 				}, nil
 			}
 			// if it's not ready, check to see if any container terminated, if so, it's degraded
 			for _, ctrStatus := range pod.Status.ContainerStatuses {
 				if ctrStatus.LastTerminationState.Terminated != nil {
 					return &appv1.HealthStatus{
-						Status:        appv1.HealthStatusDegraded,
-						StatusDetails: pod.Status.Message,
+						Status:  appv1.HealthStatusDegraded,
+						Message: pod.Status.Message,
 					}, nil
 				}
 			}
 			// otherwise we are progressing towards a ready state
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: pod.Status.Message,
+				Status:  appv1.HealthStatusProgressing,
+				Message: pod.Status.Message,
 			}, nil
 		case coreV1.RestartPolicyOnFailure, coreV1.RestartPolicyNever:
 			// pods set with a restart policy of OnFailure or Never, have a finite life.
 			// These pods are typically resource hooks. Thus, we consider these as Progressing
 			// instead of healthy.
 			return &appv1.HealthStatus{
-				Status:        appv1.HealthStatusProgressing,
-				StatusDetails: pod.Status.Message,
+				Status:  appv1.HealthStatusProgressing,
+				Message: pod.Status.Message,
 			}, nil
 		}
 	}
 	return &appv1.HealthStatus{
-		Status:        appv1.HealthStatusUnknown,
-		StatusDetails: pod.Status.Message,
+		Status:  appv1.HealthStatusUnknown,
+		Message: pod.Status.Message,
 	}, nil
 }

@@ -1672,7 +1672,7 @@
         "items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceState"
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
           }
         }
       }
@@ -2496,7 +2496,7 @@
         "resources": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceSummary"
+            "$ref": "#/definitions/v1alpha1ResourceStatus"
           }
         },
         "revision": {
@@ -2562,45 +2562,11 @@
     "v1alpha1HealthStatus": {
       "type": "object",
       "properties": {
-        "status": {
-          "type": "string"
-        },
-        "statusDetails": {
-          "type": "string"
-        }
-      }
-    },
-    "v1alpha1HookStatus": {
-      "type": "object",
-      "title": "HookStatus contains status about a hook invocation",
-      "properties": {
-        "apiVersion": {
-          "type": "string",
-          "title": "APIVersion is the resource API version"
-        },
-        "kind": {
-          "type": "string",
-          "title": "Kind is the resource kind"
-        },
         "message": {
-          "description": "A human readable message indicating details about why the resource is in this condition.",
           "type": "string"
         },
-        "name": {
-          "type": "string",
-          "title": "Name is the resource name"
-        },
-        "namespace": {
-          "type": "string",
-          "title": "Namespace is a hook object namespace"
-        },
         "status": {
-          "type": "string",
-          "title": "Status a simple, high-level summary of where the resource is in its lifecycle"
-        },
-        "type": {
-          "type": "string",
-          "title": "Type is the type of hook (e.g. PreSync, Sync, PostSync, Skip)"
+          "type": "string"
         }
       }
     },
@@ -2724,16 +2690,20 @@
         }
       }
     },
-    "v1alpha1ResourceDetails": {
+    "v1alpha1ResourceDiff": {
       "type": "object",
+      "title": "ResourceDiff holds the diff of a live and target resource object",
       "properties": {
+        "diff": {
+          "type": "string"
+        },
         "group": {
           "type": "string"
         },
         "kind": {
           "type": "string"
         },
-        "message": {
+        "liveState": {
           "type": "string"
         },
         "name": {
@@ -2742,7 +2712,7 @@
         "namespace": {
           "type": "string"
         },
-        "status": {
+        "targetState": {
           "type": "string"
         }
       }
@@ -2783,20 +2753,23 @@
         }
       }
     },
-    "v1alpha1ResourceState": {
+    "v1alpha1ResourceResult": {
       "type": "object",
-      "title": "ResourceState holds the target state of a resource and live state of a resource",
+      "title": "ResourceResult holds the operation result details of a specific resource",
       "properties": {
-        "diff": {
+        "group": {
           "type": "string"
         },
-        "group": {
+        "hookPhase": {
+          "type": "string"
+        },
+        "hookType": {
           "type": "string"
         },
         "kind": {
           "type": "string"
         },
-        "liveState": {
+        "message": {
           "type": "string"
         },
         "name": {
@@ -2805,14 +2778,17 @@
         "namespace": {
           "type": "string"
         },
-        "targetState": {
+        "status": {
+          "type": "string"
+        },
+        "version": {
           "type": "string"
         }
       }
     },
-    "v1alpha1ResourceSummary": {
+    "v1alpha1ResourceStatus": {
       "type": "object",
-      "title": "ResourceSummary holds the resource metadata and aggregated statuses",
+      "title": "ResourceStatus holds the current sync and health status of a resource",
       "properties": {
         "group": {
           "type": "string"
@@ -2893,18 +2869,11 @@
       "type": "object",
       "title": "SyncOperationResult represent result of sync operation",
       "properties": {
-        "hooks": {
-          "type": "array",
-          "title": "Hooks contains list of hook resource statuses associated with this operation",
-          "items": {
-            "$ref": "#/definitions/v1alpha1HookStatus"
-          }
-        },
         "resources": {
           "type": "array",
           "title": "Resources holds the sync result of each individual resource",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceDetails"
+            "$ref": "#/definitions/v1alpha1ResourceResult"
           }
         },
         "revision": {

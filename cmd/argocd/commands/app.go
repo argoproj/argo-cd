@@ -515,7 +515,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 }
 
 // targetObjects deserializes the list of target states into unstructured objects
-func targetObjects(resources []*argoappv1.ResourceState) ([]*unstructured.Unstructured, error) {
+func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(resources))
 	for i, resState := range resources {
 		obj, err := resState.TargetObject()
@@ -528,7 +528,7 @@ func targetObjects(resources []*argoappv1.ResourceState) ([]*unstructured.Unstru
 }
 
 // liveObjects deserializes the list of live states into unstructured objects
-func liveObjects(resources []*argoappv1.ResourceState) ([]*unstructured.Unstructured, error) {
+func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(resources))
 	for i, resState := range resources {
 		obj, err := resState.LiveObject()
@@ -798,11 +798,13 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 		}
 		if syncRes != nil {
 			for _, resDetails := range syncRes.Resources {
-				messages[fmt.Sprintf("%s/%s", resDetails.Kind, resDetails.Name)] = resDetails.Message
+				if !resDetails.IsHook() {
+					messages[fmt.Sprintf("%s/%s", resDetails.Kind, resDetails.Name)] = resDetails.Message
+				}
 			}
-			for _, hook := range syncRes.Hooks {
-				if hook.Type == argoappv1.HookTypePreSync {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.Type, hook.Message)
+			for _, hook := range syncRes.Resources {
+				if hook.HookType == argoappv1.HookTypePreSync {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.HookType, hook.Message)
 				}
 			}
 		}
@@ -819,9 +821,9 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 		fmt.Fprint(w, "\n")
 	}
 	if showOperation && syncRes != nil {
-		for _, hook := range syncRes.Hooks {
-			if hook.Type == argoappv1.HookTypeSync || hook.Type == argoappv1.HookTypePostSync {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.Type, hook.Message)
+		for _, hook := range syncRes.Resources {
+			if hook.HookType == argoappv1.HookTypeSync || hook.HookType == argoappv1.HookTypePostSync {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.HookType, hook.Message)
 			}
 		}
 
@@ -896,7 +898,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			pruningRequired := 0
 			for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
-				if resDetails.Status == argoappv1.ResourceDetailsPruningRequired {
+				if resDetails.Status == argoappv1.ResultCodePruningRequired {
 					pruningRequired++
 				}
 			}
@@ -919,7 +921,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-// ResourceState tracks the state of a resource when waiting on an application status.
+// ResourceDiff tracks the state of a resource when waiting on an application status.
 type resourceState struct {
 	Kind    string
 	Name    string
@@ -993,8 +995,11 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 		return resStates
 	}
 
-	for _, hook := range opResult.Hooks {
-		newState := newResourceState(hook.Kind, hook.Name, string(hook.Status), "", string(hook.Type), hook.Message)
+	for _, hook := range opResult.Resources {
+		if !hook.IsHook() {
+			continue
+		}
+		newState := newResourceState(hook.Kind, hook.Name, string(hook.Status), "", string(hook.HookType), hook.Message)
 		key := newState.Key()
 		if prev, ok := resStates[key]; ok {
 			prev.Merge(newState)
@@ -1004,6 +1009,9 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 	}
 
 	for _, res := range opResult.Resources {
+		if res.IsHook() {
+			continue
+		}
 		newState := newResourceState(res.Kind, res.Name, "", "", "", res.Message)
 		key := newState.Key()
 		if prev, ok := resStates[key]; ok {
@@ -1064,7 +1072,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 			refresh = true
 		}
 		// consider skipped checks successful
-		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.ComparisonStatusSynced
+		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.SyncStatusCodeSynced
 		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
 		operational := !watchOperation || appEvent.Application.Operation == nil
 		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -92,13 +93,15 @@ func (sc *syncContext) verifyPermittedHooks(hooks []*unstructured.Unstructured) 
 		}
 
 		if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(appv1.ApplicationDestination{Namespace: hook.GetNamespace(), Server: sc.server}) {
-			sc.setResourceDetails(&appv1.ResourceDetails{
+			gvk := hook.GroupVersionKind()
+			sc.setResourceDetails(&appv1.ResourceResult{
 				Name:      hook.GetName(),
-				Group:     hook.GroupVersionKind().Group,
+				Group:     gvk.Group,
+				Version:   gvk.Version,
 				Kind:      hook.GetKind(),
 				Namespace: hook.GetNamespace(),
 				Message:   fmt.Sprintf("namespace %v is not permitted in project '%s'", hook.GetNamespace(), sc.proj.Name),
-				Status:    appv1.ResourceDetailsSyncFailed,
+				Status:    appv1.ResultCodeSyncFailed,
 			})
 			return false
 		}
@@ -150,9 +153,11 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 			// If we get here, we are invoking all sync hooks and reached a resource that is
 			// annotated with the Skip hook. This will update the resource details to indicate it
 			// was skipped due to annotation
-			sc.setResourceDetails(&appv1.ResourceDetails{
+			gvk := hook.GroupVersionKind()
+			sc.setResourceDetails(&appv1.ResourceResult{
 				Name:      hook.GetName(),
-				Group:     hook.GroupVersionKind().Group,
+				Group:     gvk.Group,
+				Version:   gvk.Version,
 				Kind:      hook.GetKind(),
 				Namespace: hook.GetNamespace(),
 				Message:   "Skipped",
@@ -182,7 +187,7 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 		sc.log.Infof("Stopping after %s phase due to modifications to hook resource state", hookType)
 		return false
 	}
-	completed, successful := areHooksCompletedSuccessful(hookType, sc.syncRes.Hooks)
+	completed, successful := areHooksCompletedSuccessful(hookType, sc.syncRes.Resources)
 	if !completed {
 		return false
 	}
@@ -229,7 +234,7 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 	// Check our hook statuses to see if we already completed this hook.
 	// If so, this method is a noop
 	prevStatus := sc.getHookStatus(hook, hookType)
-	if prevStatus != nil && prevStatus.Status.Completed() {
+	if prevStatus != nil && prevStatus.HookPhase.Completed() {
 		return false, nil
 	}
 
@@ -262,12 +267,12 @@ func (sc *syncContext) runHook(hook *unstructured.Unstructured, hookType appv1.H
 		liveObj = existing
 	}
 	hookStatus := newHookStatus(liveObj, hookType)
-	if hookStatus.Status.Completed() {
-		if enforceHookDeletePolicy(hook, hookStatus.Status) {
-			err = sc.deleteHook(hook.GetName(), hook.GetKind(), hook.GetAPIVersion(), hook.GetNamespace())
+	if hookStatus.HookPhase.Completed() {
+		if enforceHookDeletePolicy(hook, hookStatus.HookPhase) {
+			err = sc.deleteHook(hook.GetName(), hook.GetNamespace(), hook.GroupVersionKind())
 			if err != nil {
-				hookStatus.Status = appv1.OperationFailed
-				hookStatus.Message = fmt.Sprintf("failed to delete %s hook: %v", hookStatus.Status, err)
+				hookStatus.HookPhase = appv1.OperationFailed
+				hookStatus.Message = fmt.Sprintf("failed to delete %s hook: %v", hookStatus.HookPhase, err)
 			}
 		}
 	}
@@ -308,15 +313,17 @@ func isHookType(hook *unstructured.Unstructured, hookType appv1.HookType) bool {
 	return false
 }
 
-func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) appv1.HookStatus {
-	hookStatus := appv1.HookStatus{
-		Name:       hook.GetName(),
-		Kind:       hook.GetKind(),
-		APIVersion: hook.GetAPIVersion(),
-		Type:       hookType,
-		Namespace:  hook.GetNamespace(),
+// newHookStatus returns a hook status from an _live_ unstructured object
+func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) appv1.ResourceResult {
+	gvk := hook.GroupVersionKind()
+	hookStatus := appv1.ResourceResult{
+		Name:      hook.GetName(),
+		Kind:      hook.GetKind(),
+		Group:     gvk.Group,
+		Version:   gvk.Version,
+		HookType:  hookType,
+		Namespace: hook.GetNamespace(),
 	}
-	gvk := schema.FromAPIVersionAndKind(hookStatus.APIVersion, hookStatus.Kind)
 	if isBatchJob(gvk) {
 		updateStatusFromBatchJob(hook, &hookStatus)
 	} else if isArgoWorkflow(gvk) {
@@ -324,15 +331,15 @@ func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) app
 	} else if isPod(gvk) {
 		updateStatusFromPod(hook, &hookStatus)
 	} else {
-		hookStatus.Status = appv1.OperationSucceeded
+		hookStatus.HookPhase = appv1.OperationSucceeded
 		hookStatus.Message = fmt.Sprintf("%s created", hook.GetName())
 	}
 	return hookStatus
 }
 
 // isRunnable returns if the resource object is a runnable type which needs to be terminated
-func isRunnable(hookStatus *appv1.HookStatus) bool {
-	gvk := schema.FromAPIVersionAndKind(hookStatus.APIVersion, hookStatus.Kind)
+func isRunnable(res *appv1.ResourceResult) bool {
+	gvk := res.GroupVersionKind()
 	return isBatchJob(gvk) || isArgoWorkflow(gvk) || isPod(gvk)
 }
 
@@ -340,11 +347,11 @@ func isBatchJob(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "batch" && gvk.Kind == "Job"
 }
 
-func updateStatusFromBatchJob(hook *unstructured.Unstructured, hookStatus *appv1.HookStatus) {
+func updateStatusFromBatchJob(hook *unstructured.Unstructured, hookStatus *appv1.ResourceResult) {
 	var job batch.Job
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &job)
 	if err != nil {
-		hookStatus.Status = appv1.OperationError
+		hookStatus.HookPhase = appv1.OperationError
 		hookStatus.Message = err.Error()
 		return
 	}
@@ -364,13 +371,13 @@ func updateStatusFromBatchJob(hook *unstructured.Unstructured, hookStatus *appv1
 		}
 	}
 	if !complete {
-		hookStatus.Status = appv1.OperationRunning
+		hookStatus.HookPhase = appv1.OperationRunning
 		hookStatus.Message = message
 	} else if failed {
-		hookStatus.Status = appv1.OperationFailed
+		hookStatus.HookPhase = appv1.OperationFailed
 		hookStatus.Message = failMsg
 	} else {
-		hookStatus.Status = appv1.OperationSucceeded
+		hookStatus.HookPhase = appv1.OperationSucceeded
 		hookStatus.Message = message
 	}
 }
@@ -379,23 +386,23 @@ func isArgoWorkflow(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "argoproj.io" && gvk.Kind == "Workflow"
 }
 
-func updateStatusFromArgoWorkflow(hook *unstructured.Unstructured, hookStatus *appv1.HookStatus) {
+func updateStatusFromArgoWorkflow(hook *unstructured.Unstructured, hookStatus *appv1.ResourceResult) {
 	var wf wfv1.Workflow
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
 	if err != nil {
-		hookStatus.Status = appv1.OperationError
+		hookStatus.HookPhase = appv1.OperationError
 		hookStatus.Message = err.Error()
 		return
 	}
 	switch wf.Status.Phase {
 	case wfv1.NodePending, wfv1.NodeRunning:
-		hookStatus.Status = appv1.OperationRunning
+		hookStatus.HookPhase = appv1.OperationRunning
 	case wfv1.NodeSucceeded:
-		hookStatus.Status = appv1.OperationSucceeded
+		hookStatus.HookPhase = appv1.OperationSucceeded
 	case wfv1.NodeFailed:
-		hookStatus.Status = appv1.OperationFailed
+		hookStatus.HookPhase = appv1.OperationFailed
 	case wfv1.NodeError:
-		hookStatus.Status = appv1.OperationError
+		hookStatus.HookPhase = appv1.OperationError
 	}
 	hookStatus.Message = wf.Status.Message
 }
@@ -404,11 +411,11 @@ func isPod(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "" && gvk.Kind == "Pod"
 }
 
-func updateStatusFromPod(hook *unstructured.Unstructured, hookStatus *appv1.HookStatus) {
+func updateStatusFromPod(hook *unstructured.Unstructured, hookStatus *appv1.ResourceResult) {
 	var pod apiv1.Pod
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &pod)
 	if err != nil {
-		hookStatus.Status = appv1.OperationError
+		hookStatus.HookPhase = appv1.OperationError
 		hookStatus.Message = err.Error()
 		return
 	}
@@ -429,11 +436,11 @@ func updateStatusFromPod(hook *unstructured.Unstructured, hookStatus *appv1.Hook
 
 	switch pod.Status.Phase {
 	case apiv1.PodPending, apiv1.PodRunning:
-		hookStatus.Status = appv1.OperationRunning
+		hookStatus.HookPhase = appv1.OperationRunning
 	case apiv1.PodSucceeded:
-		hookStatus.Status = appv1.OperationSucceeded
+		hookStatus.HookPhase = appv1.OperationSucceeded
 	case apiv1.PodFailed:
-		hookStatus.Status = appv1.OperationFailed
+		hookStatus.HookPhase = appv1.OperationFailed
 		if pod.Status.Message != "" {
 			// Pod has a nice error message. Use that.
 			hookStatus.Message = pod.Status.Message
@@ -446,54 +453,76 @@ func updateStatusFromPod(hook *unstructured.Unstructured, hookStatus *appv1.Hook
 			}
 		}
 	case apiv1.PodUnknown:
-		hookStatus.Status = appv1.OperationError
+		hookStatus.HookPhase = appv1.OperationError
 	}
 }
 
-func (sc *syncContext) getHookStatus(hookObj *unstructured.Unstructured, hookType appv1.HookType) *appv1.HookStatus {
-	for _, hr := range sc.syncRes.Hooks {
-		if hr.Name == hookObj.GetName() && hr.Kind == hookObj.GetKind() && hr.Type == hookType {
+func (sc *syncContext) getHookStatus(hookObj *unstructured.Unstructured, hookType appv1.HookType) *appv1.ResourceResult {
+	for _, hr := range sc.syncRes.Resources {
+		if !hr.IsHook() {
+			continue
+		}
+		ns := util.FirstNonEmpty(hookObj.GetNamespace(), sc.namespace)
+		if hookEqual(hr, hookObj.GroupVersionKind().Group, hookObj.GetKind(), ns, hookObj.GetName(), hookType) {
 			return hr
 		}
 	}
 	return nil
 }
 
+func hookEqual(hr *appv1.ResourceResult, group, kind, namespace, name string, hookType appv1.HookType) bool {
+	return bool(
+		hr.Group == group &&
+			hr.Kind == kind &&
+			hr.Namespace == namespace &&
+			hr.Name == name &&
+			hr.HookType == hookType)
+}
+
 // updateHookStatus updates the status of a hook. Returns true if the hook was modified
-func (sc *syncContext) updateHookStatus(hookStatus appv1.HookStatus) bool {
+func (sc *syncContext) updateHookStatus(hookStatus appv1.ResourceResult) bool {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
-	for i, prev := range sc.syncRes.Hooks {
-		if prev.Name == hookStatus.Name && prev.Kind == hookStatus.Kind && prev.Type == hookStatus.Type {
+	for i, prev := range sc.syncRes.Resources {
+		if !prev.IsHook() {
+			continue
+		}
+		if hookEqual(prev, hookStatus.Group, hookStatus.Kind, hookStatus.Namespace, hookStatus.Name, hookStatus.HookType) {
 			if reflect.DeepEqual(prev, hookStatus) {
 				return false
 			}
+			if prev.HookPhase != hookStatus.HookPhase {
+				sc.log.Infof("Hook %s %s/%s hookPhase: %s -> %s", hookStatus.HookType, prev.Kind, prev.Name, prev.HookPhase, hookStatus.HookPhase)
+			}
 			if prev.Status != hookStatus.Status {
-				sc.log.Infof("Hook %s %s/%s status: %s -> %s", hookStatus.Type, prev.Kind, prev.Name, prev.Status, hookStatus.Status)
+				sc.log.Infof("Hook %s %s/%s status: %s -> %s", hookStatus.HookType, prev.Kind, prev.Name, prev.Status, hookStatus.Status)
 			}
 			if prev.Message != hookStatus.Message {
-				sc.log.Infof("Hook %s %s/%s message: '%s' -> '%s'", hookStatus.Type, prev.Kind, prev.Name, prev.Message, hookStatus.Message)
+				sc.log.Infof("Hook %s %s/%s message: '%s' -> '%s'", hookStatus.HookType, prev.Kind, prev.Name, prev.Message, hookStatus.Message)
 			}
-			sc.syncRes.Hooks[i] = &hookStatus
+			sc.syncRes.Resources[i] = &hookStatus
 			return true
 		}
 	}
-	sc.syncRes.Hooks = append(sc.syncRes.Hooks, &hookStatus)
-	sc.log.Infof("Set new hook %s %s/%s. status: %s, message: %s", hookStatus.Type, hookStatus.Kind, hookStatus.Name, hookStatus.Status, hookStatus.Message)
+	sc.syncRes.Resources = append(sc.syncRes.Resources, &hookStatus)
+	sc.log.Infof("Set new hook %s %s/%s. phase: %s, message: %s", hookStatus.HookType, hookStatus.Kind, hookStatus.Name, hookStatus.HookPhase, hookStatus.Message)
 	return true
 }
 
 // areHooksCompletedSuccessful checks if all the hooks of the specified type are completed and successful
-func areHooksCompletedSuccessful(hookType appv1.HookType, hookStatuses []*appv1.HookStatus) (bool, bool) {
+func areHooksCompletedSuccessful(hookType appv1.HookType, hookStatuses []*appv1.ResourceResult) (bool, bool) {
 	isSuccessful := true
 	for _, hookStatus := range hookStatuses {
-		if hookStatus.Type != hookType {
+		if !hookStatus.IsHook() {
 			continue
 		}
-		if !hookStatus.Status.Completed() {
+		if hookStatus.HookType != hookType {
+			continue
+		}
+		if !hookStatus.HookPhase.Completed() {
 			return false, false
 		}
-		if !hookStatus.Status.Successful() {
+		if !hookStatus.HookPhase.Successful() {
 			isSuccessful = false
 		}
 	}
@@ -503,18 +532,21 @@ func areHooksCompletedSuccessful(hookType appv1.HookType, hookStatuses []*appv1.
 // terminate looks for any running jobs/workflow hooks and deletes the resource
 func (sc *syncContext) terminate() {
 	terminateSuccessful := true
-	for _, hookStatus := range sc.syncRes.Hooks {
-		if hookStatus.Status.Completed() {
+	for _, hookStatus := range sc.syncRes.Resources {
+		if !hookStatus.IsHook() {
+			continue
+		}
+		if hookStatus.HookPhase.Completed() {
 			continue
 		}
 		if isRunnable(hookStatus) {
-			hookStatus.Status = appv1.OperationFailed
-			err := sc.deleteHook(hookStatus.Name, hookStatus.Kind, hookStatus.APIVersion, hookStatus.Namespace)
+			hookStatus.HookPhase = appv1.OperationFailed
+			err := sc.deleteHook(hookStatus.Name, hookStatus.Namespace, hookStatus.GroupVersionKind())
 			if err != nil {
-				hookStatus.Message = fmt.Sprintf("Failed to delete %s hook %s/%s: %v", hookStatus.Type, hookStatus.Kind, hookStatus.Name, err)
+				hookStatus.Message = fmt.Sprintf("Failed to delete %s hook %s/%s: %v", hookStatus.HookType, hookStatus.Kind, hookStatus.Name, err)
 				terminateSuccessful = false
 			} else {
-				hookStatus.Message = fmt.Sprintf("Deleted %s hook %s/%s", hookStatus.Type, hookStatus.Kind, hookStatus.Name)
+				hookStatus.Message = fmt.Sprintf("Deleted %s hook %s/%s", hookStatus.HookType, hookStatus.Kind, hookStatus.Name)
 			}
 			sc.updateHookStatus(*hookStatus)
 		}
@@ -526,8 +558,7 @@ func (sc *syncContext) terminate() {
 	}
 }
 
-func (sc *syncContext) deleteHook(name, kind, apiVersion string, namespace string) error {
-	gvk := schema.FromAPIVersionAndKind(apiVersion, kind)
+func (sc *syncContext) deleteHook(name, namespace string, gvk schema.GroupVersionKind) error {
 	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
 	if err != nil {
 		return err

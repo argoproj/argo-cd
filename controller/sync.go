@@ -264,36 +264,39 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.resources, gvk.Group, gvk.Kind) {
 						skipDryRun = true
 					} else {
-						sc.setResourceDetails(&appv1.ResourceDetails{
+						sc.setResourceDetails(&appv1.ResourceResult{
 							Name:      targetObj.GetName(),
-							Group:     targetObj.GroupVersionKind().Group,
+							Group:     gvk.Group,
+							Version:   gvk.Version,
 							Kind:      targetObj.GetKind(),
 							Namespace: targetObj.GetNamespace(),
 							Message:   err.Error(),
-							Status:    appv1.ResourceDetailsSyncFailed,
+							Status:    appv1.ResultCodeSyncFailed,
 						})
 					}
 				} else {
 					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
-						sc.setResourceDetails(&appv1.ResourceDetails{
+						sc.setResourceDetails(&appv1.ResourceResult{
 							Name:      targetObj.GetName(),
-							Group:     targetObj.GroupVersionKind().Group,
+							Group:     gvk.Group,
+							Version:   gvk.Version,
 							Kind:      targetObj.GetKind(),
 							Namespace: targetObj.GetNamespace(),
 							Message:   fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name),
-							Status:    appv1.ResourceDetailsSyncFailed,
+							Status:    appv1.ResultCodeSyncFailed,
 						})
 						successful = false
 					}
 
 					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(appv1.ApplicationDestination{Namespace: targetObj.GetNamespace(), Server: sc.server}) {
-						sc.setResourceDetails(&appv1.ResourceDetails{
+						sc.setResourceDetails(&appv1.ResourceResult{
 							Name:      targetObj.GetName(),
-							Group:     targetObj.GroupVersionKind().Group,
+							Group:     gvk.Group,
+							Version:   gvk.Version,
 							Kind:      targetObj.GetKind(),
 							Namespace: targetObj.GetNamespace(),
 							Message:   fmt.Sprintf("namespace %v is not permitted in project '%s'", targetObj.GetNamespace(), sc.proj.Name),
-							Status:    appv1.ResourceDetailsSyncFailed,
+							Status:    appv1.ResultCodeSyncFailed,
 						})
 						successful = false
 					}
@@ -318,20 +321,17 @@ func (sc *syncContext) startedPreSyncPhase() bool {
 	if len(sc.syncRes.Resources) > 0 {
 		return true
 	}
-	if len(sc.syncRes.Hooks) > 0 {
-		return true
-	}
 	return false
 }
 
 // startedSyncPhase detects if we have already started the Sync stage of a sync operation.
 // This is equal to if the resource list is non-empty, or we we see Sync/PostSync hooks
 func (sc *syncContext) startedSyncPhase() bool {
-	if len(sc.syncRes.Resources) > 0 {
-		return true
-	}
-	for _, hookStatus := range sc.syncRes.Hooks {
-		if hookStatus.Type == appv1.HookTypeSync || hookStatus.Type == appv1.HookTypePostSync {
+	for _, res := range sc.syncRes.Resources {
+		if !res.IsHook() {
+			return true
+		}
+		if res.HookType == appv1.HookTypeSync || res.HookType == appv1.HookTypePostSync {
 			return true
 		}
 	}
@@ -341,8 +341,8 @@ func (sc *syncContext) startedSyncPhase() bool {
 // startedPostSyncPhase detects if we have already started the PostSync stage. This is equal to if
 // we see any PostSync hooks
 func (sc *syncContext) startedPostSyncPhase() bool {
-	for _, hookStatus := range sc.syncRes.Hooks {
-		if hookStatus.Type == appv1.HookTypePostSync {
+	for _, res := range sc.syncRes.Resources {
+		if res.IsHook() && res.HookType == appv1.HookTypePostSync {
 			return true
 		}
 	}
@@ -358,50 +358,54 @@ func (sc *syncContext) setOperationPhase(phase appv1.OperationPhase, message str
 }
 
 // applyObject performs a `kubectl apply` of a single resource
-func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) appv1.ResourceDetails {
-	resDetails := appv1.ResourceDetails{
+func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) appv1.ResourceResult {
+	gvk := targetObj.GroupVersionKind()
+	resDetails := appv1.ResourceResult{
 		Name:      targetObj.GetName(),
-		Group:     targetObj.GroupVersionKind().Group,
+		Group:     gvk.Group,
+		Version:   gvk.Version,
 		Kind:      targetObj.GetKind(),
 		Namespace: targetObj.GetNamespace(),
 	}
 	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force)
 	if err != nil {
 		resDetails.Message = err.Error()
-		resDetails.Status = appv1.ResourceDetailsSyncFailed
+		resDetails.Status = appv1.ResultCodeSyncFailed
 		return resDetails
 	}
 
 	resDetails.Message = message
-	resDetails.Status = appv1.ResourceDetailsSynced
+	resDetails.Status = appv1.ResultCodeSynced
 	return resDetails
 }
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
-func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) appv1.ResourceDetails {
-	resDetails := appv1.ResourceDetails{
+func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) appv1.ResourceResult {
+	gvk := liveObj.GroupVersionKind()
+	resDetails := appv1.ResourceResult{
 		Name:      liveObj.GetName(),
-		Group:     liveObj.GroupVersionKind().Group,
+		Group:     gvk.Group,
+		Version:   gvk.Version,
 		Kind:      liveObj.GetKind(),
 		Namespace: liveObj.GetNamespace(),
 	}
 	if prune {
 		if dryRun {
 			resDetails.Message = "pruned (dry run)"
-			resDetails.Status = appv1.ResourceDetailsSyncedAndPruned
+			resDetails.Status = appv1.ResultCodeSyncedAndPruned
 		} else {
 			err := sc.kubectl.DeleteResource(sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace())
 			if err != nil {
 				resDetails.Message = err.Error()
-				resDetails.Status = appv1.ResourceDetailsSyncFailed
+				resDetails.Status = appv1.ResultCodeSyncFailed
 			} else {
 				resDetails.Message = "pruned"
-				resDetails.Status = appv1.ResourceDetailsSyncedAndPruned
+				resDetails.Status = appv1.ResultCodeSyncedAndPruned
 			}
 		}
 	} else {
 		resDetails.Message = "ignored (requires pruning)"
-		resDetails.Status = appv1.ResourceDetailsPruningRequired
+		resDetails.Status = appv1.ResultCodePruningRequired
 	}
 	return resDetails
 }
@@ -446,7 +450,7 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 		wg.Add(1)
 		go func(t syncTask) {
 			defer wg.Done()
-			var resDetails appv1.ResourceDetails
+			var resDetails appv1.ResourceResult
 			resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			if !resDetails.Status.Successful() {
 				syncSuccessful = false
@@ -499,7 +503,7 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 }
 
 // setResourceDetails sets a resource details in the SyncResult.Resources list
-func (sc *syncContext) setResourceDetails(details *appv1.ResourceDetails) {
+func (sc *syncContext) setResourceDetails(details *appv1.ResourceResult) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	for i, res := range sc.syncRes.Resources {

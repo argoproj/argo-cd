@@ -60,5 +60,5 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 	syncCtx.syncOp.SyncStrategy = nil
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
-	assert.Equal(t, v1alpha1.ResourceDetailsSynced, syncCtx.syncRes.Resources[0].Status)
+	assert.Equal(t, v1alpha1.ResultCodeSynced, syncCtx.syncRes.Resources[0].Status)
 }
