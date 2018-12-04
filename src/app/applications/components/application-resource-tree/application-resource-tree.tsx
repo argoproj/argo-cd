@@ -72,7 +72,7 @@ export const ApplicationResourceTree = (props: {
         group: '',
         version: '',
         children: Array(),
-        status: props.app.status.comparisonResult.status,
+        status: props.app.status.sync.status,
         health: props.app.status.health,
         tags: (props.app.spec.source.componentParameterOverrides || []).length > 0 ? [`${props.app.spec.source.componentParameterOverrides.length} parameter override(s)`] : [],
     };

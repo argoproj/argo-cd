@@ -53,7 +53,7 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
         },
         {
             title: 'SYNCED TO REVISION',
-            view: app.status.comparisonResult.revision || '',
+            view: app.status.sync.revision || '',
         },
         {
             title: 'PATH',
@@ -71,7 +71,7 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text}/>,
         },
         {title: 'STATUS', view: (
-            <span><ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}</span>
+            <span><ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status}</span>
         )},
         {title: 'HEALTH', view: (
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>

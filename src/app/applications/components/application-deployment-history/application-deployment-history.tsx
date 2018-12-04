@@ -18,7 +18,7 @@ export const ApplicationDeploymentHistory = ({
 }: {
     app: models.Application,
     selectedRollbackDeploymentIndex: number,
-    rollbackApp: (info: models.DeploymentInfo) => any,
+    rollbackApp: (info: models.RevisionHistory) => any,
     selectDeployment: (index: number) => any,
 }) => {
     const deployments = (app.status.history || []).slice().reverse();

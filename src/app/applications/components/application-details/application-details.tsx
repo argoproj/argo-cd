@@ -31,7 +31,7 @@ function resourcesFromSummaryInfo(application: appModels.Application, roots: app
         rootByKey.set(nodeKey(node), node);
     }
 
-    return (application.status.comparisonResult.resources || []).map((summary) => {
+    return (application.status.resources || []).map((summary) => {
         const root = rootByKey.get(nodeKey(summary));
         return {
             name: summary.name,
@@ -209,7 +209,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     <DataLoader input={selectedNode.resourceVersion} load={async () => {
                                         const managedResources = await services.applications.managedResources(application.metadata.name);
                                         const controlled = managedResources.find((item) => isSameNode(selectedNode, item));
-                                        const summary = application.status.comparisonResult.resources.find((item) => isSameNode(selectedNode, item));
+                                        const summary = application.status.resources.find((item) => isSameNode(selectedNode, item));
                                         const controlledState = controlled && summary && { summary, state: controlled } || null;
                                         const liveState = controlled && controlled.liveState || await services.applications.getResource(
                                             application.metadata.name, selectedNode).catch(() => null);
@@ -400,11 +400,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.showDeploy(null);
     }
 
-    private async rollbackApplication(deploymentInfo: appModels.DeploymentInfo) {
+    private async rollbackApplication(revisionHistory: appModels.RevisionHistory) {
         try {
             const confirmed = await this.appContext.apis.popup.confirm('Rollback application', `Are you sure you want to rollback application '${this.props.match.params.name}'?`);
             if (confirmed) {
-                await services.applications.rollback(this.props.match.params.name, deploymentInfo.id);
+                await services.applications.rollback(this.props.match.params.name, revisionHistory.id);
             }
             this.setRollbackPanelVisible(-1);
         } catch (e) {

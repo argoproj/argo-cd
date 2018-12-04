@@ -14,7 +14,7 @@ import * as AppUtils from '../utils';
 
 require('./applications-list.scss');
 
-const APP_FIELDS = ['metadata.name', 'metadata.resourceVersion', 'spec', 'status.comparisonResult.status', 'status.health'];
+const APP_FIELDS = ['metadata.name', 'metadata.resourceVersion', 'spec', 'status.sync.status', 'status.health'];
 const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
@@ -103,7 +103,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                                 {applications.map((app) => (
                                     <div key={app.metadata.name} className='column column-block'>
                                         <div className={`argo-table-list__row
-                                            applications-list__entry applications-list__entry--comparison-${app.status.comparisonResult.status}
+                                            applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
                                             applications-list__entry--health-${app.status.health.status}`
                                         }>
                                             <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.name}`)}>
@@ -126,7 +126,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                                                     <div className='row'>
                                                         <div className='columns small-3'>Status:</div>
                                                         <div className='columns small-9'>
-                                                            <AppUtils.ComparisonStatusIcon status={app.status.comparisonResult.status}/> {app.status.comparisonResult.status}
+                                                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status}
                                                         </div>
                                                     </div>
                                                     <div className='row'>

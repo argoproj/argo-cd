@@ -65,13 +65,13 @@ export interface SyncOperationResult {
     resources: ResourceResult[];
 }
 
-export type ResultCode = 'Synced' | 'SyncFailed' | 'SyncedAndPruned' | 'PruningRequired';
+export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
 
 export const ResultCodes = {
     Synced: 'Synced',
     SyncFailed: 'SyncFailed',
-    SyncedAndPruned: 'SyncedAndPruned',
-    PruningRequired: 'PruningRequired',
+    Pruned: 'Pruned',
+    PruneSkipped: 'PruneSkipped',
 };
 
 export interface ResourceResult {
@@ -167,9 +167,9 @@ export interface ApplicationSpec {
 }
 
 /**
- * DeploymentInfo contains information relevant to an application deployment
+ * RevisionHistory contains information relevant to an application deployment
  */
-export interface DeploymentInfo {
+export interface RevisionHistory {
     id: number;
     revision: string;
     params: ComponentParameter[];
@@ -233,13 +233,9 @@ export interface ResourceDiff {
     diff: string;
 }
 
-export interface ComparisonResult {
-    comparedAt: models.Time;
+export interface SyncStatus {
     comparedTo: ApplicationSource;
     status: SyncStatusCode;
-    namespace: string;
-    server: string;
-    resources: ResourceStatus[];
     revision: string;
 }
 
@@ -249,9 +245,11 @@ export interface ApplicationCondition {
 }
 
 export interface ApplicationStatus {
-    comparisonResult: ComparisonResult;
+    observedAt: models.Time;
+    resources: ResourceStatus[];
+    sync: SyncStatus;
     conditions?: ApplicationCondition[];
-    history: DeploymentInfo[];
+    history: RevisionHistory[];
     parameters: ComponentParameter[];
     health: HealthStatus;
     operationState?: OperationState;

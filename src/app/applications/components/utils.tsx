@@ -169,14 +169,13 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
             case appModels.ResultCodes.Synced:
                 color = ARGO_SUCCESS_COLOR;
                 break;
-            case appModels.ResultCodes.SyncedAndPruned:
+            case appModels.ResultCodes.Pruned:
                 color = ARGO_SUCCESS_COLOR;
                 break;
             case appModels.ResultCodes.SyncFailed:
                 color = ARGO_FAILED_COLOR;
                 break;
-            case appModels.ResultCodes.PruningRequired:
-                color = ARGO_RUNNING_COLOR;
+            case appModels.ResultCodes.PruneSkipped:
                 break;
         }
         let title: string = resource.message;
