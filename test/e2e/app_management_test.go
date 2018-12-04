@@ -86,13 +86,16 @@ func TestAppManagement(t *testing.T) {
 			t.Fatalf("Unable to delete app %v", err)
 		}
 
-		a, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.Name, metav1.GetOptions{})
-
-		if err != nil && !errors.IsNotFound(err) {
-			t.Fatalf("Unable to get app %v", err)
-		} else {
-			assert.NotNil(t, a.DeletionTimestamp)
-		}
+		WaitUntil(t, func() (bool, error) {
+			_, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.Name, metav1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) {
+					return true, nil
+				}
+				return false, err
+			}
+			return false, nil
+		})
 
 		assertAppHasEvent(app, "delete", argo.EventReasonResourceDeleted)
 	})
