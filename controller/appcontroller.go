@@ -41,7 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
@@ -601,50 +600,46 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		// This happens after app was deleted, but the work queue still had an entry for it.
 		return
 	}
-	app, ok := obj.(*appv1.Application)
+	origApp, ok := obj.(*appv1.Application)
 	if !ok {
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	if !ctrl.needRefreshAppStatus(app, ctrl.statusRefreshTimeout) {
+	if !ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout) {
 		return
 	}
-	app = ctrl.normalizeApplication(app)
+	// NOTE: normalization returns a copy
+	app := ctrl.normalizeApplication(origApp)
 
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
-		comparisonResult := app.Status.ComparisonResult.DeepCopy()
-		comparisonResult.Status = appv1.SyncStatusCodeUnknown
-		appHealth := app.Status.Health.DeepCopy()
-		appHealth.Status = appv1.HealthStatusUnknown
-		ctrl.persistAppStatus(app, comparisonResult, appHealth, nil, conditions)
+		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
+		app.Status.Health.Status = appv1.HealthStatusUnknown
+		app.Status.Conditions = conditions
+		ctrl.persistAppStatus(origApp, &app.Status)
 		return
 	}
 
-	comparisonResult, manifestInfo, resources, compConditions, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
-		conditions = append(conditions, compConditions...)
+		conditions = append(conditions, compareResult.conditions...)
 	}
-	ctrl.setAppManagedResources(app.Name, resources)
+	ctrl.setAppManagedResources(app.Name, compareResult.managedResources)
 
-	var parameters []*appv1.ComponentParameter
-	if manifestInfo != nil {
-		parameters = manifestInfo.Params
-	}
-
-	healthState, err := health.SetApplicationHealth(comparisonResult, GetLiveObjs(resources))
-	if err != nil {
-		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
-	}
-
-	syncErrCond := ctrl.autoSync(app, comparisonResult)
+	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)
 	if syncErrCond != nil {
 		conditions = append(conditions, *syncErrCond)
 	}
 
-	ctrl.persistAppStatus(app, comparisonResult, healthState, parameters, conditions)
+	app.Status.ObservedAt = compareResult.observedAt
+	app.Status.Sync = *compareResult.syncStatus
+	app.Status.Health = *compareResult.healthStatus
+	app.Status.Parameters = compareResult.parameters
+	app.Status.Resources = compareResult.resources
+	app.Status.Conditions = conditions
+	ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }
 
@@ -653,15 +648,15 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) bool {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	var reason string
-	expired := app.Status.ComparisonResult.ComparedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+	expired := app.Status.ObservedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if ctrl.isRefreshForced(app.Name) {
 		reason = "force refresh"
-	} else if app.Status.ComparisonResult.Status == appv1.SyncStatusCodeUnknown && expired {
+	} else if app.Status.Sync.Status == appv1.SyncStatusCodeUnknown && expired {
 		reason = "comparison status unknown"
-	} else if !app.Spec.Source.Equals(app.Status.ComparisonResult.ComparedTo) {
+	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo) {
 		reason = "spec.source differs"
 	} else if expired {
-		reason = fmt.Sprintf("comparison expired. comparedAt: %v, expiry: %v", app.Status.ComparisonResult.ComparedAt, statusRefreshTimeout)
+		reason = fmt.Sprintf("comparison expired. observedAt: %v, expiry: %v", app.Status.ObservedAt, statusRefreshTimeout)
 	}
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s)", reason)
@@ -747,40 +742,17 @@ func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) 
 }
 
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(
-	app *appv1.Application,
-	comparisonResult *appv1.ComparisonResult,
-	healthState *appv1.HealthStatus,
-	parameters []*appv1.ComponentParameter,
-	conditions []appv1.ApplicationCondition,
-) {
-	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	modifiedApp := app.DeepCopy()
-	if comparisonResult != nil {
-		modifiedApp.Status.ComparisonResult = *comparisonResult
-		if app.Status.ComparisonResult.Status != comparisonResult.Status {
-			message := fmt.Sprintf("Updated sync status: %s -> %s", app.Status.ComparisonResult.Status, comparisonResult.Status)
-			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
-		}
-		logCtx.Infof("Comparison result: prev: %s. current: %s", app.Status.ComparisonResult.Status, comparisonResult.Status)
+func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
+	logCtx := log.WithFields(log.Fields{"application": orig.Name})
+	if orig.Status.Sync.Status != newStatus.Sync.Status {
+		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
+		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
-	if healthState != nil {
-		if modifiedApp.Status.Health.Status != healthState.Status {
-			message := fmt.Sprintf("Updated health status: %s -> %s", modifiedApp.Status.Health.Status, healthState.Status)
-			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
-		}
-		modifiedApp.Status.Health = *healthState
+	if orig.Status.Health.Status != newStatus.Health.Status {
+		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
+		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
-	if parameters != nil {
-		modifiedApp.Status.Parameters = make([]appv1.ComponentParameter, len(parameters))
-		for i := range parameters {
-			modifiedApp.Status.Parameters[i] = *parameters[i]
-		}
-	}
-	if conditions != nil {
-		modifiedApp.Status.Conditions = conditions
-	}
-	patch, modified, err := diff.CreateTwoWayMergePatch(app, modifiedApp, appv1.Application{})
+	patch, modified, err := diff.CreateTwoWayMergePatch(&appv1.Application{Status: orig.Status}, &appv1.Application{Status: *newStatus}, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
@@ -789,8 +761,8 @@ func (ctrl *ApplicationController) persistAppStatus(
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
-	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-	_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
+	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
+	_, err = appClient.Patch(orig.Name, types.MergePatchType, patch)
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {
@@ -799,7 +771,7 @@ func (ctrl *ApplicationController) persistAppStatus(
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonResult *appv1.ComparisonResult) *appv1.ApplicationCondition {
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus) *appv1.ApplicationCondition {
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 		return nil
 	}
@@ -810,11 +782,11 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, comparisonRe
 	}
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
-	if comparisonResult.Status != appv1.SyncStatusCodeOutOfSync {
-		logCtx.Infof("Skipping auto-sync: application status is %s", comparisonResult.Status)
+	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
+		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
 		return nil
 	}
-	desiredCommitSHA := comparisonResult.Revision
+	desiredCommitSHA := syncStatus.Revision
 
 	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an

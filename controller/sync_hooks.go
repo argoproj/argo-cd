@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -59,14 +57,10 @@ func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Un
 	// already started the post-sync phase, then we do not need to perform the health check.
 	postSyncHooks, _ := sc.getHooks(appv1.HookTypePostSync)
 	if len(postSyncHooks) > 0 && !sc.startedPostSyncPhase() {
-		healthState, err := health.SetApplicationHealth(sc.comparison, GetLiveObjs(sc.resources))
-		sc.log.Infof("PostSync application health check: %s", healthState.Status)
-		if err != nil {
-			sc.setOperationPhase(appv1.OperationError, fmt.Sprintf("failed to check application health: %v", err))
-			return
-		}
-		if healthState.Status != appv1.HealthStatusHealthy {
-			sc.setOperationPhase(appv1.OperationRunning, fmt.Sprintf("waiting for %s state to run %s hooks (current health: %s)", appv1.HealthStatusHealthy, appv1.HookTypePostSync, healthState.Status))
+		sc.log.Infof("PostSync application health check: %s", sc.compareResult.healthStatus.Status)
+		if sc.compareResult.healthStatus.Status != appv1.HealthStatusHealthy {
+			sc.setOperationPhase(appv1.OperationRunning, fmt.Sprintf("waiting for %s state to run %s hooks (current health: %s)",
+				appv1.HealthStatusHealthy, appv1.HookTypePostSync, sc.compareResult.healthStatus.Status))
 			return
 		}
 	}
@@ -112,16 +106,11 @@ func (sc *syncContext) verifyPermittedHooks(hooks []*unstructured.Unstructured) 
 // getHooks returns all Argo CD hooks, optionally filtered by ones of the specific type(s)
 func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Unstructured, error) {
 	var hooks []*unstructured.Unstructured
-	for _, manifest := range sc.manifestInfo.Manifests {
-		var hook unstructured.Unstructured
-		err := json.Unmarshal([]byte(manifest), &hook)
-		if err != nil {
-			return nil, err
-		}
+	for _, hook := range sc.compareResult.hooks {
 		if hook.GetNamespace() == "" {
 			hook.SetNamespace(sc.namespace)
 		}
-		if !hookutil.IsArgoHook(&hook) {
+		if !hookutil.IsArgoHook(hook) {
 			// TODO: in the future, if we want to map helm hooks to Argo CD lifecycles, we should
 			// include helm hooks in the returned list
 			continue
@@ -129,7 +118,7 @@ func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Un
 		if len(hookTypes) > 0 {
 			match := false
 			for _, desiredType := range hookTypes {
-				if isHookType(&hook, desiredType) {
+				if isHookType(hook, desiredType) {
 					match = true
 					break
 				}
@@ -138,7 +127,7 @@ func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Un
 				continue
 			}
 		}
-		hooks = append(hooks, &hook)
+		hooks = append(hooks, hook)
 	}
 	return hooks, nil
 }

@@ -189,7 +189,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if showParams {
 					printParams(app)
 				}
-				if len(app.Status.ComparisonResult.Resources) > 0 {
+				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 					printAppResources(w, app, showOperation)
@@ -736,7 +736,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app.Spec.Destination.Server,
 					app.Spec.Destination.Namespace,
 					app.Spec.GetProject(),
-					app.Status.ComparisonResult.Status,
+					app.Status.Sync.Status,
 					app.Status.Health.Status,
 					formatConditionsSummary(app),
 				}
@@ -895,7 +895,7 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 	} else {
 		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
 	}
-	for _, res := range app.Status.ComparisonResult.Resources {
+	for _, res := range app.Status.Resources {
 		if showOperation {
 			message := messages[fmt.Sprintf("%s/%s", res.Kind, res.Name)]
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, res.Health.Status, "", message)
@@ -982,7 +982,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			pruningRequired := 0
 			for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
-				if resDetails.Status == argoappv1.ResultCodePruningRequired {
+				if resDetails.Status == argoappv1.ResultCodePruneSkipped {
 					pruningRequired++
 				}
 			}
@@ -1055,7 +1055,7 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 
 func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
-	for _, res := range app.Status.ComparisonResult.Resources {
+	for _, res := range app.Status.Resources {
 
 		if len(syncResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), syncResources) {
 			continue
@@ -1129,7 +1129,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 			printOperationResult(app.Status.OperationState)
 		}
 
-		if len(app.Status.ComparisonResult.Resources) > 0 {
+		if len(app.Status.Resources) > 0 {
 			fmt.Println()
 			w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
 			printAppResources(w, app, watchOperation)
@@ -1156,7 +1156,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 			refresh = true
 		}
 		// consider skipped checks successful
-		synced := !watchSync || app.Status.ComparisonResult.Status == argoappv1.SyncStatusCodeSynced
+		synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
 		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
 		operational := !watchOperation || appEvent.Application.Operation == nil
 		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {
@@ -1313,7 +1313,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			ctx := context.Background()
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			var depInfo *argoappv1.DeploymentInfo
+			var depInfo *argoappv1.RevisionHistory
 			for _, di := range app.Status.History {
 				if di.ID == int64(depID) {
 					depInfo = &di

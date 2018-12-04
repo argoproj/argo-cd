@@ -19,12 +19,9 @@ import (
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
-func SetApplicationHealth(comparisonResult *appv1.ComparisonResult, liveObjs []*unstructured.Unstructured) (*appv1.HealthStatus, error) {
+func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
-	if comparisonResult.Status == appv1.SyncStatusCodeUnknown {
-		appHealth.Status = appv1.HealthStatusUnknown
-	}
 	for i, liveObj := range liveObjs {
 		var resHealth *appv1.HealthStatus
 		var err error
@@ -36,7 +33,7 @@ func SetApplicationHealth(comparisonResult *appv1.ComparisonResult, liveObjs []*
 				savedErr = err
 			}
 		}
-		comparisonResult.Resources[i].Health = *resHealth
+		resStatuses[i].Health = *resHealth
 		// Don't allow resource hooks to affect health status
 		isHook := liveObj != nil && hookutil.IsHook(liveObj)
 		if !isHook && IsWorse(appHealth.Status, resHealth.Status) {

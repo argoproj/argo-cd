@@ -2381,12 +2381,9 @@
       }
     },
     "v1alpha1ApplicationStatus": {
-      "description": "ApplicationStatus contains information about application status in target environment.",
       "type": "object",
+      "title": "ApplicationStatus contains information about application sync, health status",
       "properties": {
-        "comparisonResult": {
-          "$ref": "#/definitions/v1alpha1ComparisonResult"
-        },
         "conditions": {
           "type": "array",
           "items": {
@@ -2399,8 +2396,11 @@
         "history": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1DeploymentInfo"
+            "$ref": "#/definitions/v1alpha1RevisionHistory"
           }
+        },
+        "observedAt": {
+          "$ref": "#/definitions/v1Time"
         },
         "operationState": {
           "$ref": "#/definitions/v1alpha1OperationState"
@@ -2410,6 +2410,15 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ComponentParameter"
           }
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceStatus"
+          }
+        },
+        "sync": {
+          "$ref": "#/definitions/v1alpha1SyncStatus"
         }
       }
     },
@@ -2483,30 +2492,6 @@
         }
       }
     },
-    "v1alpha1ComparisonResult": {
-      "description": "ComparisonResult is a comparison result of application spec and deployed application.",
-      "type": "object",
-      "properties": {
-        "comparedAt": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "comparedTo": {
-          "$ref": "#/definitions/v1alpha1ApplicationSource"
-        },
-        "resources": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceStatus"
-          }
-        },
-        "revision": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1ComponentParameter": {
       "type": "object",
       "title": "ComponentParameter contains information about component parameter value",
@@ -2533,28 +2518,6 @@
           "type": "string"
         },
         "status": {
-          "type": "string"
-        }
-      }
-    },
-    "v1alpha1DeploymentInfo": {
-      "type": "object",
-      "title": "DeploymentInfo contains information relevant to an application deployment",
-      "properties": {
-        "componentParameterOverrides": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
-          }
-        },
-        "deployedAt": {
-          "$ref": "#/definitions/v1Time"
-        },
-        "id": {
-          "type": "string",
-          "format": "int64"
-        },
-        "revision": {
           "type": "string"
         }
       }
@@ -2817,6 +2780,28 @@
         }
       }
     },
+    "v1alpha1RevisionHistory": {
+      "type": "object",
+      "title": "RevisionHistory contains information relevant to an application deployment",
+      "properties": {
+        "componentParameterOverrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ComponentParameter"
+          }
+        },
+        "deployedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "revision": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1SyncOperation": {
       "description": "SyncOperation contains sync operation details.",
       "type": "object",
@@ -2899,6 +2884,21 @@
           "type": "boolean",
           "format": "boolean",
           "title": "Prune will prune resources automatically as part of automated sync (default: false)"
+        }
+      }
+    },
+    "v1alpha1SyncStatus": {
+      "description": "SyncStatus is a comparison result of application spec and deployed application.",
+      "type": "object",
+      "properties": {
+        "comparedTo": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
         }
       }
     },

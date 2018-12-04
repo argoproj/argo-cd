@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util/argo"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -24,8 +23,7 @@ import (
 type syncContext struct {
 	appName       string
 	proj          *appv1.AppProject
-	comparison    *appv1.ComparisonResult
-	resources     []managedResource
+	compareResult *comparisonResult
 	config        *rest.Config
 	dynamicIf     dynamic.Interface
 	disco         discovery.DiscoveryInterface
@@ -36,7 +34,6 @@ type syncContext struct {
 	syncRes       *appv1.SyncOperationResult
 	syncResources []appv1.SyncOperationResource
 	opState       *appv1.OperationState
-	manifestInfo  *repository.ManifestResponse
 	log           *log.Entry
 	// lock to protect concurrent updates of the result list
 	lock sync.Mutex
@@ -45,9 +42,9 @@ type syncContext struct {
 func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
-	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult and
-	// rollbackResult fields. This ensures that when resuming an operation, we sync to the same
-	// revision that we initially started with.
+	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
+	// This ensures that when resuming an operation, we sync to the same revision that we initially
+	// started with.
 	var revision string
 	var syncOp appv1.SyncOperation
 	var syncRes *appv1.SyncOperationResult
@@ -78,16 +75,18 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
-	comparison, manifestInfo, resources, conditions, err := m.CompareAppState(app, revision, overrides)
+	compareResult, err := m.CompareAppState(app, revision, overrides)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
 		return
 	}
+
+	// If there are any error conditions, do not perform the operation
 	errConditions := make([]appv1.ApplicationCondition, 0)
-	for i := range conditions {
-		if conditions[i].IsError() {
-			errConditions = append(errConditions, conditions[i])
+	for i := range compareResult.conditions {
+		if compareResult.conditions[i].IsError() {
+			errConditions = append(errConditions, compareResult.conditions[i])
 		}
 	}
 	if len(errConditions) > 0 {
@@ -95,9 +94,10 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		state.Message = argo.FormatAppConditions(errConditions)
 		return
 	}
+
 	// We now have a concrete commit SHA. Set this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
-	syncRes.Revision = manifestInfo.Revision
+	syncRes.Revision = compareResult.syncStatus.Revision
 
 	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
@@ -130,7 +130,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	syncCtx := syncContext{
 		appName:       app.Name,
 		proj:          proj,
-		comparison:    comparison,
+		compareResult: compareResult,
 		config:        restConfig,
 		dynamicIf:     dynamicIf,
 		disco:         disco,
@@ -141,9 +141,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		syncRes:       syncRes,
 		syncResources: syncResources,
 		opState:       state,
-		manifestInfo:  manifestInfo,
 		log:           log.WithFields(log.Fields{"application": app.Name}),
-		resources:     resources,
 	}
 
 	if state.Phase == appv1.OperationTerminating {
@@ -153,7 +151,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	}
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && syncCtx.opState.Phase.Successful() {
-		err := m.persistDeploymentInfo(app, manifestInfo.Revision, manifestInfo.Params, nil)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, compareResult.parameters, nil)
 		if err != nil {
 			state.Phase = appv1.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -233,15 +231,11 @@ func (sc *syncContext) sync() {
 	}
 }
 
-func (sc *syncContext) forceAppRefresh() {
-	sc.comparison.ComparedAt = metav1.Time{}
-}
-
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 	syncTasks := make([]syncTask, 0)
 	successful := true
-	for _, resourceState := range sc.resources {
+	for _, resourceState := range sc.compareResult.managedResources {
 		if resourceState.Hook {
 			continue
 		}
@@ -261,7 +255,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 				if err != nil {
 					// Special case for custom resources: if custom resource definition is not supported by the cluster by defined in application then
 					// skip verification using `kubectl apply --dry-run` and since CRD should be created during app synchronization.
-					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.resources, gvk.Group, gvk.Kind) {
+					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, gvk.Group, gvk.Kind) {
 						skipDryRun = true
 					} else {
 						sc.setResourceDetails(&appv1.ResourceResult{
@@ -392,7 +386,7 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	if prune {
 		if dryRun {
 			resDetails.Message = "pruned (dry run)"
-			resDetails.Status = appv1.ResultCodeSyncedAndPruned
+			resDetails.Status = appv1.ResultCodePruned
 		} else {
 			err := sc.kubectl.DeleteResource(sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace())
 			if err != nil {
@@ -400,12 +394,12 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 				resDetails.Status = appv1.ResultCodeSyncFailed
 			} else {
 				resDetails.Message = "pruned"
-				resDetails.Status = appv1.ResultCodeSyncedAndPruned
+				resDetails.Status = appv1.ResultCodePruned
 			}
 		}
 	} else {
 		resDetails.Message = "ignored (requires pruning)"
-		resDetails.Status = appv1.ResultCodePruningRequired
+		resDetails.Status = appv1.ResultCodePruneSkipped
 	}
 	return resDetails
 }
@@ -507,13 +501,13 @@ func (sc *syncContext) setResourceDetails(details *appv1.ResourceResult) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 	for i, res := range sc.syncRes.Resources {
-		if res.Group == details.Group && res.Kind == details.Kind && res.Name == details.Name {
+		if res.Group == details.Group && res.Kind == details.Kind && res.Namespace == details.Namespace && res.Name == details.Name {
 			// update existing value
 			if res.Status != details.Status {
-				sc.log.Infof("updated resource %s/%s status: %s -> %s", res.Kind, res.Name, res.Status, details.Status)
+				sc.log.Infof("updated resource %s/%s/%s status: %s -> %s", res.Kind, res.Namespace, res.Name, res.Status, details.Status)
 			}
 			if res.Message != details.Message {
-				sc.log.Infof("updated resource %s/%s message: %s -> %s", res.Kind, res.Name, res.Message, details.Message)
+				sc.log.Infof("updated resource %s/%s/%s message: %s -> %s", res.Kind, res.Namespace, res.Name, res.Message, details.Message)
 			}
 			sc.syncRes.Resources[i] = details
 			return

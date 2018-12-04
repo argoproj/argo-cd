@@ -749,7 +749,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 		return nil, status.Errorf(codes.FailedPrecondition, "rollback cannot be initiated when auto-sync is enabled")
 	}
 
-	var deploymentInfo *appv1.DeploymentInfo
+	var deploymentInfo *appv1.RevisionHistory
 	for _, info := range a.Status.History {
 		if info.ID == rollbackReq.ID {
 			deploymentInfo = &info

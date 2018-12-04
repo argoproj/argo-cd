@@ -3,14 +3,13 @@ package controller
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube/kubetest"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/test"
+	"github.com/argoproj/argo-cd/util/kube/kubetest"
 )
 
 var clusterRoleHook = `
@@ -39,12 +38,15 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 	})
 
 	syncCtx.kubectl = kubetest.MockKubectlCmd{}
-	syncCtx.manifestInfo = &repository.ManifestResponse{
-		Manifests: []string{clusterRoleHook},
+	crHook, _ := v1alpha1.UnmarshalToUnstructured(clusterRoleHook)
+	syncCtx.compareResult = &comparisonResult{
+		hooks: []*unstructured.Unstructured{
+			crHook,
+		},
+		managedResources: []managedResource{{
+			Target: test.NewPod(),
+		}},
 	}
-	syncCtx.resources = []managedResource{{
-		Target: test.NewPod(),
-	}}
 	syncCtx.proj.Spec.ClusterResourceWhitelist = []v1.GroupKind{}
 
 	syncCtx.syncOp.SyncStrategy = nil
