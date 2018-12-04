@@ -289,13 +289,24 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 // drops old overrides that are invalid
 // throws an error is passed override is invalid
 // if passed override and old overrides are invalid, throws error, old overrides not dropped
-func (s *Server) removeInvalidOverrides(a *appv1.Application, q *ApplicationUpdateSpecRequest) (*ApplicationUpdateSpecRequest, error) {
+func (s *Server) removeInvalidOverrides(ctx context.Context, a *appv1.Application, q *ApplicationUpdateSpecRequest) (*ApplicationUpdateSpecRequest, error) {
 	if appv1.KsonnetEnv(&a.Spec.Source) == "" {
 		// this method is only valid for ksonnet apps
 		return q, nil
 	}
 	oldParams := argo.ParamToMap(a.Spec.Source.ComponentParameterOverrides)
-	validAppSet := argo.ParamToMap(a.Status.Parameters)
+	manifests, err := s.GetManifests(ctx, &ApplicationManifestQuery{
+		Name:     &a.Name,
+		Revision: a.Spec.Source.TargetRevision,
+	})
+	if err != nil {
+		return nil, err
+	}
+	appParams := make([]appv1.ComponentParameter, len(manifests.Params))
+	for i := range manifests.Params {
+		appParams[i] = *manifests.Params[i]
+	}
+	validAppSet := argo.ParamToMap(appParams)
 
 	params := make([]appv1.ComponentParameter, 0)
 	for i := range q.Spec.Source.ComponentParameterOverrides {
@@ -330,7 +341,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	if err != nil {
 		return nil, err
 	}
-	q, err = s.removeInvalidOverrides(a, q)
+	q, err = s.removeInvalidOverrides(ctx, a, q)
 	if err != nil {
 		return nil, err
 	}

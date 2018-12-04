@@ -107,6 +107,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	mockRepoServiceClient := mockreposerver.RepositoryServiceClient{}
 	mockRepoServiceClient.On("GetFile", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
 	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
 
 	mockRepoClient := &mockrepo.Clientset{}
 	mockRepoClient.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
