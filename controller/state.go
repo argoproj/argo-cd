@@ -260,7 +260,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	var parameters []v1alpha1.ComponentParameter
 	if manifestInfo != nil {
 		syncStatus.Revision = manifestInfo.Revision
-		parameters := make([]v1alpha1.ComponentParameter, len(manifestInfo.Params))
+		parameters = make([]v1alpha1.ComponentParameter, len(manifestInfo.Params))
 		for i := range manifestInfo.Params {
 			parameters[i] = *manifestInfo.Params[i]
 		}

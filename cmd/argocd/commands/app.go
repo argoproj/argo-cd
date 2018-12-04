@@ -565,7 +565,7 @@ func getLocalObjects(app *argoappv1.Application, local string, env string, value
 		if env != "" {
 			log.Fatal("--env option invalid when performing local diff on helm application")
 		}
-		h := helm.NewHelmApp(local)
+		h := helm.NewHelmApp(local, []*argoappv1.HelmRepository{})
 		opts := helm.HelmTemplateOpts{
 			Namespace: app.Namespace,
 		}
