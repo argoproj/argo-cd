@@ -52,6 +52,13 @@ const (
 var (
 	// legacyLabeling decides whether or not to use legacy (v0.10 and below) labeling
 	legacyLabeling = false
+
+	// obsoleteExtensionsKinds contains list of obsolete kinds from extensions group which exist in apps group
+	obsoleteExtensionsKinds = map[string]bool{
+		DaemonSetKind:  true,
+		ReplicaSetKind: true,
+		DeploymentKind: true,
+	}
 )
 
 func init() {
@@ -70,8 +77,16 @@ func (k *ResourceKey) String() string {
 	return fmt.Sprintf("%s/%s/%s/%s", k.Group, k.Kind, k.Namespace, k.Name)
 }
 
-func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
+func isObsoleteExtensionsGroupKind(group string, kind string) bool {
 	if group == "extensions" {
+		_, ok := obsoleteExtensionsKinds[kind]
+		return ok
+	}
+	return false
+}
+
+func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
+	if isObsoleteExtensionsGroupKind(group, kind) {
 		group = "apps"
 	}
 
@@ -269,11 +284,15 @@ func filterAPIResources(config *rest.Config, filter filterFunc, namespace string
 	}
 	apiResIfs := make([]apiResourceInterface, 0)
 	for _, apiResourcesList := range serverResources {
-		if gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion); err == nil && (gv.Group == "extensions" || gv.Group == "events.k8s.io") {
+		gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
+		if err != nil {
+			gv = schema.GroupVersion{}
+		}
+		if gv.Group == "events.k8s.io" {
 			continue
 		}
 		for _, apiResource := range apiResourcesList.APIResources {
-			if apiResource.Group == "" && apiResource.Kind == "Event" {
+			if gv.Group == "" && apiResource.Kind == "Event" || isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind) {
 				continue
 			}
 			if filter(apiResourcesList.GroupVersion, &apiResource) {
