@@ -234,7 +234,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		opts := kustomizeOpts(q)
 		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeDirectory:
-		targetObjs, err = findManifests(appPath)
+		targetObjs, err = FindManifests(appPath)
 	}
 	if err != nil {
 		return nil, err
@@ -386,8 +386,8 @@ func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) (
 
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
-// findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string) ([]*unstructured.Unstructured, error) {
+// FindManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
+func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
 	files, err := ioutil.ReadDir(appPath)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "Failed to read dir %s: %v", appPath, err)
