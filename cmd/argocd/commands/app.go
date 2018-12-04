@@ -661,7 +661,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 					}
-					out, err := diffRes.ASCIIFormat(liveObjs[i], formatOpts)
+					liveObj := liveObjs[i]
+					if liveObj == nil {
+						liveObj = &unstructured.Unstructured{Object: make(map[string]interface{})}
+					}
+					out, err := diffRes.ASCIIFormat(liveObj, formatOpts)
 					errors.CheckError(err)
 					fmt.Println(out)
 				}
