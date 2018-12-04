@@ -12,7 +12,7 @@ const jsonDiffPatch = require('jsondiffpatch');
 // parameter names with '.' character conflicts with react-form field name notation. The paramNameEncode and decodeParamNames is workaround for this limitation
 // paramNameEncode replaces . with _ character.
 function paramNameEncode(name: string) {
-    return name.replace('.', '_');
+    return name.replace(/[.]/g, '_');
 }
 
 // decodeParamNames restores original parameter names.
