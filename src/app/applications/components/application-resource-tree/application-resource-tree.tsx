@@ -53,6 +53,23 @@ function appNodeKey(app: models.Application) {
     return nodeKey({group: app.apiVersion, kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace });
 }
 
+class NodeUpdateAnimation extends React.PureComponent<{ resourceVersion: string; }, {  ready: boolean }> {
+    constructor(props: { resourceVersion: string; }) {
+        super(props);
+        this.state = { ready: false };
+    }
+
+    public render() {
+        return this.state.ready && <div key={this.props.resourceVersion} className='application-resource-tree__node-animation'/>;
+    }
+
+    public componentDidUpdate(prevProps: { resourceVersion: string; }) {
+        if (prevProps.resourceVersion && this.props.resourceVersion !== prevProps.resourceVersion) {
+            this.setState({ ready: true });
+        }
+    }
+}
+
 export const ApplicationResourceTree = (props: {
     app: models.Application,
     resources: ResourceTreeNode [],
@@ -128,6 +145,7 @@ export const ApplicationResourceTree = (props: {
                     <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resource-tree__node', {
                         active: fullName === props.selectedNodeFullName,
                     })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+                        {node.kind !== 'Application' && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
                         <div className={classNames('application-resource-tree__node-kind-icon', {
                             'application-resource-tree__node-kind-icon--big': node.kind === 'Application',
                         })}>
