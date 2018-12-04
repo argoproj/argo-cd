@@ -154,11 +154,11 @@ func newFakeApp() *argoappv1.Application {
 func TestAutoSync(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	compRes := argoappv1.ComparisonResult{
+	syncStatus := argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond := ctrl.autoSync(app, &compRes)
+	cond := ctrl.autoSync(app, &syncStatus)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -172,11 +172,11 @@ func TestSkipAutoSync(t *testing.T) {
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	compRes := argoappv1.ComparisonResult{
+	syncStatus := argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
-	cond := ctrl.autoSync(app, &compRes)
+	cond := ctrl.autoSync(app, &syncStatus)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -185,11 +185,11 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we are already Synced (even if revision is different)
 	app = newFakeApp()
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	compRes = argoappv1.ComparisonResult{
+	syncStatus = argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeSynced,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond = ctrl.autoSync(app, &compRes)
+	cond = ctrl.autoSync(app, &syncStatus)
 	assert.Nil(t, cond)
 	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -199,11 +199,11 @@ func TestSkipAutoSync(t *testing.T) {
 	app = newFakeApp()
 	app.Spec.SyncPolicy = nil
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	compRes = argoappv1.ComparisonResult{
+	syncStatus = argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond = ctrl.autoSync(app, &compRes)
+	cond = ctrl.autoSync(app, &syncStatus)
 	assert.Nil(t, cond)
 	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -222,11 +222,11 @@ func TestSkipAutoSync(t *testing.T) {
 		},
 	}
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	compRes = argoappv1.ComparisonResult{
+	syncStatus = argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond = ctrl.autoSync(app, &compRes)
+	cond = ctrl.autoSync(app, &syncStatus)
 	assert.NotNil(t, cond)
 	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -243,7 +243,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	compRes := argoappv1.ComparisonResult{
+	syncStatus := argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
@@ -263,7 +263,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 	}
-	cond := ctrl.autoSync(app, &compRes)
+	cond := ctrl.autoSync(app, &syncStatus)
 	assert.NotNil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -280,7 +280,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	compRes := argoappv1.ComparisonResult{
+	syncStatus := argoappv1.SyncStatus{
 		Status:   argoappv1.SyncStatusCodeOutOfSync,
 		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
@@ -300,7 +300,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 	}
-	cond := ctrl.autoSync(app, &compRes)
+	cond := ctrl.autoSync(app, &syncStatus)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
 	assert.NoError(t, err)

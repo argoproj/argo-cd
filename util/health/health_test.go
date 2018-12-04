@@ -86,33 +86,31 @@ func TestSetApplicationHealth(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &runningPod)
 	assert.Nil(t, err)
 
-	compRes := appv1.ComparisonResult{
-		Resources: []appv1.ResourceStatus{
-			{
-				Group:   "",
-				Version: "v1",
-				Kind:    "Pod",
-				Name:    runningPod.GetName(),
-			},
-			{
-				Group:   "batch",
-				Version: "v1",
-				Kind:    "Job",
-				Name:    failedJob.GetName(),
-			},
+	resources := []appv1.ResourceStatus{
+		{
+			Group:   "",
+			Version: "v1",
+			Kind:    "Pod",
+			Name:    runningPod.GetName(),
+		},
+		{
+			Group:   "batch",
+			Version: "v1",
+			Kind:    "Job",
+			Name:    failedJob.GetName(),
 		},
 	}
 	liveObjs := []*unstructured.Unstructured{
 		&runningPod,
 		&failedJob,
 	}
-	healthStatus, err := SetApplicationHealth(&compRes, liveObjs)
+	healthStatus, err := SetApplicationHealth(resources, liveObjs)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = SetApplicationHealth(&compRes, liveObjs)
+	healthStatus, err = SetApplicationHealth(resources, liveObjs)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 

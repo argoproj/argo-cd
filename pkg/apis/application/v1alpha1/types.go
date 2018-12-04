@@ -102,14 +102,16 @@ type ApplicationDestination struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }
 
-// ApplicationStatus contains information about application status in target environment.
+// ApplicationStatus contains information about application sync, health status
 type ApplicationStatus struct {
-	ComparisonResult ComparisonResult       `json:"comparisonResult" protobuf:"bytes,1,opt,name=comparisonResult"`
-	History          []DeploymentInfo       `json:"history" protobuf:"bytes,2,opt,name=history"`
-	Parameters       []ComponentParameter   `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
-	Health           HealthStatus           `json:"health,omitempty" protobuf:"bytes,4,opt,name=health"`
-	OperationState   *OperationState        `json:"operationState,omitempty" protobuf:"bytes,5,opt,name=operationState"`
-	Conditions       []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,6,opt,name=conditions"`
+	Resources      []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Sync           SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	Parameters     []ComponentParameter   `json:"parameters,omitempty" protobuf:"bytes,5,opt,name=parameters"`
+	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,6,opt,name=conditions"`
+	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,7,opt,name=observedAt"`
+	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,8,opt,name=operationState"`
 }
 
 // Operation contains requested operation parameters.
@@ -265,10 +267,10 @@ type SyncOperationResult struct {
 type ResultCode string
 
 const (
-	ResultCodeSynced          ResultCode = "Synced"
-	ResultCodeSyncFailed      ResultCode = "SyncFailed"
-	ResultCodeSyncedAndPruned ResultCode = "SyncedAndPruned"
-	ResultCodePruningRequired ResultCode = "PruningRequired"
+	ResultCodeSynced       ResultCode = "Synced"
+	ResultCodeSyncFailed   ResultCode = "SyncFailed"
+	ResultCodePruned       ResultCode = "Pruned"
+	ResultCodePruneSkipped ResultCode = "PruneSkipped"
 )
 
 func (s ResultCode) Successful() bool {
@@ -300,8 +302,8 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 	}
 }
 
-// DeploymentInfo contains information relevant to an application deployment
-type DeploymentInfo struct {
+// RevisionHistory contains information relevant to an application deployment
+type RevisionHistory struct {
 	Revision                    string               `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,3,opt,name=componentParameterOverrides"`
 	DeployedAt                  metav1.Time          `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
@@ -374,13 +376,11 @@ type ApplicationCondition struct {
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
 }
 
-// ComparisonResult is a comparison result of application spec and deployed application.
-type ComparisonResult struct {
-	ComparedAt metav1.Time       `json:"comparedAt" protobuf:"bytes,1,opt,name=comparedAt"`
+// SyncStatus is a comparison result of application spec and deployed application.
+type SyncStatus struct {
+	Status     SyncStatusCode    `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Status     SyncStatusCode    `json:"status" protobuf:"bytes,5,opt,name=status,casttype=SyncStatusCode"`
-	Revision   string            `json:"revision" protobuf:"bytes,7,opt,name=revision"`
-	Resources  []ResourceStatus  `json:"resources,omitempty" protobuf:"bytes,8,opt,name=resources"`
+	Revision   string            `json:"revision" protobuf:"bytes,3,opt,name=revision"`
 }
 
 type HealthStatus struct {

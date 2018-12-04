@@ -28,14 +28,13 @@ func TestCompareAppStateEmpty(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, maniRes, resources, cond, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
-	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.Status)
-	assert.Equal(t, 0, len(compRes.Resources))
-	assert.Equal(t, data.manifestResponse, maniRes)
-	assert.Equal(t, 0, len(resources))
-	assert.Equal(t, 0, len(cond))
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, 0, len(compRes.resources))
+	assert.Equal(t, 0, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.conditions))
 }
 
 // TestCompareAppStateMissing tests when there is a manifest defined in git which doesn't exist in live
@@ -52,14 +51,13 @@ func TestCompareAppStateMissing(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, maniRes, resources, cond, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
-	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.Status)
-	assert.Equal(t, 1, len(compRes.Resources))
-	assert.Equal(t, data.manifestResponse, maniRes)
-	assert.Equal(t, 1, len(resources))
-	assert.Equal(t, 0, len(cond))
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.conditions))
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
@@ -80,14 +78,13 @@ func TestCompareAppStateExtra(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes, maniRes, resources, cond, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
-	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.Status)
-	assert.Equal(t, 1, len(compRes.Resources))
-	assert.Equal(t, data.manifestResponse, maniRes)
-	assert.Equal(t, 1, len(resources))
-	assert.Equal(t, 0, len(cond))
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.conditions))
 }
 
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
@@ -108,14 +105,13 @@ func TestCompareAppStateHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, maniRes, resources, cond, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
-	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.Status)
-	assert.Equal(t, 0, len(compRes.Resources))
-	assert.Equal(t, data.manifestResponse, maniRes)
-	assert.Equal(t, 0, len(resources))
-	assert.Equal(t, 0, len(cond))
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, 0, len(compRes.resources))
+	assert.Equal(t, 0, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.conditions))
 }
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
@@ -137,12 +133,11 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes, maniRes, resources, cond, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
-	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.Status)
-	assert.Equal(t, 1, len(compRes.Resources))
-	assert.Equal(t, data.manifestResponse, maniRes)
-	assert.Equal(t, 1, len(resources))
-	assert.Equal(t, 0, len(cond))
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.conditions))
 }

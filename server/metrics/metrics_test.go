@@ -2,11 +2,12 @@ package metrics
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +34,7 @@ spec:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
 status:
-  comparisonResult:
+  sync:
     status: Synced
   health:
     status: Healthy
@@ -73,7 +74,7 @@ spec:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
 status:
-  comparisonResult:
+  sync:
     status: Synced
   health:
     status: Healthy

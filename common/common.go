@@ -29,6 +29,8 @@ const (
 	ArgoCDUserAgentName = "argocd-client"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
+	// RevisionHistoryLimit is the max number of successful sync to keep in history
+	RevisionHistoryLimit = 10
 )
 
 // Dex related constants

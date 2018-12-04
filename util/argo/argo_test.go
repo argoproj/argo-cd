@@ -83,7 +83,7 @@ func TestWaitForRefresh(t *testing.T) {
 	testApp.ObjectMeta.Annotations = map[string]string{
 		common.AnnotationKeyRefresh: time.Now().UTC().Format(time.RFC3339),
 	}
-	testApp.Status.ComparisonResult.ComparedAt = metav1.Time{Time: time.Now().UTC()}
+	testApp.Status.ObservedAt = metav1.Now()
 	appClientset = appclientset.NewSimpleClientset()
 
 	appIf = appClientset.ArgoprojV1alpha1().Applications("default")

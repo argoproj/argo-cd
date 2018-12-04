@@ -171,19 +171,23 @@ message ApplicationSpec {
   optional SyncPolicy syncPolicy = 4;
 }
 
-// ApplicationStatus contains information about application status in target environment.
+// ApplicationStatus contains information about application sync, health status
 message ApplicationStatus {
-  optional ComparisonResult comparisonResult = 1;
+  repeated ResourceStatus resources = 1;
 
-  repeated DeploymentInfo history = 2;
+  optional SyncStatus sync = 2;
 
-  repeated ComponentParameter parameters = 3;
+  optional HealthStatus health = 3;
 
-  optional HealthStatus health = 4;
+  repeated RevisionHistory history = 4;
 
-  optional OperationState operationState = 5;
+  repeated ComponentParameter parameters = 5;
 
   repeated ApplicationCondition conditions = 6;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 7;
+
+  optional OperationState operationState = 8;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -240,19 +244,6 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
-// ComparisonResult is a comparison result of application spec and deployed application.
-message ComparisonResult {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time comparedAt = 1;
-
-  optional ApplicationSource comparedTo = 2;
-
-  optional string status = 5;
-
-  optional string revision = 7;
-
-  repeated ResourceStatus resources = 8;
-}
-
 // ComponentParameter contains information about component parameter value
 message ComponentParameter {
   optional string component = 1;
@@ -269,17 +260,6 @@ message ConnectionState {
   optional string message = 2;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
-}
-
-// DeploymentInfo contains information relevant to an application deployment
-message DeploymentInfo {
-  optional string revision = 2;
-
-  repeated ComponentParameter componentParameterOverrides = 3;
-
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
-
-  optional int64 id = 5;
 }
 
 message HealthStatus {
@@ -456,6 +436,17 @@ message ResourceStatus {
   optional bool hook = 8;
 }
 
+// RevisionHistory contains information relevant to an application deployment
+message RevisionHistory {
+  optional string revision = 2;
+
+  repeated ComponentParameter componentParameterOverrides = 3;
+
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
+
+  optional int64 id = 5;
+}
+
 // SyncOperation contains sync operation details.
 message SyncOperation {
   // Revision is the git revision in which to sync the application to.
@@ -508,6 +499,15 @@ message SyncPolicy {
 message SyncPolicyAutomated {
   // Prune will prune resources automatically as part of automated sync (default: false)
   optional bool prune = 1;
+}
+
+// SyncStatus is a comparison result of application spec and deployed application.
+message SyncStatus {
+  optional string status = 1;
+
+  optional ApplicationSource comparedTo = 2;
+
+  optional string revision = 3;
 }
 
 // SyncStrategy controls the manner in which a sync is performed

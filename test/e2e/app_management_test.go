@@ -109,9 +109,9 @@ func TestAppManagement(t *testing.T) {
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.SyncStatusCodeSynced, err
+			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
 		})
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.ComparisonResult.Status)
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
 		assert.True(t, app.Status.OperationState.SyncResult != nil)
 		assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
 	})
@@ -121,7 +121,7 @@ func TestAppManagement(t *testing.T) {
 
 		// create app and ensure it's comparion status is not SyncStatusCodeUnknown
 		app := fixture.CreateApp(t, appWithHistory)
-		app.Status.History = []v1alpha1.DeploymentInfo{{
+		app.Status.History = []v1alpha1.RevisionHistory{{
 			ID:                          1,
 			Revision:                    "abc",
 			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
@@ -145,9 +145,9 @@ func TestAppManagement(t *testing.T) {
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.SyncStatusCodeSynced, err
+			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
 		})
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.ComparisonResult.Status)
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
 		assert.True(t, app.Status.OperationState.SyncResult != nil)
 		assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
 		assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
@@ -162,7 +162,7 @@ func TestAppManagement(t *testing.T) {
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.SyncStatusCodeUnknown && len(app.Status.Conditions) > 0, err
+			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeUnknown && len(app.Status.Conditions) > 0, err
 		})
 
 		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
@@ -185,7 +185,7 @@ func TestAppManagement(t *testing.T) {
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusHealthy, err
+			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusHealthy, err
 		})
 
 		// deploy app which fails and make sure it became unhealthy
@@ -204,7 +204,7 @@ func TestAppManagement(t *testing.T) {
 
 		WaitUntil(t, func() (done bool, err error) {
 			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.ComparisonResult.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
+			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
 		})
 	})
 }

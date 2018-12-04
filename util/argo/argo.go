@@ -97,9 +97,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Ap
 			},
 		},
 		"status": map[string]interface{}{
-			"comparisonResult": map[string]interface{}{
-				"comparedAt": nil,
-			},
+			"observedAt": nil,
 		},
 	}
 	var err error
@@ -171,7 +169,7 @@ func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *t
 			if err != nil {
 				return nil, fmt.Errorf("Unable to parse '%s': %v", common.AnnotationKeyRefresh, err)
 			}
-			if app.Status.ComparisonResult.ComparedAt.After(refreshTimestamp) || app.Status.ComparisonResult.ComparedAt.Time.Equal(refreshTimestamp) {
+			if app.Status.ObservedAt.After(refreshTimestamp) || app.Status.ObservedAt.Time.Equal(refreshTimestamp) {
 				return app, nil
 			}
 		}
