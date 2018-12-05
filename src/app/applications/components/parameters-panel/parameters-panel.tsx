@@ -28,8 +28,8 @@ function decodeParamNames(params: any, srcNames: {[name: string]: string}) {
     });
 }
 
-export const ParametersPanel = (props: { app: models.Application, updateApp: (app: models.Application) => Promise<any>}) => {
-    const componentParams = getParamsWithOverridesInfo(props.app.status.parameters || [], props.app.spec.source.componentParameterOverrides);
+export const ParametersPanel = (props: { app: models.Application, params: models.ComponentParameter[], updateApp: (app: models.Application) => Promise<any>}) => {
+    const componentParams = getParamsWithOverridesInfo(props.params || [], props.app.spec.source.componentParameterOverrides);
 
     const src: any = {};
     const srcNames: {[name: string]: string} = {};

@@ -242,9 +242,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     <Tabs navTransparent={true} tabs={[{
                                         title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)}/>,
                                     }, {
-                                        title: 'PARAMETERS', key: 'parameters', content: <ParametersPanel
-                                            updateApp={(app) => this.updateApp(app)}
-                                            app={application}/>,
+                                        title: 'PARAMETERS', key: 'parameters', content: (
+                                            <DataLoader
+                                                input={{name: application.metadata.name, revision: application.spec.source.targetRevision}}
+                                                load={(input) => services.applications.getManifest(input.name, input.revision).then((res) => res.params || [])}>
+                                            {(params: appModels.ComponentParameter[]) =>
+                                                <ParametersPanel params={params} updateApp={(app) => this.updateApp(app)} app={application}/>
+                                            }
+                                            </DataLoader>
+                                        ),
                                     }, {
                                         title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={application.metadata.name}/>,
                                     }]}/>

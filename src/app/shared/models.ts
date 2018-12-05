@@ -172,7 +172,6 @@ export interface ApplicationSpec {
 export interface RevisionHistory {
     id: number;
     revision: string;
-    params: ComponentParameter[];
     componentParameterOverrides: ComponentParameter[];
     deployedAt: models.Time;
 }
@@ -250,7 +249,6 @@ export interface ApplicationStatus {
     sync: SyncStatus;
     conditions?: ApplicationCondition[];
     history: RevisionHistory[];
-    parameters: ComponentParameter[];
     health: HealthStatus;
     operationState?: OperationState;
 }
