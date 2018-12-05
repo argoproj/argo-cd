@@ -65,28 +65,6 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
-// ParamToMap converts a ComponentParameter list to a map for easy filtering
-func ParamToMap(params []argoappv1.ComponentParameter) map[string]map[string]bool {
-	validAppSet := make(map[string]map[string]bool)
-	for _, p := range params {
-		if validAppSet[p.Component] == nil {
-			validAppSet[p.Component] = make(map[string]bool)
-		}
-		validAppSet[p.Component][p.Name] = true
-	}
-	return validAppSet
-}
-
-// CheckValidParam checks if the parameter passed is overridable for the given appMap
-func CheckValidParam(appMap map[string]map[string]bool, newParam argoappv1.ComponentParameter) bool {
-	if val, ok := appMap[newParam.Component]; ok {
-		if _, ok2 := val[newParam.Name]; ok2 {
-			return true
-		}
-	}
-	return false
-}
-
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Application, error) {
 	refreshString := time.Now().UTC().Format(time.RFC3339)

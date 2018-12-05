@@ -47,24 +47,6 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	assert.Equal(t, proj.Name, projName)
 }
 
-func TestCheckValidParam(t *testing.T) {
-	oldAppSet := make(map[string]map[string]bool)
-	oldAppSet["testComponent"] = make(map[string]bool)
-	oldAppSet["testComponent"]["overrideParam"] = true
-	newParam := argoappv1.ComponentParameter{
-		Component: "testComponent",
-		Name:      "overrideParam",
-		Value:     "new-value",
-	}
-	badParam := argoappv1.ComponentParameter{
-		Component: "testComponent",
-		Name:      "badParam",
-		Value:     "new-value",
-	}
-	assert.True(t, CheckValidParam(oldAppSet, newParam))
-	assert.False(t, CheckValidParam(oldAppSet, badParam))
-}
-
 func TestWaitForRefresh(t *testing.T) {
 	appClientset := appclientset.NewSimpleClientset()
 

@@ -324,15 +324,11 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 			}
 			setParameterOverrides(app, appOpts.parameters)
-			oldOverrides := app.Spec.Source.ComponentParameterOverrides
-			updatedSpec, err := appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
+			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
 			errors.CheckError(err)
-
-			newOverrides := updatedSpec.Source.ComponentParameterOverrides
-			checkDroppedParams(newOverrides, oldOverrides)
 		},
 	}
 	addAppFlags(command, &appOpts)
@@ -402,18 +398,6 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 	}
 	if valueFiles != nil {
 		src.Helm.ValueFiles = valueFiles
-	}
-}
-
-func checkDroppedParams(newOverrides []argoappv1.ComponentParameter, oldOverrides []argoappv1.ComponentParameter) {
-	newOverrideMap := argo.ParamToMap(newOverrides)
-
-	if len(oldOverrides) > len(newOverrides) {
-		for _, oldOverride := range oldOverrides {
-			if !argo.CheckValidParam(newOverrideMap, oldOverride) {
-				log.Warnf("Parameter %s in %s does not exist in ksonnet, parameter override dropped", oldOverride.Name, oldOverride.Component)
-			}
-		}
 	}
 }
 

@@ -181,11 +181,11 @@ message ApplicationStatus {
 
   repeated RevisionHistory history = 4;
 
-  repeated ApplicationCondition conditions = 6;
+  repeated ApplicationCondition conditions = 5;
 
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 7;
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 6;
 
-  optional OperationState operationState = 8;
+  optional OperationState operationState = 7;
 }
 
 // ApplicationWatchEvent contains information about application change.
