@@ -50,7 +50,7 @@ codegen: protogen clientgen
 
 .PHONY: cli
 cli: clean-debug
-	go build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
+	${PACKR_CMD} build -v -i -ldflags '${LDFLAGS} -extldflags "-static"' -o ${DIST_DIR}/${CLI_NAME} ./cmd/argocd
 
 .PHONY: release-cli
 release-cli: clean-debug image
