@@ -70,8 +70,7 @@ func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, e
 	return secret, nil
 }
 
-func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector) error {
-	cache := make(map[string]*v1.Secret)
+func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
 	for dst, src := range secrets {
 		if src != nil {
 			secret, err := db.getSecret(src.Name, cache)
@@ -84,8 +83,7 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*string]*v1.SecretKeySelector)
 	return nil
 }
 
-func (db *db) unmarshalFromSecretsBytes(secrets map[*[]byte]*v1.SecretKeySelector) error {
-	cache := make(map[string]*v1.Secret)
+func (db *db) unmarshalFromSecretsBytes(secrets map[*[]byte]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
 	for dst, src := range secrets {
 		if src != nil {
 			secret, err := db.getSecret(src.Name, cache)

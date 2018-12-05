@@ -29,11 +29,19 @@ func (db *db) getHelmRepo(ctx context.Context, repoURL string, s *settings.ArgoC
 
 	helmRepoInfo := s.HelmRepositories[index]
 	helmRepo := &appv1.HelmRepository{URL: repoURL, Name: helmRepoInfo.Name}
+	cache := make(map[string]*apiv1.Secret)
 	err := db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{
 		&helmRepo.CAData:   helmRepoInfo.CASecret,
 		&helmRepo.CertData: helmRepoInfo.CertSecret,
 		&helmRepo.KeyData:  helmRepoInfo.KeySecret,
-	})
+	}, cache)
+	if err != nil {
+		return nil, err
+	}
+	err = db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
+		&helmRepo.Username: helmRepoInfo.UsernameSecret,
+		&helmRepo.Password: helmRepoInfo.PasswordSecret,
+	}, cache)
 	if err != nil {
 		return nil, err
 	}

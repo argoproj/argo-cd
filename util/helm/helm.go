@@ -106,8 +106,22 @@ func (h *helm) DependencyBuild() error {
 					args = append(args, flag, f.Name())
 				}
 			}
+			if repo.Username != "" {
+				args = append(args, "--username", repo.Username)
+			}
+			if repo.Password != "" {
+				args = append(args, "--password", repo.Password)
+			}
 
-			_, err := h.helmCmd(append(args, repo.Name, repo.URL)...)
+			_, err := h.helmCmdExt(append(args, repo.Name, repo.URL), func(log string) string {
+				if repo.Username != "" {
+					log = strings.Replace(log, fmt.Sprintf("--username %s", repo.Username), "--username ***", 1)
+				}
+				if repo.Password != "" {
+					log = strings.Replace(log, fmt.Sprintf("--password %s", repo.Password), "--password ***", 1)
+				}
+				return log
+			})
 			if err != nil {
 				return err
 			}
@@ -173,12 +187,18 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParame
 }
 
 func (h *helm) helmCmd(args ...string) (string, error) {
+	return h.helmCmdExt(args, func(s string) string {
+		return s
+	})
+}
+
+func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string, error) {
 	cmd := exec.Command("helm", args...)
 	cmd.Dir = h.path
 	if h.home != "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.home))
 	}
-	cmdStr := strings.Join(cmd.Args, " ")
+	cmdStr := logFormat(strings.Join(cmd.Args, " "))
 	log.Info(cmdStr)
 	outBytes, err := cmd.Output()
 	if err != nil {
