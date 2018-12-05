@@ -35,8 +35,7 @@ git push upstream vX.Y.Z
 ```bash
 git clone https://github.com/argoproj/homebrew-tap
 cd homebrew-tap
-shasum -a 256 ~/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64
-# edit argocd.rb with version and checksum
+./update.sh ~/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64
 git commit -a -m "Update argocd to vX.Y.Z"
 git push
 ```

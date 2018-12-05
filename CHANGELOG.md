@@ -1,5 +1,101 @@
 # Changelog
 
+## v0.11.0
+This is Argo CD's biggest release ever and introduces a completely redesigned controller architecture.
+
+### New Features
+
+#### New application controller architecture
+The application controller has a completely redesigned architecture for better scalability, and
+improve performance during application reconciliation. This was achieved by maintaining an
+in-memory, live state cache of lightweight Kubernetes object metadata. During reconciliation, the
+controller no longer performs expensive, in-line queries of app labeled resources in K8s API server,
+instead relying on the metadata in the local state cache. This dramatically improves performance
+and responsiveness, and is less burdensome the K8s API server. A second benefit to this, is that the
+relationship between object when computing the resource tree, can be displayed, even for custom
+resources.
+
+#### Multi-namespaced applications
+Argo CD will now honor any explicitly set namespace in a mainfest. Resources without a namespace
+will continue to be deployed to the namespace specified in `spec.destination.namespace`. This
+enables support for a class of applications that install to multiple namespaces. For example, 
+Argo CD now supports the istio helm chart, which deploys some resources to an explit `istio-system`
+namespace.
+
+#### Large application support
+Full resource objects are no longer stored in the Application CRD object status. Instead, only
+lightweight metadata is stored in the status, such as a resource's sync and health status.
+This change enables Argo CD to support applications with a very large number of resources 
+(e.g. istio), and reduces the bandwidth requirements when listing applications in the UI.
+
+#### Resource lifecycle hook improvements
+Resource hooks are now visible from the UI. Additionally, bare Pods with a restart policy of Never
+can now be used as a resource hook, as an alternative to Jobs, Workflows.
+
+#### K8s recommended application labels
+Resource labeling has been changed to use `app.kubernetes.io/instance` as recommended in 
+[Kubernetes recommended labels](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/),
+(changed from `applications.argoproj.io/app-name`). This will enable applications created by Argo CD
+to interoperate with other tooling that are also converging on this labeling, such as the Kubernetes
+dashboard. Additionally, Argo CD will no longer inject any tracking labels at the
+`spec.template.metadata` level.
+
+#### External OIDC provider support
+Argo CD now supports auth delegation to an existing, external OIDC providers without the need for
+Dex (e.g. Okta, OneLogin, Auth0, Microsoft, etc...)
+
+The optional, [Dex IDP OIDC provider](https://github.com/dexidp/dex) is still bundled as part of the
+default installation, in order to provide a seamless out-of-box experience, and enables Argo CD to
+integrate with non-OIDC providers, or to benefit from Dex's full range of
+[connectors](https://github.com/dexidp/dex/tree/master/Documentation/connectors).
+
+#### OIDC group claims bindings to Project Roles
+Group claims from the OIDC provider can now be bound to Argo CD project roles. Previously, group
+claims were managed at the centralized ConfigMap, `argocd-rbac-cm`. This enables project admins to
+self service access to applications within a project.
+
+#### Declarative Argo CD configuration
+Argo CD settings can be now be configured either declaratively, or imperatively. The `argocd-cm`
+ConfigMap now has a `repositories` field, which can reference credentials in a normal Kubernetes
+secret which you can create declaratively, outside of Argo CD.
+
+#### Helm repository support
+Helm repositories can be configured at the system level, enabling the deployment of helm charts
+which have a dependency to external helm repositories.
+
+### Breaking changes:
+
+* As a consequence to moving to recommended kubernetes labels, when upgrading from v0.10 to v0.11,
+  all applications will immediately be OutOfSync due to the change in labeling techniques. This will
+  correct itself with another sync of the application. However, since Pods will be recreated, please
+  take this into consideration, especially if your applications is configured with auto-sync.
+
+* There was significant reworking of the `app.status` fields to simplify the datastructure and
+  remove fields which were no longer used by the controller. No breaking changes were made in
+  `app.spec`.
+
+* An older Argo CD CLI (v0.10 and below) will not be compatible with an Argo CD v0.11. To keep
+  CI pipelines in sync with the API server, it is recommended to have pipelines download the CLI
+  directly from the API server https://${ARGOCD_SERVER}/download/argocd-linux-amd64 during the CI
+  pipeline.
+
+### Changes since v0.10:
++ Declarative setup and configuration of ArgoCD (#536)
++ Declaratively add helm repositories (#747)
++ Switch to k8s recommended app.kubernetes.io/instance label (#857)
++ Ability for a single application to deploy into multiple namespaces (#696)
++ Self service group access to project applications (#742)
++ Support for Pods as a sync hook (#801)
++ Support 'crd-install' helm hook (#355)
+* Remove resources state from application CRD (#758)
+* Refactor, consolidate and rename resource type data structures
+* Improve Application state reconciliation performance (#806)
+* API server & UI should serve argocd binaries instead of linking to GitHub (#716)
+- Failed to deploy helm chart with local dependencies and no internet access (#786)
+- Out of sync reported if Secrets with stringData are used (#763)
+- Unable to delete application in K8s v1.12 (#718)
+
+
 ## v0.10.6 (2018-11-14)
 - Fix issue preventing in-cluster app sync due to go-client changes (issue #774)
 

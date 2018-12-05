@@ -8,7 +8,7 @@ the target environment.
 
 If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
 live state against the resource manifests defined at the tip of the specified branch or the
-deferenced commit of the symbolic reference.
+dereferenced commit of the symbolic reference.
 
 To redeploy an application, a user makes changes to the manifests, and commit/pushes those the
 changes to the tracked branch/symbolic reference, which will then be detected by Argo CD controller.
