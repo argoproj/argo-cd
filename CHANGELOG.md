@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.11.0 (TBD)
+
+### Changes since v0.10:
+
++ Declarative setup and configuration of ArgoCD (#536)
++ Declaratively add helm repositories (#747)
++ Switch to k8s recommended app.kubernetes.io/instance label (#857)
++ Ability for a single application to deploy into multiple namespaces (#696)
++ Self service group access to project applications (#742)
++ Support for Pods as a sync hook (#801)
++ Support 'crd-install' helm hook (#355)
+* Remove resources state from application CRD (#758)
+* Refactor, consolidate and rename resource type data structures
+* Improve Application state reconciliation performance (#806)
+* API server & UI should serve argocd binaries instead of linking to GitHub (#716)
+- Failed to deploy helm chart with local dependencies and no internet access (#786)
+- Out of sync reported if Secrets with stringData are used (#763)
+- Unable to delete application in K8s v1.12 (#718)
+
 ## v0.10.6 (2018-11-14)
 - Fix issue preventing in-cluster app sync due to go-client changes (issue #774)
 
