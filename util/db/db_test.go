@@ -358,6 +358,12 @@ func TestListHelmRepositories(t *testing.T) {
 		"helm.repositories": `
 - url: https://argoproj.github.io/argo-helm
   name: argo
+  usernameSecret:
+    name: test-secret
+    key: username
+  passwordSecret:
+    name: test-secret
+    key: password
   caSecret:
     name: test-secret
     key: ca
@@ -374,9 +380,11 @@ func TestListHelmRepositories(t *testing.T) {
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			"ca":   []byte("test-ca"),
-			"cert": []byte("test-cert"),
-			"key":  []byte("test-key"),
+			"username": []byte("test-username"),
+			"password": []byte("test-password"),
+			"ca":       []byte("test-ca"),
+			"cert":     []byte("test-cert"),
+			"key":      []byte("test-key"),
 		},
 	})
 	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
@@ -385,6 +393,8 @@ func TestListHelmRepositories(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(repos))
 	repo := repos[0]
+	assert.Equal(t, "test-username", repo.Username)
+	assert.Equal(t, "test-password", repo.Password)
 	assert.Equal(t, []byte("test-ca"), repo.CAData)
 	assert.Equal(t, []byte("test-cert"), repo.CertData)
 	assert.Equal(t, []byte("test-key"), repo.KeyData)

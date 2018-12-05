@@ -75,11 +75,13 @@ type RepoCredentials struct {
 }
 
 type HelmRepoCredentials struct {
-	URL        string                   `json:"url,omitempty"`
-	Name       string                   `json:"name,omitempty"`
-	CASecret   *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
-	CertSecret *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret  *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+	URL            string                   `json:"url,omitempty"`
+	Name           string                   `json:"name,omitempty"`
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	CASecret       *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
+	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
+	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
 const (

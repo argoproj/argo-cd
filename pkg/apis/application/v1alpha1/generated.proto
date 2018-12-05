@@ -276,6 +276,10 @@ message HelmRepository {
   optional bytes certData = 4;
 
   optional bytes keyData = 5;
+
+  optional string username = 6;
+
+  optional string password = 7;
 }
 
 // JWTToken holds the issuedAt and expiresAt values of a token

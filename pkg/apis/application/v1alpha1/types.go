@@ -543,6 +543,8 @@ type HelmRepository struct {
 	CAData   []byte `json:"caData,omitempty" protobuf:"bytes,3,opt,name=caData"`
 	CertData []byte `json:"certData,omitempty" protobuf:"bytes,4,opt,name=certData"`
 	KeyData  []byte `json:"keyData,omitempty" protobuf:"bytes,5,opt,name=keyData"`
+	Username string `json:"username,omitempty" protobuf:"bytes,6,opt,name=username"`
+	Password string `json:"password,omitempty" protobuf:"bytes,7,opt,name=password"`
 }
 
 // Repository is a Git repository holding application configurations

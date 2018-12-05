@@ -93,7 +93,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		&repo.Username:      repoInfo.UsernameSecret,
 		&repo.Password:      repoInfo.PasswordSecret,
 		&repo.SSHPrivateKey: repoInfo.SshPrivateKeySecret,
-	})
+	}, make(map[string]*apiv1.Secret))
 	if err != nil {
 		return nil, err
 	}
