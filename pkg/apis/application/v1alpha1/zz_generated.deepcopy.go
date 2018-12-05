@@ -380,11 +380,6 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Parameters != nil {
-		in, out := &in.Parameters, &out.Parameters
-		*out = make([]ComponentParameter, len(*in))
-		copy(*out, *in)
-	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
 		*out = make([]ApplicationCondition, len(*in))

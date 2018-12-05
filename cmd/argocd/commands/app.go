@@ -187,7 +187,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					printOperationResult(app.Status.OperationState)
 				}
 				if showParams {
-					printParams(app)
+					printParams(app, appIf)
 				}
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
@@ -257,7 +257,7 @@ func truncateString(str string, num int) string {
 }
 
 // printParams prints parameters and overrides
-func printParams(app *argoappv1.Application) {
+func printParams(app *argoappv1.Application, appIf application.ApplicationServiceClient) {
 	paramLenLimit := 80
 	overrides := make(map[string]string)
 	for _, p := range app.Spec.Source.ComponentParameterOverrides {
@@ -266,8 +266,10 @@ func printParams(app *argoappv1.Application) {
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	if needsComponentColumn(&app.Spec.Source) {
+		m, err := appIf.GetManifests(context.Background(), &application.ApplicationManifestQuery{Name: &app.Name, Revision: app.Spec.Source.TargetRevision})
+		errors.CheckError(err)
 		fmt.Fprintf(w, "COMPONENT\tNAME\tVALUE\tOVERRIDE\n")
-		for _, p := range app.Status.Parameters {
+		for _, p := range m.Params {
 			overrideValue := overrides[fmt.Sprintf("%s/%s", p.Component, p.Name)]
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", p.Component, p.Name, truncateString(p.Value, paramLenLimit), truncateString(overrideValue, paramLenLimit))
 		}
@@ -322,15 +324,11 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 			}
 			setParameterOverrides(app, appOpts.parameters)
-			oldOverrides := app.Spec.Source.ComponentParameterOverrides
-			updatedSpec, err := appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
+			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
 			errors.CheckError(err)
-
-			newOverrides := updatedSpec.Source.ComponentParameterOverrides
-			checkDroppedParams(newOverrides, oldOverrides)
 		},
 	}
 	addAppFlags(command, &appOpts)
@@ -400,18 +398,6 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 	}
 	if valueFiles != nil {
 		src.Helm.ValueFiles = valueFiles
-	}
-}
-
-func checkDroppedParams(newOverrides []argoappv1.ComponentParameter, oldOverrides []argoappv1.ComponentParameter) {
-	newOverrideMap := argo.ParamToMap(newOverrides)
-
-	if len(oldOverrides) > len(newOverrides) {
-		for _, oldOverride := range oldOverrides {
-			if !argo.CheckValidParam(newOverrideMap, oldOverride) {
-				log.Warnf("Parameter %s in %s does not exist in ksonnet, parameter override dropped", oldOverride.Name, oldOverride.Component)
-			}
-		}
 	}
 }
 

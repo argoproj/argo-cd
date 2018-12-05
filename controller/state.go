@@ -56,7 +56,6 @@ type comparisonResult struct {
 	observedAt       metav1.Time
 	syncStatus       *v1alpha1.SyncStatus
 	healthStatus     *v1alpha1.HealthStatus
-	parameters       []v1alpha1.ComponentParameter
 	resources        []v1alpha1.ResourceStatus
 	managedResources []managedResource
 	conditions       []v1alpha1.ApplicationCondition
@@ -257,13 +256,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		ComparedTo: app.Spec.Source,
 		Status:     syncCode,
 	}
-	var parameters []v1alpha1.ComponentParameter
 	if manifestInfo != nil {
 		syncStatus.Revision = manifestInfo.Revision
-		parameters = make([]v1alpha1.ComponentParameter, len(manifestInfo.Params))
-		for i := range manifestInfo.Params {
-			parameters[i] = *manifestInfo.Params[i]
-		}
 	}
 
 	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources))
@@ -275,7 +269,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		observedAt:       observedAt,
 		syncStatus:       &syncStatus,
 		healthStatus:     healthStatus,
-		parameters:       parameters,
 		resources:        resourceSummaries,
 		managedResources: managedResources,
 		conditions:       conditions,
@@ -293,8 +286,7 @@ func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	return repo
 }
 
-func (m *appStateManager) persistRevisionHistory(
-	app *v1alpha1.Application, revision string, params []v1alpha1.ComponentParameter, overrides *[]v1alpha1.ComponentParameter) error {
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter) error {
 
 	var nextID int64 = 0
 	if len(app.Status.History) > 0 {

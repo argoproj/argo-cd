@@ -636,7 +636,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.ObservedAt = compareResult.observedAt
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
-	app.Status.Parameters = compareResult.parameters
 	app.Status.Resources = compareResult.resources
 	app.Status.Conditions = conditions
 	ctrl.persistAppStatus(origApp, &app.Status)

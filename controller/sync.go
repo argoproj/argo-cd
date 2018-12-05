@@ -151,7 +151,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	}
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && syncCtx.opState.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, compareResult.parameters, nil)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, nil)
 		if err != nil {
 			state.Phase = appv1.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

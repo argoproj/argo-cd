@@ -2405,12 +2405,6 @@
         "operationState": {
           "$ref": "#/definitions/v1alpha1OperationState"
         },
-        "parameters": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
-          }
-        },
         "resources": {
           "type": "array",
           "items": {
