@@ -54,11 +54,13 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                     <div className='login__logo width-control'>
                         <img className='logo-image' src='assets/images/argo_o.svg' alt='argo'/>
                     </div>
-                    {authSettings && authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0 && (
+                    {authSettings && (authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig) && (
                         <div className='login__box_saml width-control'>
                             <a href={`/auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
-                                    {authSettings.dexConfig.connectors.length === 1 && (
+                                    {authSettings.oidcConfig && (
+                                        <span>Login via {authSettings.oidcConfig.name}</span>
+                                    ) || authSettings.dexConfig.connectors.length > 0 && (
                                         <span>Login via {authSettings.dexConfig.connectors[0].name}</span>
                                     ) || (
                                         <span>SSO Login</span>

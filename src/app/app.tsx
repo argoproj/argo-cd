@@ -46,7 +46,7 @@ async function isExpiredSSO() {
             const jwtToken = jwtDecode(token) as any;
             if (jwtToken.iss && jwtToken.iss !== 'argocd') {
                 const authSettings = await services.authService.settings();
-                return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0;
+                return (authSettings.dexConfig && authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig;
             }
         }
     } catch {

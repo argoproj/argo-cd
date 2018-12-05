@@ -266,6 +266,9 @@ export interface AuthSettings {
             type: string;
         }[];
     };
+    oidcConfig: {
+        name: string;
+    };
 }
 
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
