@@ -2,12 +2,10 @@ package dex
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 )
 
 func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
@@ -78,7 +76,7 @@ func replaceMapSecrets(obj map[string]interface{}, secretValues map[string]strin
 		case []interface{}:
 			newObj[k] = replaceListSecrets(val, secretValues)
 		case string:
-			newObj[k] = replaceStringSecret(val, secretValues)
+			newObj[k] = settings.ReplaceStringSecret(val, secretValues)
 		default:
 			newObj[k] = val
 		}
@@ -95,25 +93,12 @@ func replaceListSecrets(obj []interface{}, secretValues map[string]string) []int
 		case []interface{}:
 			newObj[i] = replaceListSecrets(val, secretValues)
 		case string:
-			newObj[i] = replaceStringSecret(val, secretValues)
+			newObj[i] = settings.ReplaceStringSecret(val, secretValues)
 		default:
 			newObj[i] = val
 		}
 	}
 	return newObj
-}
-
-func replaceStringSecret(val string, secretValues map[string]string) string {
-	if val == "" || !strings.HasPrefix(val, "$") {
-		return val
-	}
-	secretKey := val[1:]
-	secretVal, ok := secretValues[secretKey]
-	if !ok {
-		log.Warnf("config referenced '%s', but key does not exist in secret", val)
-		return val
-	}
-	return secretVal
 }
 
 // needsRedirectURI returns whether or not the given connector type needs a redirectURI

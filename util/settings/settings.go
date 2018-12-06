@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -409,6 +410,7 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
+	oidcConfig.ClientSecret = ReplaceStringSecret(oidcConfig.ClientSecret, a.Secrets)
 	return &oidcConfig
 }
 
@@ -656,4 +658,18 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 	}
 
 	return cdSettings, settingsMgr.SaveSettings(cdSettings)
+}
+
+// ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
+func ReplaceStringSecret(val string, secretValues map[string]string) string {
+	if val == "" || !strings.HasPrefix(val, "$") {
+		return val
+	}
+	secretKey := val[1:]
+	secretVal, ok := secretValues[secretKey]
+	if !ok {
+		log.Warnf("config referenced '%s', but key does not exist in secret", val)
+		return val
+	}
+	return secretVal
 }
