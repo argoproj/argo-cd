@@ -2,6 +2,17 @@
 
 ## Overview
 
+There are two ways that SSO can be configured:
+
+* Bundled Dex OIDC provider - use this option your current provider does not support OIDC (e.g. SAML,
+  LDAP) or if you wish to leverage any of Dex's connector features (e.g. the ability to map GitHub
+  organizations and teams to OIDC groups claims).
+
+* Existing OIDC provider - use this if you already have an OIDC provider which you are using (e.g.
+  Okta, OneLogin, Auth0, Microsoft), where you manage your users, groups, and memberships.
+
+## Dex
+
 Argo CD embeds and bundles [Dex](https://github.com/coreos/dex) as part of its installation, for the
 purpose of delegating authentication to an external identity provider. Multiple types of identity
 providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of Argo CD requires
@@ -65,15 +76,6 @@ data:
           clientSecret: $dex.acme.clientSecret
           orgs:
           - name: your-github-org
-
-      # OIDC example (e.g. Okta)
-      - type: oidc
-        id: okta
-        name: Okta
-        config:
-          issuer: https://dev-123456.oktapreview.com
-          clientID: aaaabbbbccccddddeee
-          clientSecret: $dex.okta.clientSecret
 ```
 
 After saving, the changes should take affect automatically.
@@ -85,3 +87,19 @@ NOTES:
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. https://argocd.example.com/api/dex/callback)
 
+
+## Existing OIDC provider 
+
+To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
+configuration to the `argocd-cm` ConfigMap under the `oidc.config` key:
+
+```
+data:
+  url: https://argocd.example.com
+
+  oidc.config: |
+    name: Okta
+    issuer: https://dev-123456.oktapreview.com
+    clientID: aaaabbbbccccddddeee
+    clientSecret: $oidc.okta.clientSecret
+```

@@ -18,6 +18,8 @@
 * [RBAC](rbac.md)
 
 ## Other
+* [Best Practices](best_practices.md)
 * [Configuring Ingress](ingress.md)
+* [Automation from CI Pipelines](ci_automation.md)
 * [Custom Tooling](custom_tools.md)
 * [F.A.Q.](faq.md)
