@@ -232,7 +232,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                 return {
                     title: 'Select repository',
                     canNext: () => !!this.state.selectedRepo && isRepoValid,
-                    next: async () => this.updateState({ step: Step.SelectApp }),
+                    next: async () => this.updateState({ step: Step.SelectApp, selectedRepo: this.state.selectedRepo.trim() }),
                     canPrev: () => false,
                     prev: null,
                     render: () => (
