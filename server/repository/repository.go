@@ -101,6 +101,56 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	return &appsv1.RepositoryList{Items: items}, nil
 }
 
+func (s *Server) listAppsPaths(
+	ctx context.Context, repoClient repository.RepositoryServiceClient, repo *appsv1.Repository, revision string, subPath string) (map[string]appsv1.ApplicationSourceType, error) {
+
+	if revision == "" {
+		revision = "HEAD"
+	}
+
+	ksonnetRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*app.yaml")})
+	if err != nil {
+		return nil, err
+	}
+	componentRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*components/params.libsonnet")})
+	if err != nil {
+		return nil, err
+	}
+
+	helmRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*Chart.yaml")})
+	if err != nil {
+		return nil, err
+	}
+
+	kustomizationRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*kustomization.yaml")})
+	if err != nil {
+		return nil, err
+	}
+
+	componentDirs := make(map[string]interface{})
+	for _, i := range componentRes.Items {
+		d := filepath.Dir(filepath.Dir(i))
+		componentDirs[d] = struct{}{}
+	}
+
+	pathToType := make(map[string]appsv1.ApplicationSourceType)
+	for _, i := range ksonnetRes.Items {
+		d := filepath.Dir(i)
+		if _, ok := componentDirs[d]; ok {
+			pathToType[i] = appsv1.ApplicationSourceTypeKsonnet
+		}
+	}
+
+	for i := range helmRes.Items {
+		pathToType[helmRes.Items[i]] = appsv1.ApplicationSourceTypeHelm
+	}
+
+	for i := range kustomizationRes.Items {
+		pathToType[kustomizationRes.Items[i]] = appsv1.ApplicationSourceTypeKustomize
+	}
+	return pathToType, nil
+}
+
 // ListKsonnetApps returns list of Ksonnet apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo) {
@@ -129,47 +179,14 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 		revision = "HEAD"
 	}
 
-	ksonnetRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*app.yaml"})
+	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision, "")
 	if err != nil {
 		return nil, err
 	}
-	componentRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*components/params.libsonnet"})
-	if err != nil {
-		return nil, err
-	}
-
-	helmRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*Chart.yaml"})
-	if err != nil {
-		return nil, err
-	}
-
-	kustomizationRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: "*kustomization.yaml"})
-	if err != nil {
-		return nil, err
-	}
-
-	componentDirs := make(map[string]interface{})
-	for _, i := range componentRes.Items {
-		d := filepath.Dir(filepath.Dir(i))
-		componentDirs[d] = struct{}{}
-	}
-
 	items := make([]*AppInfo, 0)
-	for _, i := range ksonnetRes.Items {
-		d := filepath.Dir(i)
-		if _, ok := componentDirs[d]; ok {
-			items = append(items, &AppInfo{Type: string(appsv1.ApplicationSourceTypeKsonnet), Path: i})
-		}
+	for appFilePath, appType := range paths {
+		items = append(items, &AppInfo{Path: path.Dir(appFilePath), Type: string(appType)})
 	}
-
-	for i := range helmRes.Items {
-		items = append(items, &AppInfo{Type: string(appsv1.ApplicationSourceTypeHelm), Path: helmRes.Items[i]})
-	}
-
-	for i := range kustomizationRes.Items {
-		items = append(items, &AppInfo{Type: string(appsv1.ApplicationSourceTypeKustomize), Path: kustomizationRes.Items[i]})
-	}
-
 	return &RepoAppsResponse{Items: items}, nil
 }
 
@@ -200,16 +217,26 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 		revision = "HEAD"
 	}
 
+	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision, q.Path)
+	if len(paths) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "specified application path is not supported")
+	}
+
+	var appPath string
+	var appSourceType appsv1.ApplicationSourceType
+	for appPath, appSourceType = range paths {
+		break
+	}
+
 	appSpecRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
 		Repo:     repo,
 		Revision: revision,
-		Path:     q.Path,
+		Path:     appPath,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	appSourceType := repository.IdentifyAppSourceTypeByAppPath(q.Path)
 	switch appSourceType {
 	case appsv1.ApplicationSourceTypeKsonnet:
 		var appSpec KsonnetAppSpec
@@ -229,18 +256,17 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 		if err != nil {
 			return nil, err
 		}
-		appDir := path.Dir(q.Path)
 		valuesFilesRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{
 			Revision: revision,
 			Repo:     repo,
-			Path:     path.Join(appDir, "*values*.yaml"),
+			Path:     path.Join(q.Path, "*values*.yaml"),
 		})
 		if err != nil {
 			return nil, err
 		}
 		appSpec.ValueFiles = make([]string, len(valuesFilesRes.Items))
 		for i := range valuesFilesRes.Items {
-			valueFilePath, err := filepath.Rel(appDir, valuesFilesRes.Items[i])
+			valueFilePath, err := filepath.Rel(q.Path, valuesFilesRes.Items[i])
 			if err != nil {
 				return nil, err
 			}

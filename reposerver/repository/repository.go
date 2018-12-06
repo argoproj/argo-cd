@@ -305,20 +305,6 @@ func IdentifyAppSourceTypeByAppDir(appDirPath string) v1alpha1.ApplicationSource
 	return v1alpha1.ApplicationSourceTypeDirectory
 }
 
-// IdentifyAppSourceTypeByAppPath determines application source type by app file path
-func IdentifyAppSourceTypeByAppPath(appFilePath string) v1alpha1.ApplicationSourceType {
-	if strings.HasSuffix(appFilePath, "app.yaml") {
-		return v1alpha1.ApplicationSourceTypeKsonnet
-	}
-	if strings.HasSuffix(appFilePath, "Chart.yaml") {
-		return v1alpha1.ApplicationSourceTypeHelm
-	}
-	if strings.HasSuffix(appFilePath, "kustomization.yaml") {
-		return v1alpha1.ApplicationSourceTypeKustomize
-	}
-	return v1alpha1.ApplicationSourceTypeDirectory
-}
-
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
