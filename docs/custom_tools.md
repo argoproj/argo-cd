@@ -25,6 +25,9 @@ version of helm than what is bundled in Argo CD:
       - name: download-tools
         image: lachlanevenson/k8s-helm:v2.10.0
         command: [cp, /usr/local/bin/helm, /custom-tools]
+        volumeMounts:
+        - mountPath: /custom-tools
+          name: custom-tools
       # 3. Volume mount the custom binary to the bin directory (overriding the existing version)
       containers:
       - name: argocd-repo-server
