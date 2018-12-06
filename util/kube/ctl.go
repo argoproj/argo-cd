@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/util"
-
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
@@ -109,37 +108,25 @@ func (k KubectlCmd) WatchResources(
 							err = errors.New(message)
 						}
 					}()
-					var w watch.Interface
-					w, err = apiResIf.resourceIf.Watch(metav1.ListOptions{})
-					if err != nil {
-						return err
-					}
-					defer w.Stop()
-					stopped := false
-					for !stopped {
-						select {
-						case event := <-w.ResultChan():
-							if event.Object != nil {
-								ch <- event
-							} else if !stopped {
-								// Workaround for https://github.com/kubernetes/client-go/issues/334. Issue is closed but still not resolved.
-								return fmt.Errorf("got empty event object. restarting watch")
-							}
-
-						case <-ctx.Done():
-							stopped = true
+					watchCh := WatchWithRetry(ctx, func() (i watch.Interface, e error) {
+						return apiResIf.resourceIf.Watch(metav1.ListOptions{})
+					})
+					for next := range watchCh {
+						if next.Error != nil {
+							return next.Error
+						}
+						ch <- watch.Event{
+							Object: next.Object,
+							Type:   next.Type,
 						}
 					}
-					if !stopped {
-						return fmt.Errorf("channel got closed. restarting watch")
-					}
 					return nil
-				}, fmt.Sprintf("watch resources %s %s/%s", config.ServerName, apiResIf.groupVersion, apiResIf.apiResource.Kind), ctx, watchResourcesRetryTimeout)
+				}, fmt.Sprintf("watch resources %s %s/%s", config.Host, apiResIf.groupVersion, apiResIf.apiResource.Kind), ctx, watchResourcesRetryTimeout)
 			}(a)
 		}
 		wg.Wait()
 		close(ch)
-		log.Infof("Stop watching for resources changes with in cluster %s", config.ServerName)
+		log.Infof("Stop watching for resources changes with in cluster %s", config.Host)
 	}()
 	return ch, nil
 }

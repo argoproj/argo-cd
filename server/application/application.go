@@ -207,7 +207,7 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 		if err != nil {
 			return nil, err
 		}
-		a, err = argoutil.WaitForRefresh(appIf, *q.Name, nil)
+		a, err = argoutil.WaitForRefresh(ctx, appIf, *q.Name, nil)
 		if err != nil {
 			return nil, err
 		}

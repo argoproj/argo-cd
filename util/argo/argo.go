@@ -3,12 +3,13 @@ package argo
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/util/kube"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -100,58 +101,39 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Ap
 
 // WaitForRefresh watches an application until its comparison timestamp is after the refresh timestamp
 // If refresh timestamp is not present, will use current timestamp at time of call
-func WaitForRefresh(appIf v1alpha1.ApplicationInterface, name string, timeout *time.Duration) (*argoappv1.Application, error) {
-	ctx := context.Background()
+func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, name string, timeout *time.Duration) (*argoappv1.Application, error) {
 	var cancel context.CancelFunc
 	if timeout != nil {
 		ctx, cancel = context.WithTimeout(ctx, *timeout)
 		defer cancel()
 	}
-	fieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name))
-	listOpts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
-	watchIf, err := appIf.Watch(listOpts)
-	if err != nil {
-		return nil, err
-	}
-	defer watchIf.Stop()
-	now := time.Now().UTC()
-
-	for {
-		select {
-		case <-ctx.Done():
-			err := ctx.Err()
-			if err != nil {
-				if err == context.DeadlineExceeded {
-					return nil, fmt.Errorf("Timed out (%v) waiting for application to refresh", timeout)
-				}
-				return nil, fmt.Errorf("Error waiting for refresh: %v", err)
-			}
-			return nil, fmt.Errorf("Application watch on %s closed", name)
-		case next := <-watchIf.ResultChan():
-			if next.Type == watch.Error {
-				errMsg := "Application watch completed with error"
-				if status, ok := next.Object.(*metav1.Status); ok {
-					errMsg = fmt.Sprintf("%s: %v", errMsg, status)
-				}
-				return nil, errors.New(errMsg)
-			}
-			app, ok := next.Object.(*argoappv1.Application)
-			if !ok {
-				return nil, fmt.Errorf("Application event object failed conversion: %v", next)
-			}
-			refreshTimestampStr := app.ObjectMeta.Annotations[common.AnnotationKeyRefresh]
-			if refreshTimestampStr == "" {
-				refreshTimestampStr = now.String()
-			}
-			refreshTimestamp, err := time.Parse(time.RFC3339, refreshTimestampStr)
-			if err != nil {
-				return nil, fmt.Errorf("Unable to parse '%s': %v", common.AnnotationKeyRefresh, err)
-			}
-			if app.Status.ObservedAt.After(refreshTimestamp) || app.Status.ObservedAt.Time.Equal(refreshTimestamp) {
-				return app, nil
-			}
+	ch := kube.WatchWithRetry(ctx, func() (i watch.Interface, e error) {
+		fieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name))
+		listOpts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
+		return appIf.Watch(listOpts)
+	})
+	for next := range ch {
+		if next.Error != nil {
+			return nil, next.Error
+		}
+		app, ok := next.Object.(*argoappv1.Application)
+		if !ok {
+			return nil, fmt.Errorf("Application event object failed conversion: %v", next)
+		}
+		refreshTimestampStr := app.ObjectMeta.Annotations[common.AnnotationKeyRefresh]
+		if refreshTimestampStr == "" {
+			now := time.Now().UTC()
+			refreshTimestampStr = now.String()
+		}
+		refreshTimestamp, err := time.Parse(time.RFC3339, refreshTimestampStr)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to parse '%s': %v", common.AnnotationKeyRefresh, err)
+		}
+		if app.Status.ObservedAt.After(refreshTimestamp) || app.Status.ObservedAt.Time.Equal(refreshTimestamp) {
+			return app, nil
 		}
 	}
+	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
 // GetSpecErrors returns list of conditions which indicates that app spec is invalid. Following is checked:

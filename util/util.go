@@ -93,6 +93,7 @@ func RetryUntilSucceed(action func() error, desc string, ctx context.Context, ti
 		log.Infof("Start %s", desc)
 		err := action()
 		if err == nil {
+			log.Infof("Completed %s", desc)
 			return
 		}
 		if err != nil {
