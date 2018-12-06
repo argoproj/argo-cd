@@ -66,5 +66,5 @@ service RepositoryService {
     // GetFile returns the file contents at the specified repo and path
     rpc GetFile(GetFileRequest) returns (GetFileResponse) {
     }
-    
+
 }
