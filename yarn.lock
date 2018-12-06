@@ -208,10 +208,10 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-argo-ui@^2.2.0-alpha9:
-  version "2.2.0-alpha9"
-  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha9.tgz#9ddef1270378c836681fbaf7a1e05e6a5cb05fb7"
-  integrity sha512-t0nM3m5T9vwoWzmbPg2Ysoj1mM7QjUf+Zfh4NG8VhfAwnV+XIynw22ggkfpXEJLD1j/RpLEvWCDvahDGcpZtHg==
+argo-ui@^2.2.0-alpha11:
+  version "2.2.0-alpha11"
+  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha11.tgz#00b7956465fe1c4e887ca7dcf6521497899f3538"
+  integrity sha512-+oPDf/f5tLX+U/gXFqjg/wRI3P/VVRYPpZ7aQN9/fhPnlYRl+ybgJsZ/Opm1QYg9jxOhlISJfI2E5bJPv9HnJw==
   dependencies:
     "@types/react-autocomplete" "^1.8.4"
     "@types/react-form" "^2.16.1"

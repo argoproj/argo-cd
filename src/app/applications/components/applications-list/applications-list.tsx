@@ -106,7 +106,7 @@ export class ApplicationsList extends React.Component<Props, State> {
                                             applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
                                             applications-list__entry--health-${app.status.health.status}`
                                         }>
-                                            <div className='row' onClick={() => this.appContext.router.history.push(`/applications/${app.metadata.name}`)}>
+                                            <div className='row' onClick={(e) => this.appContext.apis.navigation.goto(`/applications/${app.metadata.name}`, {}, e)}>
                                                 <div className='columns small-12 applications-list__info'>
                                                     <div className='row'>
                                                         <div className='columns applications-list__title'>{app.metadata.name}</div>
