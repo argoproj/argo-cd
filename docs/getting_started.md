@@ -105,7 +105,7 @@ management tasks (i.e. deploy/monitoring).
 Open a browser to the Argo CD external UI, and login using the credentials set in step 4, and the
 external IP/hostname set in step 4.
 
-Connect a git repository containing your apps. An example repository containing a sample
+Connect a git repository containing your apps if repository is private. An example repository containing a sample
 guestbook application is available at https://github.com/argoproj/argocd-example-apps.git.
 
 ![connect repo](assets/connect_repo.png)

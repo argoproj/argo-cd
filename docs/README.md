@@ -16,6 +16,7 @@
 * [Single Sign On](sso.md)
 * [Webhooks](webhook.md)
 * [RBAC](rbac.md)
+* [Declarative Setup](declarative-setup.md)
 
 ## Other
 * [Best Practices](best_practices.md)
