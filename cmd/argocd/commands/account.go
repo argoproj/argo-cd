@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/localconfig"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -60,11 +61,30 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 				CurrentPassword: currentPassword,
 			}
 
-			conn, usrIf := argocdclient.NewClientOrDie(clientOpts).NewAccountClientOrDie()
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, usrIf := acdClient.NewAccountClientOrDie()
 			defer util.Close(conn)
-			_, err := usrIf.UpdatePassword(context.Background(), &updatePasswordRequest)
+
+			ctx := context.Background()
+			_, err := usrIf.UpdatePassword(ctx, &updatePasswordRequest)
 			errors.CheckError(err)
 			fmt.Printf("Password updated\n")
+
+			// Get a new JWT token after updating the password
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+			errors.CheckError(err)
+			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
+			errors.CheckError(err)
+			claims, err := configCtx.User.Claims()
+			errors.CheckError(err)
+			tokenString := passwordLogin(acdClient, claims.Subject, newPassword)
+			localCfg.UpsertUser(localconfig.User{
+				Name:      localCfg.CurrentContext,
+				AuthToken: tokenString,
+			})
+			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
+			errors.CheckError(err)
+			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
 	}
 
