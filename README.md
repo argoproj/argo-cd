@@ -86,3 +86,5 @@ For additional details, see [architecture overview](docs/architecture.md).
 
 ### v0.12
 * UI improvements
+* Support for custom K8S manifest templating engines
+

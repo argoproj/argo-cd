@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -156,24 +157,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				errors.CheckError(err)
 				fmt.Println(string(jsonBytes))
 			case "":
-				fmt.Printf(printOpFmtStr, "Name:", app.Name)
-				fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
-				fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
-				fmt.Printf(printOpFmtStr, "URL:", appURL(acdClient, app))
-				fmt.Printf(printOpFmtStr, "Repo:", app.Spec.Source.RepoURL)
-				fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
-				fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
-				printAppSourceDetails(&app.Spec.Source)
-				var syncPolicy string
-				if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
-					syncPolicy = "Automated"
-					if app.Spec.SyncPolicy.Automated.Prune {
-						syncPolicy += " (Prune)"
-					}
-				} else {
-					syncPolicy = "<none>"
-				}
-				fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
+				aURL := appURL(acdClient, app.Name)
+				printAppSummaryTable(app, aURL)
 
 				if len(app.Status.Conditions) > 0 {
 					fmt.Println()
@@ -207,6 +192,43 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	return command
 }
 
+func printAppSummaryTable(app *argoappv1.Application, appURL string) {
+	fmt.Printf(printOpFmtStr, "Name:", app.Name)
+	fmt.Printf(printOpFmtStr, "Server:", app.Spec.Destination.Server)
+	fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
+	fmt.Printf(printOpFmtStr, "URL:", appURL)
+	fmt.Printf(printOpFmtStr, "Repo:", app.Spec.Source.RepoURL)
+	fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
+	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
+	printAppSourceDetails(&app.Spec.Source)
+	var syncPolicy string
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+		syncPolicy = "Automated"
+		if app.Spec.SyncPolicy.Automated.Prune {
+			syncPolicy += " (Prune)"
+		}
+	} else {
+		syncPolicy = "<none>"
+	}
+	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
+	syncStatusStr := string(app.Status.Sync.Status)
+	switch app.Status.Sync.Status {
+	case argoappv1.SyncStatusCodeSynced:
+		syncStatusStr += fmt.Sprintf(" to %s", app.Spec.Source.TargetRevision)
+	case argoappv1.SyncStatusCodeOutOfSync:
+		syncStatusStr += fmt.Sprintf(" from %s", app.Spec.Source.TargetRevision)
+	}
+	if !git.IsCommitSHA(app.Spec.Source.TargetRevision) && !git.IsTruncatedCommitSHA(app.Spec.Source.TargetRevision) && len(app.Status.Sync.Revision) > 7 {
+		syncStatusStr += fmt.Sprintf(" (%s)", app.Status.Sync.Revision[0:7])
+	}
+	fmt.Printf(printOpFmtStr, "Sync Status:", syncStatusStr)
+	healthStr := app.Status.Health.Status
+	if app.Status.Health.Message != "" {
+		healthStr = fmt.Sprintf("%s (%s)", app.Status.Health.Status, app.Status.Health.Message)
+	}
+	fmt.Printf(printOpFmtStr, "Health Status:", healthStr)
+}
+
 func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 	if env := argoappv1.KsonnetEnv(appSrc); env != "" {
 		fmt.Printf(printOpFmtStr, "Environment:", env)
@@ -215,10 +237,8 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 	if len(valueFiles) > 0 {
 		fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(valueFiles, ","))
 	}
-	if appSrc.Kustomize != nil {
-		if appSrc.Kustomize.NamePrefix != "" {
-			fmt.Printf(printOpFmtStr, "Name Prefix:", appSrc.Kustomize.NamePrefix)
-		}
+	if appSrc.Kustomize != nil && appSrc.Kustomize.NamePrefix != "" {
+		fmt.Printf(printOpFmtStr, "Name Prefix:", appSrc.Kustomize.NamePrefix)
 	}
 }
 
@@ -230,7 +250,7 @@ func printAppConditions(w io.Writer, app *argoappv1.Application) {
 }
 
 // appURL returns the URL of an application
-func appURL(acdClient argocdclient.Client, app *argoappv1.Application) string {
+func appURL(acdClient argocdclient.Client, appName string) string {
 	var scheme string
 	opts := acdClient.ClientOptions()
 	server := opts.ServerAddr
@@ -242,7 +262,7 @@ func appURL(acdClient argocdclient.Client, app *argoappv1.Application) string {
 			server = server[0 : len(server)-4]
 		}
 	}
-	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, app.Name)
+	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, appName)
 }
 
 func truncateString(str string, num int) string {
@@ -790,10 +810,11 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchOperations = true
 			}
 			appName := args[0]
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			_, err := waitOnApplicationStatus(appIf, appName, timeout, watchSync, watchHealth, watchOperations, nil)
+			_, err := waitOnApplicationStatus(appIf, appName, appURL(acdClient, appName), timeout, watchSync, watchHealth, watchOperations, nil)
 			errors.CheckError(err)
 		},
 	}
@@ -865,40 +886,37 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 	var syncRes *argoappv1.SyncOperationResult
 
 	if showOperation {
-		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG\n")
+		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
 		if opState != nil {
 			if opState.SyncResult != nil {
 				syncRes = opState.SyncResult
 			}
 		}
 		if syncRes != nil {
-			for _, resDetails := range syncRes.Resources {
-				if !resDetails.IsHook() {
-					messages[fmt.Sprintf("%s/%s", resDetails.Kind, resDetails.Name)] = resDetails.Message
-				}
-			}
-			for _, hook := range syncRes.Resources {
-				if hook.HookType == argoappv1.HookTypePreSync {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.HookType, hook.Message)
+			for _, res := range syncRes.Resources {
+				if !res.IsHook() {
+					messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)] = res.Message
+				} else if res.HookType == argoappv1.HookTypePreSync {
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.HookPhase, "", res.HookType, res.Message)
 				}
 			}
 		}
 	} else {
-		fmt.Fprintf(w, "KIND\tNAME\tSTATUS\tHEALTH\n")
+		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\n")
 	}
 	for _, res := range app.Status.Resources {
 		if showOperation {
-			message := messages[fmt.Sprintf("%s/%s", res.Kind, res.Name)]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, res.Health.Status, "", message)
+			message := messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)]
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health.Status, "", message)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s", res.Kind, res.Name, res.Status, res.Health.Status)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health.Status)
 		}
 		fmt.Fprint(w, "\n")
 	}
 	if showOperation && syncRes != nil {
-		for _, hook := range syncRes.Resources {
-			if hook.HookType == argoappv1.HookTypeSync || hook.HookType == argoappv1.HookTypePostSync {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", hook.Kind, hook.Name, hook.Status, "", hook.HookType, hook.Message)
+		for _, res := range syncRes.Resources {
+			if res.HookType == argoappv1.HookTypeSync || res.HookType == argoappv1.HookTypePostSync {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.HookPhase, "", res.HookType, res.Message)
 			}
 		}
 
@@ -928,7 +946,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
 			var syncResources []argoappv1.SyncOperationResource
@@ -968,7 +987,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitOnApplicationStatus(appIf, appName, timeout, false, false, true, syncResources)
+			aURL := appURL(acdClient, appName)
+			app, err := waitOnApplicationStatus(appIf, appName, aURL, timeout, false, false, true, syncResources)
 			errors.CheckError(err)
 
 			pruningRequired := 0
@@ -998,32 +1018,47 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // ResourceDiff tracks the state of a resource when waiting on an application status.
 type resourceState struct {
-	Kind    string
-	Name    string
-	Status  string
-	Health  string
-	Hook    string
-	Message string
+	Group     string
+	Kind      string
+	Namespace string
+	Name      string
+	Status    string
+	Health    string
+	Hook      string
+	Message   string
 }
 
-func newResourceState(kind, name, status, health, hook, message string) *resourceState {
+func newResourceStateFromStatus(res *argoappv1.ResourceStatus) *resourceState {
 	return &resourceState{
-		Kind:    kind,
-		Name:    name,
-		Status:  status,
-		Health:  health,
-		Hook:    hook,
-		Message: message,
+		Group:     res.Group,
+		Kind:      res.Kind,
+		Namespace: res.Namespace,
+		Name:      res.Name,
+		Status:    string(res.Status),
+		Health:    res.Health.Status,
+	}
+}
+
+func newResourceStateFromResult(res *argoappv1.ResourceResult) *resourceState {
+	return &resourceState{
+		Group:     res.Group,
+		Kind:      res.Kind,
+		Namespace: res.Namespace,
+		Name:      res.Name,
+		Status:    string(res.HookPhase),
+		Hook:      string(res.HookType),
+		Message:   res.Message,
 	}
 }
 
 // Key returns a unique-ish key for the resource.
 func (rs *resourceState) Key() string {
-	return fmt.Sprintf("%s/%s", rs.Kind, rs.Name)
+	return fmt.Sprintf("%s/%s/%s/%s", rs.Group, rs.Kind, rs.Namespace, rs.Name)
 }
 
-func (rs *resourceState) String() string {
-	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", rs.Kind, rs.Name, rs.Status, rs.Health, rs.Hook, rs.Message)
+func (rs *resourceState) FormatItems() []interface{} {
+	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.Hook, rs.Message}
 }
 
 // Merge merges the new state with any different contents from another resourceState.
@@ -1047,11 +1082,10 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
 	for _, res := range app.Status.Resources {
-
 		if len(syncResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), syncResources) {
 			continue
 		}
-		newState := newResourceState(res.Kind, res.Name, string(res.Status), res.Health.Status, "", "")
+		newState := newResourceStateFromStatus(&res)
 		key := newState.Key()
 		if prev, ok := resStates[key]; ok {
 			prev.Merge(newState)
@@ -1070,11 +1104,8 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 		return resStates
 	}
 
-	for _, hook := range opResult.Resources {
-		if !hook.IsHook() {
-			continue
-		}
-		newState := newResourceState(hook.Kind, hook.Name, string(hook.Status), "", string(hook.HookType), hook.Message)
+	for _, result := range opResult.Resources {
+		newState := newResourceStateFromResult(result)
 		key := newState.Key()
 		if prev, ok := resStates[key]; ok {
 			prev.Merge(newState)
@@ -1083,22 +1114,12 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 		}
 	}
 
-	for _, res := range opResult.Resources {
-		if res.IsHook() {
-			continue
-		}
-		newState := newResourceState(res.Kind, res.Name, "", "", "", res.Message)
-		key := newState.Key()
-		if prev, ok := resStates[key]; ok {
-			prev.Merge(newState)
-		} else {
-			resStates[key] = newState
-		}
-	}
 	return resStates
 }
 
-func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
+
+func waitOnApplicationStatus(appClient application.ApplicationServiceClient, appName, appURL string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1115,7 +1136,8 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 		}
 
 		fmt.Println()
-		fmt.Printf(printOpFmtStr, "Application:", app.Name)
+		printAppSummaryTable(app, appURL)
+		fmt.Println()
 		if watchOperation {
 			printOperationResult(app.Status.OperationState)
 		}
@@ -1135,7 +1157,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "KIND\tNAME\tSTATUS\tHEALTH\tHOOK\tOPERATIONMSG")
+	fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 
 	prevStates := make(map[string]*resourceState)
 	appEventCh := watchApp(ctx, appClient, appName)
@@ -1166,7 +1188,7 @@ func waitOnApplicationStatus(appClient application.ApplicationServiceClient, app
 				doPrint = true
 			}
 			if doPrint {
-				fmt.Fprintln(w, prevStates[stateKey])
+				fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
 			}
 		}
 		_ = w.Flush()
@@ -1299,7 +1321,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			appName := args[0]
 			depID, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			acdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
@@ -1322,7 +1345,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(appIf, appName, timeout, false, false, true, nil)
+			_, err = waitOnApplicationStatus(appIf, appName, appURL(acdClient, appName), timeout, false, false, true, nil)
 			errors.CheckError(err)
 		},
 	}
@@ -1337,6 +1360,7 @@ const defaultCheckTimeoutSeconds = 0
 func printOperationResult(opState *argoappv1.OperationState) {
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
+		fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)
 	}
 	fmt.Printf(printOpFmtStr, "Phase:", opState.Phase)
 	fmt.Printf(printOpFmtStr, "Start:", opState.StartedAt)

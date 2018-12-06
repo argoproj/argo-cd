@@ -6,7 +6,6 @@ import (
 	"os"
 
 	oidc "github.com/coreos/go-oidc"
-	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -41,13 +40,6 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			configCtx, err := localCfg.ResolveContext(localCfg.CurrentContext)
 			errors.CheckError(err)
 
-			parser := &jwt.Parser{
-				SkipClaimsValidation: true,
-			}
-			claims := jwt.StandardClaims{}
-			_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
-			errors.CheckError(err)
-
 			var tokenString string
 			var refreshToken string
 			clientOpts := argocdclient.ClientOptions{
@@ -57,6 +49,8 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				PlainText:  configCtx.Server.PlainText,
 			}
 			acdClient := argocdclient.NewClientOrDie(&clientOpts)
+			claims, err := configCtx.User.Claims()
+			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", claims.Subject)
 				tokenString = passwordLogin(acdClient, claims.Subject, password)

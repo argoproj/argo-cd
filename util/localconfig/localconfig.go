@@ -7,6 +7,7 @@ import (
 	"path"
 
 	configUtil "github.com/argoproj/argo-cd/util/config"
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 // LocalConfig is a local Argo CD config file
@@ -49,6 +50,19 @@ type User struct {
 	Name         string `json:"name"`
 	AuthToken    string `json:"auth-token,omitempty"`
 	RefreshToken string `json:"refresh-token,omitempty"`
+}
+
+// Claims returns the standard claims from the JWT claims
+func (u *User) Claims() (*jwt.StandardClaims, error) {
+	parser := &jwt.Parser{
+		SkipClaimsValidation: true,
+	}
+	claims := jwt.StandardClaims{}
+	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
+	if err != nil {
+		return nil, err
+	}
+	return &claims, nil
 }
 
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
