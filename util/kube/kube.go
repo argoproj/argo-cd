@@ -2,12 +2,14 @@
 package kube
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -17,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -488,4 +491,54 @@ func Remarshal(obj *unstructured.Unstructured) (*unstructured.Unstructured, erro
 	// remove all default values specified by custom formatter (e.g. creationTimestamp)
 	unstrBody = jsonutil.RemoveMapFields(obj.Object, unstrBody)
 	return &unstructured.Unstructured{Object: unstrBody}, nil
+}
+
+// WatchWithRetry returns channel of watch events or errors of failed to call watch API.
+func WatchWithRetry(ctx context.Context, getWatch func() (watch.Interface, error)) chan struct {
+	*watch.Event
+	Error error
+} {
+	ch := make(chan struct {
+		*watch.Event
+		Error error
+	})
+	execute := func() (bool, error) {
+		w, err := getWatch()
+		if err != nil {
+			return false, err
+		}
+
+		for {
+			select {
+			case event, ok := <-w.ResultChan():
+				if ok {
+					ch <- struct {
+						*watch.Event
+						Error error
+					}{Event: &event, Error: nil}
+				} else {
+					return true, nil
+				}
+			case <-ctx.Done():
+				return false, nil
+			}
+		}
+	}
+	go func() {
+		defer close(ch)
+		for {
+			retry, err := execute()
+			if err != nil {
+				ch <- struct {
+					*watch.Event
+					Error error
+				}{Error: err}
+			}
+			if !retry {
+				return
+			}
+			time.Sleep(time.Second)
+		}
+	}()
+	return ch
 }

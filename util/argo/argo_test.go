@@ -1,6 +1,7 @@
 package argo
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -53,10 +54,10 @@ func TestWaitForRefresh(t *testing.T) {
 	// Verify timeout
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
 	oneHundredMs := 100 * time.Millisecond
-	app, err := WaitForRefresh(appIf, "test-app", &oneHundredMs)
+	app, err := WaitForRefresh(context.Background(), appIf, "test-app", &oneHundredMs)
 	assert.NotNil(t, err)
 	assert.Nil(t, app)
-	assert.Contains(t, strings.ToLower(err.Error()), "timed out")
+	assert.Contains(t, strings.ToLower(err.Error()), "deadline exceeded")
 
 	// Verify success
 	var testApp argoappv1.Application
@@ -73,7 +74,7 @@ func TestWaitForRefresh(t *testing.T) {
 	appClientset.PrependWatchReactor("applications", testcore.DefaultWatchReactor(watcher, nil))
 	// simulate add/update/delete watch events
 	go watcher.Add(&testApp)
-	app, err = WaitForRefresh(appIf, "test-app", &oneHundredMs)
+	app, err = WaitForRefresh(context.Background(), appIf, "test-app", &oneHundredMs)
 	assert.Nil(t, err)
 	assert.NotNil(t, app)
 }
