@@ -1,0 +1,47 @@
+@import 'node_modules/argo-ui/bundle/app/shared/styles/config';
+
+@import 'node_modules/foundation-sites/scss/foundation';
+
+.tags-editor {
+    border-bottom: none;
+    line-height: 1em;
+
+    i {
+        cursor: pointer;
+    }
+
+    &__tags {
+        @include clearfix;
+    }
+
+    &__tag {
+        background-color: $argo-color-gray-4;
+        border: 1px solid $argo-color-gray-5;
+        border-radius: 5px;
+        padding: 0 5px;
+        margin-left: 5px;
+        margin-right: 5px;
+        float: left;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__autocomplete {
+        position: relative;
+        i {
+            position: absolute;
+            right: -1em;
+            bottom: 10px;
+        }
+
+        .autocomplete.argo-field {
+            border-bottom: none;
+        }
+
+        .autocomplete {
+            padding: 0;
+        }
+    }
+}

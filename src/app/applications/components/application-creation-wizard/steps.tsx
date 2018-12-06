@@ -4,10 +4,9 @@ import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
-import { DataLoader } from '../../../shared/components';
+import { DataLoader, TagsEditor } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
-import { ValueFiles } from './value-files';
 
 export const AppsList = (props: {
     apps: models.AppInfo[],
@@ -186,8 +185,9 @@ export class AppParams extends React.Component<{
                         {this.props.needHelmParams && (
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Values Files' field='valueFiles' componentProps={{
-                                    paths: this.props.valueFiles,
-                                }}  component={ValueFiles} />
+                                    options: this.props.valueFiles,
+                                    noTagsLabel: 'No values files selected',
+                                }}  component={TagsEditor} />
                             </div>
                         )}
                         {this.props.needKustomizeParams && (

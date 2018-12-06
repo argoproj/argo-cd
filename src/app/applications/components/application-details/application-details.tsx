@@ -240,7 +240,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 )}
                                 {isAppSelected && (
                                     <Tabs navTransparent={true} tabs={[{
-                                        title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)}/>,
+                                        title: 'SUMMARY', key: 'summary', content: (
+                                            <DataLoader load={() => services.repos.appDetails(
+                                                application.spec.source.repoURL,
+                                                application.spec.source.path,
+                                                application.spec.source.targetRevision,
+                                            ).catch(() => ({ type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path }))}>
+                                            {(appDetails) => <ApplicationSummary app={application} details={appDetails} updateApp={(app) => this.updateApp(app)}/>}
+                                            </DataLoader>
+                                        ),
                                     }, {
                                         title: 'PARAMETERS', key: 'parameters', content: (
                                             <DataLoader

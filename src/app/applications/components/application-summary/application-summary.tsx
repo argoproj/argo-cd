@@ -2,14 +2,18 @@ import { FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
-import { DataLoader, EditablePanel } from '../../../shared/components';
+import { DataLoader, EditablePanel, TagsEditor } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
 import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 
-export const ApplicationSummary = (props: {app: models.Application, updateApp: (app: models.Application) => Promise<any>}) => {
+export const ApplicationSummary = (props: {
+    app: models.Application,
+    details: models.AppDetails,
+    updateApp: (app: models.Application) => Promise<any>,
+}) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
 
     const attributes = [
@@ -60,16 +64,32 @@ export const ApplicationSummary = (props: {app: models.Application, updateApp: (
             view: app.spec.source.path,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text}/>,
         },
-        {
+        ...props.details.type === 'Ksonnet' && props.details.ksonnet ? [{
             title: 'ENVIRONMENT',
             view: app.spec.source.ksonnet && app.spec.source.ksonnet.environment,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.ksonnet.environment' component={Text}/>,
-        },
-        {
+            edit: (formApi: FormApi) => (
+                <FormField
+                    formApi={formApi}
+                    field='spec.source.ksonnet.environment'
+                    component={FormSelect}
+                    componentProps={{ options: Object.keys(props.details.ksonnet.environments) }}/>
+            ),
+        }] : [],
+        ...props.details.type === 'Kustomize' && props.details.kustomize ? [{
             title: 'NAME PREFIX',
             view: app.spec.source.kustomize && app.spec.source.kustomize.namePrefix,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text}/>,
-        },
+        }] : [],
+        ...props.details.type === 'Helm' && props.details.helm ? [{
+            title: 'VALUES FILES',
+            view: app.spec.source.helm && (app.spec.source.helm.valueFiles || []).join(', ') || 'No values files selected',
+            edit: (formApi: FormApi) => (
+                <FormField formApi={formApi} field='spec.source.helm.valueFiles' component={TagsEditor} componentProps={{
+                    options: props.details.helm.valueFiles,
+                    noTagsLabel: 'No values files selected',
+                }}/>
+            ),
+        }] : [],
         {title: 'STATUS', view: (
             <span><ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status}</span>
         )},

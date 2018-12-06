@@ -1,5 +1,4 @@
 import { MockupList, NotificationType } from 'argo-ui';
-import * as path from 'path';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { BehaviorSubject } from 'rxjs';
@@ -140,7 +139,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                     environment: '',
                                     clusterURL: '',
                                     namespace: '',
-                                    path: path.dirname(selectedAppDetails.helm.path),
+                                    path: selectedAppDetails.helm.path,
                                     project: this.state.projects[0].metadata.name,
                                 }, step: Step.SetParams });
                             } else if (selectedAppDetails.kustomize) {
@@ -151,7 +150,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                     environment: '',
                                     clusterURL: '',
                                     namespace: '',
-                                    path: path.dirname(selectedAppDetails.kustomize.path),
+                                    path: selectedAppDetails.kustomize.path,
                                     project: this.state.projects[0].metadata.name,
                                 }, step: Step.SetParams });
                             }
@@ -187,7 +186,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                 environment: this.state.selectedEnv,
                                 clusterURL: selectedEnv.destination.server,
                                 namespace: selectedEnv.destination.namespace,
-                                path: path.dirname(this.state.selectedAppDetails.ksonnet.path),
+                                path: this.state.selectedAppDetails.ksonnet.path,
                                 project: this.state.projects[0].metadata.name,
                             }, step: Step.SetParams,
                         });

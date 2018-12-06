@@ -312,8 +312,10 @@ export interface KsonnetAppSpec {
     environments: { [key: string]: KsonnetEnvironment; };
 }
 
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory';
+
 export interface AppDetails {
-    type: string;
+    type: AppSourceType;
     path: string;
     ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;

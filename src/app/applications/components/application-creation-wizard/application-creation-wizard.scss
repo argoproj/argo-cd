@@ -23,39 +23,3 @@
 .application-creation-wizard__rev {
     margin-left: 10px;
 }
-
-.application-creation-wizard__values-files {
-    border-bottom: none;
-    i {
-        cursor: pointer;
-    }
-}
-
-.application-creation-wizard__values-file-label {
-    background-color: $argo-color-gray-4;
-    border: 1px solid $argo-color-gray-5;
-    border-radius: 5px;
-    padding: 0 5px;
-    margin-left: 5px;
-    margin-right: 5px;
-    float: left;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.application-creation-wizard__values-files-autocomplete {
-    width: 400px;
-    float: left;
-    position: relative;
-    i {
-        position: absolute;
-        right: -1em;
-        top: 5px;
-    }
-
-    .autocomplete {
-        padding: 0;
-    }
-}
