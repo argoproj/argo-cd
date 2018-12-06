@@ -317,12 +317,6 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if c.Flags().Changed("auto-prune") {
-				if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
-					log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
-				}
-				app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
-			}
 			setParameterOverrides(app, appOpts.parameters)
 			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
@@ -371,6 +365,13 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			}
 		}
 	})
+	if flags.Changed("auto-prune") {
+		if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
+		}
+		app.Spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+	}
+
 	return visited
 }
 
