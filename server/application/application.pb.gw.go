@@ -477,7 +477,7 @@ var (
 )
 
 func request_ApplicationService_DeleteResource_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ApplicationResourceRequest
+	var protoReq ApplicationResourceDeleteRequest
 	var metadata runtime.ServerMetadata
 
 	var (

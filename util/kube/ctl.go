@@ -31,7 +31,7 @@ import (
 type Kubectl interface {
 	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
-	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) error
+	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool, gracePeriod *int64) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	WatchResources(ctx context.Context, config *rest.Config, namespace string) (chan watch.Event, error)
 	GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error)
@@ -164,7 +164,7 @@ func (k KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind
 }
 
 // DeleteResource deletes resource
-func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) error {
+func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool, gracePeriod *int64) error {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
@@ -180,7 +180,15 @@ func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionK
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
 	propagationPolicy := metav1.DeletePropagationForeground
-	return resourceIf.Delete(name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	deleteOptions := &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
+	if gracePeriod != nil {
+		if *gracePeriod == 0 && !forceDelete {
+			*gracePeriod = 1
+		}
+		deleteOptions.GracePeriodSeconds = gracePeriod
+	}
+
+	return resourceIf.Delete(name, deleteOptions)
 }
 
 // ApplyResource performs an apply of a unstructured resource
