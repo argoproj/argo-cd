@@ -427,6 +427,7 @@ spec:
         - /app
         - /shared
         image: argoproj/argocd-ui:latest
+        imagePullPolicy: Always
         name: ui
         volumeMounts:
         - mountPath: /shared

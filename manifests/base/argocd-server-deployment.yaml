@@ -15,6 +15,7 @@ spec:
       initContainers:
       - name: ui
         image: argoproj/argocd-ui:latest
+        imagePullPolicy: Always
         command: [cp, -r, /app, /shared]
         volumeMounts:
         - mountPath: /shared

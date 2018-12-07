@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -19,10 +20,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
@@ -71,6 +76,7 @@ type Client interface {
 	NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServiceClient)
 	NewAccountClient() (*grpc.ClientConn, account.AccountServiceClient, error)
 	NewAccountClientOrDie() (*grpc.ClientConn, account.AccountServiceClient)
+	WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -501,4 +507,57 @@ func (c *client) NewAccountClientOrDie() (*grpc.ClientConn, account.AccountServi
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, usrIf
+}
+
+// WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
+// watch upon errors. Closes the returned channel when the context is cancelled.
+func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent {
+	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
+	cancelled := false
+	go func() {
+		defer close(appEventsCh)
+		for !cancelled {
+			conn, appIf, err := c.NewApplicationClient()
+			if err == nil {
+				var wc application.ApplicationService_WatchClient
+				wc, err = appIf.Watch(ctx, &application.ApplicationQuery{Name: &appName})
+				if err == nil {
+					for {
+						var appEvent *v1alpha1.ApplicationWatchEvent
+						appEvent, err = wc.Recv()
+						if err != nil {
+							break
+						}
+						appEventsCh <- appEvent
+					}
+				}
+			}
+			if err != nil {
+				if isCanceledContextErr(err) {
+					cancelled = true
+				} else {
+					if err != io.EOF {
+						log.Warnf("watch err: %v", err)
+					}
+					time.Sleep(1 * time.Second)
+				}
+			}
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+	return appEventsCh
+}
+
+func isCanceledContextErr(err error) bool {
+	if err == context.Canceled {
+		return true
+	}
+	if stat, ok := status.FromError(err); ok {
+		if stat.Code() == codes.Canceled {
+			return true
+		}
+	}
+	return false
 }
