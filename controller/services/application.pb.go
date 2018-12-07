@@ -35,7 +35,7 @@ func (m *ResourcesQuery) Reset()         { *m = ResourcesQuery{} }
 func (m *ResourcesQuery) String() string { return proto.CompactTextString(m) }
 func (*ResourcesQuery) ProtoMessage()    {}
 func (*ResourcesQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_application_22f1e591d294b941, []int{0}
+	return fileDescriptor_application_9e06f70e07dd0483, []int{0}
 }
 func (m *ResourcesQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -82,7 +82,7 @@ func (m *ResourceTreeResponse) Reset()         { *m = ResourceTreeResponse{} }
 func (m *ResourceTreeResponse) String() string { return proto.CompactTextString(m) }
 func (*ResourceTreeResponse) ProtoMessage()    {}
 func (*ResourceTreeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_application_22f1e591d294b941, []int{1}
+	return fileDescriptor_application_9e06f70e07dd0483, []int{1}
 }
 func (m *ResourceTreeResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -129,7 +129,7 @@ func (m *ManagedResourcesResponse) Reset()         { *m = ManagedResourcesRespon
 func (m *ManagedResourcesResponse) String() string { return proto.CompactTextString(m) }
 func (*ManagedResourcesResponse) ProtoMessage()    {}
 func (*ManagedResourcesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_application_22f1e591d294b941, []int{2}
+	return fileDescriptor_application_9e06f70e07dd0483, []int{2}
 }
 func (m *ManagedResourcesResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -784,10 +784,10 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("controller/services/application.proto", fileDescriptor_application_22f1e591d294b941)
+	proto.RegisterFile("controller/services/application.proto", fileDescriptor_application_9e06f70e07dd0483)
 }
 
-var fileDescriptor_application_22f1e591d294b941 = []byte{
+var fileDescriptor_application_9e06f70e07dd0483 = []byte{
 	// 337 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x53, 0xcd, 0x4a, 0x33, 0x31,
 	0x14, 0x6d, 0xbe, 0x0f, 0x05, 0xa3, 0xa8, 0x04, 0x17, 0xa5, 0x8b, 0x52, 0x06, 0x84, 0x6e, 0x4c,

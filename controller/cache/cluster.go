@@ -183,7 +183,7 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 }
 
 func (c *clusterInfo) delete(obj *unstructured.Unstructured) error {
-	err := c.kubectl.DeleteResource(c.cluster.RESTConfig(), obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false, nil)
+	err := c.kubectl.DeleteResource(c.cluster.RESTConfig(), obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	err = c.handleError(obj.GroupVersionKind(), obj.GetNamespace(), obj.GetName(), err)
 	if err != nil && errors.IsNotFound(err) {
 		err = nil
