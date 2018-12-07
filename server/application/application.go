@@ -494,8 +494,16 @@ func (s *Server) GetResource(ctx context.Context, q *ApplicationResourceRequest)
 	return &ApplicationResourceResponse{Manifest: string(data)}, nil
 }
 
-func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceRequest) (*ApplicationResponse, error) {
-	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionDelete, q)
+func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDeleteRequest) (*ApplicationResponse, error) {
+	resourceRequest := &ApplicationResourceRequest{
+		Name:         q.Name,
+		Namespace:    q.Namespace,
+		ResourceName: q.ResourceName,
+		Kind:         q.Kind,
+		Version:      q.Version,
+		Group:        q.Group,
+	}
+	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionDelete, resourceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +511,11 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceReque
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	err = s.kubectl.DeleteResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	var forceDelete bool
+	if q.ForceDeleted != nil {
+		forceDelete = *q.ForceDeleted
+	}
+	err = s.kubectl.DeleteResource(config, res.GroupKindVersion(), res.Name, res.Namespace, forceDelete, q.GracePeriod)
 	if err != nil {
 		return nil, err
 	}

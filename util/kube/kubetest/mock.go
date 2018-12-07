@@ -34,7 +34,7 @@ func (k MockKubectlCmd) WatchResources(
 	return k.Events, nil
 }
 
-func (k MockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) error {
+func (k MockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool, gracePeriod *int64) error {
 	command, ok := k.Commands[name]
 	if !ok {
 		return nil

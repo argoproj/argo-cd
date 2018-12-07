@@ -97,6 +97,18 @@ message ApplicationResourceRequest {
 	required string kind = 6 [(gogoproto.nullable) = false];
 }
 
+message ApplicationResourceDeleteRequest {
+	required string name = 1;
+	required string namespace = 2 [(gogoproto.nullable) = false];
+	required string resourceName = 3 [(gogoproto.nullable) = false];
+	required string version = 4 [(gogoproto.nullable) = false];
+	required string group = 5 [(gogoproto.nullable) = false];
+	required string kind = 6 [(gogoproto.nullable) = false];
+	optional bool forceDeleted = 7 [(gogoproto.nullable) = true];
+	optional int64 gracePeriod = 8 [(gogoproto.nullable) = true];
+}
+
+
 
 message ApplicationResourceResponse {
 	required string manifest = 1 [(gogoproto.nullable) = false];
@@ -219,7 +231,7 @@ service ApplicationService {
 	}
 
 	// DeleteResource deletes a single application resource
-	rpc DeleteResource(ApplicationResourceRequest) returns (ApplicationResponse) {
+	rpc DeleteResource(ApplicationResourceDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}/resource";
 	}
 
