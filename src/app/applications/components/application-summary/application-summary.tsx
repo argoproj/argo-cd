@@ -7,7 +7,7 @@ import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
-import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
 
 export const ApplicationSummary = (props: {
     app: models.Application,
@@ -56,10 +56,6 @@ export const ApplicationSummary = (props: {
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.targetRevision' component={Text}/>,
         },
         {
-            title: 'SYNCED TO REVISION',
-            view: app.status.sync.revision || '',
-        },
-        {
             title: 'PATH',
             view: app.spec.source.path,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text}/>,
@@ -91,7 +87,8 @@ export const ApplicationSummary = (props: {
             ),
         }] : [],
         {title: 'STATUS', view: (
-            <span><ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status}</span>
+            <span><ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status} {syncStatusMessage(app)}
+            </span>
         )},
         {title: 'HEALTH', view: (
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>

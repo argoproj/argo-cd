@@ -137,6 +137,25 @@ export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCod
     return <i title={status} className={className} style={{ color }} />;
 };
 
+export function syncStatusMessage(app: appModels.Application) {
+    let message = '';
+    let rev = app.spec.source.targetRevision;
+    if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision)) {
+        rev += ' (' + app.status.sync.revision.substr(0, 7) + ')';
+    }
+    switch (app.status.sync.status) {
+        case appModels.SyncStatuses.Synced:
+            message += ' to ' + rev;
+            break;
+        case appModels.SyncStatuses.OutOfSync:
+            message += ' from ' + rev;
+            break;
+        case appModels.SyncStatuses.Unknown:
+            break;
+    }
+    return message;
+}
+
 export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => {
     let color = '';
 

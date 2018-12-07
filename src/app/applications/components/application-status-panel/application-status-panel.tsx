@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import * as models from '../../../shared/models';
 import * as utils from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../utils';
 
 require('./application-status-panel.scss');
 
@@ -37,16 +38,24 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     }
     return (
         <div className='application-status-panel row'>
-            <div className='application-status-panel__item columns small-3'>
+            <div className='application-status-panel__item columns small-2'>
                 <div className='application-status-panel__item-value'>{daysActive}</div>
                 <div className='application-status-panel__item-name'>Days active</div>
             </div>
-            <div className='application-status-panel__item columns small-3'>
+            <div className='application-status-panel__item columns small-2'>
                 <div className='application-status-panel__item-value'>{daysSinceLastSynchronized}</div>
                 <div className='application-status-panel__item-name'>Days since last synchronized</div>
             </div>
+            <div className='application-status-panel__item columns small-2'>
+                <div className='application-status-panel__item-value'><ComparisonStatusIcon status={application.status.sync.status}/> {application.status.sync.status}</div>
+                <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
+            </div>
+            <div className='application-status-panel__item columns small-2'>
+                <div className='application-status-panel__item-value'><HealthStatusIcon state={application.status.health}/> {application.status.health.status}</div>
+                <div className='application-status-panel__item-name'>{application.status.health.message}</div>
+            </div>
             {appOperationState && (
-            <div className='application-status-panel__item columns small-3'>
+            <div className='application-status-panel__item columns small-2'>
                 <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                     <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application)} <utils.OperationPhaseIcon
                         phase={appOperationState.phase}/></a>
