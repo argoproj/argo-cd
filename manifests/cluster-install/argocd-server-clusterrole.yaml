@@ -9,6 +9,7 @@ rules:
   - '*'
   verbs:
   - delete
+  - get
 - apiGroups:
   - ""
   resources:
