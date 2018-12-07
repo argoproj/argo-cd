@@ -100,7 +100,7 @@ export class ApplicationsService {
         }).then((res) => res.body as { manifest: string }).then((res) => JSON.parse(res.manifest) as models.State);
     }
 
-    public deleteResource(applicationName: string, resource: models.ResourceNode): Promise<any> {
+    public deleteResource(applicationName: string, resource: models.ResourceNode, force: boolean): Promise<any> {
         return requests.delete(`/applications/${applicationName}/resource`).query({
             name: resource.name,
             namespace: resource.namespace,
@@ -108,6 +108,7 @@ export class ApplicationsService {
             version: resource.version,
             kind: resource.kind,
             group: resource.group,
+            force,
         }).send().then(() => true);
     }
 

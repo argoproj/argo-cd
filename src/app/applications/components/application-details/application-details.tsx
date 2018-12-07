@@ -467,18 +467,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             menuItems.push({
                 title: 'Delete',
                 action: async () => {
-                    const confirmed = await this.appContext.apis.popup.confirm('Delete resource',
-                        `Are your sure you want to delete ${resource.kind} '${resource.name}'?`);
-                    if (confirmed) {
-                        try {
-                            await services.applications.deleteResource(this.props.match.params.name, resource);
-                        } catch (e) {
-                            this.appContext.apis.notifications.show({
-                                content: <ErrorNotification title='Unable to delete resource' e={e}/>,
-                                type: NotificationType.Error,
-                            });
-                        }
-                    }
+                    this.appContext.apis.popup.prompt('Delete resource',
+                    () => (
+                        <div>
+                            <p>Are your sure you want to delete {resource.kind} '{resource.name}'?`</p>
+                            <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                                <Checkbox id='force-delete-checkbox' field='force'/> <label htmlFor='force-delete-checkbox'>Force delete</label>
+                            </div>
+                        </div>
+                    ),
+                    {
+                        submit: async (vals, _, close) => {
+                            try {
+                                await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
+                                close();
+                            } catch (e) {
+                                this.appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to delete resource' e={e}/>,
+                                    type: NotificationType.Error,
+                                });
+                            }
+                        },
+                    });
                 },
             });
         }
