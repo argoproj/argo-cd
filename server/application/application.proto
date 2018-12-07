@@ -104,8 +104,7 @@ message ApplicationResourceDeleteRequest {
 	required string version = 4 [(gogoproto.nullable) = false];
 	required string group = 5 [(gogoproto.nullable) = false];
 	required string kind = 6 [(gogoproto.nullable) = false];
-	optional bool forceDeleted = 7 [(gogoproto.nullable) = true];
-	optional int64 gracePeriod = 8 [(gogoproto.nullable) = true];
+	optional bool force = 7 [(gogoproto.nullable) = true];
 }
 
 

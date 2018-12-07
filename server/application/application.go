@@ -511,11 +511,11 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDelet
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	var forceDelete bool
-	if q.ForceDeleted != nil {
-		forceDelete = *q.ForceDeleted
+	var force bool
+	if q.Force != nil {
+		force = *q.Force
 	}
-	err = s.kubectl.DeleteResource(config, res.GroupKindVersion(), res.Name, res.Namespace, forceDelete, q.GracePeriod)
+	err = s.kubectl.DeleteResource(config, res.GroupKindVersion(), res.Name, res.Namespace, force)
 	if err != nil {
 		return nil, err
 	}
