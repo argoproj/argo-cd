@@ -39,9 +39,12 @@ type LiveStateCache interface {
 
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
 	key := kube.GetResourceKey(un)
-	if isNamespaced && key.Namespace == "" {
+	if !isNamespaced {
+		key.Namespace = ""
+	} else if isNamespaced && key.Namespace == "" {
 		key.Namespace = a.Spec.Destination.Namespace
 	}
+
 	return key
 }
 
