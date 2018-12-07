@@ -33,13 +33,14 @@ type DiffResultList struct {
 func Diff(config, live *unstructured.Unstructured) *DiffResult {
 	if config != nil {
 		config = stripTypeInformation(config)
-		encodeSecretStringData(config)
+		EncodeSecretStringData(config)
 	}
 	if live != nil {
 		live = stripTypeInformation(live)
 	}
-	orig := getLastAppliedConfigAnnotation(live)
+	orig := GetLastAppliedConfigAnnotation(live)
 	if orig != nil && config != nil {
+		EncodeSecretStringData(orig)
 		dr, err := ThreeWayDiff(orig, config, live)
 		if err == nil {
 			return dr
@@ -182,7 +183,7 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 	return strategicpatch.CreateThreeWayMergePatch(origBytes, configBytes, liveBytes, lookupPatchMeta, true)
 }
 
-func getLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructured.Unstructured {
+func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructured.Unstructured {
 	if live == nil {
 		return nil
 	}
@@ -201,53 +202,6 @@ func getLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructur
 		return nil
 	}
 	return &obj
-}
-
-// MatchObjectLists takes two possibly disjoint lists of Unstructured objects, and returns two new
-// lists of equal lengths, filled out with nils from missing objects in the opposite list.
-// These lists can then be passed into DiffArray for comparison
-func MatchObjectLists(leftObjs, rightObjs []*unstructured.Unstructured) ([]*unstructured.Unstructured, []*unstructured.Unstructured) {
-	newLeftObjs := make([]*unstructured.Unstructured, 0)
-	newRightObjs := make([]*unstructured.Unstructured, 0)
-
-	for _, left := range leftObjs {
-		if left == nil {
-			continue
-		}
-		newLeftObjs = append(newLeftObjs, left)
-		right := objByKindName(rightObjs, left.GetKind(), left.GetName())
-		newRightObjs = append(newRightObjs, right)
-	}
-
-	for _, right := range rightObjs {
-		if right == nil {
-			continue
-		}
-		left := objByKindName(leftObjs, right.GetKind(), right.GetName())
-		if left != nil {
-			// object exists in both list. this object was already appended to both lists in the
-			// first for/loop
-			continue
-		}
-		// if we get here, we found a right which doesn't exist in the left object list.
-		// append a nil to the left object list
-		newLeftObjs = append(newLeftObjs, nil)
-		newRightObjs = append(newRightObjs, right)
-
-	}
-	return newLeftObjs, newRightObjs
-}
-
-func objByKindName(objs []*unstructured.Unstructured, kind, name string) *unstructured.Unstructured {
-	for _, obj := range objs {
-		if obj == nil {
-			continue
-		}
-		if obj.GetKind() == kind && obj.GetName() == name {
-			return obj
-		}
-	}
-	return nil
 }
 
 // DiffArray performs a diff on a list of unstructured objects. Objects are expected to match
@@ -287,7 +241,7 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 
 // encodeSecretStringData mutates the supplied object and encodes stringData to data. If the object
 // is not a secret, or is an invalid secret, then returns the same object
-func encodeSecretStringData(un *unstructured.Unstructured) {
+func EncodeSecretStringData(un *unstructured.Unstructured) {
 	if un == nil {
 		return
 	}

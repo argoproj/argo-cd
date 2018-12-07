@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/kubernetes/pkg/apis/core"
 
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/services"
@@ -182,8 +183,18 @@ func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *serv
 			Group:     res.Group,
 			Kind:      res.Kind,
 		}
-		live, data := hideSecretData(res.Live, nil)
-		target, _ := hideSecretData(res.Target, data)
+
+		target := res.Target
+		live := res.Live
+		resDiff := res.Diff
+		if res.Kind == kube.SecretKind && res.Group == "" {
+			var err error
+			target, live, err = hideSecretData(res.Target, res.Live)
+			if err != nil {
+				return nil, err
+			}
+			resDiff = *diff.Diff(target, live)
+		}
 
 		if live != nil {
 			data, err := json.Marshal(live)
@@ -204,7 +215,7 @@ func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *serv
 		} else {
 			item.TargetState = "null"
 		}
-		jsonDiff, err := res.Diff.JSONFormat()
+		jsonDiff, err := resDiff.JSONFormat()
 		if err != nil {
 			return nil, err
 		}
@@ -222,32 +233,78 @@ func toString(val interface{}) string {
 	return fmt.Sprintf("%s", val)
 }
 
-// hideSecretData checks if given object kind is Secret, replaces data keys with stars and returns unchanged data map. The method additionally check if data key if different
-// from corresponding key of optional parameter `otherData` and adds extra star to keep information about difference. So if secret data is out of sync user still can see which
-// fields are different.
-func hideSecretData(state *unstructured.Unstructured, otherData map[string]interface{}) (*unstructured.Unstructured, map[string]interface{}) {
-	obj := state.DeepCopy()
-	if obj != nil && obj.GroupVersionKind().Group == "" && obj.GetKind() == kube.SecretKind {
-		if data, ok, err := unstructured.NestedMap(obj.Object, "data"); err == nil && ok {
-			unchangedData := make(map[string]interface{})
-			for k, v := range data {
-				unchangedData[k] = v
-			}
-			for k := range data {
-				replacement := "********"
-				if otherData != nil {
-					if val, ok := otherData[k]; ok && toString(val) != toString(data[k]) {
-						replacement = replacement + "*"
-					}
-				}
-				data[k] = replacement
-			}
-			_ = unstructured.SetNestedMap(obj.Object, data, "data")
+// hideSecretData replaces secret data values in specified target, live secrets and in last applied configuration of live secret with stars. Also preserves differences between
+// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of stars. If all the are different then number of stars
+// in replacement should be different.
+func hideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
+	var orig *unstructured.Unstructured
+	if live != nil {
+		orig = diff.GetLastAppliedConfigAnnotation(live)
+		live = live.DeepCopy()
+	}
+	if target != nil {
+		target = target.DeepCopy()
+	}
 
-			return obj, unchangedData
+	keys := map[string]bool{}
+	for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+		if obj == nil {
+			continue
+		}
+		diff.EncodeSecretStringData(obj)
+		if data, found, err := unstructured.NestedMap(obj.Object, "data"); found && err == nil {
+			for k := range data {
+				keys[k] = true
+			}
 		}
 	}
-	return obj, nil
+
+	for k := range keys {
+		nextReplacement := "*********"
+		valToReplacement := make(map[string]string)
+		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+			var data map[string]interface{}
+			if obj != nil {
+				var err error
+				data, _, err = unstructured.NestedMap(obj.Object, "data")
+				if err != nil {
+					return nil, nil, err
+				}
+			}
+			if data == nil {
+				data = make(map[string]interface{})
+			}
+			valData, ok := data[k]
+			if !ok {
+				continue
+			}
+			val := toString(valData)
+			replacement, ok := valToReplacement[val]
+			if !ok {
+				replacement = nextReplacement
+				nextReplacement = nextReplacement + "*"
+				valToReplacement[val] = replacement
+			}
+			data[k] = replacement
+			err := unstructured.SetNestedField(obj.Object, data, "data")
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	if live != nil && orig != nil {
+		annotations := live.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		lastAppliedData, err := json.Marshal(orig)
+		if err != nil {
+			return nil, nil, err
+		}
+		annotations[core.LastAppliedConfigAnnotation] = string(lastAppliedData)
+		live.SetAnnotations(annotations)
+	}
+	return target, live, nil
 }
 
 // Run starts the Application CRD controller.

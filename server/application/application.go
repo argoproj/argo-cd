@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -487,11 +489,31 @@ func (s *Server) GetResource(ctx context.Context, q *ApplicationResourceRequest)
 	if err != nil {
 		return nil, err
 	}
+	err = replaceSecretValues(obj)
+	if err != nil {
+		return nil, err
+	}
 	data, err := json.Marshal(obj.Object)
 	if err != nil {
 		return nil, err
 	}
 	return &ApplicationResourceResponse{Manifest: string(data)}, nil
+}
+
+func replaceSecretValues(obj *unstructured.Unstructured) error {
+	if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+		data, _, _ := unstructured.NestedMap(obj.Object, "data")
+		if data != nil {
+			for k := range data {
+				data[k] = "**********"
+			}
+			err := unstructured.SetNestedField(obj.Object, data, "data")
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDeleteRequest) (*ApplicationResponse, error) {
