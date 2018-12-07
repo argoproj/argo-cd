@@ -218,6 +218,9 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 	}
 
 	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision, q.Path)
+	if err != nil {
+		return nil, err
+	}
 	if len(paths) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "specified application path is not supported")
 	}

@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -352,4 +351,36 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 		return true
 	})
 	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
+}
+
+// TestInvalidRuntimePolicy tests when an invalid policy is supplied, it falls back to normal enforcement
+func TestInvalidRuntimePolicy(t *testing.T) {
+	cm := fakeConfigMap()
+	kubeclientset := fake.NewSimpleClientset(cm)
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	err := enf.syncUpdate(fakeConfigMap())
+	assert.Nil(t, err)
+	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	assert.True(t, enf.EnforceRuntimePolicy("", "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy("", "role:readonly", "applications", "update", "foo/bar"))
+	badPolicy := "this, is, not, a, good, policy"
+	assert.True(t, enf.EnforceRuntimePolicy(badPolicy, "admin", "applications", "update", "foo/bar"))
+	assert.False(t, enf.EnforceRuntimePolicy(badPolicy, "role:readonly", "applications", "update", "foo/bar"))
+}
+
+func TestValidatePolicy(t *testing.T) {
+	goodPolicies := []string{
+		"p, role:admin, projects, delete, *, allow",
+		"",
+	}
+	for _, good := range goodPolicies {
+		assert.Nil(t, ValidatePolicy(good))
+	}
+	badPolicies := []string{
+		"this, is, not, a, good, policy",
+		"this\ttoo",
+	}
+	for _, bad := range badPolicies {
+		assert.Error(t, ValidatePolicy(bad))
+	}
 }

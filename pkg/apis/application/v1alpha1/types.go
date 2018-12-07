@@ -621,7 +621,7 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
-// ProjectPoliciesString returns Casbin formated string of a project's polcies for each role
+// ProjectPoliciesString returns Casbin formated string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
 	for _, role := range proj.Spec.Roles {

@@ -52,17 +52,17 @@ type Enforcer struct {
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
 var (
-	builtInModel model.Model
+	modelConf string
 )
 
 func init() {
 	box := packr.NewBox(".")
-	modelConf := box.String(builtinModelFile)
-	builtInModel = casbin.NewModel(modelConf)
+	modelConf = box.String(builtinModelFile)
 }
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	adapter := scas.NewAdapter("")
+	builtInModel := newBuiltInModel()
 	enf := casbin.NewEnforcer(builtInModel, adapter)
 	enf.EnableLog(false)
 	return &Enforcer{
@@ -100,12 +100,17 @@ func (e *Enforcer) Enforce(rvals ...interface{}) bool {
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
 func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) bool {
 	var enf *casbin.Enforcer
+	var err error
 	if policy == "" {
 		enf = e.Enforcer
 	} else {
 		policies := fmt.Sprintf("%s\n%s\n%s", e.builtinPolicy, e.userDefinedPolicy, policy)
 		adapter := scas.NewAdapter(policies)
-		enf = casbin.NewEnforcer(builtInModel, adapter)
+		enf, err = casbin.NewEnforcerSafe(newBuiltInModel(), adapter)
+		if err != nil {
+			log.Warnf("invalid runtime policy: %s", policy)
+			enf = e.Enforcer
+		}
 	}
 	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
@@ -218,4 +223,21 @@ func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap) error {
 		policyCSV = ""
 	}
 	return e.SetUserPolicy(policyCSV)
+}
+
+// ValidatePolicy verifies a policy string is acceptable to casbin
+func ValidatePolicy(policy string) error {
+	adapter := scas.NewAdapter(policy)
+	_, err := casbin.NewEnforcerSafe(newBuiltInModel(), adapter)
+	if err != nil {
+		return fmt.Errorf("policy syntax error: %s", policy)
+	}
+	return nil
+}
+
+// newBuiltInModel is a helper to return a brand new casbin model from the built-in model string.
+// This is needed because it is not safe to re-use the same casbin Model when instantiating new
+// casbin enforcers.
+func newBuiltInModel() model.Model {
+	return casbin.NewModel(modelConf)
 }
