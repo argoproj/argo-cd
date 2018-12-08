@@ -403,6 +403,10 @@ func TestUserAgent(t *testing.T) {
 			userAgent: fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, currentVersion),
 		},
 		{
+			// Accept up-to-date pre-release user-agent
+			userAgent: fmt.Sprintf("%s/%s-rc1", common.ArgoCDUserAgentName, currentVersion),
+		},
+		{
 			// Reject legacy client
 			// NOTE: after we update the grpc-go client past 1.15.0, this test will break and should be deleted
 			userAgent: " ", // need a space here since the apiclient will set the default user-agent if empty

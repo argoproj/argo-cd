@@ -59,8 +59,10 @@ func newUserAgentEnforcer(clientName, constraintStr string) func(context.Context
 				// User-agent was supplied, but client/format is not one we care about (e.g. grpc-go)
 				continue
 			}
+			// remove pre-release part
+			versionStr := strings.Split(uaSplit[1], "-")[0]
 			// We have matched the client name to the one we care about
-			uaVers, err := semver.NewVersion(uaSplit[1])
+			uaVers, err := semver.NewVersion(versionStr)
 			if err != nil {
 				return status.Errorf(codes.InvalidArgument, "could not parse version from user-agent: %s", userAgent)
 			}
