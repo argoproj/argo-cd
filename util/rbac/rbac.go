@@ -119,8 +119,7 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
-		rvals = append([]interface{}{defaultRole}, rvals[1:]...)
-		if enf.Enforce(rvals...) {
+		if enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...) {
 			return true
 		}
 	}
