@@ -592,9 +592,7 @@ func getLocalObjects(app *argoappv1.Application, local string, env string, value
 			log.Fatal("--env option invalid when performing local diff on Kustomize application")
 		}
 		k := kustomize.NewKustomizeApp(local)
-		opts := kustomize.KustomizeBuildOpts{
-			Namespace: app.Namespace,
-		}
+		opts := kustomize.KustomizeBuildOpts{}
 		if app.Spec.Source.Kustomize != nil {
 			opts.NamePrefix = app.Spec.Source.Kustomize.NamePrefix
 		}

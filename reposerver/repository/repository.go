@@ -183,9 +183,7 @@ func helmOpts(q *ManifestRequest) helm.HelmTemplateOpts {
 }
 
 func kustomizeOpts(q *ManifestRequest) kustomize.KustomizeBuildOpts {
-	opts := kustomize.KustomizeBuildOpts{
-		Namespace: q.Namespace,
-	}
+	opts := kustomize.KustomizeBuildOpts{}
 	if q.ApplicationSource.Kustomize != nil {
 		opts.NamePrefix = q.ApplicationSource.Kustomize.NamePrefix
 	}
