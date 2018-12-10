@@ -24,6 +24,7 @@ const (
 type clusterInfo struct {
 	apis         map[schema.GroupVersionKind]metav1.APIResource
 	nodes        map[kube.ResourceKey]*node
+	nsIndex      map[string]map[kube.ResourceKey]*node
 	lock         *sync.Mutex
 	onAppUpdated func(appName string)
 	kubectl      kube.Kubectl
@@ -52,8 +53,6 @@ func createObjInfo(un *unstructured.Unstructured) *node {
 			Namespace:  un.GetNamespace(),
 		},
 		ownerRefs: ownerRefs,
-		parents:   make(map[kube.ResourceKey]*node),
-		children:  make(map[kube.ResourceKey]*node),
 		tags:      getTags(un),
 	}
 	appName := kube.GetAppInstanceLabel(un)
@@ -62,6 +61,27 @@ func createObjInfo(un *unstructured.Unstructured) *node {
 		info.resource = un
 	}
 	return info
+}
+
+func (c *clusterInfo) setNode(n *node) {
+	key := n.resourceKey()
+	c.nodes[key] = n
+	ns, ok := c.nsIndex[key.Namespace]
+	if !ok {
+		ns = make(map[kube.ResourceKey]*node)
+		c.nsIndex[key.Namespace] = ns
+	}
+	ns[key] = n
+}
+
+func (c *clusterInfo) removeNode(key kube.ResourceKey) {
+	delete(c.nodes, key)
+	if ns, ok := c.nsIndex[key.Namespace]; ok {
+		delete(ns, key)
+		if len(ns) == 0 {
+			delete(c.nsIndex, key.Namespace)
+		}
+	}
 }
 
 func (c *clusterInfo) synced() bool {
@@ -86,18 +106,9 @@ func (c *clusterInfo) ensureSynced() error {
 	}
 
 	for i := range resources {
-		c.nodes[kube.GetResourceKey(resources[i])] = createObjInfo(resources[i])
+		c.setNode(createObjInfo(resources[i]))
 	}
 
-	nodes := make(map[kube.ResourceKey]*node)
-	for k, v := range c.nodes {
-		nodes[k] = v
-	}
-	for _, obj := range c.nodes {
-		if len(obj.ownerRefs) == 0 {
-			obj.fillChildren(nodes)
-		}
-	}
 	resyncTime := time.Now()
 	c.syncTime = &resyncTime
 	c.log.Info("Cluster successfully synced")
@@ -109,8 +120,11 @@ func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.Resour
 	defer c.lock.Unlock()
 	children := make([]appv1.ResourceNode, 0)
 	if objInfo, ok := c.nodes[kube.GetResourceKey(obj)]; ok {
-		for _, child := range objInfo.children {
-			children = append(children, child.childResourceNodes())
+		nsNodes := c.nsIndex[obj.GetNamespace()]
+		for _, child := range nsNodes {
+			if objInfo.isParentOf(child) {
+				children = append(children, child.childResourceNodes(nsNodes))
+			}
 		}
 	}
 	return children
@@ -129,7 +143,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for key, o := range c.nodes {
-		if o.appName == a.Name && o.resource != nil && len(o.parents) == 0 {
+		if o.appName == a.Name && o.resource != nil && len(o.ownerRefs) == 0 {
 			managedObjs[key] = o.resource
 		}
 	}
@@ -174,14 +188,6 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 	return managedObjs, nil
 }
 
-func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
-	gv, err := schema.ParseGroupVersion(ownerRef.APIVersion)
-	if err != nil {
-		gv = schema.GroupVersion{}
-	}
-	return gv
-}
-
 func (c *clusterInfo) delete(obj *unstructured.Unstructured) error {
 	err := c.kubectl.DeleteResource(c.cluster.RESTConfig(), obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	err = c.handleError(obj.GroupVersionKind(), obj.GetNamespace(), obj.GetName(), err)
@@ -208,62 +214,36 @@ func (c *clusterInfo) handleError(gvk schema.GroupVersionKind, namespace string,
 func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	obj, exists := c.nodes[kube.GetResourceKey(un)]
-	if exists && event == watch.Deleted {
-		for i := range obj.parents {
-			delete(obj.parents[i].children, obj.resourceKey())
+	key := kube.GetResourceKey(un)
+	existingNode, exists := c.nodes[key]
+	if event == watch.Deleted {
+		if exists {
+			c.removeNode(key)
+			if existingNode.appName != "" {
+				c.onAppUpdated(existingNode.appName)
+			}
 		}
-		for i := range obj.children {
-			delete(obj.children[i].parents, obj.resourceKey())
+	} else if event != watch.Deleted {
+		nodes := make([]*node, 0)
+		if exists {
+			nodes = append(nodes, existingNode)
 		}
-		delete(c.nodes, kube.GetResourceKey(un))
-		if obj.appName != "" {
-			c.onAppUpdated(obj.appName)
-		}
-	} else if !exists && event != watch.Deleted {
 		newObj := createObjInfo(un)
-		c.nodes[newObj.resourceKey()] = newObj
-		if len(newObj.ownerRefs) > 0 {
-			sameNamespace := make(map[kube.ResourceKey]*node)
-			for k := range c.nodes {
-				if c.nodes[k].ref.Namespace == un.GetNamespace() {
-					sameNamespace[k] = c.nodes[k]
-				}
-			}
-			for _, ownerRef := range newObj.ownerRefs {
-				if owner, ok := sameNamespace[kube.NewResourceKey(ownerRefGV(ownerRef).Group, ownerRef.Kind, un.GetNamespace(), ownerRef.Name)]; ok {
-					owner.fillChildren(sameNamespace)
-				}
-			}
-		}
-		if newObj.appName != "" {
-			c.onAppUpdated(newObj.appName)
-		}
-	} else if exists {
-		obj.resourceVersion = un.GetResourceVersion()
-		toNotify := make([]string, 0)
-		if obj.appName != "" {
-			toNotify = append(toNotify, obj.appName)
-		}
+		c.setNode(newObj)
+		nodes = append(nodes, newObj)
 
-		if len(obj.ownerRefs) == 0 {
-			newAppName := kube.GetAppInstanceLabel(un)
-			if newAppName != obj.appName {
-				obj.setAppName(newAppName)
-				if newAppName != "" {
-					toNotify = append(toNotify, newAppName)
+		toNotify := make(map[string]bool)
+		for i := range nodes {
+			n := nodes[i]
+			if ns, ok := c.nsIndex[n.ref.Namespace]; ok {
+				app := n.getApp(ns)
+				if app != "" {
+					toNotify[app] = true
 				}
 			}
 		}
 
-		if len(obj.parents) == 0 && obj.appName != "" {
-			obj.resource = un
-		} else {
-			obj.resource = nil
-		}
-		obj.tags = getTags(un)
-
-		for _, name := range toNotify {
+		for name := range toNotify {
 			c.onAppUpdated(name)
 		}
 	}
