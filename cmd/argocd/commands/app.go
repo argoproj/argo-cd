@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/controller/services"
 	"github.com/argoproj/argo-cd/errors"
@@ -611,6 +612,33 @@ func getLocalObjects(app *argoappv1.Application, local string, env string, value
 	return localObjs
 }
 
+func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
+	namespacedByGk := make(map[schema.GroupKind]bool)
+	for i := range liveObjs {
+		if liveObjs[i] != nil {
+			key := kube.GetResourceKey(liveObjs[i])
+			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
+		}
+	}
+	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
+	for i := range localObs {
+		obj := localObs[i]
+		gk := obj.GroupVersionKind().GroupKind()
+		// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
+		// If live object is missing then it does not matter if target is namespaced or not.
+		namespace := obj.GetNamespace()
+		if namespacedByGk[gk] {
+			namespace = ""
+		} else {
+			if namespace == "" {
+				namespace = appNamespace
+			}
+		}
+		objByKey[kube.NewResourceKey(gk.Group, gk.Kind, namespace, obj.GetName())] = obj
+	}
+	return objByKey
+}
+
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -637,35 +665,78 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			liveObjs, err := liveObjects(resources.Items)
 			errors.CheckError(err)
-			targetObjs, err := targetObjects(resources.Items)
-			errors.CheckError(err)
-			localObjs := []*unstructured.Unstructured{}
+			items := make([]struct {
+				key    kube.ResourceKey
+				live   *unstructured.Unstructured
+				target *unstructured.Unstructured
+			}, 0)
 			if local != "" {
-				localObjs = getLocalObjects(app, local, env, values)
-				if len(resources.Items) != len(localObjs) {
-					log.Fatal("Local comparison doesn't have the same number of resources as the live resource")
+				localObjs := groupLocalObjs(getLocalObjects(app, local, env, values), liveObjs, app.Spec.Destination.Namespace)
+				for _, res := range resources.Items {
+					var live = &unstructured.Unstructured{}
+					err := json.Unmarshal([]byte(res.LiveState), &live)
+					errors.CheckError(err)
+
+					key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
+					if local, ok := localObjs[key]; ok || live != nil {
+						err = kube.SetAppInstanceLabel(local, appName)
+						errors.CheckError(err)
+						items = append(items, struct {
+							key    kube.ResourceKey
+							live   *unstructured.Unstructured
+							target *unstructured.Unstructured
+						}{
+							live:   live,
+							target: local,
+							key:    key,
+						})
+						delete(localObjs, key)
+					}
 				}
-			} else if env != "" || len(values) > 0 {
-				log.Fatal("--env option invalid when performing git diff")
+				for key, local := range localObjs {
+					items = append(items, struct {
+						key    kube.ResourceKey
+						live   *unstructured.Unstructured
+						target *unstructured.Unstructured
+					}{
+						live:   nil,
+						target: local,
+						key:    key,
+					})
+				}
+			} else {
+				for i := range resources.Items {
+					res := resources.Items[i]
+					var live = &unstructured.Unstructured{}
+					err := json.Unmarshal([]byte(res.LiveState), &live)
+					errors.CheckError(err)
+
+					var target = &unstructured.Unstructured{}
+					err = json.Unmarshal([]byte(res.TargetState), &target)
+					errors.CheckError(err)
+
+					items = append(items, struct {
+						key    kube.ResourceKey
+						live   *unstructured.Unstructured
+						target *unstructured.Unstructured
+					}{
+						live:   live,
+						target: target,
+						key:    kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name),
+					})
+				}
 			}
 
-			for i := range resources.Items {
-				item := resources.Items[i]
-				// Diff is already available in ManagedResource Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
-				diffRes := diff.Diff(targetObjs[i], liveObjs[i])
-				fmt.Printf("===== %s %s ======\n", item.Kind, item.Name)
-				if local != "" {
-					liveObj, err := item.LiveObject()
-					errors.CheckError(err)
-					err = kube.SetAppInstanceLabel(localObjs[i], appName)
-					errors.CheckError(err)
-					diffRes = diff.Diff(localObjs[i], liveObj)
-				}
+			for i := range items {
+				item := items[i]
+				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
+				diffRes := diff.Diff(item.target, item.live)
+				fmt.Printf("===== %s/%s %s/%s======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 				if diffRes.Modified {
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 					}
-					liveObj := liveObjs[i]
+					liveObj := item.live
 					if liveObj == nil {
 						liveObj = &unstructured.Unstructured{Object: make(map[string]interface{})}
 					}
