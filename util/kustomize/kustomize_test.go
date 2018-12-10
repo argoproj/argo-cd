@@ -29,7 +29,6 @@ func TestKustomizeBuild(t *testing.T) {
 	namePrefix := "namePrefix-"
 	kustomize := NewKustomizeApp(appPath)
 	opts := KustomizeBuildOpts{
-		Namespace:  "mynamespace",
 		NamePrefix: namePrefix,
 	}
 	objs, params, err := kustomize.Build(opts, []*v1alpha1.ComponentParameter{{
@@ -49,7 +48,6 @@ func TestKustomizeBuild(t *testing.T) {
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment", obj.GetName())
 		}
-		assert.Equal(t, "mynamespace", obj.GetNamespace())
 	}
 
 	for _, param := range params {
