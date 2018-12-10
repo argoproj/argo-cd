@@ -15,7 +15,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -81,6 +80,7 @@ func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
 		kubectl: kubetest.MockKubectlCmd{
 			Resources: resources,
 		},
+		nsIndex:  make(map[string]map[kube.ResourceKey]*node),
 		cluster:  &appv1.Cluster{},
 		syncTime: nil,
 		syncLock: &sync.Mutex{},
@@ -256,29 +256,4 @@ func TestUpdateAppResource(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, []string{"helm-guestbook"}, updatesReceived)
-}
-
-func TestUpdateRootAppResource(t *testing.T) {
-	updatesReceived := make([]string, 0)
-	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.onAppUpdated = func(appName string) {
-		updatesReceived = append(updatesReceived, appName)
-	}
-	err := cluster.ensureSynced()
-	assert.Nil(t, err)
-
-	for k := range cluster.nodes {
-		assert.Equal(t, "helm-guestbook", cluster.nodes[k].appName)
-	}
-
-	updatedDeploy := testDeploy.DeepCopy()
-	updatedDeploy.SetLabels(map[string]string{common.LabelKeyAppInstance: "helm-guestbook2"})
-
-	err = cluster.processEvent(watch.Modified, updatedDeploy)
-	assert.Nil(t, err)
-
-	assert.Equal(t, []string{"helm-guestbook", "helm-guestbook2"}, updatesReceived)
-	for k := range cluster.nodes {
-		assert.Equal(t, "helm-guestbook2", cluster.nodes[k].appName)
-	}
 }

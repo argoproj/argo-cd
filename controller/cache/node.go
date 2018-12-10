@@ -13,8 +13,6 @@ type node struct {
 	resourceVersion string
 	ref             v1.ObjectReference
 	ownerRefs       []metav1.OwnerReference
-	children        map[kube.ResourceKey]*node
-	parents         map[kube.ResourceKey]*node
 	tags            []string
 	appName         string
 	resource        *unstructured.Unstructured
@@ -25,9 +23,6 @@ func (n *node) resourceKey() kube.ResourceKey {
 }
 
 func (n *node) isParentOf(child *node) bool {
-	if n.ref.Namespace != child.ref.Namespace {
-		return false
-	}
 	ownerGvk := n.ref.GroupVersionKind()
 	for _, ownerRef := range child.ownerRefs {
 		if kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name) == n.resourceKey() {
@@ -38,29 +33,36 @@ func (n *node) isParentOf(child *node) bool {
 	return false
 }
 
-func (n *node) setAppName(appName string) {
-	n.appName = appName
-	for i := range n.children {
-		n.children[i].setAppName(appName)
+func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
+	gv, err := schema.ParseGroupVersion(ownerRef.APIVersion)
+	if err != nil {
+		gv = schema.GroupVersion{}
 	}
+	return gv
 }
 
-func (n *node) fillChildren(nodes map[kube.ResourceKey]*node) {
-	for k, child := range nodes {
-		if n.isParentOf(child) {
-			delete(nodes, k)
-			child.appName = n.appName
-			child.parents[n.resourceKey()] = n
-			n.children[child.resourceKey()] = child
-			child.fillChildren(nodes)
+func (n *node) getApp(ns map[kube.ResourceKey]*node) string {
+	if n.appName != "" {
+		return n.appName
+	}
+	for _, ownerRef := range n.ownerRefs {
+		gv := ownerRefGV(ownerRef)
+		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name)]; ok {
+			app := parent.getApp(ns)
+			if app != "" {
+				return app
+			}
 		}
 	}
+	return ""
 }
 
-func (n *node) childResourceNodes() appv1.ResourceNode {
+func (n *node) childResourceNodes(ns map[kube.ResourceKey]*node) appv1.ResourceNode {
 	children := make([]appv1.ResourceNode, 0)
-	for i := range n.children {
-		children = append(children, n.children[i].childResourceNodes())
+	for key := range ns {
+		if n.isParentOf(ns[key]) {
+			children = append(children, ns[key].childResourceNodes(ns))
+		}
 	}
 	gv, err := schema.ParseGroupVersion(n.ref.APIVersion)
 	if err != nil {

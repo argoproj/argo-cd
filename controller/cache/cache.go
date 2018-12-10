@@ -96,6 +96,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			apis:         make(map[schema.GroupVersionKind]v1.APIResource),
 			lock:         &sync.Mutex{},
 			nodes:        make(map[kube.ResourceKey]*node),
+			nsIndex:      make(map[string]map[kube.ResourceKey]*node),
 			onAppUpdated: c.onAppUpdated,
 			kubectl:      c.kubectl,
 			cluster:      cluster,
