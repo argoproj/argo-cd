@@ -28,22 +28,11 @@ type kustomize struct {
 
 // KustomizeBuildOpts are options to a `kustomize build` command
 type KustomizeBuildOpts struct {
-	// Namespace will run `kustomize edit set namespace` during manifest generation
-	Namespace string
 	// NamePrefix will run `kustomize edit set nameprefix` during manifest generation
 	NamePrefix string
 }
 
 func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
-	if opts.Namespace != "" {
-		cmd := exec.Command("kustomize", "edit", "set", "namespace", opts.Namespace)
-		cmd.Dir = k.path
-		_, err := argoexec.RunCommandExt(cmd)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
 	if opts.NamePrefix != "" {
 		cmd := exec.Command("kustomize", "edit", "set", "nameprefix", opts.NamePrefix)
 		cmd.Dir = k.path
