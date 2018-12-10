@@ -31,7 +31,7 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: application-controller
+  name: argocd-application-controller
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -46,7 +46,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: application-controller-role
+  name: argocd-application-controller-role
 rules:
 - apiGroups:
   - ""
@@ -141,14 +141,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: application-controller-role-binding
+  name: argocd-application-controller-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: application-controller-role
+  name: argocd-application-controller-role
 subjects:
 - kind: ServiceAccount
-  name: application-controller
+  name: argocd-application-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -193,13 +193,13 @@ type: Opaque
 apiVersion: v1
 kind: Service
 metadata:
-  name: application-controller
+  name: argocd-application-controller
 spec:
   ports:
   - port: 8083
     targetPort: 8083
   selector:
-    app: application-controller
+    app: argocd-application-controller
 ---
 apiVersion: v1
 kind: Service
@@ -264,15 +264,15 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: application-controller
+  name: argocd-application-controller
 spec:
   selector:
     matchLabels:
-      app: application-controller
+      app: argocd-application-controller
   template:
     metadata:
       labels:
-        app: application-controller
+        app: argocd-application-controller
     spec:
       containers:
       - command:
@@ -283,7 +283,7 @@ spec:
         - "10"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        name: application-controller
+        name: argocd-application-controller
         ports:
         - containerPort: 8083
         readinessProbe:
@@ -291,7 +291,7 @@ spec:
           periodSeconds: 10
           tcpSocket:
             port: 8083
-      serviceAccountName: application-controller
+      serviceAccountName: argocd-application-controller
 ---
 apiVersion: apps/v1
 kind: Deployment
