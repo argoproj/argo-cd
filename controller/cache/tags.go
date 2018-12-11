@@ -3,6 +3,8 @@ package cache
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+
 	"github.com/argoproj/argo-cd/util/kube"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -10,20 +12,20 @@ import (
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 )
 
-func getTags(un *unstructured.Unstructured) []string {
+func getTags(un *unstructured.Unstructured) []v1alpha1.InfoItem {
 	gvk := un.GroupVersionKind()
 
 	if gvk.Kind == kube.PodKind && gvk.Group == "" {
 		return getPodTags(un)
 	}
-	return []string{}
+	return []v1alpha1.InfoItem{}
 }
 
-func getPodTags(un *unstructured.Unstructured) []string {
+func getPodTags(un *unstructured.Unstructured) []v1alpha1.InfoItem {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
-		return []string{}
+		return []v1alpha1.InfoItem{}
 	}
 	restarts := 0
 	totalContainers := len(pod.Spec.Containers)
@@ -97,9 +99,9 @@ func getPodTags(un *unstructured.Unstructured) []string {
 		reason = "Terminating"
 	}
 
-	tags := make([]string, 0)
+	tags := make([]v1alpha1.InfoItem, 0)
 	if reason != "" {
-		tags = append(tags, reason)
+		tags = append(tags, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	return append(tags, fmt.Sprintf("%d/%d", readyContainers, totalContainers))
+	return append(tags, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 }

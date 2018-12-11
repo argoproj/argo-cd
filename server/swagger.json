@@ -2527,6 +2527,19 @@
         }
       }
     },
+    "v1alpha1InfoItem": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name is a human readable title for this piece of information.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Value is human readable content.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1JWTToken": {
       "type": "object",
       "title": "JWTToken holds the issuedAt and expiresAt values of a token",
@@ -2702,7 +2715,7 @@
         "tags": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/v1alpha1InfoItem"
           }
         },
         "version": {

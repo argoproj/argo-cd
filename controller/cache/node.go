@@ -13,7 +13,7 @@ type node struct {
 	resourceVersion string
 	ref             v1.ObjectReference
 	ownerRefs       []metav1.OwnerReference
-	tags            []string
+	tags            []appv1.InfoItem
 	appName         string
 	resource        *unstructured.Unstructured
 }
