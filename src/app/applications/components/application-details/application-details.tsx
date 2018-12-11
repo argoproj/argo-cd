@@ -172,7 +172,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 services.applications.resourceTree(
                                                     this.props.match.params.name).then((items) => resourcesFromSummaryInfo(application, items)),
                                             ]);
-                                            await this.loader.setData({ application: app, resources: res });
+                                            await this.loader.setData({...this.loader.getData() || {}, application: app, resources: res });
                                         } finally {
                                             this.setState({ refreshing: false });
                                         }
@@ -384,7 +384,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         try {
             await services.applications.updateSpec(app.metadata.name, app.spec);
             const [updatedApp, resources] = await Promise.all([services.applications.get(app.metadata.name), services.applications.resourceTree(app.metadata.name)]);
-            this.loader.setData({application: updatedApp, resources});
+            this.loader.setData({...this.loader.getData() || {}, application: updatedApp, resources});
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update application' e={e}/>,
