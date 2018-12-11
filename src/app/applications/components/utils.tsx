@@ -10,6 +10,7 @@ export interface ResourceTreeNode extends appModels.ResourceNode {
     status?: appModels.SyncStatusCode;
     health?: appModels.HealthStatus;
     hook?: boolean;
+    root?: ResourceTreeNode;
 }
 
 export interface NodeId {

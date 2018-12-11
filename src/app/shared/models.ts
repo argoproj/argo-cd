@@ -184,7 +184,7 @@ export const SyncStatuses = {
     OutOfSync: 'OutOfSync',
 };
 
-export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Degraded';
+export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Degraded' | 'Missing';
 
 export const HealthStatuses = {
     Unknown: 'Unknown',

@@ -1,13 +1,27 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 
 export interface ViewPreferences {
-    appDetails: { defaultKindFilter: string[] };
+    version: number;
+    appDetails: { defaultTreeFilter: string[] };
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
+const minVer = 1;
+
 const DEFAULT_PREFERENCES = {
-    appDetails: { defaultKindFilter: ['Deployment', 'Service', 'Pod', 'StatefulSet', 'Ingress', 'ConfigMap', 'Job', 'DaemonSet', 'Workflow'] },
+    version: 1,
+    appDetails: { defaultTreeFilter: [
+        'kind:Deployment',
+        'kind:Service',
+        'kind:Pod',
+        'kind:StatefulSet',
+        'kind:Ingress',
+        'kind:ConfigMap',
+        'kind:Job',
+        'kind:DaemonSet',
+        'kind:Workflow',
+    ] },
 };
 
 export class ViewPreferencesService {
@@ -39,6 +53,9 @@ export class ViewPreferencesService {
             try {
                 preferences = JSON.parse(preferencesStr);
             } catch (e) {
+                preferences = DEFAULT_PREFERENCES;
+            }
+            if (!preferences.version || preferences.version < minVer) {
                 preferences = DEFAULT_PREFERENCES;
             }
         } else {

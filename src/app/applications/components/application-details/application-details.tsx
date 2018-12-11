@@ -3,7 +3,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Checkbox, Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
-import { Observable, Subscription } from 'rxjs';
+import { Observable } from 'rxjs';
 
 import { DataLoader, ErrorNotification, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
@@ -49,19 +49,18 @@ function resourcesFromSummaryInfo(application: appModels.Application, roots: app
     });
 }
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { defaultKindFilter: string[], refreshing: boolean}> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { refreshing: boolean}> {
 
     public static contextTypes = {
         apis: PropTypes.object,
     };
 
-    private viewPrefSubscription: Subscription;
     private formApi: FormApi;
     private loader: DataLoader<{application: appModels.Application, resources: ResourceTreeNode[]}>;
 
     constructor(props: RouteComponentProps<{ name: string; }>) {
         super(props);
-        this.state = { defaultKindFilter: [], refreshing: false };
+        this.state = { refreshing: false };
     }
 
     private get showOperationState() {
@@ -92,19 +91,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return nodeContainer.key;
     }
 
-    public async componentDidMount() {
-        this.ensureUnsubscribed();
-        this.viewPrefSubscription = services.viewPreferences.getPreferences()
-            .map((preferences) => preferences.appDetails.defaultKindFilter)
-            .subscribe((filter) => {
-                this.setState({ defaultKindFilter: filter });
-            });
-    }
-
-    public componentWillUnmount() {
-        this.ensureUnsubscribed();
-    }
-
     public render() {
         return (
             <DataLoader
@@ -112,49 +98,48 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                 input={this.props.match.params.name}
                 ref={(loader) => this.loader  = loader}
-                load={(name) =>
-                    Observable.merge(
-                        Observable.fromPromise(
-                            services.applications.get(name, false).
-                            catch((e) => {
-                                if (e.status === 404) {
-                                    this.onAppDeleted();
-                                }
-                                throw e;
-                            }).
-                            then((application) => ({application, resources: resourcesFromSummaryInfo(application, [])})),
-                        ),
-                        services.applications.watch({name: this.props.match.params.name})
-                            .do((changeEvent) => {
-                                if (changeEvent.type === 'DELETED') {
-                                    this.onAppDeleted();
-                                }
-                            })
-                            .map((changeEvent) => changeEvent.application).flatMap((application) =>
-                        Observable.fromPromise(services.applications.resourceTree(application.metadata.name).then((resources) => {
-                            return {application, resources: resourcesFromSummaryInfo(application, resources)};
-                        })),
-                    ).repeat().retryWhen((errors) => errors.delay(500)))
-                }>
+                load={(name) => Observable.combineLatest(this.loadAppInfo(name), services.viewPreferences.getPreferences()).map((items) => ({
+                    ...items[0],
+                    defaultTreeFilter: items[1].appDetails.defaultTreeFilter,
+                }))}>
 
-                {({application, resources}: {application: appModels.Application, resources: ResourceTreeNode[]}) => {
+                {({application, resources, defaultTreeFilter}: {application: appModels.Application, resources: ResourceTreeNode[], defaultTreeFilter: string[]}) => {
                     const kindsSet = new Set<string>();
                     const toProcess: ResourceTreeNode[] = [...resources || []];
+                    const treeFilter = this.getTreeFilter(defaultTreeFilter);
                     while (toProcess.length > 0) {
                         const next = toProcess.pop();
                         kindsSet.add(next.kind);
                         (next.children || []).forEach((child) => toProcess.push(child));
                     }
+                    treeFilter.kind.forEach((kind) => { kindsSet.add(kind); });
                     const kinds = Array.from(kindsSet);
-                    const kindsFilter = this.getKindsFilter().filter((kind) => kinds.indexOf(kind) > -1);
+                    const noKindsFilter = treeFilter.values.filter((item) => item.indexOf('kind:') !== 0);
+
                     const filter: TopBarFilter<string> = {
-                        items: kinds.map((kind) => ({ value: kind, label: kind })),
-                        selectedValues: kindsFilter,
+                        items: [
+                            { content: () => <span>Sync</span> },
+                            { value: 'sync:Synced', label: 'Synced' },
+                            // Unhealthy includes 'Unknown' and 'OutOfSync'
+                            { value: 'sync:OutOfSync', label: 'OutOfSync' },
+                            { content: () => <span>Health</span> },
+                            { value: 'health:Healthy', label: 'Healthy' },
+                            // Unhealthy includes 'Unknown', 'Progressing', 'Degraded' and 'Missing'
+                            { value: 'health:Unhealthy', label: 'Unhealthy' },
+                            { content: (setSelection) => (
+                                <div>
+                                    Kinds <a onClick={() => setSelection(noKindsFilter.concat(kinds.map((kind) => `kind:${kind}`)))}>all</a> / <a
+                                        onClick={() => setSelection(noKindsFilter)}>none</a>
+                                </div>
+                            ) },
+                            ...kinds.sort().map((kind) => ({ value: `kind:${kind}`, label: kind })),
+                        ],
+                        selectedValues: treeFilter.values,
                         selectionChanged: (items) => {
-                            this.appContext.apis.navigation.goto('.', { kinds: `${items.join(',')}`});
+                            this.appContext.apis.navigation.goto('.', { treeFilter: `${items.join(',')}`});
                             services.viewPreferences.updatePreferences({
                                 appDetails: {
-                                    defaultKindFilter: items,
+                                    defaultTreeFilter: items,
                                 },
                             });
                         },
@@ -172,6 +157,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                         return nodeKey(item) === deployParam;
                     });
                     return (
+                        <div className='application-details'>
                         <Page
                             title='Application Details'
                             toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
@@ -205,13 +191,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     action: () => this.deleteApplication(),
                                 }],
                             }}}>
-                            <ApplicationStatusPanel application={application}
-                                showOperation={() => this.setOperationStatusVisible(true)}
-                                showConditions={() => this.setConditionsStatusVisible(true)}/>
-                            <div className='application-details'>
+                            <div className='application-details__status-panel'>
+                                <ApplicationStatusPanel application={application}
+                                    showOperation={() => this.setOperationStatusVisible(true)}
+                                    showConditions={() => this.setConditionsStatusVisible(true)}/>
+                            </div>
+                            <div className='application-details__tree'>
                                 {this.state.refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                 <ApplicationResourceTree
-                                    kindsFilter={kindsFilter}
+                                    nodeFilter={(node) => this.filterTreeNode(node, treeFilter)}
                                     selectedNodeFullName={this.selectedNodeKey}
                                     onNodeClick={(fullName) => this.selectNode(fullName)}
                                     nodeMenuItems={(node) => this.getResourceMenuItems(node)}
@@ -345,10 +333,46 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 {conditions && <ApplicationConditions conditions={conditions}/>}
                             </SlidingPanel>
                         </Page>
+                        </div>
                     );
                 }}
             </DataLoader>
         );
+    }
+
+    private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[], health: string[], sync: string[]}): boolean {
+        const syncStatuses = filter.sync.map((item) => item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item] ).reduce(
+            (first, second) => first.concat(second), []);
+        const healthStatuses = filter.health.map((item) => item === 'Unhealthy' ? ['Unknown', 'Progressing', 'Degraded', 'Missing'] : [item] ).reduce(
+            (first, second) => first.concat(second), []);
+
+        return (filter.kind.length === 0 || filter.kind.indexOf(node.kind) > -1) &&
+                (syncStatuses.length === 0 || node.root.status && syncStatuses.indexOf(node.root.status) > -1) &&
+                (healthStatuses.length === 0 || node.root.health && healthStatuses.indexOf(node.root.health.status) > -1);
+    }
+
+    private loadAppInfo(name: string): Observable<{application: appModels.Application, resources: ResourceTreeNode[]}> {
+        return Observable.merge(
+            Observable.fromPromise(
+                services.applications.get(name, false).
+                catch((e) => {
+                    if (e.status === 404) {
+                        this.onAppDeleted();
+                    }
+                    throw e;
+                }).
+                then((application) => ({application, resources: resourcesFromSummaryInfo(application, [])})),
+            ),
+            services.applications.watch({name: this.props.match.params.name})
+                .do((changeEvent) => {
+                    if (changeEvent.type === 'DELETED') {
+                        this.onAppDeleted();
+                    }
+                }).map((changeEvent) => changeEvent.application).flatMap((application) => Observable.fromPromise(
+                    services.applications.resourceTree(application.metadata.name).then(
+                        (resources) => ({application, resources: resourcesFromSummaryInfo(application, resources)}),
+                )),
+        ).repeat().retryWhen((errors) => errors.delay(500)));
     }
 
     private onAppDeleted() {
@@ -389,12 +413,27 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return nodeByKey;
     }
 
-    private getKindsFilter() {
-        let kinds = new URLSearchParams(this.props.history.location.search).get('kinds');
-        if (kinds === null) {
-            kinds = this.state.defaultKindFilter.join(',');
+    private getTreeFilter(defaultTreeFilter: string[]): {kind: string[], health: string[], sync: string[], values: string[]} {
+        const filterSearchParam = new URLSearchParams(this.props.history.location.search).get('tree-filter');
+        const values = filterSearchParam === null ? defaultTreeFilter : filterSearchParam.split(',').filter((item) => !!item);
+        const kind = new Array<string>();
+        const health = new Array<string>();
+        const sync = new Array<string>();
+        for (const item of values) {
+            const [type, val] = item.split(':');
+            switch (type) {
+                case 'kind':
+                    kind.push(val);
+                    break;
+                case 'health':
+                    health.push(val);
+                    break;
+                case 'sync':
+                    sync.push(val);
+                    break;
+            }
         }
-        return kinds.split(',').filter((item) => !!item);
+        return {kind, health, sync, values};
     }
 
     private showDeploy(resource: string) {
@@ -550,12 +589,5 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             }]);
         }
         return tabs;
-    }
-
-    private ensureUnsubscribed() {
-        if (this.viewPrefSubscription) {
-            this.viewPrefSubscription.unsubscribe();
-            this.viewPrefSubscription = null;
-        }
     }
 }

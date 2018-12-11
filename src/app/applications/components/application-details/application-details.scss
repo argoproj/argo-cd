@@ -1,11 +1,25 @@
 @import 'node_modules/argo-ui/bundle/app/shared/styles/config';
 
 .application-details {
-    position: relative;
-    padding: 1em;
-    overflow-x: auto;
-    overflow-y: auto;
-    min-height: calc(100vh - 2 * 50px - 115px);
+    &__status-panel {
+        position: fixed;
+        left: 60px;
+        right: 0;
+        z-index: 1;
+    }
+
+    .argo-dropdown__content.is-menu {
+        max-height: 500px;
+    }
+
+    &__tree {
+        position: relative;
+        padding: 1em;
+        overflow-x: auto;
+        overflow-y: auto;
+        margin-top: 100px;
+        min-height: calc(100vh - 2 * 50px - 115px);
+    }
 
     &__warning {
         font-size: 0.8em;

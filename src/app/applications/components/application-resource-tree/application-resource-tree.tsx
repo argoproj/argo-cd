@@ -29,12 +29,12 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     return {width, height};
 }
 
-function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: models.ResourceNode) => boolean) {
+function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
     graph.nodes().forEach((nodeId) => {
-        const node = graph.node(nodeId) as models.ResourceNode & dagre.Node;
-        if (!predicate(node)) {
+        const node: ResourceTreeNode = graph.node(nodeId) as any;
+        const parentIds = graph.predecessors(nodeId);
+        if (node.root != null && !predicate(node)) {
             const childIds = graph.successors(nodeId);
-            const parentIds = graph.predecessors(nodeId);
             graph.removeNode(nodeId);
             childIds.forEach((childId: any) => {
                 parentIds.forEach((parentId: any) => {
@@ -72,8 +72,8 @@ class NodeUpdateAnimation extends React.PureComponent<{ resourceVersion: string;
 
 export const ApplicationResourceTree = (props: {
     app: models.Application,
-    resources: ResourceTreeNode [],
-    kindsFilter: string[],
+    resources: ResourceTreeNode[],
+    nodeFilter: (node: ResourceTreeNode) => boolean,
     selectedNodeFullName?: string,
     onNodeClick?: (fullName: string) => any,
     nodeMenuItems?: (node: models.ResourceNode) => MenuItem[],
@@ -95,25 +95,23 @@ export const ApplicationResourceTree = (props: {
     };
     graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
 
-    function addChildren<T extends (models.ResourceNode | models.ResourceDiff) & { key: string, children: models.ResourceNode[] }>(node: T) {
+    function addChildren<T extends (models.ResourceNode | models.ResourceDiff) & { key: string, children: models.ResourceNode[] }>(node: T, root: ResourceTreeNode) {
         graph.setNode(node.key, Object.assign({}, node, { width: NODE_WIDTH, height: NODE_HEIGHT}));
         for (const child of (node.children || []).slice().sort(compareNodes)) {
             const key = nodeKey(child);
-            addChildren({...child, key});
+            addChildren({...child, key, root}, root);
             graph.setEdge(node.key, key);
         }
     }
 
     const resources = (props.resources || []).slice().sort(compareNodes);
     for (const res of resources) {
-        addChildren({...res, children: res.children, key: nodeKey(res)});
+        addChildren({...res, root: res, children: res.children, key: nodeKey(res)}, res);
         graph.setEdge(appNodeKey(props.app), nodeKey(res));
     }
 
-    if (props.kindsFilter.length > 0) {
-        filterGraph(graph, (res) => {
-            return res.kind === 'Application' || props.kindsFilter.indexOf(res.kind) > -1;
-        });
+    if (props.nodeFilter) {
+        filterGraph(graph, props.nodeFilter);
     }
 
     dagre.layout(graph);
