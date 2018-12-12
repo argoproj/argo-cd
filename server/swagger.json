@@ -2527,6 +2527,20 @@
         }
       }
     },
+    "v1alpha1InfoItem": {
+      "type": "object",
+      "title": "InfoItem contains human readable information about object",
+      "properties": {
+        "name": {
+          "description": "Name is a human readable title for this piece of information.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Value is human readable content.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1JWTToken": {
       "type": "object",
       "title": "JWTToken holds the issuedAt and expiresAt values of a token",
@@ -2687,6 +2701,12 @@
         "group": {
           "type": "string"
         },
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1InfoItem"
+          }
+        },
         "kind": {
           "type": "string"
         },
@@ -2698,12 +2718,6 @@
         },
         "resourceVersion": {
           "type": "string"
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         },
         "version": {
           "type": "string"

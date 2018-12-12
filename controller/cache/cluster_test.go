@@ -101,7 +101,7 @@ func TestGetChildren(t *testing.T) {
 		Name:            "helm-guestbook-pod",
 		Group:           "",
 		Version:         "v1",
-		Tags:            []string{"0/0"},
+		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
 		Children:        make([]appv1.ResourceNode, 0),
 		ResourceVersion: "123",
 	}}, rsChildren)
@@ -115,7 +115,7 @@ func TestGetChildren(t *testing.T) {
 		Version:         "v1beta1",
 		ResourceVersion: "123",
 		Children:        rsChildren,
-		Tags:            []string{},
+		Info:            []appv1.InfoItem{},
 	}}, deployChildren)
 }
 
@@ -188,7 +188,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 		Name:            "helm-guestbook-pod",
 		Group:           "",
 		Version:         "v1",
-		Tags:            []string{"0/0"},
+		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
 		Children:        make([]appv1.ResourceNode, 0),
 		ResourceVersion: "123",
 	}, {
@@ -197,7 +197,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 		Name:            "helm-guestbook-pod2",
 		Group:           "",
 		Version:         "v1",
-		Tags:            []string{"0/0"},
+		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
 		Children:        make([]appv1.ResourceNode, 0),
 		ResourceVersion: "123",
 	}}, rsChildren)
@@ -222,7 +222,7 @@ func TestUpdateResourceTags(t *testing.T) {
 	podNode := cluster.nodes[kube.GetResourceKey(mustToUnstructured(pod))]
 
 	assert.NotNil(t, podNode)
-	assert.Equal(t, []string{"0/1"}, podNode.tags)
+	assert.Equal(t, []appv1.InfoItem{{Name: "Containers", Value: "0/1"}}, podNode.info)
 
 	pod.Status = corev1.PodStatus{
 		ContainerStatuses: []corev1.ContainerStatus{{
@@ -239,7 +239,7 @@ func TestUpdateResourceTags(t *testing.T) {
 	podNode = cluster.nodes[kube.GetResourceKey(mustToUnstructured(pod))]
 
 	assert.NotNil(t, podNode)
-	assert.Equal(t, []string{"ExitCode:-1", "0/1"}, podNode.tags)
+	assert.Equal(t, []appv1.InfoItem{{Name: "Status Reason", Value: "ExitCode:-1"}, {Name: "Containers", Value: "0/1"}}, podNode.info)
 }
 
 func TestUpdateAppResource(t *testing.T) {
