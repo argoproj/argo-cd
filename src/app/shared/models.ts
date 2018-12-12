@@ -217,7 +217,7 @@ export interface ResourceNode {
     name: string;
     version: string;
     group: string;
-    tags: string[];
+    info: {name: string, value: string}[];
     children: ResourceNode[];
     resourceVersion: string;
 }

@@ -160,7 +160,7 @@ export const ApplicationResourceTree = (props: {
                             </div>
                         </div>
                         <div className='application-resource-tree__node-labels'>
-                            {(node.tags || []).map((tag) => <span key={tag}>{tag}</span>)}
+                            {(node.info || []).map((tag, i) => <span title={`${tag.name}:${tag.value}`} key={i}>{tag.value}</span>)}
                             <span>{node.kind}</span>
                         </div>
                         {props.nodeMenuItems && (
