@@ -679,8 +679,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
 					if local, ok := localObjs[key]; ok || live != nil {
-						err = kube.SetAppInstanceLabel(local, appName)
-						errors.CheckError(err)
+						if local != nil {
+							err = kube.SetAppInstanceLabel(local, appName)
+							errors.CheckError(err)
+						}
+
 						items = append(items, struct {
 							key    kube.ResourceKey
 							live   *unstructured.Unstructured
@@ -732,7 +735,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live)
 				fmt.Printf("===== %s/%s %s/%s======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
-				if diffRes.Modified {
+				if diffRes.Modified || item.target == nil || item.live == nil {
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 					}
