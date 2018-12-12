@@ -2529,6 +2529,7 @@
     },
     "v1alpha1InfoItem": {
       "type": "object",
+      "title": "InfoItem contains human readable information about object",
       "properties": {
         "name": {
           "description": "Name is a human readable title for this piece of information.",
@@ -2700,6 +2701,12 @@
         "group": {
           "type": "string"
         },
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1InfoItem"
+          }
+        },
         "kind": {
           "type": "string"
         },
@@ -2711,12 +2718,6 @@
         },
         "resourceVersion": {
           "type": "string"
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1InfoItem"
-          }
         },
         "version": {
           "type": "string"

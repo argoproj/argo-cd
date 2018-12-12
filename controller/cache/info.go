@@ -12,16 +12,16 @@ import (
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 )
 
-func getTags(un *unstructured.Unstructured) []v1alpha1.InfoItem {
+func getNodeInfo(un *unstructured.Unstructured) []v1alpha1.InfoItem {
 	gvk := un.GroupVersionKind()
 
 	if gvk.Kind == kube.PodKind && gvk.Group == "" {
-		return getPodTags(un)
+		return getPodInfo(un)
 	}
 	return []v1alpha1.InfoItem{}
 }
 
-func getPodTags(un *unstructured.Unstructured) []v1alpha1.InfoItem {
+func getPodInfo(un *unstructured.Unstructured) []v1alpha1.InfoItem {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
@@ -99,9 +99,9 @@ func getPodTags(un *unstructured.Unstructured) []v1alpha1.InfoItem {
 		reason = "Terminating"
 	}
 
-	tags := make([]v1alpha1.InfoItem, 0)
+	info := make([]v1alpha1.InfoItem, 0)
 	if reason != "" {
-		tags = append(tags, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
+		info = append(info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	return append(tags, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	return append(info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 }

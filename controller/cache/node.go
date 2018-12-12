@@ -13,7 +13,7 @@ type node struct {
 	resourceVersion string
 	ref             v1.ObjectReference
 	ownerRefs       []metav1.OwnerReference
-	tags            []appv1.InfoItem
+	info            []appv1.InfoItem
 	appName         string
 	resource        *unstructured.Unstructured
 }
@@ -74,7 +74,7 @@ func (n *node) childResourceNodes(ns map[kube.ResourceKey]*node) appv1.ResourceN
 		Version:         gv.Version,
 		Kind:            n.ref.Kind,
 		Namespace:       n.ref.Namespace,
-		Tags:            n.tags,
+		Info:            n.info,
 		Children:        children,
 		ResourceVersion: n.resourceVersion,
 	}

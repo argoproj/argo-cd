@@ -282,6 +282,7 @@ message HelmRepository {
   optional string password = 7;
 }
 
+// InfoItem contains human readable information about object
 message InfoItem {
   // Name is a human readable title for this piece of information.
   optional string name = 1;
@@ -399,7 +400,7 @@ message ResourceNode {
 
   optional string name = 5;
 
-  repeated InfoItem tags = 6;
+  repeated InfoItem info = 6;
 
   repeated ResourceNode children = 7;
 

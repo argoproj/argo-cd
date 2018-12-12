@@ -412,7 +412,7 @@ type ResourceNode struct {
 	Kind            string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
 	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 	Name            string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Tags            []InfoItem     `json:"tags,omitempty" protobuf:"bytes,6,opt,name=tags"`
+	Info            []InfoItem     `json:"info,omitempty" protobuf:"bytes,6,opt,name=info"`
 	Children        []ResourceNode `json:"children,omitempty" protobuf:"bytes,7,opt,name=children"`
 	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,8,opt,name=resourceVersion"`
 }
