@@ -53,7 +53,7 @@ func createObjInfo(un *unstructured.Unstructured) *node {
 			Namespace:  un.GetNamespace(),
 		},
 		ownerRefs: ownerRefs,
-		tags:      getTags(un),
+		info:      getNodeInfo(un),
 	}
 	appName := kube.GetAppInstanceLabel(un)
 	if len(ownerRefs) == 0 && appName != "" {

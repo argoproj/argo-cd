@@ -282,6 +282,15 @@ message HelmRepository {
   optional string password = 7;
 }
 
+// InfoItem contains human readable information about object
+message InfoItem {
+  // Name is a human readable title for this piece of information.
+  optional string name = 1;
+
+  // Value is human readable content.
+  optional string value = 2;
+}
+
 // JWTToken holds the issuedAt and expiresAt values of a token
 message JWTToken {
   optional int64 iat = 1;
@@ -391,7 +400,7 @@ message ResourceNode {
 
   optional string name = 5;
 
-  repeated string tags = 6;
+  repeated InfoItem info = 6;
 
   repeated ResourceNode children = 7;
 
