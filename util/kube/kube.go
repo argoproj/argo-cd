@@ -50,17 +50,21 @@ const (
 	PersistentVolumeClaimKind    = "PersistentVolumeClaim"
 	CustomResourceDefinitionKind = "CustomResourceDefinition"
 	PodKind                      = "Pod"
+	NetworkPolicyKind            = "NetworkPolicy"
+	PodSecurityPolicyKind        = "PodSecurityPolicy"
 )
 
 var (
 	// legacyLabeling decides whether or not to use legacy (v0.10 and below) labeling
 	legacyLabeling = false
 
-	// obsoleteExtensionsKinds contains list of obsolete kinds from extensions group which exist in apps group
-	obsoleteExtensionsKinds = map[string]bool{
-		DaemonSetKind:  true,
-		ReplicaSetKind: true,
-		DeploymentKind: true,
+	// obsoleteExtensionsKinds contains list of obsolete kinds from extensions group and corresponding name of new group
+	obsoleteExtensionsKinds = map[string]string{
+		DaemonSetKind:         "apps",
+		ReplicaSetKind:        "apps",
+		DeploymentKind:        "apps",
+		NetworkPolicyKind:     "networking.k8s.io",
+		PodSecurityPolicyKind: "policy",
 	}
 )
 
@@ -80,17 +84,17 @@ func (k *ResourceKey) String() string {
 	return fmt.Sprintf("%s/%s/%s/%s", k.Group, k.Kind, k.Namespace, k.Name)
 }
 
-func isObsoleteExtensionsGroupKind(group string, kind string) bool {
+func isObsoleteExtensionsGroupKind(group string, kind string) (string, bool) {
 	if group == "extensions" {
-		_, ok := obsoleteExtensionsKinds[kind]
-		return ok
+		newGroup, ok := obsoleteExtensionsKinds[kind]
+		return newGroup, ok
 	}
-	return false
+	return "", false
 }
 
 func NewResourceKey(group string, kind string, namespace string, name string) ResourceKey {
-	if isObsoleteExtensionsGroupKind(group, kind) {
-		group = "apps"
+	if newGroup, ok := isObsoleteExtensionsGroupKind(group, kind); ok {
+		group = newGroup
 	}
 
 	return ResourceKey{Group: group, Kind: kind, Namespace: namespace, Name: name}
@@ -295,7 +299,7 @@ func filterAPIResources(config *rest.Config, filter filterFunc, namespace string
 			continue
 		}
 		for _, apiResource := range apiResourcesList.APIResources {
-			if gv.Group == "" && apiResource.Kind == "Event" || isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind) {
+			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok || gv.Group == "" && apiResource.Kind == "Event" {
 				continue
 			}
 			if filter(apiResourcesList.GroupVersion, &apiResource) {
