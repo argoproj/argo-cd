@@ -124,3 +124,53 @@ happen at the ingress controller.
 Neither ALBs and Classic ELB in HTTP mode, do not have full support for HTTP2/gRPC which is the
 protocol used by the `argocd` CLI. Thus, when using an AWS load balancer, either Classic ELB in
 passthrough mode is needed, or NLBs.
+
+
+## UI base path
+
+If Argo CD UI is available under non-root path (e.g. `/argo-cd` instead of `/`) then UI path should be configured in API server.
+To configure UI path add `--basehref` flag into `argocd-server` deployment command:
+
+```yaml
+spec:
+  template:
+    spec:
+      name: argocd-server
+      containers:
+      - command:
+        - /argocd-server
+        - --staticassets
+        - /shared/app
+        - --repo-server
+        - argocd-repo-server:8081
+        - --base-href
+        - /argo-cd
+```
+
+NOTE: flag `--basehref` only changes UI base URL. API server keep using `/` path so you need to add URL rewrite rule to proxy config.
+Example nginx.conf with URL rewrite:
+
+```
+worker_processes 1;
+
+events { worker_connections 1024; }
+
+http {
+
+    sendfile on;
+
+    server {
+        listen 443;
+
+        location /argo-cd {
+            rewrite /argo-cd/(.*) /$1  break;
+            proxy_pass         https://localhost:8080;
+            proxy_redirect     off;
+            proxy_set_header   Host $host;
+            proxy_set_header   X-Real-IP $remote_addr;
+            proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Host $server_name;
+        }
+    }
+}
+```

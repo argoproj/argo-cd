@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -103,6 +105,7 @@ var (
 	box              = packr.NewBox("../util/rbac")
 	builtinPolicy    string
 	clientConstraint = fmt.Sprintf(">= %s", minClientVersion)
+	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
 )
 
 func init() {
@@ -135,6 +138,7 @@ type ArgoCDServerOpts struct {
 	Namespace              string
 	DexServerAddr          string
 	StaticAssetsDir        string
+	BaseHRef               string
 	KubeClientset          kubernetes.Interface
 	AppClientset           appclientset.Interface
 	RepoClientset          reposerver.Clientset
@@ -540,7 +544,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 
 	// Serve UI static assets
 	if a.StaticAssetsDir != "" {
-		mux.HandleFunc("/", newStaticAssetsHandler(a.StaticAssetsDir))
+		mux.HandleFunc("/", newStaticAssetsHandler(a.StaticAssetsDir, a.BaseHRef))
 	}
 	return &httpS
 }
@@ -596,8 +600,37 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	}
 }
 
+func indexFilePath(srcPath string, baseHRef string) (string, error) {
+	if baseHRef == "/" {
+		return srcPath, nil
+	}
+	filePath := path.Join(os.TempDir(), fmt.Sprintf("index_%s.html", strings.Replace(strings.Trim(baseHRef, "/"), "/", "_", -1)))
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		if os.IsExist(err) {
+			return filePath, nil
+		}
+		return "", err
+	}
+	defer util.Close(f)
+
+	data, err := ioutil.ReadFile(srcPath)
+	if err != nil {
+		return "", err
+	}
+	if baseHRef != "/" {
+		data = []byte(baseHRefRegex.ReplaceAllString(string(data), fmt.Sprintf(`<base href="/%s/">`, strings.Trim(baseHRef, "/"))))
+	}
+	_, err = f.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	return filePath, nil
+}
+
 // newStaticAssetsHandler returns an HTTP handler to serve UI static assets
-func newStaticAssetsHandler(dir string) func(http.ResponseWriter, *http.Request) {
+func newStaticAssetsHandler(dir string, baseHRef string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		acceptHTML := false
 		for _, acceptType := range strings.Split(r.Header.Get("Accept"), ",") {
@@ -613,9 +646,14 @@ func newStaticAssetsHandler(dir string) func(http.ResponseWriter, *http.Request)
 			for k, v := range noCacheHeaders {
 				w.Header().Set(k, v)
 			}
-			http.ServeFile(w, r, dir+"/index.html")
+			indexHtmlPath, err := indexFilePath(path.Join(dir, "index.html"), baseHRef)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Unable to access index.html: %v", err), http.StatusInternalServerError)
+				return
+			}
+			http.ServeFile(w, r, indexHtmlPath)
 		} else {
-			http.ServeFile(w, r, dir+r.URL.Path)
+			http.ServeFile(w, r, path.Join(dir, r.URL.Path))
 		}
 	}
 }
