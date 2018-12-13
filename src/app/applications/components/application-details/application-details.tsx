@@ -43,7 +43,7 @@ function resourcesFromSummaryInfo(application: appModels.Application, roots: app
             status: summary.status,
             health: summary.health,
             hook: summary.hook,
-            tags: [],
+            info: [],
             resourceVersion: root && root.resourceVersion || '',
         };
     });
