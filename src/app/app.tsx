@@ -4,13 +4,17 @@ import createHistory from 'history/createBrowserHistory';
 import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import { Helmet } from 'react-helmet';
 import { Redirect, Route, RouteComponentProps, Router, Switch } from 'react-router';
 
 import { services } from './shared/services';
 import requests from './shared/services/requests';
 
 services.viewPreferences.init();
-export const history = createHistory();
+const bases = document.getElementsByTagName('base');
+const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
+export const history = createHistory({ basename: base });
+requests.setApiRoot(`${base}api/v1`);
 
 import applications from './applications';
 import help from './help';
@@ -92,33 +96,39 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
 
     public render() {
         return (
-            <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
-                {this.state.popupProps && <Popup {...this.state.popupProps}/>}
-                <Router history={history}>
-                    <Switch>
-                        <Redirect exact={true} path='/' to='/applications'/>
-                        {Object.keys(routes).map((path) => {
-                            const route = routes[path];
-                            return <Route key={path} path={path} render={(routeProps) => (
-                                route.noLayout ? (
-                                    <div>
-                                        <Notifications leftOffset={60}
-                                            closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
-                                        <route.component {...routeProps}/>
-                                    </div>
-                                ) : (
-                                    <Layout navItems={navItems}>
-                                        <Notifications leftOffset={60}
-                                            closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
-                                        <route.component {...routeProps}/>
-                                    </Layout>
-                                )
-                            )}/>;
-                        })}
-                        <Redirect path='*' to='/'/>
-                    </Switch>
-                </Router>
-            </Provider>
+            <React.Fragment>
+                <Helmet>
+                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32'/>
+                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16'/>
+                </Helmet>
+                <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
+                    {this.state.popupProps && <Popup {...this.state.popupProps}/>}
+                    <Router history={history}>
+                        <Switch>
+                            <Redirect exact={true} path='/' to='/applications'/>
+                            {Object.keys(routes).map((path) => {
+                                const route = routes[path];
+                                return <Route key={path} path={path} render={(routeProps) => (
+                                    route.noLayout ? (
+                                        <div>
+                                            <Notifications leftOffset={60}
+                                                closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
+                                            <route.component {...routeProps}/>
+                                        </div>
+                                    ) : (
+                                        <Layout navItems={navItems}>
+                                            <Notifications leftOffset={60}
+                                                closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
+                                            <route.component {...routeProps}/>
+                                        </Layout>
+                                    )
+                                )}/>;
+                            })}
+                            <Redirect path='*' to='/'/>
+                        </Switch>
+                    </Router>
+                </Provider>
+            </React.Fragment>
         );
     }
 

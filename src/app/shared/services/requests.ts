@@ -22,7 +22,7 @@ enum ReadyState {
 
 const agent: superagent.SuperAgentStatic = superagentPromise(superagent, global.Promise);
 
-const API_ROOT = '/api/v1';
+let apiRoot = '/api/v1';
 
 const onError = new BehaviorSubject<superagent.ResponseError>(null);
 
@@ -32,26 +32,29 @@ function initHandlers(req: superagent.Request) {
 }
 
 export default {
+    setApiRoot(val: string) {
+        apiRoot = val;
+    },
     onError: onError.asObservable().filter((err) => err != null),
     get(url: string) {
-        return initHandlers(agent.get(`${API_ROOT}${url}`));
+        return initHandlers(agent.get(`${apiRoot}${url}`));
     },
 
     post(url: string) {
-        return initHandlers(agent.post(`${API_ROOT}${url}`));
+        return initHandlers(agent.post(`${apiRoot}${url}`));
     },
 
     put(url: string) {
-        return initHandlers(agent.put(`${API_ROOT}${url}`));
+        return initHandlers(agent.put(`${apiRoot}${url}`));
     },
 
     delete(url: string) {
-        return initHandlers(agent.del(`${API_ROOT}${url}`));
+        return initHandlers(agent.del(`${apiRoot}${url}`));
     },
 
     loadEventSource(url: string, allowAutoRetry = false): Observable<string> {
         return Observable.create((observer: Observer<any>) => {
-            const eventSource = new EventSource(`${API_ROOT}${url}`);
+            const eventSource = new EventSource(`${apiRoot}${url}`);
             let opened = false;
             eventSource.onopen = (msg) => {
                 if (!opened) {
