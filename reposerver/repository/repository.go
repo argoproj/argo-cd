@@ -134,15 +134,17 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	cacheKey := manifestCacheKey(commitSHA, q)
 	var res ManifestResponse
-	err = s.cache.Get(cacheKey, &res)
-	if err == nil {
-		log.Infof("manifest cache hit: %s", cacheKey)
-		return &res, nil
-	}
-	if err != cache.ErrCacheMiss {
-		log.Warnf("manifest cache error %s: %v", cacheKey, err)
-	} else {
-		log.Infof("manifest cache miss: %s", cacheKey)
+	if !q.NoCache {
+		err = s.cache.Get(cacheKey, &res)
+		if err == nil {
+			log.Infof("manifest cache hit: %s", cacheKey)
+			return &res, nil
+		}
+		if err != cache.ErrCacheMiss {
+			log.Warnf("manifest cache error %s: %v", cacheKey, err)
+		} else {
+			log.Infof("manifest cache miss: %s", cacheKey)
+		}
 	}
 
 	s.repoLock.Lock(gitClient.Root())

@@ -125,13 +125,24 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	return command
 }
 
+func getRefreshType(refreshFlag string) *string {
+	if refreshFlag != "" {
+		refreshType := string(argoappv1.RefreshTypeNormal)
+		if refreshFlag == string(argoappv1.RefreshTypeHard) {
+			refreshType = string(argoappv1.RefreshTypeNormal)
+		}
+		return &refreshType
+	}
+	return nil
+}
+
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
+		refresh       string
 		output        string
 		showParams    bool
 		showOperation bool
-		refresh       bool
 	)
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
@@ -145,7 +156,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh)})
 			errors.CheckError(err)
 			switch output {
 			case "yaml":
@@ -188,7 +199,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
-	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
+	command.Flags().StringVar(&refresh, "refresh", "", "Refresh application data when retrieving")
 	return command
 }
 
@@ -642,7 +653,7 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh bool
+		refresh string
 		local   string
 		env     string
 		values  []string
@@ -659,7 +670,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: refresh})
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh)})
 			errors.CheckError(err)
 			resources, err := appIf.ManagedResources(context.Background(), &services.ResourcesQuery{ApplicationName: appName})
 			errors.CheckError(err)
@@ -751,7 +762,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 		},
 	}
-	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
+	command.Flags().StringVar(&refresh, "refresh", "", "Refresh application data when retrieving")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
 	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
 	command.Flags().StringArrayVar(&values, "values", []string{}, "Helm values file(s) in the helm directory to use")
@@ -1146,7 +1157,8 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		var err error
 		if refresh {
 			conn, appClient := acdClient.NewApplicationClientOrDie()
-			app, err = appClient.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: true})
+			refreshType := string(argoappv1.RefreshTypeNormal)
+			app, err = appClient.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: &refreshType})
 			errors.CheckError(err)
 			_ = conn.Close()
 		}

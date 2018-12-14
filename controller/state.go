@@ -48,7 +48,7 @@ func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (*comparisonResult, error)
+	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -72,7 +72,7 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepos(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
@@ -110,6 +110,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, revision string
 		Repo:                        repo,
 		HelmRepos:                   helmRepos,
 		Revision:                    revision,
+		NoCache:                     noCache,
 		ComponentParameterOverrides: mfReqOverrides,
 		AppLabel:                    app.Name,
 		Namespace:                   app.Spec.Destination.Namespace,
@@ -138,11 +139,11 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, revision string
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) (*comparisonResult, error) {
 	observedAt := metav1.Now()
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, revision, overrides)
+	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, revision, overrides, noCache)
 	if err != nil {
 		targetObjs = make([]*unstructured.Unstructured, 0)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})

@@ -75,7 +75,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
-	compareResult, err := m.CompareAppState(app, revision, overrides)
+	compareResult, err := m.CompareAppState(app, revision, overrides, false)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()

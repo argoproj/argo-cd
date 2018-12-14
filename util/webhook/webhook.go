@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -132,7 +134,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}, header webhooks.
 		} else if targetRev != revision {
 			continue
 		}
-		_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name)
+		_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
 		if err != nil {
 			log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 			continue

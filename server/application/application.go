@@ -204,8 +204,12 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	if q.Refresh {
-		_, err = argoutil.RefreshApp(appIf, *q.Name)
+	if q.Refresh != nil {
+		refreshType := appv1.RefreshTypeNormal
+		if *q.Refresh == string(appv1.RefreshTypeHard) {
+			refreshType = appv1.RefreshTypeHard
+		}
+		_, err = argoutil.RefreshApp(appIf, *q.Name, refreshType)
 		if err != nil {
 			return nil, err
 		}

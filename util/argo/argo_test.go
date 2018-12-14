@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	testcore "k8s.io/client-go/testing"
@@ -23,7 +22,7 @@ func TestRefreshApp(t *testing.T) {
 	testApp.Namespace = "default"
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	_, err := RefreshApp(appIf, "test-app")
+	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
 	assert.Nil(t, err)
 	// For some reason, the fake Application inferface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
@@ -63,10 +62,6 @@ func TestWaitForRefresh(t *testing.T) {
 	var testApp argoappv1.Application
 	testApp.Name = "test-app"
 	testApp.Namespace = "default"
-	testApp.ObjectMeta.Annotations = map[string]string{
-		common.AnnotationKeyRefresh: time.Now().UTC().Format(time.RFC3339),
-	}
-	testApp.Status.ObservedAt = metav1.Now()
 	appClientset = appclientset.NewSimpleClientset()
 
 	appIf = appClientset.ArgoprojV1alpha1().Applications("default")
