@@ -27,6 +27,7 @@ func NewCommand() *cobra.Command {
 		glogLevel                  int
 		clientConfig               clientcmd.ClientConfig
 		staticAssetsDir            string
+		baseHRef                   string
 		repoServerAddress          string
 		appControllerServerAddress string
 		dexServerAddress           string
@@ -59,6 +60,7 @@ func NewCommand() *cobra.Command {
 				Insecure:               insecure,
 				Namespace:              namespace,
 				StaticAssetsDir:        staticAssetsDir,
+				BaseHRef:               baseHRef,
 				KubeClientset:          kubeclientset,
 				AppClientset:           appclientset,
 				RepoClientset:          repoclientset,
@@ -85,6 +87,7 @@ func NewCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().BoolVar(&insecure, "insecure", false, "Run server without TLS")
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
+	command.Flags().StringVar(&baseHRef, "basehref", "/", "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
