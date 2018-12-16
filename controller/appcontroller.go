@@ -102,7 +102,7 @@ func NewApplicationController(
 		statusRefreshTimeout:      appResyncPeriod,
 		refreshRequestedApps:      make(map[string]bool),
 		refreshRequestedAppsMutex: &sync.Mutex{},
-		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
+		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
 		managedResources:          make(map[string][]managedResource),
 		managedResourcesMutex:     &sync.Mutex{},
 	}
@@ -344,7 +344,7 @@ func (ctrl *ApplicationController) CreateGRPC(tlsConfCustomizer tlsutil.ConfigCu
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
-		"application-controller",
+		"argocd-application-controller",
 	}
 	cert, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
 		Hosts:        hosts,
