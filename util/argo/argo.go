@@ -67,16 +67,12 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Application, error) {
-	refreshString := time.Now().UTC().Format(time.RFC3339)
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
 	metadata := map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
-				common.AnnotationKeyRefresh: refreshString,
+				common.AnnotationKeyRefresh: string(refreshType),
 			},
-		},
-		"status": map[string]interface{}{
-			"observedAt": nil,
 		},
 	}
 	var err error
@@ -91,7 +87,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string) (*argoappv1.Ap
 				return nil, err
 			}
 		} else {
-			log.Infof("Refreshed app '%s' for controller reprocessing (%s)", name, refreshString)
+			log.Infof("Requested app '%s' refresh", name)
 			return app, nil
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -120,16 +116,11 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 		if !ok {
 			return nil, fmt.Errorf("Application event object failed conversion: %v", next)
 		}
-		refreshTimestampStr := app.ObjectMeta.Annotations[common.AnnotationKeyRefresh]
-		if refreshTimestampStr == "" {
-			now := time.Now().UTC()
-			refreshTimestampStr = now.String()
+		annotations := app.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
 		}
-		refreshTimestamp, err := time.Parse(time.RFC3339, refreshTimestampStr)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to parse '%s': %v", common.AnnotationKeyRefresh, err)
-		}
-		if app.Status.ObservedAt.After(refreshTimestamp) || app.Status.ObservedAt.Time.Equal(refreshTimestamp) {
+		if _, ok := annotations[common.AnnotationKeyRefresh]; !ok {
 			return app, nil
 		}
 	}

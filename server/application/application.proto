@@ -18,7 +18,7 @@ import "github.com/argoproj/argo-cd/controller/services/application.proto";
 // ApplicationQuery is a query for application resources
 message ApplicationQuery {
 	optional string name = 1;
-	optional bool refresh = 2 [(gogoproto.nullable) = false];
+	optional string refresh = 2;
 	repeated string project = 3 [(gogoproto.customname) = "Projects"];
 }
 
