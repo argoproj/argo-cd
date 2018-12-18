@@ -55,6 +55,19 @@ func TestDiffWithNils(t *testing.T) {
 	assert.True(t, diffRes.Diff.Modified())
 }
 
+func TestDiffNilFieldInLive(t *testing.T) {
+	leftDep := test.DemoDeployment()
+	rightDep := leftDep.DeepCopy()
+
+	leftUn := kube.MustToUnstructured(leftDep)
+	rightUn := kube.MustToUnstructured(rightDep)
+	err := unstructured.SetNestedField(rightUn.Object, nil, "spec")
+	assert.Nil(t, err)
+
+	diffRes := Diff(leftUn, rightUn)
+	assert.True(t, diffRes.Modified)
+}
+
 func TestDiffArraySame(t *testing.T) {
 	leftDep := test.DemoDeployment()
 	rightDep := leftDep.DeepCopy()

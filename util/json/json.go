@@ -55,7 +55,10 @@ func RemoveMapFields(config, live map[string]interface{}) map[string]interface{}
 		if !ok {
 			continue
 		}
-		result[k] = removeFields(v1, v2)
+		if v2 != nil {
+			v2 = removeFields(v1, v2)
+		}
+		result[k] = v2
 	}
 	return result
 }
@@ -66,7 +69,10 @@ func removeListFields(config, live []interface{}) []interface{} {
 	result := make([]interface{}, 0, len(live))
 	for i, v2 := range live {
 		if len(config) > i {
-			result = append(result, removeFields(config[i], v2))
+			if v2 != nil {
+				v2 = removeFields(config[i], v2)
+			}
+			result = append(result, v2)
 		} else {
 			result = append(result, v2)
 		}
