@@ -40,9 +40,12 @@ export class ApplicationResourceDiff extends React.Component<ApplicationComponen
         if (config instanceof Array) {
             const result = [];
             for (let i = 0; i < live.length; i++) {
-                const v2 = live[i];
+                let v2 = live[i];
                 if (config.length > i) {
-                    result.push(this.removeDefaultedFields(config[i], v2));
+                    if (v2) {
+                        v2 = this.removeDefaultedFields(config[i], v2);
+                    }
+                    result.push(v2);
                 } else {
                     result.push(v2);
                 }
@@ -53,8 +56,11 @@ export class ApplicationResourceDiff extends React.Component<ApplicationComponen
             for (const k of Object.keys(config)) {
                 const v1 = config[k];
                 if (live.hasOwnProperty(k)) {
-                    const v2 = live[k];
-                    result[k] = this.removeDefaultedFields(v1, v2);
+                    let v2 = live[k];
+                    if (v2) {
+                        v2 = this.removeDefaultedFields(v1, v2);
+                    }
+                    result[k] = v2;
                 }
             }
             return result;
