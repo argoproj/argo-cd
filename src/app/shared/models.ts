@@ -86,6 +86,8 @@ export interface ResourceResult {
     hookPhase: OperationPhase;
 }
 
+export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
+
 export interface Application {
     apiVersion?: string;
     kind?: string;

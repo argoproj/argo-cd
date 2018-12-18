@@ -1,3 +1,5 @@
+import { DropDownMenu } from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
@@ -6,7 +8,15 @@ import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../ut
 
 require('./application-status-panel.scss');
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions}: {application: models.Application, showOperation?: () => any, showConditions?: () => any}) => {
+interface Props {
+    application: models.Application;
+    refresh: (force: boolean) => any;
+    showOperation?: () => any;
+    showConditions?: () => any;
+}
+
+export const ApplicationStatusPanel = ({application, showOperation, showConditions, refresh}: Props) => {
+    const refreshing = application.metadata.annotations && application.metadata.annotations[models.AnnotationRefreshKey];
     const today = new Date();
     const creationDate = new Date(application.metadata.creationTimestamp);
 
@@ -46,9 +56,15 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 <div className='application-status-panel__item-value'>{daysSinceLastSynchronized}</div>
                 <div className='application-status-panel__item-name'>Days since last synchronized</div>
             </div>
-            <div className='application-status-panel__item columns small-2'>
+            <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
                 <div className='application-status-panel__item-value'><ComparisonStatusIcon status={application.status.sync.status}/> {application.status.sync.status}</div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
+                <div className={classNames('application-status-panel__refresh', { 'application-status-panel__refresh--disabled': !!refreshing })}>
+                    <i className={classNames('fa fa-refresh', { 'status-icon--spin': !!refreshing })}
+                        onClick={() => !refreshing && refresh(false)}/> <DropDownMenu items={[{
+                        title: 'Hard Refresh', action: () => !refreshing && refresh(true),
+                    }]} anchor={() => <i className='fa fa-caret-down'/>} />
+                </div>
             </div>
             <div className='application-status-panel__item columns small-2'>
                 <div className='application-status-panel__item-value'><HealthStatusIcon state={application.status.health}/> {application.status.health.status}</div>

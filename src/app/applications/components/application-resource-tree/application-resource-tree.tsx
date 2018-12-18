@@ -129,7 +129,7 @@ export const ApplicationResourceTree = (props: {
     });
     const size = getGraphSize(graph.nodes().map((id) => graph.node(id)));
     return (
-        <div className='application-resource-tree' style={{width: size.width + 150, height: size.height + 150}}>
+        <div className='application-resource-tree' style={{width: size.width + 150, height: size.height + 250}}>
             {graph.nodes().map((fullName) => {
                 const node = graph.node(fullName) as (ResourceTreeNode) & dagre.Node;
                 let comparisonStatus: models.SyncStatusCode = null;

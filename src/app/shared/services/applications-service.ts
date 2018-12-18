@@ -22,8 +22,12 @@ export class ApplicationsService {
         });
     }
 
-    public get(name: string, refresh = false): Promise<models.Application> {
-        return requests.get(`/applications/${name}`).query({refresh}).then((res) => this.parseAppFields(res.body));
+    public get(name: string, refresh?: 'normal' | 'hard'): Promise<models.Application> {
+        const query: {[key: string]: string} = {};
+        if (refresh) {
+            query.refresh = refresh;
+        }
+        return requests.get(`/applications/${name}`).query(query).then((res) => this.parseAppFields(res.body));
     }
 
     public resourceTree(name: string): Promise<models.ResourceNode[]> {

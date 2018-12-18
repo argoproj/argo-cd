@@ -49,7 +49,7 @@ function resourcesFromSummaryInfo(application: appModels.Application, roots: app
     });
 }
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, { refreshing: boolean}> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>> {
 
     public static contextTypes = {
         apis: PropTypes.object,
@@ -57,11 +57,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private formApi: FormApi;
     private loader: DataLoader<{application: appModels.Application, resources: ResourceTreeNode[]}>;
-
-    constructor(props: RouteComponentProps<{ name: string; }>) {
-        super(props);
-        this.state = { refreshing: false };
-    }
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
@@ -115,6 +110,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     treeFilter.kind.forEach((kind) => { kindsSet.add(kind); });
                     const kinds = Array.from(kindsSet);
                     const noKindsFilter = treeFilter.values.filter((item) => item.indexOf('kind:') !== 0);
+                    const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
 
                     const filter: TopBarFilter<string> = {
                         items: [
@@ -161,48 +157,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                         <Page
                             title='Application Details'
                             toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
-                                items: [{
-                                    iconClassName: 'icon fa fa-refresh',
-                                    title: 'Refresh',
-                                    action: async () => {
-                                        try {
-                                            this.setState({ refreshing: true });
-                                            const [app, res] = await Promise.all([
-                                                services.applications.get(this.props.match.params.name, true),
-                                                services.applications.resourceTree(
-                                                    this.props.match.params.name).then((items) => resourcesFromSummaryInfo(application, items)),
-                                            ]);
-                                            await this.loader.setData({...this.loader.getData() || {}, application: app, resources: res });
-                                        } finally {
-                                            this.setState({ refreshing: false });
-                                        }
-                                    },
-                                }, {
-                                    iconClassName: 'icon argo-icon-deploy',
-                                    title: 'Sync',
-                                    action: () => this.showDeploy('all'),
-                                }, {
-                                    iconClassName: 'icon fa fa-history',
-                                    title: 'History',
-                                    action: () => this.setRollbackPanelVisible(0),
-                                }, {
-                                    iconClassName: 'icon fa fa-times-circle',
-                                    title: 'Delete',
-                                    action: () => this.deleteApplication(),
-                                }],
+                                items: this.getApplicationActionMenu(application),
                             }}}>
                             <div className='application-details__status-panel'>
                                 <ApplicationStatusPanel application={application}
+                                    refresh={async (hard) => {
+                                        const [app, res] = await Promise.all([
+                                            services.applications.get(this.props.match.params.name, hard ? 'hard' : 'normal'),
+                                            services.applications.resourceTree(
+                                                this.props.match.params.name).then((items) => resourcesFromSummaryInfo(application, items)),
+                                        ]);
+                                        await this.loader.setData({...this.loader.getData() || {}, application: app, resources: res });
+                                    }}
                                     showOperation={() => this.setOperationStatusVisible(true)}
                                     showConditions={() => this.setConditionsStatusVisible(true)}/>
                             </div>
                             <div className='application-details__tree'>
-                                {this.state.refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+                                {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                 <ApplicationResourceTree
                                     nodeFilter={(node) => this.filterTreeNode(node, treeFilter)}
                                     selectedNodeFullName={this.selectedNodeKey}
                                     onNodeClick={(fullName) => this.selectNode(fullName)}
-                                    nodeMenuItems={(node) => this.getResourceMenuItems(node)}
+                                    nodeMenuItems={(node) => this.getResourceMenuItems(node, application)}
                                     resources={resources}
                                     app={application}/>
                             </div>
@@ -340,6 +316,27 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         );
     }
 
+    private getApplicationActionMenu(application: appModels.Application) {
+        return [{
+            iconClassName: 'icon fa fa-info-circle',
+            title: 'Details',
+            action: () => this.selectNode(nodeKey({
+                group: application.apiVersion, kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace })),
+        }, {
+            iconClassName: 'icon argo-icon-deploy',
+            title: 'Sync',
+            action: () => this.showDeploy('all'),
+        }, {
+            iconClassName: 'icon fa fa-history',
+            title: 'History',
+            action: () => this.setRollbackPanelVisible(0),
+        }, {
+            iconClassName: 'icon fa fa-times-circle',
+            title: 'Delete',
+            action: () => this.deleteApplication(),
+        }];
+    }
+
     private filterTreeNode(node: ResourceTreeNode, filter: {kind: string[], health: string[], sync: string[]}): boolean {
         const syncStatuses = filter.sync.map((item) => item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item] ).reduce(
             (first, second) => first.concat(second), []);
@@ -354,7 +351,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private loadAppInfo(name: string): Observable<{application: appModels.Application, resources: ResourceTreeNode[]}> {
         return Observable.merge(
             Observable.fromPromise(
-                services.applications.get(name, false).
+                services.applications.get(name).
                 catch((e) => {
                     if (e.status === 404) {
                         this.onAppDeleted();
@@ -492,46 +489,44 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return this.context as AppContext;
     }
 
-    private getResourceMenuItems(resource: appModels.ResourceNode): MenuItem[] {
-        const menuItems: {title: string, action: () => any}[] = [{
+    private getResourceMenuItems(resource: appModels.ResourceNode, application: appModels.Application): MenuItem[] {
+        if (resource.kind === 'Application') {
+            return this.getApplicationActionMenu(application);
+        }
+
+        return [{
             title: 'Details',
             action: () => this.selectNode(nodeKey(resource)),
-        }];
-
-        if (resource.kind !== 'Application') {
-            menuItems.push({
-                title: 'Sync',
-                action: () => this.showDeploy(nodeKey(resource)),
-            });
-            menuItems.push({
-                title: 'Delete',
-                action: async () => {
-                    this.appContext.apis.popup.prompt('Delete resource',
-                    () => (
-                        <div>
-                            <p>Are your sure you want to delete {resource.kind} '{resource.name}'?`</p>
-                            <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                                <Checkbox id='force-delete-checkbox' field='force'/> <label htmlFor='force-delete-checkbox'>Force delete</label>
-                            </div>
+        }, {
+            title: 'Sync',
+            action: () => this.showDeploy(nodeKey(resource)),
+        }, {
+            title: 'Delete',
+            action: async () => {
+                this.appContext.apis.popup.prompt('Delete resource',
+                () => (
+                    <div>
+                        <p>Are your sure you want to delete {resource.kind} '{resource.name}'?`</p>
+                        <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                            <Checkbox id='force-delete-checkbox' field='force'/> <label htmlFor='force-delete-checkbox'>Force delete</label>
                         </div>
-                    ),
-                    {
-                        submit: async (vals, _, close) => {
-                            try {
-                                await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
-                                close();
-                            } catch (e) {
-                                this.appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to delete resource' e={e}/>,
-                                    type: NotificationType.Error,
-                                });
-                            }
-                        },
-                    });
-                },
-            });
-        }
-        return menuItems;
+                    </div>
+                ),
+                {
+                    submit: async (vals, _, close) => {
+                        try {
+                            await services.applications.deleteResource(this.props.match.params.name, resource, !!vals.force);
+                            close();
+                        } catch (e) {
+                            this.appContext.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to delete resource' e={e}/>,
+                                type: NotificationType.Error,
+                            });
+                        }
+                    },
+                });
+            },
+        }];
     }
 
     private async deleteApplication() {
