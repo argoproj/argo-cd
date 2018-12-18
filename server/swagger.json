@@ -57,8 +57,7 @@
             "in": "query"
           },
           {
-            "type": "boolean",
-            "format": "boolean",
+            "type": "string",
             "name": "refresh",
             "in": "query"
           },
@@ -202,8 +201,7 @@
             "required": true
           },
           {
-            "type": "boolean",
-            "format": "boolean",
+            "type": "string",
             "name": "refresh",
             "in": "query"
           },
@@ -1224,8 +1222,7 @@
             "in": "query"
           },
           {
-            "type": "boolean",
-            "format": "boolean",
+            "type": "string",
             "name": "refresh",
             "in": "query"
           },

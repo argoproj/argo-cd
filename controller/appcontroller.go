@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/common"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
@@ -53,23 +55,23 @@ const (
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	namespace             string
-	kubeClientset         kubernetes.Interface
-	kubectl               kube.Kubectl
-	applicationClientset  appclientset.Interface
-	auditLogger           *argo.AuditLogger
-	appRefreshQueue       workqueue.RateLimitingInterface
-	appOperationQueue     workqueue.RateLimitingInterface
-	appInformer           cache.SharedIndexInformer
-	appStateManager       AppStateManager
-	stateCache            statecache.LiveStateCache
-	statusRefreshTimeout  time.Duration
-	repoClientset         reposerver.Clientset
-	db                    db.ArgoDB
-	forceRefreshApps      map[string]bool
-	forceRefreshAppsMutex *sync.Mutex
-	managedResources      map[string][]managedResource
-	managedResourcesMutex *sync.Mutex
+	namespace                 string
+	kubeClientset             kubernetes.Interface
+	kubectl                   kube.Kubectl
+	applicationClientset      appclientset.Interface
+	auditLogger               *argo.AuditLogger
+	appRefreshQueue           workqueue.RateLimitingInterface
+	appOperationQueue         workqueue.RateLimitingInterface
+	appInformer               cache.SharedIndexInformer
+	appStateManager           AppStateManager
+	stateCache                statecache.LiveStateCache
+	statusRefreshTimeout      time.Duration
+	repoClientset             reposerver.Clientset
+	db                        db.ArgoDB
+	refreshRequestedApps      map[string]bool
+	refreshRequestedAppsMutex *sync.Mutex
+	managedResources          map[string][]managedResource
+	managedResourcesMutex     *sync.Mutex
 }
 
 type ApplicationControllerConfig struct {
@@ -89,24 +91,24 @@ func NewApplicationController(
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
-		namespace:             namespace,
-		kubeClientset:         kubeClientset,
-		kubectl:               kubectlCmd,
-		applicationClientset:  applicationClientset,
-		repoClientset:         repoClientset,
-		appRefreshQueue:       workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		appOperationQueue:     workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-		db:                    db,
-		statusRefreshTimeout:  appResyncPeriod,
-		forceRefreshApps:      make(map[string]bool),
-		forceRefreshAppsMutex: &sync.Mutex{},
-		auditLogger:           argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
-		managedResources:      make(map[string][]managedResource),
-		managedResourcesMutex: &sync.Mutex{},
+		namespace:                 namespace,
+		kubeClientset:             kubeClientset,
+		kubectl:                   kubectlCmd,
+		applicationClientset:      applicationClientset,
+		repoClientset:             repoClientset,
+		appRefreshQueue:           workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		appOperationQueue:         workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+		db:                        db,
+		statusRefreshTimeout:      appResyncPeriod,
+		refreshRequestedApps:      make(map[string]bool),
+		refreshRequestedAppsMutex: &sync.Mutex{},
+		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "application-controller"),
+		managedResources:          make(map[string][]managedResource),
+		managedResourcesMutex:     &sync.Mutex{},
 	}
 	appInformer := ctrl.newApplicationInformer()
 	stateCache := statecache.NewLiveStateCache(db, appInformer, kubectlCmd, func(appName string) {
-		ctrl.forceAppRefresh(appName)
+		ctrl.requestAppRefresh(appName)
 		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
 	})
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, stateCache)
@@ -374,18 +376,18 @@ func (ctrl *ApplicationController) CreateGRPC(tlsConfCustomizer tlsutil.ConfigCu
 	return server, nil
 }
 
-func (ctrl *ApplicationController) forceAppRefresh(appName string) {
-	ctrl.forceRefreshAppsMutex.Lock()
-	defer ctrl.forceRefreshAppsMutex.Unlock()
-	ctrl.forceRefreshApps[appName] = true
+func (ctrl *ApplicationController) requestAppRefresh(appName string) {
+	ctrl.refreshRequestedAppsMutex.Lock()
+	defer ctrl.refreshRequestedAppsMutex.Unlock()
+	ctrl.refreshRequestedApps[appName] = true
 }
 
-func (ctrl *ApplicationController) isRefreshForced(appName string) bool {
-	ctrl.forceRefreshAppsMutex.Lock()
-	defer ctrl.forceRefreshAppsMutex.Unlock()
-	_, ok := ctrl.forceRefreshApps[appName]
+func (ctrl *ApplicationController) isRefreshRequested(appName string) bool {
+	ctrl.refreshRequestedAppsMutex.Lock()
+	defer ctrl.refreshRequestedAppsMutex.Unlock()
+	_, ok := ctrl.refreshRequestedApps[appName]
 	if ok {
-		delete(ctrl.forceRefreshApps, appName)
+		delete(ctrl.refreshRequestedApps, appName)
 	}
 	return ok
 }
@@ -572,7 +574,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
-		ctrl.forceAppRefresh(app.ObjectMeta.Name)
+		ctrl.requestAppRefresh(app.ObjectMeta.Name)
 	}
 }
 
@@ -662,7 +664,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	if !ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout) {
+	needRefresh, refreshType := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
+
+	if !needRefresh {
 		return
 	}
 	// NOTE: normalization returns a copy
@@ -677,7 +681,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", nil, refreshType == appv1.RefreshTypeHard)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
@@ -701,12 +705,16 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 // needRefreshAppStatus answers if application status needs to be refreshed.
 // Returns true if application never been compared, has changed or comparison result has expired.
-func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) bool {
+func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) (bool, appv1.RefreshType) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	var reason string
+	refreshType := appv1.RefreshTypeNormal
 	expired := app.Status.ObservedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	if ctrl.isRefreshForced(app.Name) {
-		reason = "force refresh"
+	if requestedType, ok := app.IsRefreshRequested(); ok {
+		refreshType = requestedType
+		reason = fmt.Sprintf("refresh requested (%s)", refreshType)
+	} else if ctrl.isRefreshRequested(app.Name) {
+		reason = fmt.Sprintf("refresh requested (%s)", refreshType)
 	} else if app.Status.Sync.Status == appv1.SyncStatusCodeUnknown && expired {
 		reason = "comparison status unknown"
 	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo) {
@@ -716,9 +724,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	}
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s)", reason)
-		return true
+		return true, refreshType
 	}
-	return false
+	return false, refreshType
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
@@ -808,7 +816,17 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
 		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
-	patch, modified, err := diff.CreateTwoWayMergePatch(&appv1.Application{Status: orig.Status}, &appv1.Application{Status: *newStatus}, appv1.Application{})
+	var newAnnotations map[string]string
+	if orig.GetAnnotations() != nil {
+		newAnnotations = make(map[string]string)
+		for k, v := range orig.GetAnnotations() {
+			newAnnotations[k] = v
+		}
+		delete(newAnnotations, common.AnnotationKeyRefresh)
+	}
+	patch, modified, err := diff.CreateTwoWayMergePatch(
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus}, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
@@ -919,7 +937,7 @@ func (ctrl *ApplicationController) newApplicationInformer() cache.SharedIndexInf
 				if oldOK && newOK {
 					if toggledAutomatedSync(oldApp, newApp) {
 						log.WithField("application", newApp.Name).Info("Enabled automated sync")
-						ctrl.forceAppRefresh(newApp.Name)
+						ctrl.requestAppRefresh(newApp.Name)
 					}
 				}
 				ctrl.appRefreshQueue.Add(key)

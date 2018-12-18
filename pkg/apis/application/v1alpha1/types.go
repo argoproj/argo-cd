@@ -76,6 +76,13 @@ const (
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
 )
 
+type RefreshType string
+
+const (
+	RefreshTypeNormal RefreshType = "normal"
+	RefreshTypeHard   RefreshType = "hard"
+)
+
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
@@ -655,6 +662,25 @@ func (app *Application) getFinalizerIndex(name string) int {
 // CascadedDeletion indicates if resources finalizer is set and controller should delete app resources before deleting app
 func (app *Application) CascadedDeletion() bool {
 	return app.getFinalizerIndex(common.ResourcesFinalizerName) > -1
+}
+
+func (app *Application) IsRefreshRequested() (RefreshType, bool) {
+	refreshType := RefreshTypeNormal
+	annotations := app.GetAnnotations()
+	if annotations == nil {
+		return refreshType, false
+	}
+
+	typeStr, ok := annotations[common.AnnotationKeyRefresh]
+	if !ok {
+		return refreshType, false
+	}
+
+	if typeStr == string(RefreshTypeHard) {
+		refreshType = RefreshTypeHard
+	}
+
+	return refreshType, true
 }
 
 // SetCascadedDeletion sets or remove resources finalizer

@@ -28,7 +28,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -51,7 +51,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -78,7 +78,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -105,7 +105,7 @@ func TestCompareAppStateHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -133,7 +133,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", nil, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)

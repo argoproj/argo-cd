@@ -67,16 +67,9 @@ const (
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
 	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
-	// AnnotationKeyRefresh is the annotation key in the application which is updated with an
-	// arbitrary value (i.e. timestamp) on a git event, to  force the controller to wake up and
-	// re-evaluate the application
+	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
+	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
 	AnnotationKeyRefresh = "argocd.argoproj.io/refresh"
-	// AnnotationKeyConnectionStatus contains connection state status
-	AnnotationKeyConnectionStatus = "argocd.argoproj.io/connection-status"
-	// AnnotationKeyConnectionMessage contains additional information about connection status
-	AnnotationKeyConnectionMessage = "argocd.argoproj.io/connection-message"
-	// AnnotationConnectionModifiedAt contains timestamp when connection state had been modified
-	AnnotationConnectionModifiedAt = "argocd.argoproj.io/connection-modified-at"
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD
