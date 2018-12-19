@@ -240,6 +240,8 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.C
 		}()
 		config := item.RESTConfig()
 		watchStartTime := time.Now()
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		ch, err := c.kubectl.WatchResources(ctx, config, "")
 
 		if err != nil {
@@ -250,8 +252,10 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.C
 			if kube.IsCRD(eventObj) {
 				// restart if new CRD has been created after watch started
 				if event.Type == watch.Added && watchStartTime.Before(eventObj.GetCreationTimestamp().Time) {
+					c.removeCluster(item.Server)
 					return fmt.Errorf("Restarting the watch because a new CRD was added.")
 				} else if event.Type == watch.Deleted {
+					c.removeCluster(item.Server)
 					return fmt.Errorf("Restarting the watch because a CRD was deleted.")
 				}
 			}
