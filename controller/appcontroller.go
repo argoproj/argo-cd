@@ -253,7 +253,7 @@ func hideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		if obj == nil {
 			continue
 		}
-		diff.EncodeSecretStringData(obj)
+		diff.NormalizeSecret(obj)
 		if data, found, err := unstructured.NestedMap(obj.Object, "data"); found && err == nil {
 			for k := range data {
 				keys[k] = true

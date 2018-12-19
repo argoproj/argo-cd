@@ -33,14 +33,15 @@ type DiffResultList struct {
 func Diff(config, live *unstructured.Unstructured) *DiffResult {
 	if config != nil {
 		config = stripTypeInformation(config)
-		EncodeSecretStringData(config)
+		NormalizeSecret(config)
 	}
 	if live != nil {
 		live = stripTypeInformation(live)
+		NormalizeSecret(live)
 	}
 	orig := GetLastAppliedConfigAnnotation(live)
 	if orig != nil && config != nil {
-		EncodeSecretStringData(orig)
+		NormalizeSecret(orig)
 		dr, err := ThreeWayDiff(orig, config, live)
 		if err == nil {
 			return dr
@@ -239,9 +240,9 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 	return asciiFmt.Format(d.Diff)
 }
 
-// encodeSecretStringData mutates the supplied object and encodes stringData to data. If the object
-// is not a secret, or is an invalid secret, then returns the same object
-func EncodeSecretStringData(un *unstructured.Unstructured) {
+// NormalizeSecret mutates the supplied object and encodes stringData to data, and converts nils to
+// empty strings. If the object is not a secret, or is an invalid secret, then returns the same object.
+func NormalizeSecret(un *unstructured.Unstructured) {
 	if un == nil {
 		return
 	}
@@ -255,26 +256,33 @@ func EncodeSecretStringData(un *unstructured.Unstructured) {
 		log.Warnf("object unable to convert to secret: %v", err)
 		return
 	}
-	if len(secret.StringData) == 0 {
-		return
+	// We normalize nils to empty string to handle: https://github.com/argoproj/argo-cd/issues/943
+	for k, v := range secret.Data {
+		if len(v) == 0 {
+			secret.Data[k] = []byte("")
+		}
 	}
-	if secret.Data == nil {
-		secret.Data = make(map[string][]byte)
-	}
-	for k, v := range secret.StringData {
-		secret.Data[k] = []byte(v)
+	if len(secret.StringData) > 0 {
+		if secret.Data == nil {
+			secret.Data = make(map[string][]byte)
+		}
+		for k, v := range secret.StringData {
+			secret.Data[k] = []byte(v)
+		}
+		delete(un.Object, "stringData")
 	}
 	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&secret)
 	if err != nil {
 		log.Warnf("object unable to convert from secret: %v", err)
 		return
 	}
-	err = unstructured.SetNestedMap(un.Object, newObj["data"].(map[string]interface{}), "data")
-	if err != nil {
-		log.Warnf("failed to set secret.data: %v", err)
-		return
+	if secret.Data != nil {
+		err = unstructured.SetNestedMap(un.Object, newObj["data"].(map[string]interface{}), "data")
+		if err != nil {
+			log.Warnf("failed to set secret.data: %v", err)
+			return
+		}
 	}
-	delete(un.Object, "stringData")
 }
 
 // JSONFormat returns the diff as a JSON string
