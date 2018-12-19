@@ -458,3 +458,22 @@ func TestInvalidSecretStringData(t *testing.T) {
 	dr := Diff(&configUn, nil)
 	assert.True(t, dr.Modified)
 }
+
+func TestNullSecretData(t *testing.T) {
+	configData, err := ioutil.ReadFile("testdata/wordpress-config.json")
+	assert.NoError(t, err)
+	liveData, err := ioutil.ReadFile("testdata/wordpress-live.json")
+	assert.NoError(t, err)
+	var configUn, liveUn unstructured.Unstructured
+	err = json.Unmarshal(configData, &configUn.Object)
+	assert.NoError(t, err)
+	err = json.Unmarshal(liveData, &liveUn.Object)
+	assert.NoError(t, err)
+
+	dr := Diff(&configUn, &liveUn)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
+		assert.Nil(t, err)
+		log.Println(ascii)
+	}
+}
