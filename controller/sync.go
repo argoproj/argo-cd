@@ -247,11 +247,12 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			var targetObj *unstructured.Unstructured
 			if resourceState.Target != nil {
 				targetObj = resourceState.Target.DeepCopy()
-				if targetObj.GetNamespace() == "" {
-					targetObj.SetNamespace(sc.namespace)
-				}
 				gvk := targetObj.GroupVersionKind()
 				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+				if err == nil && targetObj.GetNamespace() == "" && serverRes.Namespaced {
+					targetObj.SetNamespace(sc.namespace)
+				}
+
 				if err != nil {
 					// Special case for custom resources: if custom resource definition is not supported by the cluster by defined in application then
 					// skip verification using `kubectl apply --dry-run` and since CRD should be created during app synchronization.
@@ -267,6 +268,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 							Message:   err.Error(),
 							Status:    appv1.ResultCodeSyncFailed,
 						})
+						successful = false
 					}
 				} else {
 					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
