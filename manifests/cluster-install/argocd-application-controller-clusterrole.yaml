@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: argocd-application-controller-clusterrole
+  name: argocd-application-controller
 rules:
 - apiGroups:
   - '*'
