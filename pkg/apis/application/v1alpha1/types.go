@@ -382,11 +382,17 @@ type ApplicationCondition struct {
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
 }
 
+// ComparedTo contains application source and target which was used for resources comparison
+type ComparedTo struct {
+	Source      ApplicationSource      `json:"source" protobuf:"bytes,1,opt,name=source"`
+	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
+}
+
 // SyncStatus is a comparison result of application spec and deployed application.
 type SyncStatus struct {
-	Status     SyncStatusCode    `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
-	ComparedTo ApplicationSource `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
-	Revision   string            `json:"revision" protobuf:"bytes,3,opt,name=revision"`
+	Status     SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
+	ComparedTo ComparedTo     `json:"comparedTo" protobuf:"bytes,2,opt,name=comparedTo"`
+	Revision   string         `json:"revision" protobuf:"bytes,3,opt,name=revision"`
 }
 
 type HealthStatus struct {
@@ -715,6 +721,11 @@ func (condition *ApplicationCondition) IsError() bool {
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
 func (source ApplicationSource) Equals(other ApplicationSource) bool {
+	return reflect.DeepEqual(source, other)
+}
+
+// Equals compares two instances of ApplicationDestination and return true if instances are equal.
+func (source ApplicationDestination) Equals(other ApplicationDestination) bool {
 	return reflect.DeepEqual(source, other)
 }
 
