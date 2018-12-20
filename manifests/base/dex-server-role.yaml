@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: dex-server-role
+  name: dex-server
 rules:
 - apiGroups:
   - ""
