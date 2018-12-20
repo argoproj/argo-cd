@@ -221,7 +221,20 @@ func (c *liveStateCache) Run(ctx context.Context) {
 			}
 		}
 
-		c.appInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{AddFunc: onAppModified, DeleteFunc: onAppModified})
+		c.appInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: onAppModified,
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				oldApp, oldOk := oldObj.(*appv1.Application)
+				newApp, newOk := newObj.(*appv1.Application)
+				if oldOk && newOk {
+					if oldApp.Spec.Destination.Server != newApp.Spec.Destination.Server {
+						onAppModified(oldObj)
+						onAppModified(newApp)
+					}
+				}
+			},
+			DeleteFunc: onAppModified,
+		})
 
 		return c.db.WatchClusters(ctx, clusterEventCallback)
 
