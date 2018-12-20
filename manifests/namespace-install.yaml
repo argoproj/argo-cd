@@ -46,7 +46,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: argocd-application-controller-role
+  name: argocd-application-controller
 rules:
 - apiGroups:
   - ""
@@ -87,7 +87,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: argocd-server-role
+  name: argocd-server
 rules:
 - apiGroups:
   - ""
@@ -126,7 +126,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: dex-server-role
+  name: dex-server
 rules:
 - apiGroups:
   - ""
@@ -141,11 +141,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: argocd-application-controller-role-binding
+  name: argocd-application-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: argocd-application-controller-role
+  name: argocd-application-controller
 subjects:
 - kind: ServiceAccount
   name: argocd-application-controller
@@ -153,11 +153,11 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: argocd-server-role-binding
+  name: argocd-server
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: argocd-server-role
+  name: argocd-server
 subjects:
 - kind: ServiceAccount
   name: argocd-server
@@ -165,11 +165,11 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: dex-server-role-binding
+  name: dex-server
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: dex-server-role
+  name: dex-server
 subjects:
 - kind: ServiceAccount
   name: dex-server
