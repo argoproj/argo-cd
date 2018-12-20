@@ -182,7 +182,7 @@ var demoConfig = `
     "labels": {
       "app.kubernetes.io/instance": "argocd-demo"
     },
-    "name": "application-controller"
+    "name": "argocd-application-controller"
   }
 }
 `
@@ -193,21 +193,21 @@ var demoLive = `
   "kind": "ServiceAccount",
   "metadata": {
     "annotations": {
-      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"argocd-demo\"},\"name\":\"application-controller\",\"namespace\":\"argocd-demo\"}}\n"
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"argocd-demo\"},\"name\":\"argocd-application-controller\",\"namespace\":\"argocd-demo\"}}\n"
     },
     "creationTimestamp": "2018-04-16T22:08:57Z",
     "labels": {
       "app.kubernetes.io/instance": "argocd-demo"
     },
-    "name": "application-controller",
+    "name": "argocd-application-controller",
     "namespace": "argocd-demo",
     "resourceVersion": "7584502",
-    "selfLink": "/api/v1/namespaces/argocd-demo/serviceaccounts/application-controller",
+    "selfLink": "/api/v1/namespaces/argocd-demo/serviceaccounts/argocd-application-controller",
     "uid": "c22bb2b4-41c2-11e8-978a-028445d52ec8"
   },
   "secrets": [
     {
-      "name": "application-controller-token-kfxct"
+      "name": "argocd-application-controller-token-kfxct"
     }
   ]
 }

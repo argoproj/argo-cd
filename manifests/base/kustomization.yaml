@@ -2,11 +2,11 @@ resources:
 - argocd-cm.yaml
 - argocd-secret.yaml
 - argocd-rbac-cm.yaml
-- application-controller-sa.yaml
-- application-controller-role.yaml
-- application-controller-rolebinding.yaml
-- application-controller-deployment.yaml
-- application-controller-service.yaml
+- argocd-application-controller-sa.yaml
+- argocd-application-controller-role.yaml
+- argocd-application-controller-rolebinding.yaml
+- argocd-application-controller-deployment.yaml
+- argocd-application-controller-service.yaml
 - argocd-server-sa.yaml
 - argocd-server-role.yaml
 - argocd-server-rolebinding.yaml

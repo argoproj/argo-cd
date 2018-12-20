@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: application-controller
+  name: argocd-application-controller
 spec:
   selector:
     matchLabels:
-      app: application-controller
+      app: argocd-application-controller
   template:
     metadata:
       labels:
-        app: application-controller
+        app: argocd-application-controller
     spec:
       containers:
       - command:
@@ -20,7 +20,7 @@ spec:
         - "10"
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        name: application-controller
+        name: argocd-application-controller
         ports:
         - containerPort: 8083
         readinessProbe:
@@ -28,4 +28,4 @@ spec:
             port: 8083
           initialDelaySeconds: 5
           periodSeconds: 10
-      serviceAccountName: application-controller
+      serviceAccountName: argocd-application-controller
