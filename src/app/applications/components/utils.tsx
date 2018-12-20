@@ -240,7 +240,8 @@ export function getOperationType(application: appModels.Application) {
     if (application.metadata.deletionTimestamp) {
         return 'deletion';
     }
-    if (application.status.operationState && application.status.operationState.operation.sync) {
+    const operation = application.operation || application.status.operationState && application.status.operationState.operation;
+    if (operation && operation.sync) {
         return 'synchronization';
     }
     return 'unknown operation';

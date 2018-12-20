@@ -37,7 +37,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             startedAt: application.metadata.deletionTimestamp,
         } as models.OperationState;
         showOperation = null;
-    } else if (application.operation && application.status.operationState === undefined) {
+    } else if (application.operation) {
         appOperationState = {
             phase:  models.OperationPhases.Running,
             startedAt: new Date().toISOString(),
