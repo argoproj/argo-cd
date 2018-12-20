@@ -242,6 +242,13 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// ComparedTo contains application source and target which was used for resources comparison
+message ComparedTo {
+  optional ApplicationSource source = 1;
+
+  optional ApplicationDestination destination = 2;
+}
+
 // ComponentParameter contains information about component parameter value
 message ComponentParameter {
   optional string component = 1;
@@ -516,7 +523,7 @@ message SyncPolicyAutomated {
 message SyncStatus {
   optional string status = 1;
 
-  optional ApplicationSource comparedTo = 2;
+  optional ComparedTo comparedTo = 2;
 
   optional string revision = 3;
 }

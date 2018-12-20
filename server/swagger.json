@@ -2483,6 +2483,18 @@
         }
       }
     },
+    "v1alpha1ComparedTo": {
+      "type": "object",
+      "title": "ComparedTo contains application source and target which was used for resources comparison",
+      "properties": {
+        "destination": {
+          "$ref": "#/definitions/v1alpha1ApplicationDestination"
+        },
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
+        }
+      }
+    },
     "v1alpha1ComponentParameter": {
       "type": "object",
       "title": "ComponentParameter contains information about component parameter value",
@@ -2897,7 +2909,7 @@
       "type": "object",
       "properties": {
         "comparedTo": {
-          "$ref": "#/definitions/v1alpha1ApplicationSource"
+          "$ref": "#/definitions/v1alpha1ComparedTo"
         },
         "revision": {
           "type": "string"

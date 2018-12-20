@@ -254,8 +254,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		syncCode = v1alpha1.SyncStatusCodeUnknown
 	}
 	syncStatus := v1alpha1.SyncStatus{
-		ComparedTo: app.Spec.Source,
-		Status:     syncCode,
+		ComparedTo: appv1.ComparedTo{
+			Source:      app.Spec.Source,
+			Destination: app.Spec.Destination,
+		},
+		Status: syncCode,
 	}
 	if manifestInfo != nil {
 		syncStatus.Revision = manifestInfo.Revision
