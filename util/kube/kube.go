@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -55,9 +54,6 @@ const (
 )
 
 var (
-	// legacyLabeling decides whether or not to use legacy (v0.10 and below) labeling
-	legacyLabeling = false
-
 	// obsoleteExtensionsKinds contains list of obsolete kinds from extensions group and corresponding name of new group
 	obsoleteExtensionsKinds = map[string]string{
 		DaemonSetKind:         "apps",
@@ -67,11 +63,6 @@ var (
 		PodSecurityPolicyKind: "policy",
 	}
 )
-
-func init() {
-	val, _ := os.LookupEnv(common.EnvVarLegacyLabels)
-	legacyLabeling = bool(val == "1" || val == "true")
-}
 
 type ResourceKey struct {
 	Group     string
@@ -137,9 +128,9 @@ func MustToUnstructured(obj interface{}) *unstructured.Unstructured {
 }
 
 // GetAppInstanceLabel returns the application instance name from labels
-func GetAppInstanceLabel(un *unstructured.Unstructured) string {
+func GetAppInstanceLabel(un *unstructured.Unstructured, key string) string {
 	if labels := un.GetLabels(); labels != nil {
-		return labels[labelKey()]
+		return labels[key]
 	}
 	return ""
 }
@@ -158,24 +149,16 @@ func UnsetLabel(target *unstructured.Unstructured, key string) {
 	}
 }
 
-func labelKey() string {
-	if legacyLabeling {
-		return common.LabelKeyLegacyApplicationName
-	}
-	return common.LabelKeyAppInstance
-}
-
 // SetAppInstanceLabel the recommended app.kubernetes.io/instance label against an unstructured object
 // Uses the legacy labeling if environment variable is set
-func SetAppInstanceLabel(target *unstructured.Unstructured, val string) error {
+func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) error {
 	labels := target.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	key := labelKey()
 	labels[key] = val
 	target.SetLabels(labels)
-	if !legacyLabeling {
+	if key != common.LabelKeyLegacyApplicationName {
 		// we no longer label the pod template sub resources in v0.11
 		return nil
 	}

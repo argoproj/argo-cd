@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	kubeutil "github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type managedResource struct {
@@ -65,6 +66,7 @@ type comparisonResult struct {
 // appStateManager allows to compare applications to git
 type appStateManager struct {
 	db             db.ArgoDB
+	settings       *settings.ArgoCDSettings
 	appclientset   appclientset.Interface
 	kubectl        kubeutil.Kubectl
 	repoClientset  reposerver.Clientset
@@ -72,7 +74,7 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepos(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
@@ -112,7 +114,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, revision string
 		Revision:                    revision,
 		NoCache:                     noCache,
 		ComponentParameterOverrides: mfReqOverrides,
-		AppLabel:                    app.Name,
+		AppLabelKey:                 appLabelKey,
+		AppLabelValue:               app.Name,
 		Namespace:                   app.Spec.Destination.Namespace,
 		ApplicationSource:           &app.Spec.Source,
 	})
@@ -143,7 +146,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	observedAt := metav1.Now()
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, revision, overrides, noCache)
+	appLabelKey := m.settings.GetAppInstanceLabelKey()
+	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, appLabelKey, revision, overrides, noCache)
 	if err != nil {
 		targetObjs = make([]*unstructured.Unstructured, 0)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
@@ -159,7 +163,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj)
+			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
 			if appInstanceName != "" && appInstanceName != app.Name {
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
@@ -326,6 +330,7 @@ func NewAppStateManager(
 	repoClientset reposerver.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
+	settings *settings.ArgoCDSettings,
 	liveStateCache statecache.LiveStateCache,
 ) AppStateManager {
 	return &appStateManager{
@@ -335,5 +340,6 @@ func NewAppStateManager(
 		kubectl:        kubectl,
 		repoClientset:  repoClientset,
 		namespace:      namespace,
+		settings:       settings,
 	}
 }

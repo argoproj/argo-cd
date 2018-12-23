@@ -119,6 +119,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
+	settingsMgr := settings.NewSettingsManager(kubeclientset, testNamespace)
 
 	objects = append(objects, defaultProj)
 	server := NewServer(
@@ -131,6 +132,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 		db,
 		enforcer,
 		util.NewKeyLock(),
+		settingsMgr,
 	)
 	return server.(*Server)
 }

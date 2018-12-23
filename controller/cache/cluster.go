@@ -4,17 +4,18 @@ import (
 	"sync"
 	"time"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/kube"
 	log "github.com/sirupsen/logrus"
-
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -32,9 +33,10 @@ type clusterInfo struct {
 	syncLock     *sync.Mutex
 	syncTime     *time.Time
 	log          *log.Entry
+	settings     *settings.ArgoCDSettings
 }
 
-func createObjInfo(un *unstructured.Unstructured) *node {
+func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node {
 	ownerRefs := un.GetOwnerReferences()
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
 	if un.GroupVersionKind().Group == "" && un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
@@ -55,7 +57,7 @@ func createObjInfo(un *unstructured.Unstructured) *node {
 		ownerRefs: ownerRefs,
 		info:      getNodeInfo(un),
 	}
-	appName := kube.GetAppInstanceLabel(un)
+	appName := kube.GetAppInstanceLabel(un, appInstanceLabel)
 	if len(ownerRefs) == 0 && appName != "" {
 		info.appName = appName
 		info.resource = un
@@ -84,6 +86,10 @@ func (c *clusterInfo) removeNode(key kube.ResourceKey) {
 	}
 }
 
+func (c *clusterInfo) invalidate() {
+	c.syncTime = nil
+}
+
 func (c *clusterInfo) synced() bool {
 	return c.syncTime != nil && time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
 }
@@ -105,8 +111,9 @@ func (c *clusterInfo) ensureSynced() error {
 		return err
 	}
 
+	appLabelKey := c.settings.GetAppInstanceLabelKey()
 	for i := range resources {
-		c.setNode(createObjInfo(resources[i]))
+		c.setNode(createObjInfo(resources[i], appLabelKey))
 	}
 
 	resyncTime := time.Now()
@@ -228,7 +235,7 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 		if exists {
 			nodes = append(nodes, existingNode)
 		}
-		newObj := createObjInfo(un)
+		newObj := createObjInfo(un, c.settings.GetAppInstanceLabelKey())
 		c.setNode(newObj)
 		nodes = append(nodes, newObj)
 

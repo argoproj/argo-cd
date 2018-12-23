@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // Server provides a Application service
@@ -53,6 +54,7 @@ type Server struct {
 	projectLock         *util.KeyLock
 	auditLogger         *argo.AuditLogger
 	gitFactory          git.ClientFactory
+	settingsMgr         *settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Application service
@@ -66,6 +68,7 @@ func NewServer(
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	projectLock *util.KeyLock,
+	settingsMgr *settings.SettingsManager,
 ) ApplicationServiceServer {
 
 	return &Server{
@@ -80,6 +83,7 @@ func NewServer(
 		projectLock:         projectLock,
 		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		gitFactory:          git.NewFactory(),
+		settingsMgr:         settingsMgr,
 	}
 }
 
@@ -179,11 +183,16 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if q.Revision != "" {
 		revision = q.Revision
 	}
+	settings, err := s.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:                        repo,
 		Revision:                    revision,
 		ComponentParameterOverrides: overrides,
-		AppLabel:                    a.Name,
+		AppLabelKey:                 settings.GetAppInstanceLabelKey(),
+		AppLabelValue:               a.Name,
 		Namespace:                   a.Spec.Destination.Namespace,
 		ApplicationSource:           &a.Spec.Source,
 	})

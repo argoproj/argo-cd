@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller/services"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
@@ -691,7 +692,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
 					if local, ok := localObjs[key]; ok || live != nil {
 						if local != nil {
-							err = kube.SetAppInstanceLabel(local, appName)
+							// TODO(jessesuen): expose the configured app label key in settings and
+							// use configured label instead of default
+							err = kube.SetAppInstanceLabel(local, common.LabelKeyAppInstance, appName)
 							errors.CheckError(err)
 						}
 

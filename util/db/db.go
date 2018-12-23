@@ -1,13 +1,14 @@
 package db
 
 import (
-	"github.com/argoproj/argo-cd/util/settings"
+	"context"
+
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"golang.org/x/net/context"
-	"k8s.io/client-go/kubernetes"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type ArgoDB interface {

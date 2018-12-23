@@ -13,7 +13,8 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
     bool noCache = 3;
-    string appLabel = 5;
+    string appLabelKey = 4;
+    string appLabelValue = 5;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 6;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
