@@ -88,6 +88,4 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
-	// EnvVarLegacyLabels is an environment variable to use the legacy 'applications.argoproj.io/app-name' label instead of 'app.kubernetes.io/instance'
-	EnvVarLegacyLabels = "ARGOCD_LEGACY_LABELS"
 )

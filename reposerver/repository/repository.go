@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
@@ -203,7 +204,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		env := v1alpha1.KsonnetEnv(q.ApplicationSource)
-		targetObjs, params, dest, err = ksShow(appPath, env, q.ComponentParameterOverrides)
+		targetObjs, params, dest, err = ksShow(q.AppLabelKey, appPath, env, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeHelm:
 		h := helm.NewHelmApp(appPath, q.HelmRepos)
 		err := h.Init()
@@ -211,7 +212,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 			return nil, err
 		}
 		opts := helmOpts(q)
-		targetObjs, err = h.Template(q.AppLabel, opts, q.ComponentParameterOverrides)
+		targetObjs, err = h.Template(q.AppLabelValue, opts, q.ComponentParameterOverrides)
 		if err != nil {
 			if !helm.IsMissingDependencyErr(err) {
 				return nil, err
@@ -220,7 +221,7 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 			if err != nil {
 				return nil, err
 			}
-			targetObjs, err = h.Template(q.AppLabel, opts, q.ComponentParameterOverrides)
+			targetObjs, err = h.Template(q.AppLabelValue, opts, q.ComponentParameterOverrides)
 			if err != nil {
 				return nil, err
 			}
@@ -261,8 +262,8 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		}
 
 		for _, target := range targets {
-			if q.AppLabel != "" && !kube.IsCRD(target) {
-				err = kube.SetAppInstanceLabel(target, q.AppLabel)
+			if q.AppLabelKey != "" && q.AppLabelValue != "" && !kube.IsCRD(target) {
+				err = kube.SetAppInstanceLabel(target, q.AppLabelKey, q.AppLabelValue)
 				if err != nil {
 					return nil, err
 				}
@@ -330,7 +331,7 @@ func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
 	appSrcStr, _ := json.Marshal(appSrc)
 	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
 	fnva := hash.FNVa(string(appSrcStr) + string(pStr))
-	return fmt.Sprintf("mfst|%s|%s|%s|%d", q.AppLabel, commitSHA, q.Namespace, fnva)
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", q.AppLabelKey, q.AppLabelValue, commitSHA, q.Namespace, fnva)
 }
 
 func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
@@ -342,7 +343,7 @@ func getFileCacheKey(commitSHA string, q *GetFileRequest) string {
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *v1alpha1.ApplicationDestination, error) {
+func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
@@ -364,6 +365,12 @@ func ksShow(appPath, envName string, overrides []*v1alpha1.ComponentParameter) (
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	targetObjs, err := ksApp.Show(envName)
+	if err == nil && appLabelKey == common.LabelKeyLegacyApplicationName {
+		// Address https://github.com/ksonnet/ksonnet/issues/707
+		for _, d := range targetObjs {
+			kube.UnsetLabel(d, "ksonnet.io/component")
+		}
+	}
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -74,6 +74,11 @@ func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs
 	return r0, r1
 }
 
+// Invalidate provides a mock function with given fields:
+func (_m *LiveStateCache) Invalidate() {
+	_m.Called()
+}
+
 // IsNamespaced provides a mock function with given fields: server, gvk
 func (_m *LiveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error) {
 	ret := _m.Called(server, gvk)

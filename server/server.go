@@ -449,7 +449,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	repoService := repository.NewServer(a.RepoClientset, db, a.enf, argocache.NewInMemoryCache(repository.DefaultRepoStatusCacheExpiration))
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.AppControllerClientset, kube.KubectlCmd{}, db, a.enf, projectLock)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.AppControllerClientset, kube.KubectlCmd{}, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)

@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/common"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
@@ -33,6 +31,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/apis/core"
 
+	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
 	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -68,6 +67,8 @@ type ApplicationController struct {
 	statusRefreshTimeout      time.Duration
 	repoClientset             reposerver.Clientset
 	db                        db.ArgoDB
+	settings                  *settings_util.ArgoCDSettings
+	settingsMgr               *settings_util.SettingsManager
 	refreshRequestedApps      map[string]bool
 	refreshRequestedAppsMutex *sync.Mutex
 	managedResources          map[string][]managedResource
@@ -105,13 +106,15 @@ func NewApplicationController(
 		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
 		managedResources:          make(map[string][]managedResource),
 		managedResourcesMutex:     &sync.Mutex{},
+		settingsMgr:               settingsMgr,
+		settings:                  &settings_util.ArgoCDSettings{},
 	}
 	appInformer := ctrl.newApplicationInformer()
-	stateCache := statecache.NewLiveStateCache(db, appInformer, kubectlCmd, func(appName string) {
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, func(appName string) {
 		ctrl.requestAppRefresh(appName)
 		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
 	})
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, stateCache)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache)
 	ctrl.appInformer = appInformer
 	ctrl.appStateManager = appStateManager
 	ctrl.stateCache = stateCache
@@ -315,6 +318,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appRefreshQueue.ShutDown()
 
 	go ctrl.appInformer.Run(ctx.Done())
+	go ctrl.watchSettings(ctx)
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced) {
 		log.Error("Timed out waiting for caches to sync")
@@ -974,4 +978,28 @@ func toggledAutomatedSync(old *appv1.Application, new *appv1.Application) bool {
 	}
 	// nothing changed
 	return false
+}
+
+func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
+	ctrl.settingsMgr.StartNotifier(context.Background(), ctrl.settings)
+	updateCh := make(chan struct{}, 1)
+	ctrl.settingsMgr.Subscribe(updateCh)
+	prevAppLabelKey := ctrl.settings.GetAppInstanceLabelKey()
+	done := false
+	for !done {
+		select {
+		case <-updateCh:
+			newAppLabelKey := ctrl.settings.GetAppInstanceLabelKey()
+			if prevAppLabelKey != newAppLabelKey {
+				log.Infof("label key changed: %s -> %s", prevAppLabelKey, newAppLabelKey)
+				ctrl.stateCache.Invalidate()
+				prevAppLabelKey = newAppLabelKey
+			}
+		case <-ctx.Done():
+			done = true
+		}
+	}
+	log.Info("shutting down settings watch")
+	ctrl.settingsMgr.Unsubscribe(updateCh)
+	close(updateCh)
 }
