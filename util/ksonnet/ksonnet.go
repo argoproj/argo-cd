@@ -125,14 +125,7 @@ func (k *ksonnetApp) Show(environment string) ([]*unstructured.Unstructured, err
 	if err != nil {
 		return nil, fmt.Errorf("`ks show` failed: %v", err)
 	}
-	data, err := kube.SplitYAML(out)
-	if err == nil {
-		// Address https://github.com/ksonnet/ksonnet/issues/707
-		for _, d := range data {
-			kube.UnsetLabel(d, "ksonnet.io/component")
-		}
-	}
-	return data, err
+	return kube.SplitYAML(out)
 }
 
 // Destination returns the deployment destination for an environment

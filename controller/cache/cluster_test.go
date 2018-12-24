@@ -6,19 +6,19 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-
-	"github.com/ghodss/yaml"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
+	"github.com/argoproj/argo-cd/util/settings"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -84,8 +84,9 @@ func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
 		cluster:  &appv1.Cluster{},
 		syncTime: nil,
 		syncLock: &sync.Mutex{},
-		apis:     make(map[schema.GroupVersionKind]v1.APIResource),
+		apis:     make(map[schema.GroupVersionKind]metav1.APIResource),
 		log:      log.WithField("cluster", "test"),
+		settings: &settings.ArgoCDSettings{},
 	}
 }
 
@@ -133,7 +134,7 @@ metadata:
     app: helm-guestbook`)
 
 	managedObjs, err := cluster.getManagedLiveObjs(&appv1.Application{
-		ObjectMeta: v1.ObjectMeta{Name: "helm-guestbook"},
+		ObjectMeta: metav1.ObjectMeta{Name: "helm-guestbook"},
 		Spec: appv1.ApplicationSpec{
 			Destination: appv1.ApplicationDestination{
 				Namespace: "default",
@@ -205,8 +206,8 @@ func TestProcessNewChildEvent(t *testing.T) {
 
 func TestUpdateResourceTags(t *testing.T) {
 	pod := &corev1.Pod{
-		TypeMeta:   v1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
-		ObjectMeta: v1.ObjectMeta{Name: "testPod", Namespace: "default"},
+		TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: "testPod", Namespace: "default"},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
 				Name:  "test",

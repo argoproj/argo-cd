@@ -203,7 +203,7 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 		// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
 		// not want. We need to check if the namespace exists, before know if it is safe to run this
 		// command. Skip this for dryRuns.
-		if !dryRun {
+		if !dryRun && namespace != "" {
 			kubeClient, err := kubernetes.NewForConfig(config)
 			if err != nil {
 				return "", err
@@ -236,7 +236,10 @@ func (k KubectlCmd) ApplyResource(config *rest.Config, obj *unstructured.Unstruc
 }
 
 func runKubectl(kubeconfigPath string, namespace string, args []string, manifestBytes []byte, dryRun bool) (string, error) {
-	cmdArgs := append(append([]string{"--kubeconfig", kubeconfigPath, "-n", namespace}, args...), "-f", "-")
+	cmdArgs := append([]string{"--kubeconfig", kubeconfigPath, "-f", "-"}, args...)
+	if namespace != "" {
+		cmdArgs = append(cmdArgs, "-n", namespace)
+	}
 	if dryRun {
 		cmdArgs = append(cmdArgs, "--dry-run")
 	}

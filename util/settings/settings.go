@@ -59,6 +59,8 @@ type ArgoCDSettings struct {
 	Repositories []RepoCredentials
 	// Repositories holds list of configured helm repositories
 	HelmRepositories []HelmRepoCredentials
+	// AppInstanceLabelKey is the configured application instance label key used to label apps. May be empty
+	AppInstanceLabelKey string
 }
 
 type OIDCConfig struct {
@@ -112,6 +114,8 @@ const (
 	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
 	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
 	settingsWebhookBitbucketUUIDKey = "webhook.bitbucket.uuid"
+	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
+	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -218,6 +222,7 @@ func (mgr *SettingsManager) updateSettingsFromConfigMap(settings *ArgoCDSettings
 			return err
 		}
 	}
+	settings.AppInstanceLabelKey = argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	return nil
 }
 
@@ -301,7 +306,6 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	} else {
 		delete(argoCDCM.Data, settingsOIDCConfigKey)
 	}
-
 	if len(settings.Repositories) > 0 {
 		yamlStr, err := yaml.Marshal(settings.Repositories)
 		if err != nil {
@@ -311,7 +315,11 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	} else {
 		delete(argoCDCM.Data, repositoriesKey)
 	}
-
+	if settings.AppInstanceLabelKey != "" {
+		argoCDCM.Data[settingsApplicationInstanceLabelKey] = settings.AppInstanceLabelKey
+	} else {
+		delete(argoCDCM.Data, settingsApplicationInstanceLabelKey)
+	}
 	if createCM {
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
 	} else {
@@ -674,4 +682,11 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 		return val
 	}
 	return secretVal
+}
+
+func (a *ArgoCDSettings) GetAppInstanceLabelKey() string {
+	if a.AppInstanceLabelKey == "" {
+		return common.LabelKeyAppInstance
+	}
+	return a.AppInstanceLabelKey
 }

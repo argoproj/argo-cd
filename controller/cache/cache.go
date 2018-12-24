@@ -7,7 +7,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -19,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -35,6 +35,8 @@ type LiveStateCache interface {
 	Run(ctx context.Context)
 	// Deletes specified resource from cluster.
 	Delete(server string, obj *unstructured.Unstructured) error
+	// Invalidate invalidates the entire cluster state cache
+	Invalidate()
 }
 
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
@@ -48,7 +50,7 @@ func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isName
 	return key
 }
 
-func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, kubectl kube.Kubectl, onAppUpdated func(appName string)) LiveStateCache {
+func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settings *settings.ArgoCDSettings, kubectl kube.Kubectl, onAppUpdated func(appName string)) LiveStateCache {
 	return &liveStateCache{
 		appInformer:  appInformer,
 		db:           db,
@@ -56,6 +58,7 @@ func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, kube
 		lock:         &sync.Mutex{},
 		onAppUpdated: onAppUpdated,
 		kubectl:      kubectl,
+		settings:     settings,
 	}
 }
 
@@ -66,6 +69,7 @@ type liveStateCache struct {
 	appInformer  cache.SharedIndexInformer
 	onAppUpdated func(appName string)
 	kubectl      kube.Kubectl
+	settings     *settings.ArgoCDSettings
 }
 
 func (c *liveStateCache) processEvent(event watch.EventType, obj *unstructured.Unstructured, url string) error {
@@ -91,7 +95,6 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		info = &clusterInfo{
 			apis:         make(map[schema.GroupVersionKind]v1.APIResource),
 			lock:         &sync.Mutex{},
@@ -103,6 +106,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			syncTime:     nil,
 			syncLock:     &sync.Mutex{},
 			log:          log.WithField("server", cluster.Server),
+			settings:     c.settings,
 		}
 
 		c.clusters[cluster.Server] = info
@@ -130,6 +134,18 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func (c *liveStateCache) Invalidate() {
+	log.Info("invalidating live state cache")
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	for _, clust := range c.clusters {
+		clust.lock.Lock()
+		clust.invalidate()
+		clust.lock.Unlock()
+	}
+	log.Info("live state cache invalidated")
 }
 
 func (c *liveStateCache) Delete(server string, obj *unstructured.Unstructured) error {
