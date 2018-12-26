@@ -1,4 +1,4 @@
-import { FormAutocomplete, FormField } from 'argo-ui';
+import { Autocomplete } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
@@ -30,10 +30,22 @@ export const TagsEditor = ReactForm.FormField((props: {options: string[], noTags
                         api.resetAll();
                     }} validateError={(vals) => ({ path: !vals.path && 'Value is required.' })}>
                         {(api) => (
-                            <React.Fragment>
-                                <FormField field='path' formApi={api} componentProps={{options: props.options}} component={FormAutocomplete}/> <i className='fa fa-plus'
-                                    onClick={() => api.submitForm(null)}/>
-                            </React.Fragment>
+                            <div ref={(el) => {
+                                if (el && !el.onkeyup) {
+                                    el.onkeyup = (keyEvent) => keyEvent.keyCode === 13 && api.submitForm(null);
+                                }
+                            }}>
+                                <Autocomplete
+                                    options={props.options}
+                                    inputProps={{className: props.className, style: { borderBottom: 'none' }}}
+                                    wrapperProps={{className: props.className}} value={api.values.path} onChange={(val, e) => {
+                                        if (e.selected) {
+                                            setValue((getValue() || []).concat(val));
+                                        } else {
+                                            api.setValue('path', val);
+                                        }
+                                    }}/> <i className='fa fa-plus' onClick={() => api.submitForm(null)}/>
+                            </div>
                         )}
                     </ReactForm.Form>
                 </div>
