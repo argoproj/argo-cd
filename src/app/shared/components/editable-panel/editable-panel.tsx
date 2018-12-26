@@ -1,4 +1,5 @@
 import { ErrorNotification, NotificationType } from 'argo-ui';
+import * as classNames from 'classnames';
 import * as React from 'react';
 import { Form, FormApi } from 'react-form';
 
@@ -20,19 +21,19 @@ interface EditablePanelProps<T> {
 
 require('./editable-panel.scss');
 
-export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>, { edit: boolean; }> {
+export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>, { edit: boolean; saving: boolean }> {
 
     private formApi: FormApi;
 
     constructor(props: EditablePanelProps<T>) {
         super(props);
-        this.state = { edit: false };
+        this.state = { edit: false, saving: false };
     }
 
     public render() {
         return (
             <Consumer>{(ctx) => (
-            <div className='white-box editable-panel'>
+            <div className={classNames('white-box editable-panel', {'editable-panel--disabled': this.state.saving})}>
                 <div className='white-box__details'>
                     <div className='editable-panel__buttons'>
                         {!this.state.edit && (
@@ -40,8 +41,9 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                         )}
                         {this.state.edit && (
                             <React.Fragment>
-                                <button onClick={() => this.formApi.submitForm(null)} className='argo-button argo-button--base'>Save</button> <button
-                                    onClick={() => this.setState({ edit: false })} className='argo-button argo-button--base-o'>Cancel</button>
+                                <button disabled={this.state.saving} onClick={() => !this.state.saving && this.formApi.submitForm(null)} className='argo-button argo-button--base'>
+                                    Save
+                                </button> <button onClick={() => this.setState({ edit: false })} className='argo-button argo-button--base-o'>Cancel</button>
                             </React.Fragment>
                         )}
                     </div>
@@ -63,13 +65,16 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                     ) || (
                         <Form getApi={(api) => this.formApi = api} onSubmit={async (input) => {
                             try {
+                                this.setState({ saving: true });
                                 await this.props.save(input as any);
-                                this.setState({ edit: false });
+                                this.setState({ edit: false, saving: false });
                             } catch (e) {
                                 ctx.notifications.show({
                                     content: <ErrorNotification title='Unable to save changes' e={e}/>,
                                     type: NotificationType.Error,
                                 });
+                            } finally {
+                                this.setState({ saving: false });
                             }
                         }} defaultValues={this.props.values} validateError={this.props.validate}>
                         {(api) => (

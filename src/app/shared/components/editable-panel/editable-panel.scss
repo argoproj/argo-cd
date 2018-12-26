@@ -1,4 +1,8 @@
+@import 'node_modules/argo-ui/bundle/app/shared/styles/config';
+
 .editable-panel {
+    position: relative;
+
     &__buttons {
         position: absolute;
         top: 30px;
@@ -17,5 +21,17 @@
     .argo-form-row__error-msg {
         position: absolute;
         top: 0;
+    }
+
+    &--disabled::after {
+        content: '';
+        border-radius: 4px;
+        position: absolute;
+        display: block;
+        background: rgba($argo-color-gray-6, .2);
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
     }
 }
