@@ -34,9 +34,18 @@ type Kubectl interface {
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	WatchResources(ctx context.Context, config *rest.Config, namespace string) (chan watch.Event, error)
 	GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error)
+	GetAPIResources(config *rest.Config) ([]*metav1.APIResourceList, error)
 }
 
 type KubectlCmd struct{}
+
+func (k KubectlCmd) GetAPIResources(config *rest.Config) ([]*metav1.APIResourceList, error) {
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return disco.ServerResources()
+}
 
 // GetResources returns all kubernetes resources
 func (k KubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {

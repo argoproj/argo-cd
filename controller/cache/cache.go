@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/cache"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -19,10 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
-)
-
-const (
-	watchResourcesRetryTimeout = 10 * time.Second
 )
 
 type LiveStateCache interface {
@@ -73,7 +68,7 @@ type liveStateCache struct {
 }
 
 func (c *liveStateCache) processEvent(event watch.EventType, obj *unstructured.Unstructured, url string) error {
-	info, err := c.getCluster(url)
+	info, err := c.getSyncedCluster(url)
 	if err != nil {
 		return err
 	}
@@ -89,6 +84,7 @@ func (c *liveStateCache) removeCluster(server string) {
 
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	info, ok := c.clusters[server]
 	if !ok {
 		cluster, err := c.db.GetCluster(context.Background(), server)
@@ -110,26 +106,16 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 		}
 
 		c.clusters[cluster.Server] = info
-		disco, err := discovery.NewDiscoveryClientForConfig(cluster.RESTConfig())
-		if err != nil {
-			return nil, err
-		}
-		resources, err := disco.ServerResources()
-		if err != nil {
-			return nil, err
-		}
-		for _, r := range resources {
-			gv, err := schema.ParseGroupVersion(r.GroupVersion)
-			if err != nil {
-				gv = schema.GroupVersion{}
-			}
-			for i := range r.APIResources {
-				info.apis[gv.WithKind(r.APIResources[i].Kind)] = r.APIResources[i]
-			}
-		}
 	}
-	c.lock.Unlock()
-	err := info.ensureSynced()
+	return info, nil
+}
+
+func (c *liveStateCache) getSyncedCluster(server string) (*clusterInfo, error) {
+	info, err := c.getCluster(server)
+	if err != nil {
+		return nil, err
+	}
+	err = info.ensureSynced()
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +135,7 @@ func (c *liveStateCache) Invalidate() {
 }
 
 func (c *liveStateCache) Delete(server string, obj *unstructured.Unstructured) error {
-	clusterInfo, err := c.getCluster(server)
+	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
 	}
@@ -157,7 +143,7 @@ func (c *liveStateCache) Delete(server string, obj *unstructured.Unstructured) e
 }
 
 func (c *liveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error) {
-	clusterInfo, err := c.getCluster(server)
+	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return false, err
 	}
@@ -165,7 +151,7 @@ func (c *liveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind
 }
 
 func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error) {
-	clusterInfo, err := c.getCluster(server)
+	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +159,7 @@ func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructur
 }
 
 func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	clusterInfo, err := c.getCluster(a.Spec.Destination.Server)
+	clusterInfo, err := c.getSyncedCluster(a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +240,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 
 		return c.db.WatchClusters(ctx, clusterEventCallback)
 
-	}, "watch clusters", ctx, watchResourcesRetryTimeout)
+	}, "watch clusters", ctx, clusterRetryTimeout)
 
 	<-ctx.Done()
 }
@@ -294,5 +280,5 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.C
 			}
 		}
 		return fmt.Errorf("resource updates channel has closed")
-	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, watchResourcesRetryTimeout)
+	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, clusterRetryTimeout)
 }

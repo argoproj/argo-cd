@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -19,7 +21,8 @@ import (
 )
 
 const (
-	clusterSyncTimeout = 1 * time.Hour
+	clusterSyncTimeout  = 1 * time.Hour
+	clusterRetryTimeout = 10 * time.Second
 )
 
 type clusterInfo struct {
@@ -32,6 +35,7 @@ type clusterInfo struct {
 	cluster      *appv1.Cluster
 	syncLock     *sync.Mutex
 	syncTime     *time.Time
+	syncError    error
 	log          *log.Entry
 	settings     *settings.ArgoCDSettings
 }
@@ -91,19 +95,39 @@ func (c *clusterInfo) invalidate() {
 }
 
 func (c *clusterInfo) synced() bool {
-	return c.syncTime != nil && time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
+	if c.syncTime == nil {
+		return false
+	}
+	if c.syncError != nil {
+		return time.Now().Before(c.syncTime.Add(clusterRetryTimeout))
+	}
+	return time.Now().Before(c.syncTime.Add(clusterSyncTimeout))
 }
 
-func (c *clusterInfo) ensureSynced() error {
-	if c.synced() {
-		return nil
-	}
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
-	if c.synced() {
-		return nil
-	}
+func (c *clusterInfo) sync() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+	}()
+
 	c.log.Info("Start syncing cluster")
+
+	clusterResources, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig())
+	if err != nil {
+		return err
+	}
+	c.apis = make(map[schema.GroupVersionKind]metav1.APIResource)
+	for _, r := range clusterResources {
+		gv, err := schema.ParseGroupVersion(r.GroupVersion)
+		if err != nil {
+			gv = schema.GroupVersion{}
+		}
+		for i := range r.APIResources {
+			c.apis[gv.WithKind(r.APIResources[i].Kind)] = r.APIResources[i]
+		}
+	}
+
 	c.nodes = make(map[kube.ResourceKey]*node)
 	resources, err := c.kubectl.GetResources(c.cluster.RESTConfig(), "")
 	if err != nil {
@@ -116,10 +140,25 @@ func (c *clusterInfo) ensureSynced() error {
 		c.setNode(createObjInfo(resources[i], appLabelKey))
 	}
 
-	resyncTime := time.Now()
-	c.syncTime = &resyncTime
 	c.log.Info("Cluster successfully synced")
 	return nil
+}
+
+func (c *clusterInfo) ensureSynced() error {
+	if c.synced() {
+		return c.syncError
+	}
+	c.syncLock.Lock()
+	defer c.syncLock.Unlock()
+	if c.synced() {
+		return c.syncError
+	}
+
+	err := c.sync()
+	syncTime := time.Now()
+	c.syncTime = &syncTime
+	c.syncError = err
+	return c.syncError
 }
 
 func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.ResourceNode {
