@@ -3,6 +3,8 @@ package kubetest
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -15,9 +17,14 @@ type KubectlOutput struct {
 }
 
 type MockKubectlCmd struct {
-	Resources []*unstructured.Unstructured
-	Commands  map[string]KubectlOutput
-	Events    chan watch.Event
+	APIResources []*v1.APIResourceList
+	Resources    []*unstructured.Unstructured
+	Commands     map[string]KubectlOutput
+	Events       chan watch.Event
+}
+
+func (k MockKubectlCmd) GetAPIResources(config *rest.Config) ([]*v1.APIResourceList, error) {
+	return k.APIResources, nil
 }
 
 func (k MockKubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {
