@@ -94,9 +94,16 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	if urls != nil {
 		for _, url := range urls {
 			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
-				items = append(items, appsv1.Repository{Repo: url, ConnectionState: s.getConnectionState(ctx, url)})
+				items = append(items, appsv1.Repository{Repo: url})
 			}
 		}
+	}
+	err = util.RunAllAsync(len(items), func(i int) error {
+		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return &appsv1.RepositoryList{Items: items}, nil
 }
