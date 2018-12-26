@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
@@ -77,18 +78,29 @@ func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) 
 // List returns list of clusters
 func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
-	if clusterList != nil {
-		newItems := make([]appv1.Cluster, 0)
-		for _, clust := range clusterList.Items {
-			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, clust.Server) {
-				if clust.ConnectionState.Status == "" {
-					clust.ConnectionState = s.getConnectionState(ctx, clust)
-				}
-				newItems = append(newItems, *redact(&clust))
-			}
-		}
-		clusterList.Items = newItems
+	if err != nil {
+		return nil, err
 	}
+	newItems := make([]appv1.Cluster, 0)
+	for _, clust := range clusterList.Items {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, clust.Server) {
+			newItems = append(newItems, *redact(&clust))
+		}
+	}
+
+	err = util.RunAllAsync(len(newItems), func(i int) error {
+		clust := newItems[i]
+		if clust.ConnectionState.Status == "" {
+			clust.ConnectionState = s.getConnectionState(ctx, clust)
+		}
+		newItems[i] = clust
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	clusterList.Items = newItems
 	return clusterList, err
 }
 
