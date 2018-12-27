@@ -15,6 +15,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -24,6 +25,15 @@ var (
 		Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 	}
 )
+
+func unmarshalFile(path string) *unstructured.Unstructured {
+	data, err := ioutil.ReadFile(path)
+	errors.CheckError(err)
+	var un unstructured.Unstructured
+	err = json.Unmarshal(data, &un.Object)
+	errors.CheckError(err)
+	return &un
+}
 
 func TestDiff(t *testing.T) {
 	leftDep := test.DemoDeployment()
@@ -234,34 +244,19 @@ func TestThreeWayDiffExample1(t *testing.T) {
 }
 
 func TestThreeWayDiffExample2(t *testing.T) {
-	configData, err := ioutil.ReadFile("testdata/elasticsearch-config.json")
-	assert.NoError(t, err)
-	liveData, err := ioutil.ReadFile("testdata/elasticsearch-live.json")
-	assert.NoError(t, err)
-	var configUn, liveUn unstructured.Unstructured
-	err = json.Unmarshal(configData, &configUn.Object)
-	assert.NoError(t, err)
-	err = json.Unmarshal(liveData, &liveUn.Object)
-	assert.NoError(t, err)
-	dr := Diff(&configUn, &liveUn)
+	configUn := unmarshalFile("testdata/elasticsearch-config.json")
+	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
+	dr := Diff(configUn, liveUn)
 	assert.False(t, dr.Modified)
-	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
+	ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
 	log.Println(ascii)
 }
 
 // TestThreeWayDiffExample2WithDifference is same as TestThreeWayDiffExample2 but with differences
 func TestThreeWayDiffExample2WithDifference(t *testing.T) {
-	configData, err := ioutil.ReadFile("testdata/elasticsearch-config.json")
-	assert.NoError(t, err)
-	liveData, err := ioutil.ReadFile("testdata/elasticsearch-live.json")
-	assert.NoError(t, err)
-	var configUn, liveUn unstructured.Unstructured
-	err = json.Unmarshal(configData, &configUn.Object)
-	assert.NoError(t, err)
-	err = json.Unmarshal(liveData, &liveUn.Object)
-	assert.NoError(t, err)
-
+	configUn := unmarshalFile("testdata/elasticsearch-config.json")
+	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
 	labels := configUn.GetLabels()
 	// add a new label
 	labels["foo"] = "bar"
@@ -271,9 +266,9 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	delete(labels, "release")
 	configUn.SetLabels(labels)
 
-	dr := Diff(&configUn, &liveUn)
+	dr := Diff(configUn, liveUn)
 	assert.True(t, dr.Modified)
-	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
+	ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
 	log.Println(ascii)
 
@@ -301,18 +296,11 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 }
 
 func TestThreeWayDiffExplicitNamespace(t *testing.T) {
-	configData, err := ioutil.ReadFile("testdata/spinnaker-sa-config.json")
-	assert.NoError(t, err)
-	liveData, err := ioutil.ReadFile("testdata/spinnaker-sa-live.json")
-	assert.NoError(t, err)
-	var configUn, liveUn unstructured.Unstructured
-	err = json.Unmarshal(configData, &configUn.Object)
-	assert.NoError(t, err)
-	err = json.Unmarshal(liveData, &liveUn.Object)
-	assert.NoError(t, err)
-	dr := Diff(&configUn, &liveUn)
+	configUn := unmarshalFile("testdata/spinnaker-sa-config.json")
+	liveUn := unmarshalFile("testdata/spinnaker-sa-live.json")
+	dr := Diff(configUn, liveUn)
 	assert.False(t, dr.Modified)
-	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
+	ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
 	log.Println(ascii)
 }
@@ -460,19 +448,41 @@ func TestInvalidSecretStringData(t *testing.T) {
 }
 
 func TestNullSecretData(t *testing.T) {
-	configData, err := ioutil.ReadFile("testdata/wordpress-config.json")
-	assert.NoError(t, err)
-	liveData, err := ioutil.ReadFile("testdata/wordpress-live.json")
-	assert.NoError(t, err)
-	var configUn, liveUn unstructured.Unstructured
-	err = json.Unmarshal(configData, &configUn.Object)
-	assert.NoError(t, err)
-	err = json.Unmarshal(liveData, &liveUn.Object)
-	assert.NoError(t, err)
-
-	dr := Diff(&configUn, &liveUn)
+	configUn := unmarshalFile("testdata/wordpress-config.json")
+	liveUn := unmarshalFile("testdata/wordpress-live.json")
+	dr := Diff(configUn, liveUn)
 	if !assert.False(t, dr.Modified) {
-		ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
+		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
+		assert.Nil(t, err)
+		log.Println(ascii)
+	}
+}
+
+// TestRedactedSecretData tests we are able to perform diff on redacted secret data, which has
+// invalid characters (*) for the the data byte array field.
+func TestRedactedSecretData(t *testing.T) {
+	configUn := unmarshalFile("testdata/wordpress-config.json")
+	liveUn := unmarshalFile("testdata/wordpress-live.json")
+	configData := configUn.Object["data"].(map[string]interface{})
+	liveData := liveUn.Object["data"].(map[string]interface{})
+	configData["wordpress-password"] = "***"
+	configData["smtp-password"] = "***"
+	liveData["wordpress-password"] = "******"
+	liveData["smtp-password"] = "******"
+	dr := Diff(configUn, liveUn)
+	if !assert.True(t, dr.Modified) {
+		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
+		assert.Nil(t, err)
+		log.Println(ascii)
+	}
+}
+
+func TestNullRoleRule(t *testing.T) {
+	configUn := unmarshalFile("testdata/grafana-clusterrole-config.json")
+	liveUn := unmarshalFile("testdata/grafana-clusterrole-live.json")
+	dr := Diff(configUn, liveUn)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
