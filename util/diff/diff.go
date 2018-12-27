@@ -33,15 +33,15 @@ type DiffResultList struct {
 func Diff(config, live *unstructured.Unstructured) *DiffResult {
 	if config != nil {
 		config = stripTypeInformation(config)
-		NormalizeSecret(config)
+		Normalize(config)
 	}
 	if live != nil {
 		live = stripTypeInformation(live)
-		NormalizeSecret(live)
+		Normalize(live)
 	}
 	orig := GetLastAppliedConfigAnnotation(live)
 	if orig != nil && config != nil {
-		NormalizeSecret(orig)
+		Normalize(orig)
 		dr, err := ThreeWayDiff(orig, config, live)
 		if err == nil {
 			return dr
@@ -240,6 +240,18 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 	return asciiFmt.Format(d.Diff)
 }
 
+func Normalize(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	gvk := un.GroupVersionKind()
+	if gvk.Group == "" && gvk.Kind == "Secret" {
+		NormalizeSecret(un)
+	} else if gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role") {
+		normalizeRole(un)
+	}
+}
+
 // NormalizeSecret mutates the supplied object and encodes stringData to data, and converts nils to
 // empty strings. If the object is not a secret, or is an invalid secret, then returns the same object.
 func NormalizeSecret(un *unstructured.Unstructured) {
@@ -253,7 +265,6 @@ func NormalizeSecret(un *unstructured.Unstructured) {
 	var secret corev1.Secret
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &secret)
 	if err != nil {
-		log.Warnf("object unable to convert to secret: %v", err)
 		return
 	}
 	// We normalize nils to empty string to handle: https://github.com/argoproj/argo-cd/issues/943
@@ -282,6 +293,28 @@ func NormalizeSecret(un *unstructured.Unstructured) {
 			log.Warnf("failed to set secret.data: %v", err)
 			return
 		}
+	}
+}
+
+// normalizeRole mutates the supplied Role/ClusterRole and sets rules to null if it is an empty list
+func normalizeRole(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	gvk := un.GroupVersionKind()
+	if gvk.Group != "rbac.authorization.k8s.io" || (gvk.Kind != "Role" && gvk.Kind != "ClusterRole") {
+		return
+	}
+	rulesIf, ok := un.Object["rules"]
+	if !ok {
+		return
+	}
+	rules, ok := rulesIf.([]interface{})
+	if !ok {
+		return
+	}
+	if rules != nil && len(rules) == 0 {
+		un.Object["rules"] = nil
 	}
 }
 
