@@ -748,7 +748,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				item := items[i]
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live)
-				fmt.Printf("===== %s/%s %s/%s======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
+				fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 				if diffRes.Modified || item.target == nil || item.live == nil {
 					formatOpts := formatter.AsciiFormatterConfig{
 						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
@@ -818,12 +818,12 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			var fmtStr string
-			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "CONDITIONS"}
+			headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
 			if output == "wide" {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 				headers = append(headers, "REPO", "PATH", "TARGET")
 			} else {
-				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+				fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 			}
 			fmt.Fprintf(w, fmtStr, headers...)
 			for _, app := range apps.Items {
@@ -834,6 +834,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app.Spec.GetProject(),
 					app.Status.Sync.Status,
 					app.Status.Health.Status,
+					formatSyncPolicy(app),
 					formatConditionsSummary(app),
 				}
 				if output == "wide" {
@@ -846,6 +847,17 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	}
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
 	return command
+}
+
+func formatSyncPolicy(app argoappv1.Application) string {
+	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+		return "<none>"
+	}
+	policy := "Auto"
+	if app.Spec.SyncPolicy.Automated.Prune {
+		policy = policy + "-Prune"
+	}
+	return policy
 }
 
 func formatConditionsSummary(app argoappv1.Application) string {
