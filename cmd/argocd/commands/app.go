@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
+	"os/exec"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -14,11 +17,11 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/yudai/gojsondiff/formatter"
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/yudai/gojsondiff"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -659,9 +662,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		env     string
 		values  []string
 	)
+	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
-		Short: "Perform a diff against the target and live state",
+		Short: shortDesc,
+		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -750,16 +755,18 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				diffRes := diff.Diff(item.target, item.live)
 				fmt.Printf("===== %s/%s %s/%s======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 				if diffRes.Modified || item.target == nil || item.live == nil {
-					formatOpts := formatter.AsciiFormatterConfig{
-						Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
+					var live *unstructured.Unstructured
+					var target *unstructured.Unstructured
+					if item.target != nil && item.live != nil {
+						target = item.live
+						live = item.live.DeepCopy()
+						gojsondiff.New().ApplyPatch(live.Object, diffRes.Diff)
+					} else {
+						live = item.live
+						target = item.target
 					}
-					liveObj := item.live
-					if liveObj == nil {
-						liveObj = &unstructured.Unstructured{Object: make(map[string]interface{})}
-					}
-					out, err := diffRes.ASCIIFormat(liveObj, formatOpts)
-					errors.CheckError(err)
-					fmt.Println(out)
+
+					printDiff(item.key.Name, live, target)
 				}
 			}
 
@@ -770,6 +777,43 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
 	command.Flags().StringArrayVar(&values, "values", []string{}, "Helm values file(s) in the helm directory to use")
 	return command
+}
+
+func printDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) {
+	tempDir, err := ioutil.TempDir("", "argocd-diff")
+	errors.CheckError(err)
+
+	targetFile := path.Join(tempDir, fmt.Sprintf("%s", name))
+	targetData := []byte("")
+	if target != nil {
+		targetData, err = yaml.Marshal(target)
+		errors.CheckError(err)
+	}
+	err = ioutil.WriteFile(targetFile, targetData, 0644)
+	errors.CheckError(err)
+
+	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
+	liveData := []byte("")
+	if live != nil {
+		liveData, err = yaml.Marshal(live)
+		errors.CheckError(err)
+	}
+	err = ioutil.WriteFile(liveFile, liveData, 0644)
+	errors.CheckError(err)
+
+	cmdBinary := "diff"
+	var args []string
+	if envDiff := os.Getenv("KUBECTL_EXTERNAL_DIFF"); envDiff != "" {
+		parts, err := shlex.Split(envDiff)
+		errors.CheckError(err)
+		cmdBinary = parts[0]
+		args = parts[1:]
+	}
+
+	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	_ = cmd.Run()
 }
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
