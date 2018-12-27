@@ -20,7 +20,7 @@ export const Help = () => (
                     <div className='help-box__ico help-box__ico--email'/>
                     <h3>Contact</h3>
                     <a className='help-box__link' target='_blank' href='https://groups.google.com/forum/#!forum/argoproj'>Argo Community</a>
-                    <a className='help-box__link' target='_blank' href='https://argoproj.slack.com'>Slack Channel</a>
+                    <a className='help-box__link' target='_blank' href='http://argoproj.io/community/join-slack'>Slack Channel</a>
                 </div>
             </div>
             <div className='columns large-4 medium-12'>
