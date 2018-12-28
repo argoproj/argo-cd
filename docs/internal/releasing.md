@@ -18,8 +18,7 @@ git push upstream release-X.Y
 3. Update VERSION and manifests with new version
 ```bash
 vi VERSION # ensure value is desired X.Y.Z semantic version
-vi manifests/base/kustomization.yaml # update with new image tags
-make manifests
+make manifests IMAGE_TAG=vX.Y.Z
 git commit -a -m "Update manifests to vX.Y.Z"
 git push upstream release-X.Y
 ```
