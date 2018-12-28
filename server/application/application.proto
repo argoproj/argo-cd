@@ -97,6 +97,17 @@ message ApplicationResourceRequest {
 	required string kind = 6 [(gogoproto.nullable) = false];
 }
 
+message ApplicationResourcePatchRequest {
+	required string name = 1;
+	required string namespace = 2 [(gogoproto.nullable) = false];
+	required string resourceName = 3 [(gogoproto.nullable) = false];
+	required string version = 4 [(gogoproto.nullable) = false];
+	required string group = 5 [(gogoproto.nullable) = false];
+	required string kind = 6 [(gogoproto.nullable) = false];
+	required string patch = 7 [(gogoproto.nullable) = false];
+	required string patchType = 8 [(gogoproto.nullable) = false];
+}
+
 message ApplicationResourceDeleteRequest {
 	required string name = 1;
 	required string namespace = 2 [(gogoproto.nullable) = false];
@@ -227,6 +238,11 @@ service ApplicationService {
 	// GetResource returns single application resource
 	rpc GetResource(ApplicationResourceRequest) returns (ApplicationResourceResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource";
+	}
+
+	// PatchResource patch single application resource
+	rpc PatchResource(ApplicationResourcePatchRequest) returns (ApplicationResourceResponse) {
+		option (google.api.http).post = "/api/v1/applications/{name}/resource";
 	}
 
 	// DeleteResource deletes a single application resource

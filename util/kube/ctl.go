@@ -12,19 +12,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/util"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/util"
 )
 
 type Kubectl interface {
@@ -32,6 +33,7 @@ type Kubectl interface {
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
+	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
 	WatchResources(ctx context.Context, config *rest.Config, namespace string) (chan watch.Event, error)
 	GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config) ([]*metav1.APIResourceList, error)
@@ -157,6 +159,25 @@ func (k KubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind
 	resource := gvk.GroupVersion().WithResource(apiResource.Name)
 	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
 	return resourceIf.Get(name, metav1.GetOptions{})
+}
+
+// PatchResource patches resource
+func (k KubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
+	dynamicIf, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	if err != nil {
+		return nil, err
+	}
+	resource := gvk.GroupVersion().WithResource(apiResource.Name)
+	resourceIf := ToResourceInterface(dynamicIf, apiResource, resource, namespace)
+	return resourceIf.Patch(name, patchType, patchBytes, metav1.UpdateOptions{})
 }
 
 // DeleteResource deletes resource
