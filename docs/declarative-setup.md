@@ -110,6 +110,8 @@ Example:
 apiVersion: v1
 data:
   helm.repositories: |
+    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
+      name: istio.io
     - url: https://argoproj.github.io/argo-helm
       name: argo
       caUsername:

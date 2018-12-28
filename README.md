@@ -1,4 +1,6 @@
-[![codecov](https://codecov.io/gh/argoproj/argo-cd/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/argo-cd)
+[![slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://codecov.io/gh/argoproj/argo-cd)
+[![codecov](https://codecov.io/gh/argoproj/argo-cd/branch/master/graph/badge.svg)](https://argoproj.github.io/community/join-slack)
+
 
 # Argo CD - Declarative Continuous Delivery for Kubernetes
 
@@ -15,6 +17,13 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 ## Getting Started
 
+### Quickstart
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0-rc2/manifests/install.yaml
+```
+
 Follow our [getting started guide](docs/getting_started.md). Further [documentation](docs/)
 is provided for additional features.
 
@@ -25,7 +34,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 * [ksonnet](https://ksonnet.io) applications
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* Plain directory of YAML/json manifests
+* Plain directory of YAML/json/jsonnet manifests
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of
@@ -35,7 +44,6 @@ details about the different tracking strategies available.
 For a quick 10 minute overview of Argo CD, check out the demo presented to the Sig Apps community
 meeting:
 [![Alt text](https://img.youtube.com/vi/aWDIQMbp1cc/0.jpg)](https://youtu.be/aWDIQMbp1cc?t=1m4s)
-
 
 
 ## Architecture
@@ -68,8 +76,15 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Parameter overrides for overriding ksonnet/helm parameters in git
 * Service account/access key management for CI pipelines
 
+## Project Resources
+* Argo GitHub:  https://github.com/argoproj
+* Argo Slack:   [click here to join](https://argoproj.github.io/community/join-slack)
+* Argo website: https://argoproj.github.io/
+* Argo forum:   https://groups.google.com/forum/#!forum/argoproj
+
+
 ## Development Status
-* Argo CD is being used in production to deploy SaaS services at Intuit
+* Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
 
 ## Roadmap
 ### v0.11
@@ -85,6 +100,8 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Helm repository support
 
 ### v0.12
-* UI improvements
 * Support for custom K8S manifest templating engines
-
+* Support for custom health assessments (e.g. CRD health)
+* Improved prometheus metrics
+* Higher availability
+* UI improvements

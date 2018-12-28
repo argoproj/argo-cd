@@ -9,7 +9,7 @@ An example guestbook application is provided to demonstrate how Argo CD works.
 ## 1. Install Argo CD
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.10.6/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0-rc2/manifests/install.yaml
 ```
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
@@ -18,13 +18,6 @@ NOTE:
 ```bash
 kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
 ```
-
-> Argo CD v0.11.0-rc1 is available for testing. The v0.11 dramatically improves performance and introduces new features such as support for very large applications,
-> multi-namespaces apps and many more. Full description and CLI binaries are available via following URL: https://github.com/argoproj/argo-cd/releases/tag/v0.11.0-rc1
-> ```
-> kubectl create namespace argocd
-> kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0-rc1/manifests/install.yaml
-> ```
 
 ## 2. Download Argo CD CLI
 
@@ -38,7 +31,7 @@ brew install argoproj/tap/argocd
 On Linux:
 
 ```bash
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.10.6/argocd-linux-amd64
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.11.0-rc2/argocd-linux-amd64
 chmod +x /usr/local/bin/argocd
 ```
 
