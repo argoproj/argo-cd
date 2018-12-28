@@ -551,6 +551,42 @@ func replaceSecretValues(obj *unstructured.Unstructured) error {
 	return nil
 }
 
+// PatchResource patches a resource
+func (s *Server) PatchResource(ctx context.Context, q *ApplicationResourcePatchRequest) (*ApplicationResourceResponse, error) {
+	resourceRequest := &ApplicationResourceRequest{
+		Name:         q.Name,
+		Namespace:    q.Namespace,
+		ResourceName: q.ResourceName,
+		Kind:         q.Kind,
+		Version:      q.Version,
+		Group:        q.Group,
+	}
+	res, config, a, err := s.getAppResource(ctx, rbacpolicy.ActionUpdate, resourceRequest)
+	if err != nil {
+		return nil, err
+	}
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)) {
+		return nil, grpc.ErrPermissionDenied
+	}
+
+	manifest, err := s.kubectl.PatchResource(config, res.GroupKindVersion(), res.Name, res.Namespace, types.PatchType(q.PatchType), []byte(q.Patch))
+	if err != nil {
+		return nil, err
+	}
+	err = replaceSecretValues(manifest)
+	if err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(manifest.Object)
+	if err != nil {
+		return nil, err
+	}
+	return &ApplicationResourceResponse{
+		Manifest: string(data),
+	}, nil
+}
+
+// DeleteResource deletes a specificed resource
 func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDeleteRequest) (*ApplicationResponse, error) {
 	resourceRequest := &ApplicationResourceRequest{
 		Name:         q.Name,

@@ -464,6 +464,29 @@
           }
         }
       },
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "PatchResource patch single application resource",
+        "operationId": "PatchResource",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResourceResponse"
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "ApplicationService"
