@@ -42,24 +42,24 @@ argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s ht
 Permitted source git repositories are managed using commands:
 
 ```bash
-argocd project add-source <PROJECT> <REPO>
-argocd project remove-source <PROJECT> <REPO>
+argocd proj add-source <PROJECT> <REPO>
+argocd proj remove-source <PROJECT> <REPO>
 ```
 
 Permitted destination clusters and namespaces are managed with the commands:
 ```
-argocd project add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
-argocd project remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
+argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
+argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
 
 Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
 resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
 whitelist.
 ```
-argocd project allow-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd project allow-namespace-resource <PROJECT> <GROUP> <KIND>
-argocd project deny-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd project deny-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
+argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
+argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
 ```
 
 ### Assign application to a project
