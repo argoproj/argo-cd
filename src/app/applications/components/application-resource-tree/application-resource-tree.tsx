@@ -91,7 +91,10 @@ export const ApplicationResourceTree = (props: {
         children: Array(),
         status: props.app.status.sync.status,
         health: props.app.status.health,
-        tags: (props.app.spec.source.componentParameterOverrides || []).length > 0 ? [`${props.app.spec.source.componentParameterOverrides.length} parameter override(s)`] : [],
+        info: (props.app.spec.source.componentParameterOverrides || []).length > 0 ? [{
+            name: 'Parameter overrides',
+            value: `${props.app.spec.source.componentParameterOverrides.length} parameter override(s)`,
+        }] : [],
     };
     graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
 
