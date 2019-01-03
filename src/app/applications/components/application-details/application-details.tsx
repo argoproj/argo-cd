@@ -205,7 +205,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 {isAppSelected && (
                                     <Tabs navTransparent={true} tabs={[{
                                         title: 'SUMMARY', key: 'summary', content: (
-                                            <DataLoader load={() => services.repos.appDetails(
+                                            <DataLoader key='appDetails' load={() => services.repos.appDetails(
                                                 application.spec.source.repoURL,
                                                 application.spec.source.path,
                                                 application.spec.source.targetRevision,
@@ -216,6 +216,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     }, {
                                         title: 'PARAMETERS', key: 'parameters', content: (
                                             <DataLoader
+                                                key='appParameters'
                                                 input={{name: application.metadata.name, revision: application.spec.source.targetRevision}}
                                                 load={(input) => services.applications.getManifest(input.name, input.revision).then((res) => res.params || [])}>
                                             {(params: appModels.ComponentParameter[]) =>
