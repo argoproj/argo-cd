@@ -29,33 +29,34 @@ RUN wget https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-lin
     chmod +x /usr/local/bin/dep
 
 # Install gometalinter
-RUN curl -sLo- https://github.com/alecthomas/gometalinter/releases/download/v2.0.5/gometalinter-2.0.5-linux-amd64.tar.gz | \
+ENV GOMETALINTER_VERSION=2.0.12
+RUN curl -sLo- https://github.com/alecthomas/gometalinter/releases/download/v${GOMETALINTER_VERSION}/gometalinter-${GOMETALINTER_VERSION}-linux-amd64.tar.gz | \
     tar -xzC "$GOPATH/bin" --exclude COPYING --exclude README.md --strip-components 1 -f- && \
     ln -s $GOPATH/bin/gometalinter $GOPATH/bin/gometalinter.v2
 
 # Install packr
-ENV PACKR_VERSION=1.13.2
+ENV PACKR_VERSION=1.21.9
 RUN wget https://github.com/gobuffalo/packr/releases/download/v${PACKR_VERSION}/packr_${PACKR_VERSION}_linux_amd64.tar.gz && \
     tar -vxf packr*.tar.gz -C /tmp/ && \
     mv /tmp/packr /usr/local/bin/packr
 
 # Install kubectl
-RUN curl -L -o /usr/local/bin/kubectl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
+# NOTE: keep the version synced with https://storage.googleapis.com/kubernetes-release/release/stable.txt
+ENV KUBECTL_VERSION=1.13.1
+RUN curl -L -o /usr/local/bin/kubectl -LO https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
     chmod +x /usr/local/bin/kubectl
 
 # Install ksonnet
-# NOTE: we frequently switch between tip of master ksonnet vs. official builds. Comment/uncomment
-# the corresponding section to switch between the two options:
-# Option 1: build ksonnet ourselves
-#RUN go get -v -u github.com/ksonnet/ksonnet && mv ${GOPATH}/bin/ksonnet /usr/local/bin/ks
-# Option 2: use official tagged ksonnet release
-ENV KSONNET_VERSION=0.13.0
+ENV KSONNET_VERSION=0.13.1
 RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks
+# NOTE: we occasionally switch between tip of master ksonnet vs. official builds. Run the following
+# to use tip instead of official release:
+#RUN go get -v -u github.com/ksonnet/ksonnet && mv ${GOPATH}/bin/ksonnet /usr/local/bin/ks
 
 # Install helm
-ENV HELM_VERSION=2.11.0
+ENV HELM_VERSION=2.12.1
 RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     tar -C /tmp/ -xf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     mv /tmp/linux-amd64/helm /usr/local/bin/helm
@@ -65,6 +66,7 @@ ENV KUSTOMIZE_VERSION=1.0.11
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize
 
+# Install AWS IAM Authenticator
 ENV AWS_IAM_AUTHENTICATOR_VERSION=0.4.0-alpha.1
 RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/${AWS_IAM_AUTHENTICATOR_VERSION}/aws-iam-authenticator_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/aws-iam-authenticator
