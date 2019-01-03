@@ -1,2 +1,6 @@
 ignore:
-  - "**/*.pb.go"
+- "**/*.pb.go"
+- "**/*_test.go"
+- "pkg/apis/.*"
+- "pkg/client/.*"
+- "test/.*"
