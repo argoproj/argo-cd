@@ -56,7 +56,9 @@ func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) 
 		ModifiedAt: &now,
 	}
 
-	kubeClientset, err := kubernetes.NewForConfig(cluster.RESTConfig())
+	config := cluster.RESTConfig()
+	config.Timeout = time.Second
+	kubeClientset, err := kubernetes.NewForConfig(config)
 	if err == nil {
 		_, err = kubeClientset.Discovery().ServerVersion()
 	}
