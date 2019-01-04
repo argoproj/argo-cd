@@ -17,6 +17,13 @@ argocd app set guestbook -p guestbook=image=example/guestbook:abcd123
 argocd app sync guestbook
 ```
 
+The `PARAM` is expected to be a normal YAML path
+
+```bash
+argocd app set guestbook -p guestbook=ingress.enabled=true
+argocd app set guestbook -p guestbook=ingress.hosts[0]=guestbook.myclusterurl
+```
+
 The following are situations where parameter overrides would be useful:
 
 1. A team maintains a "dev" environment, which needs to be continually updated with the latest
