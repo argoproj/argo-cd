@@ -294,14 +294,17 @@ func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	return repo
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, overrides *[]v1alpha1.ComponentParameter) error {
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) error {
 
 	var nextID int64 = 0
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
 	}
+	if overrides == nil {
+		overrides = app.Spec.Source.ComponentParameterOverrides
+	}
 	history := append(app.Status.History, v1alpha1.RevisionHistory{
-		ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+		ComponentParameterOverrides: overrides,
 		Revision:                    revision,
 		DeployedAt:                  metav1.NewTime(time.Now().UTC()),
 		ID:                          nextID,

@@ -16,7 +16,6 @@ const (
 	FakeArgoCDNamespace = "fake-argocd-ns"
 	FakeDestNamespace   = "fake-dest-ns"
 	FakeClusterURL      = "https://fake-cluster:443"
-	TestAppInstanceName = "test-app-instance"
 )
 
 var (
