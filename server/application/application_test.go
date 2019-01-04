@@ -282,3 +282,25 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.Equal(t, appsv1.OperationTerminating, app.Status.OperationState.Phase)
 }
+
+func TestRollbackApp(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Status.History = []appsv1.RevisionHistory{{
+		ID:       1,
+		Revision: "abc",
+	}}
+	appServer := newTestAppServer(testApp)
+
+	updatedApp, err := appServer.Rollback(context.Background(), &ApplicationRollbackRequest{
+		Name: &testApp.Name,
+		ID:   1,
+	})
+
+	assert.Nil(t, err)
+
+	assert.NotNil(t, updatedApp.Operation)
+	assert.NotNil(t, updatedApp.Operation.Sync)
+	assert.NotNil(t, updatedApp.Operation.Sync.ParameterOverrides)
+	assert.Len(t, updatedApp.Operation.Sync.ParameterOverrides, 0)
+	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
+}
