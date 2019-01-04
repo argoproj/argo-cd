@@ -3,7 +3,7 @@
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM golang:1.10.3 as builder
+FROM golang:1.11.4 as builder
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -75,7 +75,7 @@ RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernete
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM golang:1.10.3 as argocd-build
+FROM golang:1.11.4 as argocd-build
 
 COPY --from=builder /usr/local/bin/dep /usr/local/bin/dep
 COPY --from=builder /usr/local/bin/packr /usr/local/bin/packr
