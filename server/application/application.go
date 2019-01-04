@@ -775,6 +775,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if deploymentInfo == nil {
 		return nil, fmt.Errorf("application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
 	}
+	overrides := deploymentInfo.ComponentParameterOverrides
+	// Nil overrides in deployment history means no overrides, so sync operation request should contains empty overrides set
+	if overrides == nil {
+		overrides = make([]appv1.ComponentParameter, 0)
+	}
 	// Rollback is just a convenience around Sync
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
@@ -782,7 +787,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 			DryRun:             rollbackReq.DryRun,
 			Prune:              rollbackReq.Prune,
 			SyncStrategy:       &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
-			ParameterOverrides: deploymentInfo.ComponentParameterOverrides,
+			ParameterOverrides: overrides,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)

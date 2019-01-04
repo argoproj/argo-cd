@@ -12,12 +12,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
@@ -409,4 +411,48 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	assert.Len(t, syncCtx.syncRes.Resources, 0)
 	syncCtx.sync()
 	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
+}
+
+func TestPersistRevisionHistory(t *testing.T) {
+	app := newFakeApp()
+	defaultProject := &v1alpha1.AppProject{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: test.FakeArgoCDNamespace,
+			Name:      "default",
+		},
+	}
+	data := fakeData{
+		apps: []runtime.Object{app, defaultProject},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
+
+	ctrl.appStateManager.SyncAppState(app, &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}})
+
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, v1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(updatedApp.Status.History))
+	assert.Equal(t, 0, len(updatedApp.Status.History[0].ComponentParameterOverrides))
+	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
+
+	overrides := []v1alpha1.ComponentParameter{{Name: "test", Value: "123"}}
+	ctrl.appStateManager.SyncAppState(app, &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			ParameterOverrides: overrides,
+		},
+	}})
+
+	updatedApp, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, v1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(updatedApp.Status.History))
+	assert.ElementsMatch(t, overrides, updatedApp.Status.History[0].ComponentParameterOverrides)
+	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
