@@ -86,7 +86,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 	newItems := make([]appv1.Cluster, 0)
 	for _, clust := range clusterList.Items {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, clust.Server) {
-			newItems = append(newItems, *redact(&clust))
+			newItems = append(newItems, clust)
 		}
 	}
 
@@ -95,7 +95,7 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 		if clust.ConnectionState.Status == "" {
 			clust.ConnectionState = s.getConnectionState(ctx, clust)
 		}
-		newItems[i] = clust
+		newItems[i] = *redact(&clust)
 		return nil
 	})
 	if err != nil {
