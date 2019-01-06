@@ -31,6 +31,10 @@ const (
 	AuthCookieName = "argocd.token"
 	// RevisionHistoryLimit is the max number of successful sync to keep in history
 	RevisionHistoryLimit = 10
+	// K8sClientConfigQPS controls the QPS to be used in K8s REST client configs
+	K8sClientConfigQPS = 25
+	// K8sClientConfigBurst controls the burst to be used in K8s REST client configs
+	K8sClientConfigBurst = 50
 )
 
 // Dex related constants
@@ -88,4 +92,7 @@ const (
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
 	EnvVarRBACDebug = "ARGOCD_RBAC_DEBUG"
+	// EnvVarFakeInClusterConfig is an environment variable to fake an in-cluster RESTConfig using
+	// the current kubectl context (for development purposes)
+	EnvVarFakeInClusterConfig = "ARGOCD_FAKE_IN_CLUSTER"
 )
