@@ -721,9 +721,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	expired := app.Status.ObservedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		refreshType = requestedType
-		reason = fmt.Sprintf("refresh requested (%s)", refreshType)
+		reason = fmt.Sprintf("%s refresh requested", refreshType)
 	} else if ctrl.isRefreshRequested(app.Name) {
-		reason = fmt.Sprintf("refresh requested (%s)", refreshType)
+		reason = fmt.Sprintf("controller refresh requested")
 	} else if app.Status.Sync.Status == appv1.SyncStatusCodeUnknown && expired {
 		reason = "comparison status unknown"
 	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {

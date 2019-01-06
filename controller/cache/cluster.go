@@ -7,7 +7,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -283,9 +283,10 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 			n := nodes[i]
 			if ns, ok := c.nsIndex[n.ref.Namespace]; ok {
 				app := n.getApp(ns)
-				if app != "" {
-					toNotify[app] = true
+				if app == "" || skipAppRequeing(key) {
+					continue
 				}
+				toNotify[app] = true
 			}
 		}
 
@@ -295,4 +296,16 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 	}
 
 	return nil
+}
+
+var (
+	ignoredRefreshResources = map[string]bool{
+		"/" + kube.EndpointsKind: true,
+	}
+)
+
+// skipAppRequeing checks if the object is an API type which we want to skip requeuing against.
+// We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
+func skipAppRequeing(key kube.ResourceKey) bool {
+	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }
