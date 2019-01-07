@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -673,6 +673,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if !needRefresh {
 		return
 	}
+	startTime := time.Now()
+	defer func() {
+		logCtx := log.WithFields(log.Fields{"application": origApp.Name})
+		logCtx.Infof("Reconciliation completed in %v", time.Now().Sub(startTime))
+	}()
 	// NOTE: normalization returns a copy
 	app := ctrl.normalizeApplication(origApp)
 

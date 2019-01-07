@@ -247,15 +247,20 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 			var targetObj *unstructured.Unstructured
 			if resourceState.Target != nil {
 				targetObj = resourceState.Target.DeepCopy()
-				gvk := targetObj.GroupVersionKind()
-				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
-				if err == nil && targetObj.GetNamespace() == "" && serverRes.Namespaced {
+				if targetObj.GetNamespace() == "" {
+					// If target object's namespace is empty, we set namespace in the object. We do
+					// this even though it might be a cluster-scoped resource. This prevents any
+					// possibility of the resource from unintentionally becoming created in the
+					// namespace during the `kubectl apply`
 					targetObj.SetNamespace(sc.namespace)
 				}
+				gvk := targetObj.GroupVersionKind()
+				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
 
 				if err != nil {
-					// Special case for custom resources: if custom resource definition is not supported by the cluster by defined in application then
-					// skip verification using `kubectl apply --dry-run` and since CRD should be created during app synchronization.
+					// Special case for custom resources: if CRD is not yet known by the K8s API server,
+					// skip verification during `kubectl apply --dry-run` since we expect the CRD
+					// to be created during app synchronization.
 					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, gvk.Group, gvk.Kind) {
 						skipDryRun = true
 					} else {
