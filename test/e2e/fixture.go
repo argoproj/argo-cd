@@ -61,6 +61,7 @@ type Fixture struct {
 	ApiServerAddress        string
 	ControllerServerAddress string
 	Enforcer                *rbac.Enforcer
+	SettingsMgr             *settings.SettingsManager
 
 	tearDownCallback func()
 }
@@ -96,8 +97,7 @@ func (f *Fixture) setup() error {
 		return err
 	}
 
-	settingsMgr := settings.NewSettingsManager(f.KubeClient, f.Namespace)
-	err = settingsMgr.SaveSettings(&settings.ArgoCDSettings{})
+	err = f.SettingsMgr.SaveSettings(&settings.ArgoCDSettings{})
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,8 @@ func (f *Fixture) setup() error {
 	f.ApiServerAddress = fmt.Sprintf("127.0.0.1:%d", apiServerPort)
 	f.ControllerServerAddress = fmt.Sprintf("127.0.0.1:%d", controllerServerPort)
 
-	apiServer := server.NewServer(server.ArgoCDServerOpts{
+	ctx, cancel := context.WithCancel(context.Background())
+	apiServer := server.NewServer(ctx, server.ArgoCDServerOpts{
 		Namespace:              f.Namespace,
 		AppClientset:           f.AppClient,
 		DisableAuth:            true,
@@ -143,7 +144,6 @@ func (f *Fixture) setup() error {
 		AppControllerClientset: controller.NewAppControllerClientset(f.ControllerServerAddress),
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		apiServer.Run(ctx, apiServerPort)
 	}()
@@ -167,7 +167,11 @@ func (f *Fixture) setup() error {
 		return err
 	}
 
-	ctrl := f.createController()
+	ctrl, err := f.createController()
+	if err != nil {
+		cancel()
+		return err
+	}
 	controllerServerGRPC, err := ctrl.CreateGRPC(func(config *tls.Config) {})
 	if err != nil {
 		cancel()
@@ -278,7 +282,7 @@ func NewFixture() (*Fixture, error) {
 	if err != nil {
 		return nil, err
 	}
-	settingsMgr := settings.NewSettingsManager(kubeClient, namespace)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, namespace)
 	db := db.NewDB(namespace, settingsMgr, kubeClient)
 	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName, nil)
 	err = enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
@@ -295,6 +299,7 @@ func NewFixture() (*Fixture, error) {
 		KubeClient:       kubeClient,
 		Namespace:        namespace,
 		Enforcer:         enforcer,
+		SettingsMgr:      settingsMgr,
 	}
 	err = fixture.setup()
 	if err != nil {
@@ -325,9 +330,10 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 }
 
 // createController creates new controller instance
-func (f *Fixture) createController() *controller.ApplicationController {
+func (f *Fixture) createController() (*controller.ApplicationController, error) {
 	return controller.NewApplicationController(
 		f.Namespace,
+		f.SettingsMgr,
 		f.KubeClient,
 		f.AppClient,
 		reposerver.NewRepositoryServerClientset(f.RepoServerAddress),

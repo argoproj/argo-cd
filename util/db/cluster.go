@@ -29,24 +29,27 @@ var (
 
 // ListClusters returns list of clusters
 func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
-	listOpts := metav1.ListOptions{}
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
 	if err != nil {
 		return nil, err
 	}
 	labelSelector = labelSelector.Add(*req)
-	listOpts.LabelSelector = labelSelector.String()
-	clusterSecrets, err := db.kubeclientset.CoreV1().Secrets(db.ns).List(listOpts)
+
+	secretsLister, err := db.settingsMgr.GetSecretsLister()
+	if err != nil {
+		return nil, err
+	}
+	clusterSecrets, err := secretsLister.Secrets(db.ns).List(labelSelector)
 	if err != nil {
 		return nil, err
 	}
 	clusterList := appv1.ClusterList{
-		Items: make([]appv1.Cluster, len(clusterSecrets.Items)),
+		Items: make([]appv1.Cluster, len(clusterSecrets)),
 	}
 	hasInClusterCredentials := false
-	for i, clusterSecret := range clusterSecrets.Items {
-		cluster := *secretToCluster(&clusterSecret)
+	for i, clusterSecret := range clusterSecrets {
+		cluster := *secretToCluster(clusterSecret)
 		clusterList.Items[i] = cluster
 		if cluster.Server == common.KubernetesInternalAPIServerAddr {
 			hasInClusterCredentials = true
@@ -160,9 +163,13 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
+	secretsLister, err := db.settingsMgr.GetSecretsLister()
+	if err != nil {
+		return nil, err
+	}
 	for _, name := range []string{secName, legacySecName} {
 		var clusterSecret *apiv1.Secret
-		clusterSecret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Get(name, metav1.GetOptions{})
+		clusterSecret, err = secretsLister.Secrets(db.ns).Get(name)
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				err = status.Errorf(codes.NotFound, "cluster %q not found", server)

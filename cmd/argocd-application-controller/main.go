@@ -24,6 +24,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
 )
@@ -66,15 +67,18 @@ func newCommand() *cobra.Command {
 
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
 			repoClientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
-			appController := controller.NewApplicationController(
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
+			appController, err := controller.NewApplicationController(
 				namespace,
+				settingsMgr,
 				kubeClient,
 				appClient,
 				repoClientset,
 				resyncDuration)
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			errors.CheckError(err)
 
 			log.Infof("Application Controller (version: %s) starting (namespace: %s)", argocd.GetVersion(), namespace)
 			stats.RegisterStackDumper()

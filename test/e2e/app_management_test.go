@@ -6,6 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-cd/util/diff"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,11 +124,11 @@ func TestAppManagement(t *testing.T) {
 	})
 
 	t.Run("TestAppRollbackSuccessful", func(t *testing.T) {
-		appWithHistory := testApp.DeepCopy()
-
 		// create app and ensure it's comparion status is not SyncStatusCodeUnknown
-		app := fixture.CreateApp(t, appWithHistory)
-		app.Status.History = []v1alpha1.RevisionHistory{{
+		app := fixture.CreateApp(t, testApp)
+
+		appWithHistory := app.DeepCopy()
+		appWithHistory.Status.History = []v1alpha1.RevisionHistory{{
 			ID:                          1,
 			Revision:                    "abc",
 			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
@@ -133,10 +137,11 @@ func TestAppManagement(t *testing.T) {
 			Revision:                    "cdb",
 			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
 		}}
-		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Update(app)
-		if err != nil {
-			t.Fatalf("Unable to update app %v", err)
-		}
+		patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &v1alpha1.Application{})
+		assert.Nil(t, err)
+
+		app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Patch(app.Name, types.MergePatchType, patch)
+		assert.Nil(t, err)
 
 		// sync app and make sure it reaches InSync state
 		_, err = fixture.RunCli("app", "rollback", app.Name, "1")

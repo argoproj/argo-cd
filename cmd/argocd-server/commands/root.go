@@ -77,9 +77,9 @@ func NewCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 
 			for {
-				argocd := server.NewServer(argoCDOpts)
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
+				argocd := server.NewServer(ctx, argoCDOpts)
 				argocd.Run(ctx, 8080)
 				cancel()
 			}

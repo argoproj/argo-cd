@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -120,7 +121,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		return
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, m.appclientset, m.namespace)
+	proj, err := argo.GetAppProject(&app.Spec, v1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
