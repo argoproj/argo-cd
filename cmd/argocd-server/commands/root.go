@@ -44,6 +44,8 @@ func NewCommand() *cobra.Command {
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
+			config.QPS = common.K8sClientConfigQPS
+			config.Burst = common.K8sClientConfigBurst
 
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
