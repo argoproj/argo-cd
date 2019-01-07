@@ -143,6 +143,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, re
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) (*comparisonResult, error) {
+	logCtx := log.WithField("application", app.Name)
+	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 	observedAt := metav1.Now()
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -153,14 +155,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
-
+	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
-
+	logCtx.Debugf("Retrieved lived manifests")
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
 			appInstanceName := kubeutil.GetAppInstanceLabel(liveObj, appLabelKey)
@@ -188,7 +190,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			managedLiveObj[i] = nil
 		}
 	}
-
+	logCtx.Debugf("built managed objects list")
 	// Everything remaining in liveObjByKey are "extra" resources that aren't tracked in git.
 	// The following adds all the extras to the managedLiveObj list and backfills the targetObj
 	// list with nils, so that the lists are of equal lengths for comparison purposes.
@@ -196,8 +198,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		targetObjs = append(targetObjs, nil)
 		managedLiveObj = append(managedLiveObj, obj)
 	}
-
-	log.Infof("Comparing app %s state in cluster %s (namespace: %s)", app.ObjectMeta.Name, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	// Do the actual comparison
 	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj)
