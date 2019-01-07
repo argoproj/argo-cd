@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
@@ -786,43 +788,50 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 
 // RESTConfig returns a go-client REST config from cluster
 func (c *Cluster) RESTConfig() *rest.Config {
-	if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
-		config, err := rest.InClusterConfig()
-		if err != nil {
-			panic("Unable to create in-cluster config")
+	var config *rest.Config
+	var err error
+	if c.Server == common.KubernetesInternalAPIServerAddr && os.Getenv(common.EnvVarFakeInClusterConfig) == "true" {
+		config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+	} else if c.Server == common.KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+		config, err = rest.InClusterConfig()
+	} else {
+		tlsClientConfig := rest.TLSClientConfig{
+			Insecure:   c.Config.TLSClientConfig.Insecure,
+			ServerName: c.Config.TLSClientConfig.ServerName,
+			CertData:   c.Config.TLSClientConfig.CertData,
+			KeyData:    c.Config.TLSClientConfig.KeyData,
+			CAData:     c.Config.TLSClientConfig.CAData,
 		}
-		return config
-	}
-	tlsClientConfig := rest.TLSClientConfig{
-		Insecure:   c.Config.TLSClientConfig.Insecure,
-		ServerName: c.Config.TLSClientConfig.ServerName,
-		CertData:   c.Config.TLSClientConfig.CertData,
-		KeyData:    c.Config.TLSClientConfig.KeyData,
-		CAData:     c.Config.TLSClientConfig.CAData,
-	}
-	if c.Config.AWSAuthConfig != nil {
-		args := []string{"token", "-i", c.Config.AWSAuthConfig.ClusterName}
-		if c.Config.AWSAuthConfig.RoleARN != "" {
-			args = append(args, "-r", c.Config.AWSAuthConfig.RoleARN)
+		if c.Config.AWSAuthConfig != nil {
+			args := []string{"token", "-i", c.Config.AWSAuthConfig.ClusterName}
+			if c.Config.AWSAuthConfig.RoleARN != "" {
+				args = append(args, "-r", c.Config.AWSAuthConfig.RoleARN)
+			}
+			config = &rest.Config{
+				Host:            c.Server,
+				TLSClientConfig: tlsClientConfig,
+				ExecProvider: &api.ExecConfig{
+					APIVersion: "client.authentication.k8s.io/v1alpha1",
+					Command:    "aws-iam-authenticator",
+					Args:       args,
+				},
+			}
+		} else {
+			config = &rest.Config{
+				Host:            c.Server,
+				Username:        c.Config.Username,
+				Password:        c.Config.Password,
+				BearerToken:     c.Config.BearerToken,
+				TLSClientConfig: tlsClientConfig,
+			}
 		}
-		return &rest.Config{
-			Host:            c.Server,
-			TLSClientConfig: tlsClientConfig,
-			ExecProvider: &api.ExecConfig{
-				APIVersion: "client.authentication.k8s.io/v1alpha1",
-				Command:    "aws-iam-authenticator",
-				Args:       args,
-			},
-		}
 	}
-
-	return &rest.Config{
-		Host:            c.Server,
-		Username:        c.Config.Username,
-		Password:        c.Config.Password,
-		BearerToken:     c.Config.BearerToken,
-		TLSClientConfig: tlsClientConfig,
+	if err != nil {
+		panic("Unable to create K8s REST config")
 	}
+	config.QPS = common.K8sClientConfigQPS
+	config.Burst = common.K8sClientConfigBurst
+	return config
 }
 
 func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error) {

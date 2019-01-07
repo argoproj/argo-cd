@@ -17,7 +17,7 @@ import (
 	// load the oidc plugin (required to authenticate with OpenID Connect).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
-	"github.com/argoproj/argo-cd"
+	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
@@ -54,6 +54,8 @@ func newCommand() *cobra.Command {
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
+			config.QPS = common.K8sClientConfigQPS
+			config.Burst = common.K8sClientConfigBurst
 			errors.CheckError(err)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
