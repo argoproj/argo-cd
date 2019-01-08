@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,7 +46,7 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 
 func TestCreateRepository(t *testing.T) {
 	clientset := getClientset(nil)
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
@@ -69,7 +69,7 @@ func TestCreateExistingRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{
 		"repositories": `- url: https://github.com/argoproj/argocd-example-apps`,
 	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	_, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
@@ -104,7 +104,7 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 			password: []byte("test-password"),
 		},
 	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	err := db.DeleteRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
 	assert.Nil(t, err)
@@ -139,7 +139,7 @@ func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
 			password: []byte("test-password"),
 		},
 	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	err := db.DeleteRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
 	assert.Nil(t, err)
@@ -182,7 +182,7 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 			sshPrivateKey: []byte("test-ssh-private-key"),
 		},
 	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	repo, err := db.GetRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
 	assert.Nil(t, err)
@@ -216,7 +216,7 @@ func TestGetClusterSuccessful(t *testing.T) {
 		},
 	})
 
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	cluster, err := db.GetCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 	assert.Equal(t, clusterURL, cluster.Server)
@@ -226,7 +226,7 @@ func TestGetNonExistingCluster(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clientset := getClientset(nil)
 
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	_, err := db.GetCluster(context.Background(), clusterURL)
 	assert.NotNil(t, err)
 	status, ok := status.FromError(err)
@@ -249,7 +249,7 @@ func TestGetClusterFallbackToLegacyName(t *testing.T) {
 		},
 	})
 
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	cluster, err := db.GetCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 	assert.Equal(t, clusterURL, cluster.Server)
@@ -258,7 +258,7 @@ func TestGetClusterFallbackToLegacyName(t *testing.T) {
 func TestCreateClusterSuccessful(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clientset := getClientset(nil)
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
 		Server: clusterURL,
@@ -287,7 +287,7 @@ func TestDeleteClusterWithLegacyName(t *testing.T) {
 		},
 	})
 
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	err := db.DeleteCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 
@@ -315,7 +315,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 		},
 	})
 
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	err := db.DeleteCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 
@@ -328,7 +328,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 func TestFuzzyEquivalence(t *testing.T) {
 	clientset := getClientset(nil)
 	ctx := context.Background()
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(ctx, &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-apps",
@@ -387,7 +387,7 @@ func TestListHelmRepositories(t *testing.T) {
 			"key":      []byte("test-key"),
 		},
 	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	repos, err := db.ListHelmRepos(context.Background())
 	assert.Nil(t, err)

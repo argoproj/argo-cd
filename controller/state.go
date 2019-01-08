@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
@@ -68,6 +69,7 @@ type appStateManager struct {
 	db             db.ArgoDB
 	settings       *settings.ArgoCDSettings
 	appclientset   appclientset.Interface
+	projInformer   cache.SharedIndexInformer
 	kubectl        kubeutil.Kubectl
 	repoClientset  reposerver.Clientset
 	liveStateCache statecache.LiveStateCache
@@ -335,6 +337,7 @@ func NewAppStateManager(
 	kubectl kubeutil.Kubectl,
 	settings *settings.ArgoCDSettings,
 	liveStateCache statecache.LiveStateCache,
+	projInformer cache.SharedIndexInformer,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache: liveStateCache,
@@ -344,5 +347,6 @@ func NewAppStateManager(
 		repoClientset:  repoClientset,
 		namespace:      namespace,
 		settings:       settings,
+		projInformer:   projInformer,
 	}
 }

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/kube"
-
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,14 +21,15 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	applicationsv1 "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
@@ -267,8 +266,8 @@ func verifyOneSourceType(source *argoappv1.ApplicationSource) *argoappv1.Applica
 }
 
 // GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, appclientset appclientset.Interface, ns string) (*argoappv1.AppProject, error) {
-	return appclientset.ArgoprojV1alpha1().AppProjects(ns).Get(spec.GetProject(), metav1.GetOptions{})
+func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string) (*argoappv1.AppProject, error) {
+	return projLister.AppProjects(ns).Get(spec.GetProject())
 }
 
 // queryAppSourceType queries repo server for yaml files in a directory, and determines its

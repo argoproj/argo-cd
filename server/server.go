@@ -184,8 +184,8 @@ func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDS
 }
 
 // NewServer returns a new instance of the Argo CD API server
-func NewServer(opts ArgoCDServerOpts) *ArgoCDServer {
-	settingsMgr := settings_util.NewSettingsManager(opts.KubeClientset, opts.Namespace)
+func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
+	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 
 	settings, err := initializeSettings(settingsMgr, opts)
 	errors.CheckError(err)
@@ -334,8 +334,7 @@ func (a *ArgoCDServer) Shutdown() {
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (a *ArgoCDServer) watchSettings(ctx context.Context) {
-	a.settingsMgr.StartNotifier(ctx, a.settings)
-	updateCh := make(chan struct{}, 1)
+	updateCh := make(chan *settings_util.ArgoCDSettings, 1)
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
@@ -351,7 +350,8 @@ func (a *ArgoCDServer) watchSettings(ctx context.Context) {
 	}
 
 	for {
-		<-updateCh
+		newSettings := <-updateCh
+		a.settings = newSettings
 		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
 		errors.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {

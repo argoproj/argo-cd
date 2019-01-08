@@ -7,13 +7,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
+	testcore "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	testcore "k8s.io/client-go/testing"
+	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -42,7 +46,12 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	testApp.Name = "test-app"
 	testApp.Namespace = namespace
 	appClientset := appclientset.NewSimpleClientset(testProj)
-	proj, err := GetAppProject(&testApp.Spec, appClientset, namespace)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	informer := v1alpha1.NewAppProjectInformer(appClientset, namespace, 0, cache.Indexers{})
+	go informer.Run(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
