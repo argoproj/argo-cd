@@ -21,6 +21,7 @@
     "Exclude": [
         "pkg/client",
         "vendor/",
-        ".pb.go"
+        ".pb.go",
+        ".*warning.*fmt.Fprint"
     ]
 }
