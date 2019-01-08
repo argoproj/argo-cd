@@ -11,16 +11,17 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/informers/core/v1"
+
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -122,18 +123,16 @@ const (
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
-	ctx             context.Context
-	clientset       kubernetes.Interface
-	secrets         v1listers.SecretLister
-	configmaps      v1listers.ConfigMapLister
-	cmInformer      cache.SharedIndexInformer
-	secretsInformer cache.SharedIndexInformer
-	namespace       string
+	ctx        context.Context
+	clientset  kubernetes.Interface
+	secrets    v1listers.SecretLister
+	configmaps v1listers.ConfigMapLister
+	namespace  string
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex       *sync.Mutex
-	initialized bool
+	mutex             *sync.Mutex
+	initContextCancel func()
 }
 
 type incompleteSettingsError struct {
@@ -145,16 +144,16 @@ func (e *incompleteSettingsError) Error() string {
 }
 
 func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
-	err := mgr.ensureInitialized()
+	err := mgr.ensureInitialized(false)
 	if err != nil {
 		return nil, err
 	}
-	return v1listers.NewSecretLister(mgr.secretsInformer.GetIndexer()), nil
+	return mgr.secrets, nil
 }
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
-	err := mgr.ensureInitialized()
+	err := mgr.ensureInitialized(false)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +180,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 
 // MigrateLegacyRepoSettings migrates legacy (v0.10 and below) repo secrets into the v0.11 configmap
 func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) error {
-	err := mgr.ensureInitialized()
+	err := mgr.ensureInitialized(false)
 	if err != nil {
 		return err
 	}
@@ -226,31 +225,29 @@ func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) 
 	return nil
 }
 
-func (mgr *SettingsManager) ensureInitialized() error {
-	if mgr.initialized {
-		return nil
+func (mgr *SettingsManager) initialize(ctx context.Context) error {
+	tweakConfigMap := func(options *metav1.ListOptions) {
+		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))
+		options.FieldSelector = cmFieldSelector.String()
 	}
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
 
-	if mgr.initialized {
-		return nil
-	}
+	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, cache.Indexers{}, tweakConfigMap)
+	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, cache.Indexers{})
+
 	log.Info("Starting configmap/secret informers")
 	go func() {
-		mgr.cmInformer.Run(mgr.ctx.Done())
+		cmInformer.Run(ctx.Done())
 		log.Info("configmap informer cancelled")
 	}()
 	go func() {
-		mgr.secretsInformer.Run(mgr.ctx.Done())
+		secretsInformer.Run(ctx.Done())
 		log.Info("secrets informer cancelled")
 	}()
 
-	if !cache.WaitForCacheSync(mgr.ctx.Done(), mgr.cmInformer.HasSynced, mgr.secretsInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
 		return fmt.Errorf("Timed out waiting for settings cache to sync")
 	}
-	log.Info("Configmap/secret informer initialized")
-	syncTime := time.Now()
+	log.Info("Configmap/secret informer synched")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()
@@ -260,10 +257,11 @@ func (mgr *SettingsManager) ensureInitialized() error {
 			mgr.notifySubscribers(newSettings)
 		}
 	}
+	now := time.Now()
 	handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if metaObj, ok := obj.(metav1.Object); ok {
-				if metaObj.GetCreationTimestamp().After(syncTime) {
+				if metaObj.GetCreationTimestamp().After(now) {
 					tryNotify()
 				}
 			}
@@ -277,10 +275,29 @@ func (mgr *SettingsManager) ensureInitialized() error {
 			}
 		},
 	}
-	mgr.secretsInformer.AddEventHandler(handler)
-	mgr.cmInformer.AddEventHandler(handler)
-	mgr.initialized = true
+	secretsInformer.AddEventHandler(handler)
+	cmInformer.AddEventHandler(handler)
+	mgr.secrets = v1listers.NewSecretLister(secretsInformer.GetIndexer())
+	mgr.configmaps = v1listers.NewConfigMapLister(cmInformer.GetIndexer())
 	return nil
+}
+
+func (mgr *SettingsManager) ensureInitialized(forceResync bool) error {
+	if !forceResync && mgr.secrets != nil && mgr.configmaps != nil {
+		return nil
+	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+
+	if !forceResync && mgr.secrets != nil && mgr.configmaps != nil {
+		return nil
+	}
+	if mgr.initContextCancel != nil {
+		mgr.initContextCancel()
+	}
+	ctx, cancel := context.WithCancel(mgr.ctx)
+	mgr.initContextCancel = cancel
+	return mgr.initialize(ctx)
 }
 
 func (mgr *SettingsManager) updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) error {
@@ -355,7 +372,7 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
 func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.ensureInitialized()
+	err := mgr.ensureInitialized(false)
 	if err != nil {
 		return err
 	}
@@ -460,28 +477,24 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return mgr.ResyncInformers()
 }
 
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string) *SettingsManager {
-	tweakConfigMap := func(options *metav1.ListOptions) {
-		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))
-		options.FieldSelector = cmFieldSelector.String()
-	}
-	cmInformer := v1.NewFilteredConfigMapInformer(clientset, namespace, 3*time.Minute, cache.Indexers{}, tweakConfigMap)
-	secretsInformer := v1.NewSecretInformer(clientset, namespace, 3*time.Minute, cache.Indexers{})
 
-	return &SettingsManager{
-		ctx:             ctx,
-		cmInformer:      cmInformer,
-		secretsInformer: secretsInformer,
-		clientset:       clientset,
-		secrets:         v1listers.NewSecretLister(secretsInformer.GetIndexer()),
-		configmaps:      v1listers.NewConfigMapLister(cmInformer.GetIndexer()),
-		namespace:       namespace,
-		mutex:           &sync.Mutex{},
+	mgr := &SettingsManager{
+		ctx:       ctx,
+		clientset: clientset,
+		namespace: namespace,
+		mutex:     &sync.Mutex{},
 	}
+
+	return mgr
+}
+
+func (mgr *SettingsManager) ResyncInformers() error {
+	return mgr.ensureInitialized(true)
 }
 
 // IsSSOConfigured returns whether or not single-sign-on is configured

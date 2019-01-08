@@ -86,7 +86,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		}
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
 }
 
 // ClusterEvent contains information about cluster event
@@ -208,7 +208,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	return secretToCluster(clusterSecret), nil
+	return secretToCluster(clusterSecret), db.settingsMgr.ResyncInformers()
 }
 
 // Delete deletes a cluster by name
@@ -229,12 +229,15 @@ func (db *db) DeleteCluster(ctx context.Context, name string) error {
 	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD || secret.Name == legacySecName
 
 	if canDelete {
-		return db.kubeclientset.CoreV1().Secrets(db.ns).Delete(secret.Name, &metav1.DeleteOptions{})
+		err = db.kubeclientset.CoreV1().Secrets(db.ns).Delete(secret.Name, &metav1.DeleteOptions{})
 	} else {
 		delete(secret.Labels, common.LabelKeySecretType)
 		_, err = db.kubeclientset.CoreV1().Secrets(db.ns).Update(secret)
+	}
+	if err != nil {
 		return err
 	}
+	return db.settingsMgr.ResyncInformers()
 }
 
 // serverToSecretName
