@@ -81,17 +81,15 @@ func NewRunDexCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
-			settings, err := settingsMgr.GetSettings()
+			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			prevSettings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
-			ctx := context.Background()
-			settingsMgr.StartNotifier(ctx, settings)
-			updateCh := make(chan struct{}, 1)
+			updateCh := make(chan *settings.ArgoCDSettings, 1)
 			settingsMgr.Subscribe(updateCh)
 
 			for {
 				var cmd *exec.Cmd
-				dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
+				dexCfgBytes, err := dex.GenerateDexConfigYAML(prevSettings)
 				errors.CheckError(err)
 				if len(dexCfgBytes) == 0 {
 					log.Infof("dex is not configured")
@@ -108,10 +106,11 @@ func NewRunDexCommand() *cobra.Command {
 
 				// loop until the dex config changes
 				for {
-					<-updateCh
-					newDexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
+					newSettings := <-updateCh
+					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings)
 					errors.CheckError(err)
 					if string(newDexCfgBytes) != string(dexCfgBytes) {
+						prevSettings = newSettings
 						log.Infof("dex config modified. restarting dex")
 						if cmd != nil && cmd.Process != nil {
 							err = cmd.Process.Signal(syscall.SIGTERM)
@@ -146,7 +145,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
@@ -224,7 +223,7 @@ func NewImportCommand() *cobra.Command {
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
-			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 			err = settingsMgr.SaveSettings(newSettings)
 			errors.CheckError(err)
 			db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -278,7 +277,7 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
-			settingsMgr := settings.NewSettingsManager(kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			// certificate data is included in secrets that are exported alongside
@@ -372,7 +371,7 @@ func NewSettingsCommand() *cobra.Command {
 
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
-			settingsMgr := settings.NewSettingsManager(kubeclientset, namespace)
+			settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, namespace)
 
 			_, err = settings.UpdateSettings(superuserPassword, settingsMgr, updateSignature, updateSuperuser, namespace)
 			errors.CheckError(err)
@@ -411,7 +410,7 @@ func NewClusterConfig() *cobra.Command {
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 
-			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
+			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(context.Background(), kubeclientset, namespace), kubeclientset).GetCluster(context.Background(), serverUrl)
 			errors.CheckError(err)
 			err = kube.WriteKubeConfig(cluster.RESTConfig(), namespace, output)
 			errors.CheckError(err)

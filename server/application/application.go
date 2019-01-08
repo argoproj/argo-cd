@@ -426,7 +426,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 }
 
 func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) error {
-	proj, err := argo.GetAppProject(spec, s.appclientset, s.ns)
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(spec.GetProject(), metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application referencing project %s which does not exist", spec.Project)

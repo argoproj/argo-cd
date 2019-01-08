@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -58,8 +57,11 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
 	secret, ok := cache[name]
 	if !ok {
-		var err error
-		secret, err = db.kubeclientset.CoreV1().Secrets(db.ns).Get(name, metav1.GetOptions{})
+		secretsLister, err := db.settingsMgr.GetSecretsLister()
+		if err != nil {
+			return nil, err
+		}
+		secret, err = secretsLister.Secrets(db.ns).Get(name)
 		if err != nil {
 			return nil, err
 		}

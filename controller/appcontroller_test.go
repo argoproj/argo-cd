@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -25,6 +26,7 @@ import (
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/repository/mocks"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type fakeData struct {
@@ -63,14 +65,24 @@ func newFakeController(data *fakeData) *ApplicationController {
 		},
 		Data: nil,
 	}
-	ctrl := NewApplicationController(
+	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
-		fake.NewSimpleClientset(&clust, &cm, &secret),
+		settingsMgr,
+		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
 		time.Minute,
 	)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go ctrl.projInformer.Run(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), ctrl.projInformer.HasSynced)
 
+	if err != nil {
+		panic(err)
+	}
 	// Mock out call to GetManagedLiveObjs if fake data supplied
 	if data.managedLiveObjs != nil {
 		mockStateCache := mockstatecache.LiveStateCache{}

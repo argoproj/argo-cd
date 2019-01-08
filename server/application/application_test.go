@@ -97,7 +97,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	enforcer.SetDefaultRole("role:admin")
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(kubeclientset, testNamespace), kubeclientset)
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace), kubeclientset)
 	ctx := context.Background()
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	errors.CheckError(err)
@@ -119,7 +119,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	settingsMgr := settings.NewSettingsManager(kubeclientset, testNamespace)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 
 	objects = append(objects, defaultProj)
 	server := NewServer(

@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -37,6 +38,8 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -62,6 +65,7 @@ type ApplicationController struct {
 	appRefreshQueue           workqueue.RateLimitingInterface
 	appOperationQueue         workqueue.RateLimitingInterface
 	appInformer               cache.SharedIndexInformer
+	projInformer              cache.SharedIndexInformer
 	appStateManager           AppStateManager
 	stateCache                statecache.LiveStateCache
 	statusRefreshTimeout      time.Duration
@@ -83,13 +87,17 @@ type ApplicationControllerConfig struct {
 // NewApplicationController creates new instance of ApplicationController.
 func NewApplicationController(
 	namespace string,
+	settingsMgr *settings_util.SettingsManager,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
 	appResyncPeriod time.Duration,
-) *ApplicationController {
-	settingsMgr := settings_util.NewSettingsManager(kubeClientset, namespace)
+) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
+	settings, err := settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
 	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
 		namespace:                 namespace,
@@ -107,18 +115,20 @@ func NewApplicationController(
 		managedResources:          make(map[string][]managedResource),
 		managedResourcesMutex:     &sync.Mutex{},
 		settingsMgr:               settingsMgr,
-		settings:                  &settings_util.ArgoCDSettings{},
+		settings:                  settings,
 	}
 	appInformer := ctrl.newApplicationInformer()
+	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, func(appName string) {
 		ctrl.requestAppRefresh(appName)
 		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
 	})
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer)
 	ctrl.appInformer = appInformer
+	ctrl.projInformer = projInformer
 	ctrl.appStateManager = appStateManager
 	ctrl.stateCache = stateCache
-	return &ctrl
+	return &ctrl, nil
 }
 
 func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, error) {
@@ -318,9 +328,10 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appRefreshQueue.ShutDown()
 
 	go ctrl.appInformer.Run(ctx.Done())
+	go ctrl.projInformer.Run(ctx.Done())
 	go ctrl.watchSettings(ctx)
 
-	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {
 		log.Error("Timed out waiting for caches to sync")
 		return
 	}
@@ -742,7 +753,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
 	conditions := make([]appv1.ApplicationCondition, 0)
-	proj, err := argo.GetAppProject(&app.Spec, ctrl.applicationClientset, ctrl.namespace)
+	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			conditions = append(conditions, appv1.ApplicationCondition{
@@ -986,16 +997,16 @@ func toggledAutomatedSync(old *appv1.Application, new *appv1.Application) bool {
 }
 
 func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
-	ctrl.settingsMgr.StartNotifier(context.Background(), ctrl.settings)
-	updateCh := make(chan struct{}, 1)
+	updateCh := make(chan *settings_util.ArgoCDSettings, 1)
 	ctrl.settingsMgr.Subscribe(updateCh)
 	prevAppLabelKey := ctrl.settings.GetAppInstanceLabelKey()
 	done := false
 	for !done {
 		select {
-		case <-updateCh:
-			newAppLabelKey := ctrl.settings.GetAppInstanceLabelKey()
+		case newSettings := <-updateCh:
+			newAppLabelKey := newSettings.GetAppInstanceLabelKey()
 			if prevAppLabelKey != newAppLabelKey {
+				ctrl.settings.AppInstanceLabelKey = newAppLabelKey
 				log.Infof("label key changed: %s -> %s", prevAppLabelKey, newAppLabelKey)
 				ctrl.stateCache.Invalidate()
 				prevAppLabelKey = newAppLabelKey
