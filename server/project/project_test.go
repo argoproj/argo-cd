@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/common"
@@ -266,8 +266,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policies can't grant access to other projects", policy)
-		assert.EqualError(t, err, expectedErr)
+		assert.Contains(t, err.Error(), "object must be of form 'test/*' or 'test/<APPNAME>'")
 	})
 
 	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
@@ -286,8 +285,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other projects", invalidPolicy)
-		assert.EqualError(t, err, expectedErr)
+		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
 	})
 
 	t.Run("TestValidateProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
@@ -306,8 +304,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as policy can't grant access to other roles", invalidPolicy)
-		assert.EqualError(t, err, expectedErr)
+		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
 	})
 
 	t.Run("TestValidateProjectInvalidEffectFailure", func(t *testing.T) {
@@ -325,8 +322,7 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, util.NewKeyLock(), nil)
 		request := &ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = incorrect policy format for '%s' as effect can only have value 'allow' or 'deny'", invalidPolicy)
-		assert.EqualError(t, err, expectedErr)
+		assert.Contains(t, err.Error(), "effect must be: 'allow' or 'deny'")
 	})
 
 	t.Run("TestNormalizeProjectRolePolicies", func(t *testing.T) {
