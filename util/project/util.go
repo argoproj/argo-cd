@@ -58,7 +58,7 @@ func ValidateProject(p *v1alpha1.AppProject) error {
 		if _, ok := roleNames[role.Name]; ok {
 			return status.Errorf(codes.AlreadyExists, "role '%s' already exists", role.Name)
 		}
-		if err := validateName(role.Name, "role "); err != nil {
+		if err := validateRoleName(role.Name); err != nil {
 			return err
 		}
 		existingPolicies := make(map[string]bool)
@@ -66,13 +66,7 @@ func ValidateProject(p *v1alpha1.AppProject) error {
 			if _, ok := existingPolicies[policy]; ok {
 				return status.Errorf(codes.AlreadyExists, "policy '%s' already exists for role '%s'", policy, role.Name)
 			}
-			var err error
-			if role.JWTTokens != nil {
-				err = validateJWTToken(p.Name, role.Name, policy)
-			} else {
-				err = validatePolicy(p.Name, policy)
-			}
-			if err != nil {
+			if err := validatePolicy(p.Name, role.Name, policy); err != nil {
 				return err
 			}
 			existingPolicies[policy] = true
@@ -82,7 +76,7 @@ func ValidateProject(p *v1alpha1.AppProject) error {
 			if _, ok := existingGroups[group]; ok {
 				return status.Errorf(codes.AlreadyExists, "group '%s' already exists for role '%s'", group, role.Name)
 			}
-			if err := validateName(group, "group "); err != nil {
+			if err := validateGroupName(group); err != nil {
 				return err
 			}
 			existingGroups[group] = true
@@ -92,70 +86,75 @@ func ValidateProject(p *v1alpha1.AppProject) error {
 	if err := validatePolicySyntax(p); err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func validateJWTToken(proj string, token string, policy string) error {
-	err := validatePolicy(proj, policy)
-	if err != nil {
-		return err
-	}
-	policyComponents := strings.Split(policy, ",")
-	if strings.Trim(policyComponents[2], " ") != "applications" {
-		return status.Errorf(codes.InvalidArgument, "incorrect format for '%s' as JWT tokens can only access applications", policy)
-	}
-	roleComponents := strings.Split(strings.Trim(policyComponents[1], " "), ":")
-	if len(roleComponents) != 3 {
-		return status.Errorf(codes.InvalidArgument, "incorrect number of role arguments for '%s' policy", policy)
-	}
-	if roleComponents[0] != "proj" {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as role should start with 'proj:'", policy)
-	}
-	if roleComponents[1] != proj {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other projects", policy)
-	}
-	if roleComponents[2] != token {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policy can't grant access to other roles", policy)
-	}
-	return nil
+// TODO: refactor to use rbacpolicy.ActionGet, rbacpolicy.ActionCreate, without import cycle
+var validActions = map[string]bool{
+	"get":    true,
+	"create": true,
+	"update": true,
+	"delete": true,
+	"sync":   true,
+	"*":      true,
 }
 
-func validatePolicy(proj string, policy string) error {
+func isValidAction(action string) bool {
+	return validActions[action]
+}
+
+func validatePolicy(proj string, role string, policy string) error {
 	policyComponents := strings.Split(policy, ",")
-	if len(policyComponents) != 6 {
-		return status.Errorf(codes.InvalidArgument, "incorrect number of policy arguments for '%s'", policy)
+	if len(policyComponents) != 6 || strings.Trim(policyComponents[0], " ") != "p" {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': must be of the form: 'p, sub, res, act, obj, eft'", policy)
 	}
-	if strings.Trim(policyComponents[0], " ") != "p" {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s'. must be of the form: 'p, sub, obj, act, obj, eft'", policy)
+	// subject
+	subject := strings.Trim(policyComponents[1], " ")
+	expectedSubject := fmt.Sprintf("proj:%s:%s", proj, role)
+	if subject != expectedSubject {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': policy subject must be: '%s', not '%s'", policy, expectedSubject, subject)
 	}
-	if len(strings.Trim(policyComponents[1], " ")) <= 0 {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as subject must be longer than 0 characters:", policy)
+	// resource
+	resource := strings.Trim(policyComponents[2], " ")
+	if resource != "applications" {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', not '%s'", policy, resource)
 	}
-	if len(strings.Trim(policyComponents[2], " ")) <= 0 {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as object must be longer than 0 characters:", policy)
+	// action
+	action := strings.Trim(policyComponents[3], " ")
+	if !isValidAction(action) {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': invalid action '%s'", policy, action)
 	}
-	if len(strings.Trim(policyComponents[3], " ")) <= 0 {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as action must be longer than 0 characters:", policy)
+	// object
+	object := strings.Trim(policyComponents[4], " ")
+	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-]+$`, proj))
+	if err != nil || !objectRegexp.MatchString(object) {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*' or '%s/<APPNAME>', not '%s'", policy, proj, proj, object)
 	}
-	if !strings.HasPrefix(strings.Trim(policyComponents[4], " "), proj) {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as policies can't grant access to other projects", policy)
-	}
+	// effect
 	effect := strings.Trim(policyComponents[5], " ")
 	if effect != "allow" && effect != "deny" {
-		return status.Errorf(codes.InvalidArgument, "incorrect policy format for '%s' as effect can only have value 'allow' or 'deny'", policy)
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': effect must be: 'allow' or 'deny'", policy)
+	}
+	return nil
+}
+
+var roleNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9]([-_a-zA-Z0-9]*[a-zA-Z0-9])?$`)
+
+func validateRoleName(name string) error {
+	if !roleNameRegexp.MatchString(name) {
+		return status.Errorf(codes.InvalidArgument, "invalid role name '%s'. Must consist of alphanumeric characters, '-' or '_', and must start and end with an alphanumeric character", name)
 	}
 	return nil
 }
 
 var invalidChars = regexp.MustCompile("[,\n\r\t]")
 
-func validateName(name, errMsgPrefix string) error {
+func validateGroupName(name string) error {
 	if strings.TrimSpace(name) == "" {
-		return status.Errorf(codes.InvalidArgument, "%s'%s' is empty", errMsgPrefix, name)
+		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
-		return status.Errorf(codes.InvalidArgument, "%s'%s' contains invalid characters", errMsgPrefix, name)
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
 	}
 	return nil
 }
