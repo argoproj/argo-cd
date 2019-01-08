@@ -50,7 +50,7 @@ export class ProjectsList extends React.Component {
                     </div>
                     <Query>
                     {(params) => (
-                        <SlidingPanel isMiddle={true} isShown={params.get('add') === 'true'} onClose={() => ctx.navigation.goto('.', {add: null})} header={(
+                        <SlidingPanel isShown={params.get('add') === 'true'} onClose={() => ctx.navigation.goto('.', {add: null})} header={(
                             <div>
                                 <button onClick={() => ctx.navigation.goto('.', {add: null})} className='argo-button argo-button--base-o'>
                                     Cancel

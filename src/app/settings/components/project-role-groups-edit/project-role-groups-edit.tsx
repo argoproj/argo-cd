@@ -14,6 +14,7 @@ interface ProjectRoleGroupsProps {
 export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
     <React.Fragment>
         <h4>Groups</h4>
+        <div>OIDC group names to bind to this role</div>
         {(
             <div className='argo-table-list'>
                 <div className='argo-table-list__row'>
@@ -40,8 +41,10 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
                             </div>
                             <div className='columns small-3'>
                             <a onClick={() => {
-                                props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
-                                api.values.groupName = '';
+                                if (api.values.groupName.length > 0) {
+                                    props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
+                                    api.values.groupName = '';
+                                }
                             }}>Add group</a>
                             </div>
                         </div>

@@ -40,7 +40,8 @@ export const ProjectEditPanel = (props: {
                 <DataLoader load={() => services.repos.list().then((repos) => repos.concat({repo: '*'} as models.Repository).map((repo) => repo.repo))}>
                     {(repos) => (
                         <React.Fragment>
-                        <h4>Sources:</h4>
+                        <h4>Sources</h4>
+                        <div>Git repositories where application manifests are permitted to be retrieved from</div>
                         {(api.values.sourceRepos as Array<string>).map((_, i) => (
                             <div key={i} className='row project-edit-panel__form-row'>
                                 <div className='columns small-12'>
@@ -57,7 +58,14 @@ export const ProjectEditPanel = (props: {
                 <DataLoader load={() => services.clusters.list().then((clusters) => clusters.concat({server: '*'} as models.Cluster).map((cluster) => cluster.server))}>
                     {(clusters) => (
                         <React.Fragment>
-                            <h4>Destinations:</h4>
+                            <h4>Destinations</h4>
+                            <div>Cluster URLs and namespaces where applications are permitted to be deployed to</div>
+                            <div className='argo-table-list__head'>
+                                <div className='row'>
+                                    <div className='columns small-5'>CLUSTER URL</div>
+                                    <div className='columns small-5'>NAMESPACE</div>
+                                </div>
+                            </div>
                             {(api.values.destinations as Array<models.ApplicationDestination>).map((_, i) => (
                                 <div key={i} className='row project-edit-panel__form-row'>
                                     <div className='columns small-5'>
@@ -77,7 +85,8 @@ export const ProjectEditPanel = (props: {
                 </DataLoader>
 
                 <React.Fragment>
-                    <h4>Whitelisted Cluster Resources:</h4>
+                    <h4>Whitelisted Cluster Resources</h4>
+                    <div>Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed</div>
                     <div className='argo-table-list__head'>
                         <div className='row'>
                             <div className='columns small-5'>GROUP</div>
@@ -105,7 +114,8 @@ export const ProjectEditPanel = (props: {
                 </React.Fragment>
 
                 <React.Fragment>
-                    <h4>Blacklisted Namespaced Resources:</h4>
+                    <h4>Blacklisted Namespaced Resources</h4>
+                    <div>Namespace-scoped K8s API Groups and Kinds which are <strong>prohibited</strong> from being deployed</div>
                     <div className='argo-table-list__head'>
                         <div className='row'>
                             <div className='columns small-5'>GROUP</div>

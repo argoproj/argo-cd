@@ -25,6 +25,7 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
             {(ctx) => (
                 <React.Fragment>
                 <h4>JWT Tokens</h4>
+                <div>Generate JWT tokens to bind to this role</div>
                 {props.tokens && props.tokens.length > 0 && (
                     <div className='argo-table-list'>
                     <div className='argo-table-list__head'>
