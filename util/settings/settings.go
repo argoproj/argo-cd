@@ -249,8 +249,8 @@ func (mgr *SettingsManager) ensureInitialized() error {
 	if !cache.WaitForCacheSync(mgr.ctx.Done(), mgr.cmInformer.HasSynced, mgr.secretsInformer.HasSynced) {
 		return fmt.Errorf("Timed out waiting for settings cache to sync")
 	}
+	log.Info("Configmap/secret informer initialized")
 	syncTime := time.Now()
-	mgr.initialized = true
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()
@@ -279,6 +279,7 @@ func (mgr *SettingsManager) ensureInitialized() error {
 	}
 	mgr.secretsInformer.AddEventHandler(handler)
 	mgr.cmInformer.AddEventHandler(handler)
+	mgr.initialized = true
 	return nil
 }
 
