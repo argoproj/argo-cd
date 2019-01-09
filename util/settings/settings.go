@@ -7,28 +7,27 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/informers/core/v1"
-
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
-
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
@@ -144,7 +143,7 @@ func (e *incompleteSettingsError) Error() string {
 }
 
 func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
-	err := mgr.ensureInitialized(false)
+	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
 	}
@@ -153,34 +152,35 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
-	err := mgr.ensureInitialized(false)
+	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
 	}
-
-	var settings ArgoCDSettings
 	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
-	if err != nil {
-		return nil, err
-	}
-	err = mgr.updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err != nil {
 		return nil, err
 	}
 	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	if err != nil {
-		return &settings, err
+		return nil, err
 	}
-	err = updateSettingsFromSecret(&settings, argoCDSecret)
-	if err != nil {
-		return &settings, err
+	var settings ArgoCDSettings
+	var errs []error
+	if err := updateSettingsFromConfigMap(&settings, argoCDCM); err != nil {
+		errs = append(errs, err)
+	}
+	if err := updateSettingsFromSecret(&settings, argoCDSecret); err != nil {
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return &settings, errs[0]
 	}
 	return &settings, nil
 }
 
 // MigrateLegacyRepoSettings migrates legacy (v0.10 and below) repo secrets into the v0.11 configmap
 func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) error {
-	err := mgr.ensureInitialized(false)
+	err := mgr.ensureSynced(false)
 	if err != nil {
 		return err
 	}
@@ -247,7 +247,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
 		return fmt.Errorf("Timed out waiting for settings cache to sync")
 	}
-	log.Info("Configmap/secret informer synched")
+	log.Info("Configmap/secret informer synced")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()
@@ -282,7 +282,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	return nil
 }
 
-func (mgr *SettingsManager) ensureInitialized(forceResync bool) error {
+func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 	if !forceResync && mgr.secrets != nil && mgr.configmaps != nil {
 		return nil
 	}
@@ -300,49 +300,59 @@ func (mgr *SettingsManager) ensureInitialized(forceResync bool) error {
 	return mgr.initialize(ctx)
 }
 
-func (mgr *SettingsManager) updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) error {
+func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) error {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.URL = argoCDCM.Data[settingURLKey]
+	settings.AppInstanceLabelKey = argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	repositoriesStr := argoCDCM.Data[repositoriesKey]
+	var errors []error
 	if repositoriesStr != "" {
-		settings.Repositories = make([]RepoCredentials, 0)
-		err := yaml.Unmarshal([]byte(repositoriesStr), &settings.Repositories)
+		repositories := make([]RepoCredentials, 0)
+		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
 		if err != nil {
-			return err
+			errors = append(errors, err)
+		} else {
+			settings.Repositories = repositories
 		}
 	}
 	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
 	if helmRepositoriesStr != "" {
-		settings.HelmRepositories = make([]HelmRepoCredentials, 0)
-		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &settings.HelmRepositories)
+		helmRepositories := make([]HelmRepoCredentials, 0)
+		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
 		if err != nil {
-			return err
+			errors = append(errors, err)
+		} else {
+			settings.HelmRepositories = helmRepositories
 		}
 	}
-	settings.AppInstanceLabelKey = argoCDCM.Data[settingsApplicationInstanceLabelKey]
+	if len(errors) > 0 {
+		return errors[0]
+	}
 	return nil
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
 func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret) error {
+	var errs []error
 	adminPasswordHash, ok := argoCDSecret.Data[settingAdminPasswordHashKey]
-	if !ok {
-		return &incompleteSettingsError{message: "admin.password is missing"}
+	if ok {
+		settings.AdminPasswordHash = string(adminPasswordHash)
+	} else {
+		errs = append(errs, &incompleteSettingsError{message: "admin.password is missing"})
 	}
-	settings.AdminPasswordHash = string(adminPasswordHash)
-	settings.AdminPasswordMtime = time.Now().UTC()
-	if adminPasswordMtimeBytes, ok := argoCDSecret.Data[settingAdminPasswordMtimeKey]; ok {
+	adminPasswordMtimeBytes, ok := argoCDSecret.Data[settingAdminPasswordMtimeKey]
+	if ok {
 		if adminPasswordMtime, err := time.Parse(time.RFC3339, string(adminPasswordMtimeBytes)); err == nil {
 			settings.AdminPasswordMtime = adminPasswordMtime
 		}
 	}
-
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
-	if !ok {
-		return &incompleteSettingsError{message: "server.secretkey is missing"}
+	if ok {
+		settings.ServerSignature = secretKey
+	} else {
+		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
 	}
-	settings.ServerSignature = secretKey
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
 		settings.WebhookGitHubSecret = string(githubWebhookSecret)
 	}
@@ -358,21 +368,25 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 	if certOk && keyOk {
 		cert, err := tls.X509KeyPair(serverCert, serverKey)
 		if err != nil {
-			return &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)}
+			errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
+		} else {
+			settings.Certificate = &cert
 		}
-		settings.Certificate = &cert
 	}
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
 	for k, v := range argoCDSecret.Data {
 		secretValues[k] = string(v)
 	}
 	settings.Secrets = secretValues
+	if len(errs) > 0 {
+		return errs[0]
+	}
 	return nil
 }
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
 func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.ensureInitialized(false)
+	err := mgr.ensureSynced(false)
 	if err != nil {
 		return err
 	}
@@ -447,24 +461,26 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		createSecret = true
 	}
+	if argoCDSecret.Data == nil {
+		argoCDSecret.Data = make(map[string][]byte)
+	}
 
-	argoCDSecret.StringData = make(map[string]string)
-	argoCDSecret.StringData[settingServerSignatureKey] = string(settings.ServerSignature)
-	argoCDSecret.StringData[settingAdminPasswordHashKey] = settings.AdminPasswordHash
-	argoCDSecret.StringData[settingAdminPasswordMtimeKey] = settings.AdminPasswordMtime.Format(time.RFC3339)
+	argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
+	argoCDSecret.Data[settingAdminPasswordHashKey] = []byte(settings.AdminPasswordHash)
+	argoCDSecret.Data[settingAdminPasswordMtimeKey] = []byte(settings.AdminPasswordMtime.Format(time.RFC3339))
 	if settings.WebhookGitHubSecret != "" {
-		argoCDSecret.StringData[settingsWebhookGitHubSecretKey] = settings.WebhookGitHubSecret
+		argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
 	}
 	if settings.WebhookGitLabSecret != "" {
-		argoCDSecret.StringData[settingsWebhookGitLabSecretKey] = settings.WebhookGitLabSecret
+		argoCDSecret.Data[settingsWebhookGitLabSecretKey] = []byte(settings.WebhookGitLabSecret)
 	}
 	if settings.WebhookBitbucketUUID != "" {
-		argoCDSecret.StringData[settingsWebhookBitbucketUUIDKey] = settings.WebhookBitbucketUUID
+		argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
 	}
 	if settings.Certificate != nil {
-		cert, key := tlsutil.EncodeX509KeyPairString(*settings.Certificate)
-		argoCDSecret.StringData[settingServerCertificate] = cert
-		argoCDSecret.StringData[settingServerPrivateKey] = key
+		cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)
+		argoCDSecret.Data[settingServerCertificate] = cert
+		argoCDSecret.Data[settingServerPrivateKey] = key
 	} else {
 		delete(argoCDSecret.Data, settingServerCertificate)
 		delete(argoCDSecret.Data, settingServerPrivateKey)
@@ -494,7 +510,7 @@ func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, nam
 }
 
 func (mgr *SettingsManager) ResyncInformers() error {
-	return mgr.ensureInitialized(true)
+	return mgr.ensureSynced(true)
 }
 
 // IsSSOConfigured returns whether or not single-sign-on is configured
@@ -636,38 +652,40 @@ func isIncompleteSettingsError(err error) bool {
 	return ok
 }
 
-// UpdateSettings is used to update the admin password, signature, certificate etc
-func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, updateSignature bool, updateSuperuser bool, Namespace string) (*ArgoCDSettings, error) {
-
-	cdSettings, err := settingsMgr.GetSettings()
-	if err != nil && !apierr.IsNotFound(err) && !isIncompleteSettingsError(err) {
+// InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
+func (mgr *SettingsManager) InitializeSettings() (*ArgoCDSettings, error) {
+	cdSettings, err := mgr.GetSettings()
+	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
 	}
 	if cdSettings == nil {
 		cdSettings = &ArgoCDSettings{}
 	}
-	if cdSettings.ServerSignature == nil || updateSignature {
+	if cdSettings.ServerSignature == nil {
 		// set JWT signature
 		signature, err := util.MakeSignature(32)
 		if err != nil {
 			return nil, err
 		}
 		cdSettings.ServerSignature = signature
+		log.Info("Initialized server signature")
 	}
-	if cdSettings.AdminPasswordHash == "" || updateSuperuser {
-		passwordRaw := defaultPassword
-		if passwordRaw == "" {
-			passwordRaw, err = cli.ReadAndConfirmPassword()
-			if err != nil {
-				return nil, err
-			}
+	if cdSettings.AdminPasswordHash == "" {
+		defaultPassword, err := os.Hostname()
+		if err != nil {
+			return nil, err
 		}
-		hashedPassword, err := password.HashPassword(passwordRaw)
+		hashedPassword, err := password.HashPassword(defaultPassword)
 		if err != nil {
 			return nil, err
 		}
 		cdSettings.AdminPasswordHash = hashedPassword
 		cdSettings.AdminPasswordMtime = time.Now().UTC()
+		log.Info("Initialized admin password")
+	}
+	if cdSettings.AdminPasswordMtime.IsZero() {
+		cdSettings.AdminPasswordMtime = time.Now().UTC()
+		log.Info("Initialized admin mtime")
 	}
 
 	if cdSettings.Certificate == nil {
@@ -675,9 +693,9 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 		hosts := []string{
 			"localhost",
 			"argocd-server",
-			fmt.Sprintf("argocd-server.%s", Namespace),
-			fmt.Sprintf("argocd-server.%s.svc", Namespace),
-			fmt.Sprintf("argocd-server.%s.svc.cluster.local", Namespace),
+			fmt.Sprintf("argocd-server.%s", mgr.namespace),
+			fmt.Sprintf("argocd-server.%s.svc", mgr.namespace),
+			fmt.Sprintf("argocd-server.%s.svc.cluster.local", mgr.namespace),
 		}
 		certOpts := tlsutil.CertOptions{
 			Hosts:        hosts,
@@ -689,16 +707,23 @@ func UpdateSettings(defaultPassword string, settingsMgr *SettingsManager, update
 			return nil, err
 		}
 		cdSettings.Certificate = cert
+		log.Info("Initialized TLS certificate")
 	}
 
 	if len(cdSettings.Repositories) == 0 {
-		err = settingsMgr.MigrateLegacyRepoSettings(cdSettings)
+		err = mgr.MigrateLegacyRepoSettings(cdSettings)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return cdSettings, settingsMgr.SaveSettings(cdSettings)
+	err = mgr.SaveSettings(cdSettings)
+	if apierrors.IsConflict(err) {
+		// assume settings are initialized by another instance of api server
+		log.Warnf("conflict when initializing settings. assuming updated by another replica")
+		return mgr.GetSettings()
+	}
+	return cdSettings, nil
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map

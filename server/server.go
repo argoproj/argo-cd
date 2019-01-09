@@ -17,9 +17,9 @@ import (
 
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd"
+	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
@@ -164,34 +164,14 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	return err
 }
 
-// initializeSettings sets default secret settings (password set to hostname)
-func initializeSettings(settingsMgr *settings_util.SettingsManager, opts ArgoCDServerOpts) (*settings_util.ArgoCDSettings, error) {
-
-	defaultPassword, err := os.Hostname()
-	errors.CheckError(err)
-
-	cdSettings, err := settings_util.UpdateSettings(defaultPassword, settingsMgr, false, false, opts.Namespace)
-	if err != nil {
-		// assume settings are initialized by another instance of api server
-		if apierrors.IsConflict(err) {
-			return settingsMgr.GetSettings()
-		} else {
-			log.Fatal(err)
-		}
-	}
-
-	return cdSettings, nil
-}
-
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-
-	settings, err := initializeSettings(settingsMgr, opts)
+	settings, err := settingsMgr.InitializeSettings()
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
-	sessionMgr := util_session.NewSessionManager(settings)
+	sessionMgr := util_session.NewSessionManager(settingsMgr)
 
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()

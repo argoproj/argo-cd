@@ -74,7 +74,10 @@ func fakeSecret(policy ...string) *apiv1.Secret {
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,
 		},
-		Data: make(map[string][]byte),
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
 	}
 	return &secret
 }
