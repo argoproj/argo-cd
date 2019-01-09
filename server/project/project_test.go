@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -24,15 +25,30 @@ import (
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
+const testNamespace = "default"
+
 func TestProjectServer(t *testing.T) {
-	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(), "default", common.ArgoCDRBACConfigMapName, nil)
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: v1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm"},
+	}, &corev1.Secret{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	})
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
+	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: testNamespace},
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{
 				{Namespace: "ns1", Server: "https://server1"},
@@ -144,7 +160,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestCreateTokenSuccesfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
+		sessionMgr := session.NewSessionManager(settingsMgr)
 		projectWithRole := existingProj.DeepCopy()
 		tokenName := "testToken"
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
@@ -163,7 +179,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestDeleteTokenSuccesfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
+		sessionMgr := session.NewSessionManager(settingsMgr)
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
 		issuedAt := int64(1)
@@ -182,7 +198,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestCreateTwoTokensInRoleSuccess", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(&settings.ArgoCDSettings{})
+		sessionMgr := session.NewSessionManager(settingsMgr)
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}

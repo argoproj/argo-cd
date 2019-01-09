@@ -4,6 +4,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -59,7 +60,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *UpdatePasswordRequest) (
 	if err != nil {
 		return nil, err
 	}
-
+	log.Infof("user '%s' updated password", username)
 	return &UpdatePasswordResponse{}, nil
 
 }
