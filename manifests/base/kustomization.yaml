@@ -23,6 +23,6 @@ resources:
 
 imageTags:
 - name: argoproj/argocd
-  newTag: v0.11.0-rc5
+  newTag: v0.11.0-rc6
 - name: argoproj/argocd-ui
-  newTag: v0.11.0-rc5
+  newTag: v0.11.0-rc6
