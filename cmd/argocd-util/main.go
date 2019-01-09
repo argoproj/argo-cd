@@ -59,7 +59,6 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewGenDexConfigCommand())
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
-	command.AddCommand(NewSettingsCommand())
 	command.AddCommand(NewClusterConfig())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
@@ -346,42 +345,6 @@ func NewExportCommand() *cobra.Command {
 	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
 
 	return &command
-}
-
-// NewSettingsCommand returns a new instance of `argocd-util settings` command
-func NewSettingsCommand() *cobra.Command {
-	var (
-		clientConfig      clientcmd.ClientConfig
-		updateSuperuser   bool
-		superuserPassword string
-		updateSignature   bool
-	)
-	var command = &cobra.Command{
-		Use:   "settings",
-		Short: "Creates or updates Argo CD settings",
-		Long:  "Creates or updates Argo CD settings",
-		Run: func(c *cobra.Command, args []string) {
-			conf, err := clientConfig.ClientConfig()
-			errors.CheckError(err)
-			namespace, wasSpecified, err := clientConfig.Namespace()
-			errors.CheckError(err)
-			if !(wasSpecified) {
-				namespace = "argocd"
-			}
-
-			kubeclientset, err := kubernetes.NewForConfig(conf)
-			errors.CheckError(err)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, namespace)
-
-			_, err = settings.UpdateSettings(superuserPassword, settingsMgr, updateSignature, updateSuperuser, namespace)
-			errors.CheckError(err)
-		},
-	}
-	command.Flags().BoolVar(&updateSuperuser, "update-superuser", false, "force updating the  superuser password")
-	command.Flags().StringVar(&superuserPassword, "superuser-password", "", "password for super user")
-	command.Flags().BoolVar(&updateSignature, "update-signature", false, "force updating the server-side token signing signature")
-	clientConfig = cli.AddKubectlFlagsToCmd(command)
-	return command
 }
 
 // NewClusterConfig returns a new instance of `argocd-util cluster-kubeconfig` command

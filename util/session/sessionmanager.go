@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc"
+	oidc "github.com/coreos/go-oidc"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -25,9 +25,9 @@ import (
 
 // SessionManager generates and validates JWT tokens for login sessions.
 type SessionManager struct {
-	settings *settings.ArgoCDSettings
-	client   *http.Client
-	provider *oidc.Provider
+	settingsMgr *settings.SettingsManager
+	client      *http.Client
+	provider    *oidc.Provider
 }
 
 const (
@@ -41,9 +41,13 @@ const (
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settings *settings.ArgoCDSettings) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager) *SessionManager {
 	s := SessionManager{
-		settings: settings,
+		settingsMgr: settingsMgr,
+	}
+	settings, err := settingsMgr.GetSettings()
+	if err != nil {
+		panic(err)
 	}
 	tlsConfig := settings.TLSConfig()
 	if tlsConfig != nil {
@@ -90,7 +94,11 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64) (st
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(mgr.settings.ServerSignature)
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return "", err
+	}
+	return token.SignedString(settings.ServerSignature)
 }
 
 // Parse tries to parse the provided string and returns the token claims for local superuser login.
@@ -100,19 +108,23 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, error) {
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
 	var claims jwt.MapClaims
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return mgr.settings.ServerSignature, nil
+		return settings.ServerSignature, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	issuedAt := time.Unix(int64(claims["iat"].(float64)), 0)
-	if issuedAt.Before(mgr.settings.AdminPasswordMtime) {
+	if issuedAt.Before(settings.AdminPasswordMtime) {
 		return nil, fmt.Errorf("Password for superuser has changed since token issued")
 	}
 	return token.Claims, nil
@@ -126,7 +138,11 @@ func (mgr *SessionManager) VerifyUsernamePassword(username, password string) err
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
-	valid, _ := passwordutil.VerifyPassword(password, mgr.settings.AdminPasswordHash)
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return err
+	}
+	valid, _ := passwordutil.VerifyPassword(password, settings.AdminPasswordHash)
 	if !valid {
 		return status.Errorf(codes.Unauthenticated, invalidLoginError)
 	}
@@ -219,10 +235,14 @@ func (mgr *SessionManager) oidcProvider() (*oidc.Provider, error) {
 // initializeOIDCProvider re-initializes the OIDC provider, querying the well known oidc
 // configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration)
 func (mgr *SessionManager) initializeOIDCProvider() (*oidc.Provider, error) {
-	if !mgr.settings.IsSSOConfigured() {
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	if !settings.IsSSOConfigured() {
 		return nil, fmt.Errorf("SSO is not configured")
 	}
-	provider, err := oidcutil.NewOIDCProvider(mgr.settings.IssuerURL(), mgr.client)
+	provider, err := oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	if err != nil {
 		return nil, err
 	}
