@@ -14,7 +14,7 @@ import * as AppUtils from '../utils';
 
 require('./applications-list.scss');
 
-const APP_FIELDS = ['metadata.name', 'metadata.resourceVersion', 'spec', 'status.sync.status', 'status.health'];
+const APP_FIELDS = ['metadata.name', 'metadata.resourceVersion', 'metadata.creationTimestamp', 'spec', 'status.sync.status', 'status.health'];
 const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
