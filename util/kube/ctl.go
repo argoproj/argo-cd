@@ -254,6 +254,7 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 	}
 	cmd := exec.Command("kubectl", cmdArgs...)
 	log.Info(cmd.Args)
+	log.Debug(string(manifestBytes))
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
 	if err != nil {
