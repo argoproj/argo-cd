@@ -343,7 +343,7 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        image: argoproj/argocd:v0.11.0-rc6
+        image: argoproj/argocd:v0.11.0
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -372,7 +372,7 @@ spec:
       containers:
       - command:
         - argocd-repo-server
-        image: argoproj/argocd:v0.11.0-rc6
+        image: argoproj/argocd:v0.11.0
         imagePullPolicy: Always
         name: argocd-repo-server
         ports:
@@ -401,7 +401,7 @@ spec:
         - argocd-server
         - --staticassets
         - /shared/app
-        image: argoproj/argocd:v0.11.0-rc6
+        image: argoproj/argocd:v0.11.0
         imagePullPolicy: Always
         name: argocd-server
         ports:
@@ -421,7 +421,7 @@ spec:
         - -r
         - /app
         - /shared
-        image: argoproj/argocd-ui:v0.11.0-rc6
+        image: argoproj/argocd-ui:v0.11.0
         imagePullPolicy: Always
         name: ui
         volumeMounts:
@@ -463,7 +463,7 @@ spec:
         - cp
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:v0.11.0-rc6
+        image: argoproj/argocd:v0.11.0
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
