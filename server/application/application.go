@@ -8,15 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -124,7 +123,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 
 	a := q.Application
 	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
-	err := s.validateApp(ctx, &a.Spec)
+	err := s.validateApp(ctx, &a)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +288,7 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 
 	a := q.Application
 	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
-	err := s.validateApp(ctx, &a.Spec)
+	err := s.validateApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +312,8 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 		return nil, grpc.ErrPermissionDenied
 	}
 	q.Spec = *argo.NormalizeApplicationSpec(&q.Spec)
-	err = s.validateApp(ctx, &q.Spec)
+	a.Spec = q.Spec
+	err = s.validateApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -425,18 +425,30 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	return nil
 }
 
-func (s *Server) validateApp(ctx context.Context, spec *appv1.ApplicationSpec) error {
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(spec.GetProject(), metav1.GetOptions{})
+func (s *Server) validateApp(ctx context.Context, app *appv1.Application) error {
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(app.Spec.GetProject(), metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return status.Errorf(codes.InvalidArgument, "application referencing project %s which does not exist", spec.Project)
+			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", app.Spec.Project)
 		}
 		return err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), "projects", rbacpolicy.ActionGet, proj.Name) {
-		return status.Errorf(codes.PermissionDenied, "permission denied for project %s", proj.Name)
+	currApp, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(app.Name, metav1.GetOptions{})
+	if err != nil && !apierr.IsNotFound(err) {
+		return err
 	}
-	conditions, err := argo.GetSpecErrors(ctx, spec, proj, s.repoClientset, s.db)
+	if currApp != nil && currApp.Spec.GetProject() != app.Spec.GetProject() {
+		// When changing projects, caller must have application create & update privileges in new project
+		// NOTE: the update check was already verified in the caller to this function
+		if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(*app)) {
+			return grpc.ErrPermissionDenied
+		}
+		// They also need 'update' privileges in the old project
+		if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*currApp)) {
+			return grpc.ErrPermissionDenied
+		}
+	}
+	conditions, err := argo.GetSpecErrors(ctx, &app.Spec, proj, s.repoClientset, s.db)
 	if err != nil {
 		return err
 	}
