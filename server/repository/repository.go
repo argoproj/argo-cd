@@ -7,11 +7,12 @@ import (
 	"reflect"
 	"time"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -23,8 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 )
 
 // Server provides a Repository service
@@ -60,7 +59,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	if err := s.cache.Get(cacheKey, &connectionState); err == nil {
 		return connectionState
 	}
-	now := v1.Now()
+	now := metav1.Now()
 	connectionState = appsv1.ConnectionState{
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
@@ -333,7 +332,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, "update", q.Repo.Repo) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	_, err := s.db.UpdateRepository(ctx, q.Repo)
@@ -342,7 +341,7 @@ func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repo
 
 // Delete updates a repository
 func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, "delete", q.Repo) {
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
 	err := s.db.DeleteRepository(ctx, q.Repo)

@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -18,12 +19,15 @@ import (
 	"github.com/argoproj/argo-cd/errors"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	mockreposerver "github.com/argoproj/argo-cd/reposerver/repository/mocks"
+	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -94,9 +98,6 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			"server.secretkey": []byte("test"),
 		},
 	})
-	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
-	enforcer.SetDefaultRole("role:admin")
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace), kubeclientset)
 	ctx := context.Background()
 	_, err := db.CreateRepository(ctx, fakeRepo())
@@ -119,13 +120,30 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
+	myProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
+		Spec: appsv1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+	objects = append(objects, defaultProj, myProj)
+
+	fakeAppsClientset := apps.NewSimpleClientset(objects...)
+	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppsClientset, 0, "", func(options *metav1.ListOptions) {})
+	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
+
+	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
+	enforcer.SetDefaultRole("role:admin")
+	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
+
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 
-	objects = append(objects, defaultProj)
 	server := NewServer(
 		testNamespace,
 		kubeclientset,
-		apps.NewSimpleClientset(objects...),
+		fakeAppsClientset,
 		mockRepoClient,
 		nil,
 		kube.KubectlCmd{},
@@ -303,4 +321,56 @@ func TestRollbackApp(t *testing.T) {
 	assert.NotNil(t, updatedApp.Operation.Sync.ParameterOverrides)
 	assert.Len(t, updatedApp.Operation.Sync.ParameterOverrides, 0)
 	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
+}
+
+func TestUpdateAppProject(t *testing.T) {
+	testApp := newTestApp()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	appServer := newTestAppServer(testApp)
+	appServer.enf.SetDefaultRole("")
+
+	// Verify normal update works (without changing project)
+	appServer.enf.SetBuiltinPolicy(`p, admin, applications, update, default/test-app, allow`)
+	_, err := appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
+	assert.NoError(t, err)
+
+	// Verify caller cannot update to another project
+	testApp.Spec.Project = "my-proj"
+	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
+	assert.Equal(t, err, grpc.ErrPermissionDenied)
+
+	// Verify inability to change projects without create privileges in new project
+	appServer.enf.SetBuiltinPolicy(`
+p, admin, applications, update, default/test-app, allow
+p, admin, applications, update, my-proj/test-app, allow
+`)
+	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
+	assert.Equal(t, err, grpc.ErrPermissionDenied)
+
+	// Verify inability to change projects without update privileges in new project
+	appServer.enf.SetBuiltinPolicy(`
+p, admin, applications, update, default/test-app, allow
+p, admin, applications, create, my-proj/test-app, allow
+`)
+	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
+	assert.Equal(t, err, grpc.ErrPermissionDenied)
+
+	// Verify inability to change projects without update privileges in old project
+	appServer.enf.SetBuiltinPolicy(`
+p, admin, applications, create, my-proj/test-app, allow
+p, admin, applications, update, my-proj/test-app, allow
+`)
+	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
+	assert.Equal(t, err, grpc.ErrPermissionDenied)
+
+	// Verify can update project with proper permissions
+	appServer.enf.SetBuiltinPolicy(`
+p, admin, applications, update, default/test-app, allow
+p, admin, applications, create, my-proj/test-app, allow
+p, admin, applications, update, my-proj/test-app, allow
+`)
+	updatedApp, err := appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
+	assert.NoError(t, err)
+	assert.Equal(t, "my-proj", updatedApp.Spec.Project)
 }
