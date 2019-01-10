@@ -21,7 +21,7 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0-rc5/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0-rc6/manifests/install.yaml
 ```
 
 Follow our [getting started guide](docs/getting_started.md). Further [documentation](docs/)
