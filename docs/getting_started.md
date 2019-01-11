@@ -1,7 +1,5 @@
 # Argo CD Getting Started
 
-An example guestbook application is provided to demonstrate how Argo CD works.
-
 ## Requirements
 * Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool
 * Have a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file (default location is `~/.kube/config`).
@@ -9,36 +7,31 @@ An example guestbook application is provided to demonstrate how Argo CD works.
 ## 1. Install Argo CD
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v0.11.0-rc6/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
 NOTE:
-* On GKE with RBAC enabled, you may need to grant your account the ability to create new cluster roles
-```bash
-kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
-```
+* On GKE, you will need grant your account the ability to create new cluster roles:
+    ```bash
+    kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
+    ```
+
 
 ## 2. Download Argo CD CLI
 
-Download the latest Argo CD version:
+Download the latest Argo CD version from https://github.com/argoproj/argo-cd/releases/latest.
 
-On Mac:
+Also available in Mac Homebrew:
 ```bash
 brew install argoproj/tap/argocd
 ```
 
-On Linux:
-
-```bash
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v0.11.0-rc6/argocd-linux-amd64
-chmod +x /usr/local/bin/argocd
-```
 
 ## 3. Access the Argo CD API server
 
 By default, the Argo CD API server is not exposed with an external IP. To access the API server,
-choose one of the following means to expose the Argo CD API server:
+choose one of the following techniques to expose the Argo CD API server:
 
 ### Service Type LoadBalancer
 Change the argocd-server service type to `LoadBalancer`:
@@ -51,8 +44,12 @@ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}
 Follow the [ingress documentation](ingress.md) on how to configure Argo CD with ingress.
 
 ### Port Forwarding
-`kubectl port-forward` can also be used to connect to the API server without exposing the service.
-The API server can be accessed using the localhost address/port.
+Kubectl port-forwarding can also be used to connect to the API server without exposing the service.
+
+```bash
+kubectl port-forward svc/argocd-server 8080:443
+```
+The API server can then be accessed using the localhost:8080
 
 
 ## 4. Login using the CLI
@@ -63,13 +60,12 @@ Argo CD API server. This can be retrieved with the command:
 kubectl get pods -n argocd -l app=argocd-server -o name | cut -d'/' -f 2
 ```
 
-Using the above password, login to Argo CD's external IP:
+Using the above password, login to Argo CD's IP or hostname:
 ```bash
-kubectl get svc -n argocd argocd-server
-argocd login <EXTERNAL-IP>
+argocd login <ARGOCD_SERVER>
 ```
 
-After logging in, change the password using the command:
+Change the password using the command:
 ```bash
 argocd account update-password
 ```
@@ -92,82 +88,77 @@ for docker-for-desktop context, run:
 argocd cluster add docker-for-desktop
 ```
 
-The above command installs an `argocd-manager` ServiceAccount and ClusterRole into the cluster
-associated with the supplied kubectl context. Argo CD uses this service account token to perform its
-management tasks (i.e. deploy/monitoring).
+The above command installs a ServiceAccount (`argocd-manager`), into the kube-system namespace of 
+that kubectl context, and binds the service account to an admin-level ClusterRole. Argo CD uses this
+service account token to perform its management tasks (i.e. deploy/monitoring).
 
+> NOTE: the rules of the `argocd-manager-role` role can be modified such that it only has 
+`create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds.
+However `get`, `list`, `watch` privilges are required at the cluster-scope for Argo CD to function.
 
-## 6. Create an application from a git repository location
+## 6. Create an application from a git repository
+
+An example git repository containing a guestbook application is available at
+https://github.com/argoproj/argocd-example-apps.git to demonstrate how Argo CD works.
+
+### Creating apps via CLI
+
+```bash
+argocd app create guestbook \
+  --repo https://github.com/argoproj/argocd-example-apps.git \
+  --path guestbook \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace default
+```
 
 ### Creating apps via UI
 
-Open a browser to the Argo CD external UI, and login using the credentials set in step 4, and the
-external IP/hostname set in step 4.
-
-Connect a git repository containing your apps if repository is private. An example repository containing a sample
-guestbook application is available at https://github.com/argoproj/argocd-example-apps.git.
+Open a browser to the Argo CD external UI, and login using the credentials, IP/hostname set in step 4.
+Connect the https://github.com/argoproj/argocd-example-apps.git repo to Argo CD:
 
 ![connect repo](assets/connect_repo.png)
 
 After connecting a git repository, select the guestbook application for creation:
 
-![select repo](assets/select_repo.png)
 ![select app](assets/select_app.png)
-![select env](assets/select_env.png)
 ![create app](assets/create_app.png)
 
-
-### Creating apps via CLI
-
-Applications can be also be created using the Argo CD CLI:
-
-```bash
-argocd app create guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path ksonnet-guestbook
-```
 
 ## 7. Sync (deploy) the application
 
 Once the guestbook application is created, you can now view its status:
 
-From UI:
-![guestbook app](assets/guestbook-app.png)
-
-From CLI:
 ```bash
-$ argocd app get guestbook-default
-Name:          guestbook-default
-Server:        https://kubernetes.default.svc
-Namespace:     default
-URL:           https://192.168.64.36:31880/applications/argocd/guestbook-default
-Environment:   default
-Repo:          https://github.com/argoproj/argocd-example-apps.git
-Path:          guestbook
-Target:        HEAD
+$ argocd app get guestbook
+Name:               guestbook
+Server:             https://kubernetes.default.svc
+Namespace:          default
+URL:                https://10.97.164.88/applications/guestbook
+Repo:               https://github.com/argoproj/argocd-example-apps.git
+Target:
+Path:               guestbook
+Sync Policy:        <none>
+Sync Status:        OutOfSync from  (1ff8a67)
+Health Status:      Missing
 
-KIND        NAME          STATUS     HEALTH
-Service     guestbook-ui  OutOfSync
-Deployment  guestbook-ui  OutOfSync
+GROUP  KIND        NAMESPACE  NAME          STATUS     HEALTH
+apps   Deployment  default    guestbook-ui  OutOfSync  Missing
+       Service     default    guestbook-ui  OutOfSync  Missing
 ```
 
-The application status is initially in an `OutOfSync` state, since the application has yet to be
+The application status is initially `OutOfSync` state, since the application has yet to be
 deployed, and no Kubernetes resources have been created. To sync (deploy) the application, run:
 
 ```bash
-$ argocd app sync guestbook-default
-Application:        guestbook-default
-Operation:          Sync
-Phase:              Succeeded
-Message:            successfully synced
-
-KIND        NAME          MESSAGE
-Service     guestbook-ui  service "guestbook-ui" created
-Deployment  guestbook-ui  deployment.apps "guestbook-ui" created
+argocd app sync guestbook
 ```
 
 This command retrieves the manifests from git repository and performs a `kubectl apply` of the
 manifests. The guestbook app is now running and you can now view its resource components, logs,
 events, and assessed health status:
 
+### From UI:
+![guestbook app](assets/guestbook-app.png)
 ![view app](assets/guestbook-tree.png)
 
 ## 8. Next Steps
