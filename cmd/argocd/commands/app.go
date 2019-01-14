@@ -647,7 +647,7 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 		// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
 		// If live object is missing then it does not matter if target is namespaced or not.
 		namespace := obj.GetNamespace()
-		if namespacedByGk[gk] {
+		if !namespacedByGk[gk] {
 			namespace = ""
 		} else {
 			if namespace == "" {
