@@ -258,3 +258,19 @@ func TestUpdateAppResource(t *testing.T) {
 
 	assert.Equal(t, []string{"helm-guestbook"}, updatesReceived)
 }
+
+func TestCircularReference(t *testing.T) {
+	dep := testDeploy.DeepCopy()
+	dep.SetOwnerReferences([]metav1.OwnerReference{{
+		Name:       testPod.GetName(),
+		Kind:       testPod.GetKind(),
+		APIVersion: testPod.GetAPIVersion(),
+	}})
+	cluster := newCluster(testPod, testRS, dep)
+	err := cluster.ensureSynced()
+
+	assert.Nil(t, err)
+
+	children := cluster.getChildren(dep)
+	assert.Len(t, children, 1)
+}

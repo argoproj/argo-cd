@@ -1,8 +1,11 @@
 package cache
 
 import (
+	log "github.com/sirupsen/logrus"
+
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
+
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -57,11 +60,27 @@ func (n *node) getApp(ns map[kube.ResourceKey]*node) string {
 	return ""
 }
 
-func (n *node) childResourceNodes(ns map[kube.ResourceKey]*node) appv1.ResourceNode {
+func newResourceKeySet(set map[kube.ResourceKey]bool, keys ...kube.ResourceKey) map[kube.ResourceKey]bool {
+	newSet := make(map[kube.ResourceKey]bool)
+	for k, v := range set {
+		newSet[k] = v
+	}
+	for i := range keys {
+		newSet[keys[i]] = true
+	}
+	return newSet
+}
+
+func (n *node) childResourceNodes(ns map[kube.ResourceKey]*node, parents map[kube.ResourceKey]bool) appv1.ResourceNode {
 	children := make([]appv1.ResourceNode, 0)
-	for key := range ns {
-		if n.isParentOf(ns[key]) {
-			children = append(children, ns[key].childResourceNodes(ns))
+	for childKey := range ns {
+		if n.isParentOf(ns[childKey]) {
+			if parents[childKey] {
+				key := n.resourceKey()
+				log.Warnf("Circular dependency detected. %s is child and parent of %s", childKey.String(), key.String())
+			} else {
+				children = append(children, ns[childKey].childResourceNodes(ns, newResourceKeySet(parents, n.resourceKey())))
+			}
 		}
 	}
 	gv, err := schema.ParseGroupVersion(n.ref.APIVersion)
