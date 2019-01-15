@@ -169,7 +169,7 @@ func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.Resour
 		nsNodes := c.nsIndex[obj.GetNamespace()]
 		for _, child := range nsNodes {
 			if objInfo.isParentOf(child) {
-				children = append(children, child.childResourceNodes(nsNodes))
+				children = append(children, child.childResourceNodes(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}))
 			}
 		}
 	}
