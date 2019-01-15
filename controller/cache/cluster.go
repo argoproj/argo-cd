@@ -115,7 +115,10 @@ func (c *clusterInfo) sync() (err error) {
 
 	clusterResources, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig())
 	if err != nil {
-		return err
+		if len(clusterResources) == 0 {
+			return err
+		}
+		log.Warnf("Partial success when getting API resources during sync: %v", err)
 	}
 	c.apis = make(map[schema.GroupVersionKind]metav1.APIResource)
 	for _, r := range clusterResources {

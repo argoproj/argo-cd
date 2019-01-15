@@ -246,9 +246,8 @@ func IsCRD(obj *unstructured.Unstructured) bool {
 	return IsCRDGroupVersionKind(obj.GroupVersionKind())
 }
 
-// temporal solution for https://github.com/argoproj/argo-cd/issues/650.
 func isExcludedResourceGroup(resource metav1.APIResource) bool {
-	return resource.Group == "servicecatalog.k8s.io"
+	return false
 }
 
 type apiResourceInterface struct {
@@ -270,7 +269,10 @@ func filterAPIResources(config *rest.Config, filter filterFunc, namespace string
 	}
 	serverResources, err := disco.ServerPreferredResources()
 	if err != nil {
-		return nil, err
+		if len(serverResources) == 0 {
+			return nil, err
+		}
+		log.Warnf("Partial success when performing preferred resource discovery: %v", err)
 	}
 	apiResIfs := make([]apiResourceInterface, 0)
 	for _, apiResourcesList := range serverResources {
