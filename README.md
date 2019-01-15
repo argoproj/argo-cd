@@ -1,7 +1,6 @@
 [![slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
 [![codecov](https://codecov.io/gh/argoproj/argo-cd/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/argo-cd)
 
-
 # Argo CD - Declarative Continuous Delivery for Kubernetes
 
 ## What is Argo CD?
@@ -76,12 +75,16 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Parameter overrides for overriding ksonnet/helm parameters in git
 * Service account/access key management for CI pipelines
 
+## Community Blogs and Presentations
+* KubeCon talk: [CI/CD in Light Speed with K8s and Argo CD](https://www.youtube.com/watch?v=OdzH82VpMwI&feature=youtu.be)
+* KubeCon talk: [Machine Learning as Code](https://www.youtube.com/watch?v=VXrGp5er1ZE&t=0s&index=135&list=PLj6h78yzYM2PZf9eA7bhWnIh_mK1vyOfU)
+  * Among other things, desribes how Kubeflow uses Argo CD to implement GitOPs for ML
+* SIG Apps demo: [Argo CD - GitOps Continuous Delivery for Kubernetes](https://www.youtube.com/watch?v=aWDIQMbp1cc&feature=youtu.be&t=1m4s)
+
 ## Project Resources
 * Argo GitHub:  https://github.com/argoproj
 * Argo Slack:   [click here to join](https://argoproj.github.io/community/join-slack)
 * Argo website: https://argoproj.github.io/
-* Argo forum:   https://groups.google.com/forum/#!forum/argoproj
-
 
 ## Development Status
 * Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
