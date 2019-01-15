@@ -762,6 +762,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:413f9e6cd1e2fe339c1d4a5e36de4e287d9edd575dd63e89b728351b385aadfa"
+  name = "github.com/yaronsumel/grpc-throttle"
+  packages = ["."]
+  pruneopts = ""
+  revision = "cd1107b3c0b1e9589c5837a847f6cd51188ef11e"
+
+[[projects]]
+  branch = "master"
   digest = "1:3cf699a0df65293cc8fd2339606950d3e2f6d02a435703951d1da411a23f7cef"
   name = "github.com/yudai/gojsondiff"
   packages = [
@@ -1435,6 +1443,7 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/vmihailenco/msgpack",
+    "github.com/yaronsumel/grpc-throttle",
     "github.com/yudai/gojsondiff",
     "github.com/yudai/gojsondiff/formatter",
     "golang.org/x/crypto/bcrypt",
