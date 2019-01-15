@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-redis/redis"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -30,6 +32,7 @@ const (
 func newCommand() *cobra.Command {
 	var (
 		logLevel               string
+		redisAddress           string
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
 	var command = cobra.Command{
@@ -41,7 +44,7 @@ func newCommand() *cobra.Command {
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
 
-			server, err := reposerver.NewServer(git.NewFactory(), newCache(), tlsConfigCustomizer)
+			server, err := reposerver.NewServer(git.NewFactory(), newCache(redisAddress), tlsConfigCustomizer)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -62,18 +65,21 @@ func newCommand() *cobra.Command {
 	}
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&redisAddress, "redis", "", "Redis server hostname and port (e.g. argocd-redis:6379). ")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	return &command
 }
 
-func newCache() cache.Cache {
-	return cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
-	// client := redis.NewClient(&redis.Options{
-	// 	Addr:     "localhost:6379",
-	// 	Password: "",
-	// 	DB:       0,
-	// })
-	// return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
+func newCache(redisAddress string) cache.Cache {
+	if redisAddress == "" {
+		return cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
+	}
+	client := redis.NewClient(&redis.Options{
+		Addr:     redisAddress,
+		Password: "",
+		DB:       0,
+	})
+	return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
 }
 
 func main() {
