@@ -663,14 +663,6 @@
   revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
 
 [[projects]]
-  branch = "master"
-  digest = "1:1ee3e3e12ffdb5ba70b918148685cab6340bbc0d03ba723bcb46062d1bea69c6"
-  name = "github.com/qiangmzsx/string-adapter"
-  packages = ["."]
-  pruneopts = ""
-  revision = "38f25303bb0cd40e674a6fac01e0171ab905f5a1"
-
-[[projects]]
   digest = "1:3962f553b77bf6c03fc07cd687a22dd3b00fe11aa14d31194f5505f5bb65cdc8"
   name = "github.com/sergi/go-diff"
   packages = ["diffmatchpatch"]
@@ -1403,6 +1395,7 @@
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
+    "github.com/casbin/casbin/persist",
     "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
     "github.com/dustin/go-humanize",
@@ -1434,7 +1427,6 @@
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
-    "github.com/qiangmzsx/string-adapter",
     "github.com/sirupsen/logrus",
     "github.com/skratchdot/open-golang/open",
     "github.com/soheilhy/cmux",
@@ -1497,6 +1489,7 @@
     "k8s.io/client-go/informers/core/v1",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
+    "k8s.io/client-go/listers/core/v1",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/client-go/plugin/pkg/client/auth/oidc",
     "k8s.io/client-go/rest",
