@@ -244,6 +244,9 @@ func Normalize(un *unstructured.Unstructured) {
 	if un == nil {
 		return
 	}
+	// creationTimestamp is sometimes set to null in the config when exported (e.g. SealedSecrets)
+	// Removing the field allows a cleaner diff.
+	unstructured.RemoveNestedField(un.Object, "metadata", "creationTimestamp")
 	gvk := un.GroupVersionKind()
 	if gvk.Group == "" && gvk.Kind == "Secret" {
 		NormalizeSecret(un)
