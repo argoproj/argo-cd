@@ -185,7 +185,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                 <div>
                                 {selectedNode && (
-                                    <DataLoader input={selectedNode.resourceVersion} load={async () => {
+                                    <DataLoader noLoaderOnInputChange={true} input={selectedNode.resourceVersion} load={async () => {
                                         const managedResources = await services.applications.managedResources(application.metadata.name);
                                         const controlled = managedResources.find((item) => isSameNode(selectedNode, item));
                                         const summary = application.status.resources.find((item) => isSameNode(selectedNode, item));
