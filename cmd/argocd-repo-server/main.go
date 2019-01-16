@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -35,6 +34,8 @@ func newCommand() *cobra.Command {
 	var (
 		logLevel               string
 		redisAddress           string
+		sentinelAddresses      []string
+		sentinelMaster         string
 		parallelismLimit       []string
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
@@ -49,7 +50,7 @@ func newCommand() *cobra.Command {
 
 			parallelism, err := parseParallelismLimit(parallelismLimit)
 			errors.CheckError(err)
-			server, err := reposerver.NewServer(git.NewFactory(), newCache(redisAddress), tlsConfigCustomizer, parallelism)
+			server, err := reposerver.NewServer(git.NewFactory(), newCache(redisAddress, sentinelAddresses, sentinelMaster), tlsConfigCustomizer, parallelism)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -71,6 +72,8 @@ func newCommand() *cobra.Command {
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&redisAddress, "redis", "", "Redis server hostname and port (e.g. argocd-redis:6379). ")
+	command.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
+	command.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")
 	command.Flags().StringArrayVar(&parallelismLimit,
 		"parallelism-limit", []string{}, "Sets parallelism limit for grpc method (e.g. /repository.RepositoryService/GenerateManifest=10). ")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
@@ -93,16 +96,22 @@ func parseParallelismLimit(parallelismLimit []string) (map[string]int, error) {
 	return parallelism, nil
 }
 
-func newCache(redisAddress string) cache.Cache {
-	if redisAddress == "" {
-		return cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
+func newCache(redisAddress string, sentinelAddresses []string, sentinelMaster string) cache.Cache {
+	if redisAddress != "" {
+		client := redis.NewClient(&redis.Options{
+			Addr:     redisAddress,
+			Password: "",
+			DB:       0,
+		})
+		return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
+	} else if len(sentinelAddresses) > 0 {
+		client := redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:    sentinelMaster,
+			SentinelAddrs: sentinelAddresses,
+		})
+		return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
 	}
-	client := redis.NewClient(&redis.Options{
-		Addr:     redisAddress,
-		Password: "",
-		DB:       0,
-	})
-	return cache.NewRedisCache(client, repository.DefaultRepoCacheExpiration)
+	return cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
 }
 
 func main() {
