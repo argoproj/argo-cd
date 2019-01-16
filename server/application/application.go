@@ -186,6 +186,10 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
+	helmRepos, err := s.db.ListHelmRepos(ctx)
+	if err != nil {
+		return nil, err
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:                        repo,
 		Revision:                    revision,
@@ -194,6 +198,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 		AppLabelValue:               a.Name,
 		Namespace:                   a.Spec.Destination.Namespace,
 		ApplicationSource:           &a.Spec.Source,
+		HelmRepos:                   helmRepos,
 	})
 	if err != nil {
 		return nil, err
