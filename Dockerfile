@@ -42,7 +42,8 @@ RUN wget https://github.com/gobuffalo/packr/releases/download/v${PACKR_VERSION}/
 
 # Install kubectl
 # NOTE: keep the version synced with https://storage.googleapis.com/kubernetes-release/release/stable.txt
-ENV KUBECTL_VERSION=1.13.1
+# Keep version at 1.12.X until https://github.com/argoproj/argo-cd/issues/1012 is resolved
+ENV KUBECTL_VERSION=1.12.4
 RUN curl -L -o /usr/local/bin/kubectl -LO https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
     chmod +x /usr/local/bin/kubectl
 
