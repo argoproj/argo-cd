@@ -28,6 +28,8 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -37,14 +39,21 @@ const (
 
 // Service implements ManifestService interface
 type Service struct {
-	repoLock   *util.KeyLock
-	gitFactory git.ClientFactory
-	cache      cache.Cache
+	repoLock                  *util.KeyLock
+	gitFactory                git.ClientFactory
+	cache                     cache.Cache
+	parallelismLimitSemaphore *semaphore.Weighted
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(gitFactory git.ClientFactory, cache cache.Cache) *Service {
+func NewService(gitFactory git.ClientFactory, cache cache.Cache, parallelismLimit int64) *Service {
+	var parallelismLimitSemaphore *semaphore.Weighted
+	if parallelismLimit > 0 {
+		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
+	}
 	return &Service{
+		parallelismLimitSemaphore: parallelismLimitSemaphore,
+
 		repoLock:   util.NewKeyLock(),
 		gitFactory: gitFactory,
 		cache:      cache,
@@ -163,6 +172,14 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	cached = getCached()
 	if cached != nil {
 		return cached, nil
+	}
+
+	if s.parallelismLimitSemaphore != nil {
+		err = s.parallelismLimitSemaphore.Acquire(c, 1)
+		if err != nil {
+			return nil, err
+		}
+		defer s.parallelismLimitSemaphore.Release(1)
 	}
 
 	commitSHA, err = checkoutRevision(gitClient, commitSHA)
