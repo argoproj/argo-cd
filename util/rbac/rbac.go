@@ -2,14 +2,16 @@ package rbac
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
+	"github.com/casbin/casbin/persist"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gobuffalo/packr"
-	scas "github.com/qiangmzsx/string-adapter"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -36,16 +38,13 @@ const (
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
 	*casbin.Enforcer
-	adapter            *scas.Adapter
+	adapter            *argocdAdapter
 	clientset          kubernetes.Interface
 	namespace          string
 	configmap          string
 	claimsEnforcerFunc ClaimsEnforcerFunc
-
-	model             model.Model
-	defaultRole       string
-	builtinPolicy     string
-	userDefinedPolicy string
+	model              model.Model
+	defaultRole        string
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
@@ -61,7 +60,7 @@ func init() {
 }
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
-	adapter := scas.NewAdapter("")
+	adapter := newAdapter("", "", "")
 	builtInModel := newBuiltInModel()
 	enf := casbin.NewEnforcer(builtInModel, adapter)
 	enf.EnableLog(false)
@@ -104,9 +103,7 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 	if policy == "" {
 		enf = e.Enforcer
 	} else {
-		policies := fmt.Sprintf("%s\n%s\n%s", e.builtinPolicy, e.userDefinedPolicy, policy)
-		adapter := scas.NewAdapter(policies)
-		enf, err = casbin.NewEnforcerSafe(newBuiltInModel(), adapter)
+		enf, err = casbin.NewEnforcerSafe(newBuiltInModel(), newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy))
 		if err != nil {
 			log.Warnf("invalid runtime policy: %s", policy)
 			enf = e.Enforcer
@@ -142,15 +139,13 @@ func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc Claims
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies
 func (e *Enforcer) SetBuiltinPolicy(policy string) error {
-	e.builtinPolicy = policy
-	e.adapter.Line = fmt.Sprintf("%s\n%s", e.builtinPolicy, e.userDefinedPolicy)
+	e.adapter.builtinPolicy = policy
 	return e.LoadPolicy()
 }
 
 // SetUserPolicy sets a user policy, augmenting the built-in policy
 func (e *Enforcer) SetUserPolicy(policy string) error {
-	e.userDefinedPolicy = policy
-	e.adapter.Line = fmt.Sprintf("%s\n%s", e.builtinPolicy, e.userDefinedPolicy)
+	e.adapter.userDefinedPolicy = policy
 	return e.LoadPolicy()
 }
 
@@ -226,8 +221,7 @@ func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap) error {
 
 // ValidatePolicy verifies a policy string is acceptable to casbin
 func ValidatePolicy(policy string) error {
-	adapter := scas.NewAdapter(policy)
-	_, err := casbin.NewEnforcerSafe(newBuiltInModel(), adapter)
+	_, err := casbin.NewEnforcerSafe(newBuiltInModel(), newAdapter("", "", policy))
 	if err != nil {
 		return fmt.Errorf("policy syntax error: %s", policy)
 	}
@@ -239,4 +233,47 @@ func ValidatePolicy(policy string) error {
 // casbin enforcers.
 func newBuiltInModel() model.Model {
 	return casbin.NewModel(modelConf)
+}
+
+// Casbin adapter which satisfies persist.Adapter interface
+type argocdAdapter struct {
+	builtinPolicy     string
+	userDefinedPolicy string
+	runtimePolicy     string
+}
+
+func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdAdapter {
+	return &argocdAdapter{
+		builtinPolicy:     builtinPolicy,
+		userDefinedPolicy: runtimePolicy,
+		runtimePolicy:     runtimePolicy,
+	}
+}
+
+func (a *argocdAdapter) LoadPolicy(model model.Model) error {
+	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
+		for _, line := range strings.Split(policyStr, "\n") {
+			if line == "" {
+				continue
+			}
+			persist.LoadPolicyLine(line, model)
+		}
+	}
+	return nil
+}
+
+func (a *argocdAdapter) SavePolicy(model model.Model) error {
+	return errors.New("not implemented")
+}
+
+func (a *argocdAdapter) AddPolicy(sec string, ptype string, rule []string) error {
+	return errors.New("not implemented")
+}
+
+func (a *argocdAdapter) RemovePolicy(sec string, ptype string, rule []string) error {
+	return errors.New("not implemented")
+}
+
+func (a *argocdAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
+	return errors.New("not implemented")
 }

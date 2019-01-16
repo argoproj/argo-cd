@@ -234,7 +234,7 @@ func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provi
 		fmt.Fprintf(w, successPage)
 		completionChan <- ""
 	}
-	srv := &http.Server{Addr: ":" + strconv.Itoa(port)}
+	srv := &http.Server{Addr: "localhost:" + strconv.Itoa(port)}
 	http.HandleFunc("/auth/callback", callbackHandler)
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
