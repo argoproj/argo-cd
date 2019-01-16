@@ -262,7 +262,7 @@
   version = "v6.3.5"
 
 [[projects]]
-  digest = "1:34c6632be33dacedc5acf9f4489cfa64e0d716a55b00e2f6ff839a4437c3f7da"
+  digest = "1:b73fabc1ff8f2417bc5cc51d3f7274d6af5300b5ad9b8606967213134c1700dc"
   name = "github.com/go-redis/redis"
   packages = [
     ".",
@@ -271,12 +271,11 @@
     "internal/hashtag",
     "internal/pool",
     "internal/proto",
-    "internal/singleflight",
     "internal/util",
   ]
   pruneopts = ""
-  revision = "877867d2845fbaf86798befe410b6ceb6f5c29a3"
-  version = "v6.10.2"
+  revision = "22be8a3eaf992c828cecb69dc07348313bf08d2e"
+  version = "v6.15.1"
 
 [[projects]]
   digest = "1:842c1acbacc80da775cfc0c412c4fe322c2d1b86c260db632987730d0d67a6bd"
@@ -759,6 +758,14 @@
   pruneopts = ""
   revision = "640f0ab560aeb89d523bb6ac322b1244d5c3796c"
   version = "v0.2.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:413f9e6cd1e2fe339c1d4a5e36de4e287d9edd575dd63e89b728351b385aadfa"
+  name = "github.com/yaronsumel/grpc-throttle"
+  packages = ["."]
+  pruneopts = ""
+  revision = "cd1107b3c0b1e9589c5837a847f6cd51188ef11e"
 
 [[projects]]
   branch = "master"
@@ -1435,6 +1442,7 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/vmihailenco/msgpack",
+    "github.com/yaronsumel/grpc-throttle",
     "github.com/yudai/gojsondiff",
     "github.com/yudai/gojsondiff/formatter",
     "golang.org/x/crypto/bcrypt",

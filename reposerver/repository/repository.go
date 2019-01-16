@@ -134,22 +134,37 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return nil, err
 	}
 	cacheKey := manifestCacheKey(commitSHA, q)
-	var res ManifestResponse
-	if !q.NoCache {
-		err = s.cache.Get(cacheKey, &res)
-		if err == nil {
-			log.Infof("manifest cache hit: %s", cacheKey)
-			return &res, nil
+
+	getCached := func() *ManifestResponse {
+		var res ManifestResponse
+		if !q.NoCache {
+			err = s.cache.Get(cacheKey, &res)
+			if err == nil {
+				log.Infof("manifest cache hit: %s", cacheKey)
+				return &res
+			}
+			if err != cache.ErrCacheMiss {
+				log.Warnf("manifest cache error %s: %v", cacheKey, err)
+			} else {
+				log.Infof("manifest cache miss: %s", cacheKey)
+			}
 		}
-		if err != cache.ErrCacheMiss {
-			log.Warnf("manifest cache error %s: %v", cacheKey, err)
-		} else {
-			log.Infof("manifest cache miss: %s", cacheKey)
-		}
+		return nil
+	}
+
+	cached := getCached()
+	if cached != nil {
+		return cached, nil
 	}
 
 	s.repoLock.Lock(gitClient.Root())
 	defer s.repoLock.Unlock(gitClient.Root())
+
+	cached = getCached()
+	if cached != nil {
+		return cached, nil
+	}
+
 	commitSHA, err = checkoutRevision(gitClient, commitSHA)
 	if err != nil {
 		return nil, err
@@ -160,7 +175,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	res = *genRes
+	res := *genRes
 	res.Revision = commitSHA
 	err = s.cache.Set(&cache.Item{
 		Key:        manifestCacheKey(commitSHA, q),
