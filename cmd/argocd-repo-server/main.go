@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -36,7 +34,7 @@ func newCommand() *cobra.Command {
 		redisAddress           string
 		sentinelAddresses      []string
 		sentinelMaster         string
-		parallelismLimit       []string
+		parallelismLimit       int64
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
 	)
 	var command = cobra.Command{
@@ -48,9 +46,7 @@ func newCommand() *cobra.Command {
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
 
-			parallelism, err := parseParallelismLimit(parallelismLimit)
-			errors.CheckError(err)
-			server, err := reposerver.NewServer(git.NewFactory(), newCache(redisAddress, sentinelAddresses, sentinelMaster), tlsConfigCustomizer, parallelism)
+			server, err := reposerver.NewServer(git.NewFactory(), newCache(redisAddress, sentinelAddresses, sentinelMaster), tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -74,26 +70,9 @@ func newCommand() *cobra.Command {
 	command.Flags().StringVar(&redisAddress, "redis", "", "Redis server hostname and port (e.g. argocd-redis:6379). ")
 	command.Flags().StringArrayVar(&sentinelAddresses, "sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
 	command.Flags().StringVar(&sentinelMaster, "sentinelmaster", "master", "Redis sentinel master group name.")
-	command.Flags().StringArrayVar(&parallelismLimit,
-		"parallelism-limit", []string{}, "Sets parallelism limit for grpc method (e.g. /repository.RepositoryService/GenerateManifest=10). ")
+	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	return &command
-}
-
-func parseParallelismLimit(parallelismLimit []string) (map[string]int, error) {
-	parallelism := make(map[string]int)
-	for _, limit := range parallelismLimit {
-		parts := strings.Split(limit, "=")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("Expected parallelism-limit form is: grpc-method-name=number. Received: %s.", limit)
-		}
-		limitNum, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return nil, fmt.Errorf("Unable to convert limit specified in parallelism-limit=%s to number: %v", limit, err)
-		}
-		parallelism[parts[0]] = limitNum
-	}
-	return parallelism, nil
 }
 
 func newCache(redisAddress string, sentinelAddresses []string, sentinelMaster string) cache.Cache {

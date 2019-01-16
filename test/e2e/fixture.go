@@ -123,7 +123,7 @@ func (f *Fixture) setup() error {
 	}
 
 	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
-	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache, func(config *tls.Config) {}, make(map[string]int))
+	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache, func(config *tls.Config) {}, 0)
 	if err != nil {
 		return err
 	}
