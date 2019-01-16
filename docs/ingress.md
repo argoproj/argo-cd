@@ -143,7 +143,7 @@ spec:
         - /shared/app
         - --repo-server
         - argocd-repo-server:8081
-        - --base-href
+        - --basehref
         - /argo-cd
 ```
 
