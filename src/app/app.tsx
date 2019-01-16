@@ -1,4 +1,4 @@
-import { Layout, NavigationManager, NotificationInfo, Notifications, NotificationsManager, Popup, PopupManager, PopupProps } from 'argo-ui';
+import { Layout, NavigationManager, NotificationInfo, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps } from 'argo-ui';
 import * as cookie from 'cookie';
 import createHistory from 'history/createBrowserHistory';
 import * as jwtDecode from 'jwt-decode';
@@ -101,6 +101,7 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32'/>
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16'/>
                 </Helmet>
+                <PageContext.Provider value={{title: 'Argo CD'}}>
                 <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}}>
                     {this.state.popupProps && <Popup {...this.state.popupProps}/>}
                     <Router history={history}>
@@ -128,6 +129,7 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
                         </Switch>
                     </Router>
                 </Provider>
+                </PageContext.Provider>
             </React.Fragment>
         );
     }

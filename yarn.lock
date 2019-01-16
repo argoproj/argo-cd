@@ -66,6 +66,13 @@
   dependencies:
     "@types/react" "*"
 
+"@types/react-helmet@^5.0.8":
+  version "5.0.8"
+  resolved "https://registry.yarnpkg.com/@types/react-helmet/-/react-helmet-5.0.8.tgz#f080eea6652e44f60b4574463d238f268d81d9af"
+  integrity sha512-ZTr12eDAYI0yUiMx1K82EHqRYa8J1BOOLus+0gL+AkksUiIPwLE0wLiXa9FNqD8r9GXAi+yRPZImkRh1JNlTkQ==
+  dependencies:
+    "@types/react" "*"
+
 "@types/react-router-dom@^4.2.3":
   version "4.2.7"
   resolved "https://registry.yarnpkg.com/@types/react-router-dom/-/react-router-dom-4.2.7.tgz#9d36bfe175f916dd8d7b6b0237feed6cce376b4c"
@@ -215,13 +222,14 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-argo-ui@^2.2.0-alpha13:
-  version "2.2.0-alpha13"
-  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha13.tgz#e6dfdd09076d7ca40a0149b833b447badc4a62f9"
-  integrity sha512-5hCrzPejOYSPONiiGBp+yW4n838CAJrEvLEKYR6uBqoobwge9EdpRap/jDO4BV/RI3lkNiJo5l6bd+hIT1WSiw==
+argo-ui@^2.2.0-alpha15:
+  version "2.2.0-alpha15"
+  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha15.tgz#4ab8a83e9bd20f0f5d9dfb2197fe741436af5e20"
+  integrity sha512-KaQYRd7U/AXfTjQl2oDITajLeK/9ktIn02JONT4mOXlau/XZjObsDhF0efzwOL1XWU2IfZwjlH2ckLj+J2h46Q==
   dependencies:
     "@types/react-autocomplete" "^1.8.4"
     "@types/react-form" "^2.16.1"
+    "@types/react-helmet" "^5.0.8"
     aws-sdk "^2.188.0"
     body-parser "^1.18.2"
     classnames "^2.2.5"
@@ -240,6 +248,7 @@ argo-ui@^2.2.0-alpha13:
     react-autocomplete "^1.8.1"
     react-dom "^16.4.1"
     react-form "2.16.0"
+    react-helmet "^5.2.0"
     react-router-dom "^4.2.2"
     rxjs "^5.5.6"
     superagent "^3.8.2"
