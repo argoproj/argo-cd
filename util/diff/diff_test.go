@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yudai/gojsondiff/formatter"
 	"golang.org/x/crypto/ssh/terminal"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/errors"
@@ -480,6 +480,17 @@ func TestRedactedSecretData(t *testing.T) {
 func TestNullRoleRule(t *testing.T) {
 	configUn := unmarshalFile("testdata/grafana-clusterrole-config.json")
 	liveUn := unmarshalFile("testdata/grafana-clusterrole-live.json")
+	dr := Diff(configUn, liveUn)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
+		assert.Nil(t, err)
+		log.Println(ascii)
+	}
+}
+
+func TestNullCreationTimestamp(t *testing.T) {
+	configUn := unmarshalFile("testdata/sealedsecret-config.json")
+	liveUn := unmarshalFile("testdata/sealedsecret-live.json")
 	dr := Diff(configUn, liveUn)
 	if !assert.False(t, dr.Modified) {
 		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
