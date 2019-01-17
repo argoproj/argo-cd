@@ -178,6 +178,7 @@ func (k KubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionK
 	propagationPolicy := metav1.DeletePropagationForeground
 	deleteOptions := &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	if forceDelete {
+		propagationPolicy = metav1.DeletePropagationBackground
 		zeroGracePeriod := int64(0)
 		deleteOptions.GracePeriodSeconds = &zeroGracePeriod
 	}
