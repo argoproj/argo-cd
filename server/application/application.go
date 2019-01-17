@@ -439,8 +439,13 @@ func (s *Server) validateApp(ctx context.Context, app *appv1.Application) error 
 		return err
 	}
 	currApp, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(app.Name, metav1.GetOptions{})
-	if err != nil && !apierr.IsNotFound(err) {
-		return err
+	if err != nil {
+		if !apierr.IsNotFound(err) {
+			return err
+		}
+		// Kubernetes go-client will return a pointer to a zero-value app instead of nil, even
+		// though the API response was NotFound. This behavior was confirmed via logs.
+		currApp = nil
 	}
 	if currApp != nil && currApp.Spec.GetProject() != app.Spec.GetProject() {
 		// When changing projects, caller must have application create & update privileges in new project

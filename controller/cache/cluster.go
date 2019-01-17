@@ -215,6 +215,8 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 					if err != nil && !errors.IsNotFound(err) {
 						return err
 					}
+					// TODO: may need to add following line due to k8s behavior of returning an object even when err is NotFound
+					// managedObj = nil
 				}
 			}
 		}
