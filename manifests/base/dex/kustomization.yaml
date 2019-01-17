@@ -1,0 +1,9 @@
+commonLabels:
+  component: dex
+
+resources:
+- dex-server-deployment.yaml
+- dex-server-role.yaml
+- dex-server-rolebinding.yaml
+- dex-server-sa.yaml
+- dex-server-service.yaml

@@ -9,5 +9,6 @@ spec:
     plural: applications
     shortNames:
     - app
+    - apps
   scope: Namespaced
   version: v1alpha1

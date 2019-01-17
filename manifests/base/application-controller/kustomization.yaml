@@ -1,0 +1,9 @@
+commonLabels:
+  component: application-controller
+
+resources:
+- argocd-application-controller-sa.yaml
+- argocd-application-controller-role.yaml
+- argocd-application-controller-rolebinding.yaml
+- argocd-application-controller-deployment.yaml
+- argocd-application-controller-service.yaml

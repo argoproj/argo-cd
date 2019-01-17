@@ -1,0 +1,10 @@
+commonLabels:
+  component: server
+
+resources:
+- argocd-metrics-service.yaml
+- argocd-server-deployment.yaml
+- argocd-server-role.yaml
+- argocd-server-rolebinding.yaml
+- argocd-server-sa.yaml
+- argocd-server-service.yaml

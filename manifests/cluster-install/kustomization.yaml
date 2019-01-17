@@ -1,8 +1,4 @@
 bases:
+- ./application-controller
+- ./server
 - ../namespace-install
-
-resources:
-- argocd-application-controller-clusterrole.yaml
-- argocd-application-controller-clusterrolebinding.yaml
-- argocd-server-clusterrole.yaml
-- argocd-server-clusterrolebinding.yaml

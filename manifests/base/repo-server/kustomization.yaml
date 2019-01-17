@@ -1,0 +1,6 @@
+commonLabels:
+  component: repo-server
+
+resources:
+- argocd-repo-server-deployment.yaml
+- argocd-repo-server-service.yaml

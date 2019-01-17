@@ -1,0 +1,6 @@
+commonLabels:
+  component: server
+
+resources:
+- argocd-server-clusterrole.yaml
+- argocd-server-clusterrolebinding.yaml
