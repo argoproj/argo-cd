@@ -234,6 +234,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
         }
         return <i title={title} className={className} style={{ color }} />;
     }
+    return null;
 };
 
 export function getOperationType(application: appModels.Application) {
