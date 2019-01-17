@@ -245,7 +245,7 @@ type argocdAdapter struct {
 func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdAdapter {
 	return &argocdAdapter{
 		builtinPolicy:     builtinPolicy,
-		userDefinedPolicy: runtimePolicy,
+		userDefinedPolicy: userDefinedPolicy,
 		runtimePolicy:     runtimePolicy,
 	}
 }

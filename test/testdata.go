@@ -8,8 +8,13 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
+	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
+	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 )
 
 const (
@@ -178,4 +183,46 @@ func DemoDeployment() *appsv1.Deployment {
 			},
 		},
 	}
+}
+
+func NewFakeConfigMap() *apiv1.ConfigMap {
+	cm := apiv1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: FakeArgoCDNamespace,
+		},
+		Data: make(map[string]string),
+	}
+	return &cm
+}
+
+func NewFakeSecret(policy ...string) *apiv1.Secret {
+	secret := apiv1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: FakeArgoCDNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	}
+	return &secret
+}
+
+func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceLister {
+	fakeAppClientset := apps.NewSimpleClientset(objects...)
+	factory := appinformer.NewFilteredSharedInformerFactory(fakeAppClientset, 0, "", func(options *metav1.ListOptions) {})
+	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	cancel := StartInformer(projInformer)
+	defer cancel()
+	return factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(FakeArgoCDNamespace)
 }
