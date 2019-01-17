@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
@@ -75,6 +76,8 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 			return true
 		}
 	}
+	logCtx := log.WithField("claims", claims).WithField("rval", rvals)
+	logCtx.Debug("enforce failed")
 	return false
 }
 
