@@ -311,6 +311,7 @@ func newHookStatus(hook *unstructured.Unstructured, hookType appv1.HookType) app
 		Group:     gvk.Group,
 		Version:   gvk.Version,
 		HookType:  hookType,
+		HookPhase: appv1.OperationRunning,
 		Namespace: hook.GetNamespace(),
 	}
 	if isBatchJob(gvk) {
