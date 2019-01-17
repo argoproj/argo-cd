@@ -36,7 +36,7 @@ export const TagsEditor = ReactForm.FormField((props: {options: string[], noTags
                                 }
                             }}>
                                 <Autocomplete
-                                    options={props.options}
+                                    options={props.options || []}
                                     inputProps={{className: props.className, style: { borderBottom: 'none' }}}
                                     wrapperProps={{className: props.className}} value={api.values.path} onChange={(val, e) => {
                                         if (e.selected) {
