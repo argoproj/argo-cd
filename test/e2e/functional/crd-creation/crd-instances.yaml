@@ -8,7 +8,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Dummy
 metadata:
   name: dummy-crd-instance
-  namespace: default
+  namespace: kube-system
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: ClusterDummy
