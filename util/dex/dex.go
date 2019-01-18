@@ -1,6 +1,7 @@
 package dex
 
 import (
+	"bytes"
 	"fmt"
 	"html"
 	"io/ioutil"
@@ -44,6 +45,7 @@ func NewDexHTTPReverseProxy(serverAddr string) func(writer http.ResponseWriter, 
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
 			resp.Header.Set("Location", fmt.Sprintf("/login?sso_error=%s", url.QueryEscape(message)))
 			resp.StatusCode = http.StatusSeeOther
+			resp.Body = ioutil.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil
 		}
 		return nil
