@@ -592,20 +592,23 @@ func (k *kindSorter) Less(i, j int) bool {
 	}
 	first, aok := k.ordering[a.GetKind()]
 	second, bok := k.ordering[b.GetKind()]
-	// if same kind (including unknown) sub sort alphanumeric
-	if first == second {
-		// if both are unknown and of different kind sort by kind alphabetically
-		if !aok && !bok && a.GetKind() != b.GetKind() {
-			return a.GetKind() < b.GetKind()
-		}
-		return a.GetName() < b.GetName()
+
+	// if both are unknown and of different kind sort by kind alphabetically
+	if !aok && !bok && a.GetKind() != b.GetKind() {
+		return a.GetKind() < b.GetKind()
 	}
+
 	// unknown kind is last
 	if !aok {
 		return false
 	}
 	if !bok {
 		return true
+	}
+
+	// if same kind (including unknown) sub sort alphanumeric
+	if first == second {
+		return a.GetName() < b.GetName()
 	}
 	// sort different kinds
 	return first < second
