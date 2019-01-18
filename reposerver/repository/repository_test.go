@@ -70,7 +70,7 @@ func TestGenerateNullList(t *testing.T) {
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res1, err := generateManifests("./testdata/weird-list", &q)
+	res2, err := generateManifests("./testdata/weird-list", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
+	assert.Equal(t, 2, len(res2.Manifests))
 }
