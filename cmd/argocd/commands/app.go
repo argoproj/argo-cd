@@ -421,6 +421,10 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 	}
 	if env != nil {
 		src.Ksonnet.Environment = *env
+		src.Environment = *env
+	}
+	if src.Ksonnet.IsZero() {
+		src.Ksonnet = nil
 	}
 }
 
@@ -431,6 +435,9 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, namePrefix *string) {
 	if namePrefix != nil {
 		src.Kustomize.NamePrefix = *namePrefix
 	}
+	if src.Kustomize.IsZero() {
+		src.Kustomize = nil
+	}
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
@@ -439,6 +446,10 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 	}
 	if valueFiles != nil {
 		src.Helm.ValueFiles = valueFiles
+		src.ValuesFiles = valueFiles
+	}
+	if src.Helm.IsZero() {
+		src.Helm = nil
 	}
 }
 
