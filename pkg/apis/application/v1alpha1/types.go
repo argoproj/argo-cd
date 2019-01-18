@@ -91,16 +91,28 @@ type ApplicationSourceHelm struct {
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
 }
 
+func (h *ApplicationSourceHelm) IsZero() bool {
+	return len(h.ValueFiles) == 0
+}
+
 // ApplicationSourceKustomize holds kustomize specific options
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix" protobuf:"bytes,1,opt,name=namePrefix"`
 }
 
+func (k *ApplicationSourceKustomize) IsZero() bool {
+	return k.NamePrefix == ""
+}
+
 // ApplicationSourceKsonnet holds ksonnet specific options
 type ApplicationSourceKsonnet struct {
 	// Environment is a ksonnet application environment name
 	Environment string `json:"environment,omitempty" protobuf:"bytes,1,opt,name=environment"`
+}
+
+func (k *ApplicationSourceKsonnet) IsZero() bool {
+	return k.Environment == ""
 }
 
 // ApplicationDestination contains deployment destination information
