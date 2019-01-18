@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -92,7 +93,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			return nil, err
 		}
 		info = &clusterInfo{
-			apis:         make(map[schema.GroupVersionKind]v1.APIResource),
+			apis:         make(map[schema.GroupVersionKind]metav1.APIResource),
 			lock:         &sync.Mutex{},
 			nodes:        make(map[kube.ResourceKey]*node),
 			nsIndex:      make(map[string]map[kube.ResourceKey]*node),
@@ -254,11 +255,14 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.C
 			}
 		}()
 		config := item.RESTConfig()
-		watchStartTime := time.Now()
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		ch, err := c.kubectl.WatchResources(ctx, config, "")
 
+		knownCRDs, err := getCRDs(config)
+		if err != nil {
+			return err
+		}
+		ch, err := c.kubectl.WatchResources(ctx, config, "")
 		if err != nil {
 			return err
 		}
@@ -266,12 +270,16 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.C
 			eventObj := event.Object.(*unstructured.Unstructured)
 			if kube.IsCRD(eventObj) {
 				// restart if new CRD has been created after watch started
-				if event.Type == watch.Added && watchStartTime.Before(eventObj.GetCreationTimestamp().Time) {
-					c.removeCluster(item.Server)
-					return fmt.Errorf("Restarting the watch because a new CRD was added.")
+				if event.Type == watch.Added {
+					if !knownCRDs[eventObj.GetName()] {
+						c.removeCluster(item.Server)
+						return fmt.Errorf("Restarting the watch because a new CRD %s was added", eventObj.GetName())
+					} else {
+						log.Infof("CRD %s updated", eventObj.GetName())
+					}
 				} else if event.Type == watch.Deleted {
 					c.removeCluster(item.Server)
-					return fmt.Errorf("Restarting the watch because a CRD was deleted.")
+					return fmt.Errorf("Restarting the watch because CRD %s was deleted", eventObj.GetName())
 				}
 			}
 			err = c.processEvent(event.Type, eventObj, item.Server)
@@ -281,4 +289,19 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.C
 		}
 		return fmt.Errorf("resource updates channel has closed")
 	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, clusterRetryTimeout)
+}
+
+// getCRDs returns a map of crds
+func getCRDs(config *rest.Config) (map[string]bool, error) {
+	crdsByName := make(map[string]bool)
+	apiextensionsClientset := apiextensionsclient.NewForConfigOrDie(config)
+	crds, err := apiextensionsClientset.ApiextensionsV1beta1().CustomResourceDefinitions().List(metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, crd := range crds.Items {
+		crdsByName[crd.Name] = true
+	}
+	// TODO: support api service, like ServiceCatalog
+	return crdsByName, nil
 }
