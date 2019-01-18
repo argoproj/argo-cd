@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-jsonnet"
+	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -28,8 +29,6 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
-
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -282,13 +281,14 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 				if ok {
 					targets = append(targets, unstructuredObj)
 					return nil
-				} else {
-					return fmt.Errorf("resource list item has unexpected type")
 				}
+				return fmt.Errorf("resource list item has unexpected type")
 			})
 			if err != nil {
 				return nil, err
 			}
+		} else if isNullList(obj) {
+			// noop
 		} else {
 			targets = []*unstructured.Unstructured{obj}
 		}
@@ -336,6 +336,26 @@ func IdentifyAppSourceTypeByAppDir(appDirPath string) v1alpha1.ApplicationSource
 		return v1alpha1.ApplicationSourceTypeKustomize
 	}
 	return v1alpha1.ApplicationSourceTypeDirectory
+}
+
+// isNullList checks if the object is a "List" type where items is null instead of an empty list.
+// Handles a corner case where obj.IsList() returns false when a manifest is like:
+// ---
+// apiVersion: v1
+// items: null
+// kind: ConfigMapList
+func isNullList(obj *unstructured.Unstructured) bool {
+	if _, ok := obj.Object["spec"]; ok {
+		return false
+	}
+	if _, ok := obj.Object["status"]; ok {
+		return false
+	}
+	field, ok := obj.Object["items"]
+	if !ok {
+		return false
+	}
+	return field == nil
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision

@@ -55,3 +55,22 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 12, len(res1.Manifests))
 }
+
+func TestGenerateNullList(t *testing.T) {
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+	}
+	res1, err := generateManifests("./testdata/null-list", &q)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res1.Manifests), 1)
+	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
+
+	res1, err = generateManifests("./testdata/empty-list", &q)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res1.Manifests), 1)
+	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
+
+	res1, err := generateManifests("./testdata/weird-list", &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(res1.Manifests))
+}
