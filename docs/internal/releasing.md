@@ -41,5 +41,8 @@ git push
 
 6. Update documentation:
 * Edit CHANGELOG.md with release notes
-* Update getting_started.md with new version
+* Update `stable` tag
+```
+git tag stable --force && git push upstream stable --force
+```
 * Create GitHub release from new tag and upload binaries (e.g. dist/argocd-darwin-amd64)
