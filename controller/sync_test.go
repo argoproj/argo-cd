@@ -387,6 +387,33 @@ func TestSortManifestHandleNil(t *testing.T) {
 	assert.Nil(t, manifest[1].targetObj)
 }
 
+func TestSyncNamespaceAgainstCRD(t *testing.T) {
+	crd := syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"GroupVersion": "argoproj.io/alpha1",
+				"kind":         "Workflow",
+			},
+		}}
+	namespace := syncTask{
+		targetObj: &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"kind":         "Namespace",
+			},
+		},
+	}
+	unsorted := []syncTask{crd, namespace}
+	ks := newKindSorter(unsorted, resourceOrder)
+	sort.Sort(ks)
+
+	expectedOrder := []syncTask{namespace, crd}
+	assert.Equal(t, len(unsorted), len(expectedOrder))
+	for i, sorted := range unsorted {
+		assert.Equal(t, expectedOrder[i], sorted)
+	}
+}
+
 func TestDontSyncOrPruneHooks(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	targetPod := test.NewPod()
