@@ -16,7 +16,7 @@ export class RepositoriesService {
 
     public apps(repo: string, revision: string): Promise<models.AppInfo[]> {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/apps`).query({revision})
-            .then((res) => res.body.items as models.AppInfo[]);
+            .then((res) => res.body.items as models.AppInfo[] || []);
     }
 
     public appDetails(repo: string, path: string, revision: string): Promise<models.AppDetails> {
