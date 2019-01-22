@@ -1,7 +1,7 @@
 {
   "name": "argo-cd-ui",
   "version": "1.0.0",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js",
     "docker": "./scripts/build_docker.sh",
