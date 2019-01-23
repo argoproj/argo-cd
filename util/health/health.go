@@ -3,8 +3,8 @@ package health
 import (
 	"fmt"
 
-	"k8s.io/api/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	coreV1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -137,12 +137,11 @@ func getIngressHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, ingress, err)
 	}
-	health := appv1.HealthStatus{Status: appv1.HealthStatusProgressing}
-	for _, ingress := range ingress.Status.LoadBalancer.Ingress {
-		if ingress.Hostname != "" || ingress.IP != "" {
-			health.Status = appv1.HealthStatusHealthy
-			break
-		}
+	health := appv1.HealthStatus{}
+	if len(ingress.Status.LoadBalancer.Ingress) > 0 {
+		health.Status = appv1.HealthStatusHealthy
+	} else {
+		health.Status = appv1.HealthStatusProgressing
 	}
 	return &health, nil
 }
@@ -155,12 +154,10 @@ func getServiceHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, erro
 	}
 	health := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	if service.Spec.Type == coreV1.ServiceTypeLoadBalancer {
-		health.Status = appv1.HealthStatusProgressing
-		for _, ingress := range service.Status.LoadBalancer.Ingress {
-			if ingress.Hostname != "" || ingress.IP != "" {
-				health.Status = appv1.HealthStatusHealthy
-				break
-			}
+		if len(service.Status.LoadBalancer.Ingress) > 0 {
+			health.Status = appv1.HealthStatusHealthy
+		} else {
+			health.Status = appv1.HealthStatusProgressing
 		}
 	}
 	return &health, nil
