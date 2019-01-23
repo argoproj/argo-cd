@@ -43,11 +43,13 @@ func TestServiceHealth(t *testing.T) {
 	assertAppHealth(t, "./testdata/svc-clusterip.yaml", appv1.HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/svc-loadbalancer.yaml", appv1.HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/svc-loadbalancer-unassigned.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/svc-loadbalancer-nonemptylist.yaml", appv1.HealthStatusHealthy)
 }
 
 func TestIngressHealth(t *testing.T) {
 	assertAppHealth(t, "./testdata/ingress.yaml", appv1.HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/ingress-unassigned.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/ingress-nonemptylist.yaml", appv1.HealthStatusHealthy)
 }
 
 func TestCRD(t *testing.T) {
