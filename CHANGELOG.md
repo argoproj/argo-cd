@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.11.1 (2019-01-18)
++ Allow using redis as a cache in repo-server (#1020)
+- Fix controller deadlock when checking for stale cache (#1044)
+- Namespaces are not being sorted during apply (#1038)
+- Controller cache was susceptible to clock skew in managed cluster
+- Fix ability to unset ApplicationSource specific parameters
+- Fix force resource delete API (#1033)
+- Incorrect PermissionDenied error during app creation when using project roles + user-defined RBAC (#1019)
+- Fix `kubctl convert` issue preventing deployment of extensions/NetworkPolicy (#1012)
+- Do not allow metadata.creationTimestamp to affect sync status (#1021)
+- Graceful handling of clusters where API resource discovery is partially successful (#1018)
+- Handle k8s resources circular dependency (#1016)
+- Fix `app diff --local` command (#1008)
+
 ## v0.11.0 (2019-01-10)
 This is Argo CD's biggest release ever and introduces a completely redesigned controller architecture.
 
