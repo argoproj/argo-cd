@@ -17,11 +17,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /tmp
 
 # Install docker
-ENV DOCKER_VERSION=18.06.0
-RUN curl -O https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}-ce.tgz && \
-  tar -xzf docker-${DOCKER_VERSION}-ce.tgz && \
-  mv docker/docker /usr/local/bin/docker && \
-  rm -rf ./docker
+ENV DOCKER_CHANNEL stable
+ENV DOCKER_VERSION 18.09.1
+RUN wget -O docker.tgz "https://download.docker.com/linux/static/${DOCKER_CHANNEL}/x86_64/docker-${DOCKER_VERSION}.tgz" && \
+    tar --extract --file docker.tgz --strip-components 1 --directory /usr/local/bin/ && \
+    rm docker.tgz
 
 # Install dep
 ENV DEP_VERSION=0.5.0

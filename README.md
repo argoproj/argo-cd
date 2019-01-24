@@ -90,17 +90,6 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
 
 ## Roadmap
-### v0.11
-
-* New application controller architecture
-* Multi-namespaced applications
-* Large application support
-* Resource lifecycle hook improvements
-* K8s recommended application labels
-* External OIDC provider support
-* OIDC group claims bindings to Project Roles
-* Declarative Argo CD configuration
-* Helm repository support
 
 ### v0.12
 * Support for custom K8S manifest templating engines
