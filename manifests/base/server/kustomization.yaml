@@ -1,5 +1,6 @@
 commonLabels:
-  component: server
+  app.kubernetes.io/component: server
+  app.kubernetes.io/name: argo-cd
 
 resources:
 - argocd-metrics-service.yaml

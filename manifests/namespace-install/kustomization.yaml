@@ -1,3 +1,6 @@
 bases:
 - ../crds
 - ../base
+
+commonLabels:
+  app.kubernetes.io/name: argo-cd

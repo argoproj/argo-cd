@@ -1,5 +1,6 @@
 commonLabels:
-  component: application-controller
+  app.kubernetes.io/component: application-controller
+  app.kubernetes.io/name: argo-cd
 
 resources:
 - argocd-application-controller-clusterrole.yaml

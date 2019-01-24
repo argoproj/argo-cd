@@ -1,5 +1,6 @@
 commonLabels:
-  component: repo-server
+  app.kubernetes.io/component: repo-server
+  app.kubernetes.io/name: argo-cd
 
 resources:
 - argocd-repo-server-deployment.yaml

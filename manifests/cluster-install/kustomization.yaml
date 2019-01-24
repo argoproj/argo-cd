@@ -2,3 +2,6 @@ bases:
 - ./application-controller
 - ./server
 - ../namespace-install
+
+commonLabels:
+  app.kubernetes.io/name: argo-cd

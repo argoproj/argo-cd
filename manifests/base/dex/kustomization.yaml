@@ -1,5 +1,6 @@
 commonLabels:
-  component: dex
+  app.kubernetes.io/component: dex
+  app.kubernetes.io/name: argo-cd
 
 resources:
 - dex-server-deployment.yaml

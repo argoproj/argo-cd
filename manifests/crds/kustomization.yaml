@@ -1,3 +1,6 @@
+commonLabels:
+  app.kubernetes.io/name: argo-cd
+
 resources:
 - application-crd.yaml
 - appproject-crd.yaml
