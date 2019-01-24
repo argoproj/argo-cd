@@ -3,13 +3,7 @@ kind: Deployment
 metadata:
   name: argocd-repo-server
 spec:
-  selector:
-    matchLabels:
-      app: argocd-repo-server
   template:
-    metadata:
-      labels:
-        app: argocd-repo-server
     spec:
       automountServiceAccountToken: false
       containers:

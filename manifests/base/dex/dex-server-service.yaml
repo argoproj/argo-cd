@@ -12,5 +12,3 @@ spec:
     protocol: TCP
     port: 5557
     targetPort: 5557
-  selector:
-    app: dex-server

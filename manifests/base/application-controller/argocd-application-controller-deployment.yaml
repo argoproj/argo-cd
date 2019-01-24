@@ -3,13 +3,7 @@ kind: Deployment
 metadata:
   name: argocd-application-controller
 spec:
-  selector:
-    matchLabels:
-      app: argocd-application-controller
   template:
-    metadata:
-      labels:
-        app: argocd-application-controller
     spec:
       containers:
       - command:

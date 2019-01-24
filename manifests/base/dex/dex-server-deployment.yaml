@@ -3,13 +3,7 @@ kind: Deployment
 metadata:
   name: dex-server
 spec:
-  selector:
-    matchLabels:
-      app: dex-server
   template:
-    metadata:
-      labels:
-        app: dex-server
     spec:
       serviceAccountName: dex-server
       initContainers:
