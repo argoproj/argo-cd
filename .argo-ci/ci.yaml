@@ -79,6 +79,8 @@ spec:
       env:
       - name: DOCKER_HOST
         value: 127.0.0.1
+      - name: DOCKER_BUILDKIT
+        value: "1"
       resources:
         requests:
           memory: 1024Mi
