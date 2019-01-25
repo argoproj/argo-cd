@@ -201,7 +201,7 @@ export class AppParams extends React.Component<{
                                 const project = !api.errors[projectField] ?
                                     this.props.projects.find((proj) => proj.metadata.name === api.getFormState().values.project) : undefined;
                                 const namespaces = project && ((project.spec.destinations || [] ) as models.ApplicationDestination[])
-                                    .filter((dest) => ((dest.server === api.values.clusterURL || dest.server === '*') && dest.namespace !== '*'))
+                                    .filter((dest) => ((dest.server === api.values.clusterURL || dest.server === '*') && dest.namespace && dest.namespace !== '*'))
                                     .map((item) => item.namespace) || [];
                                 return (
                                 <React.Fragment>
