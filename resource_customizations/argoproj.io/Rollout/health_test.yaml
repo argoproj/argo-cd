@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: The active Service is serving traffic to the current pod spec
+  inputPath: testdata/healthy_servingActiveService.yaml
+- healthStatus:
+    status: Healthy
+    message: The preview Service is serving traffic to the current pod spec
+  inputPath: testdata/healthy_servingPreviewService.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: More replicas need to be updated"
+  inputPath: testdata/progressing_addingMoreReplicas.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: old replicas are pending termination"
+  inputPath: testdata/progressing_killingOldReplicas.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: updated replicas are still becoming available"
+  inputPath: testdata/progressing_waitingUntilAvailable.yaml
+- healthStatus:
+    status: Degraded
+    message: Rollout has missing field '.Spec.Strategy.Type'
+  inputPath: testdata/degraded_invalidSpec.yaml

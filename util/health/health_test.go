@@ -18,7 +18,7 @@ func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthS
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	assert.Nil(t, err)
-	health, err := GetResourceHealth(&obj)
+	health, err := GetResourceHealth(&obj, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, health)
 	assert.Equal(t, expectedStatus, health.Status)
@@ -106,13 +106,13 @@ func TestSetApplicationHealth(t *testing.T) {
 		&runningPod,
 		&failedJob,
 	}
-	healthStatus, err := SetApplicationHealth(resources, liveObjs)
+	healthStatus, err := SetApplicationHealth(resources, liveObjs, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = SetApplicationHealth(resources, liveObjs)
+	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 

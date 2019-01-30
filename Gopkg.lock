@@ -780,6 +780,19 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:525776d99293affd2c61dfb573007ff9f22863068c20c220ef3f58620758c341"
+  name = "github.com/yuin/gopher-lua"
+  packages = [
+    ".",
+    "ast",
+    "parse",
+    "pm",
+  ]
+  pruneopts = ""
+  revision = "732aa6820ec4fb93d60c4057dd574c33db8ad4e7"
+
+[[projects]]
+  branch = "master"
   digest = "1:2ea6df0f542cc95a5e374e9cdd81eaa599ed0d55366eef92d2f6b9efa2795c07"
   name = "golang.org/x/crypto"
   packages = [
@@ -1084,11 +1097,12 @@
   version = "v0.1.2"
 
 [[projects]]
-  digest = "1:81314a486195626940617e43740b4fa073f265b0715c9f54ce2027fee1cb5f61"
+  digest = "1:cedccf16b71e86db87a24f8d4c70b0a855872eb967cb906a66b95de56aefbd0d"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   pruneopts = ""
-  revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
+  version = "v2.2.2"
 
 [[projects]]
   branch = "release-1.12"
@@ -1387,6 +1401,14 @@
   revision = "17c77c7898218073f14c8d573582e8d2313dc740"
   version = "v1.12.2"
 
+[[projects]]
+  branch = "master"
+  digest = "1:9b9f12f4c13ca4a4f4b4554c00ba46cb2910ff4079825d96d520b03c447e6da5"
+  name = "layeh.com/gopher-json"
+  packages = ["."]
+  pruneopts = ""
+  revision = "97fed8db84274c421dbfffbb28ec859901556b97"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -1439,6 +1461,7 @@
     "github.com/vmihailenco/msgpack",
     "github.com/yudai/gojsondiff",
     "github.com/yudai/gojsondiff/formatter",
+    "github.com/yuin/gopher-lua",
     "golang.org/x/crypto/bcrypt",
     "golang.org/x/crypto/ssh",
     "golang.org/x/crypto/ssh/terminal",
@@ -1509,6 +1532,7 @@
     "k8s.io/kubernetes/pkg/apis/core",
     "k8s.io/kubernetes/pkg/kubectl/scheme",
     "k8s.io/kubernetes/pkg/util/node",
+    "layeh.com/gopher-json",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

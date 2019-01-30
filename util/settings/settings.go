@@ -63,6 +63,13 @@ type ArgoCDSettings struct {
 	HelmRepositories []HelmRepoCredentials
 	// AppInstanceLabelKey is the configured application instance label key used to label apps. May be empty
 	AppInstanceLabelKey string
+	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
+	// (e.g. argoproj.io/rollout) for the resource that is being overridden
+	ResourceOverrides map[string]ResourceOverride
+}
+
+type ResourceOverride struct {
+	HealthLua string `json:"health.lua,omitempty"`
 }
 
 type OIDCConfig struct {
@@ -118,6 +125,8 @@ const (
 	settingsWebhookBitbucketUUIDKey = "webhook.bitbucket.uuid"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
+	// resourcesCustomizationsKey is the key to the map of resource overrides
+	resourcesCustomizationsKey = "resource.customizations"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -326,6 +335,16 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 			settings.HelmRepositories = helmRepositories
 		}
 	}
+
+	if value, ok := argoCDCM.Data[resourcesCustomizationsKey]; ok {
+		resourceOverrides := map[string]ResourceOverride{}
+		err := yaml.Unmarshal([]byte(value), &resourceOverrides)
+		if err != nil {
+			errors = append(errors, err)
+		} else {
+			settings.ResourceOverrides = resourceOverrides
+		}
+	}
 	if len(errors) > 0 {
 		return errors[0]
 	}
@@ -437,6 +456,15 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	} else {
 		delete(argoCDCM.Data, settingsApplicationInstanceLabelKey)
 	}
+
+	if len(settings.ResourceOverrides) > 0 {
+		yamlBytes, err := yaml.Marshal(settings.ResourceOverrides)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[resourcesCustomizationsKey] = string(yamlBytes)
+	}
+
 	if createCM {
 		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(argoCDCM)
 	} else {
