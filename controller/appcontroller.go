@@ -1005,8 +1005,8 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 		select {
 		case newSettings := <-updateCh:
 			newAppLabelKey := newSettings.GetAppInstanceLabelKey()
+			*ctrl.settings = *newSettings
 			if prevAppLabelKey != newAppLabelKey {
-				ctrl.settings.AppInstanceLabelKey = newAppLabelKey
 				log.Infof("label key changed: %s -> %s", prevAppLabelKey, newAppLabelKey)
 				ctrl.stateCache.Invalidate()
 				prevAppLabelKey = newAppLabelKey

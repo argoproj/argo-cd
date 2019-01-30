@@ -1,0 +1,12 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: invalidSpec
+status:
+  conditions:
+  - type: AnotherValidCondition
+    status: true
+  - type: InvalidSpec
+    status: true
+    message: Rollout has missing field '.Spec.Strategy.Type'
+  reason: MissingStrategy
