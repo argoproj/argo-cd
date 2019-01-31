@@ -1,10 +1,6 @@
-commonLabels:
-  app.kubernetes.io/component: dex
-  app.kubernetes.io/name: argo-cd
-
 resources:
-- dex-server-deployment.yaml
-- dex-server-role.yaml
-- dex-server-rolebinding.yaml
-- dex-server-sa.yaml
-- dex-server-service.yaml
+- argocd-dex-server-deployment.yaml
+- argocd-dex-server-role.yaml
+- argocd-dex-server-rolebinding.yaml
+- argocd-dex-server-sa.yaml
+- argocd-dex-server-service.yaml

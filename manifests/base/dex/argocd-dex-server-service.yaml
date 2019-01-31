@@ -1,7 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: dex-server
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argo-cd
+  name: argocd-dex-server
 spec:
   ports:
   - name: http
@@ -12,3 +15,5 @@ spec:
     protocol: TCP
     port: 5557
     targetPort: 5557
+  selector:
+    app.kubernetes.io/component: dex-server
