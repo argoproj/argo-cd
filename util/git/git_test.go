@@ -1,6 +1,8 @@
 package git
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,5 +121,41 @@ func TestLsRemote(t *testing.T) {
 	for _, revision := range xfail {
 		_, err := clnt.LsRemote(revision)
 		assert.Error(t, err)
+	}
+}
+
+func TestGitClient(t *testing.T) {
+	testRepos := []string{
+		"https://github.com/argoproj/argocd-example-apps",
+		"https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen",
+	}
+	for _, repo := range testRepos {
+		dirName, err := ioutil.TempDir("", "git-client-test-")
+		assert.NoError(t, err)
+		defer func() { _ = os.RemoveAll(dirName) }()
+
+		clnt, err := NewFactory().NewClient(repo, dirName, "", "", "")
+		assert.NoError(t, err)
+
+		commitSHA, err := clnt.LsRemote("HEAD")
+		assert.NoError(t, err)
+
+		err = clnt.Init()
+		assert.NoError(t, err)
+
+		err = clnt.Fetch()
+		assert.NoError(t, err)
+
+		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
+		err = clnt.Fetch()
+		assert.NoError(t, err)
+
+		err = clnt.Checkout(commitSHA)
+		assert.NoError(t, err)
+
+		commitSHA2, err := clnt.CommitSHA()
+		assert.NoError(t, err)
+
+		assert.Equal(t, commitSHA, commitSHA2)
 	}
 }
