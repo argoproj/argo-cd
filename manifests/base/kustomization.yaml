@@ -4,9 +4,6 @@ bases:
 - ./repo-server
 - ./server
 
-commonLabels:
-  app.kubernetes.io/name: argo-cd
-
 resources:
 - argocd-cm.yaml
 - argocd-secret.yaml
