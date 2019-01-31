@@ -74,6 +74,33 @@ RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernete
 
 
 ####################################################################################################
+# Argo CD Base - used as the base for both the release and dev argocd images
+####################################################################################################
+FROM debian:9.5-slim as argocd-base
+
+RUN groupadd -g 999 argocd && \
+    useradd -r -u 999 -g argocd argocd && \
+    mkdir -p /home/argocd && \
+    chown argocd:argocd /home/argocd && \
+    apt-get update && \
+    apt-get install -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
+COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
+COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
+COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
+
+# workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
+ENV USER=argocd
+
+USER argocd
+WORKDIR /home/argocd
+
+
+####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
 FROM golang:1.11.4 as argocd-build
@@ -101,28 +128,5 @@ RUN make cli server controller repo-server argocd-util && \
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM debian:9.5-slim
-
-RUN groupadd -g 999 argocd && \
-    useradd -r -u 999 -g argocd argocd && \
-    mkdir -p /home/argocd && \
-    chown argocd:argocd /home/argocd && \
-    apt-get update && \
-    apt-get install -y git && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
-COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
-COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
-COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
-
-# workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298
-ENV USER=argocd
-
-COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/* /usr/local/bin/
-
-USER argocd
-
-WORKDIR /home/argocd
+FROM argocd-base
+COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/

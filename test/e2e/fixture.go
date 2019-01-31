@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/server/cluster"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
@@ -285,7 +286,7 @@ func NewFixture() (*Fixture, error) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, namespace)
 	db := db.NewDB(namespace, settingsMgr, kubeClient)
 	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName, nil)
-	err = enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
+	err = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	if err != nil {
 		return nil, err
 	}

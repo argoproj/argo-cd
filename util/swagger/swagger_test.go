@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/go-openapi/loads"
-	"github.com/gobuffalo/packr"
+
+	"github.com/argoproj/argo-cd/util/assets"
 )
 
 func TestSwaggerUI(t *testing.T) {
@@ -32,7 +33,7 @@ func TestSwaggerUI(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeSwaggerUI(mux, packr.NewBox("../../server"), "/swagger-ui")
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
 		panic(http.Serve(listener, mux))
 	}
 

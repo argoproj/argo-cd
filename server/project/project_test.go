@@ -17,8 +17,8 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/assets"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -42,7 +42,7 @@ func TestProjectServer(t *testing.T) {
 	})
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
+	enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true

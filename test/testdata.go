@@ -3,7 +3,6 @@ package test
 import (
 	"encoding/json"
 
-	"github.com/gobuffalo/packr"
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/errors"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
@@ -22,17 +20,6 @@ const (
 	FakeDestNamespace   = "fake-dest-ns"
 	FakeClusterURL      = "https://fake-cluster:443"
 )
-
-var (
-	box           = packr.NewBox("../util/rbac")
-	BuiltinPolicy string
-)
-
-func init() {
-	var err error
-	BuiltinPolicy, err = box.MustString("builtin-policy.csv")
-	errors.CheckError(err)
-}
 
 var PodManifest = []byte(`
 {

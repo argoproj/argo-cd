@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -134,7 +135,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	enforcer.SetBuiltinPolicy(test.BuiltinPolicy)
+	enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
