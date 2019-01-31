@@ -1,15 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argo-cd
   name: argocd-application-controller
 spec:
   selector:
     matchLabels:
-      app: argocd-application-controller
+      app.kubernetes.io/component: application-controller
   template:
     metadata:
       labels:
-        app: argocd-application-controller
+        app.kubernetes.io/component: application-controller
     spec:
       containers:
       - command:

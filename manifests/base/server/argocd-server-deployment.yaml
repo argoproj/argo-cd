@@ -1,15 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argo-cd
   name: argocd-server
 spec:
   selector:
-    matchLabels:
-      app: argocd-server
+   matchLabels:
+    app.kubernetes.io/component: server
   template:
     metadata:
       labels:
-        app: argocd-server
+        app.kubernetes.io/component: server
     spec:
       serviceAccountName: argocd-server
       initContainers:

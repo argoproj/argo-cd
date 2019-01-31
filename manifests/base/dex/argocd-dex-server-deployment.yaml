@@ -1,17 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dex-server
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argo-cd
+  name: argocd-dex-server
 spec:
   selector:
     matchLabels:
-      app: dex-server
+      app.kubernetes.io/component: dex-server
   template:
     metadata:
       labels:
-        app: dex-server
+        app.kubernetes.io/component: dex-server
     spec:
-      serviceAccountName: dex-server
+      serviceAccountName: argocd-dex-server
       initContainers:
       - name: copyutil
         image: argoproj/argocd:latest

@@ -7,7 +7,7 @@ const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
-	DefaultDexServerAddr = "http://dex-server:5556"
+	DefaultDexServerAddr = "http://argocd-dex-server:5556"
 )
 
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings

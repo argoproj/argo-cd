@@ -1,25 +1,13 @@
+bases:
+- ./application-controller
+- ./dex
+- ./repo-server
+- ./server
+
 resources:
 - argocd-cm.yaml
 - argocd-secret.yaml
 - argocd-rbac-cm.yaml
-- argocd-application-controller-sa.yaml
-- argocd-application-controller-role.yaml
-- argocd-application-controller-rolebinding.yaml
-- argocd-application-controller-deployment.yaml
-- argocd-application-controller-service.yaml
-- argocd-server-sa.yaml
-- argocd-server-role.yaml
-- argocd-server-rolebinding.yaml
-- argocd-server-deployment.yaml
-- argocd-server-service.yaml
-- argocd-metrics-service.yaml
-- argocd-repo-server-deployment.yaml
-- argocd-repo-server-service.yaml
-- dex-server-sa.yaml
-- dex-server-role.yaml
-- dex-server-rolebinding.yaml
-- dex-server-deployment.yaml
-- dex-server-service.yaml
 
 imageTags:
 - name: argoproj/argocd

@@ -1,0 +1,3 @@
+resources:
+- argocd-repo-server-deployment.yaml
+- argocd-repo-server-service.yaml

@@ -1,0 +1,3 @@
+resources:
+- argocd-server-clusterrole.yaml
+- argocd-server-clusterrolebinding.yaml
