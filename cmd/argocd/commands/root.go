@@ -54,6 +54,7 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", false, "Skip server certificate and domain verification")
 	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", "", "Server certificate file")
 	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", "", "Authentication token")
+	command.PersistentFlags().BoolVar(&clientOpts.GRPCWeb, "grpc-web", false, "Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.")
 	command.PersistentFlags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	return command
 }

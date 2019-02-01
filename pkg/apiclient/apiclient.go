@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
@@ -57,25 +58,24 @@ var (
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
 	ClientOptions() ClientOptions
-	NewConn() (*grpc.ClientConn, error)
 	HTTPClient() (*http.Client, error)
 	OIDCConfig(context.Context, *settings.Settings) (*oauth2.Config, *oidc.Provider, error)
-	NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error)
-	NewRepoClientOrDie() (*grpc.ClientConn, repository.RepositoryServiceClient)
-	NewClusterClient() (*grpc.ClientConn, cluster.ClusterServiceClient, error)
-	NewClusterClientOrDie() (*grpc.ClientConn, cluster.ClusterServiceClient)
-	NewApplicationClient() (*grpc.ClientConn, application.ApplicationServiceClient, error)
-	NewApplicationClientOrDie() (*grpc.ClientConn, application.ApplicationServiceClient)
-	NewSessionClient() (*grpc.ClientConn, session.SessionServiceClient, error)
-	NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServiceClient)
-	NewSettingsClient() (*grpc.ClientConn, settings.SettingsServiceClient, error)
-	NewSettingsClientOrDie() (*grpc.ClientConn, settings.SettingsServiceClient)
-	NewVersionClient() (*grpc.ClientConn, version.VersionServiceClient, error)
-	NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServiceClient)
-	NewProjectClient() (*grpc.ClientConn, project.ProjectServiceClient, error)
-	NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServiceClient)
-	NewAccountClient() (*grpc.ClientConn, account.AccountServiceClient, error)
-	NewAccountClientOrDie() (*grpc.ClientConn, account.AccountServiceClient)
+	NewRepoClient() (io.Closer, repository.RepositoryServiceClient, error)
+	NewRepoClientOrDie() (io.Closer, repository.RepositoryServiceClient)
+	NewClusterClient() (io.Closer, cluster.ClusterServiceClient, error)
+	NewClusterClientOrDie() (io.Closer, cluster.ClusterServiceClient)
+	NewApplicationClient() (io.Closer, application.ApplicationServiceClient, error)
+	NewApplicationClientOrDie() (io.Closer, application.ApplicationServiceClient)
+	NewSessionClient() (io.Closer, session.SessionServiceClient, error)
+	NewSessionClientOrDie() (io.Closer, session.SessionServiceClient)
+	NewSettingsClient() (io.Closer, settings.SettingsServiceClient, error)
+	NewSettingsClientOrDie() (io.Closer, settings.SettingsServiceClient)
+	NewVersionClient() (io.Closer, version.VersionServiceClient, error)
+	NewVersionClientOrDie() (io.Closer, version.VersionServiceClient)
+	NewProjectClient() (io.Closer, project.ProjectServiceClient, error)
+	NewProjectClientOrDie() (io.Closer, project.ProjectServiceClient)
+	NewAccountClient() (io.Closer, account.AccountServiceClient, error)
+	NewAccountClientOrDie() (io.Closer, account.AccountServiceClient)
 	WatchApplicationWithRetry(ctx context.Context, appName string) chan *argoappv1.ApplicationWatchEvent
 }
 
@@ -89,6 +89,7 @@ type ClientOptions struct {
 	ConfigPath string
 	Context    string
 	UserAgent  string
+	GRPCWeb    bool
 }
 
 type client struct {
@@ -99,6 +100,12 @@ type client struct {
 	AuthToken    string
 	RefreshToken string
 	UserAgent    string
+	GRPCWeb      bool
+
+	proxyMutex      *sync.Mutex
+	proxyListener   net.Listener
+	proxyServer     *grpc.Server
+	proxyUsersCount int
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -108,6 +115,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.proxyMutex = &sync.Mutex{}
 	var ctxName string
 	if localCfg != nil {
 		configCtx, err := localCfg.ResolveContext(opts.Context)
@@ -124,6 +132,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			}
 			c.PlainText = configCtx.Server.PlainText
 			c.Insecure = configCtx.Server.Insecure
+			c.GRPCWeb = configCtx.Server.GRPCWeb
 			c.AuthToken = configCtx.User.AuthToken
 			c.RefreshToken = configCtx.User.RefreshToken
 			ctxName = configCtx.Name
@@ -170,6 +179,9 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	if opts.Insecure {
 		c.Insecure = true
+	}
+	if opts.GRPCWeb {
+		c.GRPCWeb = true
 	}
 	if localCfg != nil {
 		err = c.refreshAuthToken(localCfg, ctxName, opts.ConfigPath)
@@ -328,12 +340,26 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-func (c *client) NewConn() (*grpc.ClientConn, error) {
+func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
+	closers := make([]io.Closer, 0)
+	serverAddr := c.ServerAddr
+	network := "tcp"
+	if c.GRPCWeb {
+		// start local grpc server which proxies requests using grpc-web protocol
+		addr, closer, err := c.useGRPCProxy()
+		if err != nil {
+			return nil, nil, err
+		}
+		network = addr.Network()
+		serverAddr = addr.String()
+		closers = append(closers, closer)
+	}
+
 	var creds credentials.TransportCredentials
-	if !c.PlainText {
+	if !c.PlainText && !c.GRPCWeb {
 		tlsConfig, err := c.tlsConfig()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		creds = credentials.NewTLS(tlsConfig)
 	}
@@ -346,7 +372,18 @@ func (c *client) NewConn() (*grpc.ClientConn, error) {
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
-	return grpc_util.BlockingDial(context.Background(), "tcp", c.ServerAddr, creds, dialOpts...)
+	conn, e := grpc_util.BlockingDial(context.Background(), network, serverAddr, creds, dialOpts...)
+	closers = append(closers, conn)
+	return conn, &inlineCloser{close: func() error {
+		var firstErr error
+		for i := range closers {
+			err := closers[i].Close()
+			if err != nil {
+				firstErr = err
+			}
+		}
+		return firstErr
+	}}, e
 }
 
 func (c *client) tlsConfig() (*tls.Config, error) {
@@ -373,16 +410,16 @@ func (c *client) ClientOptions() ClientOptions {
 	}
 }
 
-func (c *client) NewRepoClient() (*grpc.ClientConn, repository.RepositoryServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewRepoClient() (io.Closer, repository.RepositoryServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	repoIf := repository.NewRepositoryServiceClient(conn)
-	return conn, repoIf, nil
+	return closer, repoIf, nil
 }
 
-func (c *client) NewRepoClientOrDie() (*grpc.ClientConn, repository.RepositoryServiceClient) {
+func (c *client) NewRepoClientOrDie() (io.Closer, repository.RepositoryServiceClient) {
 	conn, repoIf, err := c.NewRepoClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -390,16 +427,16 @@ func (c *client) NewRepoClientOrDie() (*grpc.ClientConn, repository.RepositorySe
 	return conn, repoIf
 }
 
-func (c *client) NewClusterClient() (*grpc.ClientConn, cluster.ClusterServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewClusterClient() (io.Closer, cluster.ClusterServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	clusterIf := cluster.NewClusterServiceClient(conn)
-	return conn, clusterIf, nil
+	return closer, clusterIf, nil
 }
 
-func (c *client) NewClusterClientOrDie() (*grpc.ClientConn, cluster.ClusterServiceClient) {
+func (c *client) NewClusterClientOrDie() (io.Closer, cluster.ClusterServiceClient) {
 	conn, clusterIf, err := c.NewClusterClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -407,16 +444,16 @@ func (c *client) NewClusterClientOrDie() (*grpc.ClientConn, cluster.ClusterServi
 	return conn, clusterIf
 }
 
-func (c *client) NewApplicationClient() (*grpc.ClientConn, application.ApplicationServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewApplicationClient() (io.Closer, application.ApplicationServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	appIf := application.NewApplicationServiceClient(conn)
-	return conn, appIf, nil
+	return closer, appIf, nil
 }
 
-func (c *client) NewApplicationClientOrDie() (*grpc.ClientConn, application.ApplicationServiceClient) {
+func (c *client) NewApplicationClientOrDie() (io.Closer, application.ApplicationServiceClient) {
 	conn, repoIf, err := c.NewApplicationClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -424,16 +461,16 @@ func (c *client) NewApplicationClientOrDie() (*grpc.ClientConn, application.Appl
 	return conn, repoIf
 }
 
-func (c *client) NewSessionClient() (*grpc.ClientConn, session.SessionServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewSessionClient() (io.Closer, session.SessionServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	sessionIf := session.NewSessionServiceClient(conn)
-	return conn, sessionIf, nil
+	return closer, sessionIf, nil
 }
 
-func (c *client) NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServiceClient) {
+func (c *client) NewSessionClientOrDie() (io.Closer, session.SessionServiceClient) {
 	conn, sessionIf, err := c.NewSessionClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -441,16 +478,16 @@ func (c *client) NewSessionClientOrDie() (*grpc.ClientConn, session.SessionServi
 	return conn, sessionIf
 }
 
-func (c *client) NewSettingsClient() (*grpc.ClientConn, settings.SettingsServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewSettingsClient() (io.Closer, settings.SettingsServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	setIf := settings.NewSettingsServiceClient(conn)
-	return conn, setIf, nil
+	return closer, setIf, nil
 }
 
-func (c *client) NewSettingsClientOrDie() (*grpc.ClientConn, settings.SettingsServiceClient) {
+func (c *client) NewSettingsClientOrDie() (io.Closer, settings.SettingsServiceClient) {
 	conn, setIf, err := c.NewSettingsClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -458,16 +495,16 @@ func (c *client) NewSettingsClientOrDie() (*grpc.ClientConn, settings.SettingsSe
 	return conn, setIf
 }
 
-func (c *client) NewVersionClient() (*grpc.ClientConn, version.VersionServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewVersionClient() (io.Closer, version.VersionServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	versionIf := version.NewVersionServiceClient(conn)
-	return conn, versionIf, nil
+	return closer, versionIf, nil
 }
 
-func (c *client) NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServiceClient) {
+func (c *client) NewVersionClientOrDie() (io.Closer, version.VersionServiceClient) {
 	conn, versionIf, err := c.NewVersionClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -475,16 +512,16 @@ func (c *client) NewVersionClientOrDie() (*grpc.ClientConn, version.VersionServi
 	return conn, versionIf
 }
 
-func (c *client) NewProjectClient() (*grpc.ClientConn, project.ProjectServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewProjectClient() (io.Closer, project.ProjectServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	projIf := project.NewProjectServiceClient(conn)
-	return conn, projIf, nil
+	return closer, projIf, nil
 }
 
-func (c *client) NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServiceClient) {
+func (c *client) NewProjectClientOrDie() (io.Closer, project.ProjectServiceClient) {
 	conn, projIf, err := c.NewProjectClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
@@ -492,16 +529,16 @@ func (c *client) NewProjectClientOrDie() (*grpc.ClientConn, project.ProjectServi
 	return conn, projIf
 }
 
-func (c *client) NewAccountClient() (*grpc.ClientConn, account.AccountServiceClient, error) {
-	conn, err := c.NewConn()
+func (c *client) NewAccountClient() (io.Closer, account.AccountServiceClient, error) {
+	conn, closer, err := c.newConn()
 	if err != nil {
 		return nil, nil, err
 	}
 	usrIf := account.NewAccountServiceClient(conn)
-	return conn, usrIf, nil
+	return closer, usrIf, nil
 }
 
-func (c *client) NewAccountClientOrDie() (*grpc.ClientConn, account.AccountServiceClient) {
+func (c *client) NewAccountClientOrDie() (io.Closer, account.AccountServiceClient) {
 	conn, usrIf, err := c.NewAccountClient()
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)

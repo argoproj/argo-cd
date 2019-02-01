@@ -17,8 +17,8 @@ import (
 
 	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
@@ -73,6 +73,7 @@ import (
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 )
 
 const (
@@ -207,13 +208,14 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 // golang/protobuf).
 func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	grpcS := a.newGRPCServer()
+	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
 		httpS = newRedirectServer(port)
-		httpsS = a.newHTTPServer(ctx, port)
+		httpsS = a.newHTTPServer(ctx, port, grpcWebS)
 	} else {
-		httpS = a.newHTTPServer(ctx, port)
+		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
 
 	// Start listener
@@ -461,12 +463,17 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
-func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server {
+func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler) *http.Server {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{
-		Addr:    endpoint,
-		Handler: &bug21955Workaround{handler: mux},
+		Addr: endpoint,
+		Handler: &handlerSwitcher{
+			handler: &bug21955Workaround{handler: mux},
+			contentTypeToHandler: map[string]http.Handler{
+				"application/grpc-web+proto": grpcWebHandler,
+			},
+		},
 	}
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
@@ -688,6 +695,19 @@ func getToken(md metadata.MD) string {
 		}
 	}
 	return ""
+}
+
+type handlerSwitcher struct {
+	handler              http.Handler
+	contentTypeToHandler map[string]http.Handler
+}
+
+func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
+		contentHandler.ServeHTTP(w, r)
+	} else {
+		s.handler.ServeHTTP(w, r)
+	}
 }
 
 // Workaround for https://github.com/golang/go/issues/21955 to support escaped URLs in URL path.
