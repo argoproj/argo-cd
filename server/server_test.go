@@ -21,11 +21,8 @@ import (
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/test"
+	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/rbac"
-)
-
-const (
-	builtinPolicyFile = "builtin-policy.csv"
 )
 
 func fakeServer() *ArgoCDServer {
@@ -129,7 +126,7 @@ func TestEnforceProjectToken(t *testing.T) {
 func TestEnforceClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	policy := `
@@ -161,7 +158,7 @@ g, bob, role:admin
 func TestDefaultRoleWithClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
@@ -175,7 +172,7 @@ func TestDefaultRoleWithClaims(t *testing.T) {
 func TestEnforceNilClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	assert.False(t, enf.Enforce(nil, "applications", "get", "foo/obj"))

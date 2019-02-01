@@ -6,25 +6,19 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-cd/util/assets"
 )
 
 const (
-	fakeConfgMapName  = "fake-cm"
-	fakeNamespace     = "fake-ns"
-	builtinPolicyFile = "builtin-policy.csv"
+	fakeConfgMapName = "fake-cm"
+	fakeNamespace    = "fake-ns"
 )
-
-var box packr.Box
-
-func init() {
-	box = packr.NewBox(".")
-}
 
 func fakeConfigMap(policy ...string) *apiv1.ConfigMap {
 	cm := apiv1.ConfigMap{
@@ -55,7 +49,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	assert.False(t, enf.Enforce("admin", "applications", "get", "foo/bar"))
 
 	// now set builtin policy
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 
 	allowed := [][]interface{}{
 		{"admin", "applications", "get", "foo/bar"},
@@ -215,7 +209,7 @@ func TestDefaultRole(t *testing.T) {
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
 	// after setting the default role to be the read-only role, this should now pass
@@ -329,7 +323,7 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
-	runtimePolicy := box.String(builtinPolicyFile)
+	runtimePolicy := assets.BuiltinPolicyCSV
 	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, "bob", "applications", "get", "foo/bar"))
@@ -342,7 +336,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
-	runtimePolicy := box.String(builtinPolicyFile)
+	runtimePolicy := assets.BuiltinPolicyCSV
 	claims := jwt.StandardClaims{
 		Subject: "foo",
 	}
@@ -360,7 +354,7 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap())
 	assert.Nil(t, err)
-	enf.SetBuiltinPolicy(box.String(builtinPolicyFile))
+	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	assert.True(t, enf.EnforceRuntimePolicy("", "admin", "applications", "update", "foo/bar"))
 	assert.False(t, enf.EnforceRuntimePolicy("", "role:readonly", "applications", "update", "foo/bar"))
 	badPolicy := "this, is, not, a, good, policy"

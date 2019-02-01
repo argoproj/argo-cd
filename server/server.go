@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gobuffalo/packr"
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -57,6 +56,7 @@ import (
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/assets"
 	argocache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/dex"
@@ -102,17 +102,9 @@ var backoff = wait.Backoff{
 }
 
 var (
-	box              = packr.NewBox("../util/rbac")
-	builtinPolicy    string
 	clientConstraint = fmt.Sprintf(">= %s", minClientVersion)
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
 )
-
-func init() {
-	var err error
-	builtinPolicy, err = box.MustString("builtin-policy.csv")
-	errors.CheckError(err)
-}
 
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
@@ -181,7 +173,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
-	err = enf.SetBuiltinPolicy(builtinPolicy)
+	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	errors.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
@@ -506,7 +498,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int) *http.Server
 	mustRegisterGWHandler(project.RegisterProjectServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 
 	// Swagger UI
-	swagger.ServeSwaggerUI(mux, packr.NewBox("."), "/swagger-ui")
+	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui")
 	healthz.ServeHealthCheck(mux, func() error {
 		_, err := a.KubeClientset.(*kubernetes.Clientset).ServerVersion()
 		return err

@@ -7,11 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/assets"
+
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
 	"github.com/casbin/casbin/persist"
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/gobuffalo/packr"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -26,7 +27,6 @@ const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
 
-	builtinModelFile      = "model.conf"
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
 
@@ -49,15 +49,6 @@ type Enforcer struct {
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
-
-var (
-	modelConf string
-)
-
-func init() {
-	box := packr.NewBox(".")
-	modelConf = box.String(builtinModelFile)
-}
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	adapter := newAdapter("", "", "")
@@ -232,7 +223,7 @@ func ValidatePolicy(policy string) error {
 // This is needed because it is not safe to re-use the same casbin Model when instantiating new
 // casbin enforcers.
 func newBuiltInModel() model.Model {
-	return casbin.NewModel(modelConf)
+	return casbin.NewModel(assets.ModelConf)
 }
 
 // Casbin adapter which satisfies persist.Adapter interface

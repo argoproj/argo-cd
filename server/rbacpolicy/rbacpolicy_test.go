@@ -1,7 +1,6 @@
 package rbacpolicy
 
 import (
-	"io/ioutil"
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -14,16 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
-
-var builtinPolicy string
-
-func init() {
-	policyBytes, err := ioutil.ReadFile("../../util/rbac/builtin-policy.csv")
-	if err != nil {
-		panic(err)
-	}
-	builtinPolicy = string(policyBytes)
-}
 
 func newFakeProj() *argoappv1.AppProject {
 	return &argoappv1.AppProject{

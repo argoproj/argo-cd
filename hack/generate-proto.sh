@@ -87,7 +87,7 @@ done
 collect_swagger() {
     SWAGGER_ROOT="$1"
     EXPECTED_COLLISIONS="$2"
-    SWAGGER_OUT="${SWAGGER_ROOT}/swagger.json"
+    SWAGGER_OUT="${PROJECT_ROOT}/assets/swagger.json"
     PRIMARY_SWAGGER=`mktemp`
     COMBINED_SWAGGER=`mktemp`
 
