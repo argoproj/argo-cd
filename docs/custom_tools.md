@@ -6,13 +6,17 @@ other than what Argo CD bundles. Some reasons to do this might be:
 
 * To upgrade/downgrade to a specific version of a tool due to bugs or bug fixes.
 * To install additional dependencies which to be used by kustomize's configmap/secret generators
-  (e.g. curl, vault)
+  (e.g. curl, vault, gpg, AWS CLI)
+* In the future, to install a [custom templating tool](https://github.com/argoproj/argo-cd/issues/701)
 
 As the Argo CD repo-server is the single service responsible for generating Kubernetes manifests, it
 can be customized to use alternative toolchain required by your environment.
 
-The following example describes how the repo-server manifest can be customized to use a different
-version of helm than what is bundled in Argo CD:
+## Adding tools via volume mounts
+
+The first technique is to use an `init` container and a `volumeMount` to copy a different verison of
+a tool into the repo-server container. In the following example, an init container is overwriting
+the helm binary with a different version than what is bundled in Argo CD:
 
 ```yaml
     spec:
@@ -20,11 +24,14 @@ version of helm than what is bundled in Argo CD:
       volumes:
       - name: custom-tools
         emptyDir: {}
-      # 2. Use an init container to download and/or copy the custom binaries into the emptyDir
+      # 2. Use an init container to download/copy custom binaries into the emptyDir
       initContainers:
       - name: download-tools
-        image: lachlanevenson/k8s-helm:v2.10.0
-        command: [cp, /usr/local/bin/helm, /custom-tools]
+        image: alpine:3.8
+        command: [sh, -c]
+        args:
+        - wget -qO- https://storage.googleapis.com/kubernetes-helm/helm-v2.12.3-linux-amd64.tar.gz | tar -xvzf - &&
+          mv linux-amd64/helm /custom-tools/
         volumeMounts:
         - mountPath: /custom-tools
           name: custom-tools
@@ -35,4 +42,32 @@ version of helm than what is bundled in Argo CD:
         - mountPath: /usr/local/bin/helm
           name: custom-tools
           subPath: helm
+```
+
+## BYOI (build your own image)
+
+Sometimes replacing a binary isn't sufficient and you need to install other dependencies. The
+following example builds an entirely customized repo-server from a Dockerfile, installing extra
+dependencies that may be needed for generating manifests.
+
+```Dockerfile
+FROM argoproj/argocd:latest
+
+# Switch to root for the ability to perform install
+USER root
+
+# Install tools needed for your repo-server to retrieve & decrypt secrets, render manifests 
+# (e.g. curl, awscli, gpg, sops)
+RUN apt-get update && \
+    apt-get install -y \
+        curl \
+        awscli \
+        gpg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    curl -o /usr/local/bin/sops -L https://github.com/mozilla/sops/releases/download/3.2.0/sops-3.2.0.linux && \
+    chmod +x /usr/local/bin/sops
+
+# Switch back to non-root user
+USER argocd
 ```

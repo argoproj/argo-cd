@@ -2,7 +2,8 @@
 
 ## Overview
 
-There are two ways that SSO can be configured:
+Argo CD does not have any local users other than the built-in `admin` user. All other users are
+expected to login via SSO. There are two ways that SSO can be configured:
 
 * Bundled Dex OIDC provider - use this option your current provider does not support OIDC (e.g. SAML,
   LDAP) or if you wish to leverage any of Dex's connector features (e.g. the ability to map GitHub

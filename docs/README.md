@@ -17,10 +17,12 @@
 * [Webhooks](webhook.md)
 * [RBAC](rbac.md)
 * [Declarative Setup](declarative-setup.md)
+* [Prometheus Metrics](metrics.md)
 
 ## Other
+* [Security](security.md)
 * [Best Practices](best_practices.md)
 * [Configuring Ingress](ingress.md)
-* [Automation from CI Pipelines](ci_automation.md)
+* [Integration with CI Pipelines](ci_automation.md)
 * [Custom Tooling](custom_tools.md)
 * [F.A.Q.](faq.md)
