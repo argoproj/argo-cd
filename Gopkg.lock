@@ -401,6 +401,14 @@
   version = "v0.1.0"
 
 [[projects]]
+  digest = "1:09aa5dd1332b93c96bde671bafb053249dc813febf7d5ca84e8f382ba255d67d"
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  pruneopts = ""
+  revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
+  version = "v1.4.0"
+
+[[projects]]
   branch = "master"
   digest = "1:009a1928b8c096338b68b5822d838a72b4d8520715c1463614476359f3282ec8"
   name = "github.com/gregjones/httpcache"
@@ -466,6 +474,14 @@
   pruneopts = ""
   revision = "163f41321a19dd09362d4c63cc2489db2015f1f4"
   version = "0.3.2"
+
+[[projects]]
+  digest = "1:6f7a8f1f3e04174c426eea1c8661ef49a6b4c63bd2e40c0ad74b5ba9051f4812"
+  name = "github.com/improbable-eng/grpc-web"
+  packages = ["go/grpcweb"]
+  pruneopts = ""
+  revision = "16092bd1d58ae1b3c2d8be1cb67e65956f945dea"
+  version = "0.7.0"
 
 [[projects]]
   digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
@@ -660,6 +676,14 @@
   ]
   pruneopts = ""
   revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
+
+[[projects]]
+  digest = "1:5f47c69f85311c4dc292be6cc995a0a3fe8337a6ce38ef4f71e5b7efd5ad42e0"
+  name = "github.com/rs/cors"
+  packages = ["."]
+  pruneopts = ""
+  revision = "9a47f48565a795472d43519dd49aac781f3034fb"
+  version = "v1.6.0"
 
 [[projects]]
   digest = "1:3962f553b77bf6c03fc07cd687a22dd3b00fe11aa14d31194f5505f5bb65cdc8"
@@ -1447,6 +1471,7 @@
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
+    "github.com/improbable-eng/grpc-web/go/grpcweb",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",

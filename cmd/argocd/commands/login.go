@@ -112,6 +112,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 				Server:    server,
 				PlainText: globalClientOpts.PlainText,
 				Insecure:  globalClientOpts.Insecure,
+				GRPCWeb:   globalClientOpts.GRPCWeb,
 			})
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
