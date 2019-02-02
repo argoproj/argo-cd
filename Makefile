@@ -13,6 +13,7 @@ PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run v
 # docker image publishing options
 DOCKER_PUSH=false
 IMAGE_TAG=latest
+DOCKER_BUILD_OPTS=
 # perform static compilation
 STATIC_BUILD=true
 # build development images
@@ -112,13 +113,13 @@ image: packr
 	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
+	docker build ${DOCKER_BUILD_OPTS} -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
 .PHONY: builder-image
 builder-image:
-	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
+	docker build -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 
 .PHONY: lint
 lint:

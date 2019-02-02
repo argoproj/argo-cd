@@ -19,7 +19,7 @@ spec:
         arguments:
           parameters:
           - name: cmd
-            value: make image
+            value: make image DOCKER_BUILD_OPTS="--cache-from argoproj/argo-cd-ci-builder:latest"
       - name: test
         template: ci-builder
         arguments:
@@ -79,8 +79,6 @@ spec:
       env:
       - name: DOCKER_HOST
         value: 127.0.0.1
-      - name: DOCKER_BUILDKIT
-        value: "1"
       resources:
         requests:
           memory: 1024Mi
