@@ -13,7 +13,7 @@ variations), might be used:
 
     ```
     docker build -t mycompany/guestbook:v2.0 .
-    docker push -t mycompany/guestbook:v2.0 .
+    docker push mycompany/guestbook:v2.0
     ```
 
 2. Update the local manifests using your preferred templating tool, and push the changes to git.

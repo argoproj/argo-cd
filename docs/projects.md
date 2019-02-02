@@ -3,9 +3,10 @@
 Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
 teams. Projects provide the following features:
 
-* ability to restrict *what* may be deployed (the git source repositories)
-* ability to restrict *where* apps may be deployed (the  destination clusters and namespaces)
-* ability to control what type of objects may be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
+* restrict *what* may be deployed (trusted git source repositories)
+* restrict *where* apps may be deployed to (destination clusters and namespaces)
+* restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
+* defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
 
 ### The default project
 

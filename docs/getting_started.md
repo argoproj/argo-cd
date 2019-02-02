@@ -94,7 +94,7 @@ service account token to perform its management tasks (i.e. deploy/monitoring).
 
 > NOTE: the rules of the `argocd-manager-role` role can be modified such that it only has 
 `create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds.
-However `get`, `list`, `watch` privilges are required at the cluster-scope for Argo CD to function.
+However `get`, `list`, `watch` privileges are required at the cluster-scope for Argo CD to function.
 
 ## 6. Create an application from a git repository
 

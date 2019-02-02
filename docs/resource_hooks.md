@@ -59,3 +59,12 @@ The following policies define when the hook will be deleted.
 |--------|-------------|
 | `HookSucceeded` | The hook resource is deleted after the hook succeeded (e.g. Job/Workflow completed successfully). |
 | `HookFailed` | The hook resource is deleted after the hook failed. |
+
+As an alternative to hook deletion policies, both Jobs and Argo Workflows support the
+[`ttlSecondsAfterFinished`](https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/)
+field in the spec, which let their respective controllers delete the Job/Workflow after it completes.
+
+```yaml
+spec:
+  ttlSecondsAfterFinished: 600
+```

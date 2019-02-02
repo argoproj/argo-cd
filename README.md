@@ -30,10 +30,11 @@ is provided for additional features.
 
 Argo CD follows the **GitOps** pattern of using git repositories as the source of truth for defining
 the desired application state. Kubernetes manifests can be specified in several ways:
-* [ksonnet](https://ksonnet.io) applications
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* Plain directory of YAML/json/jsonnet manifests
+* [ksonnet](https://ksonnet.io) applications
+* [jsonnet](https://jsonnet.org) files 
+* Plain directory of YAML/json manifests
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of
@@ -62,18 +63,22 @@ For additional details, see [architecture overview](docs/architecture.md).
 ## Features
 
 * Automated deployment of applications to specified target environments
-* Flexibility in support for multiple config management tools (Ksonnet, Kustomize, Helm, plain-YAML)
-* Continuous monitoring of deployed applications
+* Support for multiple config management/templating tools (Kustomize, Helm, Ksonnet, Jsonnet, plain-YAML)
+* Ability to manage and deploy to multiple clusters
+* SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitHub, GitLab, Microsoft, LinkedIn)
+* Multi-tenancy and RBAC policies for authorization
+* Rollback/Roll-anywhere to any application configuration committed in git repository
+* Health status analysis of application resources
+* Automated configuration drift detection and visualization
 * Automated or manual syncing of applications to its desired state
-* Web and CLI based visualization of applications and differences between live vs. desired state
-* Rollback/Roll-anywhere to any application state committed in the git repository
-* Health assessment statuses on all components of the application
-* SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitLab, Microsoft, LinkedIn)
-* Webhook Integration (GitHub, BitBucket, GitLab)
+* Web UI which provides real-time view of application activity
+* CLI for automation and CI integration
+* Webhook integration (GitHub, BitBucket, GitLab)
+* Access tokens for automation
 * PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
 * Audit trails for application events and API calls
+* Prometheus metrics
 * Parameter overrides for overriding ksonnet/helm parameters in git
-* Service account/access key management for CI pipelines
 
 ## Community Blogs and Presentations
 * KubeCon talk: [CI/CD in Light Speed with K8s and Argo CD](https://www.youtube.com/watch?v=OdzH82VpMwI&feature=youtu.be)
