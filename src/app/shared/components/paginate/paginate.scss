@@ -1,0 +1,28 @@
+@import 'node_modules/argo-ui/bundle/app/shared/styles/config';
+
+.paginate {
+    ul {
+        display: inline-block;
+        margin: 0;
+        padding: 0;
+    }
+
+    li {
+        display: inline-block;
+        margin-right: 1em;
+    }
+
+    li.disabled {
+        a {
+            cursor: default;
+            color: $argo-color-gray-4;
+        }
+    }
+
+    li.selected {
+        a {
+            cursor: default;
+            color: $argo-color-gray-8;
+        }
+    }
+}

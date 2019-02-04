@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/bundle/app/shared/styles/config';
+@import 'node_modules/foundation-sites/scss/foundation';
 
 .applications-list {
     padding-top: 1em;
@@ -17,6 +18,29 @@
 
     &__icons {
         line-height: 24px;
+    }
+
+    &__empty-state {
+        text-align: center;
+    }
+
+    &__empty-state-icon {
+        position: relative;
+        background-color: $argo-color-gray-4;
+        width: 15em;
+        height: 15em;
+        border-radius: 7.5em;
+        margin: 2em auto;
+        i {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translateY(-50%) translateX(-50%);
+            color: white;
+            &::before {
+                font-size: 10em;
+            }
+        }
     }
 
     &__entry {
@@ -56,5 +80,95 @@
         &--actions {
             padding-top: 1em;
         }
+    }
+
+    &__filters-expander {
+        position: absolute;
+        top: 0.75em;
+        right: 1em;
+        cursor: pointer;
+    }
+
+    &__filters-container {
+        max-height: 2.5em;
+        overflow: hidden;
+        position: relative;
+        border-radius: $border-radius;
+        box-shadow: 1px 1px 3px $argo-color-gray-5;
+        padding: 10px;
+        margin: 33px 0;
+        background-color: white;
+        transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
+
+        a {
+            padding-left: 1.3em;
+        }
+
+        p {
+            padding-left: 1.3em;
+            color: $argo-color-gray-6;
+            text-transform: uppercase;
+        }
+
+        &::before {
+            content: 'FILTERS';
+            display: block;
+            color: $argo-color-gray-6;
+            padding-bottom: 1em;
+        }
+
+        &--expanded {
+            overflow-y: auto;
+            max-height: calc(1.55em * 15);
+            transition: max-height 1s ease-in-out;
+            &::before {
+                display: none;
+            }
+        }
+    }
+
+    &__filter {
+        li {
+            list-style: none;
+        }
+        max-height: calc(1.55em * 10);
+        transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
+        overflow-y: auto;
+    }
+
+    &__filter-expander {
+        display: none;
+    }
+
+    @include breakpoint(xxlarge only) {
+        &__filter-expander {
+            display: inline;
+        }
+
+        &__filter--expanded {
+            max-height: 1000px;
+            transition: max-height 0.5s ease-in-out;
+        }
+
+        &__filters-expander {
+            display: none;
+        }
+
+        &__filters-container {
+            max-height: 10000px;
+            &::before {
+                display: none;
+            }
+        }
+    }
+
+    &__filter-label {
+        vertical-align: bottom;
+        width: calc(100% - 50px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        white-space: nowrap;
+        margin-right: 10px;
     }
 }

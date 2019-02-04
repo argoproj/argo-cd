@@ -1,8 +1,12 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 
+export interface AppDetailsPreferences { defaultTreeFilter: string[]; }
+export interface AppsListPreferences { projectsFilter: string[]; reposFilter: string[]; syncFilter: string[]; healthFilter: string[]; page: number; }
+
 export interface ViewPreferences {
     version: number;
-    appDetails: { defaultTreeFilter: string[] };
+    appDetails: AppDetailsPreferences;
+    appList: AppsListPreferences;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -11,17 +15,26 @@ const minVer = 1;
 
 const DEFAULT_PREFERENCES = {
     version: 1,
-    appDetails: { defaultTreeFilter: [
-        'kind:Deployment',
-        'kind:Service',
-        'kind:Pod',
-        'kind:StatefulSet',
-        'kind:Ingress',
-        'kind:ConfigMap',
-        'kind:Job',
-        'kind:DaemonSet',
-        'kind:Workflow',
-    ] },
+    appDetails: {
+        defaultTreeFilter: [
+            'kind:Deployment',
+            'kind:Service',
+            'kind:Pod',
+            'kind:StatefulSet',
+            'kind:Ingress',
+            'kind:ConfigMap',
+            'kind:Job',
+            'kind:DaemonSet',
+            'kind:Workflow',
+        ],
+    },
+    appList: {
+        page: 0,
+        projectsFilter: new Array<string>(),
+        reposFilter: new Array<string>(),
+        syncFilter: new Array<string>(),
+        healthFilter: new Array<string>(),
+    },
 };
 
 export class ViewPreferencesService {
@@ -61,6 +74,6 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return preferences;
+        return Object.assign({}, DEFAULT_PREFERENCES, preferences);
     }
 }

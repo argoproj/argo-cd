@@ -73,6 +73,13 @@
   dependencies:
     "@types/react" "*"
 
+"@types/react-paginate@^6.2.0":
+  version "6.2.0"
+  resolved "https://registry.yarnpkg.com/@types/react-paginate/-/react-paginate-6.2.0.tgz#e8e9aa0e0ea20d71cb5aa724ffc47189661ca436"
+  integrity sha512-NmEQh6dQRj0NLYAH9T/3ih9zAbiwAYMt/kzUmbB3+vJAnEWrwEvMTsBUlxJOU81V+HP43u1jtRsP0Wv0iPDwLA==
+  dependencies:
+    "@types/react" "*"
+
 "@types/react-router-dom@^4.2.3":
   version "4.2.7"
   resolved "https://registry.yarnpkg.com/@types/react-router-dom/-/react-router-dom-4.2.7.tgz#9d36bfe175f916dd8d7b6b0237feed6cce376b4c"
@@ -4709,6 +4716,13 @@ react-hot-loader@^3.1.3:
     react-proxy "^3.0.0-alpha.0"
     redbox-react "^1.3.6"
     source-map "^0.6.1"
+
+react-paginate@^6.2.1:
+  version "6.2.1"
+  resolved "https://registry.yarnpkg.com/react-paginate/-/react-paginate-6.2.1.tgz#90735c95c9836edb73597b605c6ffd8d3f2eaa32"
+  integrity sha512-7MaWiVi4SAFYq5tAGcMCaZE6AK4XxCDM0zEo6+ZthVkhYNnKy1LLkO6syYQu+dBvNfukJ7CurOIpGWnkydJiDQ==
+  dependencies:
+    prop-types "^15.6.1"
 
 react-proxy@^3.0.0-alpha.0:
   version "3.0.0-alpha.1"

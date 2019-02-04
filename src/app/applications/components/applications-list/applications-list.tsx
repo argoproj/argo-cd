@@ -1,16 +1,17 @@
-import { DropDownMenu, MockupList, NotificationType, SlidingPanel, TopBarFilter } from 'argo-ui';
-import * as moment from 'moment';
+import { MockupList, NotificationType, SlidingPanel } from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 import { Observable } from 'rxjs';
 
-import { DataLoader, ErrorNotification, Page } from '../../../shared/components';
+import { DataLoader, ErrorNotification, ObservableQuery, Page, Paginate } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
+import { AppsListPreferences, services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
 import * as AppUtils from '../utils';
+import { ApplicationsFilter } from './applications-filter';
+import { ApplicationTiles } from './applications-tiles';
 
 require('./applications-list.scss');
 
@@ -18,13 +19,72 @@ const APP_FIELDS = ['metadata.name', 'metadata.resourceVersion', 'metadata.creat
 const APP_LIST_FIELDS = APP_FIELDS.map((field) => `items.${field}`);
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map((field) => `result.application.${field}`)];
 
-type Props = RouteComponentProps<{}>;
-interface State {
-    allProjects: string[];
-    appWizardStepState: WizardStepState;
+function loadApplications(): Observable<models.Application[]> {
+    return Observable.fromPromise(services.applications.list([], { fields: APP_LIST_FIELDS })).flatMap((applications) =>
+        Observable.merge(
+            Observable.from([applications]),
+            services.applications.watch(null, { fields: APP_WATCH_FIELDS }).map((appChange) => {
+                const index = applications.findIndex((item) => item.metadata.name === appChange.application.metadata.name);
+                if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
+                    return {applications, updated: false};
+                }
+                switch (appChange.type) {
+                    case 'DELETED':
+                        if (index > -1) {
+                            applications.splice(index, 1);
+                        }
+                        break;
+                    default:
+                        if (index > -1) {
+                            applications[index] = appChange.application;
+                        } else {
+                            applications.unshift(appChange.application);
+                        }
+                        break;
+                }
+                return {applications, updated: true};
+            }).filter((item) => item.updated).map((item) => item.applications),
+        ),
+    );
 }
 
-export class ApplicationsList extends React.Component<Props, State> {
+const ViewPref = ({children}: { children: (pref: AppsListPreferences) => React.ReactNode }) => (
+    <ObservableQuery>
+        {(q) => (
+            <DataLoader load={() => Observable.combineLatest(
+                services.viewPreferences.getPreferences().map((item) => item.appList), q).map((items) => {
+                    const params = items[1];
+                    const viewPref: AppsListPreferences = {...items[0]};
+                    if (params.get('proj') != null) {
+                        viewPref.projectsFilter = params.get('proj').split(',').filter((item) => !!item);
+                    }
+                    if (params.get('sync') != null) {
+                        viewPref.syncFilter = params.get('sync').split(',').filter((item) => !!item);
+                    }
+                    if (params.get('health') != null) {
+                        viewPref.healthFilter = params.get('health').split(',').filter((item) => !!item);
+                    }
+                    if (params.get('page') != null) {
+                        viewPref.page = parseInt(params.get('page'), 10);
+                    }
+                    return {...viewPref};
+            })}>
+            {(pref) => children(pref)}
+            </DataLoader>
+        )}
+    </ObservableQuery>
+);
+
+function filterApps(applications: models.Application[], pref: AppsListPreferences) {
+    return applications.filter((app) =>
+        (pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project)) &&
+        (pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL)) &&
+        (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
+        (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)),
+    );
+}
+
+export class ApplicationsList extends React.Component<RouteComponentProps<{}>, { appWizardStepState: WizardStepState; }> {
 
     public static contextTypes = {
         router: PropTypes.object,
@@ -35,162 +95,104 @@ export class ApplicationsList extends React.Component<Props, State> {
         return new URLSearchParams(this.props.location.search).get('new') === 'true';
     }
 
-    constructor(props: Props) {
+    constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = { allProjects: [], appWizardStepState: { next: null, prev: null, nextTitle: 'Next'} };
-    }
-
-    public async componentDidMount() {
-        this.setState({ allProjects: await services.projects.list().then((items) => items.map((item) => item.metadata.name)) });
+        this.state = { appWizardStepState: { next: null, prev: null, nextTitle: 'Next'} };
     }
 
     public render() {
-        const projectsFilter = new URLSearchParams(this.props.history.location.search).getAll('proj');
-        const filter: TopBarFilter<string> = {
-            items: this.state.allProjects.map((proj) => ({ value: proj, label: proj })),
-            selectedValues: projectsFilter,
-            selectionChanged: (items) => {
-                this.appContext.apis.navigation.goto('.', { proj: items});
-            },
-        };
         return (
         <Page title='Applications' toolbar={{
-                filter,
-                breadcrumbs: [{ title: 'Applications', path: '/applications' }],
-                actionMenu: {
-                    className: 'fa fa-plus',
-                    items: [{
-                        title: 'New Application',
-                        action: () => this.setNewAppPanelVisible(true),
-                    }],
-                },
-            }} >
-                <div className='argo-container applications-list'>
-                    <DataLoader
-                        input={projectsFilter}
-                        load={(projects) =>
-                            Observable.fromPromise(services.applications.list(projects, { fields: APP_LIST_FIELDS })).flatMap((applications) =>
-                            Observable.merge(
-                                Observable.from([applications]),
-                                services.applications.watch(null, { fields: APP_WATCH_FIELDS }).filter((appChange) =>
-                                    projects.length === 0 || projectsFilter.includes(appChange.application.spec.project),
-                                ).map((appChange) => {
-                                    const index = applications.findIndex((item) => item.metadata.name === appChange.application.metadata.name);
-                                    if (index > -1 && appChange.application.metadata.resourceVersion === applications[index].metadata.resourceVersion) {
-                                        return {applications, updated: false};
-                                    }
-                                    switch (appChange.type) {
-                                        case 'DELETED':
-                                            if (index > -1) {
-                                                applications.splice(index, 1);
-                                            }
-                                            break;
-                                        default:
-                                            if (index > -1) {
-                                                applications[index] = appChange.application;
-                                            } else {
-                                                applications.unshift(appChange.application);
-                                            }
-                                            break;
-                                    }
-                                    return {applications, updated: true};
-                                }).filter((item) => item.updated).map((item) => item.applications)),
-                            )
-                        }
-                        loadingRenderer={() => <MockupList height={300} marginTop={30}/>}>
-                        {(applications: models.Application[]) => (
-                            <div className='argo-table-list argo-table-list--clickable row small-up-1 large-up-2'>
-                                {applications.map((app) => (
-                                    <div key={app.metadata.name} className='column column-block'>
-                                        <div className={`argo-table-list__row
-                                            applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
-                                            applications-list__entry--health-${app.status.health.status}`
-                                        }>
-                                            <div className='row' onClick={(e) => this.appContext.apis.navigation.goto(`/applications/${app.metadata.name}`, {}, e)}>
-                                                <div className='columns small-12 applications-list__info'>
-                                                    <div className='row'>
-                                                        <div className='columns applications-list__title'>{app.metadata.name}</div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Project:</div>
-                                                        <div className='columns small-9'>{app.spec.project}</div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Namespace:</div>
-                                                        <div className='columns small-9'>{app.spec.destination.namespace}</div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Cluster:</div>
-                                                        <div className='columns small-9'>{app.spec.destination.server}</div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Status:</div>
-                                                        <div className='columns small-9'>
-                                                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status}
-                                                        </div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Health:</div>
-                                                        <div className='columns small-9'>
-                                                            <AppUtils.HealthStatusIcon state={app.status.health}/> {app.status.health.status}
-                                                        </div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Age:</div>
-                                                        <div className='columns small-9'>{this.daysBeforeNow(app.metadata.creationTimestamp)} days</div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Repository:</div>
-                                                        <div className='columns small-9'>
-                                                            <a href={app.spec.source.repoURL} target='_blank' onClick={(event) => event.stopPropagation()}>
-                                                                <i className='fa fa-external-link'/> {app.spec.source.repoURL}
-                                                            </a>
-                                                        </div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3'>Path:</div>
-                                                        <div className='columns small-9'>{app.spec.source.path}</div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns applications-list__entry--actions'>
-                                                            <DropDownMenu anchor={() =>
-                                                                <button className='argo-button argo-button--base-o'>Actions  <i className='fa fa-caret-down'/></button>
-                                                            } items={[
-                                                                { title: 'Sync', action: () => this.syncApplication(app.metadata.name, app.spec.source.targetRevision || 'HEAD') },
-                                                                { title: 'Delete', action: () => this.deleteApplication(app.metadata.name) },
-                                                            ]} />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+            breadcrumbs: [{ title: 'Applications', path: '/applications' }],
+            actionMenu: {
+                className: 'fa fa-plus',
+                items: [{
+                    title: 'New Application',
+                    action: () => this.setNewAppPanelVisible(true),
+                }],
+            },
+        }}>
+            <div className='applications-list'>
+                <DataLoader
+                    load={() => loadApplications()}
+                    loadingRenderer={() => (<div className='argo-container'><MockupList height={300} marginTop={30}/></div>)}>
+                    {(applications: models.Application[]) => (
+                        applications.length === 0 ? (
+                            <div className='argo-container applications-list__empty-state'>
+                                <div className='applications-list__empty-state-icon'>
+                                    <i className='argo-icon argo-icon-application'/>
+                                </div>
+                                <h4>No applications yet</h4>
+                                <h5>Create new application to start managing resources in your cluster</h5>
+                                <button className='argo-button argo-button--base' onClick={() => this.setNewAppPanelVisible(true)}>Create application</button>
                             </div>
-                        )}
-                    </DataLoader>
+                        ) : (
+                            <div className='row'>
+                                <div className='columns small-12 xxlarge-2'>
+                                    <ViewPref>
+                                    {(pref) => <ApplicationsFilter applications={applications} pref={pref} onChange={(newPref) => {
+                                        services.viewPreferences.updatePreferences({appList: newPref});
+                                        this.appContext.apis.navigation.goto('.', {
+                                            proj: newPref.projectsFilter.join(','),
+                                            sync: newPref.syncFilter.join(','),
+                                            health: newPref.healthFilter.join(','),
+                                        });
+                                    }} />}
+                                    </ViewPref>
+                                </div>
+                                <div className='columns small-12 xxlarge-10'>
+                                <ViewPref>
+                                {(pref) => (
+                                    <Paginate
+                                        page={pref.page}
+                                        pageLimit={12}
+                                        emptyState={() => (
+                                            <div className='argo-container applications-list__empty-state'>
+                                                <div className='applications-list__empty-state-icon'>
+                                                    <i className='argo-icon argo-icon-search'/>
+                                                </div>
+                                                <h4>No applications found</h4>
+                                                <h5>Try to change filter criteria</h5>
+                                            </div>
+                                        )}
+                                        data={filterApps(applications, pref)} onPageChange={(page) => this.appContext.apis.navigation.goto('.', { page })} >
+                                    {(data) => (
+                                        <ApplicationTiles
+                                            applications={data}
+                                            syncApplication={(appName, revision) => this.syncApplication.bind(appName, revision)}
+                                            deleteApplication={(appName) => this.deleteApplication(appName)}
+                                        />
+                                    )}
+                                    </Paginate>
+                                )}
+                                </ViewPref>
+                                </div>
+                            </div>
+                        )
+                    )}
+                </DataLoader>
+            </div>
+            <SlidingPanel isShown={this.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} header={
+                <div>
+                    <button className='argo-button argo-button--base'
+                            disabled={!this.state.appWizardStepState.prev}
+                            onClick={() => this.state.appWizardStepState.prev && this.state.appWizardStepState.prev()}>
+                        Back
+                    </button> <button className='argo-button argo-button--base'
+                            disabled={!this.state.appWizardStepState.next}
+                            onClick={() => this.state.appWizardStepState.next && this.state.appWizardStepState.next()}>
+                        {this.state.appWizardStepState.nextTitle}
+                    </button> <button onClick={() => this.setNewAppPanelVisible(false)} className='argo-button argo-button--base-o'>
+                        Cancel
+                    </button>
                 </div>
-                <SlidingPanel isShown={this.showNewAppPanel} onClose={() => this.setNewAppPanelVisible(false)} header={
-                        <div>
-                            <button className='argo-button argo-button--base'
-                                    disabled={!this.state.appWizardStepState.prev}
-                                    onClick={() => this.state.appWizardStepState.prev && this.state.appWizardStepState.prev()}>
-                                Back
-                            </button> <button className='argo-button argo-button--base'
-                                    disabled={!this.state.appWizardStepState.next}
-                                    onClick={() => this.state.appWizardStepState.next && this.state.appWizardStepState.next()}>
-                                {this.state.appWizardStepState.nextTitle}
-                            </button> <button onClick={() => this.setNewAppPanelVisible(false)} className='argo-button argo-button--base-o'>
-                                Cancel
-                            </button>
-                        </div>
-                    }>
-                    {this.showNewAppPanel && <ApplicationCreationWizardContainer
-                        createApp={(params) => this.createApplication(params)}
-                        onStateChanged={(appWizardStepState) => this.setState({ appWizardStepState })} />
-                    }
-                </SlidingPanel>
-            </Page>
+            }>
+            {this.showNewAppPanel && <ApplicationCreationWizardContainer
+                createApp={(params) => this.createApplication(params)}
+                onStateChanged={(appWizardStepState) => this.setState({ appWizardStepState })} />
+            }
+            </SlidingPanel>
+        </Page>
         );
     }
 
@@ -200,14 +202,6 @@ export class ApplicationsList extends React.Component<Props, State> {
 
     private setNewAppPanelVisible(isVisible: boolean) {
         this.appContext.router.history.push(`${this.props.match.url}?new=${isVisible}`);
-    }
-
-    // DaysBeforeNow returns the delta, in days, between now and a given timestamp.
-    private daysBeforeNow(timestamp: string): number {
-        const end = moment();
-        const start = moment(timestamp);
-        const delta = moment.duration(end.diff(start));
-        return Math.round(delta.asDays());
     }
 
     private async createApplication(params: NewAppParams) {
