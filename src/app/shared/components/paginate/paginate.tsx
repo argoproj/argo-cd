@@ -19,17 +19,17 @@ export function Paginate<T>({page, onPageChange, pageLimit, children, data, empt
     }
     return (
         <React.Fragment>
-            { pageCount > 0 && (
-                <div className='paginate'>
-                    <ReactPaginate forcePage={page} pageCount={pageCount} pageRangeDisplayed={5} marginPagesDisplayed={2} onPageChange={(item) => onPageChange(item.selected)} />
-                </div>
+            <div className='paginate'>
+            {pageCount > 1 && (
+                <ReactPaginate forcePage={page} pageCount={pageCount} pageRangeDisplayed={5} marginPagesDisplayed={2} onPageChange={(item) => onPageChange(item.selected)} />
             )}
+            </div>
             {data.length === 0 && emptyState ? emptyState() : children(data.slice(pageLimit * page, pageLimit * (page + 1)))}
-            { pageCount > 0 && (
-                <div className='paginate'>
-                    <ReactPaginate forcePage={page} pageCount={pageCount} pageRangeDisplayed={5} marginPagesDisplayed={2} onPageChange={(item) => onPageChange(item.selected)} />
-                </div>
+            <div className='paginate'>
+            {pageCount > 1 && (
+                <ReactPaginate forcePage={page} pageCount={pageCount} pageRangeDisplayed={5} marginPagesDisplayed={2} onPageChange={(item) => onPageChange(item.selected)} />
             )}
+            </div>
         </React.Fragment>
     );
 }

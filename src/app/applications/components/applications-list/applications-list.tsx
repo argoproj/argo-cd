@@ -111,7 +111,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     <div className='applications-list__view-type'>
                         <i className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
                             onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'tiles'} })} />
-                        <i className={classNames('fa fa-table', {selected: pref.appList.view === 'list'})}
+                        <i className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
                             onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'list'} })} />
                     </div>
                 </React.Fragment>
@@ -172,11 +172,14 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                         pref.view === 'tiles' && (
                                             <ApplicationTiles
                                                 applications={data}
-                                                syncApplication={(appName, revision) => this.syncApplication.bind(appName, revision)}
+                                                syncApplication={(appName, revision) => this.syncApplication(appName, revision)}
                                                 deleteApplication={(appName) => this.deleteApplication(appName)}
                                             />
                                         ) || (
-                                            <ApplicationsTable applications={data} />
+                                            <ApplicationsTable applications={data}
+                                                syncApplication={(appName, revision) => this.syncApplication(appName, revision)}
+                                                deleteApplication={(appName) => this.deleteApplication(appName)}
+                                            />
                                         )
                                     )}
                                     </Paginate>
