@@ -1,4 +1,5 @@
 import { MockupList, NotificationType, SlidingPanel } from 'argo-ui';
+import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
@@ -11,6 +12,7 @@ import { AppsListPreferences, services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
 import * as AppUtils from '../utils';
 import { ApplicationsFilter } from './applications-filter';
+import { ApplicationsTable } from './applications-table';
 import { ApplicationTiles } from './applications-tiles';
 
 require('./applications-list.scss');
@@ -102,8 +104,18 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
 
     public render() {
         return (
-        <Page title='Applications' toolbar={{
+        <Page title='Applications' toolbar={services.viewPreferences.getPreferences().map((pref) => ({
             breadcrumbs: [{ title: 'Applications', path: '/applications' }],
+            tools: (
+                <React.Fragment key='app-list-tools'>
+                    <div className='applications-list__view-type'>
+                        <i className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
+                            onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'tiles'} })} />
+                        <i className={classNames('fa fa-table', {selected: pref.appList.view === 'list'})}
+                            onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'list'} })} />
+                    </div>
+                </React.Fragment>
+            ),
             actionMenu: {
                 className: 'fa fa-plus',
                 items: [{
@@ -111,11 +123,11 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     action: () => this.setNewAppPanelVisible(true),
                 }],
             },
-        }}>
+        }))}>
             <div className='applications-list'>
                 <DataLoader
                     load={() => loadApplications()}
-                    loadingRenderer={() => (<div className='argo-container'><MockupList height={300} marginTop={30}/></div>)}>
+                    loadingRenderer={() => (<div className='argo-container'><MockupList height={100} marginTop={30}/></div>)}>
                     {(applications: models.Application[]) => (
                         applications.length === 0 ? (
                             <div className='argo-container applications-list__empty-state'>
@@ -145,7 +157,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                 {(pref) => (
                                     <Paginate
                                         page={pref.page}
-                                        pageLimit={12}
+                                        pageLimit={16}
                                         emptyState={() => (
                                             <div className='argo-container applications-list__empty-state'>
                                                 <div className='applications-list__empty-state-icon'>
@@ -157,11 +169,15 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                         )}
                                         data={filterApps(applications, pref)} onPageChange={(page) => this.appContext.apis.navigation.goto('.', { page })} >
                                     {(data) => (
-                                        <ApplicationTiles
-                                            applications={data}
-                                            syncApplication={(appName, revision) => this.syncApplication.bind(appName, revision)}
-                                            deleteApplication={(appName) => this.deleteApplication(appName)}
-                                        />
+                                        pref.view === 'tiles' && (
+                                            <ApplicationTiles
+                                                applications={data}
+                                                syncApplication={(appName, revision) => this.syncApplication.bind(appName, revision)}
+                                                deleteApplication={(appName) => this.deleteApplication(appName)}
+                                            />
+                                        ) || (
+                                            <ApplicationsTable applications={data} />
+                                        )
                                     )}
                                     </Paginate>
                                 )}

@@ -1,7 +1,15 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 
 export interface AppDetailsPreferences { defaultTreeFilter: string[]; }
-export interface AppsListPreferences { projectsFilter: string[]; reposFilter: string[]; syncFilter: string[]; healthFilter: string[]; page: number; }
+export type AppsListViewType = 'tiles' | 'list' | 'summary';
+export interface AppsListPreferences {
+    projectsFilter: string[];
+    reposFilter: string[];
+    syncFilter: string[];
+    healthFilter: string[];
+    page: number;
+    view: AppsListViewType;
+}
 
 export interface ViewPreferences {
     version: number;
@@ -30,6 +38,7 @@ const DEFAULT_PREFERENCES = {
     },
     appList: {
         page: 0,
+        view: 'tiles' as AppsListViewType,
         projectsFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),

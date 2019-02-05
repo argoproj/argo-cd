@@ -1,5 +1,5 @@
 @import 'node_modules/argo-ui/bundle/app/shared/styles/config';
-@import 'node_modules/foundation-sites/scss/foundation';
+@import 'node_modules/foundation-sites/scss/util/util';
 
 .applications-list {
     padding-top: 1em;
@@ -140,6 +140,21 @@
         display: none;
     }
 
+    &__view-type {
+        i {
+            cursor: pointer;
+            color: $argo-color-teal-5;
+            margin-right: 1em;
+            &::before {
+                font-size: 1.5em;
+            }
+        }
+        i.selected {
+            cursor: default;
+            color: $argo-color-gray-6;
+        }
+    }
+
     @include breakpoint(xxlarge only) {
         &__filter-expander {
             display: inline;
@@ -170,5 +185,9 @@
         display: inline-block;
         white-space: nowrap;
         margin-right: 10px;
+    }
+
+    &__table-row {
+        margin-left: -25px !important;
     }
 }
