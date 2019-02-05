@@ -5,7 +5,7 @@ import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 import { Observable } from 'rxjs';
 
-import { DataLoader, ErrorNotification, ObservableQuery, Page, Paginate } from '../../../shared/components';
+import { DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { AppsListPreferences, services } from '../../../shared/services';
@@ -130,14 +130,11 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     loadingRenderer={() => (<div className='argo-container'><MockupList height={100} marginTop={30}/></div>)}>
                     {(applications: models.Application[]) => (
                         applications.length === 0 ? (
-                            <div className='argo-container applications-list__empty-state'>
-                                <div className='applications-list__empty-state-icon'>
-                                    <i className='argo-icon argo-icon-application'/>
-                                </div>
+                            <EmptyState icon='application'>
                                 <h4>No applications yet</h4>
                                 <h5>Create new application to start managing resources in your cluster</h5>
                                 <button className='argo-button argo-button--base' onClick={() => this.setNewAppPanelVisible(true)}>Create application</button>
-                            </div>
+                            </EmptyState>
                         ) : (
                             <div className='row'>
                                 <div className='columns small-12 xxlarge-2'>

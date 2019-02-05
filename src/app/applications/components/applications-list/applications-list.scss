@@ -24,25 +24,6 @@
         text-align: center;
     }
 
-    &__empty-state-icon {
-        position: relative;
-        background-color: $argo-color-gray-4;
-        width: 15em;
-        height: 15em;
-        border-radius: 7.5em;
-        margin: 2em auto;
-        i {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translateY(-50%) translateX(-50%);
-            color: white;
-            &::before {
-                font-size: 10em;
-            }
-        }
-    }
-
     &__entry {
         padding-left: 1em;
         border-left: 5px solid $argo-color-gray-4;

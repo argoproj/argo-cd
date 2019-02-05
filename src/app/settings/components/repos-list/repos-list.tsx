@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 
-import { ConnectionStateIcon, DataLoader, ErrorNotification, Page } from '../../../shared/components';
+import { ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, Page } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -29,23 +29,17 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
 
     public render() {
         return (
-            <Page title='Repositories' toolbar={{ breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Repositories'}] }}>
+            <Page title='Repositories' toolbar={{
+                breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Repositories'}],
+                actionMenu: {
+                    className: 'fa fa-plus',
+                    items: [{
+                        title: 'Connect Repo',
+                        action: () => this.showConnectRepo = true,
+                    }],
+                },
+            }}>
                 <div className='repos-list'>
-                    <div className='row repos-list__top-panel argo-container'>
-
-                        <div className='columns small-7'>
-                            <i className='argo-icon-github'/>
-                        </div>
-
-                        <div className='columns small-5'>
-                            <p>Connect your repo to deploy apps.</p>
-                            <button className='argo-button argo-button--base' onClick={() => this.showConnectRepo = true} >Connect Repo</button>
-                            <p>Successfully connected your repo?</p>
-                            <button className='argo-button argo-button--base' onClick={() => this.appContext.history.push('/applications?new=true')}>
-                                Create Apps
-                            </button>
-                        </div>
-                    </div>
                     <div className='argo-container'>
                     <DataLoader load={() => services.repos.list()} ref={(loader) => this.loader = loader}>
                     {(repos: models.Repository[]) => (
@@ -75,7 +69,13 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                     </div>
                                 </div>
                             ))}
-                        </div> )
+                        </div> ) || (
+                            <EmptyState icon='git'>
+                                <h4>No repositories connected</h4>
+                                <h5>Connect your repo to deploy apps.</h5>
+                                <button className='argo-button argo-button--base' onClick={() => this.showConnectRepo = true}>Connect Repo</button>
+                            </EmptyState>
+                        )
                     )}
                     </DataLoader>
                     </div>
