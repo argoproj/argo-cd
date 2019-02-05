@@ -156,13 +156,10 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                         page={pref.page}
                                         pageLimit={16}
                                         emptyState={() => (
-                                            <div className='argo-container applications-list__empty-state'>
-                                                <div className='applications-list__empty-state-icon'>
-                                                    <i className='argo-icon argo-icon-search'/>
-                                                </div>
+                                            <EmptyState icon='search'>
                                                 <h4>No applications found</h4>
                                                 <h5>Try to change filter criteria</h5>
-                                            </div>
+                                            </EmptyState>
                                         )}
                                         data={filterApps(applications, pref)} onPageChange={(page) => this.appContext.apis.navigation.goto('.', { page })} >
                                     {(data) => (

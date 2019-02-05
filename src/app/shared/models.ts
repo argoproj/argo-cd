@@ -180,7 +180,7 @@ export interface RevisionHistory {
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
 
-export const SyncStatuses = {
+export const SyncStatuses: {[key: string]: SyncStatusCode} = {
     Unknown: 'Unknown',
     Synced: 'Synced' ,
     OutOfSync: 'OutOfSync',
@@ -188,11 +188,12 @@ export const SyncStatuses = {
 
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Degraded' | 'Missing';
 
-export const HealthStatuses = {
+export const HealthStatuses: {[key: string]: HealthStatusCode} = {
     Unknown: 'Unknown',
     Progressing: 'Progressing',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
+    Missing: 'Missing',
 };
 
 export interface HealthStatus {

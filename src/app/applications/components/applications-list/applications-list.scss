@@ -108,6 +108,10 @@
         }
     }
 
+    &__filters-container-title {
+        border-bottom: 1px solid $argo-color-gray-3;
+    }
+
     &__filter {
         li {
             list-style: none;
@@ -153,7 +157,6 @@
 
         &__filters-container {
             max-height: 10000px;
-            min-height: 80vh;
             &::before {
                 display: none;
             }

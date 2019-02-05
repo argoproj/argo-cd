@@ -67,13 +67,16 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
         const {applications, pref, onChange} = this.props;
 
         const sync = new Map<string, number>();
+        Object.keys(models.SyncStatuses).forEach((key) => sync.set(models.SyncStatuses[key], 0));
         applications.forEach((app) => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
         const health = new Map<string, number>();
+        Object.keys(models.HealthStatuses).forEach((key) => health.set(models.HealthStatuses[key], 0));
         applications.forEach((app) => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
         return (
             <div className={classNames('applications-list__filters-container', { 'applications-list__filters-container--expanded': this.state.expanded })}>
             <i onClick={() => this.setState({ expanded: !this.state.expanded })}
                         className={classNames('fa applications-list__filters-expander', { 'fa-chevron-up': !this.state.expanded, 'fa-chevron-down': this.state.expanded })}/>
+                <p className='applications-list__filters-container-title'>Filter By:</p>
                 <div className='row'>
                     <div className='columns small-12 medium-3 xxlarge-12'>
                         <p>Sync</p>
