@@ -4,5 +4,3 @@ items:
 ---
 apiVersion: v1
 kind: ServiceAccount
-metadata:
-  name: prometheus-operator-operator
