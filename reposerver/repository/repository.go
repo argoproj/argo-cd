@@ -441,7 +441,7 @@ func FindManifests(appPath string, recurse bool) ([]*unstructured.Unstructured, 
 	for _, f := range files {
 		if f.IsDir() {
 			if recurse {
-				yamlObjs, err := FindManifests(appPath + "/" + f.Name(), true)
+				yamlObjs, err := FindManifests(appPath+"/"+f.Name(), true)
 				if err != nil {
 					return nil, err
 				}
