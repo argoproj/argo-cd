@@ -137,7 +137,7 @@ message ApplicationSource {
   // Ksonnet holds ksonnet specific options
   optional ApplicationSourceKsonnet ksonnet = 9;
 
-  // Directory holds path/dircetory specific options
+  // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
 }
 

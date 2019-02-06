@@ -132,9 +132,7 @@ func TestVerifyOneSourceTypeWithDirectory(t *testing.T) {
 		Ksonnet: &argoappv1.ApplicationSourceKsonnet{
 			Environment: "foo",
 		},
-		Directory: &argoappv1.ApplicationSourceDirectory{
-
-		},
+		Directory: &argoappv1.ApplicationSourceDirectory{},
 	}
 	assert.NotNil(t, verifyOneSourceType(&src), "cannot add directory with any other types")
 }
