@@ -67,6 +67,8 @@ type ApplicationSource struct {
 	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
 	// Ksonnet holds ksonnet specific options
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
+	// Directory holds path/dircetory specific options
+	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 }
 
 type ApplicationSourceType string
@@ -109,6 +111,10 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 type ApplicationSourceKsonnet struct {
 	// Environment is a ksonnet application environment name
 	Environment string `json:"environment,omitempty" protobuf:"bytes,1,opt,name=environment"`
+}
+
+type ApplicationSourceDirectory struct {
+	Recurse bool `json:"recurse" protobuf:"bytes,1,opt,name=recurse"`
 }
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {

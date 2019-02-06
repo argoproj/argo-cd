@@ -38,6 +38,7 @@ type ManifestRequest struct {
 	Namespace                   string                         `protobuf:"bytes,8,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	ApplicationSource           *v1alpha1.ApplicationSource    `protobuf:"bytes,10,opt,name=applicationSource" json:"applicationSource,omitempty"`
 	HelmRepos                   []*v1alpha1.HelmRepository     `protobuf:"bytes,11,rep,name=helmRepos" json:"helmRepos,omitempty"`
+	Recurse 					bool                           `protobuf:"varint,12,rep,name=recurse,proto3" json:"recurse,omitempty"`
 	XXX_NoUnkeyedLiteral        struct{}                       `json:"-"`
 	XXX_unrecognized            []byte                         `json:"-"`
 	XXX_sizecache               int32                          `json:"-"`

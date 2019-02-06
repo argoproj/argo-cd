@@ -28,6 +28,17 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, 3, len(res2.Manifests))
 }
 
+func TestRecurseManifestsInDir(t *testing.T) {
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+		Recurse: true,
+	}
+	res1, err := generateManifests("./testdata/recurse", &q)
+	assert.Nil(t, err)
+	assert.Equal(t, len(res1.Manifests), 2)
+}
+
+
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},

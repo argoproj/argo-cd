@@ -256,6 +256,9 @@ func verifyOneSourceType(source *argoappv1.ApplicationSource) *argoappv1.Applica
 	if source.Ksonnet != nil {
 		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeKsonnet))
 	}
+	if source.Directory != nil {
+		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeDirectory))
+	}
 	if len(appTypes) > 1 {
 		return &argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

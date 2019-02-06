@@ -2314,6 +2314,9 @@
             "$ref": "#/definitions/v1alpha1ComponentParameter"
           }
         },
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
         "environment": {
           "type": "string",
           "title": "Environment is a ksonnet application environment name\nDEPRECATED: specify environment in spec.source.ksonnet.environment instead"
@@ -2345,6 +2348,15 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceDirectory": {
+      "type": "object",
+      "properties": {
+        "recurse": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

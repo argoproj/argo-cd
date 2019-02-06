@@ -637,7 +637,7 @@ func getLocalObjects(app *argoappv1.Application, local string, env string, value
 		if env != "" {
 			log.Fatal("--env option invalid when performing local diff on a directory")
 		}
-		localObjs, err = repository.FindManifests(local)
+		localObjs, err = repository.FindManifests(local, false)
 		errors.CheckError(err)
 	}
 	return localObjs
