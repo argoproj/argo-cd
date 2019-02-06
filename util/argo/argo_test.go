@@ -127,6 +127,18 @@ func TestVerifyOneSourceType(t *testing.T) {
 	assert.Nil(t, verifyOneSourceType(&src))
 }
 
+func TestVerifyOneSourceTypeWithDirectory(t *testing.T) {
+	src := argoappv1.ApplicationSource{
+		Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+			Environment: "foo",
+		},
+		Directory: &argoappv1.ApplicationSourceDirectory{
+
+		},
+	}
+	assert.NotNil(t, verifyOneSourceType(&src), "cannot add directory with any other types")
+}
+
 func TestNormalizeApplicationSpec(t *testing.T) {
 	spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{})
 	assert.Equal(t, spec.Project, "default")
