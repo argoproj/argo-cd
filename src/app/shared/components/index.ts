@@ -9,3 +9,4 @@ export * from './editable-panel/editable-panel';
 export * from './tags-editor/tags-editor';
 export * from './paginate/paginate';
 export * from './empty-state/empty-state';
+export * from './tags-input/tags-input';

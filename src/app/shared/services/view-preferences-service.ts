@@ -7,6 +7,8 @@ export interface AppsListPreferences {
     reposFilter: string[];
     syncFilter: string[];
     healthFilter: string[];
+    namespacesFilter: string[];
+    clustersFilter: string[];
     page: number;
     view: AppsListViewType;
 }
@@ -21,7 +23,7 @@ const VIEW_PREFERENCES_KEY = 'view_preferences';
 
 const minVer = 1;
 
-const DEFAULT_PREFERENCES = {
+const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         defaultTreeFilter: [
@@ -40,6 +42,8 @@ const DEFAULT_PREFERENCES = {
         page: 0,
         view: 'tiles' as AppsListViewType,
         projectsFilter: new Array<string>(),
+        namespacesFilter: new Array<string>(),
+        clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),

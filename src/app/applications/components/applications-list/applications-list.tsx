@@ -1,5 +1,6 @@
 import { MockupList, NotificationType, SlidingPanel } from 'argo-ui';
 import * as classNames from 'classnames';
+import * as minimatch from 'minimatch';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
@@ -66,6 +67,12 @@ const ViewPref = ({children}: { children: (pref: AppsListPreferences) => React.R
                     if (params.get('health') != null) {
                         viewPref.healthFilter = params.get('health').split(',').filter((item) => !!item);
                     }
+                    if (params.get('namespace') != null) {
+                        viewPref.namespacesFilter = params.get('namespace').split(',').filter((item) => !!item);
+                    }
+                    if (params.get('cluster') != null) {
+                        viewPref.clustersFilter = params.get('cluster').split(',').filter((item) => !!item);
+                    }
                     if (params.get('page') != null) {
                         viewPref.page = parseInt(params.get('page'), 10);
                     }
@@ -82,7 +89,9 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
         (pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project)) &&
         (pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL)) &&
         (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
-        (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)),
+        (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
+        (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some((ns) => minimatch(app.spec.destination.namespace, ns)) &&
+        (pref.clustersFilter.length === 0 || pref.clustersFilter.some((server) => minimatch(app.spec.destination.server, server)))),
     );
 }
 
@@ -145,6 +154,8 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                             proj: newPref.projectsFilter.join(','),
                                             sync: newPref.syncFilter.join(','),
                                             health: newPref.healthFilter.join(','),
+                                            namespace: newPref.namespacesFilter.join(','),
+                                            cluster: newPref.clustersFilter.join(','),
                                         });
                                     }} />}
                                     </ViewPref>

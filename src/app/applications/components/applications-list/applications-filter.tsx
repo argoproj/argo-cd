@@ -2,6 +2,7 @@ import { Checkbox, DataLoader } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 
+import { TagsInput } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { AppsListPreferences, services } from '../../../shared/services';
 
@@ -107,6 +108,30 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                                 type='projects' />;
                         }}
                         </DataLoader>
+                    </div>
+                    <div className='columns small-12 medium-3 xxlarge-12'>
+                        <div className='applications-list__filter'>
+                            <p>Clusters</p>
+                            <ul>
+                                <li>
+                                    <TagsInput placeholder='https://kubernetes.default.svc'
+                                        autocomplete={Array.from(new Set(applications.map((app) => app.spec.destination.server)))
+                                            .filter((ns) => pref.clustersFilter.indexOf(ns) === -1)}
+                                        tags={pref.clustersFilter}
+                                        onChange={(selected) => onChange({...pref, clustersFilter: selected})}/>
+                                </li>
+                            </ul>
+                            <p>Namespaces</p>
+                            <ul>
+                                <li>
+                                    <TagsInput placeholder='*-us-west-*'
+                                        autocomplete={Array.from(new Set(applications.map((app) => app.spec.destination.namespace)))
+                                            .filter((ns) => pref.namespacesFilter.indexOf(ns) === -1)}
+                                        tags={pref.namespacesFilter}
+                                        onChange={(selected) => onChange({...pref, namespacesFilter: selected})}/>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>

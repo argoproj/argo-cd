@@ -26,6 +26,11 @@
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@types/jwt-decode/-/jwt-decode-2.2.1.tgz#afdf5c527fcfccbd4009b5fd02d1e18241f2d2f2"
 
+"@types/minimatch@^3.0.3":
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/@types/minimatch/-/minimatch-3.0.3.tgz#3dca0e3f33b200fc7d1139c0cd96c1268cadfd9d"
+  integrity sha512-tHq6qdbT9U1IRSGf14CL0pUlULksvY9OZ+5eEgl1N7t+OA3tGvNpxJCzuKQlsNgCVwbAs670L1vcVQi8j9HjnA==
+
 "@types/node@*":
   version "10.3.4"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-10.3.4.tgz#c74e8aec19e555df44609b8057311052a2c84d9e"
@@ -37,6 +42,7 @@
 "@types/react-autocomplete@^1.8.4":
   version "1.8.4"
   resolved "https://registry.yarnpkg.com/@types/react-autocomplete/-/react-autocomplete-1.8.4.tgz#eeee3575ced20d0e3fe85adfadda9a95cf2d7dfa"
+  integrity sha512-EvSGh/K4Drsob1L2G09zIjCKCii1cGzuiZ7urvkku4t6F1MU+KaRHbctmKpH9ylenWuTyN0pbNj+igYbYh3FvQ==
   dependencies:
     "@types/react" "*"
 
@@ -4667,6 +4673,7 @@ rc@^1.1.7:
 react-autocomplete@^1.8.1:
   version "1.8.1"
   resolved "https://registry.yarnpkg.com/react-autocomplete/-/react-autocomplete-1.8.1.tgz#ebbbc400006aa91ad538b2d14727b9e7e5d06310"
+  integrity sha1-67vEAABqqRrVOLLRRye55+XQYxA=
   dependencies:
     dom-scroll-into-view "1.0.1"
     prop-types "^15.5.10"
