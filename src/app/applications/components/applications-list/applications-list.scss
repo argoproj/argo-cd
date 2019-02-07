@@ -198,6 +198,14 @@
             bottom: 0.6em;
             left: -1.5em;
         }
+        i.fa-times {
+            cursor: pointer;
+            position: absolute;
+            color: $argo-color-gray-5;
+            bottom: 0.6em;
+            right: 0;
+            z-index: 1;
+        }
         .select {
             width: 100%;
             border-radius: $border-radius;

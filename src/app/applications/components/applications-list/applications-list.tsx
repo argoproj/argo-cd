@@ -149,6 +149,9 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                     {(q) => (
                                         <div className='applications-list__search'>
                                             <i className='fa fa-search'/>
+                                            {q.get('search') && (
+                                                <i className='fa fa-times' onClick={() => this.appContext.apis.navigation.goto('.', { search: null }, { replace: true })}/>
+                                            )}
                                             <Autocomplete
                                                 renderInput={(props) => (
                                                     <input {...props} onFocus={(e) => {
