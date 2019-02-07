@@ -35,7 +35,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 	}
 	res1, err := generateManifests("./testdata/recurse", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, len(res1.Manifests), 2)
+	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
@@ -44,7 +44,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	}
 	res1, err := generateManifests("./testdata/jsonnet", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, len(res1.Manifests), 2)
+	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestGenerateHelmChartWithDependencies(t *testing.T) {
