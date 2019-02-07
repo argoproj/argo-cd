@@ -90,8 +90,8 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
         (pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL)) &&
         (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
         (pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status)) &&
-        (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some((ns) => minimatch(app.spec.destination.namespace, ns)) &&
-        (pref.clustersFilter.length === 0 || pref.clustersFilter.some((server) => minimatch(app.spec.destination.server, server)))),
+        (pref.namespacesFilter.length === 0 || pref.namespacesFilter.some((ns) => minimatch(app.spec.destination.namespace, ns))) &&
+        (pref.clustersFilter.length === 0 || pref.clustersFilter.some((server) => minimatch(app.spec.destination.server, server))),
     );
 }
 
