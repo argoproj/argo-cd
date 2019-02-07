@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -441,7 +442,7 @@ func FindManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstr
 	for _, f := range files {
 		if f.IsDir() {
 			if directoryRecurse {
-				yamlObjs, err := FindManifests(appPath+"/"+f.Name(), true)
+				yamlObjs, err := FindManifests(path.Join(appPath, f.Name()), true)
 				if err != nil {
 					return nil, err
 				}
