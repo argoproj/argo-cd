@@ -432,7 +432,7 @@ func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.Componen
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // FindManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func FindManifests(appPath string, recurse bool) ([]*unstructured.Unstructured, error) {
+func FindManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstructured, error) {
 	files, err := ioutil.ReadDir(appPath)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "Failed to read dir %s: %v", appPath, err)
@@ -440,7 +440,7 @@ func FindManifests(appPath string, recurse bool) ([]*unstructured.Unstructured, 
 	var objs []*unstructured.Unstructured
 	for _, f := range files {
 		if f.IsDir() {
-			if recurse {
+			if directoryRecurse {
 				yamlObjs, err := FindManifests(appPath+"/"+f.Name(), true)
 				if err != nil {
 					return nil, err
