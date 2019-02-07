@@ -2,7 +2,7 @@ import { FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
-import { DataLoader, EditablePanel, TagsEditor } from '../../../shared/components';
+import { DataLoader, EditablePanel, TagsInputField } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -80,7 +80,7 @@ export const ApplicationSummary = (props: {
             title: 'VALUES FILES',
             view: app.spec.source.helm && (app.spec.source.helm.valueFiles || []).join(', ') || 'No values files selected',
             edit: (formApi: FormApi) => (
-                <FormField formApi={formApi} field='spec.source.helm.valueFiles' component={TagsEditor} componentProps={{
+                <FormField formApi={formApi} field='spec.source.helm.valueFiles' component={TagsInputField} componentProps={{
                     options: props.details.helm.valueFiles,
                     noTagsLabel: 'No values files selected',
                 }}/>

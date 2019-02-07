@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
-import { DataLoader, TagsEditor } from '../../../shared/components';
+import { DataLoader, TagsInputField } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
@@ -187,7 +187,7 @@ export class AppParams extends React.Component<{
                                 <FormField formApi={api} label='Values Files' field='valueFiles' componentProps={{
                                     options: this.props.valueFiles,
                                     noTagsLabel: 'No values files selected',
-                                }}  component={TagsEditor} />
+                                }}  component={TagsInputField} />
                             </div>
                         )}
                         {this.props.needKustomizeParams && (

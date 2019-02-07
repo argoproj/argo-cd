@@ -6,7 +6,7 @@ export * from './connection-state-icon';
 export * from './query';
 export * from './events-list/events-list';
 export * from './editable-panel/editable-panel';
-export * from './tags-editor/tags-editor';
+export * from './tags-input/tags-input-field';
 export * from './paginate/paginate';
 export * from './empty-state/empty-state';
 export * from './tags-input/tags-input';

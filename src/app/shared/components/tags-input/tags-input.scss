@@ -4,13 +4,14 @@
     padding: 0 4px;
     cursor: text;
     overflow: hidden;
-    // min-height: 2.8em;
-    min-height: 1.5em;
+    min-height: 2.8em;
+    line-height: 24px;
 
     input {
         width: 100%;
         border-width: 0;
         margin: 0.65em 0 0.65em -4px;
+        background: transparent;
     }
 
     .select {
