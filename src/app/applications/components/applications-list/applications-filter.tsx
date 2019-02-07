@@ -28,7 +28,8 @@ class ItemsFilter extends React.Component<{
     }
 
     public render() {
-        const items = this.props.items.sort((first, second) => second.count - first.count);
+        const unavailableSelected = this.props.selected.filter((selected) => !this.props.items.some((item) => item.name === selected));
+        const items = this.props.items.sort((first, second) => second.count - first.count).concat(unavailableSelected.map((selected) => ({ name: selected, count: 0 })));
         return (
             <React.Fragment>
                 <ul className={classNames('applications-list__filter', { 'applications-list__filter--expanded': this.state.expanded })}>
