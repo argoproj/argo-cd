@@ -31,7 +31,7 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                     applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
                     applications-list__entry--health-${app.status.health.status}`
                 }>
-                    <div className='row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, e)}>
+                    <div className='row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
                         <div className='columns small-12 applications-list__info'>
                             <div className='row'>
                                 <div className='columns applications-list__title'>{app.metadata.name}</div>

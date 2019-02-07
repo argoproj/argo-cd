@@ -9,7 +9,6 @@ export interface AppsListPreferences {
     healthFilter: string[];
     namespacesFilter: string[];
     clustersFilter: string[];
-    page: number;
     view: AppsListViewType;
 }
 
@@ -39,7 +38,6 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         ],
     },
     appList: {
-        page: 0,
         view: 'tiles' as AppsListViewType,
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),

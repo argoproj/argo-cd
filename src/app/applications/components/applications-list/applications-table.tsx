@@ -26,7 +26,7 @@ export const ApplicationsTable = (props: {
                 applications-list__entry applications-list__entry--comparison-${app.status.sync.status}
                 applications-list__entry--health-${app.status.health.status}`
             }>
-                <div className='row applications-list__table-row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, e)}>
+                <div className='row applications-list__table-row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
                     <div className='columns large-2 small-6'>
                         <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name}
                     </div>

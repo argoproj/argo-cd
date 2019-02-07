@@ -6,7 +6,7 @@ import * as React from 'react';
 import { RouteComponentProps } from 'react-router';
 import { Observable } from 'rxjs';
 
-import { DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate } from '../../../shared/components';
+import { Autocomplete, DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Query } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { AppsListPreferences, services } from '../../../shared/services';
@@ -51,7 +51,7 @@ function loadApplications(): Observable<models.Application[]> {
     );
 }
 
-const ViewPref = ({children}: { children: (pref: AppsListPreferences) => React.ReactNode }) => (
+const ViewPref = ({children}: { children: (pref: AppsListPreferences & { page: number, search: string }) => React.ReactNode }) => (
     <ObservableQuery>
         {(q) => (
             <DataLoader load={() => Observable.combineLatest(
@@ -73,10 +73,7 @@ const ViewPref = ({children}: { children: (pref: AppsListPreferences) => React.R
                     if (params.get('cluster') != null) {
                         viewPref.clustersFilter = params.get('cluster').split(',').filter((item) => !!item);
                     }
-                    if (params.get('page') != null) {
-                        viewPref.page = parseInt(params.get('page'), 10);
-                    }
-                    return {...viewPref};
+                    return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
             })}>
             {(pref) => children(pref)}
             </DataLoader>
@@ -84,8 +81,9 @@ const ViewPref = ({children}: { children: (pref: AppsListPreferences) => React.R
     </ObservableQuery>
 );
 
-function filterApps(applications: models.Application[], pref: AppsListPreferences) {
+function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string) {
     return applications.filter((app) =>
+        (search === '' || app.metadata.name.includes(search)) &&
         (pref.projectsFilter.length === 0 || pref.projectsFilter.includes(app.spec.project)) &&
         (pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL)) &&
         (pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status)) &&
@@ -147,6 +145,32 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                         ) : (
                             <div className='row'>
                                 <div className='columns small-12 xxlarge-2'>
+                                    <Query>
+                                    {(q) => (
+                                        <div className='applications-list__search'>
+                                            <i className='fa fa-search'/>
+                                            <Autocomplete
+                                                renderInput={(props) => (
+                                                    <input {...props} onFocus={(e) => {
+                                                        e.target.select();
+                                                        if (props.onFocus) {
+                                                            props.onFocus(e);
+                                                        }
+                                                    }} className='argo-field' />
+                                                )}
+                                                renderItem={(item) => (
+                                                    <React.Fragment>
+                                                        <i className='icon argo-icon-application'/> {item.label}
+                                                    </React.Fragment>
+                                                )}
+                                                onSelect={(val) => {
+                                                    this.appContext.apis.navigation.goto(`./${val}`);
+                                                }}
+                                                onChange={(e) => this.appContext.apis.navigation.goto('.', { search: e.target.value }, { replace: true })}
+                                                input={q.get('search') || ''} items={applications.map((app) => app.metadata.name)}/>
+                                        </div>
+                                    )}
+                                    </Query>
                                     <ViewPref>
                                     {(pref) => <ApplicationsFilter applications={applications} pref={pref} onChange={(newPref) => {
                                         services.viewPreferences.updatePreferences({appList: newPref});
@@ -172,7 +196,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                 <h5>Try to change filter criteria</h5>
                                             </EmptyState>
                                         )}
-                                        data={filterApps(applications, pref)} onPageChange={(page) => this.appContext.apis.navigation.goto('.', { page })} >
+                                        data={filterApps(applications, pref, pref.search)} onPageChange={(page) => this.appContext.apis.navigation.goto('.', { page })} >
                                     {(data) => (
                                         pref.view === 'tiles' && (
                                             <ApplicationTiles

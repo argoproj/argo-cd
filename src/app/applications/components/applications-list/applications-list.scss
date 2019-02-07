@@ -2,7 +2,7 @@
 @import 'node_modules/foundation-sites/scss/util/util';
 
 .applications-list {
-    padding-top: 1em;
+    padding: 1em;
     &__title {
         font-weight: bolder;
         font-size: 15px;
@@ -76,18 +76,17 @@
         position: relative;
         border-radius: $border-radius;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
-        padding: 10px;
+        padding: 0 1em 0.75em 1em;
         margin: 33px 0;
         background-color: white;
         transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
 
-        a {
-            padding-left: 1.3em;
+        ul, a, p {
+            margin: 0;
         }
 
         p {
-            padding-left: 1.3em;
-            margin-bottom: 0;
+            margin-top: 1em;
             color: $argo-color-gray-6;
             text-transform: uppercase;
         }
@@ -190,5 +189,18 @@
             padding-left: 30px;
         }
         margin-left: -30px !important;
+    }
+
+    &__search {
+        position: relative;
+        i.fa-search {
+            position: absolute;
+            bottom: 0.6em;
+            left: -1.5em;
+        }
+        .select {
+            width: 100%;
+            border-radius: $border-radius;
+        }
     }
 }

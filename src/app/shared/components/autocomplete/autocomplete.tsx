@@ -13,9 +13,10 @@ export interface AutocompleteOption {
 
 export interface AutocompleteProps {
     items: (AutocompleteOption | string)[];
-    input: string;
+    input?: string;
     inputProps?: React.HTMLProps<HTMLInputElement>;
     renderInput?: (props: React.HTMLProps<HTMLInputElement>) => React.ReactNode;
+    renderItem?: (item: AutocompleteOption) => React.ReactNode;
     onChange?: (e: React.ChangeEvent<HTMLInputElement>, value: string) => void;
     onSelect?: (value: string, item: any) => void;
     autoCompleteRef?: (api: AutocompleteApi) => any;
@@ -48,13 +49,15 @@ export const Autocomplete = (props: AutocompleteProps) => {
                 if (menuItems.length === 0) {
                     return <div style={{ display: 'none' }}/>;
                 }
-                return <div style={{ ...style, ...this.menuStyle, background: 'white', zIndex: 10, maxHeight: '200px' }} children={menuItems} />;
+                return <div style={{ ...style, ...this.menuStyle, background: 'white', zIndex: 10, maxHeight: '20em' }} children={menuItems} />;
             }}
             getItemValue={(item) => item.label}
             items={items}
             value={props.input}
             renderItem={(item, isSelected) => (
-                <div className={classNames('select__option', { selected: isSelected })} key={item.label}>{item.label}</div>
+                <div className={classNames('select__option', { selected: isSelected })} key={item.label}>
+                    {props.renderItem && props.renderItem(item) || item.label}
+                </div>
             )}
             onChange={props.onChange}
             onSelect={props.onSelect}
