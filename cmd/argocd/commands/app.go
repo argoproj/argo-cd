@@ -384,6 +384,8 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			app.Spec.Source.TargetRevision = appOpts.revision
 		case "values":
 			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles)
+		case "directory-recurse":
+			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
 		case "dest-server":
 			app.Spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":
@@ -454,18 +456,19 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 }
 
 type appOptions struct {
-	repoURL       string
-	appPath       string
-	env           string
-	revision      string
-	destServer    string
-	destNamespace string
-	parameters    []string
-	valuesFiles   []string
-	project       string
-	syncPolicy    string
-	autoPrune     bool
-	namePrefix    string
+	repoURL          string
+	appPath          string
+	env              string
+	revision         string
+	destServer       string
+	destNamespace    string
+	parameters       []string
+	valuesFiles      []string
+	project          string
+	syncPolicy       string
+	autoPrune        bool
+	namePrefix       string
+	directoryRecurse bool
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -481,6 +484,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
+	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
