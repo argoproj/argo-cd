@@ -24,6 +24,7 @@ Download the latest Argo CD version from https://github.com/argoproj/argo-cd/rel
 
 Also available in Mac Homebrew:
 ```bash
+brew tap argoproj/tap
 brew install argoproj/tap/argocd
 ```
 
