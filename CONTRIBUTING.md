@@ -1,6 +1,10 @@
-## Requirements
+## Before You Start
 
-You must install and run the ArgoCD eusing miniubke first.
+You must install and run the ArgoCD eusing miniubke first. This will help you understand the application, but also get your local environment set-up.
+
+Then, to get a good grounding in Go, try out [the tutorial](https://tour.golang.org/).
+
+## Pre-requisites  
 
 Install:
 
@@ -86,9 +90,11 @@ You can now execute `argocd` command against your locally running ArgoCD by appe
 app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://192.168.99.102:8443  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
+TODO - how to run the UI?
+
 ## Pre-commit Checks
 
-Before you commit, make sure you've formatted and linted your code:
+Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:
 
 ```
 STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$")
