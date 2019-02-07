@@ -114,7 +114,7 @@ type ApplicationSourceKsonnet struct {
 }
 
 type ApplicationSourceDirectory struct {
-	Recurse bool `json:"recurse" protobuf:"bytes,1,opt,name=recurse"`
+	Recurse bool `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
 }
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {
