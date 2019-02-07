@@ -13,6 +13,7 @@ import { AppsListPreferences, services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
 import * as AppUtils from '../utils';
 import { ApplicationsFilter } from './applications-filter';
+import { ApplicationsSummary } from './applications-summary';
 import { ApplicationsTable } from './applications-table';
 import { ApplicationTiles } from './applications-tiles';
 
@@ -120,6 +121,8 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                             onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'tiles'} })} />
                         <i className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
                             onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'list'} })} />
+                        <i className={classNames('fa fa-pie-chart', {selected: pref.appList.view === 'summary'})}
+                            onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'summary'} })} />
                     </div>
                 </React.Fragment>
             ),
@@ -189,7 +192,9 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                 </div>
                                 <div className='columns small-12 xxlarge-10'>
                                 <ViewPref>
-                                {(pref) => (
+                                {(pref) => pref.view === 'summary' && (
+                                    <ApplicationsSummary applications={filterApps(applications, pref, pref.search)} />
+                                ) || (
                                     <Paginate
                                         page={pref.page}
                                         pageLimit={16}

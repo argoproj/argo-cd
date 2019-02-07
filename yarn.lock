@@ -4779,6 +4779,11 @@ react-side-effect@^1.1.0:
     exenv "^1.2.1"
     shallowequal "^1.0.1"
 
+react-svg-piechart@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/react-svg-piechart/-/react-svg-piechart-2.1.1.tgz#b46b34f9cd528de97ab84665b7af27b5ac7f65b4"
+  integrity sha512-D89/4QV0BhSX1uxL1FYgbSeIllsfY8bnqzsEVHUMmoJS/sRP8mfVo9mztFuE7JxKQLcHxRl82gSCIP+siYQfNg==
+
 react@^16.4.1:
   version "16.4.1"
   resolved "https://registry.yarnpkg.com/react/-/react-16.4.1.tgz#de51ba5764b5dbcd1f9079037b862bd26b82fe32"

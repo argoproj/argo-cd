@@ -96,6 +96,7 @@
             display: block;
             color: $argo-color-gray-6;
             padding-bottom: 1em;
+            margin-top: 0.5em;
         }
 
         &--expanded {
@@ -143,6 +144,10 @@
     }
 
     @include breakpoint(xxlarge only) {
+        &__summary {
+            margin-top: 5.3em;
+        }
+
         &__filter-expander {
             display: inline;
         }
