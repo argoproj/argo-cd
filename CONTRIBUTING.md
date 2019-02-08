@@ -82,7 +82,7 @@ You should scale the deployemnts to zero:
 
 ```
 kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
-kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 0
+kubectl -n argocd scale deployment.extensions/dex-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
 ```
