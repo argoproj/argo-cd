@@ -21,8 +21,8 @@ Install:
 * [minikube](https://kubernetes.io/docs/setup/minikube/)
 
 ```
-$ brew tap go-swagger/go-swagger
-$ brew install go dep protobuf kubectl ksonnet/tap/ks kubernetes-helm jq go-swagger 
+brew tap go-swagger/go-swagger
+brew install go dep protobuf kubectl ksonnet/tap/ks kubernetes-helm jq go-swagger 
 ```
 
 Set up environment variables (e.g. is `~/.bashrc`):
@@ -35,22 +35,22 @@ export PATH=$PATH:$GOPATH/bin
 Install go dependencies:
 
 ```
-$ go get -u github.com/golang/protobuf/protoc-gen-go
-$ go get -u github.com/go-swagger/go-swagger/cmd/swagger
-$ go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-$ go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-$ go get -u gopkg.in/alecthomas/gometalinter.v2 
-$ go get -u github.com/mattn/goreman 
+go get -u github.com/golang/protobuf/protoc-gen-go
+go get -u github.com/go-swagger/go-swagger/cmd/swagger
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get -u gopkg.in/alecthomas/gometalinter.v2 
+go get -u github.com/mattn/goreman 
 
-$ gometalinter.v2 --install
+gometalinter.v2 --install
 ```
 
 ## Building
 
 ```
-$ go get -u github.com/argoproj/argo-cd
-$ dep ensure
-$ make
+go get -u github.com/argoproj/argo-cd
+dep ensure
+make
 ```
 
 The make command can take a while, and we recommend building the specific component you are working on
@@ -78,7 +78,16 @@ make test-e2e
 
 It is much easier to run and debug if you run ArgoCD on your local machine than in the Kubernetes cluster.
 
-You should scale the deployemnts to zero via the Kubernetes dashboard, then start the services:
+You should scale the deployemnts to zero via the Kubernetes dashboard:
+
+```
+kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
+```
+
+Then start the services:
 
 ```
 $ goreman start
