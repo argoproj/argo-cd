@@ -78,7 +78,7 @@ make test-e2e
 
 It is much easier to run and debug if you run ArgoCD on your local machine than in the Kubernetes cluster.
 
-You should scale the deployemnts to zero via the Kubernetes dashboard:
+You should scale the deployemnts to zero:
 
 ```
 kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
