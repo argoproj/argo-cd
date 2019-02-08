@@ -9,7 +9,7 @@ import { Observable } from 'rxjs';
 import { Autocomplete, DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Query } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { AppsListPreferences, services } from '../../../shared/services';
+import { AppsListPreferences, AppsListViewType, services } from '../../../shared/services';
 import { ApplicationCreationWizardContainer, NewAppParams, WizardStepState } from '../application-creation-wizard/application-creation-wizard';
 import * as AppUtils from '../utils';
 import { ApplicationsFilter } from './applications-filter';
@@ -74,6 +74,9 @@ const ViewPref = ({children}: { children: (pref: AppsListPreferences & { page: n
                     if (params.get('cluster') != null) {
                         viewPref.clustersFilter = params.get('cluster').split(',').filter((item) => !!item);
                     }
+                    if (params.get('view') != null) {
+                        viewPref.view = params.get('view') as AppsListViewType;
+                    }
                     return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
             })}>
             {(pref) => children(pref)}
@@ -117,12 +120,18 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
             tools: (
                 <React.Fragment key='app-list-tools'>
                     <div className='applications-list__view-type'>
-                        <i className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})}
-                            onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'tiles'} })} />
-                        <i className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})}
-                            onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'list'} })} />
-                        <i className={classNames('fa fa-pie-chart', {selected: pref.appList.view === 'summary'})}
-                            onClick={() => services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'summary'} })} />
+                        <i className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})} onClick={() => {
+                            this.appContext.apis.navigation.goto('.', { view: 'tiles'});
+                            services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'tiles'} });
+                        }} />
+                        <i className={classNames('fa fa-th-list', {selected: pref.appList.view === 'list'})} onClick={() => {
+                            this.appContext.apis.navigation.goto('.', { view: 'list'});
+                            services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'list'} });
+                        }} />
+                        <i className={classNames('fa fa-pie-chart', {selected: pref.appList.view === 'summary'})} onClick={() => {
+                            this.appContext.apis.navigation.goto('.', { view: 'summary'});
+                            services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'summary'} });
+                        }} />
                     </div>
                 </React.Fragment>
             ),

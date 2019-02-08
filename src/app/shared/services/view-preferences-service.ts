@@ -1,7 +1,14 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 
-export interface AppDetailsPreferences { defaultTreeFilter: string[]; }
+export type AppsDetailsViewType = 'tree' | 'list';
+
+export interface AppDetailsPreferences {
+    resourceFilter: string[];
+    view: AppsDetailsViewType;
+}
+
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
+
 export interface AppsListPreferences {
     projectsFilter: string[];
     reposFilter: string[];
@@ -20,12 +27,13 @@ export interface ViewPreferences {
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
-const minVer = 1;
+const minVer = 2;
 
 const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
-        defaultTreeFilter: [
+        view: 'tree',
+        resourceFilter: [
             'kind:Deployment',
             'kind:Service',
             'kind:Pod',
@@ -65,7 +73,7 @@ export class ViewPreferencesService {
     }
 
     public updatePreferences(change: Partial<ViewPreferences>) {
-        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change);
+        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, { version: minVer });
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }

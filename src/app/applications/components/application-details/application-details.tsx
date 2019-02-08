@@ -1,14 +1,15 @@
 import { FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
+import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import { Checkbox, Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 import { Observable } from 'rxjs';
 
-import { DataLoader, ErrorNotification, Page } from '../../../shared/components';
+import { DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import { services } from '../../../shared/services';
+import { AppDetailsPreferences, AppsDetailsViewType, services } from '../../../shared/services';
 
 import { ApplicationConditions } from '../application-conditions/application-conditions';
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
@@ -22,6 +23,7 @@ import { ParametersPanel } from '../parameters-panel/parameters-panel';
 import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
 import { isSameNode, nodeKey, ResourceTreeNode } from '../utils';
+import { ApplicationResourceList } from './application-resource-list';
 
 require('./application-details.scss');
 
@@ -49,7 +51,7 @@ function resourcesFromSummaryInfo(application: appModels.Application, roots: app
     });
 }
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{ name: string; }>, {page: number}> {
 
     public static contextTypes = {
         apis: PropTypes.object,
@@ -57,6 +59,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private formApi: FormApi;
     private loader: DataLoader<{application: appModels.Application, resources: ResourceTreeNode[]}>;
+
+    constructor(props: RouteComponentProps<{ name: string; }>) {
+        super(props);
+        this.state = { page: 0 };
+    }
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
@@ -88,20 +95,29 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     public render() {
         return (
+            <ObservableQuery>
+            {(q) => (
             <DataLoader
                 errorRenderer={(error) => <Page title='Application Details'>{error}</Page>}
                 loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                 input={this.props.match.params.name}
                 ref={(loader) => this.loader  = loader}
-                load={(name) => Observable.combineLatest(this.loadAppInfo(name), services.viewPreferences.getPreferences()).map((items) => ({
-                    ...items[0],
-                    defaultTreeFilter: items[1].appDetails.defaultTreeFilter,
-                }))}>
+                load={(name) => Observable.combineLatest(this.loadAppInfo(name), services.viewPreferences.getPreferences(), q).map((items) => {
+                    const pref = items[1].appDetails;
+                    const params = items[2];
+                    if (params.get('resource') != null) {
+                        pref.resourceFilter = params.get('resource').split(',').filter((item) => !!item);
+                    }
+                    if (params.get('view') != null) {
+                        pref.view = params.get('view') as AppsDetailsViewType;
+                    }
+                    return {...items[0], pref};
+                })}>
 
-                {({application, resources, defaultTreeFilter}: {application: appModels.Application, resources: ResourceTreeNode[], defaultTreeFilter: string[]}) => {
+                {({application, resources, pref}: {application: appModels.Application, resources: ResourceTreeNode[], pref: AppDetailsPreferences}) => {
                     const kindsSet = new Set<string>();
                     const toProcess: ResourceTreeNode[] = [...resources || []];
-                    const treeFilter = this.getTreeFilter(defaultTreeFilter);
+                    const treeFilter = this.getTreeFilter(pref.resourceFilter);
                     while (toProcess.length > 0) {
                         const next = toProcess.pop();
                         kindsSet.add(next.kind);
@@ -109,7 +125,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     }
                     treeFilter.kind.forEach((kind) => { kindsSet.add(kind); });
                     const kinds = Array.from(kindsSet);
-                    const noKindsFilter = treeFilter.values.filter((item) => item.indexOf('kind:') !== 0);
+                    const noKindsFilter = pref.resourceFilter.filter((item) => item.indexOf('kind:') !== 0);
                     const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
 
                     const filter: TopBarFilter<string> = {
@@ -130,14 +146,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             ) },
                             ...kinds.sort().map((kind) => ({ value: `kind:${kind}`, label: kind })),
                         ],
-                        selectedValues: treeFilter.values,
+                        selectedValues: pref.resourceFilter,
                         selectionChanged: (items) => {
-                            this.appContext.apis.navigation.goto('.', { treeFilter: `${items.join(',')}`});
-                            services.viewPreferences.updatePreferences({
-                                appDetails: {
-                                    defaultTreeFilter: items,
-                                },
-                            });
+                            this.appContext.apis.navigation.goto('.', { resource: `${items.join(',')}`});
+                            services.viewPreferences.updatePreferences({ appDetails: { ...pref, resourceFilter: items } });
                         },
                     };
 
@@ -152,13 +164,34 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     const deployResIndex = deployParam && resources.findIndex((item) => {
                         return nodeKey(item) === deployParam;
                     });
+                    const filteredRes = application.status.resources.filter((res) => {
+                        const resNode: ResourceTreeNode = {...res, root: null, info: null, children: null, resourceVersion: ''};
+                        resNode.root = resNode;
+                        return this.filterTreeNode(resNode, treeFilter);
+                    });
                     return (
                         <div className='application-details'>
                         <Page
                             title='Application Details'
-                            toolbar={{ filter, breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }], actionMenu: {
-                                items: this.getApplicationActionMenu(application),
-                            }}}>
+                            toolbar={{
+                                filter,
+                                breadcrumbs: [{title: 'Applications', path: '/applications' }, { title: this.props.match.params.name }],
+                                actionMenu: {items: this.getApplicationActionMenu(application)},
+                                tools: (
+                                    <React.Fragment key='app-list-tools'>
+                                        <div className='application-details__view-type'>
+                                            <i className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})} onClick={() => {
+                                                this.appContext.apis.navigation.goto('.', { view: 'tree' });
+                                                services.viewPreferences.updatePreferences({ appDetails: {...pref, view: 'tree'} });
+                                            }} />
+                                            <i className={classNames('fa fa-th-list', {selected: pref.view === 'list'})} onClick={() => {
+                                                this.appContext.apis.navigation.goto('.', { view: 'list' });
+                                                services.viewPreferences.updatePreferences({ appDetails: {...pref, view: 'list'} });
+                                            }} />
+                                        </div>
+                                    </React.Fragment>
+                                ),
+                            }}>
                             <div className='application-details__status-panel'>
                                 <ApplicationStatusPanel application={application}
                                     refresh={async (hard) => {
@@ -174,13 +207,32 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             </div>
                             <div className='application-details__tree'>
                                 {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                <ApplicationResourceTree
+                                {pref.view === 'tree' && (
+                                    <ApplicationResourceTree
                                     nodeFilter={(node) => this.filterTreeNode(node, treeFilter)}
                                     selectedNodeFullName={this.selectedNodeKey}
                                     onNodeClick={(fullName) => this.selectNode(fullName)}
                                     nodeMenuItems={(node) => this.getResourceMenuItems(node, application)}
                                     resources={resources}
                                     app={application}/>
+                                ) || (
+                                    <div className='argo-container'>
+                                        {filteredRes.length > 0 && (
+                                            <Paginate page={this.state.page} pageLimit={16} data={filteredRes} onPageChange={(page) => this.setState({page})}>
+                                            {(data) => (
+                                                <ApplicationResourceList
+                                                    onNodeClick={(fullName) => this.selectNode(fullName)}
+                                                    resources={data} />
+                                                )}
+                                            </Paginate>
+                                        ) || (
+                                            <EmptyState icon='search'>
+                                                <h4>No resources found</h4>
+                                                <h5>Try to change filter criteria</h5>
+                                            </EmptyState>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                 <div>
@@ -313,7 +365,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                         </div>
                     );
                 }}
-            </DataLoader>
+            </DataLoader>)}
+            </ObservableQuery>
         );
     }
 
@@ -411,13 +464,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return nodeByKey;
     }
 
-    private getTreeFilter(defaultTreeFilter: string[]): {kind: string[], health: string[], sync: string[], values: string[]} {
-        const filterSearchParam = new URLSearchParams(this.props.history.location.search).get('tree-filter');
-        const values = filterSearchParam === null ? defaultTreeFilter : filterSearchParam.split(',').filter((item) => !!item);
+    private getTreeFilter(filter: string[]): {kind: string[], health: string[], sync: string[]} {
         const kind = new Array<string>();
         const health = new Array<string>();
         const sync = new Array<string>();
-        for (const item of values) {
+        for (const item of filter) {
             const [type, val] = item.split(':');
             switch (type) {
                 case 'kind':
@@ -431,7 +482,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     break;
             }
         }
-        return {kind, health, sync, values};
+        return {kind, health, sync};
     }
 
     private showDeploy(resource: string) {

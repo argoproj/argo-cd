@@ -68,4 +68,23 @@
     .application-resource-tree {
         margin: 0 auto;
     }
+
+    &__view-type {
+        margin-bottom: -6px;
+        display: inline-block;
+        vertical-align: middle;
+        white-space: nowrap;
+        i {
+            cursor: pointer;
+            color:  $argo-color-gray-4;
+            margin-right: 1em;
+            &::before {
+                font-size: 1.5em;
+            }
+        }
+        i.selected {
+            cursor: default;
+            color: $argo-color-teal-5;
+        }
+    }
 }

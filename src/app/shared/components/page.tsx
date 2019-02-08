@@ -14,7 +14,7 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
 
     public render() {
         return (
-            <DataLoader load={() => Utils.toObservable(this.props.toolbar).map((toolbar) => {
+            <DataLoader input={new Date()} load={() => Utils.toObservable(this.props.toolbar).map((toolbar) => {
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,

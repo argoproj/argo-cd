@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon, nodeKey, ResourceTreeNode } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, ICON_CLASS_BY_KIND, nodeKey, ResourceTreeNode } from '../utils';
 
 require('./application-resource-tree.scss');
 
@@ -11,13 +11,6 @@ interface Line { x1: number; y1: number; x2: number; y2: number; }
 
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
-
-const ICON_CLASS_BY_KIND = {
-    application: 'argo-icon-application',
-    deployment: 'argo-icon-deployment',
-    pod: 'argo-icon-docker',
-    service: 'argo-icon-hosts',
-} as any;
 
 function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     let width = 0;
