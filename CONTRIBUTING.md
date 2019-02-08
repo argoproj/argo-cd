@@ -1,6 +1,6 @@
 ## Before You Start
 
-You must install and run the ArgoCD using miniubke first. This will help you understand the application, but also get your local environment set-up.
+You must install and run the ArgoCD using a local Kubernetes (e.g. Docker for Desktop or Minikube) first. This will help you understand the application, but also get your local environment set-up.
 
 Then, to get a good grounding in Go, try out [the tutorial](https://tour.golang.org/).
 
@@ -18,7 +18,7 @@ Install:
 * [go-swagger](https://github.com/go-swagger/go-swagger/blob/master/docs/install.md)
 * [jq](https://stedolan.github.io/jq/)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
-* [minikube](https://kubernetes.io/docs/setup/minikube/)
+* [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
 ```
 brew tap go-swagger/go-swagger
@@ -105,7 +105,7 @@ goreman start
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:
 
 ```
-app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://192.168.99.102:8443  --dest-namespace default --server localhost:8080 --plaintext --insecure
+app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
 You can open the UI: http://localhost:8080
