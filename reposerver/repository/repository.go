@@ -266,7 +266,8 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		opts := kustomizeOpts(q)
 		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeDirectory:
-		targetObjs, err = FindManifests(appPath, q.Recurse)
+		directoryRecurse := q.ApplicationSource.Directory != nil && q.ApplicationSource.Directory.Recurse
+		targetObjs, err = FindManifests(appPath, directoryRecurse)
 	}
 	if err != nil {
 		return nil, err
