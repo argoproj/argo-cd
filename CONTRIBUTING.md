@@ -1,6 +1,6 @@
 ## Before You Start
 
-You must install and run the ArgoCD eusing miniubke first. This will help you understand the application, but also get your local environment set-up.
+You must install and run the ArgoCD using miniubke first. This will help you understand the application, but also get your local environment set-up.
 
 Then, to get a good grounding in Go, try out [the tutorial](https://tour.golang.org/).
 
