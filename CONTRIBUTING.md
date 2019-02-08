@@ -87,10 +87,19 @@ kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
 ```
 
+Then checkout and build the UI next to your code
+
+```
+cd ~/go/src/github.com/argoproj
+git clone git@github.com:argoproj/argo-cd-ui.git
+# Follow README to build.
+```
+
 Then start the services:
 
 ```
-$ goreman start
+cd ~/go/src/github.com/argoproj/argo-cd
+goreman start
 ```
 
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:
@@ -99,7 +108,7 @@ You can now execute `argocd` command against your locally running ArgoCD by appe
 app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://192.168.99.102:8443  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
-TODO - how to run the UI?
+You can open the UI: http://localhost:8080
 
 ## Pre-commit Checks
 
