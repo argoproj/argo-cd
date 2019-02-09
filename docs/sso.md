@@ -39,7 +39,7 @@ inputted into the Argo CD configmap.
 
 Edit the argocd-cm configmap:
 ```
-kubectl edit configmap argocd-cm
+kubectl edit configmap argocd-cm -n argocd
 ```
 
 * In the `url` key, input the base URL of Argo CD. In this example, it is https://argocd.example.com

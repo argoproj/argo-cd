@@ -48,7 +48,7 @@ Follow the [ingress documentation](ingress.md) on how to configure Argo CD with 
 Kubectl port-forwarding can also be used to connect to the API server without exposing the service.
 
 ```bash
-kubectl port-forward svc/argocd-server 8080:443
+kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 The API server can then be accessed using the localhost:8080
 

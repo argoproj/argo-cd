@@ -29,7 +29,7 @@ webhook secret configured in step 1.
 
 Edit the Argo CD kubernetes secret:
 ```
-kubectl edit secret argocd-secret
+kubectl edit secret argocd-secret -n argocd
 ```
 
 TIP: for ease of entering secrets, kubernetes supports inputting secrets in the `stringData` field,
