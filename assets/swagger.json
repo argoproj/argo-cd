@@ -1549,6 +1549,10 @@
         }
       }
     },
+    "repositoryDirectoryAppSpec": {
+      "type": "object",
+      "title": "DirectoryAppSpec contains directory"
+    },
     "repositoryHelmAppSpec": {
       "type": "object",
       "title": "HelmAppSpec contains helm app name and path in source repo",
@@ -1657,6 +1661,9 @@
       "type": "object",
       "title": "RepoAppDetailsResponse application details",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        },
         "helm": {
           "$ref": "#/definitions/repositoryHelmAppSpec"
         },
@@ -2314,6 +2321,9 @@
             "$ref": "#/definitions/v1alpha1ComponentParameter"
           }
         },
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
         "environment": {
           "type": "string",
           "title": "Environment is a ksonnet application environment name\nDEPRECATED: specify environment in spec.source.ksonnet.environment instead"
@@ -2345,6 +2355,15 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceDirectory": {
+      "type": "object",
+      "properties": {
+        "recurse": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

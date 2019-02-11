@@ -384,6 +384,8 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			app.Spec.Source.TargetRevision = appOpts.revision
 		case "values":
 			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles)
+		case "directory-recurse":
+			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
 		case "dest-server":
 			app.Spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":
@@ -454,18 +456,19 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 }
 
 type appOptions struct {
-	repoURL       string
-	appPath       string
-	env           string
-	revision      string
-	destServer    string
-	destNamespace string
-	parameters    []string
-	valuesFiles   []string
-	project       string
-	syncPolicy    string
-	autoPrune     bool
-	namePrefix    string
+	repoURL          string
+	appPath          string
+	env              string
+	revision         string
+	destServer       string
+	destNamespace    string
+	parameters       []string
+	valuesFiles      []string
+	project          string
+	syncPolicy       string
+	autoPrune        bool
+	namePrefix       string
+	directoryRecurse bool
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -481,6 +484,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: automated, none)")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
+	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -583,7 +587,7 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 	return objs, nil
 }
 
-func getLocalObjects(app *argoappv1.Application, local string, env string, values []string) []*unstructured.Unstructured {
+func getLocalObjects(app *argoappv1.Application, local string, env string, values []string, directoryRecurse bool) []*unstructured.Unstructured {
 	var localObjs []*unstructured.Unstructured
 	var err error
 	appType := repository.IdentifyAppSourceTypeByAppDir(local)
@@ -637,7 +641,7 @@ func getLocalObjects(app *argoappv1.Application, local string, env string, value
 		if env != "" {
 			log.Fatal("--env option invalid when performing local diff on a directory")
 		}
-		localObjs, err = repository.FindManifests(local)
+		localObjs, err = repository.FindManifests(local, directoryRecurse)
 		errors.CheckError(err)
 	}
 	return localObjs
@@ -673,11 +677,12 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh     bool
-		hardRefresh bool
-		local       string
-		env         string
-		values      []string
+		refresh          bool
+		hardRefresh      bool
+		local            string
+		env              string
+		values           []string
+		directoryRecurse bool
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -705,7 +710,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				target *unstructured.Unstructured
 			}, 0)
 			if local != "" {
-				localObjs := groupLocalObjs(getLocalObjects(app, local, env, values), liveObjs, app.Spec.Destination.Namespace)
+				localObjs := groupLocalObjs(getLocalObjects(app, local, env, values, directoryRecurse), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.LiveState), &live)
@@ -794,6 +799,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
 	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
 	command.Flags().StringArrayVar(&values, "values", []string{}, "Helm values file(s) in the helm directory to use")
+	command.Flags().BoolVar(&directoryRecurse, "directory-recurse", false, "Recurse directories")
 	return command
 }
 

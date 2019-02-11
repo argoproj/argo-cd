@@ -37,6 +37,7 @@ message RepoAppDetailsResponse {
 	KsonnetAppSpec ksonnet = 2;
 	HelmAppSpec helm = 3;
 	KustomizeAppSpec kustomize = 4;
+	DirectoryAppSpec directory = 5;
 }
 
 // RepoAppsResponse contains applications of specified repository
@@ -80,6 +81,11 @@ message KsonnetEnvironmentDestination {
     string server = 1;
     // Namespace is the namespace of the Kubernetes server that targets should be deployed to
     string namespace = 2;
+}
+
+// DirectoryAppSpec contains directory
+message DirectoryAppSpec {
+
 }
 
 // RepoQuery is a query for Repository resources

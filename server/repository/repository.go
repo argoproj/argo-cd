@@ -228,7 +228,10 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 		return nil, err
 	}
 	if len(paths) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "specified application path is not supported")
+		return &RepoAppDetailsResponse{
+			Type:      string(appsv1.ApplicationSourceTypeDirectory),
+			Directory: &DirectoryAppSpec{},
+		}, nil
 	}
 
 	var appPath string

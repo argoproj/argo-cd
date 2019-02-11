@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	jsonnet "github.com/google/go-jsonnet"
+	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -266,7 +266,8 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		opts := kustomizeOpts(q)
 		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeDirectory:
-		targetObjs, err = FindManifests(appPath)
+		directoryRecurse := q.ApplicationSource.Directory != nil && q.ApplicationSource.Directory.Recurse
+		targetObjs, err = FindManifests(appPath, directoryRecurse)
 	}
 	if err != nil {
 		return nil, err
@@ -432,25 +433,32 @@ func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.Componen
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // FindManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
-	files, err := ioutil.ReadDir(appPath)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Failed to read dir %s: %v", appPath, err)
-	}
+func FindManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
-	for _, f := range files {
-		if f.IsDir() || !manifestFile.MatchString(f.Name()) {
-			continue
-		}
-		out, err := ioutil.ReadFile(filepath.Join(appPath, f.Name()))
+	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if f.IsDir() {
+			if path != appPath && !directoryRecurse {
+				return filepath.SkipDir
+			} else {
+				return nil
+			}
+		}
+
+		if !manifestFile.MatchString(f.Name()) {
+			return nil
+		}
+		out, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
 		}
 		if strings.HasSuffix(f.Name(), ".json") {
 			var obj unstructured.Unstructured
 			err = json.Unmarshal(out, &obj)
 			if err != nil {
-				return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
@@ -460,7 +468,7 @@ func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
 			})
 			jsonStr, err := vm.EvaluateSnippet(f.Name(), string(out))
 			if err != nil {
-				return nil, status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
+				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
 			}
 
 			// attempt to unmarshal either array or single object
@@ -472,7 +480,7 @@ func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
 				var jsonObj unstructured.Unstructured
 				err = json.Unmarshal([]byte(jsonStr), &jsonObj)
 				if err != nil {
-					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", f.Name(), err)
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", f.Name(), err)
 				}
 				objs = append(objs, &jsonObj)
 			}
@@ -483,13 +491,17 @@ func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
 					// If we get here, we had a multiple objects in a single YAML file which had some
 					// valid k8s objects, but errors parsing others (within the same file). It's very
 					// likely the user messed up a portion of the YAML, so report on that.
-					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 				}
 				// Otherwise, it might be a unrelated YAML file which we will ignore
-				continue
+				return nil
 			}
 			objs = append(objs, yamlObjs...)
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return objs, nil
 }
