@@ -1416,8 +1416,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		timeout uint
 	)
 	var command = &cobra.Command{
-		Use:   "rollback APPNAME",
-		Short: "Rollback application to a previous deployed version",
+		Use:   "rollback APPNAME ID",
+		Short: "Rollback application to a previous deployed version by History ID",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
