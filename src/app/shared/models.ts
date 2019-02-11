@@ -15,9 +15,9 @@ interface ItemsList<T> {
     metadata: models.ListMeta;
 }
 
-export interface ApplicationList extends ItemsList<Application> {}
+export interface ApplicationList extends ItemsList<Application> { }
 
-export interface SyncOperationResource {group: string; kind: string; name: string; }
+export interface SyncOperationResource { group: string; kind: string; name: string; }
 
 export interface SyncOperation {
     revision: string;
@@ -143,6 +143,8 @@ export interface ApplicationSource {
     kustomize?: ApplicationSourceKustomize;
 
     ksonnet?: ApplicationSourceKsonnet;
+
+    directory?: ApplicationSourceDirectory;
 }
 
 export interface ApplicationSourceHelm {
@@ -155,6 +157,10 @@ export interface ApplicationSourceKustomize {
 
 export interface ApplicationSourceKsonnet {
     environment: string;
+}
+
+export interface ApplicationSourceDirectory {
+    recurse: boolean;
 }
 
 export interface SyncPolicy {
@@ -180,15 +186,15 @@ export interface RevisionHistory {
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
 
-export const SyncStatuses: {[key: string]: SyncStatusCode} = {
+export const SyncStatuses: { [key: string]: SyncStatusCode } = {
     Unknown: 'Unknown',
-    Synced: 'Synced' ,
+    Synced: 'Synced',
     OutOfSync: 'OutOfSync',
 };
 
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Degraded' | 'Missing';
 
-export const HealthStatuses: {[key: string]: HealthStatusCode} = {
+export const HealthStatuses: { [key: string]: HealthStatusCode } = {
     Unknown: 'Unknown',
     Progressing: 'Progressing',
     Healthy: 'Healthy',
@@ -220,7 +226,7 @@ export interface ResourceNode {
     name: string;
     version: string;
     group: string;
-    info: {name: string, value: string}[];
+    info: { name: string, value: string }[];
     children: ResourceNode[];
     resourceVersion: string;
 }
@@ -277,8 +283,8 @@ export interface AuthSettings {
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
 
 export const ConnectionStatuses = {
-    Unknown: 'Unknown' ,
-    Failed: 'Failed' ,
+    Unknown: 'Unknown',
+    Failed: 'Failed',
     Successful: 'Successful',
 };
 
@@ -293,7 +299,7 @@ export interface Repository {
     connectionState: ConnectionState;
 }
 
-export interface RepositoryList extends ItemsList<Repository> {}
+export interface RepositoryList extends ItemsList<Repository> { }
 
 export interface Cluster {
     name: string;
@@ -301,7 +307,7 @@ export interface Cluster {
     connectionState: ConnectionState;
 }
 
-export interface ClusterList extends ItemsList<Cluster> {}
+export interface ClusterList extends ItemsList<Cluster> { }
 
 export interface KsonnetEnvironment {
     k8sVersion: string;
@@ -323,6 +329,7 @@ export interface AppDetails {
     ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
+    directory?: {};
 }
 
 export interface AppInfo {
@@ -381,7 +388,7 @@ export interface Event {
     reportingInstance: string;
 }
 
-export interface EventList extends ItemsList<Event> {}
+export interface EventList extends ItemsList<Event> { }
 
 export interface ProjectRole {
     description: string;

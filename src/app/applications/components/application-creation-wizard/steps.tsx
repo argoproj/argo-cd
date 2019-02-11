@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
-import { DataLoader, TagsInputField } from '../../../shared/components';
+import { CheckboxField, DataLoader, TagsInputField } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
@@ -106,12 +106,14 @@ export interface NewAppParams {
     environment?: string;
     valueFiles?: string[];
     namePrefix?: string;
+    directoryRecurse?: boolean;
 }
 
 export class AppParams extends React.Component<{
     needKsonnetParams: boolean,
     needHelmParams: boolean,
     needKustomizeParams: boolean,
+    needDirectoryParams: boolean,
     valueFiles: string[],
     environments: string[],
     projects: models.Project[],
@@ -193,6 +195,11 @@ export class AppParams extends React.Component<{
                         {this.props.needKustomizeParams && (
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Name Prefix' field='namePrefix' component={Text} />
+                            </div>
+                        )}
+                        {this.props.needDirectoryParams && (
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Directory recurse' field='directoryRecurse' component={CheckboxField}/>
                             </div>
                         )}
                         <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((item) => item.server))}>

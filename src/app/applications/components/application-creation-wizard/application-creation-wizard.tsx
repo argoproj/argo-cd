@@ -198,6 +198,10 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     ),
                 };
             case Step.SetParams:
+                const needKsonnetParams = !!(this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet);
+                const needHelmParams = !!(this.state.selectedAppDetails && this.state.selectedAppDetails.helm);
+                const needKustomizeParams = !!(this.state.selectedAppDetails && this.state.selectedAppDetails.kustomize);
+                const needDirectoryParams = !(needKsonnetParams || needHelmParams || needKsonnetParams);
                 return {
                     title: 'Review application parameters',
                     canNext: () => this.state.appParamsValid,
@@ -212,9 +216,10 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                     },
                     render: () => (
                         <AppParams
-                            needKsonnetParams={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet)}
-                            needHelmParams={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.helm)}
-                            needKustomizeParams={!!(this.state.selectedAppDetails && this.state.selectedAppDetails.kustomize)}
+                            needKsonnetParams={needKsonnetParams}
+                            needHelmParams={needHelmParams}
+                            needKustomizeParams={needKustomizeParams}
+                            needDirectoryParams={needDirectoryParams}
                             environments={this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet
                                 && Object.keys(this.state.selectedAppDetails.ksonnet.environments) || []}
                             valueFiles={this.state.selectedAppDetails && this.state.selectedAppDetails.helm && this.state.selectedAppDetails.helm.valueFiles || []}

@@ -2,7 +2,7 @@ import { FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
-import { DataLoader, EditablePanel, TagsInputField } from '../../../shared/components';
+import { CheckboxField, DataLoader, EditablePanel,  TagsInputField } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -84,6 +84,13 @@ export const ApplicationSummary = (props: {
                     options: props.details.helm.valueFiles,
                     noTagsLabel: 'No values files selected',
                 }}/>
+            ),
+        }] : [],
+        ...props.details.type === 'Directory' && props.details.directory ? [{
+            title: 'DIRECTORY RECURSE',
+            view: app.spec.source.directory && app.spec.source.directory.recurse !== undefined ? app.spec.source.directory.recurse.toString()  : 'false',
+            edit: (formApi: FormApi) => (
+                <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField}/>
             ),
         }] : [],
         {title: 'STATUS', view: (

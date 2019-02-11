@@ -15,3 +15,11 @@ Web UI for [Argo CD](https://github.com/argoproj/argo-cd).
 To build a Docker image, run `IMAGE_NAMESPACE=yourimagerepo IMAGE_TAG=latest yarn docker`.
 
 To do the same and push to a Docker registry, run `IMAGE_NAMESPACE=yourimagerepo IMAGE_TAG=latest DOCKER_PUSH=true yarn docker`.
+
+## Pre-commit Checks
+
+Make sure your code passes the lint checks:
+
+```
+yarn lint --fix
+```

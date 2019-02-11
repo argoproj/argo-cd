@@ -292,6 +292,11 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     namePrefix: params.namePrefix,
                 } as models.ApplicationSourceKustomize;
             }
+            if (params.directoryRecurse !== undefined) {
+                source.directory = {
+                    recurse: params.directoryRecurse,
+                } as models.ApplicationSourceDirectory;
+            }
             await services.applications.create(params.applicationName, params.project, source, {
                 server: params.clusterURL,
                 namespace: params.namespace,
