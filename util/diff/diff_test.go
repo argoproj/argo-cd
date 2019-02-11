@@ -12,12 +12,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yudai/gojsondiff/formatter"
 	"golang.org/x/crypto/ssh/terminal"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util/kube"
 )
 
 var (
@@ -25,6 +28,20 @@ var (
 		Coloring: terminal.IsTerminal(int(os.Stdout.Fd())),
 	}
 )
+
+func toUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uObj}, nil
+}
+
+func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
+	un, err := toUnstructured(obj)
+	errors.CheckError(err)
+	return un
+}
 
 func unmarshalFile(path string) *unstructured.Unstructured {
 	data, err := ioutil.ReadFile(path)
@@ -37,7 +54,7 @@ func unmarshalFile(path string) *unstructured.Unstructured {
 
 func TestDiff(t *testing.T) {
 	leftDep := test.DemoDeployment()
-	leftUn := kube.MustToUnstructured(leftDep)
+	leftUn := mustToUnstructured(leftDep)
 
 	diffRes := Diff(leftUn, leftUn)
 	assert.False(t, diffRes.Diff.Modified())
@@ -50,7 +67,7 @@ func TestDiff(t *testing.T) {
 
 func TestDiffWithNils(t *testing.T) {
 	dep := test.DemoDeployment()
-	resource := kube.MustToUnstructured(dep)
+	resource := mustToUnstructured(dep)
 
 	diffRes := Diff(nil, resource)
 	// NOTE: if live is non-nil, and config is nil, this is not considered difference
@@ -69,8 +86,8 @@ func TestDiffNilFieldInLive(t *testing.T) {
 	leftDep := test.DemoDeployment()
 	rightDep := leftDep.DeepCopy()
 
-	leftUn := kube.MustToUnstructured(leftDep)
-	rightUn := kube.MustToUnstructured(rightDep)
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
 	err := unstructured.SetNestedField(rightUn.Object, nil, "spec")
 	assert.Nil(t, err)
 
@@ -82,8 +99,8 @@ func TestDiffArraySame(t *testing.T) {
 	leftDep := test.DemoDeployment()
 	rightDep := leftDep.DeepCopy()
 
-	leftUn := kube.MustToUnstructured(leftDep)
-	rightUn := kube.MustToUnstructured(rightDep)
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
@@ -97,8 +114,8 @@ func TestDiffArrayAdditions(t *testing.T) {
 	rightDep := leftDep.DeepCopy()
 	rightDep.Status.Replicas = 1
 
-	leftUn := kube.MustToUnstructured(leftDep)
-	rightUn := kube.MustToUnstructured(rightDep)
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
@@ -113,8 +130,8 @@ func TestDiffArrayModification(t *testing.T) {
 	ten := int32(10)
 	rightDep.Spec.Replicas = &ten
 
-	leftUn := kube.MustToUnstructured(leftDep)
-	rightUn := kube.MustToUnstructured(rightDep)
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
@@ -137,8 +154,8 @@ func TestThreeWayDiff(t *testing.T) {
 	// 2. add a extra field to the live. this simulates kubernetes adding default values in the
 	// object. We should not consider defaulted values as a difference
 	liveDep.SetNamespace("default")
-	configUn := kube.MustToUnstructured(configDep)
-	liveUn := kube.MustToUnstructured(liveDep)
+	configUn := mustToUnstructured(configDep)
+	liveUn := mustToUnstructured(liveDep)
 	res := Diff(configUn, liveUn)
 	if !assert.False(t, res.Modified) {
 		ascii, err := res.ASCIIFormat(liveUn, formatOpts)
@@ -151,8 +168,8 @@ func TestThreeWayDiff(t *testing.T) {
 	configBytes, err := json.Marshal(configDep)
 	assert.Nil(t, err)
 	liveDep.Annotations[v1.LastAppliedConfigAnnotation] = string(configBytes)
-	configUn = kube.MustToUnstructured(configDep)
-	liveUn = kube.MustToUnstructured(liveDep)
+	configUn = mustToUnstructured(configDep)
+	liveUn = mustToUnstructured(liveDep)
 	res = Diff(configUn, liveUn)
 	if !assert.False(t, res.Modified) {
 		ascii, err := res.ASCIIFormat(liveUn, formatOpts)
@@ -163,8 +180,8 @@ func TestThreeWayDiff(t *testing.T) {
 	// 4. Remove the foo annotation from config and perform the diff again. We should detect a
 	// difference since three-way diff detects the removal of a managed field
 	delete(configDep.Annotations, "foo")
-	configUn = kube.MustToUnstructured(configDep)
-	liveUn = kube.MustToUnstructured(liveDep)
+	configUn = mustToUnstructured(configDep)
+	liveUn = mustToUnstructured(liveDep)
 	res = Diff(configUn, liveUn)
 	assert.True(t, res.Modified)
 
@@ -173,8 +190,8 @@ func TestThreeWayDiff(t *testing.T) {
 	// the diff will report not modified (because we have no way of knowing what was a defaulted
 	// field without this annotation)
 	delete(liveDep.Annotations, v1.LastAppliedConfigAnnotation)
-	configUn = kube.MustToUnstructured(configDep)
-	liveUn = kube.MustToUnstructured(liveDep)
+	configUn = mustToUnstructured(configDep)
+	liveUn = mustToUnstructured(liveDep)
 	res = Diff(configUn, liveUn)
 	ascii, err := res.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
@@ -497,4 +514,76 @@ func TestNullCreationTimestamp(t *testing.T) {
 		assert.Nil(t, err)
 		log.Println(ascii)
 	}
+}
+
+func createSecret(data map[string]string) *unstructured.Unstructured {
+	secret := corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret"}}
+	if data != nil {
+		secret.Data = make(map[string][]byte)
+		for k, v := range data {
+			secret.Data[k] = []byte(v)
+		}
+	}
+
+	return mustToUnstructured(&secret)
+}
+
+func secretData(obj *unstructured.Unstructured) map[string]interface{} {
+	data, _, _ := unstructured.NestedMap(obj.Object, "data")
+	return data
+}
+
+const (
+	replacement1 = "*********"
+	replacement2 = "**********"
+	replacement3 = "***********"
+)
+
+func TestHideSecretDataSameKeysDifferentValues(t *testing.T) {
+	target, live, err := HideSecretData(
+		createSecret(map[string]string{"key1": "test", "key2": "test"}),
+		createSecret(map[string]string{"key1": "test-1", "key2": "test-1"}))
+	assert.Nil(t, err)
+
+	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(target))
+	assert.Equal(t, map[string]interface{}{"key1": replacement2, "key2": replacement2}, secretData(live))
+}
+
+func TestHideSecretDataSameKeysSameValues(t *testing.T) {
+	target, live, err := HideSecretData(
+		createSecret(map[string]string{"key1": "test", "key2": "test"}),
+		createSecret(map[string]string{"key1": "test", "key2": "test"}))
+	assert.Nil(t, err)
+
+	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(target))
+	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(live))
+}
+
+func TestHideSecretDataDifferentKeysDifferentValues(t *testing.T) {
+	target, live, err := HideSecretData(
+		createSecret(map[string]string{"key1": "test", "key2": "test"}),
+		createSecret(map[string]string{"key2": "test-1", "key3": "test-1"}))
+	assert.Nil(t, err)
+
+	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(target))
+	assert.Equal(t, map[string]interface{}{"key2": replacement2, "key3": replacement1}, secretData(live))
+}
+
+func TestHideSecretDataLastAppliedConfig(t *testing.T) {
+	lastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
+	targetSecret := createSecret(map[string]string{"key1": "test2"})
+	liveSecret := createSecret(map[string]string{"key1": "test3"})
+	lastAppliedStr, err := json.Marshal(lastAppliedSecret)
+	assert.Nil(t, err)
+	liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(lastAppliedStr)})
+
+	target, live, err := HideSecretData(targetSecret, liveSecret)
+	assert.Nil(t, err)
+	err = json.Unmarshal([]byte(live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]), &lastAppliedSecret)
+	assert.Nil(t, err)
+
+	assert.Equal(t, map[string]interface{}{"key1": replacement1}, secretData(target))
+	assert.Equal(t, map[string]interface{}{"key1": replacement2}, secretData(live))
+	assert.Equal(t, map[string]interface{}{"key1": replacement3}, secretData(lastAppliedSecret))
+
 }

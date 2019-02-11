@@ -154,7 +154,28 @@ func NewGenDexConfigCommand() *cobra.Command {
 				return nil
 			}
 			if out == "" {
-				fmt.Printf(string(dexCfgBytes))
+				dexCfg := make(map[string]interface{})
+				err := yaml.Unmarshal(dexCfgBytes, &dexCfg)
+				errors.CheckError(err)
+				if staticClientsInterface, ok := dexCfg["staticClients"]; ok {
+					if staticClients, ok := staticClientsInterface.([]interface{}); ok {
+						for i := range staticClients {
+							staticClient := staticClients[i]
+							if mappings, ok := staticClient.(map[string]interface{}); ok {
+								for key := range mappings {
+									if key == "secret" {
+										mappings[key] = "******"
+									}
+								}
+								staticClients[i] = mappings
+							}
+						}
+						dexCfg["staticClients"] = staticClients
+					}
+				}
+				errors.CheckError(err)
+				maskedDexCfgBytes, err := yaml.Marshal(dexCfg)
+				fmt.Printf(string(maskedDexCfgBytes))
 			} else {
 				err = ioutil.WriteFile(out, dexCfgBytes, 0644)
 				errors.CheckError(err)

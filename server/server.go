@@ -396,6 +396,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	}
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":         true,
+		"/cluster.ClusterService/Update":         true,
 		"/session.SessionService/Create":         true,
 		"/account.AccountService/UpdatePassword": true,
 		"/repository.RepositoryService/Create":   true,
