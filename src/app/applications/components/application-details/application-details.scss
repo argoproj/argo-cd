@@ -87,4 +87,10 @@
             color: $argo-color-teal-5;
         }
     }
+
+    &__node-menu {
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
 }

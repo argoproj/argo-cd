@@ -5,7 +5,7 @@
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js",
     "docker": "./scripts/build_docker.sh",
-    "build": "webpack --config ./src/app/webpack.config.js",
+    "build": "yarn lint && webpack --config ./src/app/webpack.config.js",
     "lint": "tslint -p ./src/app"
   },
   "dependencies": {

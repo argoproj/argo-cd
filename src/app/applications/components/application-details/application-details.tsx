@@ -222,7 +222,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                             {(data) => (
                                                 <ApplicationResourceList
                                                     onNodeClick={(fullName) => this.selectNode(fullName)}
-                                                    resources={data} />
+                                                    resources={data}
+                                                    nodeMenuItems={(node) => this.getResourceMenuItems(node, application)}
+                                                    />
                                                 )}
                                             </Paginate>
                                         ) || (
