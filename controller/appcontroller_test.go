@@ -387,4 +387,3 @@ func TestDontNormalizeApplication(t *testing.T) {
 	ctrl.processAppRefreshQueueItem()
 	assert.False(t, normalized)
 }
-
