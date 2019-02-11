@@ -173,3 +173,25 @@ func TestNormalizeApplicationSpec(t *testing.T) {
 	})
 	assert.Equal(t, spec.Source.ValuesFiles[0], "values-prod.yaml")
 }
+
+func TestNormalizeDirectoryRecurse(t *testing.T) {
+	spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{
+			Directory: &argoappv1.ApplicationSourceDirectory{
+				Recurse: true,
+			},
+		},
+	})
+
+	assert.Equal(t, spec.Source.Directory, &argoappv1.ApplicationSourceDirectory{Recurse: true}, "directory should remain untouched when recurse is true")
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+		Source: argoappv1.ApplicationSource{
+			Directory: &argoappv1.ApplicationSourceDirectory{
+				Recurse: false,
+			},
+		},
+	})
+
+	assert.Nil(t, spec.Source.Directory, "directory should be removed when recurse is false")
+}

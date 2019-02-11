@@ -485,5 +485,8 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.Source.Helm != nil {
 		spec.Source.ValuesFiles = spec.Source.Helm.ValueFiles
 	}
+	if spec.Source.Directory != nil && !spec.Source.Directory.Recurse {
+		spec.Source.Directory = nil
+	}
 	return spec
 }
