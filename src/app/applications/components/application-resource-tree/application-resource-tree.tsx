@@ -11,6 +11,7 @@ interface Line { x1: number; y1: number; x2: number; y2: number; }
 
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
+const FILTERED_INDICATOR = '__filtered_indicator__';
 
 function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     let width = 0;
@@ -22,13 +23,15 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     return {width, height};
 }
 
-function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+function filterGraph(app: models.Application, graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+    let filtered = 0;
     graph.nodes().forEach((nodeId) => {
         const node: ResourceTreeNode = graph.node(nodeId) as any;
         const parentIds = graph.predecessors(nodeId);
         if (node.root != null && !predicate(node)) {
             const childIds = graph.successors(nodeId);
             graph.removeNode(nodeId);
+            filtered++;
             childIds.forEach((childId: any) => {
                 parentIds.forEach((parentId: any) => {
                     graph.setEdge(parentId, childId);
@@ -36,6 +39,10 @@ function filterGraph(graph: dagre.graphlib.Graph, predicate: (node: ResourceTree
             });
         }
     });
+    if (filtered) {
+        graph.setNode(FILTERED_INDICATOR, { height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered });
+        graph.setEdge(appNodeKey(app), FILTERED_INDICATOR);
+    }
 }
 
 function compareNodes(first: models.ResourceNode, second: models.ResourceNode) {
@@ -63,6 +70,30 @@ class NodeUpdateAnimation extends React.PureComponent<{ resourceVersion: string;
     }
 }
 
+function filteredNode(fullName: string, node: { count: number } & dagre.Node, onClearFilter: () => any) {
+    const indicators = new Array<number>();
+    let count = Math.min(node.count - 1, 3);
+    while (count > 0) {
+        indicators.push(count--);
+    }
+    return (
+        <React.Fragment key={fullName}>
+            <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+                <div className='application-resource-tree__node-kind-icon '>
+                    <i className='icon fa fa-filter'/>
+                </div>
+                <div className='application-resource-tree__node-content'>
+                    <a className='application-resource-tree__node-title' onClick={onClearFilter}>show {node.count} hidden resource{node.count > 1 && 's'}</a>
+                </div>
+            </div>
+            {indicators.map((i) => (
+                <div key={i} className='application-resource-tree__node application-resource-tree__filtered-indicator'
+                    style={{left: node.x + i * 2, top: node.y +  i * 2, width: node.width, height: node.height}}/>
+            ))}
+        </React.Fragment>
+    );
+}
+
 export const ApplicationResourceTree = (props: {
     app: models.Application,
     resources: ResourceTreeNode[],
@@ -70,6 +101,7 @@ export const ApplicationResourceTree = (props: {
     selectedNodeFullName?: string,
     onNodeClick?: (fullName: string) => any,
     nodeMenuItems?: (node: models.ResourceNode) => MenuItem[],
+    onClearFilter: () => any;
 }) => {
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR', marginx: -100 });
@@ -107,7 +139,7 @@ export const ApplicationResourceTree = (props: {
     }
 
     if (props.nodeFilter) {
-        filterGraph(graph, props.nodeFilter);
+        filterGraph(props.app, graph, props.nodeFilter);
     }
 
     dagre.layout(graph);
@@ -127,6 +159,9 @@ export const ApplicationResourceTree = (props: {
     return (
         <div className='application-resource-tree' style={{width: size.width + 150, height: size.height + 250}}>
             {graph.nodes().map((fullName) => {
+                if (fullName === FILTERED_INDICATOR) {
+                    return filteredNode(fullName, graph.node(fullName) as any, props.onClearFilter);
+                }
                 const node = graph.node(fullName) as (ResourceTreeNode) & dagre.Node;
                 let comparisonStatus: models.SyncStatusCode = null;
                 let healthState: models.HealthStatus = null;

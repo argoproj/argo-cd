@@ -42,6 +42,10 @@
         }
     }
 
+    &__filtered-indicator {
+        z-index: -1;
+    }
+
     &__node-animation {
         position: absolute;
         left: 0;

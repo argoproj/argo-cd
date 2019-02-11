@@ -214,7 +214,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     onNodeClick={(fullName) => this.selectNode(fullName)}
                                     nodeMenuItems={(node) => this.getResourceMenuItems(node, application)}
                                     resources={resources}
-                                    app={application}/>
+                                    app={application}
+                                    onClearFilter={() => {
+                                        this.appContext.apis.navigation.goto('.', { resource: '' } );
+                                        services.viewPreferences.updatePreferences({ appDetails: { ...pref, resourceFilter: [] } });
+                                    }}
+                                    />
                                 ) || (
                                     <div className='argo-container'>
                                         {filteredRes.length > 0 && (
