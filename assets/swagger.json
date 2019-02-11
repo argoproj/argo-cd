@@ -1549,6 +1549,10 @@
         }
       }
     },
+    "repositoryDirectoryAppSpec": {
+      "type": "object",
+      "title": "DirectoryAppSpec contains directory"
+    },
     "repositoryHelmAppSpec": {
       "type": "object",
       "title": "HelmAppSpec contains helm app name and path in source repo",
@@ -1657,6 +1661,9 @@
       "type": "object",
       "title": "RepoAppDetailsResponse application details",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        },
         "helm": {
           "$ref": "#/definitions/repositoryHelmAppSpec"
         },
