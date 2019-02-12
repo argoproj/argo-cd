@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/pkg/apis/core"
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
@@ -204,7 +203,7 @@ func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *serv
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = hideSecretData(res.Target, res.Live)
+			target, live, err = diff.HideSecretData(res.Target, res.Live)
 			if err != nil {
 				return nil, err
 			}
@@ -239,87 +238,6 @@ func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *serv
 		items[i] = &item
 	}
 	return &services.ManagedResourcesResponse{Items: items}, nil
-}
-
-func toString(val interface{}) string {
-	if val == nil {
-		return ""
-	}
-	return fmt.Sprintf("%s", val)
-}
-
-// hideSecretData replaces secret data values in specified target, live secrets and in last applied configuration of live secret with stars. Also preserves differences between
-// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of stars. If all the are different then number of stars
-// in replacement should be different.
-func hideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
-	var orig *unstructured.Unstructured
-	if live != nil {
-		orig = diff.GetLastAppliedConfigAnnotation(live)
-		live = live.DeepCopy()
-	}
-	if target != nil {
-		target = target.DeepCopy()
-	}
-
-	keys := map[string]bool{}
-	for _, obj := range []*unstructured.Unstructured{target, live, orig} {
-		if obj == nil {
-			continue
-		}
-		diff.NormalizeSecret(obj)
-		if data, found, err := unstructured.NestedMap(obj.Object, "data"); found && err == nil {
-			for k := range data {
-				keys[k] = true
-			}
-		}
-	}
-
-	for k := range keys {
-		nextReplacement := "*********"
-		valToReplacement := make(map[string]string)
-		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
-			var data map[string]interface{}
-			if obj != nil {
-				var err error
-				data, _, err = unstructured.NestedMap(obj.Object, "data")
-				if err != nil {
-					return nil, nil, err
-				}
-			}
-			if data == nil {
-				data = make(map[string]interface{})
-			}
-			valData, ok := data[k]
-			if !ok {
-				continue
-			}
-			val := toString(valData)
-			replacement, ok := valToReplacement[val]
-			if !ok {
-				replacement = nextReplacement
-				nextReplacement = nextReplacement + "*"
-				valToReplacement[val] = replacement
-			}
-			data[k] = replacement
-			err := unstructured.SetNestedField(obj.Object, data, "data")
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-	}
-	if live != nil && orig != nil {
-		annotations := live.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		lastAppliedData, err := json.Marshal(orig)
-		if err != nil {
-			return nil, nil, err
-		}
-		annotations[core.LastAppliedConfigAnnotation] = string(lastAppliedData)
-		live.SetAnnotations(annotations)
-	}
-	return target, live, nil
 }
 
 // Run starts the Application CRD controller.

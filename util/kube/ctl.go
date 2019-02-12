@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/diff"
 )
 
 type Kubectl interface {
@@ -276,7 +277,22 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 	}
 	cmd := exec.Command("kubectl", cmdArgs...)
 	log.Info(cmd.Args)
-	log.Debug(string(manifestBytes))
+	if log.IsLevelEnabled(log.DebugLevel) {
+		var obj unstructured.Unstructured
+		err := json.Unmarshal(manifestBytes, &obj)
+		if err != nil {
+			return "", err
+		}
+		redacted, _, err := diff.HideSecretData(&obj, nil)
+		if err != nil {
+			return "", err
+		}
+		redactedBytes, err := json.Marshal(redacted)
+		if err != nil {
+			return "", err
+		}
+		log.Debug(string(redactedBytes))
+	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
 	if err != nil {
