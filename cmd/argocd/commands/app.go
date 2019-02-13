@@ -385,7 +385,7 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 		case "values":
 			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles)
 		case "directory-recurse":
-			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
+			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 		case "dest-server":
 			app.Spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":

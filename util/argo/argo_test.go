@@ -174,24 +174,31 @@ func TestNormalizeApplicationSpec(t *testing.T) {
 	assert.Equal(t, spec.Source.ValuesFiles[0], "values-prod.yaml")
 }
 
-func TestNormalizeDirectoryRecurse(t *testing.T) {
-	spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{
-			Directory: &argoappv1.ApplicationSourceDirectory{
-				Recurse: true,
-			},
-		},
-	})
-
-	assert.Equal(t, spec.Source.Directory, &argoappv1.ApplicationSourceDirectory{Recurse: true}, "directory should remain untouched when recurse is true")
-
-	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{
-			Directory: &argoappv1.ApplicationSourceDirectory{
-				Recurse: false,
-			},
-		},
-	})
-
-	assert.Nil(t, spec.Source.Directory, "directory should be removed when recurse is false")
+// TestNilOutZerValueAppSources verifies we will nil out app source specs when they are their zero-value
+func TestNilOutZerValueAppSources(t *testing.T) {
+	var spec *argoappv1.ApplicationSpec
+	{
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
+		assert.NotNil(t, spec.Source.Kustomize)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}})
+		assert.Nil(t, spec.Source.Kustomize)
+	}
+	{
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
+		assert.NotNil(t, spec.Source.Helm)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
+		assert.Nil(t, spec.Source.Helm)
+	}
+	{
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: "foo"}}})
+		assert.NotNil(t, spec.Source.Ksonnet)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: ""}}})
+		assert.Nil(t, spec.Source.Ksonnet)
+	}
+	{
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
+		assert.NotNil(t, spec.Source.Directory)
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
+		assert.Nil(t, spec.Source.Directory)
+	}
 }

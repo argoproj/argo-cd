@@ -113,12 +113,16 @@ type ApplicationSourceKsonnet struct {
 	Environment string `json:"environment,omitempty" protobuf:"bytes,1,opt,name=environment"`
 }
 
+func (k *ApplicationSourceKsonnet) IsZero() bool {
+	return k.Environment == ""
+}
+
 type ApplicationSourceDirectory struct {
 	Recurse bool `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
 }
 
-func (k *ApplicationSourceKsonnet) IsZero() bool {
-	return k.Environment == ""
+func (d *ApplicationSourceDirectory) IsZero() bool {
+	return d.Recurse == false
 }
 
 // ApplicationDestination contains deployment destination information
