@@ -26,19 +26,20 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
+	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
@@ -668,7 +669,9 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 				namespace = appNamespace
 			}
 		}
-		objByKey[kube.NewResourceKey(gk.Group, gk.Kind, namespace, obj.GetName())] = obj
+		if !hook.IsHook(obj) {
+			objByKey[kube.NewResourceKey(gk.Group, gk.Kind, namespace, obj.GetName())] = obj
+		}
 	}
 	return objByKey
 }
@@ -694,7 +697,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(1)
 			}
 
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			clientset := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
@@ -709,6 +713,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				target *unstructured.Unstructured
 			}, 0)
 			if local != "" {
+				conn, settingsIf := clientset.NewSettingsClientOrDie()
+				defer util.Close(conn)
+				argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
+				errors.CheckError(err)
 				localObjs := groupLocalObjs(getLocalObjects(app, local, env, values, directoryRecurse), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
@@ -718,9 +726,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
 					if local, ok := localObjs[key]; ok || live != nil {
 						if local != nil {
-							// TODO(jessesuen): expose the configured app label key in settings and
-							// use configured label instead of default
-							err = kube.SetAppInstanceLabel(local, common.LabelKeyAppInstance, appName)
+							err = kube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
 							errors.CheckError(err)
 						}
 

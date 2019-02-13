@@ -25,7 +25,8 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 		return nil, err
 	}
 	set := Settings{
-		URL: argoCDSettings.URL,
+		URL:         argoCDSettings.URL,
+		AppLabelKey: argoCDSettings.AppInstanceLabelKey,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg DexConfig
