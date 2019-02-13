@@ -37,7 +37,6 @@ import (
 
 	"github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -76,13 +75,6 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 )
 
-const (
-	// minClientVersion is the minimum client version that can interface with this API server.
-	// When introducing breaking changes to the API or datastructures, this number should be bumped.
-	// The value here may be lower than the current value in VERSION
-	minClientVersion = "0.11.0"
-)
-
 var (
 	// ErrNoSession indicates no auth token was supplied as part of a request
 	ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -103,7 +95,7 @@ var backoff = wait.Backoff{
 }
 
 var (
-	clientConstraint = fmt.Sprintf(">= %s", minClientVersion)
+	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
 )
 
@@ -126,17 +118,17 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth            bool
-	Insecure               bool
-	Namespace              string
-	DexServerAddr          string
-	StaticAssetsDir        string
-	BaseHRef               string
-	KubeClientset          kubernetes.Interface
-	AppClientset           appclientset.Interface
-	RepoClientset          reposerver.Clientset
-	AppControllerClientset controller.Clientset
-	TLSConfigCustomizer    tlsutil.ConfigCustomizer
+	DisableAuth         bool
+	Insecure            bool
+	Namespace           string
+	DexServerAddr       string
+	StaticAssetsDir     string
+	BaseHRef            string
+	KubeClientset       kubernetes.Interface
+	AppClientset        appclientset.Interface
+	RepoClientset       reposerver.Clientset
+	Cache               *argocache.Cache
+	TLSConfigCustomizer tlsutil.ConfigCustomizer
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -421,11 +413,11 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	clusterService := cluster.NewServer(db, a.enf, argocache.NewInMemoryCache(cluster.DefaultClusterStatusCacheExpiration))
-	repoService := repository.NewServer(a.RepoClientset, db, a.enf, argocache.NewInMemoryCache(repository.DefaultRepoStatusCacheExpiration))
+	clusterService := cluster.NewServer(db, a.enf, a.Cache)
+	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache)
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.AppControllerClientset, kube.KubectlCmd{}, db, a.enf, projectLock, a.settingsMgr)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.Cache, kube.KubectlCmd{}, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
@@ -540,7 +532,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr))
 	tlsConfig := a.settings.TLSConfig()
 	tlsConfig.InsecureSkipVerify = true
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)

@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/repository/mocks"
 	"github.com/argoproj/argo-cd/test"
+	utilcache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -72,6 +73,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
+		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
 		time.Minute,
 	)
 	ctx, cancel := context.WithCancel(context.Background())

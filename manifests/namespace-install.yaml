@@ -390,6 +390,29 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argo-cd
+  name: argocd-redis
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: redis
+    spec:
+      containers:
+      - image: redis:5.0.3
+        imagePullPolicy: Always
+        name: redis
+        ports:
+        - containerPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
     app.kubernetes.io/component: repo-server
     app.kubernetes.io/name: argo-cd
   name: argocd-repo-server

@@ -57,9 +57,9 @@ type ClientApp struct {
 	settings *settings.ArgoCDSettings
 	// provider is the OIDC configuration
 	provider *gooidc.Provider
-	// states holds temporary nonce tokens to which hold application state values
+	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-	states cache.Cache
+	cache *cache.Cache
 }
 
 type appState struct {
@@ -69,12 +69,13 @@ type appState struct {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache) (*ClientApp, error) {
 	a := ClientApp{
 		clientID:     settings.OAuth2ClientID(),
 		clientSecret: settings.OAuth2ClientSecret(),
 		redirectURI:  settings.RedirectURL(),
 		issuerURL:    settings.IssuerURL(),
+		cache:        cache,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -98,7 +99,6 @@ func NewClientApp(settings *settings.ArgoCDSettings) (*ClientApp, error) {
 		},
 	}
 	// NOTE: if we ever have replicas of Argo CD, this needs to switch to Redis cache
-	a.states = cache.NewInMemoryCache(3 * time.Minute)
 	a.secureCookie = bool(u.Scheme == "https")
 	a.settings = settings
 	return &a, nil
@@ -124,12 +124,7 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	if returnURL == "" {
 		returnURL = "/"
 	}
-	err := a.states.Set(&cache.Item{
-		Key: randStr,
-		Object: &appState{
-			ReturnURL: returnURL,
-		},
-	})
+	err := a.cache.SetOIDCState(randStr, &cache.OIDCState{ReturnURL: returnURL})
 	if err != nil {
 		// This should never happen with the in-memory cache
 		log.Errorf("Failed to set app state: %v", err)
@@ -137,9 +132,8 @@ func (a *ClientApp) generateAppState(returnURL string) string {
 	return randStr
 }
 
-func (a *ClientApp) verifyAppState(state string) (*appState, error) {
-	var aState appState
-	err := a.states.Get(state, &aState)
+func (a *ClientApp) verifyAppState(state string) (*cache.OIDCState, error) {
+	res, err := a.cache.GetOIDCState(state)
 	if err != nil {
 		if err == cache.ErrCacheMiss {
 			return nil, fmt.Errorf("unknown app state %s", state)
@@ -147,8 +141,9 @@ func (a *ClientApp) verifyAppState(state string) (*appState, error) {
 			return nil, fmt.Errorf("failed to verify app state %s: %v", state, err)
 		}
 	}
-	_ = a.states.Delete(state)
-	return &aState, nil
+
+	_ = a.cache.SetOIDCState(state, nil)
+	return res, nil
 }
 
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to

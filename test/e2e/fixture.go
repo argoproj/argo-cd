@@ -32,7 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
@@ -123,8 +122,7 @@ func (f *Fixture) setup() error {
 		return err
 	}
 
-	memCache := cache.NewInMemoryCache(repository.DefaultRepoCacheExpiration)
-	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, memCache, func(config *tls.Config) {}, 0)
+	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, cache.NewCache(cache.NewInMemoryCache(1*time.Hour)), func(config *tls.Config) {}, 0)
 	if err != nil {
 		return err
 	}
@@ -136,13 +134,13 @@ func (f *Fixture) setup() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	apiServer := server.NewServer(ctx, server.ArgoCDServerOpts{
-		Namespace:              f.Namespace,
-		AppClientset:           f.AppClient,
-		DisableAuth:            true,
-		Insecure:               true,
-		KubeClientset:          f.KubeClient,
-		RepoClientset:          reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
-		AppControllerClientset: controller.NewAppControllerClientset(f.ControllerServerAddress),
+		Namespace:     f.Namespace,
+		AppClientset:  f.AppClient,
+		DisableAuth:   true,
+		Insecure:      true,
+		KubeClientset: f.KubeClient,
+		RepoClientset: reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
+		Cache:         cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
 	})
 
 	go func() {
@@ -173,20 +171,9 @@ func (f *Fixture) setup() error {
 		cancel()
 		return err
 	}
-	controllerServerGRPC, err := ctrl.CreateGRPC(func(config *tls.Config) {})
-	if err != nil {
-		cancel()
-		return err
-	}
+
 	ctrlCtx, cancelCtrl := context.WithCancel(context.Background())
 	go ctrl.Run(ctrlCtx, 1, 1)
-	go func() {
-		var listener net.Listener
-		listener, err = net.Listen("tcp", f.ControllerServerAddress)
-		if err == nil {
-			err = controllerServerGRPC.Serve(listener)
-		}
-	}()
 
 	go func() {
 		var listener net.Listener
@@ -200,7 +187,6 @@ func (f *Fixture) setup() error {
 		cancel()
 		cancelCtrl()
 		repoServerGRPC.Stop()
-		controllerServerGRPC.Stop()
 	}
 
 	return err
@@ -222,7 +208,7 @@ func (f *Fixture) ensureClusterRegistered() error {
 	errors.CheckError(err)
 	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken, nil)
 	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
-	_, err = cluster.NewServer(f.DB, f.Enforcer, cache.NewInMemoryCache(1*time.Minute)).Create(context.Background(), &clstCreateReq)
+	_, err = cluster.NewServer(f.DB, f.Enforcer, cache.NewCache(cache.NewInMemoryCache(1*time.Minute))).Create(context.Background(), &clstCreateReq)
 	return err
 }
 
@@ -338,6 +324,7 @@ func (f *Fixture) createController() (*controller.ApplicationController, error) 
 		f.KubeClient,
 		f.AppClient,
 		reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
+		cache.NewCache(cache.NewInMemoryCache(1*time.Hour)),
 		10*time.Second)
 }
 

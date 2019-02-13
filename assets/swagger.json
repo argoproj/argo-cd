@@ -156,7 +156,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesManagedResourcesResponse"
+              "$ref": "#/definitions/applicationManagedResourcesResponse"
             }
           }
         }
@@ -180,7 +180,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesResourceTreeResponse"
+              "$ref": "#/definitions/applicationResourceTreeResponse"
             }
           }
         }
@@ -1375,6 +1375,17 @@
         }
       }
     },
+    "applicationManagedResourcesResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        }
+      }
+    },
     "applicationOperationTerminateResponse": {
       "type": "object"
     },
@@ -1400,6 +1411,17 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/applicationParameter"
+          }
+        }
+      }
+    },
+    "applicationResourceTreeResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         }
       }
@@ -1692,28 +1714,6 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
-    },
-    "servicesManagedResourcesResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceDiff"
-          }
-        }
-      }
-    },
-    "servicesResourceTreeResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
-        }
-      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",

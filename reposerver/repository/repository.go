@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
@@ -24,28 +23,22 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/hash"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
-const (
-	// DefaultRepoCacheExpiration is the duration for items to live in the repo cache
-	DefaultRepoCacheExpiration = 24 * time.Hour
-)
-
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
 	gitFactory                git.ClientFactory
-	cache                     cache.Cache
+	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(gitFactory git.ClientFactory, cache cache.Cache, parallelismLimit int64) *Service {
+func NewService(gitFactory git.ClientFactory, cache *cache.Cache, parallelismLimit int64) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
@@ -65,12 +58,9 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := listDirCacheKey(commitSHA, q)
-	var res FileList
-	err = s.cache.Get(cacheKey, &res)
-	if err == nil {
-		log.Infof("listdir cache hit: %s", cacheKey)
-		return &res, nil
+	if files, err := s.cache.GetGitListDir(commitSHA, q.Path); err == nil {
+		log.Infof("listdir cache hit: %s/%s", commitSHA, q.Path)
+		return &FileList{Items: files}, nil
 	}
 
 	s.repoLock.Lock(gitClient.Root())
@@ -85,16 +75,10 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return nil, err
 	}
 
-	res = FileList{
-		Items: lsFiles,
-	}
-	err = s.cache.Set(&cache.Item{
-		Key:        listDirCacheKey(commitSHA, q),
-		Object:     &res,
-		Expiration: DefaultRepoCacheExpiration,
-	})
+	res := FileList{Items: lsFiles}
+	err = s.cache.SetListDir(commitSHA, q.Path, res.Items)
 	if err != nil {
-		log.Warnf("listdir cache set error %s: %v", cacheKey, err)
+		log.Warnf("listdir cache set error %s/%s: %v", commitSHA, q.Path, err)
 	}
 	return &res, nil
 }
@@ -104,12 +88,10 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := getFileCacheKey(commitSHA, q)
-	var res GetFileResponse
-	err = s.cache.Get(cacheKey, &res)
-	if err == nil {
-		log.Infof("getfile cache hit: %s", cacheKey)
-		return &res, nil
+
+	if data, err := s.cache.GetGitFile(commitSHA, q.Path); err == nil {
+		log.Infof("getfile cache hit: %s/%s", commitSHA, q.Path)
+		return &GetFileResponse{Data: data}, nil
 	}
 
 	s.repoLock.Lock(gitClient.Root())
@@ -122,16 +104,12 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	res = GetFileResponse{
+	res := GetFileResponse{
 		Data: data,
 	}
-	err = s.cache.Set(&cache.Item{
-		Key:        getFileCacheKey(commitSHA, q),
-		Object:     &res,
-		Expiration: DefaultRepoCacheExpiration,
-	})
+	err = s.cache.SetGitFile(commitSHA, q.Path, data)
 	if err != nil {
-		log.Warnf("getfile cache set error %s: %v", cacheKey, err)
+		log.Warnf("getfile cache set error %s/%s: %v", commitSHA, q.Path, err)
 	}
 	return &res, nil
 }
@@ -141,20 +119,18 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := manifestCacheKey(commitSHA, q)
-
 	getCached := func() *ManifestResponse {
 		var res ManifestResponse
 		if !q.NoCache {
-			err = s.cache.Get(cacheKey, &res)
+			err = s.cache.GetManifests(commitSHA, q.ApplicationSource, q.ComponentParameterOverrides, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 			if err == nil {
-				log.Infof("manifest cache hit: %s", cacheKey)
+				log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), commitSHA)
 				return &res
 			}
 			if err != cache.ErrCacheMiss {
-				log.Warnf("manifest cache error %s: %v", cacheKey, err)
+				log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
 			} else {
-				log.Infof("manifest cache miss: %s", cacheKey)
+				log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), commitSHA)
 			}
 		}
 		return nil
@@ -193,13 +169,9 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	res := *genRes
 	res.Revision = commitSHA
-	err = s.cache.Set(&cache.Item{
-		Key:        manifestCacheKey(commitSHA, q),
-		Object:     res,
-		Expiration: DefaultRepoCacheExpiration,
-	})
+	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.ComponentParameterOverrides, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {
-		log.Warnf("manifest cache set error %s: %v", cacheKey, err)
+		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), commitSHA, err)
 	}
 	return &res, nil
 }
@@ -375,24 +347,6 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
 	}
 	return gitClient.CommitSHA()
-}
-
-func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
-	appSrc := q.ApplicationSource.DeepCopy()
-	appSrc.RepoURL = ""        // superceded by commitSHA
-	appSrc.TargetRevision = "" // superceded by commitSHA
-	appSrcStr, _ := json.Marshal(appSrc)
-	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
-	fnva := hash.FNVa(string(appSrcStr) + string(pStr))
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", q.AppLabelKey, q.AppLabelValue, commitSHA, q.Namespace, fnva)
-}
-
-func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
-	return fmt.Sprintf("ldir|%s|%s", q.Path, commitSHA)
-}
-
-func getFileCacheKey(commitSHA string, q *GetFileRequest) string {
-	return fmt.Sprintf("gfile|%s|%s", q.Path, commitSHA)
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides

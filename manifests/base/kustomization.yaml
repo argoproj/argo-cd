@@ -1,6 +1,7 @@
 bases:
 - ./application-controller
 - ./dex
+- ./redis
 - ./repo-server
 - ./server
 

@@ -8,7 +8,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 )
 
-func NewRedisCache(client *redis.Client, expiration time.Duration) Cache {
+func NewRedisCache(client *redis.Client, expiration time.Duration) CacheClient {
 	return &redisCache{
 		expiration: expiration,
 		codec: &rediscache.Codec{
