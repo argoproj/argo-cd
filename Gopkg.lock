@@ -421,8 +421,10 @@
     "logging",
     "logging/logrus",
     "logging/logrus/ctxlogrus",
+    "retry",
     "tags",
     "tags/logrus",
+    "util/backoffutils",
     "util/metautils",
   ]
   pruneopts = ""
@@ -1420,6 +1422,7 @@
     "github.com/grpc-ecosystem/go-grpc-middleware/auth",
     "github.com/grpc-ecosystem/go-grpc-middleware/logging",
     "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus",
+    "github.com/grpc-ecosystem/go-grpc-middleware/retry",
     "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
