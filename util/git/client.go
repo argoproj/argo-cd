@@ -103,26 +103,22 @@ func (m *nativeGitClient) Init() error {
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch() error {
 	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
-	_, err := m.runCmd("git", "fetch", "origin", "--tags", "--force")
-	return err
+	repo, err := git.PlainOpen(m.root)
+	if err != nil {
+		return err
+	}
 
-	// Disabling go-git based fetch because of its inability to fetch azure repos
-	// See: https://github.com/argoproj/argo-cd/issues/1067, https://github.com/src-d/go-git/issues/1058
-	// repo, err := git.PlainOpen(m.root)
-	// if err != nil {
-	// 	return err
-	// }
-	// log.Debug("git fetch origin --tags --force")
-	// err = repo.Fetch(&git.FetchOptions{
-	// 	RemoteName: git.DefaultRemoteName,
-	// 	Auth:       m.auth,
-	// 	Tags:       git.AllTags,
-	// 	Force:      true,
-	// })
-	// if err == git.NoErrAlreadyUpToDate {
-	// 	return nil
-	// }
-	// return err
+	log.Debug("git fetch origin --tags --force")
+	err = repo.Fetch(&git.FetchOptions{
+		RemoteName: git.DefaultRemoteName,
+		Auth:       m.auth,
+		Tags:       git.AllTags,
+		Force:      true,
+	})
+	if err == git.NoErrAlreadyUpToDate {
+		return nil
+	}
+	return err
 
 	// git fetch does not update the HEAD reference. The following command will update the local
 	// knowledge of what remote considers the “default branch”
