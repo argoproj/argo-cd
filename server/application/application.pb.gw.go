@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/argoproj/argo-cd/controller/services"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
@@ -326,7 +325,7 @@ func request_ApplicationService_Sync_0(ctx context.Context, marshaler runtime.Ma
 }
 
 func request_ApplicationService_ManagedResources_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq services.ResourcesQuery
+	var protoReq ResourcesQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -341,7 +340,7 @@ func request_ApplicationService_ManagedResources_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
 	}
 
-	protoReq.ApplicationName, err = runtime.String(val)
+	protoReq.ApplicationName, err = runtime.StringP(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
@@ -353,7 +352,7 @@ func request_ApplicationService_ManagedResources_0(ctx context.Context, marshale
 }
 
 func request_ApplicationService_ResourceTree_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq services.ResourcesQuery
+	var protoReq ResourcesQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -368,7 +367,7 @@ func request_ApplicationService_ResourceTree_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
 	}
 
-	protoReq.ApplicationName, err = runtime.String(val)
+	protoReq.ApplicationName, err = runtime.StringP(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)

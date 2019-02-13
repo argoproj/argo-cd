@@ -1,0 +1,2 @@
+resources:
+- redis-deployment.yaml

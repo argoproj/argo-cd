@@ -28,11 +28,11 @@ import (
 type Server struct {
 	db    db.ArgoDB
 	enf   *rbac.Enforcer
-	cache cache.Cache
+	cache *cache.Cache
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache cache.Cache) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *cache.Cache) *Server {
 	return &Server{
 		db:    db,
 		enf:   enf,
@@ -40,18 +40,12 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache cache.Cache) *Server {
 	}
 }
 
-const (
-	DefaultClusterStatusCacheExpiration = 1 * time.Hour
-)
-
 func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) appv1.ConnectionState {
-	cacheKey := fmt.Sprintf("connection-state-%s", cluster.Server)
-	var connectionState appv1.ConnectionState
-	if err := s.cache.Get(cacheKey, &connectionState); err == nil {
+	if connectionState, err := s.cache.GetClusterConnectionState(cluster.Server); err == nil {
 		return connectionState
 	}
 	now := v1.Now()
-	connectionState = appv1.ConnectionState{
+	connectionState := appv1.ConnectionState{
 		Status:     appv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
@@ -66,13 +60,9 @@ func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) 
 		connectionState.Status = appv1.ConnectionStatusFailed
 		connectionState.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
 	}
-	err = s.cache.Set(&cache.Item{
-		Object:     &connectionState,
-		Key:        cacheKey,
-		Expiration: DefaultClusterStatusCacheExpiration,
-	})
+	err = s.cache.SetClusterConnectionState(cluster.Server, &connectionState)
 	if err != nil {
-		log.Warnf("getConnectionState cache set error %s: %v", cacheKey, err)
+		log.Warnf("getConnectionState cache set error %s: %v", cluster.Server, err)
 	}
 	return connectionState
 }

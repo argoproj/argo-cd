@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/controller/services"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/server/application"
@@ -42,7 +41,7 @@ func NewRolloutProgressCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 			ctx := context.Background()
-			resources, err := appIf.ManagedResources(ctx, &services.ResourcesQuery{ApplicationName: appName})
+			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
 			verifyingPreviewPatch := "{ \"status\": { \"verifyingPreview\": false } }"
 			resourceName := args[1]
