@@ -396,13 +396,16 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 			resDetails.Message = "pruned (dry run)"
 			resDetails.Status = appv1.ResultCodePruned
 		} else {
-			err := sc.kubectl.DeleteResource(sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), false)
-			if err != nil {
-				resDetails.Message = err.Error()
-				resDetails.Status = appv1.ResultCodeSyncFailed
-			} else {
-				resDetails.Message = "pruned"
-				resDetails.Status = appv1.ResultCodePruned
+			resDetails.Message = "pruned"
+			resDetails.Status = appv1.ResultCodePruned
+			// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
+			deletionTimestamp := liveObj.GetDeletionTimestamp()
+			if deletionTimestamp == nil || deletionTimestamp.IsZero() {
+				err := sc.kubectl.DeleteResource(sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), false)
+				if err != nil {
+					resDetails.Message = err.Error()
+					resDetails.Status = appv1.ResultCodeSyncFailed
+				}
 			}
 		}
 	} else {

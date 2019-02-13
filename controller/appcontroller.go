@@ -686,8 +686,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	startTime := time.Now()
 	defer func() {
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name})
-		logCtx.Infof("Reconciliation completed in %v", time.Now().Sub(startTime))
+		durationMs := time.Now().Sub(startTime).Seconds() * 1e3
+		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": durationMs})
+		logCtx.Info("Reconciliation completed")
 	}()
 	// NOTE: normalization returns a copy
 	app := ctrl.normalizeApplication(origApp)
