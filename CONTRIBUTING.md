@@ -102,13 +102,65 @@ cd ~/go/src/github.com/argoproj/argo-cd
 goreman start
 ```
 
+You'll probably want to add the binaries to your path
+
+```
+export ARGOCD_PATH=~/go/src/github.com/argoproj/argo-cd
+export PATH=$ARGOCD_PATH/dist:$PATH
+
+```
+
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:
 
 ```
-app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
+argocd app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
 You can open the UI: http://localhost:8080
+
+## Running Local Containers
+
+You may need to run containers locally, so here's how:
+
+Create login to Docker Hub, then login.
+
+```
+docker login
+```
+
+Add your username as the environment variable, e.g. to your `~/.bash_profile`:
+
+```
+export IMAGE_NAMESPACE=alexcollinsintuit
+
+```
+
+If you have not build the UI image (see the UI README), then do the following:
+
+```
+docker pull argoproj/argocd-ui:latest
+docker tag argoproj/argocd-ui:latest $IMAGE_NAMESPACE/argocd-ui:latest
+docker push $IMAGE_NAMESPACE/argocd-ui:latest
+
+Build the images:
+
+```
+DOCKER_PUSH=true make image
+```
+
+Update the manifests:
+
+```
+make manifests
+```
+
+Install the manifests:
+
+```
+kubectl -n argocd apply --force -f manifests/install.yaml
+```
+
+Now you can set-up the port-forwarding (see README) and open the UI or CLI.
 
 ## Pre-commit Checks
 
