@@ -135,12 +135,12 @@ func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, erro
 	return a, nil
 }
 
-func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, resources []managedResource) error {
-	tree, err := ctrl.resourceTree(a, resources)
+func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) error {
+	tree, err := ctrl.resourceTree(a, comparisonResult.managedResources)
 	if err != nil {
 		return err
 	}
-	managedResources, err := ctrl.managedResources(a, resources)
+	managedResources, err := ctrl.managedResources(a, comparisonResult)
 	if err != nil {
 		return err
 	}
@@ -175,10 +175,10 @@ func (ctrl *ApplicationController) resourceTree(a *appv1.Application, resources 
 	return items, nil
 }
 
-func (ctrl *ApplicationController) managedResources(a *appv1.Application, manageResources []managedResource) ([]*appv1.ResourceDiff, error) {
-	items := make([]*appv1.ResourceDiff, len(manageResources))
-	for i := range manageResources {
-		res := manageResources[i]
+func (ctrl *ApplicationController) managedResources(a *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
+	items := make([]*appv1.ResourceDiff, len(comparisonResult.managedResources))
+	for i := range comparisonResult.managedResources {
+		res := comparisonResult.managedResources[i]
 		item := appv1.ResourceDiff{
 			Namespace: res.Namespace,
 			Name:      res.Name,
@@ -195,7 +195,7 @@ func (ctrl *ApplicationController) managedResources(a *appv1.Application, manage
 			if err != nil {
 				return nil, err
 			}
-			resDiff = *diff.Diff(target, live)
+			resDiff = *diff.Diff(target, live, comparisonResult.diffNormalizer)
 		}
 
 		if live != nil {
@@ -586,7 +586,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	} else {
 		conditions = append(conditions, compareResult.conditions...)
 	}
-	err = ctrl.setAppManagedResources(app, compareResult.managedResources)
+	err = ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}

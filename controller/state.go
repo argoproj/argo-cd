@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/argo"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -62,6 +64,7 @@ type comparisonResult struct {
 	managedResources []managedResource
 	conditions       []v1alpha1.ApplicationCondition
 	hooks            []*unstructured.Unstructured
+	diffNormalizer   diff.Normalizer
 }
 
 // appStateManager allows to compare applications to git
@@ -145,6 +148,10 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, re
 // revision and supplied overrides. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) (*comparisonResult, error) {
+	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, m.settings.ResourceOverrides)
+	if err != nil {
+		return nil, err
+	}
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 	observedAt := metav1.Now()
@@ -202,7 +209,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj)
+	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj, diffNormalizer)
 	if err != nil {
 		return nil, err
 	}
@@ -283,6 +290,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		managedResources: managedResources,
 		conditions:       conditions,
 		hooks:            hooks,
+		diffNormalizer:   diffNormalizer,
 	}
 	return &compRes, nil
 }

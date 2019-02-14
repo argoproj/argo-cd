@@ -176,6 +176,9 @@ message ApplicationSpec {
 
   // SyncPolicy controls when a sync will be performed
   optional SyncPolicy syncPolicy = 4;
+
+  // IgnoreDifferences controls resources fields which should be ignored during comparison
+  repeated ResourceIgnoreDifferences ignoreDifferences = 5;
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -400,6 +403,19 @@ message ResourceDiff {
   optional string liveState = 6;
 
   optional string diff = 7;
+}
+
+// ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
+message ResourceIgnoreDifferences {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
+
+  optional string namespace = 4;
+
+  repeated string json6902Paths = 5;
 }
 
 // ResourceNode contains information about live resource and its children

@@ -69,7 +69,8 @@ type ArgoCDSettings struct {
 }
 
 type ResourceOverride struct {
-	HealthLua string `json:"health.lua,omitempty"`
+	HealthLua         string `json:"health.lua,omitempty"`
+	IgnoreDifferences string `json:"ignoreDifferences,omitempty"`
 }
 
 type OIDCConfig struct {
