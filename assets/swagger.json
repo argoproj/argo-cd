@@ -1499,6 +1499,9 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "AppLabelKey": {
+          "type": "string"
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
