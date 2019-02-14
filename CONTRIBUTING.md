@@ -125,7 +125,6 @@ Add your username as the environment variable, e.g. to your `~/.bash_profile`:
 
 ```
 export IMAGE_NAMESPACE=alexcollinsintuit
-
 ```
 
 If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md)), then do the following:
@@ -152,6 +151,15 @@ Install the manifests:
 
 ```
 kubectl -n argocd apply --force -f manifests/install.yaml
+```
+
+Scale your deployments up:
+
+```
+kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 1
+kubectl -n argocd scale deployment.extensions/dex-server --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-server --replicas 1
 ```
 
 Now you can set-up the port-forwarding (see [README](README.md)) and open the UI or CLI.
