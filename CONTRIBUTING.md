@@ -92,22 +92,15 @@ Then checkout and build the UI next to your code
 ```
 cd ~/go/src/github.com/argoproj
 git clone git@github.com:argoproj/argo-cd-ui.git
-# Follow README to build.
 ```
+
+Follow the UI's [README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md) to build it.
 
 Then start the services:
 
 ```
 cd ~/go/src/github.com/argoproj/argo-cd
 goreman start
-```
-
-You'll probably want to add the binaries to your path
-
-```
-export ARGOCD_PATH=~/go/src/github.com/argoproj/argo-cd
-export PATH=$ARGOCD_PATH/dist:$PATH
-
 ```
 
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:
@@ -135,12 +128,13 @@ export IMAGE_NAMESPACE=alexcollinsintuit
 
 ```
 
-If you have not build the UI image (see the UI README), then do the following:
+If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md)), then do the following:
 
 ```
 docker pull argoproj/argocd-ui:latest
 docker tag argoproj/argocd-ui:latest $IMAGE_NAMESPACE/argocd-ui:latest
 docker push $IMAGE_NAMESPACE/argocd-ui:latest
+```
 
 Build the images:
 
@@ -160,7 +154,7 @@ Install the manifests:
 kubectl -n argocd apply --force -f manifests/install.yaml
 ```
 
-Now you can set-up the port-forwarding (see README) and open the UI or CLI.
+Now you can set-up the port-forwarding (see [README](README.md)) and open the UI or CLI.
 
 ## Pre-commit Checks
 
