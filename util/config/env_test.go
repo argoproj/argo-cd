@@ -1,9 +1,10 @@
 package config
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func loadOpts(t *testing.T, opts string) {
@@ -16,13 +17,13 @@ func loadInvalidOpts(t *testing.T, opts string) {
 }
 
 func TestNilOpts(t *testing.T) {
-	assert.Equal(t, "foo", GetFlag("foo", "foo"), )
+	assert.Equal(t, "foo", GetFlag("foo", "foo"))
 }
 
 func TestEmptyOpts(t *testing.T) {
 	loadOpts(t, "")
 
-	assert.Equal(t, "foo", GetFlag("foo", "foo"), )
+	assert.Equal(t, "foo", GetFlag("foo", "foo"))
 }
 
 func TestRubbishOpts(t *testing.T) {

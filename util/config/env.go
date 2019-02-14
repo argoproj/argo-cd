@@ -1,11 +1,12 @@
 package config
 
 import (
-	"github.com/kballard/go-shellquote"
-	log "github.com/sirupsen/logrus"
+	"errors"
 	"os"
 	"strings"
-	"errors"
+
+	"github.com/kballard/go-shellquote"
+	log "github.com/sirupsen/logrus"
 )
 
 var flags map[string]string
@@ -34,7 +35,7 @@ func loadFlags() error {
 			key = strings.TrimPrefix(opt, "--")
 		} else if key != "" {
 			flags[key] = opt
-			key =""
+			key = ""
 		} else {
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
@@ -45,7 +46,7 @@ func loadFlags() error {
 	return nil
 }
 
-func GetFlag(key , fallback string) string {
+func GetFlag(key, fallback string) string {
 	val, ok := flags[key]
 	if ok {
 		return val
