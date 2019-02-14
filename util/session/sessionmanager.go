@@ -5,18 +5,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"os"
-	"strings"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	httputil "github.com/argoproj/argo-cd/util/http"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
 	passwordutil "github.com/argoproj/argo-cd/util/password"
@@ -27,7 +25,7 @@ import (
 type SessionManager struct {
 	settingsMgr *settings.SettingsManager
 	client      *http.Client
-	provider    *oidc.Provider
+	prov        oidcutil.Provider
 }
 
 const (
@@ -66,7 +64,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager) *SessionManager {
 		},
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
-		s.client.Transport = debugTransport{s.client.Transport}
+		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
 	}
 	return &s
 }
@@ -149,7 +147,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username, password string) err
 	return nil
 }
 
-// VerifyToken verifies if a token is correct. Tokens can be issued either from us or by dex.
+// VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 	parser := &jwt.Parser{
@@ -165,42 +163,34 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, error) {
 		// Argo CD signed token
 		return mgr.Parse(tokenString)
 	default:
-		// Dex signed token
-		provider, err := mgr.oidcProvider()
+		// IDP signed token
+		prov, err := mgr.provider()
 		if err != nil {
 			return nil, err
 		}
-		verifier := provider.Verifier(&oidc.Config{ClientID: claims.Audience})
-		idToken, err := verifier.Verify(context.Background(), tokenString)
+		idToken, err := prov.Verify(claims.Audience, tokenString)
 		if err != nil {
-			// HACK: if we failed token verification, it's possible the reason was because dex
-			// restarted and has new JWKS signing keys (we do not back dex with persistent storage
-			// so keys might be regenerated). Detect this by:
-			// 1. looking for the specific error message
-			// 2. re-initializing the OIDC provider
-			// 3. re-attempting token verification
-			// NOTE: the error message is sensitive to implementation of verifier.Verify()
-			if !strings.Contains(err.Error(), "failed to verify signature") {
-				return nil, err
-			}
-			provider, retryErr := mgr.initializeOIDCProvider()
-			if retryErr != nil {
-				// return original error if we fail to re-initialize OIDC
-				return nil, err
-			}
-			verifier = provider.Verifier(&oidc.Config{ClientID: claims.Audience})
-			idToken, err = verifier.Verify(context.Background(), tokenString)
-			if err != nil {
-				return nil, err
-			}
-			// If we get here, we successfully re-initialized OIDC and after re-initialization,
-			// the token is now valid.
-			log.Info("New OIDC settings detected")
+			return nil, err
 		}
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
 		return claims, err
 	}
+}
+
+func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
+	if mgr.prov != nil {
+		return mgr.prov, nil
+	}
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	if !settings.IsSSOConfigured() {
+		return nil, fmt.Errorf("SSO is not configured")
+	}
+	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
+	return mgr.prov, nil
 }
 
 // Username is a helper to extract a human readable username from a context
@@ -219,58 +209,4 @@ func Username(ctx context.Context) string {
 	default:
 		return jwtutil.GetField(mapClaims, "email")
 	}
-}
-
-// oidcProvider lazily initializes, memoizes, and returns the OIDC provider.
-// We have to initialize the provider lazily since Argo CD can be an OIDC client to itself (in the
-// case of dex reverse proxy), which presents a chicken-and-egg problem of (1) serving dex over
-// HTTP, and (2) querying the OIDC provider (ourself) to initialize the app.
-func (mgr *SessionManager) oidcProvider() (*oidc.Provider, error) {
-	if mgr.provider != nil {
-		return mgr.provider, nil
-	}
-	return mgr.initializeOIDCProvider()
-}
-
-// initializeOIDCProvider re-initializes the OIDC provider, querying the well known oidc
-// configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration)
-func (mgr *SessionManager) initializeOIDCProvider() (*oidc.Provider, error) {
-	settings, err := mgr.settingsMgr.GetSettings()
-	if err != nil {
-		return nil, err
-	}
-	if !settings.IsSSOConfigured() {
-		return nil, fmt.Errorf("SSO is not configured")
-	}
-	provider, err := oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
-	if err != nil {
-		return nil, err
-	}
-	mgr.provider = provider
-	return mgr.provider, nil
-}
-
-type debugTransport struct {
-	t http.RoundTripper
-}
-
-func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	reqDump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("%s", reqDump)
-
-	resp, err := d.t.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
-
-	respDump, err := httputil.DumpResponse(resp, true)
-	if err != nil {
-		_ = resp.Body.Close()
-		return nil, err
-	}
-	log.Printf("%s", respDump)
-	return resp, nil
 }

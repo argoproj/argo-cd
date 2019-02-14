@@ -2,7 +2,6 @@ package oidc
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -55,9 +54,9 @@ type ClientApp struct {
 	secureCookie bool
 	// settings holds Argo CD settings
 	settings *settings.ArgoCDSettings
-	// provider is the OIDC configuration
-	provider *gooidc.Provider
-	// states holds temporary nonce tokens to which hold application state values
+	// provider is the OIDC provider
+	provider Provider
+	// cache holds temporary nonce tokens to which hold application state values
 	// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 	states cache.Cache
 }
@@ -97,6 +96,11 @@ func NewClientApp(settings *settings.ArgoCDSettings) (*ClientApp, error) {
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
+	if os.Getenv(common.EnvVarSSODebug) == "1" {
+		a.client.Transport = httputil.DebugTransport{T: a.client.Transport}
+	}
+
+	a.provider = NewOIDCProvider(a.issuerURL, a.client)
 	// NOTE: if we ever have replicas of Argo CD, this needs to switch to Redis cache
 	a.states = cache.NewInMemoryCache(3 * time.Minute)
 	a.secureCookie = bool(u.Scheme == "https")
@@ -105,14 +109,14 @@ func NewClientApp(settings *settings.ArgoCDSettings) (*ClientApp, error) {
 }
 
 func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
-	provider, err := a.oidcProvider()
+	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
 	}
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
-		Endpoint:     provider.Endpoint(),
+		Endpoint:     *endpoint,
 		Scopes:       scopes,
 		RedirectURL:  a.redirectURI,
 	}, nil
@@ -154,12 +158,7 @@ func (a *ClientApp) verifyAppState(state string) (*appState, error) {
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	provider, err := a.oidcProvider()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	oidcConf, err := ParseConfig(provider)
+	oidcConf, err := a.provider.ParseConfig()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -189,7 +188,6 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	ctx := gooidc.ClientContext(r.Context(), a.client)
 	oauth2Config, err := a.oauth2Config(nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -212,6 +210,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	ctx := gooidc.ClientContext(r.Context(), a.client)
 	token, err := oauth2Config.Exchange(ctx, code)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
@@ -222,7 +221,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
-	idToken, err := a.verify(idTokenRAW)
+	idToken, err := a.provider.Verify(a.clientID, idTokenRAW)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
 		return
@@ -288,41 +287,6 @@ func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, r *http.Request, s
 	renderTemplate(w, implicitFlowTmpl, vals)
 }
 
-func (a *ClientApp) oidcProvider() (*gooidc.Provider, error) {
-	if a.provider != nil {
-		return a.provider, nil
-	}
-	provider, err := NewOIDCProvider(a.issuerURL, a.client)
-	if err != nil {
-		return nil, err
-	}
-	a.provider = provider
-	return a.provider, nil
-}
-
-func (a *ClientApp) verify(tokenString string) (*gooidc.IDToken, error) {
-	provider, err := a.oidcProvider()
-	if err != nil {
-		return nil, err
-	}
-	verifier := provider.Verifier(&gooidc.Config{ClientID: a.clientID})
-	return verifier.Verify(context.Background(), tokenString)
-}
-
-// NewOIDCProvider initializes an OIDC provider, querying the well known oidc configuration path
-// http://example-argocd.com/api/dex/.well-known/openid-configuration
-func NewOIDCProvider(issuerURL string, client *http.Client) (*gooidc.Provider, error) {
-	log.Infof("Initializing OIDC provider (issuer: %s)", issuerURL)
-	ctx := gooidc.ClientContext(context.Background(), client)
-	provider, err := gooidc.NewProvider(ctx, issuerURL)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
-	}
-	s, _ := ParseConfig(provider)
-	log.Infof("OIDC supported scopes: %v", s.ScopesSupported)
-	return provider, nil
-}
-
 // ImplicitFlowURL is an adaptation of oauth2.Config::AuthCodeURL() which returns a URL
 // appropriate for an OAuth2 implicit login flow (as opposed to authorization code flow).
 func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) string {
@@ -377,16 +341,6 @@ func OfflineAccess(scopes []string) bool {
 		}
 	}
 	return false
-}
-
-// ParseConfig parses the OIDC Config into the concrete datastructure
-func ParseConfig(provider *gooidc.Provider) (*OIDCConfiguration, error) {
-	var conf OIDCConfiguration
-	err := provider.Claims(&conf)
-	if err != nil {
-		return nil, err
-	}
-	return &conf, nil
 }
 
 // InferGrantType infers the proper grant flow depending on the OAuth2 client config and OIDC configuration.
