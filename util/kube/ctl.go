@@ -51,7 +51,7 @@ func (k KubectlCmd) GetAPIResources(config *rest.Config) ([]*metav1.APIResourceL
 func (k KubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {
 
 	listSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(*apiResource)
+		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(apiResource.Group)
 	}
 	apiResIfs, err := filterAPIResources(config, listSupported, namespace)
 	if err != nil {
@@ -94,7 +94,7 @@ func (k KubectlCmd) WatchResources(
 	namespace string,
 ) (chan watch.Event, error) {
 	watchSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(*apiResource)
+		return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(apiResource.Group)
 	}
 	log.Infof("Start watching for resources changes with in cluster %s", config.Host)
 	apiResIfs, err := filterAPIResources(config, watchSupported, namespace)
