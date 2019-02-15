@@ -13,14 +13,14 @@ import (
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
-	const countOfManifests = 22
+	const countOfManifests = 23
 
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	res1, err := generateManifests("../../manifests/base", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, len(res1.Manifests), countOfManifests)
+	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
 	res2, err := generateManifests("./testdata/concatenated", &q)
