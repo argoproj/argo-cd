@@ -16,16 +16,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/ghodss/yaml"
-	"github.com/google/shlex"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/yudai/gojsondiff"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -35,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
@@ -43,6 +34,17 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+
+	"github.com/ghodss/yaml"
+	"github.com/google/shlex"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/yudai/gojsondiff"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -68,6 +70,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationWaitCommand(clientOpts))
 	command.AddCommand(NewApplicationManifestsCommand(clientOpts))
 	command.AddCommand(NewApplicationTerminateOpCommand(clientOpts))
+	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	return command
 }
 
@@ -1572,6 +1575,46 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 			_, err := appIf.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &appName})
 			errors.CheckError(err)
 			fmt.Printf("Application '%s' operation terminating\n", appName)
+		},
+	}
+	return command
+}
+
+func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "edit APPNAME",
+		Short: "Edit application",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+			errors.CheckError(err)
+			appData, err := json.Marshal(app.Spec)
+			errors.CheckError(err)
+			appData, err = yaml.JSONToYAML(appData)
+			errors.CheckError(err)
+
+			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", appName), appData, func(input []byte) error {
+				input, err = yaml.YAMLToJSON(input)
+				if err != nil {
+					return err
+				}
+				updatedSpec := argoappv1.ApplicationSpec{}
+				err = json.Unmarshal(input, &updatedSpec)
+				if err != nil {
+					return err
+				}
+				_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: updatedSpec})
+				if err != nil {
+					return fmt.Errorf("Failed to update application spec:\n%v", err)
+				}
+				return err
+			})
 		},
 	}
 	return command
