@@ -165,7 +165,7 @@ kubectl -n argocd scale deployment.extensions/argocd-application-controller --re
 kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 1
 kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 1
 kubectl -n argocd scale deployment.extensions/argocd-server --replicas 1
-kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 1
 ```
 
 Now you can set-up the port-forwarding (see [README](README.md)) and open the UI or CLI.
