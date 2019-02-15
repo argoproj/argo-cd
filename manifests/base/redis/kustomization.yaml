@@ -1,2 +1,3 @@
 resources:
-- redis-deployment.yaml
+  - argocd-redis-deployment.yaml
+  - argocd-redis-service.yaml
