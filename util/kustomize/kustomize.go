@@ -1,9 +1,17 @@
 package kustomize
 
 import (
+	"bufio"
 	"fmt"
+	"github.com/argoproj/argo-cd/util"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/prometheus/common/log"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -33,8 +41,16 @@ type KustomizeBuildOpts struct {
 }
 
 func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
+
+	commandName, err := k.GetCommandName()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.Infof("using kustomize binary=%s", commandName)
+
 	if opts.NamePrefix != "" {
-		cmd := exec.Command("kustomize", "edit", "set", "nameprefix", opts.NamePrefix)
+		cmd := exec.Command(commandName, "edit", "set", "nameprefix", opts.NamePrefix)
 		cmd.Dir = k.path
 		_, err := argoexec.RunCommandExt(cmd)
 		if err != nil {
@@ -43,7 +59,7 @@ func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.Compone
 	}
 
 	for _, override := range overrides {
-		cmd := exec.Command("kustomize", "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
+		cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
 		cmd.Dir = k.path
 		_, err := argoexec.RunCommandExt(cmd)
 		if err != nil {
@@ -51,7 +67,7 @@ func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.Compone
 		}
 	}
 
-	out, err := argoexec.RunCommand("kustomize", "build", k.path)
+	out, err := argoexec.RunCommand(commandName, "build", k.path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,6 +78,61 @@ func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.Compone
 	}
 
 	return objs, append(getImageParameters(objs)), nil
+}
+func (k *kustomize) GetCommandName() (string, error) {
+
+	version, err := k.getKustomizationVersion()
+	if err != nil {
+		return "", err
+	}
+
+	log.Infof("using kustomize version=%d", version)
+
+	if version == 1 {
+		return "kustomize", nil
+	} else {
+		return "kustomize" + strconv.Itoa(version), nil
+	}
+}
+
+// kustomization is a file called kustomization.yaml that describes a configuration consumable by kustomize.
+func (k *kustomize) findKustomization() (string, error) {
+	for _, file := range []string{"kustomization.yaml", "kustomization.yml", "Kustomization"} {
+		kustomization := filepath.Join(k.path, file)
+		log.Infof("path=%s, file=%s", k.path, file)
+		if _, err := os.Stat(kustomization); err == nil {
+			return kustomization, nil
+		}
+	}
+	return "", errors.New("did not find kustomization in " + k.path)
+}
+
+func (k *kustomize) getKustomizationVersion() (int, error) {
+
+	kustomization, err := k.findKustomization()
+	if err != nil {
+		return 0, err
+	}
+
+	log.Infof("using kustomization=%s", kustomization)
+
+	file, err := os.Open(kustomization)
+	if err != nil {
+		return 0, err
+	}
+
+	defer util.Close(file)
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		// +apiVersion: kustomize.config.k8s.io/v1beta1
+		// +kind: Kustomization
+		if strings.Contains(scanner.Text(), "kind: Kustomization") {
+			return 2, nil
+		}
+	}
+	return 1, nil
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []*v1alpha1.ComponentParameter {

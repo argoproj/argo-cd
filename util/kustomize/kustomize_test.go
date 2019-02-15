@@ -3,6 +3,7 @@ package kustomize
 import (
 	"io/ioutil"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,12 +12,16 @@ import (
 	"github.com/argoproj/pkg/exec"
 )
 
+const kustomization1 = "kustomization_yaml"
+const kustomization2a = "kustomization_yml"
+const kustomization2b = "Kustomization"
+
 func testDataDir() (string, error) {
 	res, err := ioutil.TempDir("", "kustomize-test")
 	if err != nil {
 		return "", err
 	}
-	_, err = exec.RunCommand("cp", "-r", "./testdata", res)
+	_, err = exec.RunCommand("cp", "-r", "./testdata/"+kustomization1, filepath.Join(res, "testdata"))
 	if err != nil {
 		return "", err
 	}
@@ -59,4 +64,40 @@ func TestKustomizeBuild(t *testing.T) {
 		}
 		assert.Equal(t, "imagetag", param.Component)
 	}
+}
+
+func TestFindKustomization(t *testing.T) {
+	testFindKustomization(t, kustomization1, "kustomization.yaml")
+	testFindKustomization(t, kustomization2a, "kustomization.yml")
+	testFindKustomization(t, kustomization2b, "Kustomization")
+}
+
+func testFindKustomization(t *testing.T, set string, expected string) {
+	kustomization, err := (&kustomize{path: "testdata/" + set}).findKustomization()
+	assert.Nil(t, err)
+	assert.Equal(t, "testdata/"+set+"/"+expected, kustomization)
+}
+
+func TestGetKustomizationVersion(t *testing.T) {
+	testGetKustomizationVersion(t, kustomization1, 1)
+	testGetKustomizationVersion(t, kustomization2a, 2)
+	testGetKustomizationVersion(t, kustomization2b, 2)
+}
+
+func testGetKustomizationVersion(t *testing.T, set string, expected int) {
+	version, err := (&kustomize{path: "testdata/" + set}).getKustomizationVersion()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, version)
+}
+
+func TestGetCommandName(t *testing.T) {
+	testGetCommandName(t, kustomization1, "kustomize")
+	testGetCommandName(t, kustomization2a, "kustomize2")
+	testGetCommandName(t, kustomization2b, "kustomize2")
+}
+
+func testGetCommandName(t *testing.T, set string, expected string) {
+	commandName, err := (&kustomize{path: "testdata/" + set}).GetCommandName()
+	assert.Nil(t, err)
+	assert.Equal(t, expected, commandName)
 }
