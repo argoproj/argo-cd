@@ -201,7 +201,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                 const needKsonnetParams = !!(this.state.selectedAppDetails && this.state.selectedAppDetails.ksonnet);
                 const needHelmParams = !!(this.state.selectedAppDetails && this.state.selectedAppDetails.helm);
                 const needKustomizeParams = !!(this.state.selectedAppDetails && this.state.selectedAppDetails.kustomize);
-                const needDirectoryParams = !(needKsonnetParams || needHelmParams || needKsonnetParams);
+                const needDirectoryParams = !(needKsonnetParams || needHelmParams || needKustomizeParams);
                 return {
                     title: 'Review application parameters',
                     canNext: () => this.state.appParamsValid,
