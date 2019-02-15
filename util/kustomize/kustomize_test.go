@@ -101,3 +101,12 @@ func testGetCommandName(t *testing.T, set string, expected string) {
 	assert.Nil(t, err)
 	assert.Equal(t, expected, commandName)
 }
+
+
+func TestIsKustomization(t *testing.T) {
+
+	assert.True(t, IsKustomization("kustomization.yaml"))
+	assert.True(t, IsKustomization("kustomization.yml"))
+	assert.True(t, IsKustomization("Kustomization"))
+	assert.False(t, IsKustomization("rubbish.yml"))
+}

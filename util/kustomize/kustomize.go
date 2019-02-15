@@ -95,9 +95,11 @@ func (k *kustomize) GetCommandName() (string, error) {
 	}
 }
 
+var kustomisations = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"};
+
 // kustomization is a file called kustomization.yaml that describes a configuration consumable by kustomize.
 func (k *kustomize) findKustomization() (string, error) {
-	for _, file := range []string{"kustomization.yaml", "kustomization.yml", "Kustomization"} {
+	for _, file := range kustomisations {
 		kustomization := filepath.Join(k.path, file)
 		log.Infof("path=%s, file=%s", k.path, file)
 		if _, err := os.Stat(kustomization); err == nil {
@@ -105,6 +107,10 @@ func (k *kustomize) findKustomization() (string, error) {
 		}
 	}
 	return "", errors.New("did not find kustomization in " + k.path)
+}
+
+func IsKustomization(path string) bool {
+	return path == "kustomization.yaml" || path == "kustomization.yml" || path == "Kustomization"
 }
 
 func (k *kustomize) getKustomizationVersion() (int, error) {

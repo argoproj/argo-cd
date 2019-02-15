@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/util/kustomize"
 	"path"
 	"path/filepath"
 	"strings"
@@ -302,12 +303,13 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		if trimmedPath == "Chart.yaml" {
 			return argoappv1.ApplicationSourceTypeHelm, nil
 		}
-		if trimmedPath == "kustomization.yaml" {
+		if kustomize.IsKustomization(trimmedPath) {
 			return argoappv1.ApplicationSourceTypeKustomize, nil
 		}
 	}
 	return argoappv1.ApplicationSourceTypeDirectory, nil
 }
+
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
 func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) error {
