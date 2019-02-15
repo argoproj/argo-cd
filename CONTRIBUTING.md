@@ -82,9 +82,10 @@ You should scale the deployemnts to zero:
 
 ```
 kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
-kubectl -n argocd scale deployment.extensions/dex-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
 ```
 
 Then checkout and build the UI next to your code
@@ -157,9 +158,10 @@ Scale your deployments up:
 
 ```
 kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 1
-kubectl -n argocd scale deployment.extensions/dex-server --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 1
 kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 1
 kubectl -n argocd scale deployment.extensions/argocd-server --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
 ```
 
 Now you can set-up the port-forwarding (see [README](README.md)) and open the UI or CLI.
