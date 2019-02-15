@@ -97,6 +97,8 @@ git clone git@github.com:argoproj/argo-cd-ui.git
 
 Follow the UI's [README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md) to build it.
 
+Note: you'll need to use the https://localhost:6443 cluster now.
+
 Then start the services:
 
 ```
@@ -111,6 +113,8 @@ argocd app set guestbook --path guestbook --repo https://github.com/argoproj/arg
 ```
 
 You can open the UI: http://localhost:8080
+
+Note: you'll need to use the https://kubernetes.default.svc cluster now.
 
 ## Running Local Containers
 
