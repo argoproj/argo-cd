@@ -84,3 +84,9 @@ func TestGenerateNullList(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res2.Manifests))
 }
+
+func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
+	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/kustomization_yaml"))
+	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/kustomization_yml"))
+	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/Kustomization"))
+}

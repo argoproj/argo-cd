@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/util/kustomize"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/util/kustomize"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -309,7 +310,6 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 	}
 	return argoappv1.ApplicationSourceTypeDirectory, nil
 }
-
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
 func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) error {

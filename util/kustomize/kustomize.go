@@ -3,12 +3,13 @@ package kustomize
 import (
 	"bufio"
 	"fmt"
-	"github.com/argoproj/argo-cd/util"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/argoproj/argo-cd/util"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
@@ -95,11 +96,11 @@ func (k *kustomize) GetCommandName() (string, error) {
 	}
 }
 
-var kustomisations = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"};
+var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
 
-// kustomization is a file called kustomization.yaml that describes a configuration consumable by kustomize.
+// kustomization is a file that describes a configuration consumable by kustomize.
 func (k *kustomize) findKustomization() (string, error) {
-	for _, file := range kustomisations {
+	for _, file := range KustomizationNames {
 		kustomization := filepath.Join(k.path, file)
 		log.Infof("path=%s, file=%s", k.path, file)
 		if _, err := os.Stat(kustomization); err == nil {

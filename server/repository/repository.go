@@ -1,10 +1,13 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
 	"reflect"
+
+	"github.com/argoproj/argo-cd/util/kustomize"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -117,7 +120,7 @@ func (s *Server) listAppsPaths(
 		return nil, err
 	}
 
-	kustomizationRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*kustomization.yaml")})
+	kustomizationRes, err := getKustomizationRes(ctx, repoClient, repo, revision, subPath)
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +147,18 @@ func (s *Server) listAppsPaths(
 		pathToType[kustomizationRes.Items[i]] = appsv1.ApplicationSourceTypeKustomize
 	}
 	return pathToType, nil
+}
+
+func getKustomizationRes(ctx context.Context, repoClient repository.RepositoryServiceClient, repo *appsv1.Repository, revision string, subPath string) (*repository.FileList, error) {
+	for _, kustomization := range kustomize.KustomizationNames {
+		request := repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*"+kustomization)}
+		kustomizationRes, err := repoClient.ListDir(ctx, &request)
+		if err != nil {
+			return nil, err
+		}
+		return kustomizationRes, nil
+	}
+	return nil, errors.New("could not find kustomization")
 }
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo

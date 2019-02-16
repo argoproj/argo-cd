@@ -102,7 +102,6 @@ func testGetCommandName(t *testing.T, set string, expected string) {
 	assert.Equal(t, expected, commandName)
 }
 
-
 func TestIsKustomization(t *testing.T) {
 
 	assert.True(t, IsKustomization("kustomization.yaml"))
