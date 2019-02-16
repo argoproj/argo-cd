@@ -78,8 +78,20 @@ func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.Compone
 		return nil, nil, err
 	}
 
-	return objs, append(getImageParameters(objs)), nil
+	parameters := k.getParameters(objs)
+
+	return objs, parameters, nil
 }
+
+func (k *kustomize) getParameters(objs []*unstructured.Unstructured) []*v1alpha1.ComponentParameter {
+	version, _ := k.getKustomizationVersion() // cannot be an error at this line
+	if version == 1 {
+		return getImageParameters(objs)
+	} else {
+		return []*v1alpha1.ComponentParameter{}
+	}
+}
+
 func (k *kustomize) GetCommandName() (string, error) {
 
 	version, err := k.getKustomizationVersion()
@@ -111,7 +123,12 @@ func (k *kustomize) findKustomization() (string, error) {
 }
 
 func IsKustomization(path string) bool {
-	return path == "kustomization.yaml" || path == "kustomization.yml" || path == "Kustomization"
+	for _, kustomization := range KustomizationNames {
+		if path == kustomization {
+			return true
+		}
+	}
+	return false
 }
 
 func (k *kustomize) getKustomizationVersion() (int, error) {
