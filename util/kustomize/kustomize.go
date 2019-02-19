@@ -1,15 +1,15 @@
 package kustomize
 
 import (
-	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util"
+	"gopkg.in/yaml.v2"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
@@ -131,30 +131,32 @@ func IsKustomization(path string) bool {
 	return false
 }
 
+type kustomization struct {
+	Kind string
+}
+
 func (k *kustomize) getKustomizationVersion() (int, error) {
 
-	kustomization, err := k.findKustomization()
+	kustomizationFile, err := k.findKustomization()
 	if err != nil {
 		return 0, err
 	}
 
-	log.Infof("using kustomization=%s", kustomization)
+	log.Infof("using kustomization=%s", kustomizationFile)
 
-	file, err := os.Open(kustomization)
+	dat, err := ioutil.ReadFile(kustomizationFile)
 	if err != nil {
 		return 0, err
 	}
 
-	defer util.Close(file)
+	var obj kustomization
+	err = yaml.Unmarshal(dat, &obj)
+	if err != nil {
+		return 0, err
+	}
 
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		// +apiVersion: kustomize.config.k8s.io/v1beta1
-		// +kind: Kustomization
-		if strings.Contains(scanner.Text(), "kind: Kustomization") {
-			return 2, nil
-		}
+	if obj.Kind == "Kustomization" {
+		return 2, nil
 	}
 	return 1, nil
 }
