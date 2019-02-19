@@ -13,19 +13,29 @@ import (
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
-	const countOfManifests = 21
+	const countOfManifests = 23
 
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	res1, err := generateManifests("../../manifests/base", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, len(res1.Manifests), countOfManifests)
+	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
 	res2, err := generateManifests("./testdata/concatenated", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
+}
+
+func TestRecurseManifestsInDir(t *testing.T) {
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+	}
+	q.ApplicationSource.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
+	res1, err := generateManifests("./testdata/recurse", &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
@@ -34,7 +44,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	}
 	res1, err := generateManifests("./testdata/jsonnet", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, len(res1.Manifests), 2)
+	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestGenerateHelmChartWithDependencies(t *testing.T) {

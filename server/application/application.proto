@@ -12,7 +12,6 @@ import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
-import "github.com/argoproj/argo-cd/controller/services/application.proto";
 
 
 // ApplicationQuery is a query for application resources
@@ -147,6 +146,19 @@ message OperationTerminateRequest {
 message OperationTerminateResponse {
 }
 
+
+message ResourcesQuery {
+	required string applicationName = 1 [(gogoproto.nullable) = true];
+}
+
+message ResourceTreeResponse {
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceNode items = 1;
+}
+
+message ManagedResourcesResponse {
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+}
+
 // ApplicationService
 service ApplicationService {
 
@@ -212,11 +224,11 @@ service ApplicationService {
 		};
 	}
 
-	rpc ManagedResources(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ManagedResourcesResponse) {
+	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
-	rpc ResourceTree(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ResourceTreeResponse) {
+	rpc ResourceTree(ResourcesQuery) returns (ResourceTreeResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
 

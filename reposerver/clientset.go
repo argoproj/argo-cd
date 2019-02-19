@@ -2,6 +2,9 @@ package reposerver
 
 import (
 	"crypto/tls"
+	"time"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
@@ -20,7 +23,14 @@ type clientSet struct {
 }
 
 func (c *clientSet) NewRepositoryClient() (util.Closer, repository.RepositoryServiceClient, error) {
-	conn, err := grpc.Dial(c.address, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})))
+	retryOpts := []grpc_retry.CallOption{
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
+	}
+	conn, err := grpc.Dial(c.address,
+		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
+		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...)))
 	if err != nil {
 		log.Errorf("Unable to connect to repository service with address %s", c.address)
 		return nil, nil, err

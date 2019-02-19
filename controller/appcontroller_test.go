@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/repository/mocks"
 	"github.com/argoproj/argo-cd/test"
+	utilcache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -73,6 +73,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
+		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
 		time.Minute,
 	)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -387,76 +388,4 @@ func TestDontNormalizeApplication(t *testing.T) {
 	})
 	ctrl.processAppRefreshQueueItem()
 	assert.False(t, normalized)
-}
-
-func createSecret(data map[string]string) *unstructured.Unstructured {
-	secret := corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: kube.SecretKind}}
-	if data != nil {
-		secret.Data = make(map[string][]byte)
-		for k, v := range data {
-			secret.Data[k] = []byte(v)
-		}
-	}
-
-	return kube.MustToUnstructured(&secret)
-}
-
-func secretData(obj *unstructured.Unstructured) map[string]interface{} {
-	data, _, _ := unstructured.NestedMap(obj.Object, "data")
-	return data
-}
-
-const (
-	replacement1 = "*********"
-	replacement2 = "**********"
-	replacement3 = "***********"
-)
-
-func TestHideSecretDataSameKeysDifferentValues(t *testing.T) {
-	target, live, err := hideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key1": "test-1", "key2": "test-1"}))
-	assert.Nil(t, err)
-
-	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]interface{}{"key1": replacement2, "key2": replacement2}, secretData(live))
-}
-
-func TestHideSecretDataSameKeysSameValues(t *testing.T) {
-	target, live, err := hideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key1": "test", "key2": "test"}))
-	assert.Nil(t, err)
-
-	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(live))
-}
-
-func TestHideSecretDataDifferentKeysDifferentValues(t *testing.T) {
-	target, live, err := hideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key2": "test-1", "key3": "test-1"}))
-	assert.Nil(t, err)
-
-	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]interface{}{"key2": replacement2, "key3": replacement1}, secretData(live))
-}
-
-func TestHideSecretDataLastAppliedConfig(t *testing.T) {
-	lastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
-	targetSecret := createSecret(map[string]string{"key1": "test2"})
-	liveSecret := createSecret(map[string]string{"key1": "test3"})
-	lastAppliedStr, err := json.Marshal(lastAppliedSecret)
-	assert.Nil(t, err)
-	liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(lastAppliedStr)})
-
-	target, live, err := hideSecretData(targetSecret, liveSecret)
-	assert.Nil(t, err)
-	err = json.Unmarshal([]byte(live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]), &lastAppliedSecret)
-	assert.Nil(t, err)
-
-	assert.Equal(t, map[string]interface{}{"key1": replacement1}, secretData(target))
-	assert.Equal(t, map[string]interface{}{"key1": replacement2}, secretData(live))
-	assert.Equal(t, map[string]interface{}{"key1": replacement3}, secretData(lastAppliedSecret))
-
 }

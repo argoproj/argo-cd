@@ -22,13 +22,13 @@ import (
 type ArgoCDRepoServer struct {
 	log              *log.Entry
 	gitFactory       git.ClientFactory
-	cache            cache.Cache
+	cache            *cache.Cache
 	opts             []grpc.ServerOption
 	parallelismLimit int64
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(gitFactory git.ClientFactory, cache cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(gitFactory git.ClientFactory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",

@@ -136,6 +136,13 @@ message ApplicationSource {
 
   // Ksonnet holds ksonnet specific options
   optional ApplicationSourceKsonnet ksonnet = 9;
+
+  // Directory holds path/directory specific options
+  optional ApplicationSourceDirectory directory = 10;
+}
+
+message ApplicationSourceDirectory {
+  optional bool recurse = 1;
 }
 
 // ApplicationSourceHelm holds helm specific options

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -20,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/git"
 )
 
@@ -67,6 +70,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectDeleteCommand(clientOpts))
 	command.AddCommand(NewProjectListCommand(clientOpts))
 	command.AddCommand(NewProjectSetCommand(clientOpts))
+	command.AddCommand(NewProjectEditCommand(clientOpts))
 	command.AddCommand(NewProjectAddDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceCommand(clientOpts))
@@ -553,6 +557,51 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
 				fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
 			}
+		},
+	}
+	return command
+}
+
+func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "edit PROJECT",
+		Short: "Edit project",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			conn, projIf := argocdclient.NewClientOrDie(clientOpts).NewProjectClientOrDie()
+			defer util.Close(conn)
+			proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+			projData, err := json.Marshal(proj.Spec)
+			errors.CheckError(err)
+			projData, err = yaml.JSONToYAML(projData)
+			errors.CheckError(err)
+
+			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", projName), projData, func(input []byte) error {
+				input, err = yaml.YAMLToJSON(input)
+				if err != nil {
+					return err
+				}
+				updatedSpec := v1alpha1.AppProjectSpec{}
+				err = json.Unmarshal(input, &updatedSpec)
+				if err != nil {
+					return err
+				}
+				proj, err := projIf.Get(context.Background(), &project.ProjectQuery{Name: projName})
+				if err != nil {
+					return err
+				}
+				proj.Spec = updatedSpec
+				_, err = projIf.Update(context.Background(), &project.ProjectUpdateRequest{Project: proj})
+				if err != nil {
+					return fmt.Errorf("Failed to update project:\n%v", err)
+				}
+				return err
+			})
 		},
 	}
 	return command

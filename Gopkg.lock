@@ -47,6 +47,7 @@
   packages = [
     "pkg/apis/workflow",
     "pkg/apis/workflow/v1alpha1",
+    "util",
   ]
   pruneopts = ""
   revision = "7ef1cea68c94f7f0e1e2f8bd75bedc5a7df8af90"
@@ -119,6 +120,28 @@
   pruneopts = ""
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
   version = "v3.2.0"
+
+[[projects]]
+  digest = "1:b021ef379356343bdc13ec101e546b756fcef4b1186d08163bef7d3bc8c1e07f"
+  name = "github.com/docker/docker"
+  packages = [
+    "pkg/term",
+    "pkg/term/winconsole",
+  ]
+  pruneopts = ""
+  revision = "fc4825d5ef5e0e1af74904208f9b925c22f0b6f8"
+  version = "v1.6.0-rc5"
+
+[[projects]]
+  branch = "master"
+  digest = "1:d6c13a378213e3de60445e49084b8a0a9ce582776dfc77927775dbeb3ff72a35"
+  name = "github.com/docker/spdystream"
+  packages = [
+    ".",
+    "spdy",
+  ]
+  pruneopts = ""
+  revision = "6480d4af844c189cf5dd913db24ddd339d3a4f85"
 
 [[projects]]
   branch = "master"
@@ -429,8 +452,10 @@
     "logging",
     "logging/logrus",
     "logging/logrus/ctxlogrus",
+    "retry",
     "tags",
     "tags/logrus",
+    "util/backoffutils",
     "util/metautils",
   ]
   pruneopts = ""
@@ -507,6 +532,14 @@
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
 
 [[projects]]
+  branch = "master"
+  digest = "1:63e7368fcf6b54804076eaec26fd9cf0c4466166b272393db4b93102e1e962df"
+  name = "github.com/kballard/go-shellquote"
+  packages = ["."]
+  pruneopts = ""
+  revision = "95032a82bc518f77982ea72343cc1ade730072f0"
+
+[[projects]]
   digest = "1:41e0bed5df4f9fd04c418bf9b6b7179b3671e416ad6175332601ca1c8dc74606"
   name = "github.com/kevinburke/ssh_config"
   packages = ["."]
@@ -548,6 +581,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "ae18d6b8b3205b561c79e8e5f69bff09736185f4"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:713b341855f1480e4baca1e7c5434e1d266441340685ecbde32d59bdc065fb3f"
+  name = "github.com/mitchellh/go-wordwrap"
+  packages = ["."]
+  pruneopts = ""
+  revision = "9e67c67572bc5dd02aef930e2b0ae3c02a4b5a5c"
   version = "v1.0.0"
 
 [[projects]]
@@ -1217,11 +1258,14 @@
     "pkg/util/diff",
     "pkg/util/errors",
     "pkg/util/framer",
+    "pkg/util/httpstream",
+    "pkg/util/httpstream/spdy",
     "pkg/util/intstr",
     "pkg/util/json",
     "pkg/util/mergepatch",
     "pkg/util/naming",
     "pkg/util/net",
+    "pkg/util/remotecommand",
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
@@ -1232,6 +1276,7 @@
     "pkg/version",
     "pkg/watch",
     "third_party/forked/golang/json",
+    "third_party/forked/golang/netutil",
     "third_party/forked/golang/reflect",
   ]
   pruneopts = ""
@@ -1344,10 +1389,13 @@
     "tools/metrics",
     "tools/pager",
     "tools/reference",
+    "tools/remotecommand",
     "transport",
+    "transport/spdy",
     "util/buffer",
     "util/cert",
     "util/connrotation",
+    "util/exec",
     "util/flowcontrol",
     "util/homedir",
     "util/integer",
@@ -1418,7 +1466,9 @@
     "pkg/apis/policy",
     "pkg/features",
     "pkg/kubectl/scheme",
+    "pkg/kubectl/util/term",
     "pkg/kubelet/apis",
+    "pkg/util/interrupt",
     "pkg/util/node",
   ]
   pruneopts = ""
@@ -1439,6 +1489,7 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
+    "github.com/argoproj/argo/util",
     "github.com/argoproj/pkg/exec",
     "github.com/argoproj/pkg/time",
     "github.com/casbin/casbin",
@@ -1466,12 +1517,14 @@
     "github.com/grpc-ecosystem/go-grpc-middleware/auth",
     "github.com/grpc-ecosystem/go-grpc-middleware/logging",
     "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus",
+    "github.com/grpc-ecosystem/go-grpc-middleware/retry",
     "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
     "github.com/improbable-eng/grpc-web/go/grpcweb",
+    "github.com/kballard/go-shellquote",
     "github.com/patrickmn/go-cache",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
@@ -1556,6 +1609,7 @@
     "k8s.io/kubernetes/pkg/apis/batch",
     "k8s.io/kubernetes/pkg/apis/core",
     "k8s.io/kubernetes/pkg/kubectl/scheme",
+    "k8s.io/kubernetes/pkg/kubectl/util/term",
     "k8s.io/kubernetes/pkg/util/node",
     "layeh.com/gopher-json",
   ]

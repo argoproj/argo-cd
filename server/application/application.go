@@ -21,8 +21,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -31,6 +29,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/grpc"
@@ -42,18 +41,18 @@ import (
 
 // Server provides a Application service
 type Server struct {
-	ns                  string
-	kubeclientset       kubernetes.Interface
-	appclientset        appclientset.Interface
-	repoClientset       reposerver.Clientset
-	controllerClientset controller.Clientset
-	kubectl             kube.Kubectl
-	db                  db.ArgoDB
-	enf                 *rbac.Enforcer
-	projectLock         *util.KeyLock
-	auditLogger         *argo.AuditLogger
-	gitFactory          git.ClientFactory
-	settingsMgr         *settings.SettingsManager
+	ns            string
+	kubeclientset kubernetes.Interface
+	appclientset  appclientset.Interface
+	repoClientset reposerver.Clientset
+	kubectl       kube.Kubectl
+	db            db.ArgoDB
+	enf           *rbac.Enforcer
+	projectLock   *util.KeyLock
+	auditLogger   *argo.AuditLogger
+	gitFactory    git.ClientFactory
+	settingsMgr   *settings.SettingsManager
+	cache         *cache.Cache
 }
 
 // NewServer returns a new instance of the Application service
@@ -62,7 +61,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
-	controllerClientset controller.Clientset,
+	cache *cache.Cache,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
@@ -71,18 +70,18 @@ func NewServer(
 ) ApplicationServiceServer {
 
 	return &Server{
-		ns:                  namespace,
-		appclientset:        appclientset,
-		kubeclientset:       kubeclientset,
-		controllerClientset: controllerClientset,
-		db:                  db,
-		repoClientset:       repoClientset,
-		kubectl:             kubectl,
-		enf:                 enf,
-		projectLock:         projectLock,
-		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		gitFactory:          git.NewFactory(),
-		settingsMgr:         settingsMgr,
+		ns:            namespace,
+		appclientset:  appclientset,
+		kubeclientset: kubeclientset,
+		cache:         cache,
+		db:            db,
+		repoClientset: repoClientset,
+		kubectl:       kubectl,
+		enf:           enf,
+		projectLock:   projectLock,
+		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		gitFactory:    git.NewFactory(),
+		settingsMgr:   settingsMgr,
 	}
 }
 
@@ -481,13 +480,12 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 	return config, namespace, err
 }
 
-func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
-	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
+func (s *Server) getAppResources(ctx context.Context, q *ResourcesQuery) (*ResourceTreeResponse, error) {
+	items, err := s.cache.GetAppResourcesTree(*q.ApplicationName)
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(closer)
-	return client.ResourceTree(ctx, q)
+	return &ResourceTreeResponse{Items: items}, nil
 }
 
 func (s *Server) getAppResource(ctx context.Context, action string, q *ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
@@ -499,7 +497,7 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *Applicati
 		return nil, nil, nil, grpc.ErrPermissionDenied
 	}
 
-	resources, err := s.getAppResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
+	resources, err := s.getAppResources(ctx, &ResourcesQuery{ApplicationName: &a.Name})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -616,8 +614,8 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDelet
 	return &ApplicationResponse{}, nil
 }
 
-func (s *Server) ResourceTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.ApplicationName, metav1.GetOptions{})
+func (s *Server) ResourceTree(ctx context.Context, q *ResourcesQuery) (*ResourceTreeResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -627,20 +625,19 @@ func (s *Server) ResourceTree(ctx context.Context, q *services.ResourcesQuery) (
 	return s.getAppResources(ctx, q)
 }
 
-func (s *Server) ManagedResources(ctx context.Context, q *services.ResourcesQuery) (*services.ManagedResourcesResponse, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.ApplicationName, metav1.GetOptions{})
+func (s *Server) ManagedResources(ctx context.Context, q *ResourcesQuery) (*ManagedResourcesResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
 		return nil, grpc.ErrPermissionDenied
 	}
-	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
+	items, err := s.cache.GetAppManagedResources(a.Name)
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(closer)
-	return client.ManagedResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
+	return &ManagedResourcesResponse{Items: items}, nil
 }
 
 func findResource(resources []*appv1.ResourceNode, q *ApplicationResourceRequest) *appv1.ResourceNode {

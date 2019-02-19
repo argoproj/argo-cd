@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -11,16 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,11 +23,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/pkg/apis/core"
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
-	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
@@ -43,12 +34,11 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
+	argocache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
-	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	settings_util "github.com/argoproj/argo-cd/util/settings"
-	tlsutil "github.com/argoproj/argo-cd/util/tls"
 )
 
 const (
@@ -57,6 +47,7 @@ const (
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
+	cache                     *argocache.Cache
 	namespace                 string
 	kubeClientset             kubernetes.Interface
 	kubectl                   kube.Kubectl
@@ -75,8 +66,6 @@ type ApplicationController struct {
 	settingsMgr               *settings_util.SettingsManager
 	refreshRequestedApps      map[string]bool
 	refreshRequestedAppsMutex *sync.Mutex
-	managedResources          map[string][]managedResource
-	managedResourcesMutex     *sync.Mutex
 }
 
 type ApplicationControllerConfig struct {
@@ -91,6 +80,7 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
+	argoCache *argocache.Cache,
 	appResyncPeriod time.Duration,
 ) (*ApplicationController, error) {
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -100,6 +90,7 @@ func NewApplicationController(
 	}
 	kubectlCmd := kube.KubectlCmd{}
 	ctrl := ApplicationController{
+		cache:                     argoCache,
 		namespace:                 namespace,
 		kubeClientset:             kubeClientset,
 		kubectl:                   kubectlCmd,
@@ -112,8 +103,6 @@ func NewApplicationController(
 		refreshRequestedApps:      make(map[string]bool),
 		refreshRequestedAppsMutex: &sync.Mutex{},
 		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
-		managedResources:          make(map[string][]managedResource),
-		managedResourcesMutex:     &sync.Mutex{},
 		settingsMgr:               settingsMgr,
 		settings:                  settings,
 	}
@@ -146,27 +135,26 @@ func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, erro
 	return a, nil
 }
 
-func (ctrl *ApplicationController) setAppManagedResources(appName string, resources []managedResource) {
-	ctrl.managedResourcesMutex.Lock()
-	defer ctrl.managedResourcesMutex.Unlock()
-	ctrl.managedResources[appName] = resources
-}
-
-func (ctrl *ApplicationController) getAppManagedResources(appName string) []managedResource {
-	ctrl.managedResourcesMutex.Lock()
-	defer ctrl.managedResourcesMutex.Unlock()
-	return ctrl.managedResources[appName]
-}
-
-func (ctrl *ApplicationController) ResourceTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
-	a, err := ctrl.getApp(q.ApplicationName)
+func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, resources []managedResource) error {
+	tree, err := ctrl.resourceTree(a, resources)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	managedResources := ctrl.getAppManagedResources(q.ApplicationName)
+	managedResources, err := ctrl.managedResources(a, resources)
+	if err != nil {
+		return err
+	}
+	err = ctrl.cache.SetAppResourcesTree(a.Name, tree)
+	if err != nil {
+		return err
+	}
+	return ctrl.cache.SetAppManagedResources(a.Name, managedResources)
+}
+
+func (ctrl *ApplicationController) resourceTree(a *appv1.Application, resources []managedResource) ([]*appv1.ResourceNode, error) {
 	items := make([]*appv1.ResourceNode, 0)
-	for i := range managedResources {
-		managedResource := managedResources[i]
+	for i := range resources {
+		managedResource := resources[i]
 		node := appv1.ResourceNode{
 			Name:      managedResource.Name,
 			Version:   managedResource.Version,
@@ -184,14 +172,13 @@ func (ctrl *ApplicationController) ResourceTree(ctx context.Context, q *services
 		}
 		items = append(items, &node)
 	}
-	return &services.ResourceTreeResponse{Items: items}, nil
+	return items, nil
 }
 
-func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *services.ResourcesQuery) (*services.ManagedResourcesResponse, error) {
-	resources := ctrl.getAppManagedResources(q.ApplicationName)
-	items := make([]*appv1.ResourceDiff, len(resources))
-	for i := range resources {
-		res := resources[i]
+func (ctrl *ApplicationController) managedResources(a *appv1.Application, manageResources []managedResource) ([]*appv1.ResourceDiff, error) {
+	items := make([]*appv1.ResourceDiff, len(manageResources))
+	for i := range manageResources {
+		res := manageResources[i]
 		item := appv1.ResourceDiff{
 			Namespace: res.Namespace,
 			Name:      res.Name,
@@ -204,7 +191,7 @@ func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *serv
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = hideSecretData(res.Target, res.Live)
+			target, live, err = diff.HideSecretData(res.Target, res.Live)
 			if err != nil {
 				return nil, err
 			}
@@ -238,88 +225,7 @@ func (ctrl *ApplicationController) ManagedResources(ctx context.Context, q *serv
 
 		items[i] = &item
 	}
-	return &services.ManagedResourcesResponse{Items: items}, nil
-}
-
-func toString(val interface{}) string {
-	if val == nil {
-		return ""
-	}
-	return fmt.Sprintf("%s", val)
-}
-
-// hideSecretData replaces secret data values in specified target, live secrets and in last applied configuration of live secret with stars. Also preserves differences between
-// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of stars. If all the are different then number of stars
-// in replacement should be different.
-func hideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
-	var orig *unstructured.Unstructured
-	if live != nil {
-		orig = diff.GetLastAppliedConfigAnnotation(live)
-		live = live.DeepCopy()
-	}
-	if target != nil {
-		target = target.DeepCopy()
-	}
-
-	keys := map[string]bool{}
-	for _, obj := range []*unstructured.Unstructured{target, live, orig} {
-		if obj == nil {
-			continue
-		}
-		diff.NormalizeSecret(obj)
-		if data, found, err := unstructured.NestedMap(obj.Object, "data"); found && err == nil {
-			for k := range data {
-				keys[k] = true
-			}
-		}
-	}
-
-	for k := range keys {
-		nextReplacement := "*********"
-		valToReplacement := make(map[string]string)
-		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
-			var data map[string]interface{}
-			if obj != nil {
-				var err error
-				data, _, err = unstructured.NestedMap(obj.Object, "data")
-				if err != nil {
-					return nil, nil, err
-				}
-			}
-			if data == nil {
-				data = make(map[string]interface{})
-			}
-			valData, ok := data[k]
-			if !ok {
-				continue
-			}
-			val := toString(valData)
-			replacement, ok := valToReplacement[val]
-			if !ok {
-				replacement = nextReplacement
-				nextReplacement = nextReplacement + "*"
-				valToReplacement[val] = replacement
-			}
-			data[k] = replacement
-			err := unstructured.SetNestedField(obj.Object, data, "data")
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-	}
-	if live != nil && orig != nil {
-		annotations := live.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		lastAppliedData, err := json.Marshal(orig)
-		if err != nil {
-			return nil, nil, err
-		}
-		annotations[core.LastAppliedConfigAnnotation] = string(lastAppliedData)
-		live.SetAnnotations(annotations)
-	}
-	return target, live, nil
+	return items, nil
 }
 
 // Run starts the Application CRD controller.
@@ -353,42 +259,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}
 
 	<-ctx.Done()
-}
-
-func (ctrl *ApplicationController) CreateGRPC(tlsConfCustomizer tlsutil.ConfigCustomizer) (*grpc.Server, error) {
-	// generate TLS cert
-	hosts := []string{
-		"localhost",
-		"argocd-application-controller",
-	}
-	cert, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
-		Hosts:        hosts,
-		Organization: "Argo CD",
-		IsCA:         true,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
-	tlsConfCustomizer(tlsConfig)
-
-	logEntry := log.NewEntry(log.New())
-	server := grpc.NewServer(
-		grpc.Creds(credentials.NewTLS(tlsConfig)),
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-			grpc_logrus.StreamServerInterceptor(logEntry),
-			grpc_util.PanicLoggerStreamServerInterceptor(logEntry),
-		)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			grpc_logrus.UnaryServerInterceptor(logEntry),
-			grpc_util.PanicLoggerUnaryServerInterceptor(logEntry),
-		)),
-	)
-	services.RegisterApplicationServiceServer(server, ctrl)
-	reflection.Register(server)
-	return server, nil
 }
 
 func (ctrl *ApplicationController) requestAppRefresh(appName string) {
@@ -486,6 +356,14 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if len(objsMap) > 0 {
 		logCtx.Infof("%d objects remaining for deletion", len(objsMap))
 		return nil
+	}
+	err = ctrl.cache.SetAppManagedResources(app.Name, nil)
+	if err != nil {
+		return err
+	}
+	err = ctrl.cache.SetAppResourcesTree(app.Name, nil)
+	if err != nil {
+		return err
 	}
 	app.SetCascadedDeletion(false)
 	var patch []byte
@@ -686,8 +564,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	startTime := time.Now()
 	defer func() {
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name})
-		logCtx.Infof("Reconciliation completed in %v", time.Now().Sub(startTime))
+		durationMs := time.Now().Sub(startTime).Seconds() * 1e3
+		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": durationMs})
+		logCtx.Info("Reconciliation completed")
 	}()
 	// NOTE: normalization returns a copy
 	app := ctrl.normalizeApplication(origApp)
@@ -707,7 +586,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	} else {
 		conditions = append(conditions, compareResult.conditions...)
 	}
-	ctrl.setAppManagedResources(app.Name, compareResult.managedResources)
+	err = ctrl.setAppManagedResources(app, compareResult.managedResources)
+	if err != nil {
+		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
+	}
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)
 	if syncErrCond != nil {

@@ -1,5 +1,13 @@
-## Requirements
-Make sure you have following tools installed
+## Before You Start
+
+You must install and run the ArgoCD using a local Kubernetes (e.g. Docker for Desktop or Minikube) first. This will help you understand the application, but also get your local environment set-up.
+
+Then, to get a good grounding in Go, try out [the tutorial](https://tour.golang.org/).
+
+## Pre-requisites  
+
+Install:
+
 * [docker](https://docs.docker.com/install/#supported-platforms)
 * [golang](https://golang.org/)
 * [dep](https://github.com/golang/dep)
@@ -10,68 +18,107 @@ Make sure you have following tools installed
 * [go-swagger](https://github.com/go-swagger/go-swagger/blob/master/docs/install.md)
 * [jq](https://stedolan.github.io/jq/)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
+* [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
 ```
-$ brew tap go-swagger/go-swagger
-$ brew install go dep protobuf kubectl ksonnet/tap/ks kubernetes-helm jq go-swagger
-$ go get -u github.com/golang/protobuf/protoc-gen-go
-$ go get -u github.com/go-swagger/go-swagger/cmd/swagger
-$ go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-$ go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+brew tap go-swagger/go-swagger
+brew install go dep protobuf kubectl ksonnet/tap/ks kubernetes-helm jq go-swagger 
 ```
 
-Nice to have [gometalinter](https://github.com/alecthomas/gometalinter) and [goreman](https://github.com/mattn/goreman):
+Set up environment variables (e.g. is `~/.bashrc`):
 
 ```
-$ go get -u gopkg.in/alecthomas/gometalinter.v2 github.com/mattn/goreman && gometalinter.v2 --install
+export GOPATH=~/go
+export PATH=$PATH:$GOPATH/bin
+```
+
+Install go dependencies:
+
+```
+go get -u github.com/golang/protobuf/protoc-gen-go
+go get -u github.com/go-swagger/go-swagger/cmd/swagger
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get -u gopkg.in/alecthomas/gometalinter.v2 
+go get -u github.com/mattn/goreman 
+
+gometalinter.v2 --install
 ```
 
 ## Building
 
 ```
-$ go get -u github.com/argoproj/argo-cd
-$ dep ensure
-$ make
+go get -u github.com/argoproj/argo-cd
+dep ensure
+make
 ```
-NOTE: The make command can take a while, and we recommend building the specific component you are working on
+
+The make command can take a while, and we recommend building the specific component you are working on
+
+* `make codegen` - Builds protobuf and swagger files
 * `make cli` - Make the argocd CLI tool
 * `make server` - Make the API/repo/controller server
-* `make codegen` - Builds protobuf and swagger files
 * `make argocd-util` - Make the administrator's utility, used for certain tasks such as import/export
 
-## Generating Argo CD manifests for a specific image repository/tag
+## Running Tests
 
-During development, the `update-manifests.sh` script, can be used to conveniently regenerate the
-Argo CD installation manifests with a customized image namespace and tag. This enables developers
-to easily apply manifests which are using the images that they pushed into their personal container
-repository.
+To run unit tests:
 
 ```
-$ IMAGE_NAMESPACE=jessesuen IMAGE_TAG=latest ./hack/update-manifests.sh
-$ kubectl apply -n argocd -f ./manifests/install.yaml
+make test
 ```
 
-## Running locally
-
-You need to have access to kubernetes cluster (including [minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/) or [docker edge](https://docs.docker.com/docker-for-mac/install/) ) in order to run Argo CD on your laptop:
-
-* install kubectl: `brew install kubectl`
-* make sure `kubectl` is connected to your cluster (e.g. `kubectl get pods` should work).
-* install application CRD using following command:
+To run e2e tests:
 
 ```
-$ kubectl create -f install/manifests/01_application-crd.yaml
+make test-e2e
 ```
 
-* start Argo CD services using [goreman](https://github.com/mattn/goreman):
+## Running Locally
+
+It is much easier to run and debug if you run ArgoCD on your local machine than in the Kubernetes cluster.
+
+You should scale the deployemnts to zero:
 
 ```
-$ goreman start
+kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
+kubectl -n argocd scale deployment.extensions/dex-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
 ```
 
-## Troubleshooting
-* Ensure argocd is installed: ./dist/argocd install
-* Ensure you're logged in: ./dist/argocd login --username admin --password <whatever password you set at install> localhost:8080
-* Ensure that roles are configured: kubectl create -f install/manifests/02c_argocd-rbac-cm.yaml
-* Ensure minikube is running: minikube stop && minikube start
-* Ensure Argo CD is aware of minikube: ./dist/argocd cluster add minikube
+Then checkout and build the UI next to your code
+
+```
+cd ~/go/src/github.com/argoproj
+git clone git@github.com:argoproj/argo-cd-ui.git
+# Follow README to build.
+```
+
+Then start the services:
+
+```
+cd ~/go/src/github.com/argoproj/argo-cd
+goreman start
+```
+
+You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:
+
+```
+app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
+```
+
+You can open the UI: http://localhost:8080
+
+## Pre-commit Checks
+
+Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:
+
+```
+STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$")
+
+gofmt -w $STAGED_GO_FILES
+
+make codgen
+make precommit ;# lint and test
+```

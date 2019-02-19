@@ -346,3 +346,84 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 	}
 	return patch, string(patch) != "{}", nil
 }
+
+// HideSecretData replaces secret data values in specified target, live secrets and in last applied configuration of live secret with stars. Also preserves differences between
+// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of stars. If all the are different then number of stars
+// in replacement should be different.
+func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
+	var orig *unstructured.Unstructured
+	if live != nil {
+		orig = GetLastAppliedConfigAnnotation(live)
+		live = live.DeepCopy()
+	}
+	if target != nil {
+		target = target.DeepCopy()
+	}
+
+	keys := map[string]bool{}
+	for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+		if obj == nil {
+			continue
+		}
+		NormalizeSecret(obj)
+		if data, found, err := unstructured.NestedMap(obj.Object, "data"); found && err == nil {
+			for k := range data {
+				keys[k] = true
+			}
+		}
+	}
+
+	for k := range keys {
+		nextReplacement := "*********"
+		valToReplacement := make(map[string]string)
+		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+			var data map[string]interface{}
+			if obj != nil {
+				var err error
+				data, _, err = unstructured.NestedMap(obj.Object, "data")
+				if err != nil {
+					return nil, nil, err
+				}
+			}
+			if data == nil {
+				data = make(map[string]interface{})
+			}
+			valData, ok := data[k]
+			if !ok {
+				continue
+			}
+			val := toString(valData)
+			replacement, ok := valToReplacement[val]
+			if !ok {
+				replacement = nextReplacement
+				nextReplacement = nextReplacement + "*"
+				valToReplacement[val] = replacement
+			}
+			data[k] = replacement
+			err := unstructured.SetNestedField(obj.Object, data, "data")
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+	if live != nil && orig != nil {
+		annotations := live.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		lastAppliedData, err := json.Marshal(orig)
+		if err != nil {
+			return nil, nil, err
+		}
+		annotations[core.LastAppliedConfigAnnotation] = string(lastAppliedData)
+		live.SetAnnotations(annotations)
+	}
+	return target, live, nil
+}
+
+func toString(val interface{}) string {
+	if val == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s", val)
+}

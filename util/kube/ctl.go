@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/diff"
 )
 
 type Kubectl interface {
@@ -53,7 +54,7 @@ func (k KubectlCmd) GetAPIResources(config *rest.Config) ([]*metav1.APIResourceL
 func (k KubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {
 
 	listSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(*apiResource)
+		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(apiResource.Group)
 	}
 	apiResIfs, err := filterAPIResources(config, listSupported, namespace)
 	if err != nil {
@@ -96,7 +97,7 @@ func (k KubectlCmd) WatchResources(
 	namespace string,
 ) (chan watch.Event, error) {
 	watchSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(*apiResource)
+		return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(apiResource.Group)
 	}
 	log.Infof("Start watching for resources changes with in cluster %s", config.Host)
 	apiResIfs, err := filterAPIResources(config, watchSupported, namespace)
@@ -276,7 +277,22 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 	}
 	cmd := exec.Command("kubectl", cmdArgs...)
 	log.Info(cmd.Args)
-	log.Debug(string(manifestBytes))
+	if log.IsLevelEnabled(log.DebugLevel) {
+		var obj unstructured.Unstructured
+		err := json.Unmarshal(manifestBytes, &obj)
+		if err != nil {
+			return "", err
+		}
+		redacted, _, err := diff.HideSecretData(&obj, nil)
+		if err != nil {
+			return "", err
+		}
+		redactedBytes, err := json.Marshal(redacted)
+		if err != nil {
+			return "", err
+		}
+		log.Debug(string(redactedBytes))
+	}
 	cmd.Stdin = bytes.NewReader(manifestBytes)
 	out, err := cmd.Output()
 	if err != nil {

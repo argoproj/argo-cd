@@ -156,7 +156,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesManagedResourcesResponse"
+              "$ref": "#/definitions/applicationManagedResourcesResponse"
             }
           }
         }
@@ -180,7 +180,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesResourceTreeResponse"
+              "$ref": "#/definitions/applicationResourceTreeResponse"
             }
           }
         }
@@ -1375,6 +1375,17 @@
         }
       }
     },
+    "applicationManagedResourcesResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        }
+      }
+    },
     "applicationOperationTerminateResponse": {
       "type": "object"
     },
@@ -1400,6 +1411,17 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/applicationParameter"
+          }
+        }
+      }
+    },
+    "applicationResourceTreeResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         }
       }
@@ -1477,6 +1499,9 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "AppLabelKey": {
+          "type": "string"
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
@@ -1548,6 +1573,10 @@
           "type": "string"
         }
       }
+    },
+    "repositoryDirectoryAppSpec": {
+      "type": "object",
+      "title": "DirectoryAppSpec contains directory"
     },
     "repositoryHelmAppSpec": {
       "type": "object",
@@ -1657,6 +1686,9 @@
       "type": "object",
       "title": "RepoAppDetailsResponse application details",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        },
         "helm": {
           "$ref": "#/definitions/repositoryHelmAppSpec"
         },
@@ -1685,28 +1717,6 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
-    },
-    "servicesManagedResourcesResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceDiff"
-          }
-        }
-      }
-    },
-    "servicesResourceTreeResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
-        }
-      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",
@@ -2314,6 +2324,9 @@
             "$ref": "#/definitions/v1alpha1ComponentParameter"
           }
         },
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
         "environment": {
           "type": "string",
           "title": "Environment is a ksonnet application environment name\nDEPRECATED: specify environment in spec.source.ksonnet.environment instead"
@@ -2345,6 +2358,15 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceDirectory": {
+      "type": "object",
+      "properties": {
+        "recurse": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

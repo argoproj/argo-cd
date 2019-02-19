@@ -67,6 +67,8 @@ type ApplicationSource struct {
 	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
 	// Ksonnet holds ksonnet specific options
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
+	// Directory holds path/directory specific options
+	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
 }
 
 type ApplicationSourceType string
@@ -113,6 +115,14 @@ type ApplicationSourceKsonnet struct {
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {
 	return k.Environment == ""
+}
+
+type ApplicationSourceDirectory struct {
+	Recurse bool `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+}
+
+func (d *ApplicationSourceDirectory) IsZero() bool {
+	return d.Recurse == false
 }
 
 // ApplicationDestination contains deployment destination information
@@ -773,13 +783,22 @@ func (proj AppProject) IsResourcePermitted(res metav1.GroupKind, namespaced bool
 	}
 }
 
+func globMatch(pattern string, val string) bool {
+	if pattern == "*" {
+		return true
+	}
+	if ok, err := filepath.Match(pattern, val); ok && err == nil {
+		return true
+	}
+	return false
+}
+
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
+	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
-		if repoURL == "*" {
-			return true
-		}
-		if git.SameURL(repoURL, src.RepoURL) {
+		normalized := git.NormalizeGitURL(repoURL)
+		if globMatch(normalized, srcNormalized) {
 			return true
 		}
 	}
@@ -789,10 +808,8 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	for _, item := range proj.Spec.Destinations {
-		if item.Server == dst.Server || item.Server == "*" {
-			if item.Namespace == dst.Namespace || item.Namespace == "*" {
-				return true
-			}
+		if globMatch(item.Server, dst.Server) && globMatch(item.Namespace, dst.Namespace) {
+			return true
 		}
 	}
 	return false

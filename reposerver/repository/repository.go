@@ -9,9 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
-	jsonnet "github.com/google/go-jsonnet"
+	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -24,28 +23,22 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/hash"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
-const (
-	// DefaultRepoCacheExpiration is the duration for items to live in the repo cache
-	DefaultRepoCacheExpiration = 24 * time.Hour
-)
-
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
 	gitFactory                git.ClientFactory
-	cache                     cache.Cache
+	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(gitFactory git.ClientFactory, cache cache.Cache, parallelismLimit int64) *Service {
+func NewService(gitFactory git.ClientFactory, cache *cache.Cache, parallelismLimit int64) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
@@ -65,12 +58,9 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := listDirCacheKey(commitSHA, q)
-	var res FileList
-	err = s.cache.Get(cacheKey, &res)
-	if err == nil {
-		log.Infof("listdir cache hit: %s", cacheKey)
-		return &res, nil
+	if files, err := s.cache.GetGitListDir(commitSHA, q.Path); err == nil {
+		log.Infof("listdir cache hit: %s/%s", commitSHA, q.Path)
+		return &FileList{Items: files}, nil
 	}
 
 	s.repoLock.Lock(gitClient.Root())
@@ -85,16 +75,10 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return nil, err
 	}
 
-	res = FileList{
-		Items: lsFiles,
-	}
-	err = s.cache.Set(&cache.Item{
-		Key:        listDirCacheKey(commitSHA, q),
-		Object:     &res,
-		Expiration: DefaultRepoCacheExpiration,
-	})
+	res := FileList{Items: lsFiles}
+	err = s.cache.SetListDir(commitSHA, q.Path, res.Items)
 	if err != nil {
-		log.Warnf("listdir cache set error %s: %v", cacheKey, err)
+		log.Warnf("listdir cache set error %s/%s: %v", commitSHA, q.Path, err)
 	}
 	return &res, nil
 }
@@ -104,12 +88,10 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := getFileCacheKey(commitSHA, q)
-	var res GetFileResponse
-	err = s.cache.Get(cacheKey, &res)
-	if err == nil {
-		log.Infof("getfile cache hit: %s", cacheKey)
-		return &res, nil
+
+	if data, err := s.cache.GetGitFile(commitSHA, q.Path); err == nil {
+		log.Infof("getfile cache hit: %s/%s", commitSHA, q.Path)
+		return &GetFileResponse{Data: data}, nil
 	}
 
 	s.repoLock.Lock(gitClient.Root())
@@ -122,16 +104,12 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	if err != nil {
 		return nil, err
 	}
-	res = GetFileResponse{
+	res := GetFileResponse{
 		Data: data,
 	}
-	err = s.cache.Set(&cache.Item{
-		Key:        getFileCacheKey(commitSHA, q),
-		Object:     &res,
-		Expiration: DefaultRepoCacheExpiration,
-	})
+	err = s.cache.SetGitFile(commitSHA, q.Path, data)
 	if err != nil {
-		log.Warnf("getfile cache set error %s: %v", cacheKey, err)
+		log.Warnf("getfile cache set error %s/%s: %v", commitSHA, q.Path, err)
 	}
 	return &res, nil
 }
@@ -141,20 +119,18 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := manifestCacheKey(commitSHA, q)
-
 	getCached := func() *ManifestResponse {
 		var res ManifestResponse
 		if !q.NoCache {
-			err = s.cache.Get(cacheKey, &res)
+			err = s.cache.GetManifests(commitSHA, q.ApplicationSource, q.ComponentParameterOverrides, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 			if err == nil {
-				log.Infof("manifest cache hit: %s", cacheKey)
+				log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), commitSHA)
 				return &res
 			}
 			if err != cache.ErrCacheMiss {
-				log.Warnf("manifest cache error %s: %v", cacheKey, err)
+				log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
 			} else {
-				log.Infof("manifest cache miss: %s", cacheKey)
+				log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), commitSHA)
 			}
 		}
 		return nil
@@ -193,13 +169,9 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	res := *genRes
 	res.Revision = commitSHA
-	err = s.cache.Set(&cache.Item{
-		Key:        manifestCacheKey(commitSHA, q),
-		Object:     res,
-		Expiration: DefaultRepoCacheExpiration,
-	})
+	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.ComponentParameterOverrides, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {
-		log.Warnf("manifest cache set error %s: %v", cacheKey, err)
+		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), commitSHA, err)
 	}
 	return &res, nil
 }
@@ -266,7 +238,8 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		opts := kustomizeOpts(q)
 		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeDirectory:
-		targetObjs, err = FindManifests(appPath)
+		directoryRecurse := q.ApplicationSource.Directory != nil && q.ApplicationSource.Directory.Recurse
+		targetObjs, err = FindManifests(appPath, directoryRecurse)
 	}
 	if err != nil {
 		return nil, err
@@ -376,24 +349,6 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 	return gitClient.CommitSHA()
 }
 
-func manifestCacheKey(commitSHA string, q *ManifestRequest) string {
-	appSrc := q.ApplicationSource.DeepCopy()
-	appSrc.RepoURL = ""        // superceded by commitSHA
-	appSrc.TargetRevision = "" // superceded by commitSHA
-	appSrcStr, _ := json.Marshal(appSrc)
-	pStr, _ := json.Marshal(q.ComponentParameterOverrides)
-	fnva := hash.FNVa(string(appSrcStr) + string(pStr))
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", q.AppLabelKey, q.AppLabelValue, commitSHA, q.Namespace, fnva)
-}
-
-func listDirCacheKey(commitSHA string, q *ListDirRequest) string {
-	return fmt.Sprintf("ldir|%s|%s", q.Path, commitSHA)
-}
-
-func getFileCacheKey(commitSHA string, q *GetFileRequest) string {
-	return fmt.Sprintf("gfile|%s|%s", q.Path, commitSHA)
-}
-
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
 func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
@@ -432,25 +387,32 @@ func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.Componen
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // FindManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
-	files, err := ioutil.ReadDir(appPath)
-	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "Failed to read dir %s: %v", appPath, err)
-	}
+func FindManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
-	for _, f := range files {
-		if f.IsDir() || !manifestFile.MatchString(f.Name()) {
-			continue
-		}
-		out, err := ioutil.ReadFile(filepath.Join(appPath, f.Name()))
+	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if f.IsDir() {
+			if path != appPath && !directoryRecurse {
+				return filepath.SkipDir
+			} else {
+				return nil
+			}
+		}
+
+		if !manifestFile.MatchString(f.Name()) {
+			return nil
+		}
+		out, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
 		}
 		if strings.HasSuffix(f.Name(), ".json") {
 			var obj unstructured.Unstructured
 			err = json.Unmarshal(out, &obj)
 			if err != nil {
-				return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
@@ -460,7 +422,7 @@ func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
 			})
 			jsonStr, err := vm.EvaluateSnippet(f.Name(), string(out))
 			if err != nil {
-				return nil, status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
+				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
 			}
 
 			// attempt to unmarshal either array or single object
@@ -472,7 +434,7 @@ func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
 				var jsonObj unstructured.Unstructured
 				err = json.Unmarshal([]byte(jsonStr), &jsonObj)
 				if err != nil {
-					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", f.Name(), err)
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", f.Name(), err)
 				}
 				objs = append(objs, &jsonObj)
 			}
@@ -483,13 +445,17 @@ func FindManifests(appPath string) ([]*unstructured.Unstructured, error) {
 					// If we get here, we had a multiple objects in a single YAML file which had some
 					// valid k8s objects, but errors parsing others (within the same file). It's very
 					// likely the user messed up a portion of the YAML, so report on that.
-					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
+					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
 				}
 				// Otherwise, it might be a unrelated YAML file which we will ignore
-				continue
+				return nil
 			}
 			objs = append(objs, yamlObjs...)
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return objs, nil
 }

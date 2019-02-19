@@ -1,0 +1,18 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for certificate
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Resource validation failed: spec.acme.config: Required value: no ACME
+      solver configuration specified for domain "cd.apps.argoproj.io"'
+  inputPath: testdata/degraded_configError.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Certificate issued successfully'
+  inputPath: testdata/healthy_issued.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Certificate renewed successfully'
+  inputPath: testdata/healthy_renewed.yaml

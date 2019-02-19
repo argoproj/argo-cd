@@ -5,7 +5,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"time"
 
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -31,19 +30,15 @@ type Server struct {
 	db            db.ArgoDB
 	repoClientset reposerver.Clientset
 	enf           *rbac.Enforcer
-	cache         cache.Cache
+	cache         *cache.Cache
 }
-
-const (
-	DefaultRepoStatusCacheExpiration = 1 * time.Hour
-)
 
 // NewServer returns a new instance of the Repository service
 func NewServer(
 	repoClientset reposerver.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	cache cache.Cache,
+	cache *cache.Cache,
 ) *Server {
 	return &Server{
 		db:            db,
@@ -54,13 +49,11 @@ func NewServer(
 }
 
 func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.ConnectionState {
-	cacheKey := fmt.Sprintf("connection-state-%s", url)
-	var connectionState appsv1.ConnectionState
-	if err := s.cache.Get(cacheKey, &connectionState); err == nil {
+	if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
 		return connectionState
 	}
 	now := metav1.Now()
-	connectionState = appsv1.ConnectionState{
+	connectionState := appsv1.ConnectionState{
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
@@ -72,13 +65,9 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		connectionState.Status = appsv1.ConnectionStatusFailed
 		connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
 	}
-	err = s.cache.Set(&cache.Item{
-		Object:     &connectionState,
-		Key:        cacheKey,
-		Expiration: DefaultRepoStatusCacheExpiration,
-	})
+	err = s.cache.SetRepoConnectionState(url, &connectionState)
 	if err != nil {
-		log.Warnf("getConnectionState cache set error %s: %v", cacheKey, err)
+		log.Warnf("getConnectionState cache set error %s: %v", url, err)
 	}
 	return connectionState
 }
@@ -228,7 +217,10 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 		return nil, err
 	}
 	if len(paths) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "specified application path is not supported")
+		return &RepoAppDetailsResponse{
+			Type:      string(appsv1.ApplicationSourceTypeDirectory),
+			Directory: &DirectoryAppSpec{},
+		}, nil
 	}
 
 	var appPath string
