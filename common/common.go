@@ -9,7 +9,7 @@ const (
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
 	DefaultDexServerAddr = "http://argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
-	DefaultRedisAddr = "argocd-redis:3679"
+	DefaultRedisAddr = "argocd-redis:6379"
 )
 
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings
