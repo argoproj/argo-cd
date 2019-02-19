@@ -362,7 +362,7 @@ metadata:
 spec:
   ports:
   - name: tcp-redis
-    port: 3679
+    port: 6379
     targetPort: 6379
   selector:
     app.kubernetes.io/component: redis
