@@ -73,7 +73,7 @@ func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.Compone
 			}
 		}
 	} else if len(overrides) > 0 {
-		log.Info("ignoring overrides as kustomize in not version 1")
+		log.Info("ignoring overrides as kustomize is not version 1")
 	}
 
 	out, err := argoexec.RunCommand(commandName, "build", k.path)
@@ -158,6 +158,7 @@ func (k *kustomize) getKustomizationVersion() (int, error) {
 	if obj.Kind == "Kustomization" {
 		return 2, nil
 	}
+
 	return 1, nil
 }
 
