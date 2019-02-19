@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.11.2 (2019-02-19)
++ Adds client retry. Fixes #959 (#1119)
+- Prevent deletion hotloop (#1115)
+- Fix EncodeX509KeyPair function so it takes in account chained certificates (#1137) (@amarruedo)
+- Exclude metrics.k8s.io from watch (#1128)
+- Fix issue where dex restart could cause login failures (#1114)
+- Relax ingress/service health check to accept non-empty ingress list (#1053)
+- [UI] Correctly handle empty response from repository/<repo>/apps API
+
 ## v0.11.1 (2019-01-18)
 + Allow using redis as a cache in repo-server (#1020)
 - Fix controller deadlock when checking for stale cache (#1044)
