@@ -67,6 +67,10 @@ ENV KUSTOMIZE_VERSION=1.0.11
 RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/kustomize
 
+ENV KUSTOMIZE2_VERSION=2.0.1
+RUN curl -L -o /usr/local/bin/kustomize2 https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE2_VERSION}/kustomize_${KUSTOMIZE2_VERSION}_linux_amd64 && \
+    chmod +x /usr/local/bin/kustomize2
+
 # Install AWS IAM Authenticator
 ENV AWS_IAM_AUTHENTICATOR_VERSION=0.4.0-alpha.1
 RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/${AWS_IAM_AUTHENTICATOR_VERSION}/aws-iam-authenticator_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
@@ -91,6 +95,7 @@ COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=builder /usr/local/bin/kustomize2 /usr/local/bin/kustomize2
 COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298

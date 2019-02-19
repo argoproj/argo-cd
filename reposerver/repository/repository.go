@@ -305,8 +305,10 @@ func IdentifyAppSourceTypeByAppDir(appDirPath string) v1alpha1.ApplicationSource
 	if pathExists(appDirPath, "Chart.yaml") {
 		return v1alpha1.ApplicationSourceTypeHelm
 	}
-	if pathExists(appDirPath, "kustomization.yaml") {
-		return v1alpha1.ApplicationSourceTypeKustomize
+	for _, kustomization := range kustomize.KustomizationNames {
+		if pathExists(appDirPath, kustomization) {
+			return v1alpha1.ApplicationSourceTypeKustomize
+		}
 	}
 	return v1alpha1.ApplicationSourceTypeDirectory
 }

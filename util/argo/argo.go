@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/kustomize"
+
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -302,7 +304,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		if trimmedPath == "Chart.yaml" {
 			return argoappv1.ApplicationSourceTypeHelm, nil
 		}
-		if trimmedPath == "kustomization.yaml" {
+		if kustomize.IsKustomization(trimmedPath) {
 			return argoappv1.ApplicationSourceTypeKustomize, nil
 		}
 	}
