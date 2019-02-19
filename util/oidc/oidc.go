@@ -225,7 +225,11 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}
-	cookie := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+	cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid cookie: %v", err), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Set-Cookie", cookie)
 
 	var claims jwt.MapClaims

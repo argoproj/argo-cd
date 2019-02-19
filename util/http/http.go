@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -10,12 +11,18 @@ import (
 )
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
-func MakeCookieMetadata(key, value string, flags ...string) string {
+func MakeCookieMetadata(key, value string, flags ...string) (string, error) {
 	components := []string{
 		fmt.Sprintf("%s=%s", key, value),
 	}
 	components = append(components, flags...)
-	return strings.Join(components, "; ")
+	header := strings.Join(components, "; ")
+
+	const maxLength = 4093
+	if len(header) > maxLength {
+		return "", errors.New(fmt.Sprintf("invalid cookie, longer than max length %v", maxLength))
+	}
+	return header, nil
 }
 
 // DebugTransport is a HTTP Client Transport to enable debugging

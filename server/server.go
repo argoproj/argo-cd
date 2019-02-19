@@ -18,7 +18,7 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -441,7 +441,11 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		if !a.Insecure {
 			flags = append(flags, "Secure")
 		}
-		cookie := httputil.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
+		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
+		if err != nil {
+			return err
+		}
+
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
