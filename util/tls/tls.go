@@ -218,7 +218,11 @@ func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 
 // EncodeX509KeyPair encodes a TLS Certificate into its pem encoded format for storage
 func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
-	certpem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
+
+	certpem := []byte{}
+	for _, certtmp := range cert.Certificate {
+		certpem = append(certpem, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certtmp})...)
+	}
 	keypem := pem.EncodeToMemory(pemBlockForKey(cert.PrivateKey))
 	return certpem, keypem
 }
