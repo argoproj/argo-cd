@@ -43,10 +43,14 @@ type KustomizeBuildOpts struct {
 
 func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
 
-	commandName, err := k.GetCommandName()
+	version, err := k.getKustomizationVersion()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	log.Infof("using kustomize version=%d", version)
+
+	commandName := GetCommandName(version)
 
 	log.Infof("using kustomize binary=%s", commandName)
 
@@ -59,13 +63,17 @@ func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.Compone
 		}
 	}
 
-	for _, override := range overrides {
-		cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
-		cmd.Dir = k.path
-		_, err := argoexec.RunCommandExt(cmd)
-		if err != nil {
-			return nil, nil, err
+	if version == 1 {
+		for _, override := range overrides {
+			cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
+			cmd.Dir = k.path
+			_, err := argoexec.RunCommandExt(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
+	} else if len(overrides) > 0 {
+		log.Info("ignoring overrides as kustomize in not version 1")
 	}
 
 	out, err := argoexec.RunCommand(commandName, "build", k.path)
@@ -92,19 +100,11 @@ func (k *kustomize) getParameters(objs []*unstructured.Unstructured) []*v1alpha1
 	}
 }
 
-func (k *kustomize) GetCommandName() (string, error) {
-
-	version, err := k.getKustomizationVersion()
-	if err != nil {
-		return "", err
-	}
-
-	log.Infof("using kustomize version=%d", version)
-
+func GetCommandName(version int) string {
 	if version == 1 {
-		return "kustomize", nil
+		return "kustomize"
 	} else {
-		return "kustomize" + strconv.Itoa(version), nil
+		return "kustomize" + strconv.Itoa(version)
 	}
 }
 

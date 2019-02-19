@@ -91,15 +91,8 @@ func testGetKustomizationVersion(t *testing.T, set string, expected int) {
 }
 
 func TestGetCommandName(t *testing.T) {
-	testGetCommandName(t, kustomization1, "kustomize")
-	testGetCommandName(t, kustomization2a, "kustomize2")
-	testGetCommandName(t, kustomization2b, "kustomize2")
-}
-
-func testGetCommandName(t *testing.T, set string, expected string) {
-	commandName, err := (&kustomize{path: "testdata/" + set}).GetCommandName()
-	assert.Nil(t, err)
-	assert.Equal(t, expected, commandName)
+	assert.Equal(t, "kustomize", GetCommandName(1))
+	assert.Equal(t, "kustomize2", GetCommandName(2))
 }
 
 func TestIsKustomization(t *testing.T) {
