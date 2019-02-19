@@ -48,11 +48,11 @@ type ApplicationSpec struct {
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
-	Group         string   `json:"group" protobuf:"bytes,1,opt,name=group"`
-	Kind          string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
-	Name          string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Namespace     string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Json6902Paths []string `json:"json6902Paths" protobuf:"bytes,5,opt,name=json6902Paths"`
+	Group        string   `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	JsonPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.

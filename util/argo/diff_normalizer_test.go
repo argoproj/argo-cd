@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -15,9 +14,9 @@ import (
 
 func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
-		Group:         "apps",
-		Kind:          "Deployment",
-		Json6902Paths: []string{"/spec/template/spec/containers"},
+		Group:        "apps",
+		Kind:         "Deployment",
+		JsonPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
 	}}, make(map[string]settings.ResourceOverride))
 
 	assert.Nil(t, err)
@@ -37,9 +36,9 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 
 func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
-		Group:         "",
-		Kind:          "Service",
-		Json6902Paths: []string{"/spec"},
+		Group:        "",
+		Kind:         "Service",
+		JsonPointers: []string{"/spec"},
 	}}, make(map[string]settings.ResourceOverride))
 
 	assert.Nil(t, err)
@@ -55,7 +54,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]settings.ResourceOverride{
 		"apps/Deployment": {
-			IgnoreDifferences: `json6902Paths: ["/spec/template/spec/containers"]`,
+			IgnoreDifferences: `jsonPointers: ["/spec/template/spec/containers"]`,
 		},
 	})
 

@@ -415,7 +415,7 @@ message ResourceIgnoreDifferences {
 
   optional string namespace = 4;
 
-  repeated string json6902Paths = 5;
+  repeated string jsonPointers = 5;
 }
 
 // ResourceNode contains information about live resource and its children

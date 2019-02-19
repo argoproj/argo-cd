@@ -2756,7 +2756,7 @@
         "group": {
           "type": "string"
         },
-        "json6902Paths": {
+        "jsonPointers": {
           "type": "array",
           "items": {
             "type": "string"

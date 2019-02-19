@@ -6,14 +6,17 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	jsonpatch "github.com/evanphx/json-patch"
-
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/settings"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+)
+
+const (
+	noMatchingPathError = "Unable to remove nonexistent key: not-matching-path"
 )
 
 type normalizerPatch struct {
@@ -28,7 +31,7 @@ type normalizer struct {
 }
 
 type overrideIgnoreDiff struct {
-	Json6902Paths []string `yaml:"json6902Paths"`
+	JsonPointers []string `yaml:"jsonPointers"`
 }
 
 // NewDiffNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
@@ -48,36 +51,36 @@ func NewDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides ma
 			}
 
 			ignore = append(ignore, v1alpha1.ResourceIgnoreDifferences{
-				Group:         group,
-				Kind:          kind,
-				Json6902Paths: ignoreSettings.Json6902Paths,
+				Group:        group,
+				Kind:         kind,
+				JsonPointers: ignoreSettings.JsonPointers,
 			})
 		}
 	}
-	patches := make([]normalizerPatch, len(ignore))
+	patches := make([]normalizerPatch, 0)
 	for i := range ignore {
-		ops := make([]map[string]string, 0)
-		for _, path := range ignore[i].Json6902Paths {
-			ops = append(ops, map[string]string{"op": "remove", "path": path})
+		for _, path := range ignore[i].JsonPointers {
+			patchData, err := json.Marshal([]map[string]string{{"op": "remove", "path": path}})
+			if err != nil {
+				return nil, err
+			}
+			patch, err := jsonpatch.DecodePatch(patchData)
+			if err != nil {
+				return nil, err
+			}
+			patches = append(patches, normalizerPatch{
+				groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
+				name:      ignore[i].Name,
+				namespace: ignore[i].Namespace,
+				patch:     patch,
+			})
 		}
-		patchData, err := json.Marshal(ops)
-		if err != nil {
-			return nil, err
-		}
-		patch, err := jsonpatch.DecodePatch(patchData)
-		if err != nil {
-			return nil, err
-		}
-		patches[i] = normalizerPatch{
-			groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
-			name:      ignore[i].Name,
-			namespace: ignore[i].Namespace,
-			patch:     patch,
-		}
+
 	}
 	return &normalizer{patches: patches}, nil
 }
 
+// Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
 func (n *normalizer) Normalize(un *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
@@ -99,10 +102,14 @@ func (n *normalizer) Normalize(un *unstructured.Unstructured) (*unstructured.Uns
 	}
 
 	for _, patch := range matched {
-		docData, err = patch.patch.Apply(docData)
+		patchedData, err := patch.patch.Apply(docData)
 		if err != nil {
+			if err.Error() == noMatchingPathError {
+				continue
+			}
 			return nil, err
 		}
+		docData = patchedData
 	}
 
 	err = json.Unmarshal(docData, un)
