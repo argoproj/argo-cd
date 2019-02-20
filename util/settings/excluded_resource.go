@@ -1,6 +1,9 @@
 package settings
 
-import "github.com/gobwas/glob"
+import (
+	"github.com/gobwas/glob"
+	log "github.com/sirupsen/logrus"
+)
 
 type ExcludedResource struct {
 	ApiGroups []string `json:"apiGroups"`
@@ -10,11 +13,20 @@ type ExcludedResource struct {
 
 func (r ExcludedResource) matchGroup(apiGroup string) bool {
 	for _, excludedApiGroup := range r.ApiGroups {
-		if glob.MustCompile(excludedApiGroup).Match(apiGroup) {
+		if match(excludedApiGroup, apiGroup) {
 			return true
 		}
 	}
 	return false
+}
+
+func match(pattern , text string) bool {
+	compiledGlob, err := glob.Compile(pattern)
+	if err != nil {
+		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
+		return false
+	}
+	return compiledGlob.Match(text)
 }
 
 func (r ExcludedResource) matchKind(kind string) bool {
@@ -28,7 +40,7 @@ func (r ExcludedResource) matchKind(kind string) bool {
 
 func (r ExcludedResource) matchCluster(cluster string) bool {
 	for _, excludedCluster := range r.Clusters {
-		if glob.MustCompile(excludedCluster).Match(cluster) {
+		if match(excludedCluster, cluster) {
 			return true
 		}
 	}

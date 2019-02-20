@@ -24,4 +24,9 @@ func TestExcludeResource(t *testing.T) {
 	assert.True(t, ExcludedResource{ApiGroups: []string{"foo.com", "foo.com"}, Kinds: []string{"bar"}, Clusters: []string{"baz.com"}}.Match(apiGroup, kind, cluster))
 	assert.True(t, ExcludedResource{ApiGroups: []string{"foo.com"}, Kinds: []string{"bar", "bar"}, Clusters: []string{"baz.com"}}.Match(apiGroup, kind, cluster))
 	assert.True(t, ExcludedResource{ApiGroups: []string{"foo.com"}, Kinds: []string{"bar"}, Clusters: []string{"baz.com", "baz.com"}}.Match(apiGroup, kind, cluster))
+	// rubbish patterns
+	assert.False(t, ExcludedResource{ApiGroups: []string{"["}, Kinds: []string{""}, Clusters: []string{""}}.Match("", "", ""))
+	assert.False(t, ExcludedResource{ApiGroups: []string{""}, Kinds: []string{"["}, Clusters: []string{""}}.Match("", "", ""))
+	assert.False(t, ExcludedResource{ApiGroups: []string{""}, Kinds: []string{""}, Clusters: []string{"["}}.Match("", "", ""))
 }
+
