@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/gobwas/glob"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -96,43 +95,6 @@ type HelmRepoCredentials struct {
 	CASecret       *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
 	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
 	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
-}
-
-type ExcludedResource struct {
-	ApiGroups []string `json:"apiGroups"`
-	Kinds     []string `json:"kinds"`
-	Clusters  []string `json:"clusters"`
-}
-
-func (r ExcludedResource) matchGroup(apiGroup string) bool {
-	for _, excludedApiGroup := range r.ApiGroups {
-		if glob.MustCompile(excludedApiGroup).Match(apiGroup) {
-			return true
-		}
-	}
-	return false
-}
-
-func (r ExcludedResource) matchKind(kind string) bool {
-	for _, excludedKind := range r.Kinds {
-		if excludedKind == "*" || excludedKind == kind {
-			return true
-		}
-	}
-	return false
-}
-
-func (r ExcludedResource) matchCluster(cluster string) bool {
-	for _, excludedCluster := range r.Clusters {
-		if glob.MustCompile(excludedCluster).Match(cluster) {
-			return true
-		}
-	}
-	return false
-}
-
-func (r ExcludedResource) Match(apiGroup, kind, cluster string) bool {
-	return r.matchGroup(apiGroup) && r.matchKind(kind) && r.matchCluster(cluster)
 }
 
 const (
