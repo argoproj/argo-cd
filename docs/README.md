@@ -13,6 +13,7 @@
 * [Automated Sync](auto_sync.md)
 * [Resource Health](health.md)
 * [Resource Hooks](resource_hooks.md)
+* [Resource Diffing](diffing.md)
 * [Single Sign On](sso.md)
 * [Webhooks](webhook.md)
 * [RBAC](rbac.md)
