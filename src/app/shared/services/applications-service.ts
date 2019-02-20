@@ -140,6 +140,7 @@ export class ApplicationsService {
         const app = data as models.Application;
         app.spec.project = app.spec.project || 'default';
         app.kind = app.kind || 'Application';
+        app.status.resources = app.status.resources || [];
         return app;
     }
 }
