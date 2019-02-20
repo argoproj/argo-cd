@@ -217,10 +217,11 @@ data:
 
 ## Resource Exclusion
 
-Resources can be excluded from sync. Use cases:
+Resources can be excluded from discovery and sync so that ArgoCD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
 
-* When you have temporal issues. You could exclude problematic resource.
-* You don't want to give cluster wide access to ArgoCD.
+* You have temporal issues and you want to exclude problematic resources.
+* There are many of a kind of resources that impacts ArgoCD's performance.
+* Restrict ArgoCD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
 
 To configure this, edit the `argcd-cm` config map:
 
@@ -239,24 +240,23 @@ data:
       kinds:
       - "*"
       clusters:
-      - https://kubernetes.default.svc
+      - https://192.168.0.20
 kind: ConfigMap
 ```
 
-The `excludedRources` node is a list of objects. Each object can have a list of:
+The `excludedResources` node is a list of objects. Each object can have:
 
 - `apiGroups` A list of globs to match the API group.
-- `kinds` A list of kinds to match. Can be "*".
+- `kinds` A list of kinds to match. Can be "*" to match all.
 - `cluster` A list of globs to match the cluster.
 
 If all three match, then the resource is ignored.
 
 Notes:
 
-* `events.k8s.io` and `metrics.k8s.io` are always excluded.
-* Quote globs in your YAML to avoid errors.
+* Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
-* It is possible to reconfigure ArgoCD to ignore resources you've deployed.
+* If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
 
 ## SSO & RBAC
 
