@@ -441,7 +441,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     private async updateApp(app: appModels.Application) {
         try {
             await services.applications.updateSpec(app.metadata.name, app.spec);
-            const [updatedApp, resources] = await Promise.all([services.applications.get(app.metadata.name), services.applications.resourceTree(app.metadata.name)]);
+            const [updatedApp, resources] = await Promise.all([
+                services.applications.get(app.metadata.name), services.applications.resourceTree(app.metadata.name).catch(() => [])]);
             this.loader.setData({...this.loader.getData() || {}, application: updatedApp, resources: resourcesFromSummaryInfo(app, resources)});
         } catch (e) {
             this.appContext.apis.notifications.show({
