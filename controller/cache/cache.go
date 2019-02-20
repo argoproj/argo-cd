@@ -28,7 +28,7 @@ type LiveStateCache interface {
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
-	Run(ctx context.Context, settings *settings.ArgoCDSettings)
+	Run(ctx context.Context)
 	// Deletes specified resource from cluster.
 	Delete(server string, obj *unstructured.Unstructured) error
 	// Invalidate invalidates the entire cluster state cache
@@ -177,7 +177,7 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 }
 
 // Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
-func (c *liveStateCache) Run(ctx context.Context, settings *settings.ArgoCDSettings) {
+func (c *liveStateCache) Run(ctx context.Context) {
 	watchingClusters := make(map[string]struct {
 		cancel  context.CancelFunc
 		cluster *appv1.Cluster
@@ -204,7 +204,7 @@ func (c *liveStateCache) Run(ctx context.Context, settings *settings.ArgoCDSetti
 					},
 					cluster: event.Cluster,
 				}
-				go c.watchClusterResources(ctx, settings, *event.Cluster)
+				go c.watchClusterResources(ctx, c.settings, *event.Cluster)
 			}
 		}
 

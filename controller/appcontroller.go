@@ -242,7 +242,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		return
 	}
 
-	go ctrl.stateCache.Run(ctx, ctrl.settings)
+	go ctrl.stateCache.Run(ctx)
 
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {
