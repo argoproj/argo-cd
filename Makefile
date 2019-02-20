@@ -124,9 +124,13 @@ builder-image:
 dep-ensure:
 	dep ensure
 
+.PHONY: format-code
+format-code:
+	./hack/format-code.sh
+
 .PHONY: lint
 lint:
-	./hack/lint.sh
+	gometalinter.v2 --config gometalinter.json ./...
 
 .PHONY: test
 test:
@@ -146,7 +150,7 @@ clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
 .PHONY: pre-commit
-pre-commit: dep-ensure codegen test lint
+pre-commit: dep-ensure codegen format-code test lint
 
 .PHONY: release-precheck
 release-precheck: manifests

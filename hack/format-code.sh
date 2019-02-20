@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#! /bin/sh
 set -eu
 
-STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$")
+STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$" || true)
 
 if [[ "${STAGED_GO_FILES}" != "" ]]; then
     echo "Formatting imports"
@@ -9,7 +9,6 @@ if [[ "${STAGED_GO_FILES}" != "" ]]; then
 
     echo "Formatting code"
     gofmt -w ${STAGED_GO_FILES} ;
-
-    echo "Linting code"
-    gometalinter.v2 --config gometalinter.json ./...
+else
+    echo "No staged files to format"
 fi
