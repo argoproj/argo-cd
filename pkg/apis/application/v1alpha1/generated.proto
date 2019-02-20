@@ -139,6 +139,9 @@ message ApplicationSource {
 
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
+
+  // Custom holds custom templating tool specific options
+  optional ApplicationSourceTemplatingTool custom = 11;
 }
 
 message ApplicationSourceDirectory {
@@ -161,6 +164,11 @@ message ApplicationSourceKsonnet {
 message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for kustomize apps
   optional string namePrefix = 1;
+}
+
+// ApplicationSourceCustomTool holds helm specific options
+message ApplicationSourceTemplatingTool {
+  optional string name = 1;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -275,6 +283,17 @@ message ConnectionState {
   optional string message = 2;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
+}
+
+// CustomTemplatingTool contains custom templating tool configuration
+message CustomTemplatingTool {
+  optional string name = 1;
+
+  optional string binaryPath = 2;
+
+  repeated string initArgs = 3;
+
+  repeated string templateArgs = 4;
 }
 
 message HealthStatus {

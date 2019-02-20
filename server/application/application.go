@@ -189,6 +189,10 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
+	tools := make([]*appv1.CustomTemplatingTool, len(settings.TemplatingTools))
+	for i := range settings.TemplatingTools {
+		tools[i] = &settings.TemplatingTools[i]
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
 		Repo:                        repo,
 		Revision:                    revision,
@@ -198,6 +202,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 		Namespace:                   a.Spec.Destination.Namespace,
 		ApplicationSource:           &a.Spec.Source,
 		HelmRepos:                   helmRepos,
+		CustomTools:                 tools,
 	})
 	if err != nil {
 		return nil, err

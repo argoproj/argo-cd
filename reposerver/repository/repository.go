@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/TomOnTime/utfutil"
+	argoexec "github.com/argoproj/pkg/exec"
 	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -164,7 +166,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	appPath := filepath.Join(gitClient.Root(), q.ApplicationSource.Path)
 
-	genRes, err := generateManifests(appPath, q)
+	genRes, err := GenerateManifests(appPath, q)
 	if err != nil {
 		return nil, err
 	}
@@ -197,14 +199,13 @@ func kustomizeOpts(q *ManifestRequest) kustomize.KustomizeBuildOpts {
 	return opts
 }
 
-// generateManifests generates manifests from a path
-func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, error) {
+// GenerateManifests generates manifests from a path
+func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
 	var params []*v1alpha1.ComponentParameter
 	var dest *v1alpha1.ApplicationDestination
-	var err error
 
-	appSourceType := IdentifyAppSourceTypeByAppDir(appPath)
+	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
 		env := v1alpha1.KsonnetEnv(q.ApplicationSource)
@@ -238,9 +239,11 @@ func generateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		k := kustomize.NewKustomizeApp(appPath)
 		opts := kustomizeOpts(q)
 		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
+	case v1alpha1.ApplicationSourceTypeCustom:
+		targetObjs, err = runCustomTool(appPath, q, q.CustomTools)
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		directoryRecurse := q.ApplicationSource.Directory != nil && q.ApplicationSource.Directory.Recurse
-		targetObjs, err = FindManifests(appPath, directoryRecurse)
+		targetObjs, err = findManifests(appPath, directoryRecurse)
 	}
 	if err != nil {
 		return nil, err
@@ -298,20 +301,28 @@ func tempRepoPath(repo string) string {
 	return filepath.Join(os.TempDir(), strings.Replace(repo, "/", "_", -1))
 }
 
-// IdentifyAppSourceTypeByAppDir examines a directory and determines its application source type
-func IdentifyAppSourceTypeByAppDir(appDirPath string) v1alpha1.ApplicationSourceType {
+// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
+func GetAppSourceType(source *v1alpha1.ApplicationSource, appDirPath string) (v1alpha1.ApplicationSourceType, error) {
+	appSourceType, err := source.ExplicitType()
+	if err != nil {
+		return "", err
+	}
+	if appSourceType != nil {
+		return *appSourceType, nil
+	}
+
 	if pathExists(appDirPath, "app.yaml") {
-		return v1alpha1.ApplicationSourceTypeKsonnet
+		return v1alpha1.ApplicationSourceTypeKsonnet, nil
 	}
 	if pathExists(appDirPath, "Chart.yaml") {
-		return v1alpha1.ApplicationSourceTypeHelm
+		return v1alpha1.ApplicationSourceTypeHelm, nil
 	}
 	for _, kustomization := range kustomize.KustomizationNames {
 		if pathExists(appDirPath, kustomization) {
-			return v1alpha1.ApplicationSourceTypeKustomize
+			return v1alpha1.ApplicationSourceTypeKustomize, nil
 		}
 	}
-	return v1alpha1.ApplicationSourceTypeDirectory
+	return v1alpha1.ApplicationSourceTypeDirectory, nil
 }
 
 // isNullList checks if the object is a "List" type where items is null instead of an empty list.
@@ -389,8 +400,8 @@ func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.Componen
 
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
-// FindManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func FindManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstructured, error) {
+// findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
+func findManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -488,4 +499,30 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
+}
+
+func runCustomTool(appPath string, q *ManifestRequest, tools []*v1alpha1.CustomTemplatingTool) ([]*unstructured.Unstructured, error) {
+	var tool *v1alpha1.CustomTemplatingTool
+	for i := range tools {
+		if tools[i].Name == q.ApplicationSource.Custom.Name {
+			tool = tools[i]
+			break
+		}
+	}
+	if tool == nil {
+		return nil, fmt.Errorf("Custom templating tool with name '%s' is not supported.", q.ApplicationSource.Custom.Name)
+	}
+
+	if len(tool.InitArgs) > 0 {
+		_, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.BinaryPath, Args: append([]string{tool.BinaryPath}, tool.InitArgs...)})
+		if err != nil {
+			return nil, err
+		}
+	}
+	env := []string{"ARGOCD_APP=" + q.AppLabelValue, "ARGOCD_NAMESPACE=" + q.Namespace}
+	out, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.BinaryPath, Args: append([]string{tool.BinaryPath}, tool.TemplateArgs...), Env: env})
+	if err != nil {
+		return nil, err
+	}
+	return kube.SplitYAML(out)
 }

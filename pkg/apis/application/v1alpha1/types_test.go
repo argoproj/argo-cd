@@ -111,3 +111,40 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
 	}
 }
+
+func TestExplicitType(t *testing.T) {
+	src := ApplicationSource{
+		Ksonnet: &ApplicationSourceKsonnet{
+			Environment: "foo",
+		},
+		Kustomize: &ApplicationSourceKustomize{
+			NamePrefix: "foo",
+		},
+		Helm: &ApplicationSourceHelm{
+			ValueFiles: []string{"foo"},
+		},
+	}
+	explicitType, err := src.ExplicitType()
+	assert.NotNil(t, err)
+	assert.Nil(t, explicitType)
+	src = ApplicationSource{
+		Helm: &ApplicationSourceHelm{
+			ValueFiles: []string{"foo"},
+		},
+	}
+
+	explicitType, err = src.ExplicitType()
+	assert.Nil(t, err)
+	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+}
+
+func TestExplicitTypeWithDirectory(t *testing.T) {
+	src := ApplicationSource{
+		Ksonnet: &ApplicationSourceKsonnet{
+			Environment: "foo",
+		},
+		Directory: &ApplicationSourceDirectory{},
+	}
+	_, err := src.ExplicitType()
+	assert.NotNil(t, err, "cannot add directory with any other types")
+}

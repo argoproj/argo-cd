@@ -80,6 +80,8 @@ type ApplicationSource struct {
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
+	// Custom holds custom templating tool specific options
+	Custom *ApplicationSourceTemplatingTool `json:"custom,omitempty" protobuf:"bytes,11,opt,name=custom"`
 }
 
 type ApplicationSourceType string
@@ -89,6 +91,7 @@ const (
 	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
 	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
+	ApplicationSourceTypeCustom    ApplicationSourceType = "Custom"
 )
 
 type RefreshType string
@@ -134,6 +137,15 @@ type ApplicationSourceDirectory struct {
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d.Recurse == false
+}
+
+// ApplicationSourceCustomTool holds helm specific options
+type ApplicationSourceTemplatingTool struct {
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+}
+
+func (c *ApplicationSourceTemplatingTool) IsZero() bool {
+	return c.Name == ""
 }
 
 // ApplicationDestination contains deployment destination information
@@ -677,6 +689,14 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
+// CustomTemplatingTool contains custom templating tool configuration
+type CustomTemplatingTool struct {
+	Name         string   `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,1,rep,name=name"`
+	BinaryPath   string   `json:"binaryPath,omitempty" yaml:"binaryPath,omitempty" protobuf:"bytes,2,rep,name=binaryPath"`
+	InitArgs     []string `json:"initArgs,omitempty" yaml:"initArgs,omitempty" protobuf:"bytes,3,rep,name=initArgs"`
+	TemplateArgs []string `json:"templateArgs,omitempty" yaml:"templateArgs,omitempty" protobuf:"bytes,4,rep,name=templateArgs"`
+}
+
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
@@ -755,13 +775,44 @@ func (condition *ApplicationCondition) IsError() bool {
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
-func (source ApplicationSource) Equals(other ApplicationSource) bool {
+func (source *ApplicationSource) Equals(other ApplicationSource) bool {
 	return reflect.DeepEqual(source, other)
 }
 
+func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) {
+	var appTypes []ApplicationSourceType
+	if source.Kustomize != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeKustomize)
+	}
+	if source.Helm != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeHelm)
+	}
+	if source.Ksonnet != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeKsonnet)
+	}
+	if source.Directory != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeDirectory)
+	}
+	if source.Custom != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeCustom)
+	}
+	if len(appTypes) == 0 {
+		return nil, nil
+	}
+	if len(appTypes) > 1 {
+		typeNames := make([]string, len(appTypes))
+		for i := range appTypes {
+			typeNames[i] = string(appTypes[i])
+		}
+		return nil, fmt.Errorf("multiple application sources defined: %s", strings.Join(typeNames, ","))
+	}
+	appType := appTypes[0]
+	return &appType, nil
+}
+
 // Equals compares two instances of ApplicationDestination and return true if instances are equal.
-func (source ApplicationDestination) Equals(other ApplicationDestination) bool {
-	return reflect.DeepEqual(source, other)
+func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
+	return reflect.DeepEqual(dest, other)
 }
 
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
