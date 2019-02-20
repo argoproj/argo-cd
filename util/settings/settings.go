@@ -66,7 +66,7 @@ type ArgoCDSettings struct {
 	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
 	ResourceOverrides map[string]ResourceOverride
-	ExcludedResources []ExcludedResource `json:"excludedResources"`
+	ExcludedResources []ExcludedResource
 }
 
 type ResourceOverride struct {
