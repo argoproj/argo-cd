@@ -20,7 +20,7 @@ func (r ExcludedResource) matchGroup(apiGroup string) bool {
 	return false
 }
 
-func match(pattern , text string) bool {
+func match(pattern, text string) bool {
 	compiledGlob, err := glob.Compile(pattern)
 	if err != nil {
 		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)

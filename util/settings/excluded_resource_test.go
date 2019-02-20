@@ -29,4 +29,3 @@ func TestExcludeResource(t *testing.T) {
 	assert.False(t, ExcludedResource{ApiGroups: []string{""}, Kinds: []string{"["}, Clusters: []string{""}}.Match("", "", ""))
 	assert.False(t, ExcludedResource{ApiGroups: []string{""}, Kinds: []string{""}, Clusters: []string{"["}}.Match("", "", ""))
 }
-
