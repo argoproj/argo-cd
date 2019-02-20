@@ -117,6 +117,10 @@ kubectl edit clusterrole argocd-server
 kubectl edit clusterrole argocd-application-controller
 ```
 
+Note:
+
+* If ArgoCD is configured such that it not permitted to list a kind of resource, it should be added as an [excluded resource](declarative-setup.md#resource-exclusion). 
+
 ## Auditing
 
 As a GitOps deployment tool, the git commit history provides a natural audit log of what changes
