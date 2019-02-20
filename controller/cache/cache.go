@@ -28,7 +28,7 @@ type LiveStateCache interface {
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
-	Run(ctx context.Context)
+	Run(ctx context.Context, settings *settings.ArgoCDSettings)
 	// Deletes specified resource from cluster.
 	Delete(server string, obj *unstructured.Unstructured) error
 	// Invalidate invalidates the entire cluster state cache
@@ -177,7 +177,7 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 }
 
 // Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
-func (c *liveStateCache) Run(ctx context.Context) {
+func (c *liveStateCache) Run(ctx context.Context, settings *settings.ArgoCDSettings) {
 	watchingClusters := make(map[string]struct {
 		cancel  context.CancelFunc
 		cluster *appv1.Cluster
@@ -204,7 +204,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 					},
 					cluster: event.Cluster,
 				}
-				go c.watchClusterResources(ctx, *event.Cluster)
+				go c.watchClusterResources(ctx, settings, *event.Cluster)
 			}
 		}
 
@@ -247,7 +247,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 }
 
 // watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
-func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.Cluster) {
+func (c *liveStateCache) watchClusterResources(ctx context.Context, settings *settings.ArgoCDSettings, item appv1.Cluster) {
 	util.RetryUntilSucceed(func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -262,7 +262,7 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.C
 		if err != nil {
 			return err
 		}
-		ch, err := c.kubectl.WatchResources(ctx, config, "")
+		ch, err := c.kubectl.WatchResources(ctx, config, settings, "")
 		if err != nil {
 			return err
 		}

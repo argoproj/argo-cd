@@ -2,7 +2,11 @@
 
 package mocks
 
-import context "context"
+import (
+	context "context"
+
+	"github.com/argoproj/argo-cd/util/settings"
+)
 import kube "github.com/argoproj/argo-cd/util/kube"
 import mock "github.com/stretchr/testify/mock"
 import schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -101,6 +105,6 @@ func (_m *LiveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKin
 }
 
 // Run provides a mock function with given fields: ctx
-func (_m *LiveStateCache) Run(ctx context.Context) {
+func (_m *LiveStateCache) Run(ctx context.Context, settings *settings.ArgoCDSettings) {
 	_m.Called(ctx)
 }

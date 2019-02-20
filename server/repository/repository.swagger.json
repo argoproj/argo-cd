@@ -1,0 +1,414 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Repository Service",
+    "description": "Repository Service API performs CRUD actions against repository resources",
+    "version": "version not set"
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/repositories": {
+      "get": {
+        "summary": "List returns list of repos",
+        "operationId": "List",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      },
+      "post": {
+        "summary": "Create creates a repo",
+        "operationId": "Create",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo.repo}": {
+      "put": {
+        "summary": "Update updates a repo",
+        "operationId": "Update",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo.repo",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}": {
+      "delete": {
+        "summary": "Delete deletes a repo",
+        "operationId": "Delete",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}/apps": {
+      "get": {
+        "summary": "ListApps returns list of apps in the repo",
+        "operationId": "ListApps",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}/apps/{path}": {
+      "get": {
+        "summary": "GetAppDetails returns application details by given path",
+        "operationId": "GetAppDetails",
+        "responses": {
+          "200": {
+            "description": "",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "repositoryAppInfo": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "title": "AppInfo contains application type and app file path"
+    },
+    "repositoryDirectoryAppSpec": {
+      "type": "object",
+      "title": "DirectoryAppSpec contains directory"
+    },
+    "repositoryHelmAppSpec": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "HelmAppSpec contains helm app name and path in source repo"
+    },
+    "repositoryKsonnetAppSpec": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "environments": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/repositoryKsonnetEnvironment"
+          }
+        }
+      },
+      "title": "KsonnetAppSpec contains Ksonnet app response\nThis roughly reflects: ksonnet/ksonnet/metadata/app/schema.go"
+    },
+    "repositoryKsonnetEnvironment": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the user defined name of an environment"
+        },
+        "k8sVersion": {
+          "type": "string",
+          "description": "KubernetesVersion is the kubernetes version the targetted cluster is running on."
+        },
+        "path": {
+          "type": "string",
+          "description": "Path is the relative project path containing metadata for this environment."
+        },
+        "destination": {
+          "$ref": "#/definitions/repositoryKsonnetEnvironmentDestination",
+          "description": "Destination stores the cluster address that this environment points to."
+        }
+      }
+    },
+    "repositoryKsonnetEnvironmentDestination": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "description": "Server is the Kubernetes server that the cluster is running on."
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace is the namespace of the Kubernetes server that targets should be deployed to"
+        }
+      }
+    },
+    "repositoryKustomizeAppSpec": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "title": "KustomizeAppSpec contains kustomize app name and path in source repo"
+    },
+    "repositoryRepoAppDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "ksonnet": {
+          "$ref": "#/definitions/repositoryKsonnetAppSpec"
+        },
+        "helm": {
+          "$ref": "#/definitions/repositoryHelmAppSpec"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/repositoryKustomizeAppSpec"
+        },
+        "directory": {
+          "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        }
+      },
+      "title": "RepoAppDetailsResponse application details"
+    },
+    "repositoryRepoAppsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryAppInfo"
+          }
+        }
+      },
+      "title": "RepoAppsResponse contains applications of specified repository"
+    },
+    "repositoryRepoResponse": {
+      "type": "object"
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "selfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage."
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1Time": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1alpha1ConnectionState": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "attemptedAt": {
+          "$ref": "#/definitions/v1Time"
+        }
+      },
+      "title": "ConnectionState contains information about remote resource connection state"
+    },
+    "v1alpha1Repository": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "sshPrivateKey": {
+          "type": "string"
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState"
+        }
+      },
+      "title": "Repository is a Git repository holding application configurations"
+    },
+    "v1alpha1RepositoryList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Repository"
+          }
+        }
+      },
+      "description": "RepositoryList is a collection of Repositories."
+    }
+  }
+}
