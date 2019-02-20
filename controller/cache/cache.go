@@ -247,7 +247,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 }
 
 // watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
-func (c *liveStateCache) watchClusterResources(ctx context.Context, settings *settings.ArgoCDSettings, item appv1.Cluster) {
+func (c *liveStateCache) watchClusterResources(ctx context.Context, resourceFilter kube.ResourceFilter, item appv1.Cluster) {
 	util.RetryUntilSucceed(func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -262,7 +262,7 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, settings *se
 		if err != nil {
 			return err
 		}
-		ch, err := c.kubectl.WatchResources(ctx, config, settings, "")
+		ch, err := c.kubectl.WatchResources(ctx, config, resourceFilter, "")
 		if err != nil {
 			return err
 		}

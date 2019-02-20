@@ -2,6 +2,7 @@ package kubetest
 
 import (
 	"context"
+	"github.com/argoproj/argo-cd/util/kube"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -9,8 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
-
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type KubectlOutput struct {
@@ -29,7 +28,7 @@ func (k MockKubectlCmd) GetAPIResources(config *rest.Config) ([]*v1.APIResourceL
 	return k.APIResources, nil
 }
 
-func (k MockKubectlCmd) GetResources(config *rest.Config, settings *settings.ArgoCDSettings, namespace string) ([]*unstructured.Unstructured, error) {
+func (k MockKubectlCmd) GetResources(config *rest.Config, resourceFilter kube.ResourceFilter, namespace string) ([]*unstructured.Unstructured, error) {
 	return k.Resources, nil
 }
 
@@ -42,7 +41,7 @@ func (k MockKubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersi
 }
 
 func (k MockKubectlCmd) WatchResources(
-	ctx context.Context, config *rest.Config, settings *settings.ArgoCDSettings, namespace string) (chan watch.Event, error) {
+	ctx context.Context, config *rest.Config, resourceFilter kube.ResourceFilter, namespace string) (chan watch.Event, error) {
 
 	return k.Events, nil
 }

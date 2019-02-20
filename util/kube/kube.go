@@ -29,7 +29,6 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	jsonutil "github.com/argoproj/argo-cd/util/json"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -255,7 +254,7 @@ type apiResourceInterface struct {
 
 type filterFunc func(groupVersion string, apiResource *metav1.APIResource) bool
 
-func filterAPIResources(config *rest.Config, settings *settings.ArgoCDSettings, filter filterFunc, namespace string) ([]apiResourceInterface, error) {
+func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc, namespace string) ([]apiResourceInterface, error) {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -277,7 +276,7 @@ func filterAPIResources(config *rest.Config, settings *settings.ArgoCDSettings, 
 		if err != nil {
 			gv = schema.GroupVersion{}
 		}
-		if settings.IsExcludedResource(gv.Group, apiResourcesList.Kind, config.Host) {
+		if resourceFilter.IsExcludedResource(gv.Group, apiResourcesList.Kind, config.Host) {
 			continue
 		}
 		for _, apiResource := range apiResourcesList.APIResources {
