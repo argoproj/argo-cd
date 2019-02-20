@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/settings"
-
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -29,6 +27,7 @@ import (
 
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type Kubectl interface {

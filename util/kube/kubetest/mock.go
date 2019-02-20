@@ -3,15 +3,14 @@ package kubetest
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/util/settings"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type KubectlOutput struct {
