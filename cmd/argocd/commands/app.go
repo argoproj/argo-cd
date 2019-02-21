@@ -386,8 +386,8 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles)
 		case "directory-recurse":
 			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
-		case "custom-tool":
-			app.Spec.Source.Custom = &argoappv1.ApplicationSourceTemplatingTool{Name: appOpts.customTool}
+		case "config-management-plugin":
+			app.Spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-server":
 			app.Spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":
@@ -458,20 +458,20 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 }
 
 type appOptions struct {
-	repoURL          string
-	appPath          string
-	env              string
-	revision         string
-	destServer       string
-	destNamespace    string
-	parameters       []string
-	valuesFiles      []string
-	project          string
-	syncPolicy       string
-	autoPrune        bool
-	namePrefix       string
-	directoryRecurse bool
-	customTool       string
+	repoURL                string
+	appPath                string
+	env                    string
+	revision               string
+	destServer             string
+	destNamespace          string
+	parameters             []string
+	valuesFiles            []string
+	project                string
+	syncPolicy             string
+	autoPrune              bool
+	namePrefix             string
+	directoryRecurse       bool
+	configManagementPlugin string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -488,7 +488,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
-	command.Flags().StringVar(&opts.customTool, "custom-tool", "", "Custom templating tool name")
+	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -592,17 +592,11 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 }
 
 func getLocalObjects(app *argoappv1.Application, local string, appLabelKey string) []*unstructured.Unstructured {
-	overrides := make([]*argoappv1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
-	for i := range app.Spec.Source.ComponentParameterOverrides {
-		item := app.Spec.Source.ComponentParameterOverrides[i]
-		overrides[i] = &item
-	}
 	res, err := repository.GenerateManifests(local, &repository.ManifestRequest{
-		ApplicationSource:           &app.Spec.Source,
-		AppLabelKey:                 appLabelKey,
-		AppLabelValue:               app.Name,
-		Namespace:                   app.Spec.Destination.Namespace,
-		ComponentParameterOverrides: overrides,
+		ApplicationSource: &app.Spec.Source,
+		AppLabelKey:       appLabelKey,
+		AppLabelValue:     app.Name,
+		Namespace:         app.Spec.Destination.Namespace,
 	})
 	errors.CheckError(err)
 	objs := make([]*unstructured.Unstructured, len(res.Manifests))

@@ -107,14 +107,16 @@ func TestRunCustomTool(t *testing.T) {
 		AppLabelValue: "test-app",
 		Namespace:     "test-namespace",
 		ApplicationSource: &argoappv1.ApplicationSource{
-			Custom: &argoappv1.ApplicationSourceTemplatingTool{
+			Plugin: &argoappv1.ApplicationSourcePlugin{
 				Name: "test",
 			},
 		},
-		CustomTools: []*argoappv1.CustomTemplatingTool{{
-			Name:         "test",
-			BinaryPath:   "/bin/sh",
-			TemplateArgs: []string{"-c", `echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP\", \"namespace\": \"$ARGOCD_NAMESPACE\"}}"`},
+		Plugins: []*argoappv1.ConfigManagementPlugin{{
+			Name: "test",
+			Template: argoappv1.Command{
+				Path: "/bin/sh",
+				Args: []string{"-c", `echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\"}}"`},
+			},
 		}},
 	})
 
@@ -127,11 +129,12 @@ func TestRunCustomTool(t *testing.T) {
 	assert.Equal(t, obj.GetName(), "test-app")
 	assert.Equal(t, obj.GetNamespace(), "test-namespace")
 }
+
 func TestGenerateFromUTF16(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := generateManifests("./testdata/utf-16", &q)
+	res1, err := GenerateManifests("./testdata/utf-16", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

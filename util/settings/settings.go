@@ -64,8 +64,8 @@ type ArgoCDSettings struct {
 	HelmRepositories []HelmRepoCredentials
 	// AppInstanceLabelKey is the configured application instance label key used to label apps. May be empty
 	AppInstanceLabelKey string
-	// TemplatingTools hols list of configured templating tools
-	TemplatingTools []v1alpha1.CustomTemplatingTool
+	// ConfigManagementPlugins hols list of configured config management plugins
+	ConfigManagementPlugins []v1alpha1.ConfigManagementPlugin
 	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
 	ResourceOverrides map[string]ResourceOverride
@@ -134,8 +134,8 @@ const (
 	resourcesCustomizationsKey = "resource.customizations"
 	// excludedResourcesKey is the key to the list of excluded resourcese
 	excludedResourcesKey = "excludedResources"
-	// templatingToolsKey is the key to the list of custom templating tools
-	templatingToolsKey = "templatingTools"
+	// configManagementPluginsKey is the key to the list of config management plugins
+	configManagementPluginsKey = "configManagementPlugins"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -365,13 +365,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		}
 	}
 
-	if value, ok := argoCDCM.Data[templatingToolsKey]; ok {
-		tools := make([]v1alpha1.CustomTemplatingTool, 0)
+	if value, ok := argoCDCM.Data[configManagementPluginsKey]; ok {
+		tools := make([]v1alpha1.ConfigManagementPlugin, 0)
 		err := yaml.Unmarshal([]byte(value), &tools)
 		if err != nil {
 			errors = append(errors, err)
 		} else {
-			settings.TemplatingTools = tools
+			settings.ConfigManagementPlugins = tools
 		}
 	}
 

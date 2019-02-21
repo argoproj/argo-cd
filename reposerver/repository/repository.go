@@ -32,6 +32,11 @@ import (
 	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
+const (
+	PluginEnvAppName      = "ARGOCD_APP_NAME"
+	PluginEnvAppNamespace = "ARGOCD_APP_NAMESPACE"
+)
+
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
@@ -239,8 +244,8 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		k := kustomize.NewKustomizeApp(appPath)
 		opts := kustomizeOpts(q)
 		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
-	case v1alpha1.ApplicationSourceTypeCustom:
-		targetObjs, err = runCustomTool(appPath, q, q.CustomTools)
+	case v1alpha1.ApplicationSourceTypePlugin:
+		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Plugins)
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		directoryRecurse := q.ApplicationSource.Directory != nil && q.ApplicationSource.Directory.Recurse
 		targetObjs, err = findManifests(appPath, directoryRecurse)
@@ -501,26 +506,28 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func runCustomTool(appPath string, q *ManifestRequest, tools []*v1alpha1.CustomTemplatingTool) ([]*unstructured.Unstructured, error) {
-	var tool *v1alpha1.CustomTemplatingTool
-	for i := range tools {
-		if tools[i].Name == q.ApplicationSource.Custom.Name {
-			tool = tools[i]
+func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
+	var tool *v1alpha1.ConfigManagementPlugin
+	for i := range plugins {
+		if plugins[i].Name == q.ApplicationSource.Plugin.Name {
+			tool = plugins[i]
 			break
 		}
 	}
 	if tool == nil {
-		return nil, fmt.Errorf("Custom templating tool with name '%s' is not supported.", q.ApplicationSource.Custom.Name)
+		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
 	}
+	env := []string{
+		fmt.Sprintf("%s=%s", PluginEnvAppName, q.AppLabelValue),
+		fmt.Sprintf("%s=%s", PluginEnvAppNamespace, q.Namespace)}
 
-	if len(tool.InitArgs) > 0 {
-		_, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.BinaryPath, Args: append([]string{tool.BinaryPath}, tool.InitArgs...)})
+	if tool.Init != nil {
+		_, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.Init.Path, Args: append([]string{tool.Init.Path}, tool.Init.Args...), Env: env})
 		if err != nil {
 			return nil, err
 		}
 	}
-	env := []string{"ARGOCD_APP=" + q.AppLabelValue, "ARGOCD_NAMESPACE=" + q.Namespace}
-	out, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.BinaryPath, Args: append([]string{tool.BinaryPath}, tool.TemplateArgs...), Env: env})
+	out, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.Template.Path, Args: append([]string{tool.Template.Path}, tool.Template.Args...), Env: env})
 	if err != nil {
 		return nil, err
 	}

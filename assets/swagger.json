@@ -2324,9 +2324,6 @@
             "$ref": "#/definitions/v1alpha1ComponentParameter"
           }
         },
-        "custom": {
-          "$ref": "#/definitions/v1alpha1ApplicationSourceTemplatingTool"
-        },
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
@@ -2346,6 +2343,9 @@
         "path": {
           "type": "string",
           "title": "Path is a directory path within the repository containing a"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
         "repoURL": {
           "type": "string",
@@ -2406,9 +2406,9 @@
         }
       }
     },
-    "v1alpha1ApplicationSourceTemplatingTool": {
+    "v1alpha1ApplicationSourcePlugin": {
       "type": "object",
-      "title": "ApplicationSourceCustomTool holds helm specific options",
+      "title": "ApplicationSourcePlugin holds config management plugin specific options",
       "properties": {
         "name": {
           "type": "string"

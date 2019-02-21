@@ -80,8 +80,8 @@ type ApplicationSource struct {
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
-	// Custom holds custom templating tool specific options
-	Custom *ApplicationSourceTemplatingTool `json:"custom,omitempty" protobuf:"bytes,11,opt,name=custom"`
+	// ConfigManagementPlugin holds config management plugin specific options
+	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 }
 
 type ApplicationSourceType string
@@ -91,7 +91,7 @@ const (
 	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
 	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
-	ApplicationSourceTypeCustom    ApplicationSourceType = "Custom"
+	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
 
 type RefreshType string
@@ -139,12 +139,12 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d.Recurse == false
 }
 
-// ApplicationSourceCustomTool holds helm specific options
-type ApplicationSourceTemplatingTool struct {
+// ApplicationSourcePlugin holds config management plugin specific options
+type ApplicationSourcePlugin struct {
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 }
 
-func (c *ApplicationSourceTemplatingTool) IsZero() bool {
+func (c *ApplicationSourcePlugin) IsZero() bool {
 	return c.Name == ""
 }
 
@@ -689,12 +689,17 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
-// CustomTemplatingTool contains custom templating tool configuration
-type CustomTemplatingTool struct {
-	Name         string   `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,1,rep,name=name"`
-	BinaryPath   string   `json:"binaryPath,omitempty" yaml:"binaryPath,omitempty" protobuf:"bytes,2,rep,name=binaryPath"`
-	InitArgs     []string `json:"initArgs,omitempty" yaml:"initArgs,omitempty" protobuf:"bytes,3,rep,name=initArgs"`
-	TemplateArgs []string `json:"templateArgs,omitempty" yaml:"templateArgs,omitempty" protobuf:"bytes,4,rep,name=templateArgs"`
+// Command holds binary path and arguments list
+type Command struct {
+	Path string   `json:"path,omitempty" yaml:"path,omitempty" protobuf:"bytes,1,name=path"`
+	Args []string `json:"args,omitempty" yaml:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
+}
+
+// ConfigManagementPlugin contains config management plugin configuration
+type ConfigManagementPlugin struct {
+	Name     string   `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,1,name=name"`
+	Init     *Command `json:"init,omitempty" yaml:"init,omitempty" protobuf:"bytes,2,name=init"`
+	Template Command  `json:"template,omitempty" yaml:"template,omitempty" protobuf:"bytes,3,rep,name=template"`
 }
 
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
@@ -793,8 +798,8 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 	if source.Directory != nil {
 		appTypes = append(appTypes, ApplicationSourceTypeDirectory)
 	}
-	if source.Custom != nil {
-		appTypes = append(appTypes, ApplicationSourceTypeCustom)
+	if source.Plugin != nil {
+		appTypes = append(appTypes, ApplicationSourceTypePlugin)
 	}
 	if len(appTypes) == 0 {
 		return nil, nil

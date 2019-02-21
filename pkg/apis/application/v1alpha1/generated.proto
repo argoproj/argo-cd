@@ -140,8 +140,8 @@ message ApplicationSource {
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
 
-  // Custom holds custom templating tool specific options
-  optional ApplicationSourceTemplatingTool custom = 11;
+  // ConfigManagementPlugin holds config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 11;
 }
 
 message ApplicationSourceDirectory {
@@ -166,8 +166,8 @@ message ApplicationSourceKustomize {
   optional string namePrefix = 1;
 }
 
-// ApplicationSourceCustomTool holds helm specific options
-message ApplicationSourceTemplatingTool {
+// ApplicationSourcePlugin holds config management plugin specific options
+message ApplicationSourcePlugin {
   optional string name = 1;
 }
 
@@ -260,6 +260,13 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// Command holds binary path and arguments list
+message Command {
+  optional string path = 1;
+
+  repeated string args = 2;
+}
+
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
   optional ApplicationSource source = 1;
@@ -276,6 +283,15 @@ message ComponentParameter {
   optional string value = 3;
 }
 
+// ConfigManagementPlugin contains config management plugin configuration
+message ConfigManagementPlugin {
+  optional string name = 1;
+
+  optional Command init = 2;
+
+  optional Command template = 3;
+}
+
 // ConnectionState contains information about remote resource connection state
 message ConnectionState {
   optional string status = 1;
@@ -283,17 +299,6 @@ message ConnectionState {
   optional string message = 2;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
-}
-
-// CustomTemplatingTool contains custom templating tool configuration
-message CustomTemplatingTool {
-  optional string name = 1;
-
-  optional string binaryPath = 2;
-
-  repeated string initArgs = 3;
-
-  repeated string templateArgs = 4;
 }
 
 message HealthStatus {

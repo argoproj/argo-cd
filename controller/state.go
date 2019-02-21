@@ -112,9 +112,9 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, re
 		}
 	}
 
-	tools := make([]*appv1.CustomTemplatingTool, len(m.settings.TemplatingTools))
-	for i := range m.settings.TemplatingTools {
-		tools[i] = &m.settings.TemplatingTools[i]
+	tools := make([]*appv1.ConfigManagementPlugin, len(m.settings.ConfigManagementPlugins))
+	for i := range m.settings.ConfigManagementPlugins {
+		tools[i] = &m.settings.ConfigManagementPlugins[i]
 	}
 
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
@@ -127,7 +127,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, re
 		AppLabelValue:               app.Name,
 		Namespace:                   app.Spec.Destination.Namespace,
 		ApplicationSource:           &app.Spec.Source,
-		CustomTools:                 tools,
+		Plugins:                     tools,
 	})
 	if err != nil {
 		return nil, nil, nil, err
