@@ -2,8 +2,6 @@ package common
 
 // Default service addresses and URLS of Argo CD internal services
 const (
-	// DefaultAppControllerServerAddr is the gRPC address of the Argo CD app controller server
-	DefaultAppControllerServerAddr = "argocd-application-controller:8083"
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
@@ -17,6 +15,13 @@ const (
 	ArgoCDConfigMapName     = "argocd-cm"
 	ArgoCDSecretName        = "argocd-secret"
 	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+)
+
+const (
+	PortAPIServer              = 8080
+	PortRepoServer             = 8081
+	PortArgoCDMetrics          = 8082
+	PortArgoCDAPIServerMetrics = 8083
 )
 
 // Argo CD application related constants

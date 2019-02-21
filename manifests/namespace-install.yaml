@@ -226,20 +226,6 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argo-cd
-  name: argocd-application-controller
-spec:
-  ports:
-  - port: 8083
-    targetPort: 8083
-  selector:
-    app.kubernetes.io/component: application-controller
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argo-cd
   name: argocd-dex-server
@@ -260,17 +246,17 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: server
+    app.kubernetes.io/component: argocd-metrics
     app.kubernetes.io/name: argo-cd
   name: argocd-metrics
 spec:
   ports:
-  - name: http
+  - name: metrics
     port: 8082
     protocol: TCP
     targetPort: 8082
   selector:
-    app.kubernetes.io/component: server
+    app.kubernetes.io/component: application-controller
 ---
 apiVersion: v1
 kind: Service
@@ -300,6 +286,22 @@ spec:
     targetPort: 8081
   selector:
     app.kubernetes.io/component: repo-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argo-cd
+  name: argocd-server-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 8083
+    protocol: TCP
+    targetPort: 8083
+  selector:
+    app.kubernetes.io/component: server
 ---
 apiVersion: v1
 kind: Service
@@ -348,12 +350,12 @@ spec:
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
-        - containerPort: 8083
+        - containerPort: 8082
         readinessProbe:
           initialDelaySeconds: 5
           periodSeconds: 10
           tcpSocket:
-            port: 8083
+            port: 8082
       serviceAccountName: argocd-application-controller
 ---
 apiVersion: apps/v1
@@ -481,6 +483,7 @@ spec:
         name: argocd-server
         ports:
         - containerPort: 8080
+        - containerPort: 8083
         readinessProbe:
           httpGet:
             path: /healthz
