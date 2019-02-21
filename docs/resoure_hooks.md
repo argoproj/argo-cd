@@ -2,8 +2,8 @@
 
 ## Overview
 
-Hooks are ways to interject custom logic before, during, and after a Sync operation. Some use cases
-for hooks are:
+Synchronization can be configured using resource hooks. Hooks are ways to interject custom logic before, during,
+and after a Sync operation. Some use cases for hooks are:
 * Using a `PreSync` hook to perform a database schema migration before deploying a new version of the app.
 * Using a `Sync` hook to orchestrate a complex deployment requiring more sophistication than the
 kubernetes rolling update strategy (e.g. a blue/green deployment).
