@@ -205,8 +205,8 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                     <ApplicationsSummary applications={filterApps(applications, pref, pref.search)} />
                                 ) || (
                                     <Paginate
+                                        preferencesKey='applications-list'
                                         page={pref.page}
-                                        pageLimit={16}
                                         emptyState={() => (
                                             <EmptyState icon='search'>
                                                 <h4>No applications found</h4>

@@ -23,11 +23,12 @@ export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
+    pageSizes: {[key: string]: number};
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
 
-const minVer = 2;
+const minVer = 3;
 
 const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
@@ -54,6 +55,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         syncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
     },
+    pageSizes: {},
 };
 
 export class ViewPreferencesService {
