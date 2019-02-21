@@ -215,6 +215,49 @@ data:
         key: key
 ```
 
+## Resource Exclusion
+
+Resources can be excluded from discovery and sync so that ArgoCD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
+
+* You have temporal issues and you want to exclude problematic resources.
+* There are many of a kind of resources that impacts ArgoCD's performance.
+* Restrict ArgoCD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
+
+To configure this, edit the `argcd-cm` config map:
+
+```
+kubectl edit configmap argocd-cm -n argocdconfigmap/argocd-cm edited
+```
+
+Add `excludedResources`, e.g.:
+
+```yaml
+apiVersion: v1
+data:
+  excludedResources: |
+    - apiGroups:
+      - "*"
+      kinds:
+      - "*"
+      clusters:
+      - https://192.168.0.20
+kind: ConfigMap
+```
+
+The `excludedResources` node is a list of objects. Each object can have:
+
+- `apiGroups` A list of globs to match the API group.
+- `kinds` A list of kinds to match. Can be "*" to match all.
+- `cluster` A list of globs to match the cluster.
+
+If all three match, then the resource is ignored.
+
+Notes:
+
+* Quote globs in your YAML to avoid parsing errors.
+* Invalid globs result in the whole rule being ignored.
+* If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
+
 ## SSO & RBAC
 
 * SSO configuration details: [SSO](sso.md)

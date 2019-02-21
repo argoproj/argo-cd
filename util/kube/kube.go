@@ -246,17 +246,6 @@ func IsCRD(obj *unstructured.Unstructured) bool {
 	return IsCRDGroupVersionKind(obj.GroupVersionKind())
 }
 
-// excludedAPIGroups is a list of groups that we do not care to monitor
-var excludedAPIGroups = map[string]bool{
-	"events.k8s.io":  true,
-	"metrics.k8s.io": true,
-}
-
-func isExcludedResourceGroup(group string) bool {
-	_, ok := excludedAPIGroups[group]
-	return ok
-}
-
 type apiResourceInterface struct {
 	groupVersion string
 	apiResource  metav1.APIResource
@@ -265,7 +254,7 @@ type apiResourceInterface struct {
 
 type filterFunc func(groupVersion string, apiResource *metav1.APIResource) bool
 
-func filterAPIResources(config *rest.Config, filter filterFunc, namespace string) ([]apiResourceInterface, error) {
+func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc, namespace string) ([]apiResourceInterface, error) {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -287,7 +276,7 @@ func filterAPIResources(config *rest.Config, filter filterFunc, namespace string
 		if err != nil {
 			gv = schema.GroupVersion{}
 		}
-		if isExcludedResourceGroup(gv.Group) {
+		if resourceFilter.IsExcludedResource(gv.Group, apiResourcesList.Kind, config.Host) {
 			continue
 		}
 		for _, apiResource := range apiResourcesList.APIResources {

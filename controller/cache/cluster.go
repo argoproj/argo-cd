@@ -132,7 +132,7 @@ func (c *clusterInfo) sync() (err error) {
 	}
 
 	c.nodes = make(map[kube.ResourceKey]*node)
-	resources, err := c.kubectl.GetResources(c.cluster.RESTConfig(), "")
+	resources, err := c.kubectl.GetResources(c.cluster.RESTConfig(), c.settings, "")
 	if err != nil {
 		log.Errorf("Failed to sync cluster %s: %v", c.cluster.Server, err)
 		return err

@@ -35,8 +35,8 @@ type Kubectl interface {
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
-	WatchResources(ctx context.Context, config *rest.Config, namespace string) (chan watch.Event, error)
-	GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error)
+	WatchResources(ctx context.Context, config *rest.Config, resourceFilter ResourceFilter, namespace string) (chan watch.Event, error)
+	GetResources(config *rest.Config, resourceFilter ResourceFilter, namespace string) ([]*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config) ([]*metav1.APIResourceList, error)
 }
 
@@ -51,12 +51,12 @@ func (k KubectlCmd) GetAPIResources(config *rest.Config) ([]*metav1.APIResourceL
 }
 
 // GetResources returns all kubernetes resources
-func (k KubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {
+func (k KubectlCmd) GetResources(config *rest.Config, resourceFilter ResourceFilter, namespace string) ([]*unstructured.Unstructured, error) {
 
 	listSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(apiResource.Group)
+		return isSupportedVerb(apiResource, listVerb)
 	}
-	apiResIfs, err := filterAPIResources(config, listSupported, namespace)
+	apiResIfs, err := filterAPIResources(config, resourceFilter, listSupported, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -94,13 +94,14 @@ const watchResourcesRetryTimeout = 1 * time.Second
 func (k KubectlCmd) WatchResources(
 	ctx context.Context,
 	config *rest.Config,
+	resourceFilter ResourceFilter,
 	namespace string,
 ) (chan watch.Event, error) {
 	watchSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(apiResource.Group)
+		return isSupportedVerb(apiResource, watchVerb)
 	}
 	log.Infof("Start watching for resources changes with in cluster %s", config.Host)
-	apiResIfs, err := filterAPIResources(config, watchSupported, namespace)
+	apiResIfs, err := filterAPIResources(config, resourceFilter, watchSupported, namespace)
 	if err != nil {
 		return nil, err
 	}

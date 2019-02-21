@@ -120,6 +120,14 @@ endif
 builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
 
+.PHONY: dep-ensure
+dep-ensure:
+	dep ensure
+
+.PHONY: format-code
+format-code:
+	./hack/format-code.sh
+
 .PHONY: lint
 lint:
 	gometalinter.v2 --config gometalinter.json ./...
@@ -141,8 +149,8 @@ clean-debug:
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
-.PHONY: precheckin
-precheckin: test lint
+.PHONY: pre-commit
+pre-commit: dep-ensure codegen format-code test lint
 
 .PHONY: release-precheck
 release-precheck: manifests

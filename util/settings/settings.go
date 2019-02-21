@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	v1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -66,6 +66,7 @@ type ArgoCDSettings struct {
 	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
 	ResourceOverrides map[string]ResourceOverride
+	ExcludedResources []ExcludedResource
 }
 
 type ResourceOverride struct {
@@ -127,6 +128,8 @@ const (
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourcesCustomizationsKey = "resource.customizations"
+	// excludedResourcesKey is the key to the list of excluded resourcese
+	excludedResourcesKey = "excludedResources"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -345,6 +348,17 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 			settings.ResourceOverrides = resourceOverrides
 		}
 	}
+
+	if value, ok := argoCDCM.Data[excludedResourcesKey]; ok {
+		excludedResources := make([]ExcludedResource, 0)
+		err := yaml.Unmarshal([]byte(value), &excludedResources)
+		if err != nil {
+			errors = append(errors, err)
+		} else {
+			settings.ExcludedResources = excludedResources
+		}
+	}
+
 	if len(errors) > 0 {
 		return errors[0]
 	}
@@ -463,6 +477,15 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 			return err
 		}
 		argoCDCM.Data[resourcesCustomizationsKey] = string(yamlBytes)
+	}
+
+	if len(settings.ExcludedResources) > 0 {
+		yamlBytes, err := yaml.Marshal(settings.ExcludedResources)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[excludedResourcesKey] = string(yamlBytes)
+
 	}
 
 	if createCM {
@@ -773,4 +796,22 @@ func (a *ArgoCDSettings) GetAppInstanceLabelKey() string {
 		return common.LabelKeyAppInstance
 	}
 	return a.AppInstanceLabelKey
+}
+
+func (a *ArgoCDSettings) getExcludedResources() []ExcludedResource {
+	coreExcludedResources := []ExcludedResource{
+		{ApiGroups: []string{"events.k8s.io", "metrics.k8s.io"}, Kinds: []string{"*"}, Clusters: []string{"*"}},
+	}
+	return append(coreExcludedResources, a.ExcludedResources...)
+}
+
+func (a *ArgoCDSettings) IsExcludedResource(apiGroup, kind, cluster string) bool {
+
+	for _, excludedResource := range a.getExcludedResources() {
+		if excludedResource.Match(apiGroup, kind, cluster) {
+			return true
+		}
+	}
+
+	return false
 }
