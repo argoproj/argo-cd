@@ -118,12 +118,12 @@ In order to create roles in a project and add policies to a role, a user will ne
 update a project.  The following commands can be used to manage a role.
 
 ```bash
-argoproj proj role list
-argoproj proj role get
-argoproj proj role create
-argoproj proj role delete
-argoproj proj role add-policy
-argoproj proj role remove-policy
+argocd proj role list
+argocd proj role get
+argocd proj role create
+argocd proj role delete
+argocd proj role add-policy
+argocd proj role remove-policy
 ```
 
 Project roles in itself are not useful without generating a token to associate to that role. Argo CD
@@ -134,8 +134,8 @@ for that JWT token.
 The following commands are used to manage the JWT tokens.
 
 ```bash
-argoproj proj role create-token PROJECT ROLE-NAME
-argoproj proj role delete-token PROJECT ROLE-NAME ISSUED-AT
+argocd proj role create-token PROJECT ROLE-NAME
+argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT
 ```
 
 Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A
