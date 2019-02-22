@@ -463,7 +463,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
         if (application) {
             nodeByKey.set(nodeKey({
-                group: application.apiVersion, kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace,
+                group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace,
             }), application);
             for (const node of (resources || [])) {
                 addChildren({...node, children: node.children, key: nodeKey(node)});
