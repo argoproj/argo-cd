@@ -514,6 +514,14 @@
   revision = "bc372cc64f55abd91995ba3f219b380ffbc59e9d"
 
 [[projects]]
+  digest = "1:e24dc5ef44694848785de507f439a24e9e6d96d7b43b8cf3d6cfa857aa1e2186"
+  name = "github.com/grpc-ecosystem/go-grpc-prometheus"
+  packages = ["."]
+  pruneopts = ""
+  revision = "c225b8c3b01faf2899099b768856a9e916e5087b"
+  version = "v1.2.0"
+
+[[projects]]
   digest = "1:9feb7485bc57adbcbc1e1037ca05588e9d8b0a3a1875fbf730021fc118859b75"
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
@@ -1591,6 +1599,7 @@
     "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus",
     "github.com/grpc-ecosystem/go-grpc-middleware/retry",
     "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus",
+    "github.com/grpc-ecosystem/go-grpc-prometheus",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",

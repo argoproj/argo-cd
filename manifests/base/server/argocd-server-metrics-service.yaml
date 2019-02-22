@@ -4,12 +4,12 @@ metadata:
   labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argo-cd
-  name: argocd-metrics
+  name: argocd-server-metrics
 spec:
   ports:
-  - name: http
+  - name: metrics
     protocol: TCP
-    port: 8082
-    targetPort: 8082
+    port: 8083
+    targetPort: 8083
   selector:
     app.kubernetes.io/component: server

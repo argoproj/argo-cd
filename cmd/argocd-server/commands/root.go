@@ -22,18 +22,17 @@ import (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		insecure                   bool
-		logLevel                   string
-		glogLevel                  int
-		clientConfig               clientcmd.ClientConfig
-		staticAssetsDir            string
-		baseHRef                   string
-		repoServerAddress          string
-		appControllerServerAddress string
-		dexServerAddress           string
-		disableAuth                bool
-		tlsConfigCustomizerSrc     func() (tls.ConfigCustomizer, error)
-		cacheSrc                   func() (*cache.Cache, error)
+		insecure               bool
+		logLevel               string
+		glogLevel              int
+		clientConfig           clientcmd.ClientConfig
+		staticAssetsDir        string
+		baseHRef               string
+		repoServerAddress      string
+		dexServerAddress       string
+		disableAuth            bool
+		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
+		cacheSrc               func() (*cache.Cache, error)
 	)
 	var command = &cobra.Command{
 		Use:   cliName,
@@ -95,7 +94,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
-	command.Flags().StringVar(&appControllerServerAddress, "app-controller-server", common.DefaultAppControllerServerAddr, "App controller server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", common.DefaultDexServerAddr, "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", false, "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))

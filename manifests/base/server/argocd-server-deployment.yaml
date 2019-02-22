@@ -33,6 +33,7 @@ spec:
           name: static-files
         ports:
         - containerPort: 8080
+        - containerPort: 8083
         readinessProbe:
           httpGet:
             path: /healthz

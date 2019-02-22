@@ -2,12 +2,14 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/component: argocd-metrics
     app.kubernetes.io/name: argo-cd
-  name: argocd-application-controller
+  name: argocd-metrics
 spec:
   ports:
-  - port: 8083
-    targetPort: 8083
+  - name: metrics
+    protocol: TCP
+    port: 8082
+    targetPort: 8082
   selector:
     app.kubernetes.io/component: application-controller

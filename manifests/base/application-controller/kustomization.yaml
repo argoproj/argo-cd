@@ -3,4 +3,4 @@ resources:
 - argocd-application-controller-role.yaml
 - argocd-application-controller-rolebinding.yaml
 - argocd-application-controller-deployment.yaml
-- argocd-application-controller-service.yaml
+- argocd-metrics.yaml
