@@ -90,3 +90,11 @@ func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/kustomization_yml"))
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/Kustomization"))
 }
+func TestGenerateFromUTF16(t *testing.T) {
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+	}
+	res1, err := generateManifests("./testdata/utf-16", &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(res1.Manifests))
+}

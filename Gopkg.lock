@@ -42,6 +42,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:a1b56af5e69569454f55ef4842485a0da5616e240a610d77c987e17a73b0e265"
+  name = "github.com/TomOnTime/utfutil"
+  packages = ["."]
+  pruneopts = ""
+  revision = "09c41003ee1d5015b75f331e52215512e7145b8d"
+
+[[projects]]
+  branch = "master"
   digest = "1:a74730e052a45a3fab1d310fdef2ec17ae3d6af16228421e238320846f2aaec8"
   name = "github.com/alecthomas/template"
   packages = [
@@ -981,12 +989,18 @@
   packages = [
     "collate",
     "collate/build",
+    "encoding",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/unicode",
     "internal/colltab",
     "internal/gen",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
+    "internal/utf8internal",
     "language",
+    "runes",
     "secure/bidirule",
     "transform",
     "unicode/bidi",
@@ -1535,6 +1549,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Masterminds/semver",
+    "github.com/TomOnTime/utfutil",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
     "github.com/argoproj/pkg/exec",
