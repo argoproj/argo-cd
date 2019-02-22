@@ -517,9 +517,8 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1
 	if tool == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
 	}
-	env := []string{
-		fmt.Sprintf("%s=%s", PluginEnvAppName, q.AppLabelValue),
-		fmt.Sprintf("%s=%s", PluginEnvAppNamespace, q.Namespace)}
+
+	env := append(os.Environ(), fmt.Sprintf("%s=%s", PluginEnvAppName, q.AppLabelValue), fmt.Sprintf("%s=%s", PluginEnvAppNamespace, q.Namespace))
 
 	if tool.Init != nil {
 		_, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.Init.Path, Args: append([]string{tool.Init.Path}, tool.Init.Args...), Env: env})
