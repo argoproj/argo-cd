@@ -10,7 +10,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/google/go-jsonnet"
+	"github.com/TomOnTime/utfutil"
+	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -406,7 +407,7 @@ func FindManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstr
 		if !manifestFile.MatchString(f.Name()) {
 			return nil
 		}
-		out, err := ioutil.ReadFile(path)
+		out, err := utfutil.ReadFile(path, utfutil.UTF8)
 		if err != nil {
 			return err
 		}
