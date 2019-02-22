@@ -205,6 +205,14 @@
   version = "v1.9.0"
 
 [[projects]]
+  digest = "1:4216202f4088a73e2982df875e2f0d1401137bbc248e57391e70547af167a18a"
+  name = "github.com/evanphx/json-patch"
+  packages = ["."]
+  pruneopts = ""
+  revision = "72bf35d0ff611848c1dc9df0f976c81192392fa5"
+  version = "v4.1.0"
+
+[[projects]]
   digest = "1:b13707423743d41665fd23f0c36b2f37bb49c30e94adb813319c44188a51ba22"
   name = "github.com/ghodss/yaml"
   packages = ["."]
@@ -1560,6 +1568,7 @@
     "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
     "github.com/dustin/go-humanize",
+    "github.com/evanphx/json-patch",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/loads",
     "github.com/go-openapi/runtime/middleware",

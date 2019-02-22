@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
+	argosettings "github.com/argoproj/argo-cd/util/settings"
 
 	"github.com/ghodss/yaml"
 	"github.com/google/shlex"
@@ -41,7 +42,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/yudai/gojsondiff"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -781,8 +781,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			for i := range items {
 				item := items[i]
+				// TODO (amatyushentsev): use resource overrides exposed from API server
+				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, make(map[string]argosettings.ResourceOverride))
+				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
-				diffRes := diff.Diff(item.target, item.live)
+				diffRes := diff.Diff(item.target, item.live, normalizer)
 				fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 				if diffRes.Modified || item.target == nil || item.live == nil {
 					var live *unstructured.Unstructured

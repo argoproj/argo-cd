@@ -2410,6 +2410,13 @@
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },
+        "ignoreDifferences": {
+          "type": "array",
+          "title": "IgnoreDifferences controls resources fields which should be ignored during comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          }
+        },
         "project": {
           "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
           "type": "string"
@@ -2738,6 +2745,30 @@
           "type": "string"
         },
         "targetState": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceIgnoreDifferences": {
+      "description": "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "jsonPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
           "type": "string"
         }
       }
