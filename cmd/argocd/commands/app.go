@@ -796,7 +796,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						target = item.target
 					}
 
-					printDiff(item.key.Name, live, target)
+					printDiff(item.key.Name, target, live)
 				}
 			}
 
