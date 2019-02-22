@@ -334,3 +334,7 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
         return 'info';
     }
 }
+
+export function isAppNode(node: ResourceTreeNode) {
+    return node.kind === 'Application' && node.group === 'argoproj.io';
+}

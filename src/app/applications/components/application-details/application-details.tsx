@@ -550,7 +550,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private getResourceMenuItems(resource: appModels.ResourceNode, application: appModels.Application): MenuItem[] {
-        if (resource.kind === 'Application') {
+        if (AppUtils.isAppNode(resource) && resource.name === application.metadata.name) {
             return this.getApplicationActionMenu(application);
         }
 

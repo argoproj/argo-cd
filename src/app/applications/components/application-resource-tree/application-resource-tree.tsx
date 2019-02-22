@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon, ICON_CLASS_BY_KIND, nodeKey, ResourceTreeNode } from '../utils';
+import { ComparisonStatusIcon, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey, ResourceTreeNode } from '../utils';
 
 require('./application-resource-tree.scss');
 
@@ -50,7 +50,7 @@ function compareNodes(first: models.ResourceNode, second: models.ResourceNode) {
 }
 
 function appNodeKey(app: models.Application) {
-    return nodeKey({group: app.apiVersion, kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace });
+    return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace });
 }
 
 class NodeUpdateAnimation extends React.PureComponent<{ resourceVersion: string; }, {  ready: boolean }> {
@@ -111,7 +111,7 @@ export const ApplicationResourceTree = (props: {
         name: props.app.metadata.name,
         namespace: props.app.metadata.namespace,
         resourceVersion: props.app.metadata.resourceVersion,
-        group: '',
+        group: 'argoproj.io',
         version: '',
         children: Array(),
         status: props.app.status.sync.status,
@@ -174,16 +174,16 @@ export const ApplicationResourceTree = (props: {
                     <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resource-tree__node', {
                         active: fullName === props.selectedNodeFullName,
                     })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
-                        {node.kind !== 'Application' && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
+                        {!isAppNode(node) && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
                         <div className={classNames('application-resource-tree__node-kind-icon', {
-                            'application-resource-tree__node-kind-icon--big': node.kind === 'Application',
+                            'application-resource-tree__node-kind-icon--big': isAppNode(node),
                         })}>
                             <i title={node.kind} className={`icon ${kindIcon}`}/>
                         </div>
                         <div className='application-resource-tree__node-content'>
                             <span className='application-resource-tree__node-title' title={node.name}>{node.name}</span>
                             <div className={classNames('application-resource-tree__node-status-icon', {
-                                'application-resource-tree__node-status-icon--offset': node.kind === 'Application',
+                                'application-resource-tree__node-status-icon--offset': isAppNode(node),
                             })}>
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
                                 {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
