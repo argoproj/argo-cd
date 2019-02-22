@@ -2344,6 +2344,9 @@
           "type": "string",
           "title": "Path is a directory path within the repository containing a"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
+        },
         "repoURL": {
           "type": "string",
           "title": "RepoURL is the git repository URL of the application manifests"
@@ -2400,6 +2403,15 @@
         "namePrefix": {
           "type": "string",
           "title": "NamePrefix is a prefix appended to resources for kustomize apps"
+        }
+      }
+    },
+    "v1alpha1ApplicationSourcePlugin": {
+      "type": "object",
+      "title": "ApplicationSourcePlugin holds config management plugin specific options",
+      "properties": {
+        "name": {
+          "type": "string"
         }
       }
     },

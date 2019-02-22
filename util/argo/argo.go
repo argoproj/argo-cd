@@ -182,12 +182,22 @@ func GetSpecErrors(
 	}
 
 	// Verify only one source type is defined
-	if multiSourceErr := verifyOneSourceType(&spec.Source); multiSourceErr != nil {
-		conditions = append(conditions, *multiSourceErr)
+	explicitSourceType, err := spec.Source.ExplicitType()
+	if err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("Unable to determine app source type: %v", err),
+		})
 	}
 
 	if repoAccessable {
-		appSourceType, err := queryAppSourceType(ctx, spec, repoRes, repoClient)
+		var appSourceType argoappv1.ApplicationSourceType
+		if explicitSourceType != nil {
+			appSourceType = *explicitSourceType
+		} else {
+			appSourceType, err = queryAppSourceType(ctx, spec, repoRes, repoClient)
+		}
+
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -245,29 +255,6 @@ func GetSpecErrors(
 		}
 	}
 	return conditions, nil
-}
-
-func verifyOneSourceType(source *argoappv1.ApplicationSource) *argoappv1.ApplicationCondition {
-	var appTypes []string
-	if source.Kustomize != nil {
-		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeKustomize))
-	}
-	if source.Helm != nil {
-		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeHelm))
-	}
-	if source.Ksonnet != nil {
-		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeKsonnet))
-	}
-	if source.Directory != nil {
-		appTypes = append(appTypes, string(argoappv1.ApplicationSourceTypeDirectory))
-	}
-	if len(appTypes) > 1 {
-		return &argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("multiple application sources defined: %s", strings.Join(appTypes, ",")),
-		}
-	}
-	return nil
 }
 
 // GetAppProject returns a project from an application

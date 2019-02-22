@@ -1,9 +1,12 @@
 package repository
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
 
@@ -18,12 +21,12 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := generateManifests("../../manifests/base", &q)
+	res1, err := GenerateManifests("../../manifests/base", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := generateManifests("./testdata/concatenated", &q)
+	res2, err := GenerateManifests("./testdata/concatenated", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -33,7 +36,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
 	q.ApplicationSource.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: true}
-	res1, err := generateManifests("./testdata/recurse", &q)
+	res1, err := GenerateManifests("./testdata/recurse", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -42,7 +45,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := generateManifests("./testdata/jsonnet", &q)
+	res1, err := GenerateManifests("./testdata/jsonnet", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -61,7 +64,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := generateManifests("../../util/helm/testdata/wordpress", &q)
+	res1, err := GenerateManifests("../../util/helm/testdata/wordpress", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 12, len(res1.Manifests))
 }
@@ -70,31 +73,68 @@ func TestGenerateNullList(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := generateManifests("./testdata/null-list", &q)
+	res1, err := GenerateManifests("./testdata/null-list", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res1, err = generateManifests("./testdata/empty-list", &q)
+	res1, err = GenerateManifests("./testdata/empty-list", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, len(res1.Manifests), 1)
 	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res2, err := generateManifests("./testdata/weird-list", &q)
+	res2, err := GenerateManifests("./testdata/weird-list", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res2.Manifests))
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/kustomization_yaml"))
-	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/kustomization_yml"))
-	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, IdentifyAppSourceTypeByAppDir("./testdata/Kustomization"))
+	sourceType, err := GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml")
+	assert.Nil(t, err)
+	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
+
+	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/kustomization_yml")
+	assert.Nil(t, err)
+	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
+
+	sourceType, err = GetAppSourceType(&argoappv1.ApplicationSource{}, "./testdata/Kustomization")
+	assert.Nil(t, err)
+	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
+
+func TestRunCustomTool(t *testing.T) {
+	res, err := GenerateManifests(".", &ManifestRequest{
+		AppLabelValue: "test-app",
+		Namespace:     "test-namespace",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Plugin: &argoappv1.ApplicationSourcePlugin{
+				Name: "test",
+			},
+		},
+		Plugins: []*argoappv1.ConfigManagementPlugin{{
+			Name: "test",
+			Template: argoappv1.Command{
+				Path: "/bin/sh",
+				Args: []string{"-c", `echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\"}}"`},
+			},
+		}},
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(res.Manifests))
+
+	obj := &unstructured.Unstructured{}
+	assert.Nil(t, json.Unmarshal([]byte(res.Manifests[0]), obj))
+
+	assert.Equal(t, obj.GetName(), "test-app")
+	assert.Equal(t, obj.GetNamespace(), "test-namespace")
+}
+
 func TestGenerateFromUTF16(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := generateManifests("./testdata/utf-16", &q)
+	res1, err := GenerateManifests("./testdata/utf-16", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }

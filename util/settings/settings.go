@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/password"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
@@ -63,6 +64,8 @@ type ArgoCDSettings struct {
 	HelmRepositories []HelmRepoCredentials
 	// AppInstanceLabelKey is the configured application instance label key used to label apps. May be empty
 	AppInstanceLabelKey string
+	// ConfigManagementPlugins hols list of configured config management plugins
+	ConfigManagementPlugins []v1alpha1.ConfigManagementPlugin
 	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
 	ResourceOverrides map[string]ResourceOverride
@@ -131,6 +134,8 @@ const (
 	resourcesCustomizationsKey = "resource.customizations"
 	// excludedResourcesKey is the key to the list of excluded resourcese
 	excludedResourcesKey = "excludedResources"
+	// configManagementPluginsKey is the key to the list of config management plugins
+	configManagementPluginsKey = "configManagementPlugins"
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -357,6 +362,16 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 			errors = append(errors, err)
 		} else {
 			settings.ExcludedResources = excludedResources
+		}
+	}
+
+	if value, ok := argoCDCM.Data[configManagementPluginsKey]; ok {
+		tools := make([]v1alpha1.ConfigManagementPlugin, 0)
+		err := yaml.Unmarshal([]byte(value), &tools)
+		if err != nil {
+			errors = append(errors, err)
+		} else {
+			settings.ConfigManagementPlugins = tools
 		}
 	}
 

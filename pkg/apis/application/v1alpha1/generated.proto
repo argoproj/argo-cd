@@ -139,6 +139,9 @@ message ApplicationSource {
 
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
+
+  // ConfigManagementPlugin holds config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 11;
 }
 
 message ApplicationSourceDirectory {
@@ -161,6 +164,11 @@ message ApplicationSourceKsonnet {
 message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for kustomize apps
   optional string namePrefix = 1;
+}
+
+// ApplicationSourcePlugin holds config management plugin specific options
+message ApplicationSourcePlugin {
+  optional string name = 1;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -252,6 +260,13 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// Command holds binary path and arguments list
+message Command {
+  optional string path = 1;
+
+  repeated string args = 2;
+}
+
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
   optional ApplicationSource source = 1;
@@ -266,6 +281,15 @@ message ComponentParameter {
   optional string name = 2;
 
   optional string value = 3;
+}
+
+// ConfigManagementPlugin contains config management plugin configuration
+message ConfigManagementPlugin {
+  optional string name = 1;
+
+  optional Command init = 2;
+
+  optional Command template = 3;
 }
 
 // ConnectionState contains information about remote resource connection state

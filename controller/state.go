@@ -112,6 +112,11 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, re
 		}
 	}
 
+	tools := make([]*appv1.ConfigManagementPlugin, len(m.settings.ConfigManagementPlugins))
+	for i := range m.settings.ConfigManagementPlugins {
+		tools[i] = &m.settings.ConfigManagementPlugins[i]
+	}
+
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
 		Repo:                        repo,
 		HelmRepos:                   helmRepos,
@@ -122,6 +127,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, re
 		AppLabelValue:               app.Name,
 		Namespace:                   app.Spec.Destination.Namespace,
 		ApplicationSource:           &app.Spec.Source,
+		Plugins:                     tools,
 	})
 	if err != nil {
 		return nil, nil, nil, err
