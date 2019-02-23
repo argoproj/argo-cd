@@ -6,18 +6,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v2"
-
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
+	yaml "gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
-	argoexec "github.com/argoproj/pkg/exec"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // Kustomize provides wrapper functionality around the `kustomize` command.
@@ -102,10 +100,9 @@ func (k *kustomize) getParameters(objs []*unstructured.Unstructured) []*v1alpha1
 
 func GetCommandName(version int) string {
 	if version == 1 {
-		return "kustomize"
-	} else {
-		return "kustomize" + strconv.Itoa(version)
+		return "kustomize1"
 	}
+	return "kustomize"
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}

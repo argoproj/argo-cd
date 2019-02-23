@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+spec:
+  replicas: 2
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-server
+            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-server
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+      containers:
+      - name: argocd-server
+        command:
+        - argocd-server
+        - --staticassets
+        - /shared/app
+        - --sentinel
+        - argocd-redis-ha-announce-0:26379
+        - --sentinel
+        - argocd-redis-ha-announce-1:26379
+        - --sentinel
+        - argocd-redis-ha-announce-2:26379
+        - --sentinelmaster
+        - argocd
