@@ -2344,6 +2344,9 @@
           "type": "string",
           "title": "Path is a directory path within the repository containing a"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
+        },
         "repoURL": {
           "type": "string",
           "title": "RepoURL is the git repository URL of the application manifests"
@@ -2403,12 +2406,28 @@
         }
       }
     },
+    "v1alpha1ApplicationSourcePlugin": {
+      "type": "object",
+      "title": "ApplicationSourcePlugin holds config management plugin specific options",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ApplicationSpec": {
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
       "type": "object",
       "properties": {
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
+        },
+        "ignoreDifferences": {
+          "type": "array",
+          "title": "IgnoreDifferences controls resources fields which should be ignored during comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          }
         },
         "project": {
           "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
@@ -2738,6 +2757,30 @@
           "type": "string"
         },
         "targetState": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceIgnoreDifferences": {
+      "description": "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "jsonPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
           "type": "string"
         }
       }

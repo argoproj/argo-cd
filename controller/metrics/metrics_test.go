@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -109,10 +109,14 @@ func newFakeApp(fakeApp string) *argoappv1.Application {
 	return &app
 }
 
-func newFakeLister(fakeApp string) (context.CancelFunc, applister.ApplicationLister) {
+func newFakeLister(fakeApp ...string) (context.CancelFunc, applister.ApplicationLister) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	appClientset := appclientset.NewSimpleClientset(newFakeApp(fakeApp))
+	var fakeApps []runtime.Object
+	for _, name := range fakeApp {
+		fakeApps = append(fakeApps, newFakeApp(name))
+	}
+	appClientset := appclientset.NewSimpleClientset(fakeApps...)
 	factory := appinformer.NewFilteredSharedInformerFactory(appClientset, 0, "argocd", func(options *metav1.ListOptions) {})
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	go appInformer.Run(ctx.Done())
@@ -125,7 +129,7 @@ func newFakeLister(fakeApp string) (context.CancelFunc, applister.ApplicationLis
 func testApp(t *testing.T, fakeApp string, expectedResponse string) {
 	cancel, appLister := newFakeLister(fakeApp)
 	defer cancel()
-	metricsServ := NewMetricsServer(8082, appLister)
+	metricsServ := NewMetricsServer("localhost:8082", appLister)
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -156,4 +160,34 @@ func TestMetrics(t *testing.T) {
 	for _, combination := range combinations {
 		testApp(t, combination.application, combination.expectedResponse)
 	}
+}
+
+const appSyncTotal = `# HELP argocd_app_sync_total Number of application syncs.
+# TYPE argocd_app_sync_total counter
+argocd_app_sync_total{name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
+argocd_app_sync_total{name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
+argocd_app_sync_total{name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
+`
+
+func TestMetricsSyncCounter(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ := NewMetricsServer("localhost:8082", appLister)
+
+	fakeApp := newFakeApp(fakeApp)
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationRunning})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationFailed})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationError})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: argoappv1.OperationSucceeded})
+
+	req, err := http.NewRequest("GET", "/metrics", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, rr.Code, http.StatusOK)
+	body := rr.Body.String()
+	log.Println(body)
+	assert.Equal(t, appSyncTotal, body)
+
 }

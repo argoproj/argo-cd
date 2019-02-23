@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,11 +12,18 @@ import (
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 )
 
+type MetricsServer struct {
+	*http.Server
+	syncCounter *prometheus.CounterVec
+}
+
 const (
 	// MetricsPath is the endpoint to collect application metrics
 	MetricsPath = "/metrics"
 )
 
+// Follow Prometheus naming practices
+// https://prometheus.io/docs/practices/naming/
 var (
 	descAppDefaultLabels = []string{"namespace", "name", "project"}
 
@@ -48,14 +54,30 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(port int, appLister applister.ApplicationLister) *http.Server {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister) *MetricsServer {
 	mux := http.NewServeMux()
 	appRegistry := NewAppRegistry(appLister)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(appRegistry, promhttp.HandlerOpts{}))
-	return &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", port),
-		Handler: mux,
+	syncCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_app_sync_total",
+		Help: "Number of application syncs.",
+	}, append(descAppDefaultLabels, "phase"))
+	appRegistry.MustRegister(syncCounter)
+	return &MetricsServer{
+		Server: &http.Server{
+			Addr:    addr,
+			Handler: mux,
+		},
+		syncCounter: syncCounter,
 	}
+}
+
+// IncSync increments the sync counter for an application
+func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.OperationState) {
+	if !state.Phase.Completed() {
+		return
+	}
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), string(state.Phase)).Inc()
 }
 
 type appCollector struct {

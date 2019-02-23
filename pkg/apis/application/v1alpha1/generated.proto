@@ -139,6 +139,9 @@ message ApplicationSource {
 
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
+
+  // ConfigManagementPlugin holds config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 11;
 }
 
 message ApplicationSourceDirectory {
@@ -163,6 +166,11 @@ message ApplicationSourceKustomize {
   optional string namePrefix = 1;
 }
 
+// ApplicationSourcePlugin holds config management plugin specific options
+message ApplicationSourcePlugin {
+  optional string name = 1;
+}
+
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 message ApplicationSpec {
   // Source is a reference to the location ksonnet application definition
@@ -176,6 +184,9 @@ message ApplicationSpec {
 
   // SyncPolicy controls when a sync will be performed
   optional SyncPolicy syncPolicy = 4;
+
+  // IgnoreDifferences controls resources fields which should be ignored during comparison
+  repeated ResourceIgnoreDifferences ignoreDifferences = 5;
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -249,6 +260,13 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// Command holds binary path and arguments list
+message Command {
+  optional string path = 1;
+
+  repeated string args = 2;
+}
+
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
   optional ApplicationSource source = 1;
@@ -263,6 +281,15 @@ message ComponentParameter {
   optional string name = 2;
 
   optional string value = 3;
+}
+
+// ConfigManagementPlugin contains config management plugin configuration
+message ConfigManagementPlugin {
+  optional string name = 1;
+
+  optional Command init = 2;
+
+  optional Command template = 3;
 }
 
 // ConnectionState contains information about remote resource connection state
@@ -400,6 +427,19 @@ message ResourceDiff {
   optional string liveState = 6;
 
   optional string diff = 7;
+}
+
+// ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
+message ResourceIgnoreDifferences {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  optional string name = 3;
+
+  optional string namespace = 4;
+
+  repeated string jsonPointers = 5;
 }
 
 // ResourceNode contains information about live resource and its children

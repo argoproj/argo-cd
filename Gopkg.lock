@@ -42,6 +42,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:a1b56af5e69569454f55ef4842485a0da5616e240a610d77c987e17a73b0e265"
+  name = "github.com/TomOnTime/utfutil"
+  packages = ["."]
+  pruneopts = ""
+  revision = "09c41003ee1d5015b75f331e52215512e7145b8d"
+
+[[projects]]
+  branch = "master"
   digest = "1:a74730e052a45a3fab1d310fdef2ec17ae3d6af16228421e238320846f2aaec8"
   name = "github.com/alecthomas/template"
   packages = [
@@ -195,6 +203,14 @@
   pruneopts = ""
   revision = "f6c17b524822278a87e3b3bd809fec33b51f5b46"
   version = "v1.9.0"
+
+[[projects]]
+  digest = "1:4216202f4088a73e2982df875e2f0d1401137bbc248e57391e70547af167a18a"
+  name = "github.com/evanphx/json-patch"
+  packages = ["."]
+  pruneopts = ""
+  revision = "72bf35d0ff611848c1dc9df0f976c81192392fa5"
+  version = "v4.1.0"
 
 [[projects]]
   digest = "1:b13707423743d41665fd23f0c36b2f37bb49c30e94adb813319c44188a51ba22"
@@ -496,6 +512,14 @@
   ]
   pruneopts = ""
   revision = "bc372cc64f55abd91995ba3f219b380ffbc59e9d"
+
+[[projects]]
+  digest = "1:e24dc5ef44694848785de507f439a24e9e6d96d7b43b8cf3d6cfa857aa1e2186"
+  name = "github.com/grpc-ecosystem/go-grpc-prometheus"
+  packages = ["."]
+  pruneopts = ""
+  revision = "c225b8c3b01faf2899099b768856a9e916e5087b"
+  version = "v1.2.0"
 
 [[projects]]
   digest = "1:9feb7485bc57adbcbc1e1037ca05588e9d8b0a3a1875fbf730021fc118859b75"
@@ -981,12 +1005,18 @@
   packages = [
     "collate",
     "collate/build",
+    "encoding",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/unicode",
     "internal/colltab",
     "internal/gen",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
+    "internal/utf8internal",
     "language",
+    "runes",
     "secure/bidirule",
     "transform",
     "unicode/bidi",
@@ -1535,6 +1565,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Masterminds/semver",
+    "github.com/TomOnTime/utfutil",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
     "github.com/argoproj/pkg/exec",
@@ -1545,6 +1576,7 @@
     "github.com/coreos/go-oidc",
     "github.com/dgrijalva/jwt-go",
     "github.com/dustin/go-humanize",
+    "github.com/evanphx/json-patch",
     "github.com/ghodss/yaml",
     "github.com/go-openapi/loads",
     "github.com/go-openapi/runtime/middleware",
@@ -1567,6 +1599,7 @@
     "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus",
     "github.com/grpc-ecosystem/go-grpc-middleware/retry",
     "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus",
+    "github.com/grpc-ecosystem/go-grpc-prometheus",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
     "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",

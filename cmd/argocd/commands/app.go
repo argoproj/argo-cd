@@ -29,11 +29,9 @@ import (
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/hook"
-	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kustomize"
+	argosettings "github.com/argoproj/argo-cd/util/settings"
 
 	"github.com/ghodss/yaml"
 	"github.com/google/shlex"
@@ -41,7 +39,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/yudai/gojsondiff"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -389,6 +386,8 @@ func setAppOptions(flags *pflag.FlagSet, app *argoappv1.Application, appOpts *ap
 			setHelmOpt(&app.Spec.Source, appOpts.valuesFiles)
 		case "directory-recurse":
 			app.Spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+		case "config-management-plugin":
+			app.Spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-server":
 			app.Spec.Destination.Server = appOpts.destServer
 		case "dest-namespace":
@@ -459,19 +458,20 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 }
 
 type appOptions struct {
-	repoURL          string
-	appPath          string
-	env              string
-	revision         string
-	destServer       string
-	destNamespace    string
-	parameters       []string
-	valuesFiles      []string
-	project          string
-	syncPolicy       string
-	autoPrune        bool
-	namePrefix       string
-	directoryRecurse bool
+	repoURL                string
+	appPath                string
+	env                    string
+	revision               string
+	destServer             string
+	destNamespace          string
+	parameters             []string
+	valuesFiles            []string
+	project                string
+	syncPolicy             string
+	autoPrune              bool
+	namePrefix             string
+	directoryRecurse       bool
+	configManagementPlugin string
 }
 
 func addAppFlags(command *cobra.Command, opts *appOptions) {
@@ -488,6 +488,7 @@ func addAppFlags(command *cobra.Command, opts *appOptions) {
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
+	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 }
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
@@ -590,64 +591,22 @@ func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructu
 	return objs, nil
 }
 
-func getLocalObjects(app *argoappv1.Application, local string, env string, values []string, directoryRecurse bool) []*unstructured.Unstructured {
-	var localObjs []*unstructured.Unstructured
-	var err error
-	appType := repository.IdentifyAppSourceTypeByAppDir(local)
-	switch appType {
-	case argoappv1.ApplicationSourceTypeKsonnet:
-		if env == "" {
-			log.Fatal("--env required when performing local diff on ksonnet application")
-		}
-		if len(values) > 0 {
-			log.Fatal("--values option invalid when performing local diff on ksonnet application")
-		}
-		ksApp, err := ksonnet.NewKsonnetApp(local)
+func getLocalObjects(app *argoappv1.Application, local string, appLabelKey string) []*unstructured.Unstructured {
+	res, err := repository.GenerateManifests(local, &repository.ManifestRequest{
+		ApplicationSource: &app.Spec.Source,
+		AppLabelKey:       appLabelKey,
+		AppLabelValue:     app.Name,
+		Namespace:         app.Spec.Destination.Namespace,
+	})
+	errors.CheckError(err)
+	objs := make([]*unstructured.Unstructured, len(res.Manifests))
+	for i := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(res.Manifests[i]), &obj)
 		errors.CheckError(err)
-		localObjs, err = ksApp.Show(env)
-		errors.CheckError(err)
-	case argoappv1.ApplicationSourceTypeHelm:
-		if env != "" {
-			log.Fatal("--env option invalid when performing local diff on helm application")
-		}
-		h := helm.NewHelmApp(local, []*argoappv1.HelmRepository{})
-		opts := helm.HelmTemplateOpts{
-			Namespace: app.Namespace,
-		}
-		opts.ValueFiles = values
-		localObjs, err = h.Template(app.Name, opts, []*argoappv1.ComponentParameter{})
-		if err != nil {
-			if !helm.IsMissingDependencyErr(err) {
-				errors.CheckError(err)
-			}
-			err = h.DependencyBuild()
-			errors.CheckError(err)
-		}
-	case argoappv1.ApplicationSourceTypeKustomize:
-		if len(values) > 0 {
-			log.Fatal("--values option invalid when performing local diff on Kustomize application")
-		}
-		if env != "" {
-			log.Fatal("--env option invalid when performing local diff on Kustomize application")
-		}
-		k := kustomize.NewKustomizeApp(local)
-		opts := kustomize.KustomizeBuildOpts{}
-		if app.Spec.Source.Kustomize != nil {
-			opts.NamePrefix = app.Spec.Source.Kustomize.NamePrefix
-		}
-		localObjs, _, err = k.Build(opts, []*argoappv1.ComponentParameter{})
-		errors.CheckError(err)
-	case argoappv1.ApplicationSourceTypeDirectory:
-		if len(values) > 0 {
-			log.Fatal("--values option invalid when performing local diff on a directory")
-		}
-		if env != "" {
-			log.Fatal("--env option invalid when performing local diff on a directory")
-		}
-		localObjs, err = repository.FindManifests(local, directoryRecurse)
-		errors.CheckError(err)
+		objs[i] = &obj
 	}
-	return localObjs
+	return objs
 }
 
 func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
@@ -682,12 +641,9 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh          bool
-		hardRefresh      bool
-		local            string
-		env              string
-		values           []string
-		directoryRecurse bool
+		refresh     bool
+		hardRefresh bool
+		local       string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -720,7 +676,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				defer util.Close(conn)
 				argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
 				errors.CheckError(err)
-				localObjs := groupLocalObjs(getLocalObjects(app, local, env, values, directoryRecurse), liveObjs, app.Spec.Destination.Namespace)
+				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
 					err := json.Unmarshal([]byte(res.LiveState), &live)
@@ -781,8 +737,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			for i := range items {
 				item := items[i]
+				// TODO (amatyushentsev): use resource overrides exposed from API server
+				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, make(map[string]argosettings.ResourceOverride))
+				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
-				diffRes := diff.Diff(item.target, item.live)
+				diffRes := diff.Diff(item.target, item.live, normalizer)
 				fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 				if diffRes.Modified || item.target == nil || item.live == nil {
 					var live *unstructured.Unstructured
@@ -796,7 +755,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						target = item.target
 					}
 
-					printDiff(item.key.Name, live, target)
+					printDiff(item.key.Name, target, live)
 				}
 			}
 
@@ -805,9 +764,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local ksonnet app")
-	command.Flags().StringVar(&env, "env", "", "Compare live app to a specific environment")
-	command.Flags().StringArrayVar(&values, "values", []string{}, "Helm values file(s) in the helm directory to use")
-	command.Flags().BoolVar(&directoryRecurse, "directory-recurse", false, "Recurse directories")
 	return command
 }
 

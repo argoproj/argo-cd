@@ -42,6 +42,17 @@ type ApplicationSpec struct {
 	Project string `json:"project" protobuf:"bytes,3,name=project"`
 	// SyncPolicy controls when a sync will be performed
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	// IgnoreDifferences controls resources fields which should be ignored during comparison
+	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
+}
+
+// ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
+type ResourceIgnoreDifferences struct {
+	Group        string   `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	JsonPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
@@ -69,6 +80,8 @@ type ApplicationSource struct {
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
+	// ConfigManagementPlugin holds config management plugin specific options
+	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 }
 
 type ApplicationSourceType string
@@ -78,6 +91,7 @@ const (
 	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
 	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
+	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
 
 type RefreshType string
@@ -123,6 +137,15 @@ type ApplicationSourceDirectory struct {
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d.Recurse == false
+}
+
+// ApplicationSourcePlugin holds config management plugin specific options
+type ApplicationSourcePlugin struct {
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+}
+
+func (c *ApplicationSourcePlugin) IsZero() bool {
+	return c.Name == ""
 }
 
 // ApplicationDestination contains deployment destination information
@@ -666,6 +689,19 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
+// Command holds binary path and arguments list
+type Command struct {
+	Path string   `json:"path,omitempty" yaml:"path,omitempty" protobuf:"bytes,1,name=path"`
+	Args []string `json:"args,omitempty" yaml:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
+}
+
+// ConfigManagementPlugin contains config management plugin configuration
+type ConfigManagementPlugin struct {
+	Name     string   `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,1,name=name"`
+	Init     *Command `json:"init,omitempty" yaml:"init,omitempty" protobuf:"bytes,2,name=init"`
+	Template Command  `json:"template,omitempty" yaml:"template,omitempty" protobuf:"bytes,3,rep,name=template"`
+}
+
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
@@ -744,13 +780,44 @@ func (condition *ApplicationCondition) IsError() bool {
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
-func (source ApplicationSource) Equals(other ApplicationSource) bool {
+func (source *ApplicationSource) Equals(other ApplicationSource) bool {
 	return reflect.DeepEqual(source, other)
 }
 
+func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) {
+	var appTypes []ApplicationSourceType
+	if source.Kustomize != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeKustomize)
+	}
+	if source.Helm != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeHelm)
+	}
+	if source.Ksonnet != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeKsonnet)
+	}
+	if source.Directory != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeDirectory)
+	}
+	if source.Plugin != nil {
+		appTypes = append(appTypes, ApplicationSourceTypePlugin)
+	}
+	if len(appTypes) == 0 {
+		return nil, nil
+	}
+	if len(appTypes) > 1 {
+		typeNames := make([]string, len(appTypes))
+		for i := range appTypes {
+			typeNames[i] = string(appTypes[i])
+		}
+		return nil, fmt.Errorf("multiple application sources defined: %s", strings.Join(typeNames, ","))
+	}
+	appType := appTypes[0]
+	return &appType, nil
+}
+
 // Equals compares two instances of ApplicationDestination and return true if instances are equal.
-func (source ApplicationDestination) Equals(other ApplicationDestination) bool {
-	return reflect.DeepEqual(source, other)
+func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
+	return reflect.DeepEqual(dest, other)
 }
 
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty

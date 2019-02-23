@@ -26,10 +26,10 @@ spec:
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
-        - containerPort: 8083
+        - containerPort: 8082
         readinessProbe:
           tcpSocket:
-            port: 8083
+            port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
       serviceAccountName: argocd-application-controller

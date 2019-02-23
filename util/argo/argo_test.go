@@ -106,37 +106,6 @@ func TestContainsSyncResource(t *testing.T) {
 	}
 }
 
-func TestVerifyOneSourceType(t *testing.T) {
-	src := argoappv1.ApplicationSource{
-		Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
-		Kustomize: &argoappv1.ApplicationSourceKustomize{
-			NamePrefix: "foo",
-		},
-		Helm: &argoappv1.ApplicationSourceHelm{
-			ValueFiles: []string{"foo"},
-		},
-	}
-	assert.NotNil(t, verifyOneSourceType(&src))
-	src = argoappv1.ApplicationSource{
-		Helm: &argoappv1.ApplicationSourceHelm{
-			ValueFiles: []string{"foo"},
-		},
-	}
-	assert.Nil(t, verifyOneSourceType(&src))
-}
-
-func TestVerifyOneSourceTypeWithDirectory(t *testing.T) {
-	src := argoappv1.ApplicationSource{
-		Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
-		Directory: &argoappv1.ApplicationSourceDirectory{},
-	}
-	assert.NotNil(t, verifyOneSourceType(&src), "cannot add directory with any other types")
-}
-
 func TestNormalizeApplicationSpec(t *testing.T) {
 	spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{})
 	assert.Equal(t, spec.Project, "default")

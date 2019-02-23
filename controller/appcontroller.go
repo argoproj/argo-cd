@@ -13,8 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,6 +26,8 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
+	"github.com/argoproj/argo-cd/controller/metrics"
+	"github.com/argoproj/argo-cd/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
@@ -56,6 +58,7 @@ type ApplicationController struct {
 	appRefreshQueue           workqueue.RateLimitingInterface
 	appOperationQueue         workqueue.RateLimitingInterface
 	appInformer               cache.SharedIndexInformer
+	appLister                 applisters.ApplicationLister
 	projInformer              cache.SharedIndexInformer
 	appStateManager           AppStateManager
 	stateCache                statecache.LiveStateCache
@@ -66,6 +69,7 @@ type ApplicationController struct {
 	settingsMgr               *settings_util.SettingsManager
 	refreshRequestedApps      map[string]bool
 	refreshRequestedAppsMutex *sync.Mutex
+	metricsServer             *metrics.MetricsServer
 }
 
 type ApplicationControllerConfig struct {
@@ -106,7 +110,7 @@ func NewApplicationController(
 		settingsMgr:               settingsMgr,
 		settings:                  settings,
 	}
-	appInformer := ctrl.newApplicationInformer()
+	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, func(appName string) {
 		ctrl.requestAppRefresh(appName)
@@ -114,9 +118,12 @@ func NewApplicationController(
 	})
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer)
 	ctrl.appInformer = appInformer
+	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
 	ctrl.appStateManager = appStateManager
 	ctrl.stateCache = stateCache
+	metricsAddr := fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDMetrics)
+	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, ctrl.appLister)
 	return &ctrl, nil
 }
 
@@ -135,12 +142,12 @@ func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, erro
 	return a, nil
 }
 
-func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, resources []managedResource) error {
-	tree, err := ctrl.resourceTree(a, resources)
+func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) error {
+	tree, err := ctrl.resourceTree(a, comparisonResult.managedResources)
 	if err != nil {
 		return err
 	}
-	managedResources, err := ctrl.managedResources(a, resources)
+	managedResources, err := ctrl.managedResources(a, comparisonResult)
 	if err != nil {
 		return err
 	}
@@ -175,10 +182,10 @@ func (ctrl *ApplicationController) resourceTree(a *appv1.Application, resources 
 	return items, nil
 }
 
-func (ctrl *ApplicationController) managedResources(a *appv1.Application, manageResources []managedResource) ([]*appv1.ResourceDiff, error) {
-	items := make([]*appv1.ResourceDiff, len(manageResources))
-	for i := range manageResources {
-		res := manageResources[i]
+func (ctrl *ApplicationController) managedResources(a *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
+	items := make([]*appv1.ResourceDiff, len(comparisonResult.managedResources))
+	for i := range comparisonResult.managedResources {
+		res := comparisonResult.managedResources[i]
 		item := appv1.ResourceDiff{
 			Namespace: res.Namespace,
 			Name:      res.Name,
@@ -195,7 +202,7 @@ func (ctrl *ApplicationController) managedResources(a *appv1.Application, manage
 			if err != nil {
 				return nil, err
 			}
-			resDiff = *diff.Diff(target, live)
+			resDiff = *diff.Diff(target, live, comparisonResult.diffNormalizer)
 		}
 
 		if live != nil {
@@ -243,6 +250,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}
 
 	go ctrl.stateCache.Run(ctx)
+	go func() { errors.CheckError(ctrl.metricsServer.ListenAndServe()) }()
 
 	for i := 0; i < statusProcessors; i++ {
 		go wait.Until(func() {
@@ -327,7 +335,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	// Get refreshed application info, since informer app copy might be stale
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !apierr.IsNotFound(err) {
 			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
 		}
 		return nil
@@ -524,6 +532,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 				messages = append(messages, "failed:", state.Message)
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
+			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
@@ -586,7 +595,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	} else {
 		conditions = append(conditions, compareResult.conditions...)
 	}
-	err = ctrl.setAppManagedResources(app, compareResult.managedResources)
+	err = ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
@@ -637,7 +646,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 	conditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierr.IsNotFound(err) {
 			conditions = append(conditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
@@ -814,7 +823,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	return true
 }
 
-func (ctrl *ApplicationController) newApplicationInformer() cache.SharedIndexInformer {
+func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
 	appInformerFactory := appinformers.NewFilteredSharedInformerFactory(
 		ctrl.applicationClientset,
 		ctrl.statusRefreshTimeout,
@@ -822,6 +831,7 @@ func (ctrl *ApplicationController) newApplicationInformer() cache.SharedIndexInf
 		func(options *metav1.ListOptions) {},
 	)
 	informer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
+	lister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
@@ -857,7 +867,7 @@ func (ctrl *ApplicationController) newApplicationInformer() cache.SharedIndexInf
 			},
 		},
 	)
-	return informer
+	return informer, lister
 }
 
 func isOperationInProgress(app *appv1.Application) bool {

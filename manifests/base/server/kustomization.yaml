@@ -1,7 +1,7 @@
 resources:
-- argocd-metrics-service.yaml
 - argocd-server-deployment.yaml
 - argocd-server-role.yaml
 - argocd-server-rolebinding.yaml
 - argocd-server-sa.yaml
 - argocd-server-service.yaml
+- argocd-server-metrics-service.yaml

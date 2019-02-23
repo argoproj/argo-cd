@@ -56,7 +56,7 @@ func TestDiff(t *testing.T) {
 	leftDep := test.DemoDeployment()
 	leftUn := mustToUnstructured(leftDep)
 
-	diffRes := Diff(leftUn, leftUn)
+	diffRes := Diff(leftUn, leftUn, nil)
 	assert.False(t, diffRes.Diff.Modified())
 	ascii, err := diffRes.ASCIIFormat(leftUn, formatOpts)
 	assert.Nil(t, err)
@@ -69,14 +69,14 @@ func TestDiffWithNils(t *testing.T) {
 	dep := test.DemoDeployment()
 	resource := mustToUnstructured(dep)
 
-	diffRes := Diff(nil, resource)
+	diffRes := Diff(nil, resource, nil)
 	// NOTE: if live is non-nil, and config is nil, this is not considered difference
 	// This "difference" is checked at the comparator.
 	assert.False(t, diffRes.Diff.Modified())
 	diffRes = TwoWayDiff(nil, resource)
 	assert.False(t, diffRes.Diff.Modified())
 
-	diffRes = Diff(resource, nil)
+	diffRes = Diff(resource, nil, nil)
 	assert.True(t, diffRes.Diff.Modified())
 	diffRes = TwoWayDiff(resource, nil)
 	assert.True(t, diffRes.Diff.Modified())
@@ -91,7 +91,7 @@ func TestDiffNilFieldInLive(t *testing.T) {
 	err := unstructured.SetNestedField(rightUn.Object, nil, "spec")
 	assert.Nil(t, err)
 
-	diffRes := Diff(leftUn, rightUn)
+	diffRes := Diff(leftUn, rightUn, nil)
 	assert.True(t, diffRes.Modified)
 }
 
@@ -104,7 +104,7 @@ func TestDiffArraySame(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right)
+	diffResList, err := DiffArray(left, right, nil)
 	assert.Nil(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -119,7 +119,7 @@ func TestDiffArrayAdditions(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right)
+	diffResList, err := DiffArray(left, right, nil)
 	assert.Nil(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -135,7 +135,7 @@ func TestDiffArrayModification(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right)
+	diffResList, err := DiffArray(left, right, nil)
 	assert.Nil(t, err)
 	assert.True(t, diffResList.Modified)
 }
@@ -156,7 +156,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveDep.SetNamespace("default")
 	configUn := mustToUnstructured(configDep)
 	liveUn := mustToUnstructured(liveDep)
-	res := Diff(configUn, liveUn)
+	res := Diff(configUn, liveUn, nil)
 	if !assert.False(t, res.Modified) {
 		ascii, err := res.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
@@ -170,7 +170,7 @@ func TestThreeWayDiff(t *testing.T) {
 	liveDep.Annotations[v1.LastAppliedConfigAnnotation] = string(configBytes)
 	configUn = mustToUnstructured(configDep)
 	liveUn = mustToUnstructured(liveDep)
-	res = Diff(configUn, liveUn)
+	res = Diff(configUn, liveUn, nil)
 	if !assert.False(t, res.Modified) {
 		ascii, err := res.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
@@ -182,7 +182,7 @@ func TestThreeWayDiff(t *testing.T) {
 	delete(configDep.Annotations, "foo")
 	configUn = mustToUnstructured(configDep)
 	liveUn = mustToUnstructured(liveDep)
-	res = Diff(configUn, liveUn)
+	res = Diff(configUn, liveUn, nil)
 	assert.True(t, res.Modified)
 
 	// 5. Just to prove three way diff incorporates last-applied-configuration, remove the
@@ -192,7 +192,7 @@ func TestThreeWayDiff(t *testing.T) {
 	delete(liveDep.Annotations, v1.LastAppliedConfigAnnotation)
 	configUn = mustToUnstructured(configDep)
 	liveUn = mustToUnstructured(liveDep)
-	res = Diff(configUn, liveUn)
+	res = Diff(configUn, liveUn, nil)
 	ascii, err := res.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
 	if ascii != "" {
@@ -250,7 +250,7 @@ func TestThreeWayDiffExample1(t *testing.T) {
 	assert.Nil(t, err)
 	err = json.Unmarshal([]byte(demoLive), &liveUn.Object)
 	assert.Nil(t, err)
-	dr := Diff(&configUn, &liveUn)
+	dr := Diff(&configUn, &liveUn, nil)
 	assert.False(t, dr.Modified)
 	ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
 	assert.Nil(t, err)
@@ -263,7 +263,7 @@ func TestThreeWayDiffExample1(t *testing.T) {
 func TestThreeWayDiffExample2(t *testing.T) {
 	configUn := unmarshalFile("testdata/elasticsearch-config.json")
 	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
-	dr := Diff(configUn, liveUn)
+	dr := Diff(configUn, liveUn, nil)
 	assert.False(t, dr.Modified)
 	ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
@@ -283,7 +283,7 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	delete(labels, "release")
 	configUn.SetLabels(labels)
 
-	dr := Diff(configUn, liveUn)
+	dr := Diff(configUn, liveUn, nil)
 	assert.True(t, dr.Modified)
 	ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
@@ -315,7 +315,7 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 func TestThreeWayDiffExplicitNamespace(t *testing.T) {
 	configUn := unmarshalFile("testdata/spinnaker-sa-config.json")
 	liveUn := unmarshalFile("testdata/spinnaker-sa-live.json")
-	dr := Diff(configUn, liveUn)
+	dr := Diff(configUn, liveUn, nil)
 	assert.False(t, dr.Modified)
 	ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 	assert.Nil(t, err)
@@ -372,7 +372,7 @@ func TestIgnoreNamespaceForClusterScopedResources(t *testing.T) {
 	assert.Nil(t, err)
 	err = yaml.Unmarshal([]byte(customObjConfig), &configUn)
 	assert.Nil(t, err)
-	dr := Diff(&configUn, &liveUn)
+	dr := Diff(&configUn, &liveUn, nil)
 	assert.False(t, dr.Modified)
 }
 
@@ -416,7 +416,7 @@ func TestSecretStringData(t *testing.T) {
 	err = yaml.Unmarshal([]byte(secretLive), &liveUn)
 	assert.Nil(t, err)
 
-	dr := Diff(&configUn, &liveUn)
+	dr := Diff(&configUn, &liveUn, nil)
 	if !assert.False(t, dr.Modified) {
 		ascii, err := dr.ASCIIFormat(&liveUn, formatOpts)
 		assert.Nil(t, err)
@@ -460,14 +460,14 @@ func TestInvalidSecretStringData(t *testing.T) {
 	err = yaml.Unmarshal([]byte(secretInvalidLive), &liveUn)
 	assert.Nil(t, err)
 
-	dr := Diff(&configUn, nil)
+	dr := Diff(&configUn, nil, nil)
 	assert.True(t, dr.Modified)
 }
 
 func TestNullSecretData(t *testing.T) {
 	configUn := unmarshalFile("testdata/wordpress-config.json")
 	liveUn := unmarshalFile("testdata/wordpress-live.json")
-	dr := Diff(configUn, liveUn)
+	dr := Diff(configUn, liveUn, nil)
 	if !assert.False(t, dr.Modified) {
 		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
@@ -486,7 +486,7 @@ func TestRedactedSecretData(t *testing.T) {
 	configData["smtp-password"] = "***"
 	liveData["wordpress-password"] = "******"
 	liveData["smtp-password"] = "******"
-	dr := Diff(configUn, liveUn)
+	dr := Diff(configUn, liveUn, nil)
 	if !assert.True(t, dr.Modified) {
 		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
@@ -497,7 +497,7 @@ func TestRedactedSecretData(t *testing.T) {
 func TestNullRoleRule(t *testing.T) {
 	configUn := unmarshalFile("testdata/grafana-clusterrole-config.json")
 	liveUn := unmarshalFile("testdata/grafana-clusterrole-live.json")
-	dr := Diff(configUn, liveUn)
+	dr := Diff(configUn, liveUn, nil)
 	if !assert.False(t, dr.Modified) {
 		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
@@ -508,7 +508,7 @@ func TestNullRoleRule(t *testing.T) {
 func TestNullCreationTimestamp(t *testing.T) {
 	configUn := unmarshalFile("testdata/sealedsecret-config.json")
 	liveUn := unmarshalFile("testdata/sealedsecret-live.json")
-	dr := Diff(configUn, liveUn)
+	dr := Diff(configUn, liveUn, nil)
 	if !assert.False(t, dr.Modified) {
 		ascii, err := dr.ASCIIFormat(liveUn, formatOpts)
 		assert.Nil(t, err)
