@@ -2367,6 +2367,9 @@
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
       "properties": {
+        "jsonnet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
+        },
         "recurse": {
           "type": "boolean",
           "format": "boolean"
@@ -2382,6 +2385,24 @@
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceJsonnet": {
+      "type": "object",
+      "properties": {
+        "extVars": {
+          "type": "array",
+          "title": "Environment is a ksonnet application environment name",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          }
+        },
+        "tlas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
         }
       }
@@ -2625,6 +2646,22 @@
         "iat": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1alpha1JsonnetVar": {
+      "type": "object",
+      "title": "ApplicationSourceJsonnet holds jsonnet specific options",
+      "properties": {
+        "code": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "val": {
+          "type": "string"
         }
       }
     },

@@ -247,8 +247,11 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Plugins)
 	case v1alpha1.ApplicationSourceTypeDirectory:
-		directoryRecurse := q.ApplicationSource.Directory != nil && q.ApplicationSource.Directory.Recurse
-		targetObjs, err = findManifests(appPath, directoryRecurse)
+		var directory *v1alpha1.ApplicationSourceDirectory
+		if directory = q.ApplicationSource.Directory; directory == nil {
+			directory = &v1alpha1.ApplicationSourceDirectory{}
+		}
+		targetObjs, err = findManifests(appPath, *directory)
 	}
 	if err != nil {
 		return nil, err
@@ -406,14 +409,14 @@ func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.Componen
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstructured, error) {
+func findManifests(appPath string, directory v1alpha1.ApplicationSourceDirectory) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if f.IsDir() {
-			if path != appPath && !directoryRecurse {
+			if path != appPath && !directory.Recurse {
 				return filepath.SkipDir
 			} else {
 				return nil
@@ -435,7 +438,7 @@ func findManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstr
 			}
 			objs = append(objs, &obj)
 		} else if strings.HasSuffix(f.Name(), ".jsonnet") {
-			vm := jsonnet.MakeVM()
+			vm := makeJsonnetVm(directory.Jsonnet)
 			vm.Importer(&jsonnet.FileImporter{
 				JPaths: []string{appPath},
 			})
@@ -477,6 +480,27 @@ func findManifests(appPath string, directoryRecurse bool) ([]*unstructured.Unstr
 		return nil, err
 	}
 	return objs, nil
+}
+
+func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet) *jsonnet.VM {
+	vm := jsonnet.MakeVM()
+
+	for _, arg := range sourceJsonnet.Tlas {
+		if arg.Code {
+			vm.TLACode(arg.Key, arg.Val)
+		} else {
+			vm.TLAVar(arg.Key, arg.Val)
+		}
+	}
+	for _, extVar := range sourceJsonnet.ExtVars {
+		if extVar.Code {
+			vm.ExtCode(extVar.Key, extVar.Val)
+		} else {
+			vm.ExtVar(extVar.Key, extVar.Val)
+		}
+	}
+
+	return vm
 }
 
 // pathExists reports whether the file or directory at the named concatenation of paths exists.
