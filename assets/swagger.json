@@ -575,6 +575,37 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "PatchSpec patch an application spec",
+        "operationId": "PatchSpec",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationPatchSpecRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        }
       }
     },
     "/api/v1/applications/{name}/sync": {
@@ -1300,6 +1331,21 @@
     },
     "accountUpdatePasswordResponse": {
       "type": "object"
+    },
+    "applicationApplicationPatchSpecRequest": {
+      "type": "object",
+      "title": "ApplicationPatchSpecRequest is a request to update application spec",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "patch": {
+          "type": "string"
+        },
+        "patchType": {
+          "type": "string"
+        }
+      }
     },
     "applicationApplicationResourceResponse": {
       "type": "object",

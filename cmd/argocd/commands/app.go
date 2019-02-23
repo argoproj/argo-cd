@@ -16,6 +16,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -68,6 +70,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationManifestsCommand(clientOpts))
 	command.AddCommand(NewApplicationTerminateOpCommand(clientOpts))
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
+	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	return command
 }
 
@@ -1574,4 +1577,40 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	return command
+}
+
+func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var patch string
+	var patchType string
+
+	command := cobra.Command{
+		Use:   "patch APPNAME",
+		Short: "Patch application",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+
+			patchedApp, err := appIf.PatchSpec(context.Background(), &application.ApplicationPatchSpecRequest{
+				Name:      &appName,
+				Patch:     patch,
+				PatchType: patchType,
+			})
+			errors.CheckError(err)
+
+			yamlBytes, err := yaml.Marshal(patchedApp)
+			errors.CheckError(err)
+
+			fmt.Println(string(yamlBytes))
+		},
+	}
+
+	command.Flags().StringVar(&patchType, "type", string(types.JSONPatchType), "Patch type")
+	command.Flags().StringVar(&patch, "patch", "", "Patch")
+
+	return &command
 }
