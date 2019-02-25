@@ -47,7 +47,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 			Directory: &argoappv1.ApplicationSourceDirectory{
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
 					ExtVars: []argoappv1.JsonnetVar{{Key: "extVarString", Val: "extVarString"}, {Key: "extVarCode", Val: "\"extVarCode\"", Code: true}},
-					Tlas:    []argoappv1.JsonnetVar{{Key: "tlaString", Val: "tlaString"}, {Key: "tlaCode", Val: "\"tlaCode\"", Code: true}},
+					TLAs:    []argoappv1.JsonnetVar{{Key: "tlaString", Val: "tlaString"}, {Key: "tlaCode", Val: "\"tlaCode\"", Code: true}},
 				},
 			},
 		},

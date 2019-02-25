@@ -347,8 +347,8 @@ func (in *ApplicationSourceJsonnet) DeepCopyInto(out *ApplicationSourceJsonnet) 
 		*out = make([]JsonnetVar, len(*in))
 		copy(*out, *in)
 	}
-	if in.Tlas != nil {
-		in, out := &in.Tlas, &out.Tlas
+	if in.TLAs != nil {
+		in, out := &in.TLAs, &out.TLAs
 		*out = make([]JsonnetVar, len(*in))
 		copy(*out, *in)
 	}

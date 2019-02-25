@@ -485,7 +485,7 @@ func findManifests(appPath string, directory v1alpha1.ApplicationSourceDirectory
 func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet) *jsonnet.VM {
 	vm := jsonnet.MakeVM()
 
-	for _, arg := range sourceJsonnet.Tlas {
+	for _, arg := range sourceJsonnet.TLAs {
 		if arg.Code {
 			vm.TLACode(arg.Key, arg.Val)
 		} else {

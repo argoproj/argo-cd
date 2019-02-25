@@ -131,11 +131,11 @@ type JsonnetVar struct {
 type ApplicationSourceJsonnet struct {
 	// Environment is a ksonnet application environment name
 	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
-	Tlas    []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+	TLAs    []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {
-	return len(j.ExtVars) == 0 && len(j.Tlas) == 0
+	return len(j.ExtVars) == 0 && len(j.TLAs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -150,7 +150,7 @@ func (k *ApplicationSourceKsonnet) IsZero() bool {
 
 type ApplicationSourceDirectory struct {
 	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
-	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,11,opt,name=jsonnet"`
+	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
