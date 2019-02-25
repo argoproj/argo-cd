@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -374,4 +374,24 @@ p, admin, applications, update, my-proj/test-app, allow
 	updatedApp, err := appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
 	assert.NoError(t, err)
 	assert.Equal(t, "my-proj", updatedApp.Spec.Project)
+}
+
+func TestPatch(t *testing.T) {
+	testApp := newTestApp()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	appServer := newTestAppServer(testApp)
+	appServer.enf.SetDefaultRole("")
+
+	app, err := appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: "garbage"})
+	assert.Error(t, err)
+	assert.Nil(t, app)
+
+	app, err = appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: "[]"})
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+
+	app, err = appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
+	assert.NoError(t, err)
+	assert.Equal(t, "foo", app.Spec.Source.Path)
 }

@@ -245,6 +245,37 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Patch patch an application",
+        "operationId": "Patch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationPatchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        }
       }
     },
     "/api/v1/applications/{name}/events": {
@@ -1300,6 +1331,18 @@
     },
     "accountUpdatePasswordResponse": {
       "type": "object"
+    },
+    "applicationApplicationPatchRequest": {
+      "type": "object",
+      "title": "ApplicationPatchRequest is a request to patch an application",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "patch": {
+          "type": "string"
+        }
+      }
     },
     "applicationApplicationResourceResponse": {
       "type": "object",

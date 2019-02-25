@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -343,6 +344,46 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 		}
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to update application spec. Too many conflicts")
+}
+
+// Patch patches an application
+func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.Application, error) {
+
+	patch, err := jsonpatch.DecodePatch([]byte(q.Patch))
+	if err != nil {
+		return nil, err
+	}
+
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*app)) {
+		return nil, grpc.ErrPermissionDenied
+	}
+
+	jsonApp, err := json.Marshal(app)
+	if err != nil {
+		return nil, err
+	}
+
+	patchApp, err := patch.Apply(jsonApp)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(patchApp, &app)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.validateApp(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
 }
 
 // Delete removes an application and all associated resources
