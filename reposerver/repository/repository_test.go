@@ -120,9 +120,9 @@ func TestRunCustomTool(t *testing.T) {
 		},
 		Plugins: []*argoappv1.ConfigManagementPlugin{{
 			Name: "test",
-			Template: argoappv1.Command{
-				Path: "/bin/sh",
-				Args: []string{"-c", `echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\"}}"`},
+			Generate: argoappv1.Command{
+				Command: []string{"sh", "-c"},
+				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\"}}"`},
 			},
 		}},
 	})

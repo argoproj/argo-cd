@@ -530,27 +530,35 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
+func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
+	if len(command.Command) == 0 {
+		return "", fmt.Errorf("Command is empty")
+	}
+	cmd := exec.Command(command.Command[0], append(command.Command[1:], command.Args...)...)
+	cmd.Env = env
+	cmd.Dir = path
+	return argoexec.RunCommandExt(cmd)
+}
+
 func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
-	var tool *v1alpha1.ConfigManagementPlugin
+	var plugin *v1alpha1.ConfigManagementPlugin
 	for i := range plugins {
 		if plugins[i].Name == q.ApplicationSource.Plugin.Name {
-			tool = plugins[i]
+			plugin = plugins[i]
 			break
 		}
 	}
-	if tool == nil {
+	if plugin == nil {
 		return nil, fmt.Errorf("Config management plugin with name '%s' is not supported.", q.ApplicationSource.Plugin.Name)
 	}
-
 	env := append(os.Environ(), fmt.Sprintf("%s=%s", PluginEnvAppName, q.AppLabelValue), fmt.Sprintf("%s=%s", PluginEnvAppNamespace, q.Namespace))
-
-	if tool.Init != nil {
-		_, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.Init.Path, Args: append([]string{tool.Init.Path}, tool.Init.Args...), Env: env})
+	if plugin.Init != nil {
+		_, err := runCommand(*plugin.Init, appPath, env)
 		if err != nil {
 			return nil, err
 		}
 	}
-	out, err := argoexec.RunCommandExt(&exec.Cmd{Dir: appPath, Path: tool.Template.Path, Args: append([]string{tool.Template.Path}, tool.Template.Args...), Env: env})
+	out, err := runCommand(plugin.Generate, appPath, env)
 	if err != nil {
 		return nil, err
 	}

@@ -271,7 +271,7 @@ message ClusterList {
 
 // Command holds binary path and arguments list
 message Command {
-  optional string path = 1;
+  repeated string command = 1;
 
   repeated string args = 2;
 }
@@ -298,7 +298,7 @@ message ConfigManagementPlugin {
 
   optional Command init = 2;
 
-  optional Command template = 3;
+  optional Command generate = 3;
 }
 
 // ConnectionState contains information about remote resource connection state
