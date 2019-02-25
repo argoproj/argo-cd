@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	. "strings"
 	"testing"
 
 	argoexec "github.com/argoproj/pkg/exec"
@@ -12,11 +13,10 @@ import (
 
 // TestBuildManifests makes sure we are consistent in naming, and all kustomization.yamls are buildable
 func TestBuildManifests(t *testing.T) {
+
 	out, err := argoexec.RunCommand("kustomize", "version")
 	assert.NoError(t, err)
-	if !assert.Contains(t, out, "KustomizeVersion:2", "kustomize should be version 2") {
-		t.FailNow()
-	}
+	assert.True(t, Contains(out, "KustomizeVersion:2") || Contains(out, "KustomizeVersion:v2"), "kustomize should be version 2")
 
 	err = filepath.Walk("../manifests", func(path string, f os.FileInfo, err error) error {
 		switch filepath.Base(path) {
