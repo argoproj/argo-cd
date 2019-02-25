@@ -631,7 +631,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
 		reason = "spec.source differs"
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
-		reason = "spec.source differs"
+		reason = "spec.destination differs"
 	} else if expired {
 		reason = fmt.Sprintf("comparison expired. observedAt: %v, expiry: %v", app.Status.ObservedAt, statusRefreshTimeout)
 	}
@@ -748,6 +748,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
+	logCtx.Debugf("patch: %s", string(patch))
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
 	_, err = appClient.Patch(orig.Name, types.MergePatchType, patch)
 	if err != nil {

@@ -781,7 +781,7 @@ func (condition *ApplicationCondition) IsError() bool {
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
 func (source *ApplicationSource) Equals(other ApplicationSource) bool {
-	return reflect.DeepEqual(source, other)
+	return reflect.DeepEqual(*source, other)
 }
 
 func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) {
