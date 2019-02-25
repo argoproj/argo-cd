@@ -691,15 +691,15 @@ type JWTToken struct {
 
 // Command holds binary path and arguments list
 type Command struct {
-	Path string   `json:"path,omitempty" yaml:"path,omitempty" protobuf:"bytes,1,name=path"`
-	Args []string `json:"args,omitempty" yaml:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
+	Command []string `json:"command,omitempty" yaml:"command,omitempty" protobuf:"bytes,1,name=command"`
+	Args    []string `json:"args,omitempty" yaml:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
 }
 
 // ConfigManagementPlugin contains config management plugin configuration
 type ConfigManagementPlugin struct {
 	Name     string   `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,1,name=name"`
 	Init     *Command `json:"init,omitempty" yaml:"init,omitempty" protobuf:"bytes,2,name=init"`
-	Template Command  `json:"template,omitempty" yaml:"template,omitempty" protobuf:"bytes,3,rep,name=template"`
+	Generate Command  `json:"generate,omitempty" yaml:"generate,omitempty" protobuf:"bytes,3,name=generate"`
 }
 
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
