@@ -345,8 +345,8 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	return nil, status.Errorf(codes.Internal, "Failed to update application spec. Too many conflicts")
 }
 
-// PatchSpec patches an application spec
-func (s *Server) PatchSpec(ctx context.Context, q *ApplicationPatchSpecRequest) (*appv1.Application, error) {
+// Patch patches an application
+func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.Application, error) {
 
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
@@ -362,12 +362,7 @@ func (s *Server) PatchSpec(ctx context.Context, q *ApplicationPatchSpecRequest) 
 		return nil, err
 	}
 
-	err = s.validateApp(ctx, app)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 }
 
 // Delete removes an application and all associated resources

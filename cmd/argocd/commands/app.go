@@ -1595,7 +1595,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			patchedApp, err := appIf.PatchSpec(context.Background(), &application.ApplicationPatchSpecRequest{
+			patchedApp, err := appIf.Patch(context.Background(), &application.ApplicationPatchRequest{
 				Name:      &appName,
 				Patch:     patch,
 				PatchType: patchType,

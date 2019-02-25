@@ -80,8 +80,8 @@ message ApplicationUpdateSpecRequest {
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
 }
 
-// ApplicationPatchSpecRequest is a request to update application spec
-message ApplicationPatchSpecRequest {
+// ApplicationPatchRequest is a request to patch an application
+message ApplicationPatchRequest {
 	required string name = 1;
 	required string patch = 2 [(gogoproto.nullable) = false];
 	required string patchType = 3 [(gogoproto.nullable) = false];
@@ -218,10 +218,10 @@ service ApplicationService {
 		};
 	}
 
-	// PatchSpec patch an application spec
-	rpc PatchSpec(ApplicationPatchSpecRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+	// Patch patch an application
+	rpc Patch(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
-			patch: "/api/v1/applications/{name}/spec"
+			patch: "/api/v1/applications/{name}"
 			body: "*"
 		};
 	}

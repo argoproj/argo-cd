@@ -245,6 +245,37 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Patch patch an application",
+        "operationId": "Patch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationPatchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        }
       }
     },
     "/api/v1/applications/{name}/events": {
@@ -572,37 +603,6 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationSpec"
-            }
-          }
-        }
-      },
-      "patch": {
-        "tags": [
-          "ApplicationService"
-        ],
-        "summary": "PatchSpec patch an application spec",
-        "operationId": "PatchSpec",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/applicationApplicationPatchSpecRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "(empty)",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Application"
             }
           }
         }
@@ -1332,9 +1332,9 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
-    "applicationApplicationPatchSpecRequest": {
+    "applicationApplicationPatchRequest": {
       "type": "object",
-      "title": "ApplicationPatchSpecRequest is a request to update application spec",
+      "title": "ApplicationPatchRequest is a request to patch an application",
       "properties": {
         "name": {
           "type": "string"
