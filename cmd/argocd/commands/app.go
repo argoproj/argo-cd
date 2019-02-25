@@ -16,8 +16,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -1581,7 +1579,6 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var patch string
-	var patchType string
 
 	command := cobra.Command{
 		Use:   "patch APPNAME",
@@ -1596,9 +1593,8 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer util.Close(conn)
 
 			patchedApp, err := appIf.Patch(context.Background(), &application.ApplicationPatchRequest{
-				Name:      &appName,
-				Patch:     patch,
-				PatchType: patchType,
+				Name:  &appName,
+				Patch: patch,
 			})
 			errors.CheckError(err)
 
@@ -1609,8 +1605,6 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		},
 	}
 
-	command.Flags().StringVar(&patchType, "type", string(types.JSONPatchType), "Patch type")
 	command.Flags().StringVar(&patch, "patch", "", "Patch")
-
 	return &command
 }

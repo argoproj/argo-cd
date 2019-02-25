@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -348,6 +349,11 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 // Patch patches an application
 func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.Application, error) {
 
+	patch, err := jsonpatch.DecodePatch([]byte(q.Patch))
+	if err != nil {
+		return nil, err
+	}
+
 	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -357,12 +363,29 @@ func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.
 		return nil, grpc.ErrPermissionDenied
 	}
 
-	app, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Patch(app.Name, types.PatchType(q.PatchType), []byte(q.Patch))
+	jsonApp, err := json.Marshal(app)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	patchApp, err := patch.Apply(jsonApp)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info(string(patchApp))
+
+	err = json.Unmarshal(patchApp, &app)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.validateApp(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
 }
 
 // Delete removes an application and all associated resources

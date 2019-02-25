@@ -1341,9 +1341,6 @@
         },
         "patch": {
           "type": "string"
-        },
-        "patchType": {
-          "type": "string"
         }
       }
     },

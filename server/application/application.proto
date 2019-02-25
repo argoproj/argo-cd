@@ -84,7 +84,6 @@ message ApplicationUpdateSpecRequest {
 message ApplicationPatchRequest {
 	required string name = 1;
 	required string patch = 2 [(gogoproto.nullable) = false];
-	required string patchType = 3 [(gogoproto.nullable) = false];
 }
 
 message ApplicationRollbackRequest {
