@@ -93,7 +93,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			return nil, err
 		}
 		info = &clusterInfo{
-			apis:         make(map[schema.GroupVersionKind]metav1.APIResource),
+			apis:         make(map[schema.GroupKind]*gkInfo),
 			lock:         &sync.Mutex{},
 			nodes:        make(map[kube.ResourceKey]*node),
 			nsIndex:      make(map[string]map[kube.ResourceKey]*node),
@@ -148,7 +148,7 @@ func (c *liveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind
 	if err != nil {
 		return false, err
 	}
-	return clusterInfo.isNamespaced(gvk), nil
+	return clusterInfo.isNamespaced(gvk.GroupKind()), nil
 }
 
 func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error) {
@@ -178,6 +178,7 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 
 // Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
 func (c *liveStateCache) Run(ctx context.Context) {
+	watchingClustersLock := sync.Mutex{}
 	watchingClusters := make(map[string]struct {
 		cancel  context.CancelFunc
 		cluster *appv1.Cluster
@@ -191,9 +192,12 @@ func (c *liveStateCache) Run(ctx context.Context) {
 			// cluster resources must be watched only if cluster has at least one app
 			if (event.Type == watch.Deleted || !hasApps) && ok {
 				info.cancel()
+				watchingClustersLock.Lock()
 				delete(watchingClusters, event.Cluster.Server)
+				watchingClustersLock.Unlock()
 			} else if event.Type != watch.Deleted && !ok && hasApps {
 				ctx, cancel := context.WithCancel(ctx)
+				watchingClustersLock.Lock()
 				watchingClusters[event.Cluster.Server] = struct {
 					cancel  context.CancelFunc
 					cluster *appv1.Cluster
@@ -204,6 +208,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 					},
 					cluster: event.Cluster,
 				}
+				watchingClustersLock.Unlock()
 				go c.watchClusterResources(ctx, c.settings, *event.Cluster)
 			}
 		}
@@ -262,33 +267,57 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, resourceFilt
 		if err != nil {
 			return err
 		}
-		ch, err := c.kubectl.WatchResources(ctx, config, resourceFilter, "")
+
+		ch, err := c.kubectl.WatchResources(ctx, config, resourceFilter, func(gk schema.GroupKind) (s string, e error) {
+			clusterInfo, err := c.getSyncedCluster(item.Server)
+			if err != nil {
+				return "", err
+			}
+			return clusterInfo.getResourceVersion(gk), nil
+		})
 		if err != nil {
 			return err
 		}
 		for event := range ch {
-			eventObj := event.Object.(*unstructured.Unstructured)
-			if kube.IsCRD(eventObj) {
-				// restart if new CRD has been created after watch started
-				if event.Type == watch.Added {
-					if !knownCRDs[eventObj.GetName()] {
+			if event.WatchEvent != nil {
+				eventObj := event.WatchEvent.Object.(*unstructured.Unstructured)
+				if kube.IsCRD(eventObj) {
+					// restart if new CRD has been created after watch started
+					if event.WatchEvent.Type == watch.Added {
+						if !knownCRDs[eventObj.GetName()] {
+							c.removeCluster(item.Server)
+							return fmt.Errorf("Restarting the watch because a new CRD %s was added", eventObj.GetName())
+						} else {
+							log.Infof("CRD %s updated", eventObj.GetName())
+						}
+					} else if event.WatchEvent.Type == watch.Deleted {
 						c.removeCluster(item.Server)
-						return fmt.Errorf("Restarting the watch because a new CRD %s was added", eventObj.GetName())
-					} else {
-						log.Infof("CRD %s updated", eventObj.GetName())
+						return fmt.Errorf("Restarting the watch because CRD %s was deleted", eventObj.GetName())
 					}
-				} else if event.Type == watch.Deleted {
-					c.removeCluster(item.Server)
-					return fmt.Errorf("Restarting the watch because CRD %s was deleted", eventObj.GetName())
+				}
+				err = c.processEvent(event.WatchEvent.Type, eventObj, item.Server)
+				if err != nil {
+					log.Warnf("Failed to process event %s for obj %v: %v", event.WatchEvent.Type, event.WatchEvent.Object, err)
+				}
+			} else {
+				err = c.updateCache(item.Server, event.CacheRefresh.GVK.GroupKind(), event.CacheRefresh.ResourceVersion, event.CacheRefresh.Objects)
+				if err != nil {
+					log.Warnf("Failed to process event %s for obj %v: %v", event.WatchEvent.Type, event.WatchEvent.Object, err)
 				}
 			}
-			err = c.processEvent(event.Type, eventObj, item.Server)
-			if err != nil {
-				log.Warnf("Failed to process event %s for obj %v: %v", event.Type, event.Object, err)
-			}
+
 		}
 		return fmt.Errorf("resource updates channel has closed")
 	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, clusterRetryTimeout)
+}
+
+func (c *liveStateCache) updateCache(server string, gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) error {
+	clusterInfo, err := c.getSyncedCluster(server)
+	if err != nil {
+		return err
+	}
+	clusterInfo.updateCache(gk, resourceVersion, objs)
+	return nil
 }
 
 // getCRDs returns a map of crds

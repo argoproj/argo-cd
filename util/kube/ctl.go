@@ -29,14 +29,35 @@ import (
 	"github.com/argoproj/argo-cd/util/diff"
 )
 
+type ResourcesBatch struct {
+	GVK                 schema.GroupVersionKind
+	ResourceInfo        metav1.APIResource
+	ListResourceVersion string
+	Objects             []unstructured.Unstructured
+	Error               error
+}
+
+type CacheRefreshEvent struct {
+	GVK             schema.GroupVersionKind
+	ResourceVersion string
+	Objects         []unstructured.Unstructured
+}
+
+type WatchEvent struct {
+	WatchEvent   *watch.Event
+	CacheRefresh *CacheRefreshEvent
+}
+
+type CachedVersionSource func(gk schema.GroupKind) (string, error)
+
 type Kubectl interface {
 	ApplyResource(config *rest.Config, obj *unstructured.Unstructured, namespace string, dryRun, force bool) (string, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
-	WatchResources(ctx context.Context, config *rest.Config, resourceFilter ResourceFilter, namespace string) (chan watch.Event, error)
-	GetResources(config *rest.Config, resourceFilter ResourceFilter, namespace string) ([]*unstructured.Unstructured, error)
+	WatchResources(ctx context.Context, config *rest.Config, resourceFilter ResourceFilter, versionSource CachedVersionSource) (chan WatchEvent, error)
+	GetResources(config *rest.Config, resourceFilter ResourceFilter, namespace string) (chan ResourcesBatch, error)
 	GetAPIResources(config *rest.Config) ([]*metav1.APIResourceList, error)
 }
 
@@ -51,9 +72,10 @@ func (k KubectlCmd) GetAPIResources(config *rest.Config) ([]*metav1.APIResourceL
 }
 
 // GetResources returns all kubernetes resources
-func (k KubectlCmd) GetResources(config *rest.Config, resourceFilter ResourceFilter, namespace string) ([]*unstructured.Unstructured, error) {
+func (k KubectlCmd) GetResources(config *rest.Config, resourceFilter ResourceFilter, namespace string) (chan ResourcesBatch, error) {
+	res := make(chan ResourcesBatch)
 
-	listSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
+	listSupported := func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, listVerb)
 	}
 	apiResIfs, err := filterAPIResources(config, resourceFilter, listSupported, namespace)
@@ -61,31 +83,34 @@ func (k KubectlCmd) GetResources(config *rest.Config, resourceFilter ResourceFil
 		return nil, err
 	}
 
-	var asyncErr error
-	var result []*unstructured.Unstructured
-	var wg sync.WaitGroup
-	var lock sync.Mutex
-	wg.Add(len(apiResIfs))
-	for _, apiResIf := range apiResIfs {
-		go func(resourceIf dynamic.ResourceInterface) {
-			defer wg.Done()
-			list, err := resourceIf.List(metav1.ListOptions{})
-			if err != nil {
-				if !apierr.IsNotFound(err) {
-					asyncErr = err
+	go func() {
+		defer close(res)
+		var wg sync.WaitGroup
+		wg.Add(len(apiResIfs))
+		for _, apiResIf := range apiResIfs {
+			go func(apiResIf apiResourceInterface) {
+				defer wg.Done()
+				batch := ResourcesBatch{
+					GVK:          apiResIf.groupVersion.WithKind(apiResIf.apiResource.Kind),
+					ResourceInfo: apiResIf.apiResource,
 				}
-				return
-			}
-			for i := range list.Items {
-				item := list.Items[i]
-				lock.Lock()
-				result = append(result, &item)
-				lock.Unlock()
-			}
-		}(apiResIf.resourceIf)
-	}
-	wg.Wait()
-	return result, asyncErr
+				list, err := apiResIf.resourceIf.List(metav1.ListOptions{})
+				if err != nil {
+					if !apierr.IsNotFound(err) {
+						batch.Error = err
+						res <- batch
+					}
+					return
+				}
+				batch.ListResourceVersion = list.GetResourceVersion()
+				batch.Objects = list.Items
+				res <- batch
+			}(apiResIf)
+		}
+		wg.Wait()
+	}()
+
+	return res, nil
 }
 
 const watchResourcesRetryTimeout = 1 * time.Second
@@ -95,17 +120,17 @@ func (k KubectlCmd) WatchResources(
 	ctx context.Context,
 	config *rest.Config,
 	resourceFilter ResourceFilter,
-	namespace string,
-) (chan watch.Event, error) {
-	watchSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
+	versionSource CachedVersionSource,
+) (chan WatchEvent, error) {
+	watchSupported := func(apiResource *metav1.APIResource) bool {
 		return isSupportedVerb(apiResource, watchVerb)
 	}
 	log.Infof("Start watching for resources changes with in cluster %s", config.Host)
-	apiResIfs, err := filterAPIResources(config, resourceFilter, watchSupported, namespace)
+	apiResIfs, err := filterAPIResources(config, resourceFilter, watchSupported, "")
 	if err != nil {
 		return nil, err
 	}
-	ch := make(chan watch.Event)
+	ch := make(chan WatchEvent)
 	go func() {
 		var wg sync.WaitGroup
 		wg.Add(len(apiResIfs))
@@ -122,15 +147,40 @@ func (k KubectlCmd) WatchResources(
 						}
 					}()
 					watchCh := WatchWithRetry(ctx, func() (i watch.Interface, e error) {
-						return apiResIf.resourceIf.Watch(metav1.ListOptions{})
+						gvk := apiResIf.groupVersion.WithKind(apiResIf.apiResource.Kind)
+						resourceVersion, err := versionSource(gvk.GroupKind())
+						if err != nil {
+							return nil, err
+						}
+						w, err := apiResIf.resourceIf.Watch(metav1.ListOptions{
+							ResourceVersion: resourceVersion,
+						})
+						if apierr.IsGone(err) {
+							log.Infof("List resource version of %s has expired at cluster %s, reloading list", gvk, config.Host)
+							list, err := apiResIf.resourceIf.List(metav1.ListOptions{})
+							if err != nil {
+								return nil, err
+							}
+							ch <- WatchEvent{
+								CacheRefresh: &CacheRefreshEvent{
+									GVK:             gvk,
+									ResourceVersion: list.GetResourceVersion(),
+									Objects:         list.Items,
+								},
+							}
+							return apiResIf.resourceIf.Watch(metav1.ListOptions{ResourceVersion: list.GetResourceVersion()})
+						}
+						return w, err
 					})
 					for next := range watchCh {
 						if next.Error != nil {
 							return next.Error
 						}
-						ch <- watch.Event{
-							Object: next.Object,
-							Type:   next.Type,
+						ch <- WatchEvent{
+							WatchEvent: &watch.Event{
+								Object: next.Object,
+								Type:   next.Type,
+							},
 						}
 					}
 					return nil
