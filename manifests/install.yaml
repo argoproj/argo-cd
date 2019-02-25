@@ -484,7 +484,7 @@ spec:
       - command:
         - /shared/argocd-util
         - rundex
-        image: quay.io/dexidp/dex:v2.12.0
+        image: quay.io/dexidp/dex:v2.14.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -527,7 +527,12 @@ spec:
         app.kubernetes.io/name: argocd-redis
     spec:
       containers:
-      - image: redis:5.0.3
+      - args:
+        - --save
+        - ""
+        - --appendonly
+        - "no"
+        image: redis:5.0.3
         imagePullPolicy: Always
         name: redis
         ports:
@@ -554,6 +559,8 @@ spec:
       containers:
       - command:
         - argocd-repo-server
+        - --redis
+        - argocd-redis:6379
         image: argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-repo-server

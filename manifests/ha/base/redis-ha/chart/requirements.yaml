@@ -1,0 +1,4 @@
+dependencies:
+- name: redis-ha
+  version: 3.1.6
+  repository: https://kubernetes-charts.storage.googleapis.com

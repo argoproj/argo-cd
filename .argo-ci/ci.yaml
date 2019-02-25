@@ -44,7 +44,8 @@ spec:
           repo: "{{workflow.parameters.repo}}"
           revision: "{{workflow.parameters.revision}}"
     container:
-      image: argoproj/argo-cd-ci-builder:latest
+      image: argoproj/argo-cd-ci-builder:v0.12.0
+      imagePullPolicy: Always
       command: [bash, -c]
       args: ["{{inputs.parameters.cmd}}"]
       workingDir: /go/src/github.com/argoproj/argo-cd
@@ -72,7 +73,8 @@ spec:
           repo: "{{workflow.parameters.repo}}"
           revision: "{{workflow.parameters.revision}}"
     container:
-      image: argoproj/argo-cd-ci-builder:latest
+      image: argoproj/argo-cd-ci-builder:v0.12.0
+      imagePullPolicy: Always
       command: [sh, -c]
       args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}}"]
       workingDir: /go/src/github.com/argoproj/argo-cd

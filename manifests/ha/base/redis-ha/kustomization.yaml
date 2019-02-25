@@ -1,0 +1,69 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- chart/upstream.yaml
+
+patchesJson6902:
+# Replace helm's app/release/chart/heritage labels with argocd common labels
+- target:
+    version: v1
+    kind: ConfigMap
+    name: argocd-redis-ha-configmap
+  path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    kind: ConfigMap
+    name: argocd-redis-ha-probes
+  path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-0
+  path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-1
+  path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-2
+  path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha
+  path: overlays/modify-labels.yaml
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name: argocd-redis-ha-server
+  path: overlays/modify-labels.yaml
+
+# add pod template labels
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name: argocd-redis-ha-server
+  path: overlays/statefulset-labels.yaml
+
+# update service selectors to match
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-0
+  path: overlays/service-selector.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-1
+  path: overlays/service-selector.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha-announce-2
+  path: overlays/service-selector.yaml
