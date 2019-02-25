@@ -373,8 +373,6 @@ func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.
 		return nil, err
 	}
 
-	log.Info(string(patchApp))
-
 	err = json.Unmarshal(patchApp, &app)
 	if err != nil {
 		return nil, err
