@@ -148,3 +148,26 @@ func TestExplicitTypeWithDirectory(t *testing.T) {
 	_, err := src.ExplicitType()
 	assert.NotNil(t, err, "cannot add directory with any other types")
 }
+
+func TestAppSourceEquality(t *testing.T) {
+	left := &ApplicationSource{
+		Directory: &ApplicationSourceDirectory{
+			Recurse: true,
+		},
+	}
+	right := left.DeepCopy()
+	assert.True(t, left.Equals(*right))
+	right.Directory.Recurse = false
+	assert.False(t, left.Equals(*right))
+}
+
+func TestAppDestinationEquality(t *testing.T) {
+	left := &ApplicationDestination{
+		Server:    "https://kubernetes.default.svc",
+		Namespace: "default",
+	}
+	right := left.DeepCopy()
+	assert.True(t, left.Equals(*right))
+	right.Namespace = "kube-system"
+	assert.False(t, left.Equals(*right))
+}
