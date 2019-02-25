@@ -108,7 +108,7 @@ argocd app set redis -p password=abc123
 Argo CD allows integrating more config management tools using config management plugins. Following changes are required to configure new plugin:
 
 * Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or using custom image (see [custom_tools](custom_tools.md)).
-* Register new plugin in `argocd-cm` ConfigMap:
+* Register a new plugin in `argocd-cm` ConfigMap:
 
 ```yaml
 data:
@@ -122,7 +122,7 @@ data:
         args: ["sample args"]
 ```
 
-Both `init` and `generate` commands are executed inside application source directory. Commands have access to system environment variables and following additional variables:
+Both `init` and `generate` commands are executed inside the application source directory. Commands have access to system environment variables and following additional variables:
 `ARGOCD_APP_NAME` - name of application; `ARGOCD_APP_NAMESPACE` - destination application namespace
 
  * Create an application and specify required config management plugin name.
