@@ -2,16 +2,9 @@
 
 ## Why is my application still `OutOfSync` immediately after a successful Sync?
 
-It is possible for an application to be `OutOfSync` even immediately after a successful Sync
-operation. The reason might be a bug in the manifest, resource controller behavior
-or a [mutating webhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#mutatingadmissionwebhook). 
+See [Diffing](diffing.md) documentation for reasons resources can be OutOfSync, and ways to configure
+Argo CD to ignore fields when differences are expected.
 
-To debug `OutOfSync` issues, run the `app diff` command to see the differences between git and live:
-```
-argocd app diff APPNAME
-```
-
-In case a difference is expected it is possible to exclude some resource fields using an Argo CD [diffing](diffing.md) customization.
 
 ## Why is my application stuck in `Progressing` state?
 
@@ -27,3 +20,9 @@ to return `Progressing` state instead of `Healthy`.
 include the fix [kubernetes/kubernetes#67570](https://github.com/kubernetes/kubernetes/pull/67570) `StatefulSet` might stay in `Progressing` state.
 
 As workaround Argo CD allows providing [health check](health.md) customization which overrides default behavior.
+
+## I forgot the admin password, how do I reset it?
+
+Edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
+can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. Another option
+is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server.

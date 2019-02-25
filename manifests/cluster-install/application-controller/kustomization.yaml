@@ -1,3 +1,0 @@
-resources:
-- argocd-application-controller-clusterrole.yaml
-- argocd-application-controller-clusterrolebinding.yaml

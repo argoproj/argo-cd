@@ -45,31 +45,34 @@ RUN wget https://github.com/gobuffalo/packr/releases/download/v${PACKR_VERSION}/
 # Keep version at 1.12.X until https://github.com/argoproj/argo-cd/issues/1012 is resolved
 ENV KUBECTL_VERSION=1.12.4
 RUN curl -L -o /usr/local/bin/kubectl -LO https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
-    chmod +x /usr/local/bin/kubectl
+    chmod +x /usr/local/bin/kubectl && \
+    kubectl version --client
 
 # Install ksonnet
 ENV KSONNET_VERSION=0.13.1
 RUN wget https://github.com/ksonnet/ksonnet/releases/download/v${KSONNET_VERSION}/ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
     tar -C /tmp/ -xf ks_${KSONNET_VERSION}_linux_amd64.tar.gz && \
-    mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks
-# NOTE: we occasionally switch between tip of master ksonnet vs. official builds. Run the following
-# to use tip instead of official release:
-#RUN go get -v -u github.com/ksonnet/ksonnet && mv ${GOPATH}/bin/ksonnet /usr/local/bin/ks
+    mv /tmp/ks_${KSONNET_VERSION}_linux_amd64/ks /usr/local/bin/ks && \
+    ks version
 
 # Install helm
 ENV HELM_VERSION=2.12.1
 RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     tar -C /tmp/ -xf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    mv /tmp/linux-amd64/helm /usr/local/bin/helm
+    mv /tmp/linux-amd64/helm /usr/local/bin/helm && \
+    helm version --client
 
 # Install kustomize
-ENV KUSTOMIZE_VERSION=1.0.11
-RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
-    chmod +x /usr/local/bin/kustomize
+ENV KUSTOMIZE1_VERSION=1.0.11
+RUN curl -L -o /usr/local/bin/kustomize1 https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE1_VERSION}/kustomize_${KUSTOMIZE1_VERSION}_linux_amd64 && \
+    chmod +x /usr/local/bin/kustomize1 && \
+    kustomize1 version
 
-ENV KUSTOMIZE2_VERSION=2.0.1
-RUN curl -L -o /usr/local/bin/kustomize2 https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE2_VERSION}/kustomize_${KUSTOMIZE2_VERSION}_linux_amd64 && \
-    chmod +x /usr/local/bin/kustomize2
+
+ENV KUSTOMIZE_VERSION=2.0.1
+RUN curl -L -o /usr/local/bin/kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64 && \
+    chmod +x /usr/local/bin/kustomize && \
+    kustomize version
 
 # Install AWS IAM Authenticator
 ENV AWS_IAM_AUTHENTICATOR_VERSION=0.4.0-alpha.1
@@ -94,8 +97,8 @@ RUN groupadd -g 999 argocd && \
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
+COPY --from=builder /usr/local/bin/kustomize1 /usr/local/bin/kustomize1
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-COPY --from=builder /usr/local/bin/kustomize2 /usr/local/bin/kustomize2
 COPY --from=builder /usr/local/bin/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
 
 # workaround ksonnet issue https://github.com/ksonnet/ksonnet/issues/298

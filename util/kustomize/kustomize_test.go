@@ -91,8 +91,8 @@ func testGetKustomizationVersion(t *testing.T, set string, expected int) {
 }
 
 func TestGetCommandName(t *testing.T) {
-	assert.Equal(t, "kustomize", GetCommandName(1))
-	assert.Equal(t, "kustomize2", GetCommandName(2))
+	assert.Equal(t, "kustomize1", GetCommandName(1))
+	assert.Equal(t, "kustomize", GetCommandName(2))
 }
 
 func TestIsKustomization(t *testing.T) {

@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+spec:
+  # The project the application belongs to.
+  project: default
+
+  # Source of the application manifests
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+
+    # helm specific config
+    helm:
+      valueFiles:
+      - values-prod.yaml
+
+    # kustomize specific config
+    kustomize:
+      namePrefix: prod-
+
+    # directory
+    directory:
+      recurse: true
+
+    # plugin specific config
+    plugin:
+    - name: mypluginname
+
+  # Destination cluster and namespace to deploy the application
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+
+  # Ignore differences at the specified json pointers
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas

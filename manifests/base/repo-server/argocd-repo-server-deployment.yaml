@@ -20,7 +20,10 @@ spec:
       - name: argocd-repo-server
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [argocd-repo-server]
+        command:
+        - argocd-repo-server
+        - --redis
+        - argocd-redis:6379
         ports:
         - containerPort: 8081
         readinessProbe:
