@@ -13,8 +13,9 @@ export interface AutocompleteOption {
 
 export interface AutocompleteProps {
     items: (AutocompleteOption | string)[];
-    input?: string;
+    value?: string;
     inputProps?: React.HTMLProps<HTMLInputElement>;
+    wrapperProps?: React.HTMLProps<HTMLDivElement>;
     renderInput?: (props: React.HTMLProps<HTMLInputElement>) => React.ReactNode;
     renderItem?: (item: AutocompleteOption) => React.ReactNode;
     onChange?: (e: React.ChangeEvent<HTMLInputElement>, value: string) => void;
@@ -33,15 +34,21 @@ export const Autocomplete = (props: AutocompleteProps) => {
             };
         }
     });
+    const wrapperProps = props.wrapperProps || {};
+    wrapperProps.className = classNames('select', wrapperProps.className);
     return (
         <ReactAutocomplete
             ref={(el: any) => {
+                if (el) {
+                    // workaround for 'autofill for forms not deactivatable' https://bugs.chromium.org/p/chromium/issues/detail?id=370363#c7
+                    (el.refs.input as HTMLInputElement).autocomplete = 'no-autocomplete';
+                }
                 if (props.autoCompleteRef) {
                     props.autoCompleteRef({ refresh: () => el.setMenuPositions() });
                 }
             }}
             inputProps={props.inputProps}
-            wrapperProps={{ className: 'select' }}
+            wrapperProps={wrapperProps}
             shouldItemRender={(item: AutocompleteOption, val: string) => {
                 return item.label.includes(val);
             }}
@@ -53,7 +60,7 @@ export const Autocomplete = (props: AutocompleteProps) => {
             }}
             getItemValue={(item) => item.label}
             items={items}
-            value={props.input}
+            value={props.value}
             renderItem={(item, isSelected) => (
                 <div className={classNames('select__option', { selected: isSelected })} key={item.label}>
                     {props.renderItem && props.renderItem(item) || item.label}

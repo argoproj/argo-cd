@@ -182,7 +182,7 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                                                     this.appContext.apis.navigation.goto(`./${val}`);
                                                 }}
                                                 onChange={(e) => this.appContext.apis.navigation.goto('.', { search: e.target.value }, { replace: true })}
-                                                input={q.get('search') || ''} items={applications.map((app) => app.metadata.name)}/>
+                                                value={q.get('search') || ''} items={applications.map((app) => app.metadata.name)}/>
                                         </div>
                                     )}
                                     </Query>

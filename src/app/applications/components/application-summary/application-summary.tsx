@@ -30,7 +30,10 @@ export const ApplicationSummary = (props: {
             title: 'CLUSTER',
             view: app.spec.destination.server,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((item) => item.server))}>
+                <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((cluster) => ({
+                    title: `${cluster.name || 'in-cluster'}: ${cluster.server}`,
+                    value: cluster.server,
+                })))}>
                     {(clusters) => (
                         <FormField formApi={formApi} field='spec.destination.server' componentProps={{options: clusters}} component={FormSelect}/>
                     )}

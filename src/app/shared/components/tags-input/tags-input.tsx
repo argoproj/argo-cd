@@ -37,7 +37,7 @@ export class TagsInput extends React.Component<TagsInputProps, { tags: string[];
                 ))}
                 <Autocomplete
                     autoCompleteRef={(api) => this.autocompleteApi = api}
-                    input={this.state.input}
+                    value={this.state.input}
                     items={this.props.autocomplete}
                     onChange={(e) => this.setState({ input: e.target.value })}
                     onSelect={(value) => {

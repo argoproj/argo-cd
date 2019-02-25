@@ -235,12 +235,11 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-argo-ui@^2.2.0-alpha19:
-  version "2.2.0-alpha19"
-  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha19.tgz#61dd4f0c42ad56c0a40cafa7164a83a433f2e8da"
-  integrity sha512-GkXpDyn4zAZL9hMy1nrTpMirCaTg4tA1sle6AIz6FRcTXkTjvWAbhtgXuwN7W0ufyR9ERwkxxW7ma6WckLOToA==
+argo-ui@^2.2.0-alpha20:
+  version "2.2.0-alpha20"
+  resolved "https://registry.yarnpkg.com/argo-ui/-/argo-ui-2.2.0-alpha20.tgz#8f9bfa9565e3446f72f97b2df3a50f57cb23b633"
+  integrity sha512-z+2tGJQvQSNd+/VaftR9kZPBd1wj1SWpTYmRTYk2yNd2x6k49SYCa8D6GXmRXIAHes+zx16mfSYQM3x9iiJQWA==
   dependencies:
-    "@types/react-autocomplete" "^1.8.4"
     "@types/react-form" "^2.16.1"
     "@types/react-helmet" "^5.0.8"
     aws-sdk "^2.188.0"
@@ -258,7 +257,6 @@ argo-ui@^2.2.0-alpha19:
     moment "^2.20.1"
     prop-types "^15.6.0"
     react "^16.4.1"
-    react-autocomplete "^1.8.1"
     react-dom "^16.4.1"
     react-form "2.16.0"
     react-helmet "^5.2.0"

@@ -1,10 +1,10 @@
-import { Autocomplete, FormAutocomplete, FormField, FormSelect } from 'argo-ui';
+import { FormField, FormSelect } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
 import { Observable, Subscription } from 'rxjs';
 
-import { CheckboxField, DataLoader, TagsInputField } from '../../../shared/components';
+import { Autocomplete, AutocompleteField, CheckboxField, DataLoader, TagsInputField } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 
@@ -43,8 +43,9 @@ export const RepositoryList: React.StatelessComponent<
             <Autocomplete
                 inputProps={{className: 'argo-field'}}
                 wrapperProps={{style: {width: '100%'}}}
+                onSelect={(selected) => props.onSelectedRepo(selected)}
                 value={props.selectedRepo || ''}
-                options={props.repos.map((item) => item.repo)} onChange={(val) => props.onSelectedRepo(val)} />
+                items={props.repos.map((item) => item.repo)} onChange={(val) => props.onSelectedRepo(val.target.value)} />
             {props.invalidRepoURL && (
             <div className='argo-form-row__error-msg'>
                 Invalid repository URL.
@@ -202,7 +203,7 @@ export class AppParams extends React.Component<{
                                 <FormField formApi={api} label='Directory recurse' field='directoryRecurse' component={CheckboxField}/>
                             </div>
                         )}
-                        <DataLoader load={() => services.clusters.list().then((clusters) => clusters.map((item) => item.server))}>
+                        <DataLoader load={() => services.clusters.list()}>
                             {(clusters) => {
                                 const projectField = 'project';
                                 const project = !api.errors[projectField] ?
@@ -220,12 +221,15 @@ export class AppParams extends React.Component<{
                                             componentProps={{
                                                 options: clusters.filter((cluster) =>
                                                     project && project.spec.destinations && project.spec.destinations.some((dest) =>
-                                                        (dest.server === cluster || dest.server === '*'))),
+                                                        (dest.server === cluster.server || dest.server === '*'))).map((cluster) => ({
+                                                            title: `${cluster.name || 'in-cluster'}: ${cluster.server}`,
+                                                            value: cluster.server,
+                                                        })),
                                             }}
                                             component={FormSelect}/>
                                     </div>
                                     <div className='argo-form-row'>
-                                        <FormField field='namespace' formApi={api} component={FormAutocomplete} label='Namespace' componentProps={{options: namespaces}} />
+                                        <FormField field='namespace' formApi={api} component={AutocompleteField} label='Namespace' componentProps={{items: namespaces}} />
                                     </div>
                                 </React.Fragment>
                                 );
