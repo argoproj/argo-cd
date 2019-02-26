@@ -487,16 +487,16 @@ func makeJsonnetVm(sourceJsonnet v1alpha1.ApplicationSourceJsonnet) *jsonnet.VM 
 
 	for _, arg := range sourceJsonnet.TLAs {
 		if arg.Code {
-			vm.TLACode(arg.Key, arg.Val)
+			vm.TLACode(arg.Name, arg.Value)
 		} else {
-			vm.TLAVar(arg.Key, arg.Val)
+			vm.TLAVar(arg.Name, arg.Value)
 		}
 	}
 	for _, extVar := range sourceJsonnet.ExtVars {
 		if extVar.Code {
-			vm.ExtCode(extVar.Key, extVar.Val)
+			vm.ExtCode(extVar.Name, extVar.Value)
 		} else {
-			vm.ExtVar(extVar.Key, extVar.Val)
+			vm.ExtVar(extVar.Name, extVar.Value)
 		}
 	}
 

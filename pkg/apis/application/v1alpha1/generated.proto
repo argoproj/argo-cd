@@ -350,9 +350,9 @@ message JWTToken {
 
 // ApplicationSourceJsonnet holds jsonnet specific options
 message JsonnetVar {
-  optional string key = 1;
+  optional string name = 1;
 
-  optional string val = 2;
+  optional string value = 2;
 
   optional bool code = 3;
 }

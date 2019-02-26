@@ -123,9 +123,9 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 
 // ApplicationSourceJsonnet holds jsonnet specific options
 type JsonnetVar struct {
-	Key  string `json:"key" protobuf:"bytes,1,opt,name=key"`
-	Val  string `json:"val" protobuf:"bytes,2,opt,name=val"`
-	Code bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
+	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
 }
 
 type ApplicationSourceJsonnet struct {

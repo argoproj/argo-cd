@@ -92,6 +92,7 @@ data:
   # Excluding high-volume resources improves performance and memory usage, and reduces load and 
   # bandwidth to the Kubernetes API server.
   # NOTE: events.k8s.io and metrics.k8s.io are excluded by default
+  # These are globs, so a "*" will matched all values.
   excludedResources: |
     - apiGroups:
       - repositories.stash.appscode.com

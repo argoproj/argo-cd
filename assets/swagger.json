@@ -2700,10 +2700,10 @@
           "type": "boolean",
           "format": "boolean"
         },
-        "key": {
+        "name": {
           "type": "string"
         },
-        "val": {
+        "value": {
           "type": "string"
         }
       }

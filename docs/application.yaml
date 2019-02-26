@@ -27,17 +27,17 @@ spec:
       jsonnet:
         # A list of Jsonnet External Variables
         extVars:
-        - key: foo
-          val: bar
+        - name: foo
+          value: bar
           # You can use "code to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
         - code: true
-          key: baz
-          val: true
+          name: baz
+          value: "true"
         # A list of Jsonnet Top-level Arguments
         tlas:
           - code: false
-            key: foo
-            val: bar
+            name: foo
+            value: bar
 
     # plugin specific config
     plugin:
