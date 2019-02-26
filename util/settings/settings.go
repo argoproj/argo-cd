@@ -816,7 +816,7 @@ func (a *ArgoCDSettings) GetAppInstanceLabelKey() string {
 
 func (a *ArgoCDSettings) getExcludedResources() []ExcludedResource {
 	coreExcludedResources := []ExcludedResource{
-		{ApiGroups: []string{"events.k8s.io", "metrics.k8s.io"}, Kinds: []string{"*"}, Clusters: []string{"*"}},
+		{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
 	}
 	return append(coreExcludedResources, a.ExcludedResources...)
 }

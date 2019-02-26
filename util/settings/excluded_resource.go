@@ -6,18 +6,18 @@ import (
 )
 
 type ExcludedResource struct {
-	ApiGroups []string `json:"apiGroups"`
-	Kinds     []string `json:"kinds"`
-	Clusters  []string `json:"clusters"`
+	APIGroups []string `json:"apiGroups,omitempty"`
+	Kinds     []string `json:"kinds,omitempty"`
+	Clusters  []string `json:"clusters,omitempty"`
 }
 
 func (r ExcludedResource) matchGroup(apiGroup string) bool {
-	for _, excludedApiGroup := range r.ApiGroups {
+	for _, excludedApiGroup := range r.APIGroups {
 		if match(excludedApiGroup, apiGroup) {
 			return true
 		}
 	}
-	return false
+	return len(r.APIGroups) == 0
 }
 
 func match(pattern, text string) bool {
@@ -35,7 +35,7 @@ func (r ExcludedResource) matchKind(kind string) bool {
 			return true
 		}
 	}
-	return false
+	return len(r.Kinds) == 0
 }
 
 func (r ExcludedResource) matchCluster(cluster string) bool {
@@ -44,7 +44,7 @@ func (r ExcludedResource) matchCluster(cluster string) bool {
 			return true
 		}
 	}
-	return false
+	return len(r.Clusters) == 0
 }
 
 func (r ExcludedResource) Match(apiGroup, kind, cluster string) bool {
