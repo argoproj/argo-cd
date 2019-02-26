@@ -268,7 +268,10 @@ service ApplicationService {
 
 	// PatchResource patch single application resource
 	rpc PatchResource(ApplicationResourcePatchRequest) returns (ApplicationResourceResponse) {
-		option (google.api.http).post = "/api/v1/applications/{name}/resource";
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/resource"
+			body: "patch"
+		};
 	}
 
 	// DeleteResource deletes a single application resource
