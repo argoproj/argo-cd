@@ -121,17 +121,18 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k.NamePrefix == ""
 }
 
-// ApplicationSourceJsonnet holds jsonnet specific options
 type JsonnetVar struct {
 	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
 	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
 }
 
+// ApplicationSourceJsonnet holds jsonnet specific options
 type ApplicationSourceJsonnet struct {
-	// Environment is a ksonnet application environment name
+	// ExtVars is a list of Jsonnet External Variables
 	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
-	TLAs    []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+	// TLAS is a list of Jsonnet Top-level Arguments
+	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
 }
 
 func (j *ApplicationSourceJsonnet) IsZero() bool {

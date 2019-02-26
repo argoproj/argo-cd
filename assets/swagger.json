@@ -2434,16 +2434,18 @@
     },
     "v1alpha1ApplicationSourceJsonnet": {
       "type": "object",
+      "title": "ApplicationSourceJsonnet holds jsonnet specific options",
       "properties": {
         "extVars": {
           "type": "array",
-          "title": "Environment is a ksonnet application environment name",
+          "title": "ExtVars is a list of Jsonnet External Variables",
           "items": {
             "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
         },
         "tlas": {
           "type": "array",
+          "title": "TLAS is a list of Jsonnet Top-level Arguments",
           "items": {
             "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
@@ -2694,7 +2696,6 @@
     },
     "v1alpha1JsonnetVar": {
       "type": "object",
-      "title": "ApplicationSourceJsonnet holds jsonnet specific options",
       "properties": {
         "code": {
           "type": "boolean",

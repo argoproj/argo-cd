@@ -156,10 +156,12 @@ message ApplicationSourceHelm {
   repeated string valueFiles = 1;
 }
 
+// ApplicationSourceJsonnet holds jsonnet specific options
 message ApplicationSourceJsonnet {
-  // Environment is a ksonnet application environment name
+  // ExtVars is a list of Jsonnet External Variables
   repeated JsonnetVar extVars = 1;
 
+  // TLAS is a list of Jsonnet Top-level Arguments
   repeated JsonnetVar tlas = 2;
 }
 
@@ -348,7 +350,6 @@ message JWTToken {
   optional int64 exp = 2;
 }
 
-// ApplicationSourceJsonnet holds jsonnet specific options
 message JsonnetVar {
   optional string name = 1;
 
