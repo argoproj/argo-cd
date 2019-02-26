@@ -1,5 +1,6 @@
 local params = import 'params.libsonnet';
 
+function(tlaString, tlaCode)
 [
    {
       "apiVersion": "v1",
@@ -36,7 +37,11 @@ local params = import 'params.libsonnet';
          "template": {
             "metadata": {
                "labels": {
-                  "app": params.name
+                  "app": params.name,
+                  "tlaString": tlaString,
+                  "tlaCode": tlaCode,
+                  "extVarString": std.extVar("extVarString"),
+                  "extVarCode": std.extVar("extVarCode")
                }
             },
             "spec": {

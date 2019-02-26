@@ -43,7 +43,14 @@ func TestRecurseManifestsInDir(t *testing.T) {
 
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	q := ManifestRequest{
-		ApplicationSource: &argoappv1.ApplicationSource{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Directory: &argoappv1.ApplicationSourceDirectory{
+				Jsonnet: argoappv1.ApplicationSourceJsonnet{
+					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
+					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
+				},
+			},
+		},
 	}
 	res1, err := GenerateManifests("./testdata/jsonnet", &q)
 	assert.Nil(t, err)

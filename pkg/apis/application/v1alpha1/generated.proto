@@ -146,12 +146,23 @@ message ApplicationSource {
 
 message ApplicationSourceDirectory {
   optional bool recurse = 1;
+
+  optional ApplicationSourceJsonnet jsonnet = 2;
 }
 
 // ApplicationSourceHelm holds helm specific options
 message ApplicationSourceHelm {
   // ValuesFiles is a list of Helm value files to use when generating a template
   repeated string valueFiles = 1;
+}
+
+// ApplicationSourceJsonnet holds jsonnet specific options
+message ApplicationSourceJsonnet {
+  // ExtVars is a list of Jsonnet External Variables
+  repeated JsonnetVar extVars = 1;
+
+  // TLAS is a list of Jsonnet Top-level Arguments
+  repeated JsonnetVar tlas = 2;
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
@@ -337,6 +348,14 @@ message JWTToken {
   optional int64 iat = 1;
 
   optional int64 exp = 2;
+}
+
+message JsonnetVar {
+  optional string name = 1;
+
+  optional string value = 2;
+
+  optional bool code = 3;
 }
 
 // Operation contains requested operation parameters.

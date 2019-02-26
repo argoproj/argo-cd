@@ -121,6 +121,24 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 	return k.NamePrefix == ""
 }
 
+type JsonnetVar struct {
+	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
+}
+
+// ApplicationSourceJsonnet holds jsonnet specific options
+type ApplicationSourceJsonnet struct {
+	// ExtVars is a list of Jsonnet External Variables
+	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
+	// TLAS is a list of Jsonnet Top-level Arguments
+	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+}
+
+func (j *ApplicationSourceJsonnet) IsZero() bool {
+	return len(j.ExtVars) == 0 && len(j.TLAs) == 0
+}
+
 // ApplicationSourceKsonnet holds ksonnet specific options
 type ApplicationSourceKsonnet struct {
 	// Environment is a ksonnet application environment name
@@ -132,11 +150,12 @@ func (k *ApplicationSourceKsonnet) IsZero() bool {
 }
 
 type ApplicationSourceDirectory struct {
-	Recurse bool `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return d.Recurse == false
+	return !d.Recurse && d.Jsonnet.IsZero()
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options

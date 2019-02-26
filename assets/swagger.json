@@ -2410,6 +2410,9 @@
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
       "properties": {
+        "jsonnet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
+        },
         "recurse": {
           "type": "boolean",
           "format": "boolean"
@@ -2425,6 +2428,26 @@
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceJsonnet": {
+      "type": "object",
+      "title": "ApplicationSourceJsonnet holds jsonnet specific options",
+      "properties": {
+        "extVars": {
+          "type": "array",
+          "title": "ExtVars is a list of Jsonnet External Variables",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          }
+        },
+        "tlas": {
+          "type": "array",
+          "title": "TLAS is a list of Jsonnet Top-level Arguments",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
         }
       }
@@ -2668,6 +2691,21 @@
         "iat": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1alpha1JsonnetVar": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
         }
       }
     },

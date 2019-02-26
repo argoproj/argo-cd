@@ -91,12 +91,15 @@ data:
   # Configuration to completely ignore entire classes of resource group/kinds (optional).
   # Excluding high-volume resources improves performance and memory usage, and reduces load and 
   # bandwidth to the Kubernetes API server.
+  # These are globs, so a "*" will match all values.
   # NOTE: events.k8s.io and metrics.k8s.io are excluded by default
   excludedResources: |
     - apiGroups:
       - repositories.stash.appscode.com
       kinds:
       - Snapshot
+      clusters:
+      - '*'
 
   # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
   # Tracking labels are used to determine which resources need to be deleted when pruning.
