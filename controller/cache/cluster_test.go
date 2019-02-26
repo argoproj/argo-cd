@@ -84,7 +84,7 @@ func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
 		cluster:  &appv1.Cluster{},
 		syncTime: nil,
 		syncLock: &sync.Mutex{},
-		apis:     make(map[schema.GroupVersionKind]metav1.APIResource),
+		apis:     make(map[schema.GroupKind]*gkInfo),
 		log:      log.WithField("cluster", "test"),
 		settings: &settings.ArgoCDSettings{},
 	}
@@ -273,4 +273,37 @@ func TestCircularReference(t *testing.T) {
 
 	children := cluster.getChildren(dep)
 	assert.Len(t, children, 1)
+}
+
+func TestWatchCacheUpdated(t *testing.T) {
+	removed := testPod.DeepCopy()
+	removed.SetName(testPod.GetName() + "-removed-pod")
+
+	updated := testPod.DeepCopy()
+	updated.SetName(testPod.GetName() + "-updated-pod")
+	updated.SetResourceVersion("updated-pod-version")
+
+	cluster := newCluster(removed, updated)
+	err := cluster.ensureSynced()
+
+	assert.Nil(t, err)
+
+	added := testPod.DeepCopy()
+	added.SetName(testPod.GetName() + "-new-pod")
+
+	podGroupKind := testPod.GroupVersionKind().GroupKind()
+
+	cluster.updateCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
+
+	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
+	assert.False(t, ok)
+
+	updatedNode, ok := cluster.nodes[kube.GetResourceKey(updated)]
+	assert.True(t, ok)
+	assert.Equal(t, updatedNode.resourceVersion, "updated-pod-version")
+
+	_, ok = cluster.nodes[kube.GetResourceKey(added)]
+	assert.True(t, ok)
+
+	assert.Equal(t, cluster.getResourceVersion(podGroupKind), "updated-list-version")
 }

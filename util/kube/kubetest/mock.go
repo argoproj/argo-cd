@@ -7,7 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util/kube"
@@ -22,15 +21,30 @@ type MockKubectlCmd struct {
 	APIResources []*v1.APIResourceList
 	Resources    []*unstructured.Unstructured
 	Commands     map[string]KubectlOutput
-	Events       chan watch.Event
+	Events       chan kube.WatchEvent
 }
 
 func (k MockKubectlCmd) GetAPIResources(config *rest.Config) ([]*v1.APIResourceList, error) {
 	return k.APIResources, nil
 }
 
-func (k MockKubectlCmd) GetResources(config *rest.Config, resourceFilter kube.ResourceFilter, namespace string) ([]*unstructured.Unstructured, error) {
-	return k.Resources, nil
+func (k MockKubectlCmd) GetResources(config *rest.Config, resourceFilter kube.ResourceFilter, namespace string) (chan kube.ResourcesBatch, error) {
+	res := make(chan kube.ResourcesBatch)
+	go func() {
+		defer close(res)
+		resByGVK := make(map[schema.GroupVersionKind][]unstructured.Unstructured)
+		for i := range k.Resources {
+			resByGVK[k.Resources[i].GroupVersionKind()] = append(resByGVK[k.Resources[i].GroupVersionKind()], *k.Resources[i])
+		}
+		for gvk, objects := range resByGVK {
+			res <- kube.ResourcesBatch{
+				ListResourceVersion: "1",
+				GVK:                 gvk,
+				Objects:             objects,
+			}
+		}
+	}()
+	return res, nil
 }
 
 func (k MockKubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
@@ -42,7 +56,7 @@ func (k MockKubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersi
 }
 
 func (k MockKubectlCmd) WatchResources(
-	ctx context.Context, config *rest.Config, resourceFilter kube.ResourceFilter, namespace string) (chan watch.Event, error) {
+	ctx context.Context, config *rest.Config, resourceFilter kube.ResourceFilter, versionSource kube.CachedVersionSource) (chan kube.WatchEvent, error) {
 
 	return k.Events, nil
 }
