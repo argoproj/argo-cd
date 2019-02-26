@@ -16,16 +16,16 @@
     "@types/jwt-decode": "^2.2.1",
     "@types/minimatch": "^3.0.3",
     "@types/prop-types": "^15.5.2",
-    "@types/react": "^16.4.1",
+    "@types/react": "^16.8.5",
     "@types/react-autocomplete": "^1.8.4",
-    "@types/react-dom": "^16.0.6",
+    "@types/react-dom": "^16.8.2",
     "@types/react-form": "^2.16.0",
     "@types/react-helmet": "^5.0.7",
     "@types/react-paginate": "^6.2.0",
     "@types/react-router": "^4.0.27",
     "@types/react-router-dom": "^4.2.3",
     "@types/superagent": "^3.5.7",
-    "argo-ui": "^2.2.0-alpha20",
+    "argo-ui": "git://github.com/argoproj/argo-ui.git#1dac4dc",
     "awesome-typescript-loader": "^3.4.1",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.3",
@@ -44,9 +44,9 @@
     "node-sass": "^4.7.2",
     "prop-types": "^15.6.0",
     "raw-loader": "^0.5.1",
-    "react": "^16.4.1",
+    "react": "^16.8.3",
     "react-autocomplete": "^1.8.1",
-    "react-dom": "^16.4.1",
+    "react-dom": "^16.8.3",
     "react-form": "2.16.0",
     "react-helmet": "^5.2.0",
     "react-hot-loader": "^3.1.3",
@@ -65,5 +65,9 @@
     "typescript": "^2.8.1",
     "webpack": "^3.10.0",
     "webpack-dev-server": "^2.11.1"
+  },
+  "resolutions": {
+    "@types/react": "16.8.5",
+    "@types/react-dom": "16.8.2"
   }
 }

@@ -3,7 +3,6 @@
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
-const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -58,7 +57,7 @@ const config = {
         new CopyWebpackPlugin([{
             from: 'src/assets', to: 'assets'
         }, {
-            from: 'node_modules/argo-ui/bundle/assets', to: 'assets'
+            from: 'node_modules/argo-ui/src/assets', to: 'assets'
         }, {
             from: 'node_modules/font-awesome/fonts', to: 'assets/fonts'
         }]),
