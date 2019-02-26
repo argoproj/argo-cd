@@ -2,6 +2,7 @@ import { Tab, Tabs } from 'argo-ui';
 import * as jsYaml from 'js-yaml';
 import * as React from 'react';
 
+import { MonacoEditor } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
 import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon, ResourceTreeNode } from '../utils';
@@ -49,7 +50,10 @@ export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: model
     const tabs: Tab[] = [{
         key: 'manifest',
         title: 'Manifest',
-        content: <div className='application-node-info__manifest application-node-info__manifest--raw'>{jsYaml.safeDump(props.live, {indent: 2 })}</div>,
+        content: (
+        <div className='application-node-info__manifest application-node-info__manifest--raw'>
+            <MonacoEditor editor={{ input: { text: props.live ? jsYaml.safeDump(props.live, {indent: 2 }) : '', language: 'yaml' } }}/>
+        </div>),
     }];
     if (props.controlled && !props.controlled.summary.hook) {
         tabs.unshift({

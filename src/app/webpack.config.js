@@ -15,6 +15,7 @@ const config = {
     entry: './src/app/index.tsx',
     output: {
         filename: '[name].[hash].js',
+        chunkFilename: '[name].chunk.js',
         path: __dirname + '/../../dist/app'
     },
 
@@ -31,7 +32,10 @@ const config = {
                 loaders: [ ...( isProd ? [] : ['react-hot-loader/webpack']), 'awesome-typescript-loader?configFileName=./src/app/tsconfig.json']
             }, {
                 enforce: 'pre',
-                exclude: [/node_modules\/react-paginate/],
+                exclude: [
+                    /node_modules\/react-paginate/,
+                    /node_modules\/monaco-editor/,
+                ],
                 test: /\.js$/,
                 loaders: [ ...( isProd ? ['babel-loader?presets=babel-preset-env'] : []), 'source-map-loader']
             }, {
@@ -73,11 +77,5 @@ const config = {
         }
     }
 };
-
-if (isProd) {
-    config
-        .plugins
-        .push(new webpack.optimize.UglifyJsPlugin());
-}
 
 module.exports = config;

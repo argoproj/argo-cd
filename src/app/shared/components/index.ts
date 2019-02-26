@@ -13,3 +13,4 @@ export * from './empty-state/empty-state';
 export * from './tags-input/tags-input';
 export * from './autocomplete/autocomplete';
 export * from './autocomplete/autocomplete-field';
+export * from './monaco-editor';
