@@ -382,7 +382,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             iconClassName: 'icon fa fa-info-circle',
             title: 'Details',
             action: () => this.selectNode(nodeKey({
-                group: application.apiVersion, kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace })),
+                group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace })),
         }, {
             iconClassName: 'icon argo-icon-deploy',
             title: 'Sync',
