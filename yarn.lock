@@ -396,9 +396,9 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-"argo-ui@git://github.com/argoproj/argo-ui.git#1dac4dc":
+"argo-ui@git://github.com/argoproj/argo-ui.git#01aa3be":
   version "2.2.0-alpha20"
-  resolved "git://github.com/argoproj/argo-ui.git#1dac4dccc29a95599e489a6959b51a707f105372"
+  resolved "git://github.com/argoproj/argo-ui.git#01aa3be49b9af30c7439e9338e6e3edfc5260c6f"
   dependencies:
     "@types/react-form" "^2.16.1"
     "@types/react-helmet" "^5.0.8"
