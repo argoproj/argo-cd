@@ -351,6 +351,12 @@ func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error
 	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo) {
 		return nil, grpc.ErrPermissionDenied
 	}
+
+	// invalidate cache
+	if err := s.cache.SetRepoConnectionState(q.Repo, nil); err == nil {
+		log.Errorf("error invalidating cache: %v", err)
+	}
+
 	err := s.db.DeleteRepository(ctx, q.Repo)
 	return &RepoResponse{}, err
 }
