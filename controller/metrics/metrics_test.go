@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +54,7 @@ argocd_app_health_status{health_status="Progressing",name="my-app",namespace="ar
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",repo="https://github.com/argoproj/argocd-example-apps.git"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",repo="https://github.com/argoproj/argocd-example-apps"} 1
 # HELP argocd_app_sync_status The application current sync status.
 # TYPE argocd_app_sync_status gauge
 argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="OutOfSync"} 0
@@ -92,7 +94,7 @@ argocd_app_health_status{health_status="Progressing",name="my-app",namespace="ar
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="default"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="default",repo="https://github.com/argoproj/argocd-example-apps.git"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="default",repo="https://github.com/argoproj/argocd-example-apps"} 1
 # HELP argocd_app_sync_status The application current sync status.
 # TYPE argocd_app_sync_status gauge
 argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_status="OutOfSync"} 0
@@ -137,7 +139,7 @@ func testApp(t *testing.T, fakeApp string, expectedResponse string) {
 	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	log.Println(body)
-	assert.Equal(t, expectedResponse, body)
+	assertMetricsPrinted(t, expectedResponse, body)
 }
 
 type testCombination struct {
@@ -188,6 +190,42 @@ func TestMetricsSyncCounter(t *testing.T) {
 	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	log.Println(body)
-	assert.Equal(t, appSyncTotal, body)
+	assertMetricsPrinted(t, appSyncTotal, body)
+}
 
+// assertMetricsPrinted asserts every line in the expected lines appears in the body
+func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
+	for _, line := range strings.Split(expectedLines, "\n") {
+		assert.Contains(t, body, line)
+	}
+}
+
+const appReconcileMetrics = `argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="0.25"} 0
+argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="0.5"} 0
+argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="1"} 0
+argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="2"} 0
+argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="4"} 0
+argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="8"} 1
+argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="16"} 1
+argocd_app_reconcile_bucket{name="my-app",namespace="argocd",project="important-project",le="+Inf"} 1
+argocd_app_reconcile_sum{name="my-app",namespace="argocd",project="important-project"} 5
+argocd_app_reconcile_count{name="my-app",namespace="argocd",project="important-project"} 1
+`
+
+func TestReconcileMetrics(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ := NewMetricsServer("localhost:8082", appLister)
+
+	fakeApp := newFakeApp(fakeApp)
+	metricsServ.IncReconcile(fakeApp, time.Duration(5*time.Second))
+
+	req, err := http.NewRequest("GET", "/metrics", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, rr.Code, http.StatusOK)
+	body := rr.Body.String()
+	log.Println(body)
+	assertMetricsPrinted(t, appReconcileMetrics, body)
 }

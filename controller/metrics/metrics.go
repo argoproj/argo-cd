@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -10,11 +11,13 @@ import (
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/git"
 )
 
 type MetricsServer struct {
 	*http.Server
-	syncCounter *prometheus.CounterVec
+	syncCounter        *prometheus.CounterVec
+	reconcileHistogram *prometheus.HistogramVec
 }
 
 const (
@@ -58,17 +61,35 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister) *Metri
 	mux := http.NewServeMux()
 	appRegistry := NewAppRegistry(appLister)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(appRegistry, promhttp.HandlerOpts{}))
-	syncCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_app_sync_total",
-		Help: "Number of application syncs.",
-	}, append(descAppDefaultLabels, "phase"))
+
+	syncCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_app_sync_total",
+			Help: "Number of application syncs.",
+		},
+		append(descAppDefaultLabels, "phase"),
+	)
 	appRegistry.MustRegister(syncCounter)
+
+	reconcileHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "argocd_app_reconcile",
+			Help: "Application reconciliation performance.",
+			// Buckets chosen after observing a ~2100ms mean reconcile time
+			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
+		},
+		append(descAppDefaultLabels),
+	)
+
+	appRegistry.MustRegister(reconcileHistogram)
+
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter: syncCounter,
+		syncCounter:        syncCounter,
+		reconcileHistogram: reconcileHistogram,
 	}
 }
 
@@ -78,6 +99,11 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 		return
 	}
 	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), string(state.Phase)).Inc()
+}
+
+// IncReconcile increments the reconcile counter for an application
+func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
+	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject()).Observe(duration.Seconds())
 }
 
 type appCollector struct {
@@ -135,7 +161,7 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
 
-	addGauge(descAppInfo, 1, app.Spec.Source.RepoURL, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
 
