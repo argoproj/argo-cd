@@ -247,12 +247,12 @@ func IsCRD(obj *unstructured.Unstructured) bool {
 }
 
 type apiResourceInterface struct {
-	groupVersion string
+	groupVersion schema.GroupVersion
 	apiResource  metav1.APIResource
 	resourceIf   dynamic.ResourceInterface
 }
 
-type filterFunc func(groupVersion string, apiResource *metav1.APIResource) bool
+type filterFunc func(apiResource *metav1.APIResource) bool
 
 func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc, namespace string) ([]apiResourceInterface, error) {
 	dynamicIf, err := dynamic.NewForConfig(config)
@@ -283,11 +283,15 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok || gv.Group == "" && apiResource.Kind == "Event" {
 				continue
 			}
-			if filter(apiResourcesList.GroupVersion, &apiResource) {
+			if filter(&apiResource) {
 				resource := ToGroupVersionResource(apiResourcesList.GroupVersion, &apiResource)
 				resourceIf := ToResourceInterface(dynamicIf, &apiResource, resource, namespace)
+				gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
+				if err != nil {
+					return nil, err
+				}
 				apiResIf := apiResourceInterface{
-					groupVersion: apiResourcesList.GroupVersion,
+					groupVersion: gv,
 					apiResource:  apiResource,
 					resourceIf:   resourceIf,
 				}
