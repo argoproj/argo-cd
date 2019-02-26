@@ -31,5 +31,5 @@ func TestUpdateSettingsFromConfigMapExcludedResources(t *testing.T) {
 	err = updateSettingsFromConfigMap(&settings, &configMap)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []ExcludedResource{{ApiGroups: []string{}, Kinds: []string{}, Clusters: []string{}}}, settings.ExcludedResources)
+	assert.Equal(t, []ExcludedResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}}, settings.ExcludedResources)
 }
