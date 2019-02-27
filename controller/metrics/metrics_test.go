@@ -49,6 +49,7 @@ argocd_app_health_status{health_status="Degraded",name="my-app",namespace="argoc
 argocd_app_health_status{health_status="Healthy",name="my-app",namespace="argocd",project="important-project"} 1
 argocd_app_health_status{health_status="Missing",name="my-app",namespace="argocd",project="important-project"} 0
 argocd_app_health_status{health_status="Progressing",name="my-app",namespace="argocd",project="important-project"} 0
+argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argocd",project="important-project"} 0
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
@@ -89,6 +90,7 @@ argocd_app_health_status{health_status="Degraded",name="my-app",namespace="argoc
 argocd_app_health_status{health_status="Healthy",name="my-app",namespace="argocd",project="default"} 1
 argocd_app_health_status{health_status="Missing",name="my-app",namespace="argocd",project="default"} 0
 argocd_app_health_status{health_status="Progressing",name="my-app",namespace="argocd",project="default"} 0
+argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argocd",project="default"} 0
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="default"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
