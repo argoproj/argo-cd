@@ -52,10 +52,11 @@ export class ApplicationsService {
         return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
-    public create(name: string, project: string, source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {
+    public create(name: string, project: string, syncPolicy: models.SyncPolicy,
+                  source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {
         return requests.post(`/applications`).send({
             metadata: { name },
-            spec: { source, destination, project },
+            spec: { source, destination, project, syncPolicy },
         }).then((res) => this.parseAppFields(res.body));
     }
 

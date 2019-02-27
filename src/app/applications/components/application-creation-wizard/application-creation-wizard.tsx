@@ -28,6 +28,7 @@ interface State {
     step: Step;
     loading: boolean;
     projects: models.Project[];
+    syncPolicy: string;
 }
 
 export interface WizardProps { onStateChanged: (state: WizardStepState) => any; createApp: (params: NewAppParams) => any; }
@@ -59,6 +60,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
             loading: false,
             appParams: null,
             projects: [],
+            syncPolicy: 'manual',
         };
         this.notifyStepStateChanged();
     }
@@ -104,6 +106,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                 namespace: '',
                                 path: '',
                                 project: this.state.projects[0].metadata.name,
+                                syncPolicy: this.state.syncPolicy,
                             }, step: Step.SetParams })}>Create app from directory</button>
                             <div className='application-creation-wizard__sub-title'>
                                 Browsing repository <a target='_blank' href={this.state.selectedRepo}>{this.state.selectedRepo}</a>, revision:
@@ -130,7 +133,10 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                             const selectedAppDetails = await services.repos.appDetails(this.state.selectedRepo, this.state.selectedApp.path, this.state.revision);
 
                             if (selectedAppDetails.ksonnet) {
-                                this.updateState({ selectedAppDetails, envs: selectedAppDetails.ksonnet.environments || {}, step: Step.SelectEnvironments});
+                                this.updateState({selectedAppDetails,
+                                    envs: selectedAppDetails.ksonnet.environments || {},
+                                    step: Step.SelectEnvironments,
+                                });
                             } else if (selectedAppDetails.helm) {
                                 this.updateState({ selectedAppDetails, appParams: {
                                     applicationName: selectedAppDetails.helm.name,
@@ -141,6 +147,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                     namespace: '',
                                     path: selectedAppDetails.helm.path,
                                     project: this.state.projects[0].metadata.name,
+                                    syncPolicy: this.state.syncPolicy,
                                 }, step: Step.SetParams });
                             } else if (selectedAppDetails.kustomize) {
                                 this.updateState({ selectedAppDetails, appParams: {
@@ -152,6 +159,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                     namespace: '',
                                     path: selectedAppDetails.kustomize.path,
                                     project: this.state.projects[0].metadata.name,
+                                    syncPolicy: this.state.syncPolicy,
                                 }, step: Step.SetParams });
                             }
                         } catch (e) {
@@ -188,6 +196,7 @@ export class ApplicationCreationWizardContainer extends React.Component<WizardPr
                                 namespace: selectedEnv.destination.namespace,
                                 path: this.state.selectedAppDetails.ksonnet.path,
                                 project: this.state.projects[0].metadata.name,
+                                syncPolicy: this.state.syncPolicy,
                             }, step: Step.SetParams,
                         });
                     },

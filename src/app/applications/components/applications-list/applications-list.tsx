@@ -297,7 +297,13 @@ export class ApplicationsList extends React.Component<RouteComponentProps<{}>, {
                     recurse: params.directoryRecurse,
                 } as models.ApplicationSourceDirectory;
             }
-            await services.applications.create(params.applicationName, params.project, source, {
+            const syncPolicy = {} as models.SyncPolicy;
+            if (params.syncPolicy !== 'manual') {
+                syncPolicy.automated = {
+                    prune: params.syncPolicy === 'auto-prune',
+                };
+            }
+            await services.applications.create(params.applicationName, params.project, syncPolicy, source, {
                 server: params.clusterURL,
                 namespace: params.namespace,
             });

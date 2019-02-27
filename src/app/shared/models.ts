@@ -330,6 +330,7 @@ export interface AppDetails {
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
     directory?: {};
+    syncPolicy?: SyncPolicy;
 }
 
 export interface AppInfo {

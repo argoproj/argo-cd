@@ -108,6 +108,7 @@ export interface NewAppParams {
     valueFiles?: string[];
     namePrefix?: string;
     directoryRecurse?: boolean;
+    syncPolicy?: string;
 }
 
 export class AppParams extends React.Component<{
@@ -150,6 +151,7 @@ export class AppParams extends React.Component<{
                     environment: this.props.needKsonnetParams && !params.environment && 'Environment is required',
                     clusterURL: !params.clusterURL && 'Cluster URL is required',
                     namespace: validateNamespace(params.namespace, this.props.projects.find((proj) => proj.metadata.name === params.project), params.clusterURL ),
+                    syncPolicy: !params.syncPolicy && 'Sync-policy is required',
                 })}
                 defaultValues={this.props.appParams}
                 getApi={(api) => this.formApi = api}
@@ -235,6 +237,17 @@ export class AppParams extends React.Component<{
                                 );
                             }}
                         </DataLoader>
+                        <div className='argo-form-row'>
+                            <FormField formApi={api} label='Sync-policy' field='syncPolicy'
+                                component={FormSelect}
+                                componentProps={{
+                                    options: [
+                                        {value: 'manual', title: 'Manual'},
+                                        {value: 'auto', title: 'Automatic, but do not automatically prune resources'},
+                                        {value: 'auto-prune', title: 'Automatic with automatic pruning'},
+                                    ],
+                                    }} />
+                        </div>
                     </form>
                 )}
             </Form>
