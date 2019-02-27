@@ -5,6 +5,7 @@
     "Enable": [
         "vet",
         "gofmt",
+        "goimports",
         "deadcode",
         "errcheck",
         "varcheck",
@@ -13,6 +14,9 @@
         "unconvert",
         "misspell"
     ],
+    "Linters": {
+        "goimports": {"Command": "goimports -l --local github.com/argoproj/argo-cd"}
+    },
     "Skip": [
         "pkg/client",
         "vendor/",
