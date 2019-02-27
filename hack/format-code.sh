@@ -1,14 +1,14 @@
 #! /bin/sh
 set -eu
 
-STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$" || true)
+CHANGED_GO_FILES=$(git diff --name-only | grep ".go$" || true)
 
-if [[ "${STAGED_GO_FILES}" != "" ]]; then
+if [[ "${CHANGED_GO_FILES}" != "" ]]; then
     echo "Formatting imports"
-    goimports -w -local github.com/argoproj/argo-cd ${STAGED_GO_FILES} ;
+    goimports -w -local github.com/argoproj/argo-cd ${CHANGED_GO_FILES} ;
 
     echo "Formatting code"
-    gofmt -w ${STAGED_GO_FILES} ;
+    gofmt -w ${CHANGED_GO_FILES} ;
 else
-    echo "No staged files to format"
+    echo "No changed files to format"
 fi

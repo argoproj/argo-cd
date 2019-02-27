@@ -55,7 +55,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen
+codegen: protogen clientgen format-code
 
 .PHONY: cli
 cli: clean-debug
