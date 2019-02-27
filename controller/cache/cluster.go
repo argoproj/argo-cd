@@ -26,8 +26,8 @@ const (
 )
 
 type gkInfo struct {
-	resource    metav1.APIResource
-	listVersion string
+	resource        metav1.APIResource
+	resourceVersion string
 }
 
 type clusterInfo struct {
@@ -50,7 +50,7 @@ func (c *clusterInfo) getResourceVersion(gk schema.GroupKind) string {
 	defer c.lock.Unlock()
 	info, ok := c.apis[gk]
 	if ok {
-		return info.listVersion
+		return info.resourceVersion
 	}
 	return ""
 }
@@ -81,7 +81,7 @@ func (c *clusterInfo) updateCache(gk schema.GroupKind, resourceVersion string, o
 				c.onNodeRemoved(key, existingNode)
 			}
 		}
-		info.listVersion = resourceVersion
+		info.resourceVersion = resourceVersion
 	}
 }
 
@@ -174,8 +174,8 @@ func (c *clusterInfo) sync() (err error) {
 		}
 		if _, ok := c.apis[res.GVK.GroupKind()]; !ok {
 			c.apis[res.GVK.GroupKind()] = &gkInfo{
-				listVersion: res.ListResourceVersion,
-				resource:    res.ResourceInfo,
+				resourceVersion: res.ListResourceVersion,
+				resource:        res.ResourceInfo,
 			}
 		}
 		for i := range res.Objects {
@@ -311,6 +311,9 @@ func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstr
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := kube.GetResourceKey(un)
+	if info, ok := c.apis[schema.GroupKind{Group: key.Group, Kind: key.Kind}]; ok {
+		info.resourceVersion = un.GetResourceVersion()
+	}
 	existingNode, exists := c.nodes[key]
 	if event == watch.Deleted {
 		if exists {

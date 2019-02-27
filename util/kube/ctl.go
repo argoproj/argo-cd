@@ -115,7 +115,8 @@ func (k KubectlCmd) GetResources(config *rest.Config, resourceFilter ResourceFil
 
 const watchResourcesRetryTimeout = 1 * time.Second
 
-// WatchResources Watches all the existing resources with the provided label name in the provided namespace in the cluster provided by the config
+// WatchResources watches all the existing resources in the cluster provided by the config. Method retries watch with the most recent resource version stored in cache.
+// The WatchResources returns channel which container either watch event with updated resource info or new list of resources if cached resource version had expired.
 func (k KubectlCmd) WatchResources(
 	ctx context.Context,
 	config *rest.Config,
@@ -156,7 +157,7 @@ func (k KubectlCmd) WatchResources(
 							ResourceVersion: resourceVersion,
 						})
 						if apierr.IsGone(err) {
-							log.Infof("List resource version of %s has expired at cluster %s, reloading list", gvk, config.Host)
+							log.Infof("Resource version of %s has expired at cluster %s, reloading list", gvk, config.Host)
 							list, err := apiResIf.resourceIf.List(metav1.ListOptions{})
 							if err != nil {
 								return nil, err
