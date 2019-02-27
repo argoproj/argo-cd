@@ -8,15 +8,16 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/settings"
 	log "github.com/sirupsen/logrus"
 	webhooks "gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/bitbucket"
 	"gopkg.in/go-playground/webhooks.v3/github"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type ArgoCDWebhookHandler struct {

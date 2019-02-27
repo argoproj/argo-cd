@@ -6,11 +6,12 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/util"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/util"
 )
 
 // Clientset represets repository server api clients

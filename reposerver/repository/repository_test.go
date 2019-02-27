@@ -10,8 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/pkg/exec"
+
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 func TestGenerateYamlManifestInDir(t *testing.T) {

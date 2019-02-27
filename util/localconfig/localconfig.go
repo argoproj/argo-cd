@@ -6,8 +6,9 @@ import (
 	"os/user"
 	"path"
 
-	configUtil "github.com/argoproj/argo-cd/util/config"
 	jwt "github.com/dgrijalva/jwt-go"
+
+	configUtil "github.com/argoproj/argo-cd/util/config"
 )
 
 // LocalConfig is a local Argo CD config file

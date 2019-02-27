@@ -37,6 +37,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
@@ -72,7 +74,6 @@ import (
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
 )
 
 var (

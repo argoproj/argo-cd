@@ -5,7 +5,7 @@ STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$" || true)
 
 if [[ "${STAGED_GO_FILES}" != "" ]]; then
     echo "Formatting imports"
-    goimports -w ${STAGED_GO_FILES} ;
+    goimports -w -local github.com/argoproj/argo-cd ${STAGED_GO_FILES} ;
 
     echo "Formatting code"
     gofmt -w ${STAGED_GO_FILES} ;

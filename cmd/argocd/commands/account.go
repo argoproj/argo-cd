@@ -6,14 +6,15 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
 	"github.com/argoproj/argo-cd/util/localconfig"
-	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {

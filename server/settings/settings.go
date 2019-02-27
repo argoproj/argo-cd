@@ -1,9 +1,10 @@
 package settings
 
 import (
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
+
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // Server provides a Settings service

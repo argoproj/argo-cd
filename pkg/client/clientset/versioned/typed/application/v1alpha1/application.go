@@ -1,12 +1,13 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	scheme "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
+
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	scheme "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/scheme"
 )
 
 // ApplicationsGetter has a method to return a ApplicationInterface.
