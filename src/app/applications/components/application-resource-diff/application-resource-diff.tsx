@@ -17,15 +17,15 @@ export const ApplicationResourceDiff = (props: ApplicationComponentDiffProps) =>
     const [hideDefaultedFields, setHideDefaultedFields] = React.useState(true);
     const [inlineDiff, setInlineDiff] = React.useState(true);
 
-    let modified = props.state.liveState;
-    if (hideDefaultedFields && modified) {
-        modified = removeDefaultedFields(props.state.targetState, modified);
+    let live = props.state.liveState;
+    if (hideDefaultedFields && live) {
+        live = removeDefaultedFields(props.state.targetState, live);
     }
 
-    const modifiedCopy = JSON.parse(JSON.stringify(modified || {}));
-    let original = null;
+    const liveCopy = JSON.parse(JSON.stringify(live || {}));
+    let target = null;
     if (props.state.targetState) {
-        original = props.state.diff ? jsonDiffPatch.patch(modifiedCopy, JSON.parse(props.state.diff)) : modifiedCopy;
+        target = props.state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(props.state.diff)) : liveCopy;
     }
 
     return (
@@ -44,8 +44,8 @@ export const ApplicationResourceDiff = (props: ApplicationComponentDiffProps) =>
                     renderSideBySide: !inlineDiff,
                     readOnly: true,
                 },
-                original: { text: original ? jsYaml.safeDump(original, {indent: 2 }) : '', language: 'yaml' },
-                modified: { text: modified ? jsYaml.safeDump(modified, {indent: 2 }) : '', language: 'yaml' },
+                modified: { text: target ? jsYaml.safeDump(target, {indent: 2 }) : '', language: 'yaml' },
+                original: { text: live ? jsYaml.safeDump(live, {indent: 2 }) : '', language: 'yaml' },
                 }}/>
         </div>
     );

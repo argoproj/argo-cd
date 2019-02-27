@@ -2,22 +2,30 @@ import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
 
+export interface EditorInput { text: string; language?: string; }
+
 export interface MonacoProps {
     editor?: {
         options?: monacoEditor.editor.IEditorOptions;
-        input: { text: string, language?: string };
+        input: EditorInput;
+        getApi?: (api: monacoEditor.editor.IEditor) => any;
     };
 
     diffEditor?: {
         options?: monacoEditor.editor.IDiffEditorOptions;
-        original: { text: string, language?: string };
-        modified: { text: string, language?: string };
+        original: EditorInput;
+        modified: EditorInput;
+        getApi?: (api: monacoEditor.editor.IDiffEditor) => any;
     };
+}
+
+function IsEqualInput(first?: EditorInput, second?: EditorInput) {
+    return first && second && first.text === second.text && (first.language || '') === (second.language || '');
 }
 
 const DEFAULT_LINE_HEIGHT = 18;
 
-const MonacoEditorLazy = React.lazy(() => import('monaco-editor/esm/vs/editor/editor.api.js').then((monaco) => {
+const MonacoEditorLazy = React.lazy(() => import('monaco-editor').then((monaco) => {
     require('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js');
 
     const component = (props: MonacoProps) => {
@@ -26,7 +34,11 @@ const MonacoEditorLazy = React.lazy(() => import('monaco-editor/esm/vs/editor/ed
         return (
             <div style={{ height: `${height}px` }} ref={(el) => {
                 if (el) {
-                    const container = el as { diffApi?: monacoEditor.editor.IDiffEditor; editorApi?: monacoEditor.editor.IEditor };
+                    const container = el as {
+                        diffApi?: monacoEditor.editor.IDiffEditor;
+                        editorApi?: monacoEditor.editor.IEditor;
+                        prevEditorInput?: EditorInput;
+                    };
                     if (props.diffEditor) {
                         if (!container.diffApi) {
                             container.diffApi = monaco.editor.createDiffEditor(el, props.diffEditor.options);
@@ -39,16 +51,27 @@ const MonacoEditorLazy = React.lazy(() => import('monaco-editor/esm/vs/editor/ed
                         setHeight(lineCount * DEFAULT_LINE_HEIGHT);
                         container.diffApi.updateOptions(props.diffEditor.options);
                         container.diffApi.layout();
+                        if (props.diffEditor.getApi) {
+                            props.diffEditor.getApi(container.diffApi);
+                        }
                     } else if (props.editor) {
                         if (!container.editorApi) {
                             container.editorApi = monaco.editor.create(el, props.editor.options);
                         }
+
                         const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
                         const lineCount = model.getLineCount();
                         setHeight(lineCount * DEFAULT_LINE_HEIGHT);
-                        container.editorApi.setModel(model);
+
+                        if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
+                            container.prevEditorInput = props.editor.input;
+                            container.editorApi.setModel(model);
+                        }
                         container.editorApi.updateOptions(props.editor.options);
                         container.editorApi.layout();
+                        if (props.editor.getApi) {
+                            props.editor.getApi(container.editorApi);
+                        }
                     }
                 }
             }}/>

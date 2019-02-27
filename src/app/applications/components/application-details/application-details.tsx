@@ -256,7 +256,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                     }}>{(data) =>
                                         <Tabs navTransparent={true} tabs={this.getResourceTabs(application, selectedNode, data.liveState, [
                                                 {title: 'SUMMARY', key: 'summary', content: (
-                                                    <ApplicationNodeInfo live={data.liveState} controlled={data.controlledState} node={selectedNode}/>
+                                                    <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode}/>
                                                 ),
                                             }])} />
                                     }</DataLoader>

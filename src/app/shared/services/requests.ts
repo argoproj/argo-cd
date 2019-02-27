@@ -48,6 +48,10 @@ export default {
         return initHandlers(agent.put(`${apiRoot}${url}`));
     },
 
+    patch(url: string) {
+        return initHandlers(agent.patch(`${apiRoot}${url}`));
+    },
+
     delete(url: string) {
         return initHandlers(agent.del(`${apiRoot}${url}`));
     },

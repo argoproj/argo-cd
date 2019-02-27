@@ -1,15 +1,20 @@
 import { Tab, Tabs } from 'argo-ui';
-import * as jsYaml from 'js-yaml';
 import * as React from 'react';
 
-import { MonacoEditor } from '../../../shared/components';
+import { YamlEditor } from '../../../shared/components';
 import * as models from '../../../shared/models';
+import { services } from '../../../shared/services';
 import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
 import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon, ResourceTreeNode } from '../utils';
 
 require('./application-node-info.scss');
 
-export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: models.State, controlled: { summary: models.ResourceStatus, state: models.ResourceDiff } }) => {
+export const ApplicationNodeInfo = (props: {
+    application: models.Application,
+    node: ResourceTreeNode,
+    live: models.State,
+    controlled: { summary: models.ResourceStatus, state: models.ResourceDiff },
+}) => {
     const attributes = [
         {title: 'KIND', value: props.node.kind},
         {title: 'NAME', value: props.node.name},
@@ -51,9 +56,9 @@ export const ApplicationNodeInfo = (props: { node: ResourceTreeNode, live: model
         key: 'manifest',
         title: 'Manifest',
         content: (
-        <div className='application-node-info__manifest application-node-info__manifest--raw'>
-            <MonacoEditor editor={{ input: { text: props.live ? jsYaml.safeDump(props.live, {indent: 2 }) : '', language: 'yaml' } }}/>
-        </div>),
+        <YamlEditor input={props.live} readOnly={!props.live} onSave={(patch, patchType) =>
+            services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)
+        }/>),
     }];
     if (props.controlled && !props.controlled.summary.hook) {
         tabs.unshift({
