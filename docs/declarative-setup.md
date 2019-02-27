@@ -234,12 +234,12 @@ To configure this, edit the `argcd-cm` config map:
 kubectl edit configmap argocd-cm -n argocdconfigmap/argocd-cm edited
 ```
 
-Add `excludedResources`, e.g.:
+Add `resource.exclusions`, e.g.:
 
 ```yaml
 apiVersion: v1
 data:
-  excludedResources: |
+  resource.exclusions: |
     - apiGroups:
       - "*"
       kinds:
@@ -249,7 +249,7 @@ data:
 kind: ConfigMap
 ```
 
-The `excludedResources` node is a list of objects. Each object can have:
+The `resource.exclusions` node is a list of objects. Each object can have:
 
 - `apiGroups` A list of globs to match the API group.
 - `kinds` A list of kinds to match. Can be "*" to match all.

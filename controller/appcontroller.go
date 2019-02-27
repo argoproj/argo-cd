@@ -893,6 +893,7 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 	updateCh := make(chan *settings_util.ArgoCDSettings, 1)
 	ctrl.settingsMgr.Subscribe(updateCh)
 	prevAppLabelKey := ctrl.settings.GetAppInstanceLabelKey()
+	prevResourceExclusions := ctrl.settings.ResourceExclusions
 	done := false
 	for !done {
 		select {
@@ -903,6 +904,11 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 				log.Infof("label key changed: %s -> %s", prevAppLabelKey, newAppLabelKey)
 				ctrl.stateCache.Invalidate()
 				prevAppLabelKey = newAppLabelKey
+			}
+			if !reflect.DeepEqual(prevResourceExclusions, newSettings.ResourceExclusions) {
+				log.Infof("resource exclusions modified")
+				ctrl.stateCache.Invalidate()
+				prevResourceExclusions = newSettings.ResourceExclusions
 			}
 		case <-ctx.Done():
 			done = true
