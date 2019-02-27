@@ -17,7 +17,7 @@ message Settings {
     string url = 1 [(gogoproto.customname) = "URL"];
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
-    string AppLabelKey = 4;
+    string appLabelKey = 4;
 }
 
 message DexConfig {
