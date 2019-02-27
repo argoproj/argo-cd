@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"
-	log "github.com/sirupsen/logrus"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -70,23 +70,46 @@ var (
     name: helm-guestbook
     namespace: default
     resourceVersion: "123"`)
+
+	testCRD = strToUnstructured(`
+  apiVersion: apiextensions.k8s.io/v1beta1
+  kind: CustomResourceDefinition
+  metadata:
+    name: my-custom-resource-definition
+    resourceVersion: "123"`)
 )
 
-func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
+func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
+	resByGVK := make(map[schema.GroupVersionKind][]unstructured.Unstructured)
+	for i := range objs {
+		resByGVK[objs[i].GroupVersionKind()] = append(resByGVK[objs[i].GroupVersionKind()], *objs[i])
+	}
+	resources := make([]kube.ResourcesBatch, 0)
+	for gvk, objects := range resByGVK {
+		resources = append(resources, kube.ResourcesBatch{
+			ListResourceVersion: "1",
+			GVK:                 gvk,
+			Objects:             objects,
+		})
+	}
+	return newClusterExt(kubetest.MockKubectlCmd{
+		Resources: resources,
+	})
+}
+
+func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
 		lock:         &sync.Mutex{},
 		nodes:        make(map[kube.ResourceKey]*node),
 		onAppUpdated: func(appName string) {},
-		kubectl: kubetest.MockKubectlCmd{
-			Resources: resources,
-		},
-		nsIndex:  make(map[string]map[kube.ResourceKey]*node),
-		cluster:  &appv1.Cluster{},
-		syncTime: nil,
-		syncLock: &sync.Mutex{},
-		apis:     make(map[schema.GroupKind]*gkInfo),
-		log:      log.WithField("cluster", "test"),
-		settings: &settings.ArgoCDSettings{},
+		kubectl:      kubectl,
+		nsIndex:      make(map[string]map[kube.ResourceKey]*node),
+		cluster:      &appv1.Cluster{},
+		syncTime:     nil,
+		syncLock:     &sync.Mutex{},
+		apis:         make(map[schema.GroupKind]*gkInfo),
+		log:          log.WithField("cluster", "test"),
+		settings:     &settings.ArgoCDSettings{},
 	}
 }
 

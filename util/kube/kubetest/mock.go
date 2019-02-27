@@ -19,7 +19,7 @@ type KubectlOutput struct {
 
 type MockKubectlCmd struct {
 	APIResources []*v1.APIResourceList
-	Resources    []*unstructured.Unstructured
+	Resources    []kube.ResourcesBatch
 	Commands     map[string]KubectlOutput
 	Events       chan kube.WatchEvent
 }
@@ -32,16 +32,8 @@ func (k MockKubectlCmd) GetResources(config *rest.Config, resourceFilter kube.Re
 	res := make(chan kube.ResourcesBatch)
 	go func() {
 		defer close(res)
-		resByGVK := make(map[schema.GroupVersionKind][]unstructured.Unstructured)
 		for i := range k.Resources {
-			resByGVK[k.Resources[i].GroupVersionKind()] = append(resByGVK[k.Resources[i].GroupVersionKind()], *k.Resources[i])
-		}
-		for gvk, objects := range resByGVK {
-			res <- kube.ResourcesBatch{
-				ListResourceVersion: "1",
-				GVK:                 gvk,
-				Objects:             objects,
-			}
+			res <- k.Resources[i]
 		}
 	}()
 	return res, nil

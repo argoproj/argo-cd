@@ -6,12 +6,9 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -209,7 +206,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 					cluster: event.Cluster,
 				}
 				watchingClustersLock.Unlock()
-				go c.watchClusterResources(ctx, c.settings, *event.Cluster)
+				go c.watchClusterResources(ctx, *event.Cluster)
 			}
 		}
 
@@ -252,7 +249,7 @@ func (c *liveStateCache) Run(ctx context.Context) {
 }
 
 // watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
-func (c *liveStateCache) watchClusterResources(ctx context.Context, resourceFilter kube.ResourceFilter, item appv1.Cluster) {
+func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.Cluster) {
 	util.RetryUntilSucceed(func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -263,12 +260,7 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, resourceFilt
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
-		knownCRDs, err := getCRDs(config)
-		if err != nil {
-			return err
-		}
-
-		ch, err := c.kubectl.WatchResources(ctx, config, resourceFilter, func(gk schema.GroupKind) (s string, e error) {
+		ch, err := c.kubectl.WatchResources(ctx, config, c.settings, func(gk schema.GroupKind) (s string, e error) {
 			clusterInfo, err := c.getSyncedCluster(item.Server)
 			if err != nil {
 				return "", err
@@ -284,12 +276,8 @@ func (c *liveStateCache) watchClusterResources(ctx context.Context, resourceFilt
 				if kube.IsCRD(eventObj) {
 					// restart if new CRD has been created after watch started
 					if event.WatchEvent.Type == watch.Added {
-						if !knownCRDs[eventObj.GetName()] {
-							c.removeCluster(item.Server)
-							return fmt.Errorf("Restarting the watch because a new CRD %s was added", eventObj.GetName())
-						} else {
-							log.Infof("CRD %s updated", eventObj.GetName())
-						}
+						c.removeCluster(item.Server)
+						return fmt.Errorf("Restarting the watch because a new CRD %s was added", eventObj.GetName())
 					} else if event.WatchEvent.Type == watch.Deleted {
 						c.removeCluster(item.Server)
 						return fmt.Errorf("Restarting the watch because CRD %s was deleted", eventObj.GetName())
@@ -318,19 +306,4 @@ func (c *liveStateCache) updateCache(server string, gk schema.GroupKind, resourc
 	}
 	clusterInfo.updateCache(gk, resourceVersion, objs)
 	return nil
-}
-
-// getCRDs returns a map of crds
-func getCRDs(config *rest.Config) (map[string]bool, error) {
-	crdsByName := make(map[string]bool)
-	apiextensionsClientset := apiextensionsclient.NewForConfigOrDie(config)
-	crds, err := apiextensionsClientset.ApiextensionsV1beta1().CustomResourceDefinitions().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, crd := range crds.Items {
-		crdsByName[crd.Name] = true
-	}
-	// TODO: support api service, like ServiceCatalog
-	return crdsByName, nil
 }
