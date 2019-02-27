@@ -573,8 +573,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	startTime := time.Now()
 	defer func() {
-		durationMs := time.Now().Sub(startTime).Seconds() * 1e3
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": durationMs})
+		reconcileDuration := time.Now().Sub(startTime)
+		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
+		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3})
 		logCtx.Info("Reconciliation completed")
 	}()
 	// NOTE: normalization returns a copy
