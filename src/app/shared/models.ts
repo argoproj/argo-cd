@@ -192,11 +192,12 @@ export const SyncStatuses: { [key: string]: SyncStatusCode } = {
     OutOfSync: 'OutOfSync',
 };
 
-export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Degraded' | 'Missing';
+export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: { [key: string]: HealthStatusCode } = {
     Unknown: 'Unknown',
     Progressing: 'Progressing',
+    Suspended: 'Suspended',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
     Missing: 'Missing',

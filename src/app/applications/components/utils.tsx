@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { Checkbox, NotificationType } from 'argo-ui';
-import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
+import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification, ARGO_GRAY4_COLOR } from '../../shared/components';
 import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
@@ -170,6 +170,9 @@ export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
             color = ARGO_SUCCESS_COLOR;
+            break;
+        case appModels.HealthStatuses.Suspended:
+            color = ARGO_GRAY4_COLOR;
             break;
         case appModels.HealthStatuses.Degraded:
             color = ARGO_FAILED_COLOR;
