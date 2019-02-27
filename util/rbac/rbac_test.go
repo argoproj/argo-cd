@@ -378,3 +378,19 @@ func TestValidatePolicy(t *testing.T) {
 		assert.Error(t, ValidatePolicy(bad))
 	}
 }
+
+// TestEnforceErrorMessage ensures we give descriptive error message
+func TestEnforceErrorMessage(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfgMapName, nil)
+	err := enf.syncUpdate(fakeConfigMap())
+	assert.Nil(t, err)
+
+	err = enf.EnforceErr("admin", "applications", "get", "foo/bar")
+	assert.Error(t, err)
+	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: applications, get, foo/bar", err.Error())
+
+	err = enf.EnforceErr()
+	assert.Error(t, err)
+	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
+}

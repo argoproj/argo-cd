@@ -15,10 +15,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	ErrPermissionDenied = status.Errorf(codes.PermissionDenied, "permission denied")
-)
-
 // PanicLoggerUnaryServerInterceptor returns a new unary server interceptor for recovering from panics and returning error
 func PanicLoggerUnaryServerInterceptor(log *logrus.Entry) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ interface{}, err error) {

@@ -5,11 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/api/core/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -28,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -339,7 +340,7 @@ func TestUpdateAppProject(t *testing.T) {
 	// Verify caller cannot update to another project
 	testApp.Spec.Project = "my-proj"
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without create privileges in new project
 	appServer.enf.SetBuiltinPolicy(`
@@ -347,7 +348,7 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in new project
 	appServer.enf.SetBuiltinPolicy(`
@@ -355,7 +356,7 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, create, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in old project
 	appServer.enf.SetBuiltinPolicy(`
@@ -363,7 +364,7 @@ p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify can update project with proper permissions
 	appServer.enf.SetBuiltinPolicy(`
