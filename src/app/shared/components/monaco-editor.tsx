@@ -5,6 +5,7 @@ import * as monacoEditor from 'monaco-editor';
 export interface EditorInput { text: string; language?: string; }
 
 export interface MonacoProps {
+    minHeight?: number;
     editor?: {
         options?: monacoEditor.editor.IEditorOptions;
         input: EditorInput;
@@ -32,7 +33,7 @@ const MonacoEditorLazy = React.lazy(() => import('monaco-editor').then((monaco) 
         const [ height, setHeight ] = React.useState(0);
 
         return (
-            <div style={{ height: `${height}px` }} ref={(el) => {
+            <div style={{ height: `${ Math.max(props.minHeight || 0, height)}px` }} ref={(el) => {
                 if (el) {
                     const container = el as {
                         diffApi?: monacoEditor.editor.IDiffEditor;

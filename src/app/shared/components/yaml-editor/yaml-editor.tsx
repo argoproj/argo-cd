@@ -9,7 +9,14 @@ import { MonacoEditor } from '../monaco-editor';
 const jsonMergePatch = require('json-merge-patch');
 require('./yaml-editor.scss');
 
-export class YamlEditor<T> extends React.Component<{ input: T, readOnly: boolean, onSave: (patch: string, patchType: string) => Promise<any> }, { editing: boolean }> {
+export class YamlEditor<T> extends React.Component<{
+    input: T,
+    readOnly?: boolean,
+    onSave: (patch: string, patchType: string) => Promise<any>,
+    minHeight?: number,
+}, {
+    editing: boolean,
+}> {
 
     private model: monacoEditor.editor.ITextModel;
 
@@ -60,7 +67,7 @@ export class YamlEditor<T> extends React.Component<{ input: T, readOnly: boolean
                         )}
                     </div>
                 )}
-                <MonacoEditor editor={{
+                <MonacoEditor minHeight={props.minHeight} editor={{
                     input: { text: yaml, language: 'yaml' },
                     options: { readOnly: !this.state.editing, minimap: { enabled: false } },
                     getApi: (api) => {

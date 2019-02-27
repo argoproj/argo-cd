@@ -6,7 +6,9 @@ import { Checkbox, Form, FormApi, Text } from 'react-form';
 import { RouteComponentProps } from 'react-router';
 import { Observable } from 'rxjs';
 
-import { DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate } from '../../../shared/components';
+const jsonMergePatch = require('json-merge-patch');
+
+import { DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, YamlEditor } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import { AppDetailsPreferences, AppsDetailsViewType, services } from '../../../shared/services';
@@ -282,6 +284,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 <ParametersPanel params={params} updateApp={(app) => this.updateApp(app)} app={application}/>
                                             }
                                             </DataLoader>
+                                        ),
+                                    }, {
+                                        title: 'SPEC MANIFEST', key: 'manifest', content: (
+                                            <YamlEditor minHeight={800} input={application.spec} onSave={async (patch) => {
+                                                const spec = JSON.parse(JSON.stringify(application.spec));
+                                                return services.applications.updateSpec(application.metadata.name, jsonMergePatch.apply(spec, JSON.parse(patch)));
+                                            }}/>
                                         ),
                                     }, {
                                         title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={application.metadata.name}/>,
