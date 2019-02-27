@@ -131,7 +131,7 @@ func (vm VM) getPredefinedLuaScripts(objKey string, scriptType string) (string, 
 
 func isValidHealthStatusCode(statusCode string) bool {
 	switch statusCode {
-	case appv1.HealthStatusUnknown, appv1.HealthStatusProgressing, appv1.HealthStatusHealthy, appv1.HealthStatusDegraded, appv1.HealthStatusMissing:
+	case appv1.HealthStatusUnknown, appv1.HealthStatusProgressing, appv1.HealthStatusSuspended, appv1.HealthStatusHealthy, appv1.HealthStatusDegraded, appv1.HealthStatusMissing:
 		return true
 	}
 	return false

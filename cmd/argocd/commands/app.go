@@ -923,6 +923,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var (
 		watchSync       bool
 		watchHealth     bool
+		watchSuspended  bool
 		watchOperations bool
 		timeout         uint
 	)
@@ -934,19 +935,26 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if !watchSync && !watchHealth && !watchOperations {
+			if watchSuspended && watchHealth {
+				log.Fatal("Wait command can not have both the --health and --suspended flags set")
+
+			}
+			if !watchSync && !watchHealth && !watchOperations && !watchSuspended {
 				watchSync = true
 				watchHealth = true
 				watchOperations = true
+				watchSuspended = false
 			}
 			appName := args[0]
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, nil)
+			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, nil)
 			errors.CheckError(err)
 		},
 	}
 	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
 	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
+	command.Flags().BoolVar(&watchSuspended, "suspended", false, "Wait for suspended")
+
 	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
@@ -1061,7 +1069,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, syncResources)
+			app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, syncResources)
 			errors.CheckError(err)
 
 			pruningRequired := 0
@@ -1192,7 +1200,7 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspened bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1248,7 +1256,8 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
 		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
 		operational := !watchOperation || appEvent.Application.Operation == nil
-		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational {
+		suspended := !watchSuspened || app.Status.Health.Status == argoappv1.HealthStatusSuspended
+		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational && suspended {
 			printFinalStatus(app)
 			return app, nil
 		}
@@ -1421,7 +1430,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, nil)
+			_, err = waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, nil)
 			errors.CheckError(err)
 		},
 	}

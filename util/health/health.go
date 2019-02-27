@@ -106,6 +106,7 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 // healthOrder is a list of health codes in order of most healthy to least healthy
 var healthOrder = []appv1.HealthStatusCode{
 	appv1.HealthStatusHealthy,
+	appv1.HealthStatusSuspended,
 	appv1.HealthStatusProgressing,
 	appv1.HealthStatusDegraded,
 	appv1.HealthStatusMissing,
@@ -200,6 +201,12 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 	err := scheme.Scheme.Convert(obj, deployment, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, deployment, err)
+	}
+	if deployment.Spec.Paused {
+		return &appv1.HealthStatus{
+			Status:  appv1.HealthStatusSuspended,
+			Message: "Deployment is paused",
+		}, nil
 	}
 	// Borrowed at kubernetes/kubectl/rollout_status.go https://github.com/kubernetes/kubernetes/blob/5232ad4a00ec93942d0b2c6359ee6cd1201b46bc/pkg/kubectl/rollout_status.go#L80
 	if deployment.Generation <= deployment.Status.ObservedGeneration {

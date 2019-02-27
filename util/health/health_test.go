@@ -27,6 +27,7 @@ func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthS
 func TestDeploymentHealth(t *testing.T) {
 	assertAppHealth(t, "../kube/testdata/nginx.yaml", appv1.HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/deployment-progressing.yaml", appv1.HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/deployment-suspended.yaml", appv1.HealthStatusSuspended)
 	assertAppHealth(t, "./testdata/deployment-degraded.yaml", appv1.HealthStatusDegraded)
 }
 
