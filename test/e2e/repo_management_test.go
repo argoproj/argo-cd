@@ -1,9 +1,8 @@
 package e2e
 
 import (
-	"testing"
-
 	"context"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 

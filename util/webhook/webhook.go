@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-
 	log "github.com/sirupsen/logrus"
 	webhooks "gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/bitbucket"
@@ -15,6 +13,7 @@ import (
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/settings"
