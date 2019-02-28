@@ -42,6 +42,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -69,6 +70,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationTerminateOpCommand(clientOpts))
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
+	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
 	return command
 }
 
@@ -1615,5 +1617,95 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	}
 
 	command.Flags().StringVar(&patch, "patch", "", "Patch")
+	return &command
+}
+
+func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var patch string
+	var patchType string
+	var resourceName string
+	var namespace string
+	var kind string
+	var group string
+	var all bool
+	command := cobra.Command{
+		Use:   "patch-resource APPNAME",
+		Short: "Patch resource in an application",
+	}
+
+	command.Flags().StringVar(&patch, "patch", "", "Patch")
+	err := command.MarkFlagRequired("patch")
+	errors.CheckError(err)
+	command.Flags().StringVar(&patchType, "patch-type", string(types.MergePatchType), "Which Patching strategy to use: 'application/json-patch+json', 'application/merge-patch+json', or 'application/strategic-merge-patch+json'. Defaults to 'application/merge-patch+json'")
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
+	command.Flags().StringVar(&kind, "kind", "", "Kind")
+	err = command.MarkFlagRequired("kind")
+	errors.CheckError(err)
+	command.Flags().StringVar(&group, "group", "", "Group")
+	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
+	command.Flags().BoolVar(&all, "all", false, "Indicates where to patch multiple matching of resources")
+	command.Run = func(c *cobra.Command, args []string) {
+		if len(args) != 1 {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		}
+		appName := args[0]
+
+		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		defer util.Close(conn)
+		ctx := context.Background()
+		resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
+		errors.CheckError(err)
+		liveObjs, err := liveObjects(resources.Items)
+		errors.CheckError(err)
+		objectsToPatch := make([]*unstructured.Unstructured, 0)
+		for i := range liveObjs {
+			obj := liveObjs[i]
+			gvk := obj.GroupVersionKind()
+			if command.Flags().Changed("group") && kind != gvk.Group {
+				continue
+			}
+			if namespace != "" && namespace != obj.GetNamespace() {
+				continue
+			}
+			if resourceName != "" && resourceName != obj.GetName() {
+				continue
+			}
+			if kind == gvk.Kind {
+				copy := obj.DeepCopy()
+				objectsToPatch = append(objectsToPatch, copy)
+			}
+		}
+		if len(objectsToPatch) == 0 {
+			log.Fatal("No matching resource found to patch")
+		}
+		if len(objectsToPatch) > 1 && !all {
+			log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		}
+		group := objectsToPatch[0].GroupVersionKind().Group
+		for i := range objectsToPatch {
+			obj := objectsToPatch[i]
+			if obj.GroupVersionKind().Group != group {
+				log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
+			}
+		}
+		for i := range objectsToPatch {
+			obj := objectsToPatch[i]
+			gvk := obj.GroupVersionKind()
+			_, err = appIf.PatchResource(ctx, &application.ApplicationResourcePatchRequest{
+				Name:         &appName,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: obj.GetName(),
+				Version:      gvk.Version,
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Patch:        patch,
+				PatchType:    patchType,
+			})
+			errors.CheckError(err)
+			log.Infof("Resource '%s' patched", obj.GetName())
+		}
+	}
+
 	return &command
 }
