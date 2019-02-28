@@ -21,6 +21,7 @@ import (
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -72,7 +73,6 @@ import (
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
 )
 
 var (

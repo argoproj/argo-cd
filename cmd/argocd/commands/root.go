@@ -1,13 +1,13 @@
 package commands
 
 import (
-	"github.com/argoproj/argo-cd/util/config"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/localconfig"
 )
 

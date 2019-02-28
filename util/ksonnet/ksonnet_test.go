@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 var (

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
@@ -22,7 +23,6 @@ import (
 	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
-	jwt "github.com/dgrijalva/jwt-go"
 )
 
 const (

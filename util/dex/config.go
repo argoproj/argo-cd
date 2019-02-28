@@ -3,9 +3,10 @@ package dex
 import (
 	"fmt"
 
+	"github.com/ghodss/yaml"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/ghodss/yaml"
 )
 
 func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {

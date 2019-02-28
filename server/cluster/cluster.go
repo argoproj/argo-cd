@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,7 +22,6 @@ import (
 	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
-	log "github.com/sirupsen/logrus"
 )
 
 // Server provides a Cluster service

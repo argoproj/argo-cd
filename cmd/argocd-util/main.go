@@ -9,6 +9,14 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -18,13 +26,6 @@ import (
 	"github.com/argoproj/argo-cd/util/dex"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"

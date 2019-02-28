@@ -14,15 +14,15 @@ import (
 	"strings"
 	"syscall"
 
-	"k8s.io/kubernetes/pkg/kubectl/util/term"
-
-	"github.com/argoproj/argo-cd"
-	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/kubernetes/pkg/kubectl/util/term"
+
+	"github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/errors"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root

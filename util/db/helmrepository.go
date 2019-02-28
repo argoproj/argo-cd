@@ -4,12 +4,13 @@ import (
 	"context"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util/settings"
 	apiv1 "k8s.io/api/core/v1"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func getHelmRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {

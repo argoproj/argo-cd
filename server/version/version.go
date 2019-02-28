@@ -1,10 +1,11 @@
 package version
 
 import (
-	argocd "github.com/argoproj/argo-cd"
-	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/golang/protobuf/ptypes/empty"
 	"golang.org/x/net/context"
+
+	argocd "github.com/argoproj/argo-cd"
+	ksutil "github.com/argoproj/argo-cd/util/ksonnet"
 )
 
 type Server struct{}

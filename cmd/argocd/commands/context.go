@@ -8,11 +8,12 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util/localconfig"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 // NewContextCommand returns a new instance of an `argocd ctx` command
