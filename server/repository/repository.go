@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/util/kustomize"
-
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -24,7 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/rbac"
 )
 
@@ -163,8 +161,8 @@ func getKustomizationRes(ctx context.Context, repoClient repository.RepositorySe
 
 // ListKsonnetApps returns list of Ksonnet apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+		return nil, err
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
@@ -201,8 +199,8 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 }
 
 func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*RepoAppDetailsResponse, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
+		return nil, err
 	}
 	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
@@ -306,8 +304,8 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 
 // Create creates a repository
 func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repository, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Repo.Repo); err != nil {
+		return nil, err
 	}
 	r := q.Repo
 	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
@@ -339,8 +337,8 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
+		return nil, err
 	}
 	_, err := s.db.UpdateRepository(ctx, q.Repo)
 	return &appsv1.Repository{Repo: q.Repo.Repo}, err
@@ -348,8 +346,8 @@ func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repo
 
 // Delete updates a repository
 func (s *Server) Delete(ctx context.Context, q *RepoQuery) (*RepoResponse, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Repo); err != nil {
+		return nil, err
 	}
 
 	// invalidate cache

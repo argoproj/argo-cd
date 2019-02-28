@@ -8,7 +8,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -19,7 +19,6 @@ import (
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/grpc"
 	projectutil "github.com/argoproj/argo-cd/util/project"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -49,8 +48,8 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) (*ProjectTokenResponse, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project); err != nil {
+		return nil, err
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
@@ -97,8 +96,8 @@ func (s *Server) CreateToken(ctx context.Context, q *ProjectTokenCreateRequest) 
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) (*EmptyResponse, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Project) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Project); err != nil {
+		return nil, err
 	}
 	project, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project, metav1.GetOptions{})
 	if err != nil {
@@ -132,8 +131,8 @@ func (s *Server) DeleteToken(ctx context.Context, q *ProjectTokenDeleteRequest) 
 
 // Create a new project.
 func (s *Server) Create(ctx context.Context, q *ProjectCreateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
+		return nil, err
 	}
 	projectutil.NormalizePolicies(q.Project)
 	err := projectutil.ValidateProject(q.Project)
@@ -165,8 +164,8 @@ func (s *Server) List(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProjec
 
 // Get returns a project by name
 func (s *Server) Get(ctx context.Context, q *ProjectQuery) (*v1alpha1.AppProject, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
+		return nil, err
 	}
 	return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
 }
@@ -213,8 +212,8 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
+		return nil, err
 	}
 	projectutil.NormalizePolicies(q.Project)
 	err := projectutil.ValidateProject(q.Project)
@@ -273,8 +272,8 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 	if q.Name == common.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Name) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Name); err != nil {
+		return nil, err
 	}
 
 	s.projectLock.Lock(q.Name)
@@ -301,8 +300,8 @@ func (s *Server) Delete(ctx context.Context, q *ProjectQuery) (*EmptyResponse, e
 }
 
 func (s *Server) ListEvents(ctx context.Context, q *ProjectQuery) (*v1.EventList, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
+		return nil, err
 	}
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Name, metav1.GetOptions{})
 	if err != nil {

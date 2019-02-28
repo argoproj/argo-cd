@@ -14,6 +14,8 @@ import (
 	"github.com/casbin/casbin/persist"
 	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,6 +87,22 @@ func (e *Enforcer) Enforce(rvals ...interface{}) bool {
 	return enforce(e.Enforcer, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
+// EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
+func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
+	if !e.Enforce(rvals...) {
+		errMsg := "permission denied"
+		if len(rvals) > 0 {
+			rvalsStrs := make([]string, len(rvals)-1)
+			for i, rval := range rvals[1:] {
+				rvalsStrs[i] = fmt.Sprintf("%s", rval)
+			}
+			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
+		}
+		return status.Error(codes.PermissionDenied, errMsg)
+	}
+	return nil
+}
+
 // EnforceRuntimePolicy enforces a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
@@ -110,6 +128,9 @@ func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc Claims
 		if enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...) {
 			return true
 		}
+	}
+	if len(rvals) == 0 {
+		return false
 	}
 	// check if subject is jwt.Claims vs. a normal subject string and run custom claims
 	// enforcement func (if set)
