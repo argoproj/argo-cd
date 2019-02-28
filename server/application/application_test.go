@@ -168,7 +168,8 @@ spec:
     path: some/path
     repoURL: https://git.com/repo.git
     targetRevision: HEAD
-    environment: default
+    ksonnet:
+      environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
     server: https://cluster-api.com
@@ -214,8 +215,11 @@ func TestUpdateAppSpec(t *testing.T) {
 		Name: &testApp.Name,
 		Spec: testApp.Spec,
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, spec.Project, "default")
+	assert.NoError(t, err)
+	assert.Equal(t, "default", spec.Project)
+	app, err := appServer.Get(context.Background(), &ApplicationQuery{Name: &testApp.Name})
+	assert.NoError(t, err)
+	assert.Equal(t, "default", app.Spec.Project)
 }
 
 func TestDeleteApp(t *testing.T) {
@@ -308,6 +312,7 @@ func TestRollbackApp(t *testing.T) {
 	testApp.Status.History = []appsv1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
+		Source:   *testApp.Spec.Source.DeepCopy(),
 	}}
 	appServer := newTestAppServer(testApp)
 
@@ -320,8 +325,7 @@ func TestRollbackApp(t *testing.T) {
 
 	assert.NotNil(t, updatedApp.Operation)
 	assert.NotNil(t, updatedApp.Operation.Sync)
-	assert.NotNil(t, updatedApp.Operation.Sync.ParameterOverrides)
-	assert.Len(t, updatedApp.Operation.Sync.ParameterOverrides, 0)
+	assert.NotNil(t, updatedApp.Operation.Sync.Source)
 	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
 }
 

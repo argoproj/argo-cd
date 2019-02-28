@@ -154,6 +154,9 @@ status:
         namespace: default
         status: Synced
       revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      source:
+        path: some/path
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
 func newFakeApp() *argoappv1.Application {
@@ -184,76 +187,104 @@ func TestAutoSync(t *testing.T) {
 func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
-	app := newFakeApp()
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus := argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeOutOfSync,
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	{
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	cond := ctrl.autoSync(app, &syncStatus)
-	assert.Nil(t, cond)
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
 
 	// Verify we skip when we are already Synced (even if revision is different)
-	app = newFakeApp()
-	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus = argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeSynced,
-		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	{
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeSynced,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	cond = ctrl.autoSync(app, &syncStatus)
-	assert.Nil(t, cond)
-	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
 
 	// Verify we skip when auto-sync is disabled
-	app = newFakeApp()
-	app.Spec.SyncPolicy = nil
-	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus = argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeOutOfSync,
-		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	{
+		app := newFakeApp()
+		app.Spec.SyncPolicy = nil
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	cond = ctrl.autoSync(app, &syncStatus)
-	assert.Nil(t, cond)
-	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
+
+	// Verify we skip when application is marked for deletion
+	{
+		app := newFakeApp()
+		now := metav1.Now()
+		app.DeletionTimestamp = &now
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	}
 
 	// Verify we skip when previous sync attempt failed and return error condition
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
-	app = newFakeApp()
-	app.Status.OperationState = &argoappv1.OperationState{
-		Operation: argoappv1.Operation{
-			Sync: &argoappv1.SyncOperation{},
-		},
-		Phase: argoappv1.OperationFailed,
-		SyncResult: &argoappv1.SyncOperationResult{
+	{
+		app := newFakeApp()
+		app.Status.OperationState = &argoappv1.OperationState{
+			Operation: argoappv1.Operation{
+				Sync: &argoappv1.SyncOperation{},
+			},
+			Phase: argoappv1.OperationFailed,
+			SyncResult: &argoappv1.SyncOperationResult{
+				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				Source:   *app.Spec.Source.DeepCopy(),
+			},
+		}
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		},
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.NotNil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus = argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeOutOfSync,
-		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-	}
-	cond = ctrl.autoSync(app, &syncStatus)
-	assert.NotNil(t, cond)
-	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
 }
 
 // TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed
 func TestAutoSyncIndicateError(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.Source.ComponentParameterOverrides = []argoappv1.ComponentParameter{
-		{
-			Name:  "a",
-			Value: "1",
+	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
+		Parameters: []argoappv1.HelmParameter{
+			{
+				Name:  "a",
+				Value: "1",
+			},
 		},
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -264,17 +295,13 @@ func TestAutoSyncIndicateError(t *testing.T) {
 	app.Status.OperationState = &argoappv1.OperationState{
 		Operation: argoappv1.Operation{
 			Sync: &argoappv1.SyncOperation{
-				ParameterOverrides: argoappv1.ParameterOverrides{
-					{
-						Name:  "a",
-						Value: "1",
-					},
-				},
+				Source: app.Spec.Source.DeepCopy(),
 			},
 		},
 		Phase: argoappv1.OperationFailed,
 		SyncResult: &argoappv1.SyncOperationResult{
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Source:   *app.Spec.Source.DeepCopy(),
 		},
 	}
 	cond := ctrl.autoSync(app, &syncStatus)
@@ -287,10 +314,12 @@ func TestAutoSyncIndicateError(t *testing.T) {
 // TestAutoSyncParameterOverrides verifies we auto-sync if revision is same but parameter overrides are different
 func TestAutoSyncParameterOverrides(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.Source.ComponentParameterOverrides = []argoappv1.ComponentParameter{
-		{
-			Name:  "a",
-			Value: "1",
+	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
+		Parameters: []argoappv1.HelmParameter{
+			{
+				Name:  "a",
+				Value: "1",
+			},
 		},
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -301,10 +330,14 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 	app.Status.OperationState = &argoappv1.OperationState{
 		Operation: argoappv1.Operation{
 			Sync: &argoappv1.SyncOperation{
-				ParameterOverrides: argoappv1.ParameterOverrides{
-					{
-						Name:  "a",
-						Value: "2", // this value changed
+				Source: &argoappv1.ApplicationSource{
+					Helm: &argoappv1.ApplicationSourceHelm{
+						Parameters: []argoappv1.HelmParameter{
+							{
+								Name:  "a",
+								Value: "2", // this value changed
+							},
+						},
 					},
 				},
 			},
@@ -344,6 +377,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 func TestNormalizeApplication(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = ""
+	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 	cancel := test.StartInformer(ctrl.appInformer)
 	defer cancel()

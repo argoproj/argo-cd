@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -31,7 +31,7 @@ type normalizer struct {
 }
 
 type overrideIgnoreDiff struct {
-	JsonPointers []string `yaml:"jsonPointers"`
+	JSONPointers []string `yaml:"jsonPointers"`
 }
 
 // NewDiffNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
@@ -53,13 +53,13 @@ func NewDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides ma
 			ignore = append(ignore, v1alpha1.ResourceIgnoreDifferences{
 				Group:        group,
 				Kind:         kind,
-				JsonPointers: ignoreSettings.JsonPointers,
+				JSONPointers: ignoreSettings.JSONPointers,
 			})
 		}
 	}
 	patches := make([]normalizerPatch, 0)
 	for i := range ignore {
-		for _, path := range ignore[i].JsonPointers {
+		for _, path := range ignore[i].JSONPointers {
 			patchData, err := json.Marshal([]map[string]string{{"op": "remove", "path": path}})
 			if err != nil {
 				return nil, err

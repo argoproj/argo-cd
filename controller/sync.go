@@ -50,23 +50,32 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	var syncOp appv1.SyncOperation
 	var syncRes *appv1.SyncOperationResult
 	var syncResources []appv1.SyncOperationResource
-	var overrides []appv1.ComponentParameter
+	var source appv1.ApplicationSource
 
-	if state.Operation.Sync != nil {
-		syncOp = *state.Operation.Sync
-		syncResources = syncOp.Resources
-		overrides = []appv1.ComponentParameter(state.Operation.Sync.ParameterOverrides)
-		if state.SyncResult != nil {
-			syncRes = state.SyncResult
-			revision = state.SyncResult.Revision
-		} else {
-			syncRes = &appv1.SyncOperationResult{}
-			state.SyncResult = syncRes
-		}
-	} else {
+	if state.Operation.Sync == nil {
 		state.Phase = appv1.OperationFailed
 		state.Message = "Invalid operation request: no operation specified"
 		return
+	}
+	syncOp = *state.Operation.Sync
+	if syncOp.Source == nil {
+		// normal sync case (where source is taken from app.spec.source)
+		source = app.Spec.Source
+	} else {
+		// rollback case
+		source = *state.Operation.Sync.Source
+	}
+	syncResources = syncOp.Resources
+	if state.SyncResult != nil {
+		syncRes = state.SyncResult
+		revision = state.SyncResult.Revision
+	} else {
+		syncRes = &appv1.SyncOperationResult{}
+		// status.operationState.syncResult.source. must be set properly since auto-sync relies
+		// on this information to decide if it should sync (if source is different than the last
+		// sync attempt)
+		syncRes.Source = source
+		state.SyncResult = syncRes
 	}
 
 	if revision == "" {
@@ -76,7 +85,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
-	compareResult, err := m.CompareAppState(app, revision, overrides, false)
+	compareResult, err := m.CompareAppState(app, revision, source, false)
 	if err != nil {
 		state.Phase = appv1.OperationError
 		state.Message = err.Error()
@@ -96,7 +105,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		return
 	}
 
-	// We now have a concrete commit SHA. Set this in the sync result revision so that we remember
+	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
 
@@ -152,7 +161,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	}
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && syncCtx.opState.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, overrides)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
 		if err != nil {
 			state.Phase = appv1.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

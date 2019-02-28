@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -107,67 +106,130 @@ func TestContainsSyncResource(t *testing.T) {
 }
 
 func TestNormalizeApplicationSpec(t *testing.T) {
-	spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{})
-	assert.Equal(t, spec.Project, "default")
+	{
+		// Verify we normalize project name
+		spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{}, argoappv1.ApplicationSourceTypeKustomize)
+		assert.Equal(t, spec.Project, "default")
+	}
 
-	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{
-			Environment: "foo",
-		},
-	})
-	assert.Equal(t, spec.Source.Ksonnet.Environment, "foo")
-
-	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{
-			Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-				Environment: "foo",
+	{
+		// Verify we copy over legacy componentParameterOverride to ksonnet field
+		spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+					Environment: "foo",
+				},
+				ComponentParameterOverrides: []argoappv1.ComponentParameter{{Component: "foo", Name: "bar", Value: "baz"}},
 			},
-		},
-	})
-	assert.Equal(t, spec.Source.Environment, "foo")
+		}, argoappv1.ApplicationSourceTypeKsonnet)
+		assert.Equal(t, spec.Source.Ksonnet.Parameters[0].Component, "foo")
+		assert.Equal(t, spec.Source.Ksonnet.Parameters[0].Name, "bar")
+		assert.Equal(t, spec.Source.Ksonnet.Parameters[0].Value, "baz")
+		_, err := spec.Source.ExplicitType()
+		assert.NoError(t, err)
+	}
 
-	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{
-			ValuesFiles: []string{"values-prod.yaml"},
-		},
-	})
-	assert.Equal(t, spec.Source.Helm.ValueFiles[0], "values-prod.yaml")
-
-	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
-		Source: argoappv1.ApplicationSource{
-			Helm: &argoappv1.ApplicationSourceHelm{
-				ValueFiles: []string{"values-prod.yaml"},
+	{
+		// Verify we sync ksonnet.parameters field to legacy field
+		spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				Ksonnet: &argoappv1.ApplicationSourceKsonnet{
+					Environment: "foo",
+					Parameters:  []argoappv1.KsonnetParameter{{Component: "foo", Name: "bar", Value: "baz"}},
+				},
 			},
-		},
-	})
-	assert.Equal(t, spec.Source.ValuesFiles[0], "values-prod.yaml")
+		}, argoappv1.ApplicationSourceTypeKsonnet)
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Component, "foo")
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Name, "bar")
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Value, "baz")
+		_, err := spec.Source.ExplicitType()
+		assert.NoError(t, err)
+	}
+
+	{
+		// Verify we copy over legacy componentParameterOverride to helm.parameters
+		spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				ComponentParameterOverrides: []argoappv1.ComponentParameter{{Name: "bar", Value: "baz"}},
+			},
+		}, argoappv1.ApplicationSourceTypeHelm)
+		assert.Equal(t, spec.Source.Helm.Parameters[0].Name, "bar")
+		assert.Equal(t, spec.Source.Helm.Parameters[0].Value, "baz")
+		_, err := spec.Source.ExplicitType()
+		assert.NoError(t, err)
+	}
+
+	{
+		// Verify we sync helm.parameters field to legacy componentParameterOverride field
+		spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				Helm: &argoappv1.ApplicationSourceHelm{
+					Parameters: []argoappv1.HelmParameter{{Name: "bar", Value: "baz"}},
+				},
+			},
+		}, argoappv1.ApplicationSourceTypeHelm)
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Component, "")
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Name, "bar")
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Value, "baz")
+		_, err := spec.Source.ExplicitType()
+		assert.NoError(t, err)
+	}
+
+	{
+		// Verify we copy over legacy componentParameterOverride to kustomize.imageTags
+		spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				ComponentParameterOverrides: []argoappv1.ComponentParameter{{Component: "imagetag", Name: "bar", Value: "baz"}},
+			},
+		}, argoappv1.ApplicationSourceTypeKustomize)
+		assert.Equal(t, spec.Source.Kustomize.ImageTags[0].Name, "bar")
+		assert.Equal(t, spec.Source.Kustomize.ImageTags[0].Value, "baz")
+		_, err := spec.Source.ExplicitType()
+		assert.NoError(t, err)
+	}
+
+	{
+		// Verify we sync kustomize.imageTags field to legacy componentParameterOverride field
+		spec := NormalizeApplicationSpec(&argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				Kustomize: &argoappv1.ApplicationSourceKustomize{
+					ImageTags: []argoappv1.KustomizeImageTag{{Name: "bar", Value: "baz"}},
+				},
+			},
+		}, argoappv1.ApplicationSourceTypeHelm)
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Component, "imagetag")
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Name, "bar")
+		assert.Equal(t, spec.Source.ComponentParameterOverrides[0].Value, "baz")
+		_, err := spec.Source.ExplicitType()
+		assert.NoError(t, err)
+	}
 }
 
 // TestNilOutZerValueAppSources verifies we will nil out app source specs when they are their zero-value
 func TestNilOutZerValueAppSources(t *testing.T) {
 	var spec *argoappv1.ApplicationSpec
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}}, argoappv1.ApplicationSourceTypeKustomize)
 		assert.NotNil(t, spec.Source.Kustomize)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}}, argoappv1.ApplicationSourceTypeKustomize)
 		assert.Nil(t, spec.Source.Kustomize)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}}, argoappv1.ApplicationSourceTypeHelm)
 		assert.NotNil(t, spec.Source.Helm)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}}, argoappv1.ApplicationSourceTypeHelm)
 		assert.Nil(t, spec.Source.Helm)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: "foo"}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: "foo"}}}, argoappv1.ApplicationSourceTypeKsonnet)
 		assert.NotNil(t, spec.Source.Ksonnet)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: ""}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: ""}}}, argoappv1.ApplicationSourceTypeKsonnet)
 		assert.Nil(t, spec.Source.Ksonnet)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}}, argoappv1.ApplicationSourceTypeDirectory)
 		assert.NotNil(t, spec.Source.Directory)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
+		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}}, argoappv1.ApplicationSourceTypeDirectory)
 		assert.Nil(t, spec.Source.Directory)
 	}
 }

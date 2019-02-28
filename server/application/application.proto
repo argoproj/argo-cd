@@ -58,7 +58,6 @@ message ApplicationSyncRequest {
 	optional bool dryRun = 3 [(gogoproto.nullable) = false];
 	optional bool prune = 4 [(gogoproto.nullable) = false];
 	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
-	optional ParameterOverrides parameter = 6;
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7 [(gogoproto.nullable) = false];
 }
 
