@@ -4,7 +4,7 @@ tests:
     message: The active Service is serving traffic to the current pod spec
   inputPath: testdata/healthy_servingActiveService.yaml
 - healthStatus:
-    status: Healthy
+    status: Suspended
     message: The preview Service is serving traffic to the current pod spec
   inputPath: testdata/healthy_servingPreviewService.yaml
 - healthStatus:
