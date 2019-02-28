@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { Checkbox, NotificationType } from 'argo-ui';
-import { ARGO_FAILED_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification, ARGO_GRAY4_COLOR } from '../../shared/components';
+import { ARGO_FAILED_COLOR, ARGO_GRAY4_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
 import { AppContext } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
