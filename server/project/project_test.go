@@ -160,7 +160,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestCreateTokenSuccesfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr)
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
 		projectWithRole := existingProj.DeepCopy()
 		tokenName := "testToken"
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
@@ -179,7 +179,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestDeleteTokenSuccesfully", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr)
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
 		issuedAt := int64(1)
@@ -198,7 +198,7 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestCreateTwoTokensInRoleSuccess", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr)
+		sessionMgr := session.NewSessionManager(settingsMgr, "")
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}

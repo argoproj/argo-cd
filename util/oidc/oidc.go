@@ -19,6 +19,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	"github.com/argoproj/argo-cd/util/rand"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -68,7 +69,7 @@ type appState struct {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache, dexServerAddr string) (*ClientApp, error) {
 	a := ClientApp{
 		clientID:     settings.OAuth2ClientID(),
 		clientSecret: settings.OAuth2ClientSecret(),
@@ -96,6 +97,9 @@ func NewClientApp(settings *settings.ArgoCDSettings, cache *cache.Cache) (*Clien
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+	}
+	if settings.DexConfig != "" {
+		a.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, a.client.Transport)
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		a.client.Transport = httputil.DebugTransport{T: a.client.Transport}
