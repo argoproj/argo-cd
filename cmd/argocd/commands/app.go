@@ -1247,7 +1247,10 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 
 	prevStates := make(map[string]*resourceState)
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName)
-	var app *argoappv1.Application
+	conn, appClient := acdClient.NewApplicationClientOrDie()
+	defer util.Close(conn)
+	app, err := appClient.Get(ctx, &application.ApplicationQuery{Name: &appName})
+	errors.CheckError(err)
 
 	for appEvent := range appEventCh {
 		app = &appEvent.Application
