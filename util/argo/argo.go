@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/kustomize"
 
 	log "github.com/sirupsen/logrus"
@@ -29,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -165,7 +165,7 @@ func GetSpecErrors(
 			// The repo has not been added to Argo CD so we do not have credentials to access it.
 			// We support the mode where apps can be created from public repositories. Test the
 			// repo to make sure it is publicly accessible
-			err = git.TestRepo(spec.Source.RepoURL, "git", "", "", "")
+			err = depot.TestRepo(spec.Source.RepoURL, "git", "", "", "")
 			if err != nil {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,

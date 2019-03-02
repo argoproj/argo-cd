@@ -72,7 +72,6 @@
   digest = "1:0caf9208419fa5db5a0ca7112affaa9550c54291dda8e2abac0c0e76181c959e"
   name = "github.com/argoproj/argo"
   packages = [
-    "errors",
     "pkg/apis/workflow",
     "pkg/apis/workflow/v1alpha1",
     "util",
@@ -1567,7 +1566,6 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
-    "github.com/argoproj/argo/errors",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
     "github.com/argoproj/pkg/exec",

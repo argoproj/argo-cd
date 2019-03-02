@@ -1,4 +1,4 @@
-package git
+package depot
 
 import (
 	"net/url"

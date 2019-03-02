@@ -40,7 +40,7 @@ import (
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -381,7 +381,7 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 
 type FakeGitClientFactory struct{}
 
-func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) (git.Client, error) {
+func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) (depot.Client, error) {
 	return &FakeGitClient{
 		root: path,
 	}, nil

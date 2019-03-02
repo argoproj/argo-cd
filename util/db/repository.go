@@ -7,7 +7,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/settings"
 
 	"golang.org/x/net/context"
@@ -255,7 +255,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 
 func getRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
 	for i, cred := range s.Repositories {
-		if git.SameURL(cred.URL, repoURL) {
+		if depot.SameURL(cred.URL, repoURL) {
 			return i
 		}
 	}
