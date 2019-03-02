@@ -639,11 +639,11 @@ type Repository struct {
 	Password        string          `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
 	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
-	Name            string          `json:"name" protobuf:"bytes,7,opt,name=name"`
-	Type            RepoType        `json:"type" protobuf:"bytes,8,opt,name=type"`
-	CAData          []byte          `json:"caData,omitempty" protobuf:"bytes,9,opt,name=caData"`
-	CertData        []byte          `json:"certData,omitempty" protobuf:"bytes,10,opt,name=certData"`
-	KeyData         []byte          `json:"keyData,omitempty" protobuf:"bytes,11,opt,name=keyData"`
+	Name            string          `json:"name,omitempty" protobuf:"bytes,6,opt,name=name"`
+	Type            RepoType        `json:"type" protobuf:"bytes,7,opt,name=type"`
+	CAData          []byte          `json:"caData,omitempty" protobuf:"bytes,8,opt,name=caData"`
+	CertData        []byte          `json:"certData,omitempty" protobuf:"bytes,9,opt,name=certData"`
+	KeyData         []byte          `json:"keyData,omitempty" protobuf:"bytes,10,opt,name=keyData"`
 }
 
 // RepositoryList is a collection of Repositories.

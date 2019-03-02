@@ -407,15 +407,15 @@ message Repository {
 
   optional ConnectionState connectionState = 5;
 
-  optional string name = 7;
+  optional string name = 6;
 
-  optional string type = 8;
+  optional string type = 7;
 
-  optional bytes caData = 9;
+  optional bytes caData = 8;
 
-  optional bytes certData = 10;
+  optional bytes certData = 9;
 
-  optional bytes keyData = 11;
+  optional bytes keyData = 10;
 }
 
 // RepositoryList is a collection of Repositories.

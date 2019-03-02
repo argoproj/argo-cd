@@ -78,30 +78,6 @@ func (s *Server) HydrateConnectionState(ctx context.Context, repo *appsv1.Reposi
 	}
 }
 
-func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.ConnectionState {
-	if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
-		return connectionState
-	}
-	now := metav1.Now()
-	connectionState := appsv1.ConnectionState{
-		Status:     appsv1.ConnectionStatusSuccessful,
-		ModifiedAt: &now,
-	}
-	repo, err := s.db.GetRepository(ctx, url)
-	if err == nil {
-		err = git.TestRepo(repo.Repo, string(repo.Type), repo.Username, repo.Password, repo.SSHPrivateKey)
-	}
-	if err != nil {
-		connectionState.Status = appsv1.ConnectionStatusFailed
-		connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
-	}
-	err = s.cache.SetRepoConnectionState(url, &connectionState)
-	if err != nil {
-		log.Warnf("cache set error %s: %v", url, err)
-	}
-	return connectionState
-}
-
 // List returns list of repositories
 func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
 	repos, err := s.db.ListRepositories(ctx)
