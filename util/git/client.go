@@ -17,23 +17,6 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
-// Client is a generic git client interface
-type Client interface {
-	Root() string
-	Init() error
-	Fetch() error
-	Checkout(revision string) error
-	LsRemote(revision string) (string, error)
-	LsFiles(path string) ([]string, error)
-	CommitSHA() (string, error)
-}
-
-// ClientFactory is a factory of Git Clients
-// Primarily used to support creation of mock git clients during unit testing
-type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string) (Client, error)
-}
-
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
 	repoURL string
@@ -41,13 +24,7 @@ type nativeGitClient struct {
 	auth    transport.AuthMethod
 }
 
-type factory struct{}
-
-func NewFactory() ClientFactory {
-	return &factory{}
-}
-
-func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey string) (Client, error) {
+func (f *factory) newGitClient(repoURL, path, username, password, sshPrivateKey string) (Client, error) {
 	clnt := nativeGitClient{
 		repoURL: repoURL,
 		root:    path,

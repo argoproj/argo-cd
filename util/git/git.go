@@ -6,6 +6,33 @@ import (
 	"strings"
 )
 
+// Client is a generic git client interface
+type Client interface {
+	Root() string
+	Init() error
+	Fetch() error
+	Checkout(revision string) error
+	LsRemote(revision string) (string, error)
+	LsFiles(path string) ([]string, error)
+	CommitSHA() (string, error)
+}
+
+// ClientFactory is a factory of Git Clients
+// Primarily used to support creation of mock git clients during unit testing
+type ClientFactory interface {
+	NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error)
+}
+
+type factory struct{}
+
+func NewFactory() ClientFactory {
+	return &factory{}
+}
+
+func (f *factory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error) {
+	return f.newGitClient(repoURL, path, username, password, sshPrivateKey)
+}
+
 // EnsurePrefix idempotently ensures that a base string has a given prefix.
 func ensurePrefix(s, prefix string) string {
 	if !strings.HasPrefix(s, prefix) {
@@ -38,14 +65,14 @@ func IsTruncatedCommitSHA(sha string) bool {
 
 // SameURL returns whether or not the two repository URLs are equivalent in location
 func SameURL(leftRepo, rightRepo string) bool {
-	return NormalizeGitURL(leftRepo) == NormalizeGitURL(rightRepo)
+	return NormalizeURL(leftRepo) == NormalizeURL(rightRepo)
 }
 
-// NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
+// NormalizeURL normalizes a git URL for purposes of comparison, as well as preventing redundant
 // local clones (by normalizing various forms of a URL to a consistent location).
 // Prefer using SameURL() over this function when possible. This algorithm may change over time
 // and should not be considered stable from release to release
-func NormalizeGitURL(repo string) string {
+func NormalizeURL(repo string) string {
 	repo = strings.ToLower(strings.TrimSpace(repo))
 	if IsSSHURL(repo) {
 		repo = ensurePrefix(repo, "ssh://")
@@ -66,10 +93,7 @@ func IsSSHURL(url string) bool {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(repo, repoType, username, password string, sshPrivateKey string) error {
-	if repoType == "helm" {
-		return nil
-	}
-	clnt, err := NewFactory().NewClient(repo, "", username, password, sshPrivateKey)
+	clnt, err := NewFactory().NewClient(repo, repoType, "", username, password, sshPrivateKey)
 	if err != nil {
 		return err
 	}
