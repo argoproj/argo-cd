@@ -65,7 +65,10 @@ func IsSSHURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo, username, password string, sshPrivateKey string) error {
+func TestRepo(repo, repoType, username, password string, sshPrivateKey string) error {
+	if repoType == "helm" {
+		return nil
+	}
 	clnt, err := NewFactory().NewClient(repo, "", username, password, sshPrivateKey)
 	if err != nil {
 		return err

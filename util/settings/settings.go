@@ -19,9 +19,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-	v1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -61,10 +59,11 @@ type ArgoCDSettings struct {
 	// Repositories holds list of configured git repositories
 	Repositories []RepoCredentials
 	// Repositories holds list of configured helm repositories
-	HelmRepositories []HelmRepoCredentials
+	// DEPRECATED: use Repositories
+	HelmRepositories []RepoCredentials
 	// AppInstanceLabelKey is the configured application instance label key used to label apps. May be empty
 	AppInstanceLabelKey string
-	// ConfigManagementPlugins hols list of configured config management plugins
+	// ConfigManagementPlugins hols list of configred config management plugins
 	ConfigManagementPlugins []v1alpha1.ConfigManagementPlugin
 	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
@@ -72,6 +71,13 @@ type ArgoCDSettings struct {
 	// ResourceExclusions holds the api groups, kinds per cluster to exclude from Argo CD's watch
 	ResourceExclusions []ExcludedResource
 }
+
+type RepoType string
+
+const (
+	Git  RepoType = "git"
+	Helm RepoType = "helm"
+)
 
 type ResourceOverride struct {
 	HealthLua         string `json:"health.lua,omitempty"`
@@ -90,16 +96,11 @@ type RepoCredentials struct {
 	UsernameSecret      *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	PasswordSecret      *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	SshPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
-}
-
-type HelmRepoCredentials struct {
-	URL            string                   `json:"url,omitempty"`
-	Name           string                   `json:"name,omitempty"`
-	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CASecret       *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
-	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+	Type                RepoType                 `json:"type,omitempty"`
+	Name                string                   `json:"name,omitempty"`
+	CASecret            *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
+	CertSecret          *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
+	KeySecret           *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
 const (
@@ -118,6 +119,7 @@ const (
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
 	// helmRepositoriesKey designates the key where list of helm repositories is set
+	// DEPRECATED
 	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
@@ -197,53 +199,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-// MigrateLegacyRepoSettings migrates legacy (v0.10 and below) repo secrets into the v0.11 configmap
-func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) error {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return err
-	}
-
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{"repository"})
-	if err != nil {
-		return err
-	}
-	labelSelector = labelSelector.Add(*req)
-	repoSecrets, err := mgr.secrets.Secrets(mgr.namespace).List(labelSelector)
-	if err != nil {
-		return err
-	}
-	settings.Repositories = make([]RepoCredentials, len(repoSecrets))
-	for i, s := range repoSecrets {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(s)
-		if err != nil {
-			return err
-		}
-		cred := RepoCredentials{URL: string(s.Data["repository"])}
-		if username, ok := s.Data["username"]; ok && string(username) != "" {
-			cred.UsernameSecret = &apiv1.SecretKeySelector{
-				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
-				Key:                  "username",
-			}
-		}
-		if password, ok := s.Data["password"]; ok && string(password) != "" {
-			cred.PasswordSecret = &apiv1.SecretKeySelector{
-				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
-				Key:                  "password",
-			}
-		}
-		if sshPrivateKey, ok := s.Data["sshPrivateKey"]; ok && string(sshPrivateKey) != "" {
-			cred.SshPrivateKeySecret = &apiv1.SecretKeySelector{
-				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
-				Key:                  "sshPrivateKey",
-			}
-		}
-		settings.Repositories[i] = cred
-	}
-	return nil
-}
-
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", common.ArgoCDConfigMapName))
@@ -273,6 +228,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		if err != nil {
 			log.Warnf("Unable to parse updated settings: %v", err)
 		} else {
+			// TODO migrate settings
 			mgr.notifySubscribers(newSettings)
 		}
 	}
@@ -337,7 +293,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
 	if helmRepositoriesStr != "" {
-		helmRepositories := make([]HelmRepoCredentials, 0)
+		helmRepositories := make([]RepoCredentials, 0)
 		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
 		if err != nil {
 			errors = append(errors, err)
@@ -481,6 +437,15 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		argoCDCM.Data[repositoriesKey] = string(yamlStr)
 	} else {
 		delete(argoCDCM.Data, repositoriesKey)
+	}
+	if len(settings.HelmRepositories) > 0 {
+		yamlStr, err := yaml.Marshal(settings.HelmRepositories)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[helmRepositoriesKey] = string(yamlStr)
+	} else {
+		delete(argoCDCM.Data, helmRepositoriesKey)
 	}
 	if settings.AppInstanceLabelKey != "" {
 		argoCDCM.Data[settingsApplicationInstanceLabelKey] = settings.AppInstanceLabelKey
@@ -778,11 +743,9 @@ func (mgr *SettingsManager) InitializeSettings() (*ArgoCDSettings, error) {
 		log.Info("Initialized TLS certificate")
 	}
 
-	if len(cdSettings.Repositories) == 0 {
-		err = mgr.MigrateLegacyRepoSettings(cdSettings)
-		if err != nil {
-			return nil, err
-		}
+	err = mgr.MigrateLegacySettings(cdSettings)
+	if err != nil {
+		return nil, err
 	}
 
 	err = mgr.SaveSettings(cdSettings)

@@ -185,7 +185,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
-	helmRepos, err := s.db.ListHelmRepos(ctx)
+	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 		AppLabelValue:               a.Name,
 		Namespace:                   a.Spec.Destination.Namespace,
 		ApplicationSource:           &a.Spec.Source,
-		HelmRepos:                   helmRepos,
+		Repos:                       repos,
 		Plugins:                     tools,
 	})
 	if err != nil {

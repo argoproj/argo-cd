@@ -2789,10 +2789,25 @@
     },
     "v1alpha1Repository": {
       "type": "object",
-      "title": "Repository is a Git repository holding application configurations",
+      "title": "Repository is a repository holding application configurations",
       "properties": {
+        "caData": {
+          "type": "string",
+          "format": "byte"
+        },
+        "certData": {
+          "type": "string",
+          "format": "byte"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "keyData": {
+          "type": "string",
+          "format": "byte"
+        },
+        "name": {
+          "type": "string"
         },
         "password": {
           "type": "string"
@@ -2801,6 +2816,9 @@
           "type": "string"
         },
         "sshPrivateKey": {
+          "type": "string"
+        },
+        "type": {
           "type": "string"
         },
         "username": {

@@ -23,9 +23,8 @@ type ArgoDB interface {
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
 	DeleteCluster(ctx context.Context, name string) error
-
-	// ListRepoURLs lists repositories
-	ListRepoURLs(ctx context.Context) ([]string, error)
+	// ListRepositories lists repositories
+	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
@@ -34,9 +33,6 @@ type ArgoDB interface {
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository updates a repository
 	DeleteRepository(ctx context.Context, name string) error
-
-	// ListHelmRepoURLs lists configured helm repositories
-	ListHelmRepos(ctx context.Context) ([]*appv1.HelmRepository, error)
 }
 
 type db struct {

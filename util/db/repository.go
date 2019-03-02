@@ -24,18 +24,23 @@ const (
 	sshPrivateKey = "sshPrivateKey"
 )
 
-// ListRepoURLs returns list of repositories
-func (db *db) ListRepoURLs(ctx context.Context) ([]string, error) {
+// ListRepositories returns list of repositories
+func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error) {
 	s, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
 
-	urls := make([]string, len(s.Repositories))
-	for i := range s.Repositories {
-		urls[i] = s.Repositories[i].URL
+	repos := make([]*appsv1.Repository, len(s.Repositories))
+	for i, repo := range s.Repositories {
+		repo, err := db.GetRepository(ctx, repo.URL)
+		if err != nil {
+			return nil, err
+		}
+		repos[i] = repo
 	}
-	return urls, nil
+
+	return repos, nil
 }
 
 // CreateRepository creates a repository
@@ -61,7 +66,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
 	}
 
-	repoInfo := settings.RepoCredentials{URL: r.Repo}
+	repoInfo := settings.RepoCredentials{Name: r.Name, URL: r.Repo, Type: settings.RepoType(r.Type)}
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
 		return nil, err
@@ -87,7 +92,17 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 	repoInfo := s.Repositories[index]
-	repo := &appsv1.Repository{Repo: repoInfo.URL}
+	repo := &appsv1.Repository{Name: repoInfo.Name, Repo: repoInfo.URL, Type: appsv1.RepoType(repoInfo.Type)}
+
+	cache := make(map[string]*apiv1.Secret)
+	err = db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{
+		&repo.CAData:   repoInfo.CASecret,
+		&repo.CertData: repoInfo.CertSecret,
+		&repo.KeyData:  repoInfo.KeySecret,
+	}, cache)
+	if err != nil {
+		return nil, err
+	}
 
 	err = db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:      repoInfo.UsernameSecret,
@@ -97,6 +112,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	if err != nil {
 		return nil, err
 	}
+
 	return repo, nil
 }
 

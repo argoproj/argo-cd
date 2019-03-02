@@ -309,14 +309,8 @@ func NewExportCommand() *cobra.Command {
 			clusters, err := db.ListClusters(context.Background())
 			errors.CheckError(err)
 
-			repoURLs, err := db.ListRepoURLs(context.Background())
+			repos, err := db.ListRepositories(context.Background())
 			errors.CheckError(err)
-			repos := make([]*v1alpha1.Repository, len(repoURLs))
-			for i := range repoURLs {
-				repo, err := db.GetRepository(context.Background(), repoURLs[i])
-				errors.CheckError(err)
-				repos = append(repos, repo)
-			}
 
 			appClientset := appclientset.NewForConfigOrDie(config)
 			apps, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(metav1.ListOptions{})

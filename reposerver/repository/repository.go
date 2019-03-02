@@ -216,7 +216,7 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		env := v1alpha1.KsonnetEnv(q.ApplicationSource)
 		targetObjs, params, dest, err = ksShow(q.AppLabelKey, appPath, env, q.ComponentParameterOverrides)
 	case v1alpha1.ApplicationSourceTypeHelm:
-		h := helm.NewHelmApp(appPath, q.HelmRepos)
+		h := helm.NewHelmApp(appPath, q.Repos)
 		err := h.Init()
 		if err != nil {
 			return nil, err

@@ -625,23 +625,25 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
-type HelmRepository struct {
-	URL      string `json:"url" protobuf:"bytes,1,opt,name=url"`
-	Name     string `json:"name" protobuf:"bytes,2,opt,name=name"`
-	CAData   []byte `json:"caData,omitempty" protobuf:"bytes,3,opt,name=caData"`
-	CertData []byte `json:"certData,omitempty" protobuf:"bytes,4,opt,name=certData"`
-	KeyData  []byte `json:"keyData,omitempty" protobuf:"bytes,5,opt,name=keyData"`
-	Username string `json:"username,omitempty" protobuf:"bytes,6,opt,name=username"`
-	Password string `json:"password,omitempty" protobuf:"bytes,7,opt,name=password"`
-}
+type RepoType string
 
-// Repository is a Git repository holding application configurations
+const (
+	Git  RepoType = "git"
+	Helm RepoType = "helm"
+)
+
+// Repository is a repository holding application configurations
 type Repository struct {
 	Repo            string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
 	Username        string          `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
 	Password        string          `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
 	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
+	Name            string          `json:"name" protobuf:"bytes,7,opt,name=name"`
+	Type            RepoType        `json:"type" protobuf:"bytes,8,opt,name=type"`
+	CAData          []byte          `json:"caData,omitempty" protobuf:"bytes,9,opt,name=caData"`
+	CertData        []byte          `json:"certData,omitempty" protobuf:"bytes,10,opt,name=certData"`
+	KeyData         []byte          `json:"keyData,omitempty" protobuf:"bytes,11,opt,name=keyData"`
 }
 
 // RepositoryList is a collection of Repositories.

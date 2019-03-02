@@ -42,6 +42,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		repo              appsv1.Repository
 		upsert            bool
 		sshPrivateKeyPath string
+		repoType          string
 	)
 	var command = &cobra.Command{
 		Use:   "add REPO",
@@ -52,6 +53,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				os.Exit(1)
 			}
 			repo.Repo = args[0]
+			repo.Type = appsv1.RepoType(repoType)
 			if sshPrivateKeyPath != "" {
 				keyData, err := ioutil.ReadFile(sshPrivateKeyPath)
 				if err != nil {
@@ -64,7 +66,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// NOTE: it is important not to run git commands to test git credentials on the user's
 			// system since it may mess with their git credential store (e.g. osx keychain).
 			// See issue #315
-			err := git.TestRepo(repo.Repo, "", "", repo.SSHPrivateKey)
+			err := git.TestRepo(repo.Repo, repoType, "", "", repo.SSHPrivateKey)
 			if err != nil {
 				if git.IsSSHURL(repo.Repo) {
 					// If we failed using git SSH credentials, then the repo is automatically bad
@@ -88,6 +90,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
+	command.Flags().StringVar(&repo.Name, "name", "", "the name of the the repo (default is the URL)")
+	command.Flags().StringVar(&repoType, "type", "git", "the type of the the repo (default is git)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	return command
 }
@@ -124,9 +128,11 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repos, err := repoIf.List(context.Background(), &repository.RepoQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "REPO\tUSER\tSTATUS\tMESSAGE\n")
+			_, err = fmt.Fprintf(w, "REPO\tNAME\tTYPE\tUSER\tSTATUS\tMESSAGE\n")
+			errors.CheckError(err)
 			for _, r := range repos.Items {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Repo, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
+				_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Repo, r.Name, r.Type, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
+				errors.CheckError(err)
 			}
 			_ = w.Flush()
 		},

@@ -49,6 +49,35 @@ func NewServer(
 	}
 }
 
+func (s *Server) HydrateConnectionState(ctx context.Context, repo *appsv1.Repository) {
+	connectionState, err := s.cache.GetRepoConnectionState(repo.Repo)
+	if err == nil {
+		repo.ConnectionState = connectionState
+		return
+	}
+	now := metav1.Now()
+
+	err = git.TestRepo(repo.Repo, string(repo.Type), repo.Username, repo.Password, repo.SSHPrivateKey)
+
+	if err != nil {
+		repo.ConnectionState = appsv1.ConnectionState{
+			Status:     appsv1.ConnectionStatusFailed,
+			Message:    fmt.Sprintf("Unable to connect to repository: %v", err),
+			ModifiedAt: &now,
+		}
+		return
+	}
+	err = s.cache.SetRepoConnectionState(repo.Repo, &connectionState)
+	if err != nil {
+		log.Warnf("cache set error %s: %v", repo.Repo, err)
+	}
+
+	repo.ConnectionState = appsv1.ConnectionState{
+		Status:     appsv1.ConnectionStatusSuccessful,
+		ModifiedAt: &now,
+	}
+}
+
 func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.ConnectionState {
 	if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
 		return connectionState
@@ -60,7 +89,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	}
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
+		err = git.TestRepo(repo.Repo, string(repo.Type), repo.Username, repo.Password, repo.SSHPrivateKey)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -68,27 +97,27 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	}
 	err = s.cache.SetRepoConnectionState(url, &connectionState)
 	if err != nil {
-		log.Warnf("getConnectionState cache set error %s: %v", url, err)
+		log.Warnf("cache set error %s: %v", url, err)
 	}
 	return connectionState
 }
 
 // List returns list of repositories
 func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
-	urls, err := s.db.ListRepoURLs(ctx)
+	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
 	items := make([]appsv1.Repository, 0)
-	if urls != nil {
-		for _, url := range urls {
-			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
-				items = append(items, appsv1.Repository{Repo: url})
+	if repos != nil {
+		for _, repo := range repos {
+			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo) {
+				items = append(items, appsv1.Repository{Name: repo.Name, Repo: repo.Repo, Type: repo.Type})
 			}
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
-		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo)
+		s.HydrateConnectionState(ctx, &items[i])
 		return nil
 	})
 	if err != nil {
@@ -308,7 +337,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, err
 	}
 	r := q.Repo
-	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
+	err := git.TestRepo(r.Repo, string(r.Type), r.Username, r.Password, r.SSHPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -332,11 +361,12 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 			return nil, status.Errorf(codes.InvalidArgument, "existing repository spec is different; use upsert flag to force update")
 		}
 	}
-	return &appsv1.Repository{Repo: repo.Repo}, err
+	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type}, err
 }
 
 // Update updates a repository
 func (s *Server) Update(ctx context.Context, q *RepoUpdateRequest) (*appsv1.Repository, error) {
+	// TODO - allow update of type?
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Repo.Repo); err != nil {
 		return nil, err
 	}

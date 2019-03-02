@@ -165,7 +165,7 @@ func GetSpecErrors(
 			// The repo has not been added to Argo CD so we do not have credentials to access it.
 			// We support the mode where apps can be created from public repositories. Test the
 			// repo to make sure it is publicly accessible
-			err = git.TestRepo(spec.Source.RepoURL, "", "", "")
+			err = git.TestRepo(spec.Source.RepoURL, "git", "", "", "")
 			if err != nil {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -219,7 +219,7 @@ func GetSpecErrors(
 					conditions = append(conditions, helmConditions...)
 				}
 			case argoappv1.ApplicationSourceTypeDirectory, argoappv1.ApplicationSourceTypeKustomize:
-				maniDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.HelmRepository{}, spec, repoClient)
+				maniDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.Repository{}, spec, repoClient)
 				if len(maniDirConditions) > 0 {
 					conditions = append(conditions, maniDirConditions...)
 				}
@@ -372,7 +372,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
-	ctx context.Context, repoRes *argoappv1.Repository, helmRepos []*argoappv1.HelmRepository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
+	ctx context.Context, repoRes *argoappv1.Repository, repos []*argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
@@ -385,7 +385,7 @@ func verifyGenerateManifests(
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
-		HelmRepos:         helmRepos,
+		Repos:             repos,
 		Revision:          spec.Source.TargetRevision,
 		Namespace:         spec.Destination.Namespace,
 		ApplicationSource: &spec.Source,
