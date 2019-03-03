@@ -535,7 +535,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         if (resources && resources.length === appResources.length) {
             resources = null;
         }
-        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, dryRun, resources, this.appContext);
+        await AppUtils.syncApplication(this.props.match.params.name, revision, prune, dryRun, resources, this.appContext.apis);
         this.showDeploy(null);
     }
 
@@ -599,7 +599,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private async deleteApplication() {
-        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext);
+        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
     }
 
     private getResourceTabs(application: appModels.Application, node: ResourceTreeNode, state: appModels.State, tabs: Tab[]) {

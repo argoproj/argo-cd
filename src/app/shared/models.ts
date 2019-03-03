@@ -136,7 +136,7 @@ export interface ApplicationSource {
     /**
      * Overridden component parameters.
      */
-    componentParameterOverrides: ComponentParameter[];
+    componentParameterOverrides?: ComponentParameter[];
 
     helm?: ApplicationSourceHelm;
 
@@ -322,7 +322,7 @@ export interface KsonnetAppSpec {
     environments: { [key: string]: KsonnetEnvironment; };
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory';
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
 
 export interface AppDetails {
     type: AppSourceType;
@@ -331,7 +331,7 @@ export interface AppDetails {
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
     directory?: {};
-    syncPolicy?: SyncPolicy;
+    plugin?: { name: string; };
 }
 
 export interface AppInfo {

@@ -56,7 +56,7 @@ export const ApplicationNodeInfo = (props: {
         key: 'manifest',
         title: 'Manifest',
         content: (
-        <YamlEditor input={props.live} readOnly={!props.live} onSave={(patch, patchType) =>
+        <YamlEditor input={props.live} canChangeMode={!!props.live} onSave={(patch, patchType) =>
             services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)
         }/>),
     }];

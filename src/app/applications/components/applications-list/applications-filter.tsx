@@ -70,10 +70,10 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
 
         const sync = new Map<string, number>();
         Object.keys(models.SyncStatuses).forEach((key) => sync.set(models.SyncStatuses[key], 0));
-        applications.filter((app) => app.status.sync).forEach((app) => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
+        applications.filter((app) => app.status.sync.status).forEach((app) => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
         const health = new Map<string, number>();
         Object.keys(models.HealthStatuses).forEach((key) => health.set(models.HealthStatuses[key], 0));
-        applications.forEach((app) => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
+        applications.filter((app) => app.status.health.status).forEach((app) => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
         return (
             <div className={classNames('applications-list__filters-container', { 'applications-list__filters-container--expanded': this.state.expanded })}>
             <i onClick={() => this.setState({ expanded: !this.state.expanded })}

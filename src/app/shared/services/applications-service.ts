@@ -52,12 +52,8 @@ export class ApplicationsService {
         return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
-    public create(name: string, project: string, syncPolicy: models.SyncPolicy,
-                  source: models.ApplicationSource, destination?: models.ApplicationDestination): Promise<models.Application> {
-        return requests.post(`/applications`).send({
-            metadata: { name },
-            spec: { source, destination, project, syncPolicy },
-        }).then((res) => this.parseAppFields(res.body));
+    public create(app: models.Application): Promise<models.Application> {
+        return requests.post(`/applications`).send(app).then((res) => this.parseAppFields(res.body));
     }
 
     public delete(name: string, cascade: boolean): Promise<boolean> {

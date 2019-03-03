@@ -4,4 +4,6 @@ import * as React from 'react';
 
 export type AppContext = ArgoAppContext & { apis: { popup: PopupApi; notifications: NotificationsApi; navigation: NavigationApi }; };
 
-export const { Provider, Consumer } = React.createContext<{ popup: PopupApi; notifications: NotificationsApi; navigation: NavigationApi; history: History }>(null);
+export interface ContextApis { popup: PopupApi; notifications: NotificationsApi; navigation: NavigationApi; }
+
+export const { Provider, Consumer } = React.createContext<ContextApis & { history: History }>(null);

@@ -1,8 +1,8 @@
 import * as React from 'react';
 
-import { Checkbox, NotificationType } from 'argo-ui';
+import { Checkbox, NotificationsApi, NotificationType } from 'argo-ui';
 import { ARGO_FAILED_COLOR, ARGO_GRAY4_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
-import { AppContext } from '../../shared/context';
+import { ContextApis } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
 
@@ -55,12 +55,12 @@ export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[
     return componentParams;
 }
 
-export async function syncApplication(appName: string, revision: string, prune: boolean, dryRun: boolean, resources: appModels.SyncOperationResource[], context: AppContext) {
+export async function syncApplication(appName: string, revision: string, prune: boolean, dryRun: boolean, resources: appModels.SyncOperationResource[], apis: ContextApis) {
     try {
         await services.applications.sync(appName, revision, prune, dryRun, resources);
         return true;
     } catch (e) {
-        context.apis.notifications.show({
+        apis.notifications.show({
             content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
             type: NotificationType.Error,
         });
@@ -68,7 +68,7 @@ export async function syncApplication(appName: string, revision: string, prune: 
     return false;
 }
 
-export async function deleteApplication(appName: string, context: AppContext): Promise<boolean> {
+export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let cascade = false;
     const confirmationForm = class extends React.Component<{}, { cascade: boolean } > {
         constructor(props: any) {
@@ -87,17 +87,30 @@ export async function deleteApplication(appName: string, context: AppContext): P
             cascade = this.state.cascade;
         }
     };
-    const confirmed = await context.apis.popup.confirm('Delete application', confirmationForm);
+    const confirmed = await apis.popup.confirm('Delete application', confirmationForm);
     if (confirmed) {
         try {
             await services.applications.delete(appName, cascade);
             return true;
         } catch (e) {
-            context.apis.notifications.show({
+            apis.notifications.show({
                 content: <ErrorNotification title='Unable to delete application' e={e}/>,
                 type: NotificationType.Error,
             });
         }
+    }
+    return false;
+}
+
+export async function createApplication(app: appModels.Application, notifications: NotificationsApi): Promise<boolean> {
+    try {
+        await services.applications.create(app);
+        return true;
+    } catch (e) {
+        notifications.show({
+            content: <ErrorNotification title='Unable to create application' e={e}/>,
+            type: NotificationType.Error,
+        });
     }
     return false;
 }

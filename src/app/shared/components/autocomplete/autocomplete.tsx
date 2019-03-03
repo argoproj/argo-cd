@@ -44,7 +44,11 @@ export const Autocomplete = (props: AutocompleteProps) => {
                     (el.refs.input as HTMLInputElement).autocomplete = 'no-autocomplete';
                 }
                 if (props.autoCompleteRef) {
-                    props.autoCompleteRef({ refresh: () => el.setMenuPositions() });
+                    props.autoCompleteRef({ refresh: () => {
+                        if (el) {
+                            el.setMenuPositions();
+                        }
+                    } });
                 }
             }}
             inputProps={props.inputProps}

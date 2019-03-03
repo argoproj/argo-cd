@@ -14,6 +14,13 @@
   version "0.7.40"
   resolved "https://registry.yarnpkg.com/@types/dagre/-/dagre-0.7.40.tgz#7112c8bb912d131482825dc9cc2a522073efbe05"
 
+"@types/deepmerge@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@types/deepmerge/-/deepmerge-2.2.0.tgz#6f63896c217f3164782f52d858d9f3a927139f64"
+  integrity sha512-FEQYDHh6+Q+QXKSrIY46m+/lAmAj/bk4KpLaam+hArmzaVpMBHLcfwOH2Q2UOkWM7XsdY9PmZpGyPAjh/JRGhQ==
+  dependencies:
+    deepmerge "*"
+
 "@types/history@*":
   version "4.6.2"
   resolved "https://registry.yarnpkg.com/@types/history/-/history-4.6.2.tgz#12cfaba693ba20f114ed5765467ff25fdf67ddb0"
@@ -396,9 +403,9 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-"argo-ui@git://github.com/argoproj/argo-ui.git#01aa3be":
-  version "2.2.0-alpha20"
-  resolved "git://github.com/argoproj/argo-ui.git#01aa3be49b9af30c7439e9338e6e3edfc5260c6f"
+"argo-ui@git://github.com/argoproj/argo-ui.git":
+  version "1.0.0"
+  resolved "git://github.com/argoproj/argo-ui.git#86efd1963e0c075b264b436a9a5a83b728e452a2"
   dependencies:
     "@types/react-form" "^2.16.1"
     "@types/react-helmet" "^5.0.8"
@@ -1923,6 +1930,11 @@ deep-equal@*, deep-equal@^1.0.0, deep-equal@^1.0.1:
 deep-extend@^0.6.0:
   version "0.6.0"
   resolved "https://registry.yarnpkg.com/deep-extend/-/deep-extend-0.6.0.tgz#c4fa7c95404a17a9c3e8ca7e1537312b736330ac"
+
+deepmerge@*, deepmerge@^3.2.0:
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/deepmerge/-/deepmerge-3.2.0.tgz#58ef463a57c08d376547f8869fdc5bcee957f44e"
+  integrity sha512-6+LuZGU7QCNUnAJyX8cIrlzoEgggTM6B7mm+znKOX4t5ltluT9KLjN6g61ECMS0LTsLW7yDpNoxhix5FZcrIow==
 
 default-gateway@^4.0.1:
   version "4.1.2"

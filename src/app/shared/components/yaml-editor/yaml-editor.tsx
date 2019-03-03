@@ -11,8 +11,10 @@ require('./yaml-editor.scss');
 
 export class YamlEditor<T> extends React.Component<{
     input: T,
-    readOnly?: boolean,
+    canChangeMode?: boolean,
+    initialEditMode?: boolean;
     onSave: (patch: string, patchType: string) => Promise<any>,
+    onCancel?: () => any;
     minHeight?: number,
 }, {
     editing: boolean,
@@ -22,7 +24,7 @@ export class YamlEditor<T> extends React.Component<{
 
     constructor(props: any) {
         super(props);
-        this.state = { editing: false };
+        this.state = { editing: props.initialEditMode };
     }
 
     public render() {
@@ -31,7 +33,7 @@ export class YamlEditor<T> extends React.Component<{
 
         return (
             <div className='yaml-editor'>
-                {!props.readOnly && (
+                {!props.canChangeMode && (
                     <div className='yaml-editor__buttons'>
                         {this.state.editing && (
                             <Consumer>
@@ -41,8 +43,10 @@ export class YamlEditor<T> extends React.Component<{
                                         try {
                                             const updated = jsYaml.load(this.model.getLinesContent().join('\n'));
                                             const patch = jsonMergePatch.generate(props.input, updated);
-                                            await this.props.onSave(JSON.stringify(patch), 'application/strategic-merge-patch+json');
-                                            this.setState({ editing: false });
+                                            const unmounted = await this.props.onSave(JSON.stringify(patch || {}), 'application/strategic-merge-patch+json');
+                                            if (unmounted !== true) {
+                                                this.setState({ editing: false });
+                                            }
                                         } catch (e) {
                                             ctx.notifications.show({
                                                 content: <ErrorNotification title='Unable to save changes' e={e}/>,
@@ -54,6 +58,9 @@ export class YamlEditor<T> extends React.Component<{
                                     </button> <button onClick={() => {
                                         this.model.setValue(jsYaml.safeDump(props.input));
                                         this.setState({editing: !this.state.editing});
+                                        if (props.onCancel) {
+                                            props.onCancel();
+                                        }
                                     }} className='argo-button argo-button--base-o'>
                                         Cancel
                                     </button>
