@@ -122,7 +122,9 @@ data:
         args: ["sample args"]
 ```
 
-Both `init` and `generate` commands are executed inside the application source directory. Commands have access to system environment variables and following additional variables:
+The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+Commands have access to system environment variables and following additional variables:
+
 `ARGOCD_APP_NAME` - name of application; `ARGOCD_APP_NAMESPACE` - destination application namespace
 
  * Create an application and specify required config management plugin name.
