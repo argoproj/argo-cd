@@ -64,6 +64,7 @@ type comparisonResult struct {
 	conditions       []v1alpha1.ApplicationCondition
 	hooks            []*unstructured.Unstructured
 	diffNormalizer   diff.Normalizer
+	appSourceType    v1alpha1.ApplicationSourceType
 }
 
 // appStateManager allows to compare applications to git
@@ -277,6 +278,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		conditions:       conditions,
 		hooks:            hooks,
 		diffNormalizer:   diffNormalizer,
+		appSourceType:    v1alpha1.ApplicationSourceType(manifestInfo.SourceType),
 	}
 	return &compRes, nil
 }

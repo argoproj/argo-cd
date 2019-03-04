@@ -274,8 +274,9 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	}
 
 	res := ManifestResponse{
-		Manifests: manifests,
-		Params:    params,
+		Manifests:  manifests,
+		Params:     params,
+		SourceType: string(appSourceType),
 	}
 	if dest != nil {
 		res.Namespace = dest.Namespace

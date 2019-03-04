@@ -848,8 +848,14 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 		}
 	}
 	if deploymentInfo == nil {
-		return nil, fmt.Errorf("application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
+		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
 	}
+	if deploymentInfo.Source.IsZero() {
+		// Since source type was introduced to history starting with v0.12, and is now required for
+		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
+		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
+	}
+
 	// Rollback is just a convenience around Sync
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{

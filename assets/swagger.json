@@ -1689,6 +1689,9 @@
         },
         "server": {
           "type": "string"
+        },
+        "sourceType": {
+          "type": "string"
         }
       }
     },

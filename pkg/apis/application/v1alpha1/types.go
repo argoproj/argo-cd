@@ -80,6 +80,18 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 }
 
+func (a ApplicationSource) IsZero() bool {
+	return a.RepoURL == "" &&
+		a.Path == "" &&
+		a.TargetRevision == "" &&
+		len(a.ComponentParameterOverrides) == 0 &&
+		a.Helm.IsZero() &&
+		a.Kustomize.IsZero() &&
+		a.Ksonnet.IsZero() &&
+		a.Directory.IsZero() &&
+		a.Plugin.IsZero()
+}
+
 type ApplicationSourceType string
 
 const (

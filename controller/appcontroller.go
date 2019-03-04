@@ -578,8 +578,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3})
 		logCtx.Info("Reconciliation completed")
 	}()
-	// NOTE: normalization returns a copy
-	app := ctrl.normalizeApplication(origApp)
+	app := origApp.DeepCopy()
 
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
@@ -594,6 +593,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
+		ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
 		conditions = append(conditions, compareResult.conditions...)
 	}
 	err = ctrl.setAppManagedResources(app, compareResult)
@@ -698,23 +698,14 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
-// Always returns a copy of the application
-func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) *appv1.Application {
+func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application, sourceType appv1.ApplicationSourceType) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-	modifiedApp := app.DeepCopy()
-
-	appSourceType, err := argo.QueryAppSourceType(context.Background(), app, ctrl.repoClientset, ctrl.db)
-	if err != nil {
-		logCtx.Errorf("error querying app source type: %v", err)
-		return modifiedApp
-	}
-	modifiedApp.Spec = *argo.NormalizeApplicationSpec(&app.Spec, appSourceType)
-	patch, modified, err := diff.CreateTwoWayMergePatch(app, modifiedApp, appv1.Application{})
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, sourceType)
+	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)
-		return modifiedApp
 	} else if modified {
+		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 		_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
 		if err != nil {
 			logCtx.Errorf("Error persisting normalized application spec: %v", err)
@@ -722,7 +713,6 @@ func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) 
 			logCtx.Infof("Normalized app spec: %s", string(patch))
 		}
 	}
-	return modifiedApp
 }
 
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op

@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -76,14 +75,13 @@ func newFakeController(data *fakeData) *ApplicationController {
 		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
 		time.Minute,
 	)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go ctrl.projInformer.Run(ctx.Done())
-	cache.WaitForCacheSync(ctx.Done(), ctrl.projInformer.HasSynced)
-
 	if err != nil {
 		panic(err)
 	}
+	cancelProj := test.StartInformer(ctrl.projInformer)
+	defer cancelProj()
+	cancelApp := test.StartInformer(ctrl.appInformer)
+	defer cancelApp()
 	// Mock out call to GetManagedLiveObjs if fake data supplied
 	if data.managedLiveObjs != nil {
 		mockStateCache := mockstatecache.LiveStateCache{}
@@ -91,9 +89,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
 		ctrl.stateCache = &mockStateCache
 		ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
-
 	}
-
 	return ctrl
 }
 
@@ -375,51 +371,74 @@ func TestFinalizeAppDeletion(t *testing.T) {
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
 func TestNormalizeApplication(t *testing.T) {
+	defaultProj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
 	app := newFakeApp()
 	app.Spec.Project = ""
 	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	cancel := test.StartInformer(ctrl.appInformer)
-	defer cancel()
-	key, _ := cache.MetaNamespaceKeyFunc(app)
-	ctrl.appRefreshQueue.Add(key)
+	data := fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
 
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	fakeAppCs.ReactionChain = nil
-	normalized := false
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
-				normalized = true
+	{
+		// Verify we normalize the app because project is missing
+		ctrl := newFakeController(&data)
+		key, _ := cache.MetaNamespaceKeyFunc(app)
+		ctrl.appRefreshQueue.Add(key)
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.ReactionChain = nil
+		normalized := false
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+					normalized = true
+				}
 			}
-		}
-		return true, nil, nil
-	})
-	ctrl.processAppRefreshQueueItem()
-	assert.True(t, normalized)
-}
+			return true, nil, nil
+		})
+		ctrl.processAppRefreshQueueItem()
+		assert.True(t, normalized)
+	}
 
-// TestDontNormalizeApplication verifies we dont unnecessarily normalize an application
-func TestDontNormalizeApplication(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Project = "default"
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	cancel := test.StartInformer(ctrl.appInformer)
-	defer cancel()
-	key, _ := cache.MetaNamespaceKeyFunc(app)
-	ctrl.appRefreshQueue.Add(key)
-
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	fakeAppCs.ReactionChain = nil
-	normalized := false
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if strings.HasPrefix(string(patchAction.GetPatch()), `{"spec":`) {
-				normalized = true
+	{
+		// Verify we don't unnecessarily normalize app when project is set
+		app.Spec.Project = "default"
+		data.apps[0] = app
+		ctrl := newFakeController(&data)
+		key, _ := cache.MetaNamespaceKeyFunc(app)
+		ctrl.appRefreshQueue.Add(key)
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.ReactionChain = nil
+		normalized := false
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+					normalized = true
+				}
 			}
-		}
-		return true, nil, nil
-	})
-	ctrl.processAppRefreshQueueItem()
-	assert.False(t, normalized)
+			return true, nil, nil
+		})
+		ctrl.processAppRefreshQueueItem()
+		assert.False(t, normalized)
+	}
 }
