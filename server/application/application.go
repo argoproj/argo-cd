@@ -886,8 +886,8 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	}
 	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
 	if err != nil {
-		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL}
+		log.Info("If we couldn't retrieve from the repo service, assume public repositories")
+		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL, Type: "git"}
 	}
 	client, err := s.clientFactory.NewClient(repo.Repo, string(repo.Type), "", repo.Username, repo.Password, repo.SSHPrivateKey)
 	if err != nil {

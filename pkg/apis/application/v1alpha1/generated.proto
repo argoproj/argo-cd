@@ -107,7 +107,7 @@ message ApplicationList {
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 message ApplicationSource {
-  // RepoURL is the git repository URL of the application manifests
+  // RepoURL is the repository URL of the application manifests
   optional string repoURL = 1;
 
   // Path is a directory path within the repository containing a

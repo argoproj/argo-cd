@@ -9,12 +9,13 @@ import (
 // Client is a generic git client interface
 type Client interface {
 	Root() string
+	Test() error
 	Init() error
 	Fetch() error
-	Checkout(revision string) error
+	Checkout(path, revision string) error
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
-	CommitSHA() (string, error)
+	CommitSHA(revision string) (string, error)
 }
 
 // ClientFactory is a factory of Git Clients
@@ -30,7 +31,13 @@ func NewFactory() ClientFactory {
 }
 
 func (f *factory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error) {
-	return f.newGitClient(repoURL, path, username, password, sshPrivateKey)
+	if repoType == "helm" {
+		return f.newHelmClient(repoURL, path)
+	}
+	if repoType == "git" {
+		return f.newGitClient(repoURL, path, username, password, sshPrivateKey)
+	}
+	panic(repoType)
 }
 
 // EnsurePrefix idempotently ensures that a base string has a given prefix.
@@ -97,6 +104,5 @@ func TestRepo(repo, repoType, username, password string, sshPrivateKey string) e
 	if err != nil {
 		return err
 	}
-	_, err = clnt.LsRemote("HEAD")
-	return err
+	return clnt.Test()
 }

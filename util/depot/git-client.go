@@ -48,6 +48,11 @@ func (m *nativeGitClient) Root() string {
 	return m.root
 }
 
+func (m *nativeGitClient) Test() error {
+	_, err := m.LsRemote("HEAD")
+	return err
+}
+
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
 	_, err := git.PlainOpen(m.root)
@@ -121,7 +126,7 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 }
 
 // Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(revision string) error {
+func (m *nativeGitClient) Checkout(path, revision string) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -207,7 +212,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) CommitSHA() (string, error) {
+func (m *nativeGitClient) CommitSHA(revision string) (string, error) {
 	out, err := m.runCmd("git", "rev-parse", "HEAD")
 	if err != nil {
 		return "", err

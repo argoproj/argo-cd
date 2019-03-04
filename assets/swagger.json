@@ -2358,7 +2358,7 @@
         },
         "repoURL": {
           "type": "string",
-          "title": "RepoURL is the git repository URL of the application manifests"
+          "title": "RepoURL is the repository URL of the application manifests"
         },
         "targetRevision": {
           "type": "string",

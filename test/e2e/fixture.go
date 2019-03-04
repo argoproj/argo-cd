@@ -122,7 +122,7 @@ func (f *Fixture) setup() error {
 		return err
 	}
 
-	repoSrv, err := reposerver.NewServer(&FakeGitClientFactory{}, cache.NewCache(cache.NewInMemoryCache(1*time.Hour)), func(config *tls.Config) {}, 0)
+	repoSrv, err := reposerver.NewServer(&FakeClientFactory{}, cache.NewCache(cache.NewInMemoryCache(1*time.Hour)), func(config *tls.Config) {}, 0)
 	if err != nil {
 		return err
 	}
@@ -378,9 +378,9 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 	}
 }
 
-type FakeGitClientFactory struct{}
+type FakeClientFactory struct{}
 
-func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) (depot.Client, error) {
+func (f *FakeClientFactory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (depot.Client, error) {
 	return &FakeGitClient{
 		root: path,
 	}, nil
@@ -389,6 +389,10 @@ func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshP
 // FakeGitClient is a test git client implementation which always clone local test repo.
 type FakeGitClient struct {
 	root string
+}
+
+func (c *FakeGitClient) Test() error {
+	return nil
 }
 
 func (c *FakeGitClient) Init() error {
@@ -409,7 +413,7 @@ func (c *FakeGitClient) Fetch() error {
 	return nil
 }
 
-func (c *FakeGitClient) Checkout(revision string) error {
+func (c *FakeGitClient) Checkout(path, revision string) error {
 	// do nothing
 	return nil
 }
@@ -434,6 +438,6 @@ func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
 	return matches, nil
 }
 
-func (c *FakeGitClient) CommitSHA() (string, error) {
+func (c *FakeGitClient) CommitSHA(revision string) (string, error) {
 	return "abcdef123456890", nil
 }

@@ -294,7 +294,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	processNext = true
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.Errorf("Recovered from panic: %s, %+v\n%s", appKey, r, debug.Stack())
 		}
 		ctrl.appOperationQueue.Done(appKey)
 	}()
@@ -422,7 +422,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
 		if r := recover(); r != nil {
-			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			logCtx.Errorf("Recovered from panic: %s, %+v\n%s", app.Name, r, debug.Stack())
 			state.Phase = appv1.OperationError
 			if rerr, ok := r.(error); ok {
 				state.Message = rerr.Error()
@@ -547,7 +547,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	processNext = true
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			log.Errorf("Recovered from panic: %s, %+v\n%s", appKey, r, debug.Stack())
 		}
 		ctrl.appRefreshQueue.Done(appKey)
 	}()

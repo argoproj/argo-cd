@@ -283,6 +283,11 @@ func QueryAppSourceType(ctx context.Context, app *argoappv1.Application, repoCli
 }
 
 func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepositoryServiceClient) (argoappv1.ApplicationSourceType, error) {
+
+	if repoRes.Type == argoappv1.Helm {
+		return argoappv1.ApplicationSourceTypeHelm, nil
+	}
+
 	req := repository.ListDirRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
@@ -363,7 +368,13 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 
 // verifyHelmChart verifies a helm chart is functional
 func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
+
 	var conditions []argoappv1.ApplicationCondition
+
+	if repoRes.Type == argoappv1.Helm {
+		return conditions
+	}
+
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

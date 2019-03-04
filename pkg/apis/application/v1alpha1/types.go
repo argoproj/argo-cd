@@ -57,7 +57,7 @@ type ResourceIgnoreDifferences struct {
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
 type ApplicationSource struct {
-	// RepoURL is the git repository URL of the application manifests
+	// RepoURL is the repository URL of the application manifests
 	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
 	// Path is a directory path within the repository containing a
 	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`

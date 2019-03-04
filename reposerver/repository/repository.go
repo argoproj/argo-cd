@@ -73,7 +73,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 
 	s.repoLock.Lock(client.Root())
 	defer s.repoLock.Unlock(client.Root())
-	commitSHA, err = checkoutRevision(client, commitSHA)
+	commitSHA, err = checkoutRevision(client, ".", q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 
 	s.repoLock.Lock(client.Root())
 	defer s.repoLock.Unlock(client.Root())
-	commitSHA, err = checkoutRevision(client, commitSHA)
+	commitSHA, err = checkoutRevision(client, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		defer s.parallelismLimitSemaphore.Release(1)
 	}
 
-	commitSHA, err = checkoutRevision(client, commitSHA)
+	commitSHA, err = checkoutRevision(client, q.ApplicationSource.Path, q.ApplicationSource.TargetRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +336,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func checkoutRevision(client depot.Client, commitSHA string) (string, error) {
+func checkoutRevision(client depot.Client, path, revision string) (string, error) {
 	err := client.Init()
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -345,11 +345,11 @@ func checkoutRevision(client depot.Client, commitSHA string) (string, error) {
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
 	}
-	err = client.Checkout(commitSHA)
+	err = client.Checkout(path, revision)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", commitSHA, err)
+		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
 	}
-	return client.CommitSHA()
+	return client.CommitSHA(revision)
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
