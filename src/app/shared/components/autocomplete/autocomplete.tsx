@@ -34,18 +34,33 @@ export const Autocomplete = (props: AutocompleteProps) => {
             };
         }
     });
+    const [autocompleteEl, setAutocompleteEl] = React.useState(null);
+
+    React.useEffect(() => {
+        const listener = () => {
+            if (autocompleteEl && autocompleteEl.refs.input) {
+                autocompleteEl.setMenuPositions();
+            }
+        };
+        document.addEventListener('scroll', listener, true);
+        return () => {
+            document.removeEventListener('scroll', listener);
+        };
+    });
+
     const wrapperProps = props.wrapperProps || {};
     wrapperProps.className = classNames('select', wrapperProps.className);
     return (
         <ReactAutocomplete
             ref={(el: any) => {
+                setAutocompleteEl(el);
                 if (el) {
                     // workaround for 'autofill for forms not deactivatable' https://bugs.chromium.org/p/chromium/issues/detail?id=370363#c7
                     (el.refs.input as HTMLInputElement).autocomplete = 'no-autocomplete';
                 }
                 if (props.autoCompleteRef) {
                     props.autoCompleteRef({ refresh: () => {
-                        if (el) {
+                        if (el && el.refs.input) {
                             el.setMenuPositions();
                         }
                     } });
