@@ -62,6 +62,11 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                             <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                 <i className='fa fa-ellipsis-v'/>
                                             </button>} items={[{
+                                                title: 'Create application',
+                                                action: () => this.appContext.apis.navigation.goto('/applications', {
+                                                    new: JSON.stringify({spec: { source: { repoURL: repo.repo } } }),
+                                                }),
+                                            }, {
                                                 title: 'Disconnect',
                                                 action: () => this.disconnectRepo(repo.repo),
                                             }]}/>
