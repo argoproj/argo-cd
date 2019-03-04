@@ -11,7 +11,7 @@ require('./yaml-editor.scss');
 
 export class YamlEditor<T> extends React.Component<{
     input: T,
-    canChangeMode?: boolean,
+    hideModeButtons?: boolean,
     initialEditMode?: boolean;
     onSave: (patch: string, patchType: string) => Promise<any>,
     onCancel?: () => any;
@@ -33,7 +33,7 @@ export class YamlEditor<T> extends React.Component<{
 
         return (
             <div className='yaml-editor'>
-                {!props.canChangeMode && (
+                {!props.hideModeButtons && (
                     <div className='yaml-editor__buttons'>
                         {this.state.editing && (
                             <Consumer>
