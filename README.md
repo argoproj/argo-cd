@@ -35,6 +35,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 * [ksonnet](https://ksonnet.io) applications
 * [jsonnet](https://jsonnet.org) files 
 * Plain directory of YAML/json manifests
+* Any custom config management tool configured as a config management plugin
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of

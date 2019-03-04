@@ -6,6 +6,7 @@ Argo CD supports several different ways in which kubernetes manifests can be def
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
 * Directory of YAML/json/jsonnet manifests
+* Any custom config management tool configured as a config management plugin
 
 Some additional considerations should be made when deploying apps of a particular type:
 
@@ -101,3 +102,35 @@ value, in the values.yaml such that the value is stable between each comparison.
 ```
 argocd app set redis -p password=abc123
 ```
+
+## Config Management Plugins
+
+Argo CD allows integrating more config management tools using config management plugins. Following changes are required to configure new plugin:
+
+* Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or using custom image (see [custom_tools](custom_tools.md)).
+* Register a new plugin in `argocd-cm` ConfigMap:
+
+```yaml
+data:
+  configManagementPlugins: |
+    - name: pluginName
+      init:                          # Optional command to initialize application source directory
+        command: ["sample command"]
+        args: ["sample args"]
+      generate:                      # Command to generate manifests YAML
+        command: ["sample command"]
+        args: ["sample args"]
+```
+
+The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+Commands have access to system environment variables and following additional variables:
+
+`ARGOCD_APP_NAME` - name of application; `ARGOCD_APP_NAMESPACE` - destination application namespace
+
+ * Create an application and specify required config management plugin name.
+
+```
+argocd app create <appName> --config-management-plugin <pluginName>
+```
+
+More config management plugin examples are available in [argocd-example-apps](https://github.com/argoproj/argocd-example-apps/tree/master/plugins).

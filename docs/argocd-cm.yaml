@@ -102,6 +102,14 @@ data:
       clusters:
       - "*.local"
 
+  # Configuration to add a config management plugin.
+  configManagementPlugins: |
+    - name: kasane
+      init:
+        command: [kasane, update]
+      generate:
+        command: [kasane, show]
+
   # The metadata.label key name where Argo CD injects the app name as a tracking label (optional).
   # Tracking labels are used to determine which resources need to be deleted when pruning.
   # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'
