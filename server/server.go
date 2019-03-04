@@ -154,7 +154,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
-	sessionMgr := util_session.NewSessionManager(settingsMgr)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr)
 
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
@@ -529,7 +529,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr))
 	tlsConfig := a.settings.TLSConfig()
 	tlsConfig.InsecureSkipVerify = true
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache, a.DexServerAddr)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)

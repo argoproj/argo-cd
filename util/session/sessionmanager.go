@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util/dex"
 	httputil "github.com/argoproj/argo-cd/util/http"
 	jwtutil "github.com/argoproj/argo-cd/util/jwt"
 	oidcutil "github.com/argoproj/argo-cd/util/oidc"
@@ -39,7 +40,7 @@ const (
 )
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, dexServerAddr string) *SessionManager {
 	s := SessionManager{
 		settingsMgr: settingsMgr,
 	}
@@ -62,6 +63,9 @@ func NewSessionManager(settingsMgr *settings.SettingsManager) *SessionManager {
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+	}
+	if settings.DexConfig != "" {
+		s.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, s.client.Transport)
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
