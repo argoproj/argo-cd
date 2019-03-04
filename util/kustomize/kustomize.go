@@ -21,7 +21,7 @@ import (
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts KustomizeBuildOpts, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -33,13 +33,7 @@ type kustomize struct {
 	path string
 }
 
-// KustomizeBuildOpts are options to a `kustomize build` command
-type KustomizeBuildOpts struct {
-	// NamePrefix will run `kustomize edit set nameprefix` during manifest generation
-	NamePrefix string
-}
-
-func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
 
 	version, err := k.getKustomizationVersion()
 	if err != nil {
@@ -52,26 +46,28 @@ func (k *kustomize) Build(opts KustomizeBuildOpts, overrides []*v1alpha1.Compone
 
 	log.Infof("using kustomize binary=%s", commandName)
 
-	if opts.NamePrefix != "" {
-		cmd := exec.Command(commandName, "edit", "set", "nameprefix", opts.NamePrefix)
-		cmd.Dir = k.path
-		_, err := argoexec.RunCommandExt(cmd)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	if version == 1 {
-		for _, override := range overrides {
-			cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
+	if opts != nil {
+		if opts.NamePrefix != "" {
+			cmd := exec.Command(commandName, "edit", "set", "nameprefix", opts.NamePrefix)
 			cmd.Dir = k.path
 			_, err := argoexec.RunCommandExt(cmd)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
-	} else if len(overrides) > 0 {
-		log.Info("ignoring overrides as kustomize is not version 1")
+
+		if version == 1 {
+			for _, override := range opts.ImageTags {
+				cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
+				cmd.Dir = k.path
+				_, err := argoexec.RunCommandExt(cmd)
+				if err != nil {
+					return nil, nil, err
+				}
+			}
+		} else if len(opts.ImageTags) > 0 {
+			log.Info("ignoring overrides as kustomize is not version 1")
+		}
 	}
 
 	out, err := argoexec.RunCommand(commandName, "build", k.path)

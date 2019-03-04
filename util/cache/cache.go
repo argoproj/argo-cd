@@ -103,13 +103,12 @@ func oidcStateKey(key string) string {
 	return fmt.Sprintf("oidc|%s", key)
 }
 
-func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, overrides []*appv1.ComponentParameter, namespace string, appLabelKey string, appLabelValue string) string {
+func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string) string {
 	appSrc = appSrc.DeepCopy()
 	appSrc.RepoURL = ""        // superceded by commitSHA
 	appSrc.TargetRevision = "" // superceded by commitSHA
 	appSrcStr, _ := json.Marshal(appSrc)
-	pStr, _ := json.Marshal(overrides)
-	fnva := hash.FNVa(string(appSrcStr) + string(pStr))
+	fnva := hash.FNVa(string(appSrcStr))
 	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, commitSHA, namespace, fnva)
 }
 
@@ -187,12 +186,12 @@ func (c *Cache) SetGitFile(commitSha string, path string, data []byte) error {
 	return c.setItem(gitFileKey(commitSha, path), data, repoCacheExpiration, data == nil)
 }
 
-func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, overrides []*appv1.ComponentParameter, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
-	return c.getItem(manifestCacheKey(commitSHA, appSrc, overrides, namespace, appLabelKey, appLabelValue), res)
+func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
+	return c.getItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue), res)
 }
 
-func (c *Cache) SetManifests(commitSHA string, appSrc *appv1.ApplicationSource, overrides []*appv1.ComponentParameter, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
-	return c.setItem(manifestCacheKey(commitSHA, appSrc, overrides, namespace, appLabelKey, appLabelValue), res, repoCacheExpiration, res == nil)
+func (c *Cache) SetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
+	return c.setItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue), res, repoCacheExpiration, res == nil)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {

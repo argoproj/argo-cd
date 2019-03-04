@@ -130,7 +130,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	getCached := func() *ManifestResponse {
 		var res ManifestResponse
 		if !q.NoCache {
-			err = s.cache.GetManifests(commitSHA, q.ApplicationSource, q.ComponentParameterOverrides, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+			err = s.cache.GetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 			if err == nil {
 				log.Infof("manifest cache hit: %s/%s", q.ApplicationSource.String(), commitSHA)
 				return &res
@@ -177,31 +177,11 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	}
 	res := *genRes
 	res.Revision = commitSHA
-	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.ComponentParameterOverrides, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
+	err = s.cache.SetManifests(commitSHA, q.ApplicationSource, q.Namespace, q.AppLabelKey, q.AppLabelValue, &res)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), commitSHA, err)
 	}
 	return &res, nil
-}
-
-// helper to formulate helm template options from a manifest request
-func helmOpts(q *ManifestRequest) helm.HelmTemplateOpts {
-	opts := helm.HelmTemplateOpts{
-		Namespace: q.Namespace,
-	}
-	valueFiles := v1alpha1.HelmValueFiles(q.ApplicationSource)
-	if q.ApplicationSource.Helm != nil {
-		opts.ValueFiles = valueFiles
-	}
-	return opts
-}
-
-func kustomizeOpts(q *ManifestRequest) kustomize.KustomizeBuildOpts {
-	opts := kustomize.KustomizeBuildOpts{}
-	if q.ApplicationSource.Kustomize != nil {
-		opts.NamePrefix = q.ApplicationSource.Kustomize.NamePrefix
-	}
-	return opts
 }
 
 // GenerateManifests generates manifests from a path
@@ -213,16 +193,14 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
-		env := v1alpha1.KsonnetEnv(q.ApplicationSource)
-		targetObjs, params, dest, err = ksShow(q.AppLabelKey, appPath, env, q.ComponentParameterOverrides)
+		targetObjs, params, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
 		h := helm.NewHelmApp(appPath, q.HelmRepos)
 		err := h.Init()
 		if err != nil {
 			return nil, err
 		}
-		opts := helmOpts(q)
-		targetObjs, err = h.Template(q.AppLabelValue, opts, q.ComponentParameterOverrides)
+		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
 		if err != nil {
 			if !helm.IsMissingDependencyErr(err) {
 				return nil, err
@@ -231,19 +209,21 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 			if err != nil {
 				return nil, err
 			}
-			targetObjs, err = h.Template(q.AppLabelValue, opts, q.ComponentParameterOverrides)
+			targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
 			if err != nil {
 				return nil, err
 			}
 		}
-		params, err = h.GetParameters(opts.ValueFiles)
-		if err != nil {
-			return nil, err
+		params = make([]*v1alpha1.ComponentParameter, 0)
+		if q.ApplicationSource.Helm != nil {
+			params, err = h.GetParameters(q.ApplicationSource.Helm.ValueFiles)
+			if err != nil {
+				return nil, err
+			}
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath)
-		opts := kustomizeOpts(q)
-		targetObjs, params, err = k.Build(opts, q.ComponentParameterOverrides)
+		targetObjs, params, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Plugins)
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -294,8 +274,9 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 	}
 
 	res := ManifestResponse{
-		Manifests: manifests,
-		Params:    params,
+		Manifests:  manifests,
+		Params:     params,
+		SourceType: string(appSourceType),
 	}
 	if dest != nil {
 		res.Namespace = dest.Namespace
@@ -372,28 +353,29 @@ func checkoutRevision(gitClient git.Client, commitSHA string) (string, error) {
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appLabelKey, appPath, envName string, overrides []*v1alpha1.ComponentParameter) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *v1alpha1.ApplicationDestination, error) {
+func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
 		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
 	}
-	params, err := ksApp.ListEnvParams(envName)
+	if ksonnetOpts == nil {
+		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "Ksonnet environment not set")
+	}
+	params, err := ksApp.ListEnvParams(ksonnetOpts.Environment)
 	if err != nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "Failed to list ksonnet app params: %v", err)
 	}
-	if overrides != nil {
-		for _, override := range overrides {
-			err = ksApp.SetComponentParams(envName, override.Component, override.Name, override.Value)
-			if err != nil {
-				return nil, nil, nil, err
-			}
+	for _, override := range ksonnetOpts.Parameters {
+		err = ksApp.SetComponentParams(ksonnetOpts.Environment, override.Component, override.Name, override.Value)
+		if err != nil {
+			return nil, nil, nil, err
 		}
 	}
-	dest, err := ksApp.Destination(envName)
+	dest, err := ksApp.Destination(ksonnetOpts.Environment)
 	if err != nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	targetObjs, err := ksApp.Show(envName)
+	targetObjs, err := ksApp.Show(ksonnetOpts.Environment)
 	if err == nil && appLabelKey == common.LabelKeyLegacyApplicationName {
 		// Address https://github.com/ksonnet/ksonnet/issues/707
 		for _, d := range targetObjs {
