@@ -9,9 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/depot"
-	"github.com/argoproj/argo-cd/util/kustomize"
-
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -30,8 +27,10 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
 const (
@@ -262,8 +261,27 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 	return projLister.AppProjects(ns).Get(spec.GetProject())
 }
 
-// queryAppSourceType queries repo server for yaml files in a directory, and determines its
+// QueryAppSourceType queries repo server for yaml files in a directory, and determines its
 // application source type based on the files in the directory.
+// This code is redundant to the logic in argo.GetSpecErrors, but since it's is hard to
+// extract out of there. We will be throwing away this code when we remove
+// componentParameterOverrides.
+func QueryAppSourceType(ctx context.Context, app *argoappv1.Application, repoClientset reposerver.Clientset, db db.ArgoDB) (argoappv1.ApplicationSourceType, error) {
+	if t, _ := app.Spec.Source.ExplicitType(); t != nil {
+		return *t, nil
+	}
+	repoRes, err := db.GetRepository(ctx, app.Spec.Source.RepoURL)
+	if err != nil {
+		return "", err
+	}
+	conn, repoClient, err := repoClientset.NewRepositoryClient()
+	if err != nil {
+		return "", err
+	}
+	defer util.Close(conn)
+	return queryAppSourceType(ctx, &app.Spec, repoRes, repoClient)
+}
+
 func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepositoryServiceClient) (argoappv1.ApplicationSourceType, error) {
 	req := repository.ListDirRequest{
 		Repo: &argoappv1.Repository{
@@ -323,7 +341,11 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 	}
 
 	// Verify the specified environment is defined in the app spec
-	dest, err := ksonnet.Destination(getRes.Data, argoappv1.KsonnetEnv(&spec.Source))
+	if spec.Source.Ksonnet == nil {
+		return fmt.Errorf("Ksonnet environment not specified")
+	}
+
+	dest, err := ksonnet.Destination(getRes.Data, spec.Source.Ksonnet.Environment)
 	if err != nil {
 		return err
 	}
@@ -448,32 +470,94 @@ func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoapp
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
 // for migrating application objects which are using deprecated legacy fields into the new fields,
 // and defaulting fields in the spec (e.g. spec.project)
-func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.ApplicationSpec {
+func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec, sourceType argoappv1.ApplicationSourceType) *argoappv1.ApplicationSpec {
 	spec = spec.DeepCopy()
 	if spec.Project == "" {
 		spec.Project = common.DefaultAppProjectName
 	}
-	// 1. carry over legacy fields (v0.10 and below) into the new fields (v0.11) if missing
-	if spec.Source.Environment != "" && (spec.Source.Ksonnet == nil || spec.Source.Ksonnet.Environment == "") {
-		spec.Source.Ksonnet = &argoappv1.ApplicationSourceKsonnet{
-			Environment: spec.Source.Environment,
+	// 1. carry over legacy componentParameterOverride field (v0.11 and below) into
+	// ksonnet, helm, kustomize specific fields. Only do this if source specific config is empty
+	// since this is a one-time conversion.
+	if len(spec.Source.ComponentParameterOverrides) > 0 {
+		switch sourceType {
+		case argoappv1.ApplicationSourceTypeKsonnet:
+			if spec.Source.Ksonnet == nil {
+				spec.Source.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
+			}
+			if len(spec.Source.Ksonnet.Parameters) == 0 {
+				for _, p := range spec.Source.ComponentParameterOverrides {
+					spec.Source.Ksonnet.Parameters = append(spec.Source.Ksonnet.Parameters, argoappv1.KsonnetParameter{
+						Component: p.Component,
+						Name:      p.Name,
+						Value:     p.Value,
+					})
+
+				}
+			}
+		case argoappv1.ApplicationSourceTypeHelm:
+			if spec.Source.Helm == nil {
+				spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
+			}
+			if len(spec.Source.Helm.Parameters) == 0 {
+				for _, p := range spec.Source.ComponentParameterOverrides {
+					spec.Source.Helm.Parameters = append(spec.Source.Helm.Parameters, argoappv1.HelmParameter{
+						Name:  p.Name,
+						Value: p.Value,
+					})
+				}
+			}
+		case argoappv1.ApplicationSourceTypeKustomize:
+			if spec.Source.Kustomize == nil {
+				spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{}
+			}
+			if len(spec.Source.Kustomize.ImageTags) == 0 {
+				for _, p := range spec.Source.ComponentParameterOverrides {
+					if p.Component != "imagetag" {
+						continue
+					}
+					spec.Source.Kustomize.ImageTags = append(spec.Source.Kustomize.ImageTags, argoappv1.KustomizeImageTag{
+						Name:  p.Name,
+						Value: p.Value,
+					})
+				}
+			}
 		}
 	}
-	if len(spec.Source.ValuesFiles) > 0 && spec.Source.Helm == nil {
-		spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
-			ValueFiles: spec.Source.ValuesFiles,
-		}
-	}
-	// 2. duplicate the new fields into legacy fields so that the legacy and new are always in sync
+
+	// 2. duplicate the preferred fields into legacy componentParameterOverride field so that they
+	// are always in-sync.
 	// NOTE: this step effectively ignore any changes which made only to the legacy fields. This
 	// *should* be OK since older CLIs are blocked, and the UI will be using the new fields. This
 	// may break custom REST API clients
+	var cpo []argoappv1.ComponentParameter
 	if spec.Source.Ksonnet != nil {
-		spec.Source.Environment = spec.Source.Ksonnet.Environment
+		for _, p := range spec.Source.Ksonnet.Parameters {
+			cpo = append(cpo, argoappv1.ComponentParameter{
+				Component: p.Component,
+				Name:      p.Name,
+				Value:     p.Value,
+			})
+		}
 	}
 	if spec.Source.Helm != nil {
-		spec.Source.ValuesFiles = spec.Source.Helm.ValueFiles
+		for _, p := range spec.Source.Helm.Parameters {
+			cpo = append(cpo, argoappv1.ComponentParameter{
+				Name:  p.Name,
+				Value: p.Value,
+			})
+		}
 	}
+	if spec.Source.Kustomize != nil {
+		for _, p := range spec.Source.Kustomize.ImageTags {
+			cpo = append(cpo, argoappv1.ComponentParameter{
+				Component: "imagetag",
+				Name:      p.Name,
+				Value:     p.Value,
+			})
+		}
+	}
+	spec.Source.ComponentParameterOverrides = cpo
+
 	// 3. If any app sources are their zero values, then nil out the pointers to the source spec.
 	// This makes it easier for users to switch between app source types if they are not using
 	// any of the source-specific parameters.
@@ -482,11 +566,9 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	}
 	if spec.Source.Helm != nil && spec.Source.Helm.IsZero() {
 		spec.Source.Helm = nil
-		spec.Source.ValuesFiles = nil
 	}
 	if spec.Source.Ksonnet != nil && spec.Source.Ksonnet.IsZero() {
 		spec.Source.Ksonnet = nil
-		spec.Source.Environment = ""
 	}
 	if spec.Source.Directory != nil && spec.Source.Directory.IsZero() {
 		spec.Source.Directory = nil

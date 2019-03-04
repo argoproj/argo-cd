@@ -9,13 +9,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util"
-
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/config"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -23,7 +22,7 @@ import (
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(appName string, opts HelmTemplateOpts, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error)
+	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
@@ -32,14 +31,6 @@ type Helm interface {
 	SetHome(path string)
 	// Init runs `helm init --client-only`
 	Init() error
-}
-
-// HelmTemplateOpts are various options to send to a `helm template` command
-type HelmTemplateOpts struct {
-	// Values is list of multiple --values flag
-	ValueFiles []string
-	// Namespace maps to the --namespace flag
-	Namespace string
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
@@ -59,18 +50,20 @@ func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
 }
 
-func (h *helm) Template(appName string, opts HelmTemplateOpts, overrides []*argoappv1.ComponentParameter) ([]*unstructured.Unstructured, error) {
+func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 	args := []string{
 		"template", ".", "--name", appName,
 	}
-	if opts.Namespace != "" {
-		args = append(args, "--namespace", opts.Namespace)
+	if namespace != "" {
+		args = append(args, "--namespace", namespace)
 	}
-	for _, valuesFile := range opts.ValueFiles {
-		args = append(args, "-f", valuesFile)
-	}
-	for _, p := range overrides {
-		args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
+	if opts != nil {
+		for _, valuesFile := range opts.ValueFiles {
+			args = append(args, "-f", valuesFile)
+		}
+		for _, p := range opts.Parameters {
+			args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
+		}
 	}
 	out, err := h.helmCmd(args...)
 	if err != nil {

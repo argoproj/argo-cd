@@ -149,7 +149,8 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				}
 				length := int(binary.BigEndian.Uint32(header[1:frameHeaderLength]))
 				data := make([]byte, length)
-				if read, err := resp.Body.Read(data); err != nil {
+
+				if read, err := io.ReadAtLeast(resp.Body, data, length); err != nil {
 					if err != io.EOF {
 						return err
 					} else if read < length {

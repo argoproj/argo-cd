@@ -19,7 +19,7 @@ if obj.status ~= nil then
     if obj.status.verifyingPreview ~= nil then
       verifyingPreview = obj.status.verifyingPreview
     end
-    if verifyingPreview and obj.status.blueGreenStatus.previewSelector ~= nil and obj.status.blueGreenStatus.previewSelector == obj.status.currentPodHash then
+    if verifyingPreview and obj.status.blueGreen.previewSelector ~= nil and obj.status.blueGreen.previewSelector == obj.status.currentPodHash then
       hs.status = "Suspended"
       hs.message = "The preview Service is serving traffic to the current pod spec"
       return hs
@@ -36,7 +36,7 @@ if obj.status ~= nil then
       return hs
     end
 
-    if obj.status.blueGreenStatus.activeSelector ~= nil and obj.status.blueGreenStatus.activeSelector == obj.status.currentPodHash then
+    if obj.status.blueGreen.activeSelector ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
       hs.status = "Healthy"
       hs.message = "The active Service is serving traffic to the current pod spec"
       return hs

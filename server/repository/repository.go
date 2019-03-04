@@ -164,7 +164,7 @@ func getKustomizationRes(ctx context.Context, repoClient repository.RepositorySe
 	return nil, errors.New("could not find kustomization")
 }
 
-// ListKsonnetApps returns list of Ksonnet apps in the repo
+// ListApps returns list of apps in the repo
 func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err

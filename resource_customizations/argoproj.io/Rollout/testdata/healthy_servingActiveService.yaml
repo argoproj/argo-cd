@@ -40,8 +40,10 @@ spec:
         - containerPort: 80
         resources: {}
 status:
-  activeSelector: dc689d967
   availableReplicas: 1
+  blueGreen:
+      activeSelector: dc689d967
+      previewSelector: ""
   conditions:
   - lastTransitionTime: 2019-01-24T09:51:02Z
     lastUpdateTime: 2019-01-24T09:51:02Z
@@ -51,7 +53,6 @@ status:
     type: Available
   currentPodHash: dc689d967
   observedGeneration: 77646c9d4c
-  previewSelector: ""
   readyReplicas: 1
   replicas: 1
   updatedReplicas: 1

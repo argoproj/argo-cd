@@ -15,7 +15,6 @@ message ManifestRequest {
     bool noCache = 3;
     string appLabelKey = 4;
     string appLabelValue = 5;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 6;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 11;
@@ -28,6 +27,7 @@ message ManifestResponse {
     string server = 3;
     string revision = 4;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 5;
+    string sourceType = 6;
 }
 
 // ListDirRequest requests a repository directory structure

@@ -16,23 +16,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/argo-cd/errors"
-	"github.com/argoproj/argo-cd/pkg/apiclient"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/repository"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/server/settings"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/config"
-	"github.com/argoproj/argo-cd/util/depot"
-	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/hook"
-	"github.com/argoproj/argo-cd/util/kube"
-	argosettings "github.com/argoproj/argo-cd/util/settings"
-
 	"github.com/ghodss/yaml"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
@@ -43,6 +26,24 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-cd/errors"
+	"github.com/argoproj/argo-cd/pkg/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/reposerver/repository"
+	"github.com/argoproj/argo-cd/server/application"
+	apirepository "github.com/argoproj/argo-cd/server/repository"
+	"github.com/argoproj/argo-cd/server/settings"
+	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/util/config"
+	"github.com/argoproj/argo-cd/util/depot"
+	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/hook"
+	"github.com/argoproj/argo-cd/util/kube"
+	argosettings "github.com/argoproj/argo-cd/util/settings"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -87,6 +88,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Short: "Create an application from a git location",
 		Run: func(c *cobra.Command, args []string) {
 			var app argoappv1.Application
+			argocdClient := argocdclient.NewClientOrDie(clientOpts)
 			if fileURL != "" {
 				parsedURL, err := url.ParseRequestURI(fileURL)
 				if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
@@ -95,6 +97,12 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					err = config.UnmarshalRemoteFile(fileURL, &app)
 				}
 				errors.CheckError(err)
+				if len(args) == 1 && args[0] != app.Name {
+					log.Fatalf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
+				}
+				if appName != "" && appName != app.Name {
+					log.Fatalf("--name argument '%s' does not match app spec metadata.name '%s'", appName, app.Name)
+				}
 			} else {
 				if len(args) == 1 {
 					if appName != "" && appName != args[0] {
@@ -108,13 +116,13 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					},
 				}
 				setAppOptions(c.Flags(), &app, &appOpts)
-				setParameterOverrides(&app, appOpts.parameters)
+				setParameterOverrides(&app, argocdClient, appOpts.parameters)
 			}
 			if app.Name == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appCreateRequest := application.ApplicationCreateRequest{
 				Application: app,
@@ -253,12 +261,11 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 }
 
 func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
-	if env := argoappv1.KsonnetEnv(appSrc); env != "" {
-		fmt.Printf(printOpFmtStr, "Environment:", env)
+	if appSrc.Ksonnet != nil && appSrc.Ksonnet.Environment != "" {
+		fmt.Printf(printOpFmtStr, "Environment:", appSrc.Ksonnet.Environment)
 	}
-	valueFiles := argoappv1.HelmValueFiles(appSrc)
-	if len(valueFiles) > 0 {
-		fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(valueFiles, ","))
+	if appSrc.Helm != nil && len(appSrc.Helm.ValueFiles) > 0 {
+		fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(appSrc.Helm.ValueFiles, ","))
 	}
 	if appSrc.Kustomize != nil && appSrc.Kustomize.NamePrefix != "" {
 		fmt.Printf(printOpFmtStr, "Name Prefix:", appSrc.Kustomize.NamePrefix)
@@ -302,38 +309,22 @@ func truncateString(str string, num int) string {
 // printParams prints parameters and overrides
 func printParams(app *argoappv1.Application, appIf application.ApplicationServiceClient) {
 	paramLenLimit := 80
-	overrides := make(map[string]string)
-	for _, p := range app.Spec.Source.ComponentParameterOverrides {
-		overrides[fmt.Sprintf("%s/%s", p.Component, p.Name)] = p.Value
-	}
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	if needsComponentColumn(&app.Spec.Source) {
-		m, err := appIf.GetManifests(context.Background(), &application.ApplicationManifestQuery{Name: &app.Name, Revision: app.Spec.Source.TargetRevision})
-		errors.CheckError(err)
-		fmt.Fprintf(w, "COMPONENT\tNAME\tVALUE\tOVERRIDE\n")
-		for _, p := range m.Params {
-			overrideValue := overrides[fmt.Sprintf("%s/%s", p.Component, p.Name)]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", p.Component, p.Name, truncateString(p.Value, paramLenLimit), truncateString(overrideValue, paramLenLimit))
+	if app.Spec.Source.Ksonnet != nil {
+		fmt.Println()
+		fmt.Fprintf(w, "COMPONENT\tNAME\tVALUE\n")
+		for _, p := range app.Spec.Source.Ksonnet.Parameters {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", p.Component, p.Name, truncateString(p.Value, paramLenLimit))
 		}
-	} else {
+	} else if app.Spec.Source.Helm != nil {
+		fmt.Println()
 		fmt.Fprintf(w, "NAME\tVALUE\n")
-		for _, p := range app.Spec.Source.ComponentParameterOverrides {
+		for _, p := range app.Spec.Source.Helm.Parameters {
 			fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
 		}
-
 	}
 	_ = w.Flush()
-}
-
-// needsComponentColumn returns true if the app source is such that it requires parameters in the
-// COMPONENT=PARAM=NAME
-func needsComponentColumn(source *argoappv1.ApplicationSource) bool {
-	ksEnv := argoappv1.KsonnetEnv(source)
-	if ksEnv != "" {
-		return true
-	}
-	return false
 }
 
 // NewApplicationSetCommand returns a new instance of an `argocd app set` command
@@ -349,10 +340,12 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			ctx := context.Background()
 			appName := args[0]
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			argocdClient := argocdclient.NewClientOrDie(clientOpts)
+			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
-			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			visited := setAppOptions(c.Flags(), app, &appOpts)
 			if visited == 0 {
@@ -360,8 +353,8 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			setParameterOverrides(app, appOpts.parameters)
-			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
+			setParameterOverrides(app, argocdClient, appOpts.parameters)
+			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
 			})
@@ -428,7 +421,6 @@ func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
 	}
 	if env != nil {
 		src.Ksonnet.Environment = *env
-		src.Environment = *env
 	}
 	if src.Ksonnet.IsZero() {
 		src.Ksonnet = nil
@@ -453,7 +445,6 @@ func setHelmOpt(src *argoappv1.ApplicationSource, valueFiles []string) {
 	}
 	if valueFiles != nil {
 		src.Helm.ValueFiles = valueFiles
-		src.ValuesFiles = valueFiles
 	}
 	if src.Helm.IsZero() {
 		src.Helm = nil
@@ -513,47 +504,55 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer util.Close(conn)
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
-			isKsonnetApp := argoappv1.KsonnetEnv(&app.Spec.Source) != ""
 
 			updated := false
-			for _, paramStr := range parameters {
-				if isKsonnetApp {
+			if app.Spec.Source.Ksonnet != nil {
+				for _, paramStr := range parameters {
 					parts := strings.SplitN(paramStr, "=", 2)
 					if len(parts) != 2 {
 						log.Fatalf("Expected parameter of the form: component=param. Received: %s", paramStr)
 					}
-					overrides := app.Spec.Source.ComponentParameterOverrides
+					overrides := app.Spec.Source.Ksonnet.Parameters
 					for i, override := range overrides {
 						if override.Component == parts[0] && override.Name == parts[1] {
-							app.Spec.Source.ComponentParameterOverrides = append(overrides[0:i], overrides[i+1:]...)
-							updated = true
-							break
-						}
-					}
-				} else {
-					overrides := app.Spec.Source.ComponentParameterOverrides
-					for i, override := range overrides {
-						if override.Name == paramStr {
-							app.Spec.Source.ComponentParameterOverrides = append(overrides[0:i], overrides[i+1:]...)
+							app.Spec.Source.Ksonnet.Parameters = append(overrides[0:i], overrides[i+1:]...)
 							updated = true
 							break
 						}
 					}
 				}
-			}
-			specValueFiles := argoappv1.HelmValueFiles(&app.Spec.Source)
-			for _, valuesFile := range valuesFiles {
-				for i, vf := range specValueFiles {
-					if vf == valuesFile {
-						specValueFiles = append(specValueFiles[0:i], specValueFiles[i+1:]...)
-						updated = true
-						break
-					}
+				if len(app.Spec.Source.Ksonnet.Parameters) == 0 {
+					app.Spec.Source.ComponentParameterOverrides = nil
 				}
 			}
-			setHelmOpt(&app.Spec.Source, specValueFiles)
-			if !updated {
-				return
+			if app.Spec.Source.Helm != nil {
+				for _, paramStr := range parameters {
+					helmParams := app.Spec.Source.Helm.Parameters
+					for i, p := range helmParams {
+						if p.Name == paramStr {
+							app.Spec.Source.Helm.Parameters = append(helmParams[0:i], helmParams[i+1:]...)
+							updated = true
+							break
+						}
+					}
+				}
+				if len(app.Spec.Source.Helm.Parameters) == 0 {
+					app.Spec.Source.ComponentParameterOverrides = nil
+				}
+				specValueFiles := app.Spec.Source.Helm.ValueFiles
+				for _, valuesFile := range valuesFiles {
+					for i, vf := range specValueFiles {
+						if vf == valuesFile {
+							specValueFiles = append(specValueFiles[0:i], specValueFiles[i+1:]...)
+							updated = true
+							break
+						}
+					}
+				}
+				setHelmOpt(&app.Spec.Source, specValueFiles)
+				if !updated {
+					return
+				}
 			}
 
 			_, err = appIf.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
@@ -1291,53 +1290,74 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 // If the app is a ksonnet app, then parameters are expected to be in the form: component=param=value
 // Otherwise, the app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func setParameterOverrides(app *argoappv1.Application, parameters []string) {
+func setParameterOverrides(app *argoappv1.Application, argocdClient argocdclient.Client, parameters []string) {
 	if len(parameters) == 0 {
 		return
 	}
-	var newParams []argoappv1.ComponentParameter
-	if len(app.Spec.Source.ComponentParameterOverrides) > 0 {
-		newParams = app.Spec.Source.ComponentParameterOverrides
-	} else {
-		newParams = make([]argoappv1.ComponentParameter, 0)
-	}
-	needsComponent := needsComponentColumn(&app.Spec.Source)
-	for _, paramStr := range parameters {
-		var newParam argoappv1.ComponentParameter
-		if needsComponent {
+	conn, repoIf := argocdClient.NewRepoClientOrDie()
+	defer util.Close(conn)
+
+	appDetails, err := repoIf.GetAppDetails(context.Background(), &apirepository.RepoAppDetailsQuery{
+		Repo:     app.Spec.Source.RepoURL,
+		Revision: app.Spec.Source.TargetRevision,
+		Path:     app.Spec.Source.Path,
+	})
+	errors.CheckError(err)
+
+	if appDetails.Ksonnet != nil {
+		if app.Spec.Source.Ksonnet == nil {
+			app.Spec.Source.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
+		}
+		for _, paramStr := range parameters {
 			parts := strings.SplitN(paramStr, "=", 3)
 			if len(parts) != 3 {
 				log.Fatalf("Expected ksonnet parameter of the form: component=param=value. Received: %s", paramStr)
 			}
-			newParam = argoappv1.ComponentParameter{
+			newParam := argoappv1.KsonnetParameter{
 				Component: parts[0],
 				Name:      parts[1],
 				Value:     parts[2],
 			}
-		} else {
+			found := false
+			for i, cp := range app.Spec.Source.Ksonnet.Parameters {
+				if cp.Component == newParam.Component && cp.Name == newParam.Name {
+					found = true
+					app.Spec.Source.Ksonnet.Parameters[i] = newParam
+					break
+				}
+			}
+			if !found {
+				app.Spec.Source.Ksonnet.Parameters = append(app.Spec.Source.Ksonnet.Parameters, newParam)
+			}
+		}
+	} else if appDetails.Helm != nil {
+		if app.Spec.Source.Helm == nil {
+			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
+		}
+		for _, paramStr := range parameters {
 			parts := strings.SplitN(paramStr, "=", 2)
 			if len(parts) != 2 {
 				log.Fatalf("Expected helm parameter of the form: param=value. Received: %s", paramStr)
 			}
-			newParam = argoappv1.ComponentParameter{
+			newParam := argoappv1.HelmParameter{
 				Name:  parts[0],
 				Value: parts[1],
 			}
-		}
-		index := -1
-		for i, cp := range newParams {
-			if cp.Component == newParam.Component && cp.Name == newParam.Name {
-				index = i
-				break
+			found := false
+			for i, cp := range app.Spec.Source.Helm.Parameters {
+				if cp.Name == newParam.Name {
+					found = true
+					app.Spec.Source.Helm.Parameters[i] = newParam
+					break
+				}
+			}
+			if !found {
+				app.Spec.Source.Helm.Parameters = append(app.Spec.Source.Helm.Parameters, newParam)
 			}
 		}
-		if index == -1 {
-			newParams = append(newParams, newParam)
-		} else {
-			newParams[index] = newParam
-		}
+	} else {
+		log.Fatalf("Parameters can only be set against Ksonnet or Helm applications")
 	}
-	app.Spec.Source.ComponentParameterOverrides = newParams
 }
 
 // NewApplicationHistoryCommand returns a new instance of an `argocd app history` command

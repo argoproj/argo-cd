@@ -114,19 +114,13 @@ message ApplicationSource {
   optional string path = 2;
 
   // Environment is a ksonnet application environment name
-  // DEPRECATED: specify environment in spec.source.ksonnet.environment instead
-  optional string environment = 3;
-
   // TargetRevision defines the commit, tag, or branch in which to sync the application to.
   // If omitted, will sync to HEAD
   optional string targetRevision = 4;
 
   // ComponentParameterOverrides are a list of parameter override values
+  // DEPRECATED: use app source specific config instead
   repeated ComponentParameter componentParameterOverrides = 5;
-
-  // ValuesFiles is a list of Helm values files to use when generating a template
-  // DEPRECATED: specify values in spec.source.helm.valueFiles instead
-  repeated string valuesFiles = 6;
 
   // Helm holds helm specific options
   optional ApplicationSourceHelm helm = 7;
@@ -154,6 +148,9 @@ message ApplicationSourceDirectory {
 message ApplicationSourceHelm {
   // ValuesFiles is a list of Helm value files to use when generating a template
   repeated string valueFiles = 1;
+
+  // Parameters are parameters to the helm template
+  repeated HelmParameter parameters = 2;
 }
 
 // ApplicationSourceJsonnet holds jsonnet specific options
@@ -169,12 +166,18 @@ message ApplicationSourceJsonnet {
 message ApplicationSourceKsonnet {
   // Environment is a ksonnet application environment name
   optional string environment = 1;
+
+  // Parameters are a list of ksonnet component parameter override values
+  repeated KsonnetParameter parameters = 2;
 }
 
 // ApplicationSourceKustomize holds kustomize specific options
 message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for kustomize apps
   optional string namePrefix = 1;
+
+  // ImageTags are kustomize 1.0 image tag overrides
+  repeated KustomizeImageTag imageTags = 2;
 }
 
 // ApplicationSourcePlugin holds config management plugin specific options
@@ -318,6 +321,15 @@ message HealthStatus {
   optional string message = 2;
 }
 
+// HelmParameter is a parameter to a helm template
+message HelmParameter {
+  // Name is the name of the helm parameter
+  optional string name = 1;
+
+  // Value is the value for the helm parameter
+  optional string value = 2;
+}
+
 // InfoItem contains human readable information about object
 message InfoItem {
   // Name is a human readable title for this piece of information.
@@ -334,12 +346,31 @@ message JWTToken {
   optional int64 exp = 2;
 }
 
+// JsonnetVar is a jsonnet variable
 message JsonnetVar {
   optional string name = 1;
 
   optional string value = 2;
 
   optional bool code = 3;
+}
+
+// KsonnetParameter is a ksonnet component parameter
+message KsonnetParameter {
+  optional string component = 1;
+
+  optional string name = 2;
+
+  optional string value = 3;
+}
+
+// KustomizeImageTag is a kustomize image tag
+message KustomizeImageTag {
+  // Name is the name of the image (e.g. nginx)
+  optional string name = 1;
+
+  // Value is the value for the new tag (e.g. 1.8.0)
+  optional string value = 2;
 }
 
 // Operation contains requested operation parameters.
@@ -366,15 +397,6 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
-}
-
-// ParameterOverrides masks the value so protobuf can generate
-// +protobuf.nullable=true
-// +protobuf.options.(gogoproto.goproto_stringer)=false
-message ParameterOverrides {
-  // items, if empty, will result in an empty slice
-
-  repeated ComponentParameter items = 1;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -518,11 +540,11 @@ message ResourceStatus {
 message RevisionHistory {
   optional string revision = 2;
 
-  repeated ComponentParameter componentParameterOverrides = 3;
-
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
 
   optional int64 id = 5;
+
+  optional ApplicationSource source = 6;
 }
 
 // SyncOperation contains sync operation details.
@@ -540,13 +562,12 @@ message SyncOperation {
   // SyncStrategy describes how to perform the sync
   optional SyncStrategy syncStrategy = 4;
 
-  // ParameterOverrides applies any parameter overrides as part of the sync
-  // If nil, uses the parameter override set in application.
-  // If empty, sets no parameter overrides
-  optional ParameterOverrides parameterOverrides = 5;
-
   // Resources describes which resources to sync
   repeated SyncOperationResource resources = 6;
+
+  // Source overrides the source definition set in the application.
+  // This is typically set in a Rollback operation and nil during a Sync operation
+  optional ApplicationSource source = 7;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -565,6 +586,9 @@ message SyncOperationResult {
 
   // Revision holds the git commit SHA of the sync
   optional string revision = 2;
+
+  // Source records the application source information of the sync, used for comparing auto-sync
+  optional ApplicationSource source = 3;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git

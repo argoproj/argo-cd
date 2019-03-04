@@ -578,8 +578,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3})
 		logCtx.Info("Reconciliation completed")
 	}()
-	// NOTE: normalization returns a copy
-	app := ctrl.normalizeApplication(origApp)
+	app := origApp.DeepCopy()
 
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
@@ -590,10 +589,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", nil, refreshType == appv1.RefreshTypeHard)
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, refreshType == appv1.RefreshTypeHard)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
 	} else {
+		ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
 		conditions = append(conditions, compareResult.conditions...)
 	}
 	err = ctrl.setAppManagedResources(app, compareResult)
@@ -698,17 +698,14 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
-// Always returns a copy of the application
-func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) *appv1.Application {
+func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application, sourceType appv1.ApplicationSourceType) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
-	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-	modifiedApp := app.DeepCopy()
-	modifiedApp.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
-	patch, modified, err := diff.CreateTwoWayMergePatch(app, modifiedApp, appv1.Application{})
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, sourceType)
+	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)
-		return modifiedApp
 	} else if modified {
+		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 		_, err = appClient.Patch(app.Name, types.MergePatchType, patch)
 		if err != nil {
 			logCtx.Errorf("Error persisting normalized application spec: %v", err)
@@ -716,7 +713,6 @@ func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) 
 			logCtx.Infof("Normalized app spec: %s", string(patch))
 		}
 	}
-	return modifiedApp
 }
 
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
@@ -769,6 +765,10 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: another operation is in progress")
 		return nil
 	}
+	if app.DeletionTimestamp != nil && !app.DeletionTimestamp.IsZero() {
+		logCtx.Infof("Skipping auto-sync: deletion in progress")
+		return nil
+	}
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
@@ -793,9 +793,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:           desiredCommitSHA,
-			Prune:              app.Spec.SyncPolicy.Automated.Prune,
-			ParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+			Revision: desiredCommitSHA,
+			Prune:    app.Spec.SyncPolicy.Automated.Prune,
 		},
 	}
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
@@ -811,7 +810,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 }
 
 // alreadyAttemptedSync returns whether or not the most recent sync was performed against the
-// commitSHA and with the same parameter overrides which are currently set in the app
+// commitSHA and with the same app source config which are currently set in the app
 func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
 		return false
@@ -819,7 +818,13 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	if app.Status.OperationState.SyncResult.Revision != commitSHA {
 		return false
 	}
-	if !reflect.DeepEqual(appv1.ParameterOverrides(app.Spec.Source.ComponentParameterOverrides), app.Status.OperationState.Operation.Sync.ParameterOverrides) {
+	// Ignore differences in target revision, since we already just verified commitSHAs are equal,
+	// and we do not want to trigger auto-sync due to things like HEAD != master
+	specSource := app.Spec.Source.DeepCopy()
+	specSource.TargetRevision = ""
+	syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
+	syncResSource.TargetRevision = ""
+	if !reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source) {
 		return false
 	}
 	return true

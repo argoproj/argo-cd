@@ -16,7 +16,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "apps",
 		Kind:         "Deployment",
-		JsonPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
+		JSONPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
 	}}, make(map[string]settings.ResourceOverride))
 
 	assert.Nil(t, err)
@@ -38,7 +38,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "",
 		Kind:         "Service",
-		JsonPointers: []string{"/spec"},
+		JSONPointers: []string{"/spec"},
 	}}, make(map[string]settings.ResourceOverride))
 
 	assert.Nil(t, err)

@@ -304,10 +304,9 @@ func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1
 		labels = make(map[string]string)
 		application.ObjectMeta.Labels = labels
 	}
-
-	application.Spec.Source.ComponentParameterOverrides = append(
-		application.Spec.Source.ComponentParameterOverrides,
-		v1alpha1.ComponentParameter{Name: "name", Value: application.Name, Component: "guestbook-ui"})
+	application.Spec.Source.Ksonnet.Parameters = append(
+		application.Spec.Source.Ksonnet.Parameters,
+		v1alpha1.KsonnetParameter{Name: "name", Value: application.Name, Component: "guestbook-ui"})
 
 	app, err := f.AppClient.ArgoprojV1alpha1().Applications(f.Namespace).Create(application)
 	if err != nil {

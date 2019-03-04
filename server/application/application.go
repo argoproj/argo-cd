@@ -121,8 +121,7 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
-	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
-	err := s.validateApp(ctx, &a)
+	err := s.validateAndNormalizeApp(ctx, &a)
 	if err != nil {
 		return nil, err
 	}
@@ -169,14 +168,6 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 		return nil, err
 	}
 	defer util.Close(conn)
-	overrides := make([]*appv1.ComponentParameter, len(a.Spec.Source.ComponentParameterOverrides))
-	if a.Spec.Source.ComponentParameterOverrides != nil {
-		for i := range a.Spec.Source.ComponentParameterOverrides {
-			item := a.Spec.Source.ComponentParameterOverrides[i]
-			overrides[i] = &item
-		}
-	}
-
 	revision := a.Spec.Source.TargetRevision
 	if q.Revision != "" {
 		revision = q.Revision
@@ -194,15 +185,14 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 		tools[i] = &settings.ConfigManagementPlugins[i]
 	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
-		Repo:                        repo,
-		Revision:                    revision,
-		ComponentParameterOverrides: overrides,
-		AppLabelKey:                 settings.GetAppInstanceLabelKey(),
-		AppLabelValue:               a.Name,
-		Namespace:                   a.Spec.Destination.Namespace,
-		ApplicationSource:           &a.Spec.Source,
-		Repos:                       repos,
-		Plugins:                     tools,
+		Repo:              repo,
+		Revision:          revision,
+		AppLabelKey:       settings.GetAppInstanceLabelKey(),
+		AppLabelValue:     a.Name,
+		Namespace:         a.Spec.Destination.Namespace,
+		ApplicationSource: &a.Spec.Source,
+		Repos:             repos,
+		Plugins:           tools,
 	})
 	if err != nil {
 		return nil, err
@@ -296,8 +286,7 @@ func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv
 	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
-	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
-	err := s.validateApp(ctx, a)
+	err := s.validateAndNormalizeApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -320,19 +309,19 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)); err != nil {
 		return nil, err
 	}
-	q.Spec = *argo.NormalizeApplicationSpec(&q.Spec)
 	a.Spec = q.Spec
-	err = s.validateApp(ctx, a)
+	err = s.validateAndNormalizeApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
+	normalizedSpec := a.Spec.DeepCopy()
 
 	for i := 0; i < 10; i++ {
-		a.Spec = q.Spec
+		a.Spec = *normalizedSpec
 		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
 			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application spec")
-			return &q.Spec, nil
+			return normalizedSpec, nil
 		}
 		if !apierr.IsConflict(err) {
 			return nil, err
@@ -377,7 +366,7 @@ func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.
 		return nil, err
 	}
 
-	err = s.validateApp(ctx, app)
+	err = s.validateAndNormalizeApp(ctx, app)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +463,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	return nil
 }
 
-func (s *Server) validateApp(ctx context.Context, app *appv1.Application) error {
+func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application) error {
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(app.Spec.GetProject(), metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -502,6 +491,7 @@ func (s *Server) validateApp(ctx context.Context, app *appv1.Application) error 
 			return err
 		}
 	}
+
 	conditions, err := argo.GetSpecErrors(ctx, &app.Spec, proj, s.repoClientset, s.db)
 	if err != nil {
 		return err
@@ -509,6 +499,12 @@ func (s *Server) validateApp(ctx context.Context, app *appv1.Application) error 
 	if len(conditions) > 0 {
 		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
 	}
+
+	appSourceType, err := argo.QueryAppSourceType(ctx, app, s.repoClientset, s.db)
+	if err != nil {
+		return err
+	}
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, appSourceType)
 	return nil
 }
 
@@ -803,26 +799,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 		}
 	}
 
-	parameterOverrides := make(appv1.ParameterOverrides, 0)
-	if syncReq.Parameter != nil {
-		// If parameter overrides are supplied, the caller explicitly states to use the provided
-		// list of overrides. NOTE: gogo/protobuf cannot currently distinguish between empty arrays
-		// vs nil arrays, which is why the wrapping syncReq.Parameter is examined for intent.
-		// See: https://github.com/gogo/protobuf/issues/181
-		for _, p := range syncReq.Parameter.Overrides {
-			parameterOverrides = append(parameterOverrides, appv1.ComponentParameter{
-				Name:      p.Name,
-				Value:     p.Value,
-				Component: p.Component,
-			})
-		}
-	} else {
-		// If parameter overrides are omitted completely, we use what is set in the application
-		if a.Spec.Source.ComponentParameterOverrides != nil {
-			parameterOverrides = appv1.ParameterOverrides(a.Spec.Source.ComponentParameterOverrides)
-		}
-	}
-
 	commitSHA, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
@@ -830,12 +806,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:           commitSHA,
-			Prune:              syncReq.Prune,
-			DryRun:             syncReq.DryRun,
-			SyncStrategy:       syncReq.Strategy,
-			ParameterOverrides: parameterOverrides,
-			Resources:          syncReq.Resources,
+			Revision:     commitSHA,
+			Prune:        syncReq.Prune,
+			DryRun:       syncReq.DryRun,
+			SyncStrategy: syncReq.Strategy,
+			Resources:    syncReq.Resources,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
@@ -873,21 +848,22 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 		}
 	}
 	if deploymentInfo == nil {
-		return nil, fmt.Errorf("application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
+		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
 	}
-	overrides := deploymentInfo.ComponentParameterOverrides
-	// Nil overrides in deployment history means no overrides, so sync operation request should contains empty overrides set
-	if overrides == nil {
-		overrides = make([]appv1.ComponentParameter, 0)
+	if deploymentInfo.Source.IsZero() {
+		// Since source type was introduced to history starting with v0.12, and is now required for
+		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
+		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}
+
 	// Rollback is just a convenience around Sync
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:           deploymentInfo.Revision,
-			DryRun:             rollbackReq.DryRun,
-			Prune:              rollbackReq.Prune,
-			SyncStrategy:       &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
-			ParameterOverrides: overrides,
+			Revision:     deploymentInfo.Revision,
+			DryRun:       rollbackReq.DryRun,
+			Prune:        rollbackReq.Prune,
+			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
+			Source:       &deploymentInfo.Source,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)

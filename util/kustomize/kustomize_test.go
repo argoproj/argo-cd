@@ -34,14 +34,16 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	kustomize := NewKustomizeApp(appPath)
-	opts := KustomizeBuildOpts{
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
+		ImageTags: []v1alpha1.KustomizeImageTag{
+			{
+				Name:  "k8s.gcr.io/nginx-slim",
+				Value: "latest",
+			},
+		},
 	}
-	objs, params, err := kustomize.Build(opts, []*v1alpha1.ComponentParameter{{
-		Component: "imagetag",
-		Name:      "k8s.gcr.io/nginx-slim",
-		Value:     "latest",
-	}})
+	objs, params, err := kustomize.Build(&kustomizeSource)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
