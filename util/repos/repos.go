@@ -13,9 +13,9 @@ type Client interface {
 	Init() error
 	Fetch() error
 	Checkout(path, revision string) error
-	LsRemote(revision string) (string, error)
+	ResolveRevision(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
-	CommitSHA(revision string) (string, error)
+	LatestRevision(revision string) (string, error)
 }
 
 // ClientFactory is a factory of Git Clients
@@ -65,8 +65,8 @@ func IsCommitSHA(sha string) bool {
 
 var truncatedCommitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{7,}$")
 
-// IsTruncatedCommitSHA returns whether or not a string is a truncated  SHA-1
-func IsTruncatedCommitSHA(sha string) bool {
+// IsTruncatedRevision returns whether or not a string is a truncated  SHA-1
+func IsTruncatedRevision(sha string) bool {
 	return truncatedCommitSHARegex.MatchString(sha)
 }
 

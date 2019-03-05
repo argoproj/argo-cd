@@ -893,7 +893,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	commitSHA, err := client.LsRemote(ambiguousRevision)
+	commitSHA, err := client.ResolveRevision(ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}
