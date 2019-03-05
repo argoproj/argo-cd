@@ -47,7 +47,7 @@ func NewServer(gitFactory git.ClientFactory, cache *cache.Cache, tlsConfCustomiz
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 	tlsConfCustomizer(tlsConfig)
 
-	serverLog := log.NewEntry(log.New())
+	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
 

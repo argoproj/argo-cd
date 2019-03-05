@@ -10,7 +10,7 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -40,11 +40,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 		return nil, nil, err
 	}
 
-	log.Infof("using kustomize version=%d", version)
-
 	commandName := GetCommandName(version)
-
-	log.Infof("using kustomize binary=%s", commandName)
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
