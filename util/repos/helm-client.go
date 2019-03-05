@@ -56,8 +56,7 @@ func (c helmClient) Checkout(path, revision string) error {
 		return err
 	}
 
-	//noinspection GoUnhandledErrorResult
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return errors.New(fmt.Sprintf("expected 200 status code, got %d", resp.StatusCode))
@@ -67,7 +66,7 @@ func (c helmClient) Checkout(path, revision string) error {
 	if err != nil {
 		return err
 	}
-	defer gzr.Close()
+	defer func() { _ = gzr.Close() }()
 
 	tr := tar.NewReader(gzr)
 
@@ -103,7 +102,7 @@ func (c helmClient) Checkout(path, revision string) error {
 				return err
 			}
 
-			file.Close()
+			_ = file.Close()
 		}
 	}
 }
