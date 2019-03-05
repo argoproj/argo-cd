@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -98,7 +97,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 }
 
 func (s *Server) listAppsPaths(
-	ctx context.Context, repoClient repository.RepositoryServiceClient, repo *appsv1.Repository, revision string, subPath string) (map[string]appsv1.ApplicationSourceType, error) {
+	ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (map[string]appsv1.ApplicationSourceType, error) {
 
 	if revision == "" {
 		revision = "HEAD"
@@ -147,7 +146,7 @@ func (s *Server) listAppsPaths(
 	return pathToType, nil
 }
 
-func getKustomizationRes(ctx context.Context, repoClient repository.RepositoryServiceClient, repo *appsv1.Repository, revision string, subPath string) (*repository.FileList, error) {
+func getKustomizationRes(ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (*repository.FileList, error) {
 	for _, kustomization := range kustomize.KustomizationNames {
 		request := repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*"+kustomization)}
 		kustomizationRes, err := repoClient.ListDir(ctx, &request)
@@ -176,7 +175,7 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 	}
 
 	// Test the repo
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +197,7 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 	return &RepoAppsResponse{Items: items}, nil
 }
 
-func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*RepoAppDetailsResponse, error) {
+func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*repository.RepoAppDetailsResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
 	}
@@ -212,94 +211,22 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*Re
 			return nil, err
 		}
 	}
-
-	// Test the repo
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(conn)
-
-	revision := q.Revision
-	if revision == "" {
-		revision = "HEAD"
-	}
-
-	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision, q.Path)
+	helmRepos, err := s.db.ListHelmRepos(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(paths) == 0 {
-		return &RepoAppDetailsResponse{
-			Type:      string(appsv1.ApplicationSourceTypeDirectory),
-			Directory: &DirectoryAppSpec{},
-		}, nil
-	}
-
-	var appPath string
-	var appSourceType appsv1.ApplicationSourceType
-	for appPath, appSourceType = range paths {
-		break
-	}
-
-	appSpecRes, err := repoClient.GetFile(ctx, &repository.GetFileRequest{
-		Repo:     repo,
-		Revision: revision,
-		Path:     appPath,
+	return repoClient.GetAppDetails(ctx, &repository.RepoServerAppDetailsQuery{
+		Repo:      repo,
+		Revision:  q.Revision,
+		Path:      q.Path,
+		HelmRepos: helmRepos,
+		Helm:      q.Helm,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	switch appSourceType {
-	case appsv1.ApplicationSourceTypeKsonnet:
-		var appSpec KsonnetAppSpec
-		appSpec.Path = q.Path
-		err = yaml.Unmarshal(appSpecRes.Data, &appSpec)
-		if err != nil {
-			return nil, err
-		}
-		return &RepoAppDetailsResponse{
-			Type:    string(appSourceType),
-			Ksonnet: &appSpec,
-		}, nil
-	case appsv1.ApplicationSourceTypeHelm:
-		var appSpec HelmAppSpec
-		appSpec.Path = q.Path
-		err = yaml.Unmarshal(appSpecRes.Data, &appSpec)
-		if err != nil {
-			return nil, err
-		}
-		valuesFilesRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{
-			Revision: revision,
-			Repo:     repo,
-			Path:     path.Join(q.Path, "*values*.yaml"),
-		})
-		if err != nil {
-			return nil, err
-		}
-		appSpec.ValueFiles = make([]string, len(valuesFilesRes.Items))
-		for i := range valuesFilesRes.Items {
-			valueFilePath, err := filepath.Rel(q.Path, valuesFilesRes.Items[i])
-			if err != nil {
-				return nil, err
-			}
-			appSpec.ValueFiles[i] = valueFilePath
-		}
-		return &RepoAppDetailsResponse{
-			Type: string(appSourceType),
-			Helm: &appSpec,
-		}, nil
-	case appsv1.ApplicationSourceTypeKustomize:
-		appSpec := KustomizeAppSpec{
-			Path: q.Path,
-		}
-		return &RepoAppDetailsResponse{
-			Type:      string(appSourceType),
-			Kustomize: &appSpec,
-		}, nil
-	}
-	return nil, status.Errorf(codes.InvalidArgument, "specified application path is not supported")
 }
 
 // Create creates a repository

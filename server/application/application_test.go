@@ -107,13 +107,13 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	_, err = db.CreateCluster(ctx, fakeCluster())
 	errors.CheckError(err)
 
-	mockRepoServiceClient := mockreposerver.RepositoryServiceClient{}
+	mockRepoServiceClient := mockreposerver.RepoServerServiceClient{}
 	mockRepoServiceClient.On("GetFile", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
 	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
 
 	mockRepoClient := &mockrepo.Clientset{}
-	mockRepoClient.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
+	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},

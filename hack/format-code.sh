@@ -1,7 +1,12 @@
 #! /bin/sh
 set -eu
 
-CHANGED_GO_FILES=$(git diff --name-only | grep ".go$" || true)
+CHANGED_GO_FILES=""
+for file in $(git diff --name-only | grep ".go$" || true); do
+    if [[ -f ${file} ]] ; then
+        CHANGED_GO_FILES="${CHANGED_GO_FILES} ${file}"
+    fi
+done
 
 if [[ "${CHANGED_GO_FILES}" != "" ]]; then
     echo "Formatting imports"

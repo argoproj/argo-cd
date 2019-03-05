@@ -151,7 +151,7 @@ func GetSpecErrors(
 	}
 
 	// Test the repo
-	conn, repoClient, err := repoClientset.NewRepositoryClient()
+	conn, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +274,7 @@ func QueryAppSourceType(ctx context.Context, app *argoappv1.Application, repoCli
 	if err != nil {
 		return "", err
 	}
-	conn, repoClient, err := repoClientset.NewRepositoryClient()
+	conn, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
 		return "", err
 	}
@@ -282,7 +282,7 @@ func QueryAppSourceType(ctx context.Context, app *argoappv1.Application, repoCli
 	return queryAppSourceType(ctx, &app.Spec, repoRes, repoClient)
 }
 
-func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepositoryServiceClient) (argoappv1.ApplicationSourceType, error) {
+func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
 	req := repository.ListDirRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
@@ -317,7 +317,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 }
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
-func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) error {
+func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) error {
 	// Default revision to HEAD if unspecified
 	if spec.Source.TargetRevision == "" {
 		spec.Source.TargetRevision = "HEAD"
@@ -362,7 +362,7 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 }
 
 // verifyHelmChart verifies a helm chart is functional
-func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
+func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -394,7 +394,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 
 // verifyGenerateManifests verifies a repo path can generate manifests
 func verifyGenerateManifests(
-	ctx context.Context, repoRes *argoappv1.Repository, helmRepos []*argoappv1.HelmRepository, spec *argoappv1.ApplicationSpec, repoClient repository.RepositoryServiceClient) []argoappv1.ApplicationCondition {
+	ctx context.Context, repoRes *argoappv1.Repository, helmRepos []*argoappv1.HelmRepository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {

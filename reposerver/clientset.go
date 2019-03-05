@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -16,14 +16,14 @@ import (
 
 // Clientset represets repository server api clients
 type Clientset interface {
-	NewRepositoryClient() (util.Closer, repository.RepositoryServiceClient, error)
+	NewRepoServerClient() (util.Closer, repository.RepoServerServiceClient, error)
 }
 
 type clientSet struct {
 	address string
 }
 
-func (c *clientSet) NewRepositoryClient() (util.Closer, repository.RepositoryServiceClient, error) {
+func (c *clientSet) NewRepoServerClient() (util.Closer, repository.RepoServerServiceClient, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -36,10 +36,10 @@ func (c *clientSet) NewRepositoryClient() (util.Closer, repository.RepositorySer
 		log.Errorf("Unable to connect to repository service with address %s", c.address)
 		return nil, nil, err
 	}
-	return conn, repository.NewRepositoryServiceClient(conn), nil
+	return conn, repository.NewRepoServerServiceClient(conn), nil
 }
 
-// NewRepositoryServerClientset creates new instance of repo server Clientset
-func NewRepositoryServerClientset(address string) Clientset {
+// NewRepoServerClientset creates new instance of repo server Clientset
+func NewRepoServerClientset(address string) Clientset {
 	return &clientSet{address: address}
 }

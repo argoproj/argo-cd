@@ -171,7 +171,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
-		log:              log.NewEntry(log.New()),
+		log:              log.NewEntry(log.StandardLogger()),
 		settings:         settings,
 		sessionMgr:       sessionMgr,
 		settingsMgr:      settingsMgr,

@@ -3,14 +3,11 @@ package ksonnet
 import (
 	"encoding/json"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 var (
@@ -45,47 +42,5 @@ func TestShow(t *testing.T) {
 		jsonBytes, err := json.Marshal(obj)
 		assert.Nil(t, err)
 		log.Infof("%v", string(jsonBytes))
-	}
-}
-
-func TestListEnvParams(t *testing.T) {
-	ksApp, err := NewKsonnetApp(filepath.Join(testDataDir, testAppName))
-	assert.Nil(t, err)
-	paramPointers, err := ksApp.ListEnvParams(testEnvName)
-	assert.Nil(t, err)
-	params := make([]v1alpha1.ComponentParameter, len(paramPointers))
-	for i, paramPointer := range paramPointers {
-		param := *paramPointer
-		params[i] = param
-	}
-
-	expected := []v1alpha1.ComponentParameter{{
-		Component: "demo",
-		Name:      "containerPort",
-		Value:     "80",
-	}, {
-		Component: "demo",
-		Name:      "image",
-		Value:     "gcr.io/kuar-demo/kuard-amd64:1",
-	}, {
-		Component: "demo",
-		Name:      "name",
-		Value:     "demo",
-	}, {
-		Component: "demo",
-		Name:      "replicas",
-		Value:     "2",
-	}, {
-		Component: "demo",
-		Name:      "servicePort",
-		Value:     "80",
-	}, {
-		Component: "demo",
-		Name:      "type",
-		Value:     "ClusterIP",
-	}}
-
-	if !reflect.DeepEqual(expected, params) {
-		t.Errorf("Env params were not equal!  Expected (%s), got (%s).", expected, params)
 	}
 }

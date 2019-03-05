@@ -163,7 +163,7 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	}
 	repo := s.getRepo(ctx, a.Spec.Source.RepoURL)
 
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}

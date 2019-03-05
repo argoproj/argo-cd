@@ -10,7 +10,7 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -21,7 +21,7 @@ import (
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.KustomizeImageTag, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -33,18 +33,14 @@ type kustomize struct {
 	path string
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.KustomizeImageTag, error) {
 
 	version, err := k.getKustomizationVersion()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	log.Infof("using kustomize version=%d", version)
-
 	commandName := GetCommandName(version)
-
-	log.Infof("using kustomize binary=%s", commandName)
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -85,12 +81,12 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 	return objs, parameters, nil
 }
 
-func (k *kustomize) getParameters(objs []*unstructured.Unstructured) []*v1alpha1.ComponentParameter {
+func (k *kustomize) getParameters(objs []*unstructured.Unstructured) []*v1alpha1.KustomizeImageTag {
 	version, _ := k.getKustomizationVersion() // cannot be an error at this line
 	if version == 1 {
 		return getImageParameters(objs)
 	} else {
-		return []*v1alpha1.ComponentParameter{}
+		return []*v1alpha1.KustomizeImageTag{}
 	}
 }
 
@@ -155,7 +151,7 @@ func (k *kustomize) getKustomizationVersion() (int, error) {
 	return 1, nil
 }
 
-func getImageParameters(objs []*unstructured.Unstructured) []*v1alpha1.ComponentParameter {
+func getImageParameters(objs []*unstructured.Unstructured) []*v1alpha1.KustomizeImageTag {
 	images := make(map[string]string)
 	for _, obj := range objs {
 		for _, img := range getImages(obj.Object) {
@@ -167,12 +163,11 @@ func getImageParameters(objs []*unstructured.Unstructured) []*v1alpha1.Component
 			}
 		}
 	}
-	var params []*v1alpha1.ComponentParameter
+	var params []*v1alpha1.KustomizeImageTag
 	for img, version := range images {
-		params = append(params, &v1alpha1.ComponentParameter{
-			Component: "imagetag",
-			Name:      img,
-			Value:     version,
+		params = append(params, &v1alpha1.KustomizeImageTag{
+			Name:  img,
+			Value: version,
 		})
 	}
 	return params
