@@ -212,7 +212,7 @@ func (m *nativeGitClient) ResolveRevision(revision string) (string, error) {
 }
 
 // LatestRevision returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) LatestRevision(revision string) (string, error) {
+func (m *nativeGitClient) LatestRevision() (string, error) {
 	out, err := m.runCmd("git", "rev-parse", "HEAD")
 	if err != nil {
 		return "", err

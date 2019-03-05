@@ -438,6 +438,6 @@ func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
 	return matches, nil
 }
 
-func (c *FakeGitClient) LatestRevision(revision string) (string, error) {
+func (c *FakeGitClient) LatestRevision() (string, error) {
 	return "abcdef123456890", nil
 }

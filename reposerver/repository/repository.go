@@ -349,7 +349,7 @@ func checkoutRevision(client repos.Client, path, revision string) (string, error
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
 	}
-	return client.LatestRevision(revision)
+	return client.LatestRevision()
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides

@@ -15,7 +15,7 @@ type Client interface {
 	Checkout(path, revision string) error
 	ResolveRevision(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
-	LatestRevision(revision string) (string, error)
+	LatestRevision() (string, error)
 }
 
 // ClientFactory is a factory of Git Clients

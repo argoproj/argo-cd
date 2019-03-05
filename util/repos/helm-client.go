@@ -116,6 +116,6 @@ func (c helmClient) LsFiles(path string) ([]string, error) {
 	return make([]string, 0), nil
 }
 
-func (c helmClient) LatestRevision(revision string) (string, error) {
-	return revision, nil
+func (c helmClient) LatestRevision() (string, error) {
+	return "TODO", nil
 }

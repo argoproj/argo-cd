@@ -103,7 +103,7 @@ func testGitClient(t *testing.T, clnt Client) {
 	err = clnt.Checkout(".", commitSHA)
 	assert.NoError(t, err)
 
-	commitSHA2, err := clnt.LatestRevision(commitSHA)
+	commitSHA2, err := clnt.LatestRevision()
 	assert.NoError(t, err)
 
 	assert.Equal(t, commitSHA, commitSHA2)
