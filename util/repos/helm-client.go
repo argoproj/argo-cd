@@ -108,7 +108,7 @@ func (c helmClient) Checkout(path, revision string) error {
 	}
 }
 
-func (c helmClient) LsRemote(revision string) (string, error) {
+func (c helmClient) ResolveRevision(revision string) (string, error) {
 	return "", nil
 }
 
@@ -116,6 +116,6 @@ func (c helmClient) LsFiles(path string) ([]string, error) {
 	return make([]string, 0), nil
 }
 
-func (c helmClient) CommitSHA(revision string) (string, error) {
+func (c helmClient) LatestRevision(revision string) (string, error) {
 	return revision, nil
 }

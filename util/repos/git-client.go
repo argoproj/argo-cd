@@ -49,7 +49,7 @@ func (m *nativeGitClient) Root() string {
 }
 
 func (m *nativeGitClient) Test() error {
-	_, err := m.LsRemote("HEAD")
+	_, err := m.ResolveRevision("HEAD")
 	return err
 }
 
@@ -144,7 +144,7 @@ func (m *nativeGitClient) Checkout(path, revision string) error {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (string, error) {
+func (m *nativeGitClient) ResolveRevision(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
@@ -212,7 +212,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 }
 
 // LatestRevision returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) CommitSHA(revision string) (string, error) {
+func (m *nativeGitClient) LatestRevision(revision string) (string, error) {
 	out, err := m.runCmd("git", "rev-parse", "HEAD")
 	if err != nil {
 		return "", err

@@ -423,7 +423,7 @@ func (c *FakeGitClient) Reset() error {
 	return nil
 }
 
-func (c *FakeGitClient) LsRemote(s string) (string, error) {
+func (c *FakeGitClient) ResolveRevision(s string) (string, error) {
 	return "abcdef123456890", nil
 }
 
@@ -438,6 +438,6 @@ func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
 	return matches, nil
 }
 
-func (c *FakeGitClient) CommitSHA(revision string) (string, error) {
+func (c *FakeGitClient) LatestRevision(revision string) (string, error) {
 	return "abcdef123456890", nil
 }
