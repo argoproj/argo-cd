@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	argoexec "github.com/argoproj/pkg/exec"
@@ -170,6 +171,9 @@ func getImageParameters(objs []*unstructured.Unstructured) []*v1alpha1.Kustomize
 			Value: version,
 		})
 	}
+	sort.Slice(params, func(i, j int) bool {
+		return params[i].Name < params[j].Name
+	})
 	return params
 }
 
