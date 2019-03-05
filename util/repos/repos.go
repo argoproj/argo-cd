@@ -12,10 +12,9 @@ type Client interface {
 	Test() error
 	Init() error
 	Fetch() error
-	Checkout(path, revision string) error
+	Checkout(path, revision string) (string, error)
 	ResolveRevision(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
-	LatestRevision() (string, error)
 }
 
 // ClientFactory is a factory of Git Clients

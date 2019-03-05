@@ -126,17 +126,17 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 }
 
 // Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(path, revision string) error {
+func (m *nativeGitClient) Checkout(path, revision string) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
 	if _, err := m.runCmd("git", "checkout", "--force", revision); err != nil {
-		return err
+		return "", err
 	}
 	if _, err := m.runCmd("git", "clean", "-fdx"); err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return m.Head()
 }
 
 // ResolveRevision resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
@@ -211,8 +211,8 @@ func (m *nativeGitClient) ResolveRevision(revision string) (string, error) {
 	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
 }
 
-// LatestRevision returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) LatestRevision() (string, error) {
+// Head returns current commit sha from `git rev-parse HEAD`
+func (m *nativeGitClient) Head() (string, error) {
 	out, err := m.runCmd("git", "rev-parse", "HEAD")
 	if err != nil {
 		return "", err

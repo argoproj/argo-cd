@@ -30,7 +30,7 @@ func (c helmClient) Test() error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		return errors.New(fmt.Sprintf("expected 200, got %d", resp.StatusCode))
+		return errors.New(fmt.Sprintf("%s expected 200, got %d", c.repoURL, resp.StatusCode))
 	}
 	return nil
 }
@@ -47,24 +47,26 @@ func (c helmClient) Fetch() error {
 	return nil
 }
 
-func (c helmClient) Checkout(path, revision string) error {
+func (c helmClient) Checkout(path, revision string) (string, error) {
 
 	url := c.repoURL + "/" + path + "-" + revision + ".tgz"
+
 	log.Infof("Helm checkout url=%s, root=%s", url, c.root)
+
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
-		return errors.New(fmt.Sprintf("expected 200 status code, got %d", resp.StatusCode))
+		return "", errors.New(fmt.Sprintf("%s expected 200 status code, got %d", url, resp.StatusCode))
 	}
 
 	gzr, err := gzip.NewReader(resp.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() { _ = gzr.Close() }()
 
@@ -75,9 +77,9 @@ func (c helmClient) Checkout(path, revision string) error {
 
 		switch {
 		case err == io.EOF:
-			return nil
+			return revision, nil
 		case err != nil:
-			return err
+			return "", err
 		case header == nil:
 			continue
 		}
@@ -90,16 +92,16 @@ func (c helmClient) Checkout(path, revision string) error {
 			dir := filepath.Dir(target)
 			if _, err := os.Stat(dir); err != nil {
 				if err := os.MkdirAll(dir, 0755); err != nil {
-					return err
+					return "", err
 				}
 			}
 			file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			if _, err := io.Copy(file, tr); err != nil {
-				return err
+				return "", err
 			}
 
 			_ = file.Close()
@@ -108,13 +110,9 @@ func (c helmClient) Checkout(path, revision string) error {
 }
 
 func (c helmClient) ResolveRevision(revision string) (string, error) {
-	return "", nil
+	return revision, nil
 }
 
 func (c helmClient) LsFiles(path string) ([]string, error) {
 	return make([]string, 0), nil
-}
-
-func (c helmClient) LatestRevision() (string, error) {
-	return "TODO", nil
 }

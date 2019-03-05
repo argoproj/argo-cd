@@ -413,9 +413,8 @@ func (c *FakeGitClient) Fetch() error {
 	return nil
 }
 
-func (c *FakeGitClient) Checkout(path, revision string) error {
-	// do nothing
-	return nil
+func (c *FakeGitClient) Checkout(path, revision string) (string, error) {
+	return "abcdef123456890", nil
 }
 
 func (c *FakeGitClient) Reset() error {
@@ -436,8 +435,4 @@ func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
 		matches[i] = strings.TrimPrefix(matches[i], c.root)
 	}
 	return matches, nil
-}
-
-func (c *FakeGitClient) LatestRevision() (string, error) {
-	return "abcdef123456890", nil
 }
