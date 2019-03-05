@@ -39,14 +39,6 @@ func (c helmClient) Root() string {
 	return c.root
 }
 
-func (c helmClient) Init() error {
-	return nil
-}
-
-func (c helmClient) Fetch() error {
-	return nil
-}
-
 func (c helmClient) Checkout(path, revision string) (string, error) {
 
 	url := c.repoURL + "/" + path + "-" + revision + ".tgz"

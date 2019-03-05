@@ -10,8 +10,6 @@ import (
 type Client interface {
 	Root() string
 	Test() error
-	Init() error
-	Fetch() error
 	Checkout(path, revision string) (string, error)
 	ResolveRevision(revision string) (string, error)
 	LsFiles(path string) ([]string, error)

@@ -337,15 +337,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 func checkoutRevision(client repos.Client, path, revision string) (string, error) {
-	err := client.Init()
-	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
-	}
-	err = client.Fetch()
-	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to fetch git repo: %v", err)
-	}
-	revision, err = client.Checkout(path, revision)
+	revision, err := client.Checkout(path, revision)
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "Failed to checkout %s: %v", revision, err)
 	}

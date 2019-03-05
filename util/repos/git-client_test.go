@@ -90,15 +90,9 @@ func testGitClient(t *testing.T, clnt Client) {
 	commitSHA, err := clnt.ResolveRevision("HEAD")
 	assert.NoError(t, err)
 
-	err = clnt.Init()
+	_, err = clnt.Checkout(".", commitSHA)
 	assert.NoError(t, err)
-
-	err = clnt.Fetch()
-	assert.NoError(t, err)
-
 	// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-	err = clnt.Fetch()
-	assert.NoError(t, err)
 
 	commitSHA2, err := clnt.Checkout(".", commitSHA)
 	assert.NoError(t, err)

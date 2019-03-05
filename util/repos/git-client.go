@@ -54,7 +54,7 @@ func (m *nativeGitClient) Test() error {
 }
 
 // Init initializes a local git repository and sets the remote origin
-func (m *nativeGitClient) Init() error {
+func (m *nativeGitClient) init() error {
 	_, err := git.PlainOpen(m.root)
 	if err == nil {
 		return nil
@@ -83,7 +83,7 @@ func (m *nativeGitClient) Init() error {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch() error {
+func (m *nativeGitClient) fetch() error {
 	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
 	repo, err := git.PlainOpen(m.root)
 	if err != nil {
@@ -127,6 +127,14 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 
 // Checkout checkout specified git sha
 func (m *nativeGitClient) Checkout(path, revision string) (string, error) {
+	err := m.init()
+	if err != nil {
+		return "", err
+	}
+	err = m.fetch()
+	if err != nil {
+		return "", err
+	}
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
