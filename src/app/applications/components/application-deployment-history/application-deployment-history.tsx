@@ -1,14 +1,17 @@
-import { DropDownMenu, Duration } from 'argo-ui';
+import { DataLoader, DropDownMenu, Duration } from 'argo-ui';
 import * as moment from 'moment';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
+import { services } from '../../../shared/services';
+import { ApplicationParameters } from '../application-parameters/application-parameters';
 
 require('./application-deployment-history.scss');
 
 export const ApplicationDeploymentHistory = ({
     app,
     rollbackApp,
+    selectedRollbackDeploymentIndex,
     selectDeployment,
 }: {
     app: models.Application,
@@ -49,6 +52,15 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
+                        {selectedRollbackDeploymentIndex === index ? (
+                            <DataLoader input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
+                                load={(src) => services.repos.appDetails(src.repoURL, src.path, src.targetRevision)}>
+                            {(details: models.RepoAppDetails) =>
+                                <ApplicationParameters application={{...app, spec: {...app.spec, source: recentDeployments[index].source} }} details={details} />
+                            }
+                            </DataLoader>
+                        )
+                        : null }
                     </div>
                 </div>
             ))}

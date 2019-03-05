@@ -184,7 +184,7 @@ export interface ApplicationSpec {
 export interface RevisionHistory {
     id: number;
     revision: string;
-    componentParameterOverrides: ComponentParameter[];
+    source: ApplicationSource;
     deployedAt: models.Time;
 }
 

@@ -28,10 +28,13 @@
         right: 1em;
     }
 
-    &__param-name {
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        text-transform: uppercase;
+    .white-box {
+        margin-top: 1em;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .white-box__details p {
+        margin-left: -1em;
     }
 }

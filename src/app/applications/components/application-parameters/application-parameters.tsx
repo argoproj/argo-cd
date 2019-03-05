@@ -71,7 +71,7 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
     }).map((item, i) => ({...item, before: i === 0 && <p style={{ marginTop: '1em' }}>PARAMETERS</p> || null }));
 }
 
-export const ApplicationParameters = (props: { application: models.Application, details: models.RepoAppDetails, save: (application: models.Application) => Promise<any> }) => {
+export const ApplicationParameters = (props: { application: models.Application, details: models.RepoAppDetails, save?: (application: models.Application) => Promise<any> }) => {
     const app = props.application;
     const source = props.application.spec.source;
 
@@ -162,7 +162,7 @@ export const ApplicationParameters = (props: { application: models.Application, 
 
     return (
         <EditablePanel
-            save={async (input) => {
+            save={props.save && (async (input: models.Application) => {
                 if (input.spec.source.helm && input.spec.source.helm.parameters) {
                     input.spec.source.helm.parameters = input.spec.source.helm.parameters.filter((item) => item !== null);
                 }
@@ -173,7 +173,7 @@ export const ApplicationParameters = (props: { application: models.Application, 
                     input.spec.source.kustomize.imageTags = input.spec.source.kustomize.imageTags.filter((item) => item !== null);
                 }
                 props.save(input);
-            }}
+            })}
             values={app} title={app.metadata.name.toLocaleUpperCase()} items={attributes} />
     );
 };

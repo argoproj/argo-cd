@@ -37,18 +37,21 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
             <Consumer>{(ctx) => (
             <div className={classNames('white-box editable-panel', {'editable-panel--disabled': this.state.saving})}>
                 <div className='white-box__details'>
-                    <div className='editable-panel__buttons'>
-                        {!this.state.edit && (
-                            <button onClick={() => this.setState({ edit: true })} className='argo-button argo-button--base'>Edit</button>
-                        )}
-                        {this.state.edit && (
-                            <React.Fragment>
-                                <button disabled={this.state.saving} onClick={() => !this.state.saving && this.formApi.submitForm(null)} className='argo-button argo-button--base'>
-                                    Save
-                                </button> <button onClick={() => this.setState({ edit: false })} className='argo-button argo-button--base-o'>Cancel</button>
-                            </React.Fragment>
-                        )}
-                    </div>
+                    {this.props.save && (
+                        <div className='editable-panel__buttons'>
+                            {!this.state.edit && (
+                                <button onClick={() => this.setState({ edit: true })} className='argo-button argo-button--base'>Edit</button>
+                            )}
+                            {this.state.edit && (
+                                <React.Fragment>
+                                    <button disabled={this.state.saving}
+                                            onClick={() => !this.state.saving && this.formApi.submitForm(null)} className='argo-button argo-button--base'>
+                                        Save
+                                    </button> <button onClick={() => this.setState({ edit: false })} className='argo-button argo-button--base-o'>Cancel</button>
+                                </React.Fragment>
+                            )}
+                        </div>
+                    )}
                     {this.props.title && <p>{this.props.title}</p>}
                     {!this.state.edit && (
                         <React.Fragment>
