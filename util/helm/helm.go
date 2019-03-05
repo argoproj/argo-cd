@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -24,7 +25,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error)
+	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// SetHome sets the helm home location (default "~/.helm")
@@ -140,7 +141,7 @@ func (h *helm) Init() error {
 	return err
 }
 
-func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParameter, error) {
+func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error) {
 	out, err := h.helmCmd("inspect", "values", ".")
 	if err != nil {
 		return nil, err
@@ -169,13 +170,16 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.ComponentParame
 		flatVals(values, output)
 	}
 
-	params := make([]*argoappv1.ComponentParameter, 0)
+	params := make([]*argoappv1.HelmParameter, 0)
 	for key, val := range output {
-		params = append(params, &argoappv1.ComponentParameter{
+		params = append(params, &argoappv1.HelmParameter{
 			Name:  key,
 			Value: val,
 		})
 	}
+	sort.Slice(params, func(i, j int) bool {
+		return params[i].Name < params[j].Name
+	})
 	return params, nil
 }
 

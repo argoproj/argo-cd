@@ -10,6 +10,7 @@ import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
 
 // RepoAppsQuery is a query for Repository apps
 message RepoAppsQuery {
@@ -29,63 +30,12 @@ message RepoAppDetailsQuery {
 	string repo = 1;
 	string revision = 2;
 	string path = 3;
-}
-
-// RepoAppDetailsResponse application details
-message RepoAppDetailsResponse {
-	string type = 1;
-	KsonnetAppSpec ksonnet = 2;
-	HelmAppSpec helm = 3;
-	KustomizeAppSpec kustomize = 4;
-	DirectoryAppSpec directory = 5;
+	repository.HelmAppDetailsQuery helm = 4;
 }
 
 // RepoAppsResponse contains applications of specified repository
 message RepoAppsResponse {
 	repeated AppInfo items = 1;
-}
-
-// KsonnetAppSpec contains Ksonnet app response
-// This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
-message KsonnetAppSpec {
-	string name = 1;
-	string path = 2;
-	map<string, KsonnetEnvironment> environments = 3;
-}
-
-// HelmAppSpec contains helm app name and path in source repo
-message HelmAppSpec {
-	string name = 1;
-	string path = 2;
-	repeated string valueFiles = 3;
-}
-
-// KustomizeAppSpec contains kustomize app name and path in source repo
-message KustomizeAppSpec {
-	string path = 1;
-}
-
-message KsonnetEnvironment {
-    // Name is the user defined name of an environment
-    string name = 1;
-    // KubernetesVersion is the kubernetes version the targetted cluster is running on.
-    string k8sVersion = 2;
-    // Path is the relative project path containing metadata for this environment.
-    string path = 3;
-    // Destination stores the cluster address that this environment points to.
-    KsonnetEnvironmentDestination destination = 4;
-}
-
-message KsonnetEnvironmentDestination {
-    // Server is the Kubernetes server that the cluster is running on.
-    string server = 1;
-    // Namespace is the namespace of the Kubernetes server that targets should be deployed to
-    string namespace = 2;
-}
-
-// DirectoryAppSpec contains directory
-message DirectoryAppSpec {
-
 }
 
 // RepoQuery is a query for Repository resources
@@ -118,7 +68,7 @@ service RepositoryService {
 	}
 
 	// GetAppDetails returns application details by given path
-	rpc GetAppDetails(RepoAppDetailsQuery) returns (RepoAppDetailsResponse) {
+	rpc GetAppDetails(RepoAppDetailsQuery) returns (repository.RepoAppDetailsResponse) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}/apps/{path}";
 	}
 

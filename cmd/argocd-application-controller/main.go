@@ -65,7 +65,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
-			repoClientset := reposerver.NewRepositoryServerClientset(repoServerAddress)
+			repoClientset := reposerver.NewRepoServerClientset(repoServerAddress)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 

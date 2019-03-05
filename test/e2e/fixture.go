@@ -139,7 +139,7 @@ func (f *Fixture) setup() error {
 		DisableAuth:   true,
 		Insecure:      true,
 		KubeClientset: f.KubeClient,
-		RepoClientset: reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
+		RepoClientset: reposerver.NewRepoServerClientset(f.RepoServerAddress),
 		Cache:         cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
 	})
 
@@ -322,7 +322,7 @@ func (f *Fixture) createController() (*controller.ApplicationController, error) 
 		f.SettingsMgr,
 		f.KubeClient,
 		f.AppClient,
-		reposerver.NewRepositoryServerClientset(f.RepoServerAddress),
+		reposerver.NewRepoServerClientset(f.RepoServerAddress),
 		cache.NewCache(cache.NewInMemoryCache(1*time.Hour)),
 		10*time.Second)
 }

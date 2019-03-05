@@ -1379,39 +1379,19 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			switch output {
-			case "wide":
-				fmt.Fprintf(w, "ID\tDATE\tCOMMIT\tPARAMETERS\n")
-			default:
-				fmt.Fprintf(w, "ID\tDATE\tCOMMIT\n")
-			}
+			fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
 			for _, depInfo := range app.Status.History {
-				switch output {
-				case "wide":
-					manifest, err := appIf.GetManifests(context.Background(), &application.ApplicationManifestQuery{Name: &appName, Revision: depInfo.Revision})
-					errors.CheckError(err)
-					paramStr := paramString(manifest.GetParams())
-					fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision, paramStr)
-				default:
-					fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, depInfo.Revision)
+				rev := depInfo.Source.TargetRevision
+				if len(depInfo.Revision) >= 7 {
+					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
 				}
+				fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
 			}
 			_ = w.Flush()
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: wide")
 	return command
-}
-
-func paramString(params []*argoappv1.ComponentParameter) string {
-	if len(params) == 0 {
-		return ""
-	}
-	paramNames := []string{}
-	for _, param := range params {
-		paramNames = append(paramNames, fmt.Sprintf("%s=%s=%s", param.Component, param.Name, param.Value))
-	}
-	return strings.Join(paramNames, ",")
 }
 
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command

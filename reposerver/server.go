@@ -10,8 +10,8 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -69,7 +69,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	version.RegisterVersionServiceServer(server, &version.Server{})
 	manifestService := repository.NewService(a.gitFactory, a.cache, a.parallelismLimit)
-	repository.RegisterRepositoryServiceServer(server, manifestService)
+	repository.RegisterRepoServerServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)

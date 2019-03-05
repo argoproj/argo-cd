@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -112,6 +113,11 @@ func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespa
 	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, commitSHA, namespace, fnva)
 }
 
+func appDetailsCacheKey(commitSHA, path string, valueFiles []string) string {
+	valuesStr := strings.Join(valueFiles, ",")
+	return fmt.Sprintf("appdetails|%s|%s|%s", commitSHA, path, valuesStr)
+}
+
 func (c *Cache) setItem(key string, item interface{}, expiration time.Duration, delete bool) error {
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	if delete {
@@ -192,6 +198,14 @@ func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, 
 
 func (c *Cache) SetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {
 	return c.setItem(manifestCacheKey(commitSHA, appSrc, namespace, appLabelKey, appLabelValue), res, repoCacheExpiration, res == nil)
+}
+
+func (c *Cache) GetAppDetails(commitSHA, path string, valueFiles []string, res interface{}) error {
+	return c.getItem(appDetailsCacheKey(commitSHA, path, valueFiles), res)
+}
+
+func (c *Cache) SetAppDetails(commitSHA, path string, valueFiles []string, res interface{}) error {
+	return c.setItem(appDetailsCacheKey(commitSHA, path, valueFiles), res, repoCacheExpiration, res == nil)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {

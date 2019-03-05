@@ -85,7 +85,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, nil, err
 	}
 	repo := m.getRepo(source.RepoURL)
-	conn, repoClient, err := m.repoClientset.NewRepositoryClient()
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, nil, err
 	}

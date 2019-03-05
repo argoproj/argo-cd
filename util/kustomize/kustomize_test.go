@@ -65,7 +65,6 @@ func TestKustomizeBuild(t *testing.T) {
 		case "k8s.gcr.io/nginx-slim":
 			assert.Equal(t, "latest", param.Value)
 		}
-		assert.Equal(t, "imagetag", param.Component)
 	}
 }
 
