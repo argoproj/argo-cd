@@ -32,9 +32,9 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/repos"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -50,7 +50,7 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	clientFactory depot.ClientFactory
+	clientFactory repos.ClientFactory
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -80,7 +80,7 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		clientFactory: depot.NewFactory(),
+		clientFactory: repos.NewFactory(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -880,7 +880,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	if depot.IsCommitSHA(ambiguousRevision) {
+	if repos.IsCommitSHA(ambiguousRevision) {
 		// If it's already a commit SHA, then no need to look it up
 		return ambiguousRevision, ambiguousRevision, nil
 	}

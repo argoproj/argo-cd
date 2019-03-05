@@ -16,7 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/depot"
+	"github.com/argoproj/argo-cd/util/repos"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -66,9 +66,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// NOTE: it is important not to run git commands to test git credentials on the user's
 			// system since it may mess with their git credential store (e.g. osx keychain).
 			// See issue #315
-			err := depot.TestRepo(repo.Repo, repoType, "", "", repo.SSHPrivateKey)
+			err := repos.TestRepo(repo.Repo, repoType, "", "", repo.SSHPrivateKey)
 			if err != nil {
-				if depot.IsSSHURL(repo.Repo) {
+				if repos.IsSSHURL(repo.Repo) {
 					// If we failed using git SSH credentials, then the repo is automatically bad
 					log.Fatal(err)
 				}

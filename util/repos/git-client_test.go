@@ -1,4 +1,4 @@
-package depot
+package repos
 
 import (
 	"io/ioutil"

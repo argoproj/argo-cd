@@ -23,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/depot"
+	"github.com/argoproj/argo-cd/util/repos"
 )
 
 type projectOpts struct {
@@ -273,7 +273,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 					fmt.Printf("Source repository '*' already allowed in project\n")
 					return
 				}
-				if depot.SameURL(item, url) {
+				if repos.SameURL(item, url) {
 					fmt.Printf("Source repository '%s' already allowed in project\n", item)
 					return
 				}

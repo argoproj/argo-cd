@@ -21,9 +21,9 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/depot"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/repos"
 )
 
 // Server provides a Repository service
@@ -57,7 +57,7 @@ func (s *Server) HydrateConnectionState(ctx context.Context, repo *appsv1.Reposi
 	}
 	now := metav1.Now()
 
-	err = depot.TestRepo(repo.Repo, string(repo.Type), repo.Username, repo.Password, repo.SSHPrivateKey)
+	err = repos.TestRepo(repo.Repo, string(repo.Type), repo.Username, repo.Password, repo.SSHPrivateKey)
 
 	if err != nil {
 		repo.ConnectionState = appsv1.ConnectionState{
@@ -313,7 +313,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, err
 	}
 	r := q.Repo
-	err := depot.TestRepo(r.Repo, string(r.Type), r.Username, r.Password, r.SSHPrivateKey)
+	err := repos.TestRepo(r.Repo, string(r.Type), r.Username, r.Password, r.SSHPrivateKey)
 	if err != nil {
 		return nil, err
 	}
