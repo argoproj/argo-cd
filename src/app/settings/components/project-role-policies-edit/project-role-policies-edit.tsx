@@ -20,7 +20,7 @@ function generatePolicy(project: string, role: string, action?: string, object?:
 const actions = ['get', 'create', 'update', 'delete', 'sync'];
 
 export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
-    <DataLoader load={() => services.applications.list([props.projName])} ref={(loader) => this.loader = loader}>
+    <DataLoader load={() => services.applications.list([props.projName])}>
     {(applications) => (
         <React.Fragment>
             <h4>Policy Rules</h4>

@@ -2,7 +2,7 @@ import { FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
-import { CheckboxField, DataLoader, EditablePanel,  TagsInputField } from '../../../shared/components';
+import { DataLoader, EditablePanel } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
@@ -11,7 +11,6 @@ import { ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage } from '../ut
 
 export const ApplicationSummary = (props: {
     app: models.Application,
-    details: models.AppDetails,
     updateApp: (app: models.Application) => Promise<any>,
 }) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
@@ -63,39 +62,6 @@ export const ApplicationSummary = (props: {
             view: app.spec.source.path,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text}/>,
         },
-        ...props.details.type === 'Ksonnet' && props.details.ksonnet ? [{
-            title: 'ENVIRONMENT',
-            view: app.spec.source.ksonnet && app.spec.source.ksonnet.environment,
-            edit: (formApi: FormApi) => (
-                <FormField
-                    formApi={formApi}
-                    field='spec.source.ksonnet.environment'
-                    component={FormSelect}
-                    componentProps={{ options: Object.keys(props.details.ksonnet.environments) }}/>
-            ),
-        }] : [],
-        ...props.details.type === 'Kustomize' && props.details.kustomize ? [{
-            title: 'NAME PREFIX',
-            view: app.spec.source.kustomize && app.spec.source.kustomize.namePrefix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text}/>,
-        }] : [],
-        ...props.details.type === 'Helm' && props.details.helm ? [{
-            title: 'VALUES FILES',
-            view: app.spec.source.helm && (app.spec.source.helm.valueFiles || []).join(', ') || 'No values files selected',
-            edit: (formApi: FormApi) => (
-                <FormField formApi={formApi} field='spec.source.helm.valueFiles' component={TagsInputField} componentProps={{
-                    options: props.details.helm.valueFiles,
-                    noTagsLabel: 'No values files selected',
-                }}/>
-            ),
-        }] : [],
-        ...props.details.type === 'Directory' && props.details.directory ? [{
-            title: 'DIRECTORY RECURSE',
-            view: app.spec.source.directory && app.spec.source.directory.recurse !== undefined ? app.spec.source.directory.recurse.toString()  : 'false',
-            edit: (formApi: FormApi) => (
-                <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField}/>
-            ),
-        }] : [],
         {title: 'STATUS', view: (
             <span><ComparisonStatusIcon status={app.status.sync.status}/> {app.status.sync.status} {syncStatusMessage(app)}
             </span>

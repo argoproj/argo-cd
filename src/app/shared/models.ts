@@ -134,6 +134,7 @@ export interface ApplicationSource {
     path: string;
 
     /**
+     * DEPRECATED.
      * Overridden component parameters.
      */
     componentParameterOverrides?: ComponentParameter[];
@@ -149,14 +150,17 @@ export interface ApplicationSource {
 
 export interface ApplicationSourceHelm {
     valueFiles: string[];
+    parameters: HelmParameter[];
 }
 
 export interface ApplicationSourceKustomize {
     namePrefix: string;
+    imageTags: KustomizeImageTag[];
 }
 
 export interface ApplicationSourceKsonnet {
     environment: string;
+    parameters: KsonnetParameter[];
 }
 
 export interface ApplicationSourceDirectory {
@@ -316,22 +320,28 @@ export interface KsonnetEnvironment {
     destination: { server: string; namespace: string; };
 }
 
+export interface KsonnetParameter {
+    component: string;
+    name: string;
+    value: string;
+}
+
 export interface KsonnetAppSpec {
     name: string;
     path: string;
     environments: { [key: string]: KsonnetEnvironment; };
+    parameters: KsonnetParameter[];
 }
 
 export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
 
-export interface AppDetails {
+export interface RepoAppDetails {
     type: AppSourceType;
     path: string;
     ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
     directory?: {};
-    plugin?: { name: string; };
 }
 
 export interface AppInfo {
@@ -339,14 +349,26 @@ export interface AppInfo {
     path: string;
 }
 
+export interface HelmParameter {
+    name: string;
+    value: string;
+}
+
 export interface HelmAppSpec {
     name: string;
     path: string;
     valueFiles: string[];
+    parameters: HelmParameter[];
+}
+
+export interface KustomizeImageTag {
+    name: string;
+    value: string;
 }
 
 export interface KustomizeAppSpec {
     path: string;
+    imageTags: KustomizeImageTag[];
 }
 
 export interface ObjectReference {
@@ -435,5 +457,4 @@ export interface ManifestResponse {
     namespace: string;
     server: string;
     revision: string;
-    params: ComponentParameter[];
 }

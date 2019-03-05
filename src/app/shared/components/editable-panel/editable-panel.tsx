@@ -5,18 +5,20 @@ import { Form, FormApi } from 'react-form';
 
 import { Consumer } from '../../context';
 
-interface EditablePanelProps<T> {
+export interface EditablePanelItem {
+    title: string;
+    key?: string;
+    before?: React.ReactNode;
+    view: string | React.ReactNode;
+    edit?: (formApi: FormApi) => React.ReactNode;
+}
+
+export interface EditablePanelProps<T> {
     title?: string;
     values: T;
     validate?: (values: T) => any;
     save?: (input: T) => Promise<any>;
-    items: {
-        title: string;
-        key?: string;
-        before?: React.ReactNode;
-        view: string | React.ReactNode;
-        edit?: (formApi: FormApi) => React.ReactNode;
-    }[];
+    items: EditablePanelItem[];
 }
 
 require('./editable-panel.scss');

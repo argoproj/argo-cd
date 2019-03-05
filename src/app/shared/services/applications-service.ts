@@ -49,6 +49,7 @@ export class ApplicationsService {
     }
 
     public updateSpec(appName: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
+        spec.source.componentParameterOverrides = null;
         return requests.put(`/applications/${appName}/spec`).send(spec).then((res) => res.body as models.ApplicationSpec);
     }
 
@@ -148,6 +149,7 @@ export class ApplicationsService {
     private parseAppFields(data: any): models.Application {
         const app = data as models.Application;
         app.spec.project = app.spec.project || 'default';
+        delete app.spec.source.componentParameterOverrides;
         app.kind = app.kind || 'Application';
         app.status.resources = app.status.resources || [];
         return app;

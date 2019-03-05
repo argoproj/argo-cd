@@ -17,11 +17,11 @@ import { ApplicationConditions } from '../application-conditions/application-con
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
 import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
 import { ApplicationOperationState } from '../application-operation-state/application-operation-state';
+import { ApplicationParameters } from '../application-parameters/application-parameters';
 import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
 import { ApplicationResourceTree } from '../application-resource-tree/application-resource-tree';
 import { ApplicationStatusPanel } from '../application-status-panel/application-status-panel';
 import { ApplicationSummary } from '../application-summary/application-summary';
-import { ParametersPanel } from '../parameters-panel/parameters-panel';
 import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
 import * as AppUtils from '../utils';
 import { isSameNode, nodeKey, ResourceTreeNode } from '../utils';
@@ -265,24 +265,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                 )}
                                 {isAppSelected && (
                                     <Tabs navTransparent={true} tabs={[{
-                                        title: 'SUMMARY', key: 'summary', content: (
-                                            <DataLoader key='appDetails' load={() => services.repos.appDetails(
-                                                application.spec.source.repoURL,
-                                                application.spec.source.path,
-                                                application.spec.source.targetRevision,
-                                            ).catch(() => ({ type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path }))}>
-                                            {(appDetails) => <ApplicationSummary app={application} details={appDetails} updateApp={(app) => this.updateApp(app)}/>}
-                                            </DataLoader>
-                                        ),
+                                        title: 'SUMMARY', key: 'summary', content: <ApplicationSummary app={application} updateApp={(app) => this.updateApp(app)}/>,
                                     }, {
                                         title: 'PARAMETERS', key: 'parameters', content: (
-                                            <DataLoader
-                                                key='appParameters'
-                                                input={{name: application.metadata.name, revision: application.spec.source.targetRevision}}
-                                                load={(input) => services.applications.getManifest(input.name, input.revision).then((res) => res.params || [])}>
-                                            {(params: appModels.ComponentParameter[]) =>
-                                                <ParametersPanel params={params} updateApp={(app) => this.updateApp(app)} app={application}/>
-                                            }
+                                            <DataLoader key='appDetails' input={{
+                                                repoURL: application.spec.source.repoURL,
+                                                path: application.spec.source.path,
+                                                targetRevision: application.spec.source.targetRevision,
+                                            }} load={(src) =>
+                                                services.repos.appDetails(src.repoURL, src.path, src.targetRevision)
+                                                .catch(() => ({ type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path }))}>
+                                            {(details: appModels.RepoAppDetails) => <ApplicationParameters
+                                                    save={(app) => services.applications.updateSpec(app.metadata.name, app.spec)} application={application} details={details} />}
                                             </DataLoader>
                                         ),
                                     }, {

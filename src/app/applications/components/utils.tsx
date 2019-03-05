@@ -35,26 +35,6 @@ export function isSameNode(first: NodeId, second: NodeId) {
     return nodeKey(first) === nodeKey(second);
 }
 
-export function getParamsWithOverridesInfo(params: appModels.ComponentParameter[], overrides: appModels.ComponentParameter[]) {
-    const componentParams = new Map<string, (appModels.ComponentParameter & {original: string})[]>();
-    (params || []).map((param) => ({component: '', ...param})).map((param) => {
-        const override = (overrides || [])
-            .map((item) => ({component: '', ...item}))
-            .find((item) => item.component === param.component && item.name === param.name);
-        const res = {...param, original: ''};
-        if (override) {
-            res.original = res.value;
-            res.value = override.value;
-        }
-        return res;
-    }).forEach((param) => {
-        const items = componentParams.get(param.component) || [];
-        items.push(param);
-        componentParams.set(param.component, items);
-    });
-    return componentParams;
-}
-
 export async function syncApplication(appName: string, revision: string, prune: boolean, dryRun: boolean, resources: appModels.SyncOperationResource[], apis: ContextApis) {
     try {
         await services.applications.sync(appName, revision, prune, dryRun, resources);
@@ -353,4 +333,17 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
 
 export function isAppNode(node: ResourceTreeNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
+}
+
+export function getAppOverridesCount(app: appModels.Application) {
+    if (app.spec.source.ksonnet && app.spec.source.ksonnet.parameters) {
+        return app.spec.source.ksonnet.parameters.length;
+    }
+    if (app.spec.source.kustomize && app.spec.source.kustomize.imageTags) {
+        return app.spec.source.kustomize.imageTags.length;
+    }
+    if (app.spec.source.helm && app.spec.source.helm.parameters) {
+        return app.spec.source.helm.parameters.length;
+    }
+    return 0;
 }

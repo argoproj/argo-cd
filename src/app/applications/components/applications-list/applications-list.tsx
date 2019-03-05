@@ -149,17 +149,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                         <EmptyState icon='application'>
                             <h4>No applications yet</h4>
                             <h5>Create new application to start managing resources in your cluster</h5>
-                            <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', { new: JSON.stringify({
-                                metadata: {
-                                    name: 'guestbook',
-                                },
-                                spec: {
-                                    source: {
-                                        path: 'guestbook',
-                                        repoURL: 'https://github.com/argoproj/argocd-example-apps',
-                                    },
-                                },
-                            }) })}>Create application</button>
+                            <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', { new: JSON.stringify({}) })}>Create application</button>
                         </EmptyState>
                     ) : (
                         <div className='row'>

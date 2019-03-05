@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey, ResourceTreeNode } from '../utils';
+import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey, ResourceTreeNode } from '../utils';
 
 require('./application-resource-tree.scss');
 
@@ -106,6 +106,7 @@ export const ApplicationResourceTree = (props: {
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR', marginx: -100 });
     graph.setDefaultEdgeLabel(() => ({}));
+    const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
         kind: props.app.kind,
         name: props.app.metadata.name,
@@ -116,9 +117,9 @@ export const ApplicationResourceTree = (props: {
         children: Array(),
         status: props.app.status.sync.status,
         health: props.app.status.health,
-        info: (props.app.spec.source.componentParameterOverrides || []).length > 0 ? [{
+        info: overridesCount > 0 ? [{
             name: 'Parameter overrides',
-            value: `${props.app.spec.source.componentParameterOverrides.length} parameter override(s)`,
+            value: `${overridesCount} parameter override(s)`,
         }] : [],
     };
     graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });

@@ -167,7 +167,7 @@ export const ApplicationCreatePanel = (props: {
                                                     };
                                                 }
                                             }}>
-                                        {(details: models.AppDetails) => {
+                                        {(details: models.RepoAppDetails) => {
                                             const type = explicitPathType && explicitPathType.path === app.spec.source.path && explicitPathType.type || details.type;
                                             return (
                                                 <React.Fragment>
