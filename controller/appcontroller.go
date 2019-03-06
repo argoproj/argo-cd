@@ -659,7 +659,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			})
 		}
 	} else {
-		specConditions, err := argo.GetSpecErrors(context.Background(), &app.Spec, proj, ctrl.repoClientset, ctrl.db)
+		specConditions, _, err := argo.GetSpecErrors(context.Background(), &app.Spec, proj, ctrl.repoClientset, ctrl.db)
 		if err != nil {
 			conditions = append(conditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,
