@@ -140,20 +140,20 @@ func GetSpecErrors(
 	proj *argoappv1.AppProject,
 	repoClientset reposerver.Clientset,
 	db db.ArgoDB,
-) ([]argoappv1.ApplicationCondition, error) {
+) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: "spec.source.repoURL and spec.source.path are required",
 		})
-		return conditions, nil
+		return conditions, "", nil
 	}
 
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer util.Close(conn)
 	repoAccessable := false
@@ -174,12 +174,13 @@ func GetSpecErrors(
 				repoAccessable = true
 			}
 		} else {
-			return nil, err
+			return nil, "", err
 		}
 	} else {
 		repoAccessable = true
 	}
 
+	var appSourceType argoappv1.ApplicationSourceType
 	// Verify only one source type is defined
 	explicitSourceType, err := spec.Source.ExplicitType()
 	if err != nil {
@@ -190,7 +191,6 @@ func GetSpecErrors(
 	}
 
 	if repoAccessable {
-		var appSourceType argoappv1.ApplicationSourceType
 		if explicitSourceType != nil {
 			appSourceType = *explicitSourceType
 		} else {
@@ -249,37 +249,16 @@ func GetSpecErrors(
 					Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
 				})
 			} else {
-				return nil, err
+				return nil, "", err
 			}
 		}
 	}
-	return conditions, nil
+	return conditions, appSourceType, nil
 }
 
 // GetAppProject returns a project from an application
 func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string) (*argoappv1.AppProject, error) {
 	return projLister.AppProjects(ns).Get(spec.GetProject())
-}
-
-// QueryAppSourceType queries repo server for yaml files in a directory, and determines its
-// application source type based on the files in the directory.
-// This code is redundant to the logic in argo.GetSpecErrors, but since it's is hard to
-// extract out of there. We will be throwing away this code when we remove
-// componentParameterOverrides.
-func QueryAppSourceType(ctx context.Context, app *argoappv1.Application, repoClientset reposerver.Clientset, db db.ArgoDB) (argoappv1.ApplicationSourceType, error) {
-	if t, _ := app.Spec.Source.ExplicitType(); t != nil {
-		return *t, nil
-	}
-	repoRes, err := db.GetRepository(ctx, app.Spec.Source.RepoURL)
-	if err != nil {
-		return "", err
-	}
-	conn, repoClient, err := repoClientset.NewRepoServerClient()
-	if err != nil {
-		return "", err
-	}
-	defer util.Close(conn)
-	return queryAppSourceType(ctx, &app.Spec, repoRes, repoClient)
 }
 
 func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
