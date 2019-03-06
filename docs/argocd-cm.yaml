@@ -30,10 +30,11 @@ data:
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
 
-  # Git repositories configure Argo CD with (optional).
+  # Repositories configure Argo CD with (optional).
   # This list is updated when configuring/removing repos from the UI/CLI
   repositories: |
     - url: https://github.com/argoproj/my-private-repository
+      type: git
       passwordSecret:
         name: my-secret
         key: password
@@ -43,13 +44,12 @@ data:
       sshPrivateKeySecret:
         name: my-secret
         key: sshPrivateKey
-
-  # Non-standard and private Helm repositories (optional).
-  helm.repositories: |
     - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
       name: istio.io
+      type: helm
     - url: https://my-private-chart-repo.internal
       name: private-repo
+      type: helm
       usernameSecret:
         name: my-secret
         key: username
