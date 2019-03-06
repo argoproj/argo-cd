@@ -389,6 +389,7 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+		req.Repo.Type = repoRes.Type
 	}
 	_, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
