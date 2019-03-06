@@ -48,4 +48,23 @@ func TestRepoManagement(t *testing.T) {
 		}
 		assert.False(t, exists)
 	})
+
+	t.Run("TestAddRemoveHelmRepo", func(t *testing.T) {
+		repoUrl := "https://kubernetes-charts.storage.googleapis.com"
+		repoType := "helm"
+		repoName := "stable"
+
+		_, err := fixture.RunCli("repo", "add", repoUrl, "--type", repoType, "--name", repoName)
+		assert.NoError(t, err)
+
+		listing, err := fixture.RunCli("repo", "list")
+		assert.NoError(t, err)
+
+		assert.Contains(t, listing, repoUrl)
+		assert.Contains(t, listing, repoName)
+		assert.Contains(t, listing, repoType)
+
+		_, err = fixture.RunCli("repo", "rm", repoUrl)
+		assert.NoError(t, err)
+	})
 }
