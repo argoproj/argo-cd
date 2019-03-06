@@ -32,7 +32,22 @@ RUN wget https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-lin
 RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
     chmod +x ./golangci-lint.sh && \
     ./golangci-lint.sh -b /usr/local/bin && \
-    golangci-lint help
+    golangci-lint linters
+
+# Force download of latest linters
+RUN go get -u github.com/argoproj/argo-cd && \
+    cd $GOPATH/src/github.com/argoproj/argo-cd && \
+    git remote add alexec https://github.com/alexec/argo-cd && \
+    git fetch alexec && \
+    git checkout golangci-lint && \
+    dep ensure && \
+    golangci-lint run
+
+# Install gometalinter
+ENV GOMETALINTER_VERSION=2.0.12
+RUN curl -sLo- https://github.com/alecthomas/gometalinter/releases/download/v${GOMETALINTER_VERSION}/gometalinter-${GOMETALINTER_VERSION}-linux-amd64.tar.gz | \
+    tar -xzC "$GOPATH/bin" --exclude COPYING --exclude README.md --strip-components 1 -f- && \
+    ln -s $GOPATH/bin/gometalinter $GOPATH/bin/gometalinter.v2
 
 # Install packr
 ENV PACKR_VERSION=1.21.9
