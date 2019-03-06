@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -49,6 +50,11 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 
 	log.Infof("Helm checkout url=%s, root=%s, path=%s", url, c.root, path)
 
+	_, err := exec.Command("rm", "-rf", c.root).Output()
+	if err != nil {
+		return "", fmt.Errorf("unable to clean repo at %s: %v", c.root, err)
+	}
+
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
@@ -57,7 +63,7 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
-		return "", errors.New(fmt.Sprintf("%s expected 200 status code, got %d", url, resp.StatusCode))
+		return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, expected 200 status code, got %d", url, resp.StatusCode))
 	}
 
 	gzr, err := gzip.NewReader(resp.Body)
@@ -75,7 +81,7 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 		case err == io.EOF:
 			return chartVersion, nil
 		case err != nil:
-			return "", err
+			return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
 		case header == nil:
 			continue
 		}
@@ -88,16 +94,16 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 			dir := filepath.Dir(target)
 			if _, err := os.Stat(dir); err != nil {
 				if err := os.MkdirAll(dir, 0755); err != nil {
-					return "", err
+					return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
 				}
 			}
 			file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
 			if err != nil {
-				return "", err
+				return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
 			}
 
 			if _, err := io.Copy(file, tr); err != nil {
-				return "", err
+				return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
 			}
 
 			_ = file.Close()
