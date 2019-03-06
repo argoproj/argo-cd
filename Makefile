@@ -130,7 +130,7 @@ format-code:
 
 .PHONY: lint
 lint:
-	gometalinter.v2 --config gometalinter.json ./...
+	golangci-lint run
 
 .PHONY: test
 test:
