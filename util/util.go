@@ -130,7 +130,10 @@ func RunAllAsync(count int, action func(i int) error) (err error) {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			err = action(index)
+			actionErr := action(index)
+			if actionErr != nil {
+				err = actionErr
+			}
 		}(i)
 		if err != nil {
 			break

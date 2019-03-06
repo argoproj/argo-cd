@@ -19,7 +19,7 @@ import (
 )
 
 type LiveStateCache interface {
-	IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error)
+	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
 	// Returns child nodes for a given k8s resource
 	GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error)
 	// Returns state of live nodes which correspond for target nodes of specified application.
@@ -140,12 +140,12 @@ func (c *liveStateCache) Delete(server string, obj *unstructured.Unstructured) e
 	return clusterInfo.delete(obj)
 }
 
-func (c *liveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error) {
+func (c *liveStateCache) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return false, err
 	}
-	return clusterInfo.isNamespaced(gvk.GroupKind()), nil
+	return clusterInfo.isNamespaced(obj), nil
 }
 
 func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error) {
