@@ -122,7 +122,7 @@ builder-image:
 
 .PHONY: dep-ensure
 dep-ensure:
-	dep ensure
+	dep ensure -no-vendor
 
 .PHONY: format-code
 format-code:
