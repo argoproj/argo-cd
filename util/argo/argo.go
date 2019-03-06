@@ -284,10 +284,6 @@ func QueryAppSourceType(ctx context.Context, app *argoappv1.Application, repoCli
 
 func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
 
-	if repoRes.Type == argoappv1.Helm {
-		return argoappv1.ApplicationSourceTypeHelm, nil
-	}
-
 	req := repository.ListDirRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
@@ -299,6 +295,7 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+		req.Repo.Type = repoRes.Type
 	}
 	getRes, err := repoClient.ListDir(ctx, &req)
 	if err != nil {

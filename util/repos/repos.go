@@ -30,11 +30,9 @@ func NewFactory() ClientFactory {
 func (f *factory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error) {
 	if repoType == "helm" {
 		return f.newHelmClient(repoURL, path)
-	}
-	if repoType == "git" {
+	} else {
 		return f.newGitClient(repoURL, path, username, password, sshPrivateKey)
 	}
-	panic(repoType)
 }
 
 // EnsurePrefix idempotently ensures that a base string has a given prefix.

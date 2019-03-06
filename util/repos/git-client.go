@@ -126,7 +126,10 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 }
 
 // Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(path, revision string) (string, error) {
+func (m *nativeGitClient) Checkout(_, revision string) (string, error) {
+
+	log.Debugf("Checking out Git repo repo=%s, revision=%s, root=%s", m.repoURL, revision, m.root)
+
 	err := m.init()
 	if err != nil {
 		return "", err
@@ -135,8 +138,8 @@ func (m *nativeGitClient) Checkout(path, revision string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if revision == "" || revision == "HEAD" {
-		revision = "origin/HEAD"
+	if revision == "" {
+		revision = "HEAD"
 	}
 	if _, err := m.runCmd("git", "checkout", "--force", revision); err != nil {
 		return "", err
