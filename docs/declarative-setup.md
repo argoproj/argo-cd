@@ -95,12 +95,25 @@ spec:
 
 ## Repositories
 
+### Git Repositories
+
 Repository credentials are stored in secret. Use following steps to configure a repo:
 
 1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
 definition as a Kubernetes manifest.
 
-2. Register repository in `argocd-cm` config map. Each repository must have `url` field and `usernameSecret`, `passwordSecret` or `sshPrivateKeySecret`.
+2. Register repository in `argocd-cm` config map. 
+
+Each repository must have:
+ 
+ * `url` 
+ * `type` - Must be `git`.
+ 
+ Optionally:
+ 
+ * `usernameSecret` 
+ * `passwordSecret` 
+ * `sshPrivateKeySecret`
 
 Example:
 
@@ -112,6 +125,7 @@ metadata:
 data:
   repositories: |
     - url: https://github.com/argoproj/my-private-repository
+      type: git
       passwordSecret:
         name: my-secret
         key: password
@@ -121,6 +135,54 @@ data:
       sshPrivateKeySecret:
         name: my-secret
         key: sshPrivateKey
+```
+
+### Helm Repositories
+
+Helm Chart repositories must be under `repositories` key too. Each repository must have:
+
+* `url` 
+* `type` - Must be `helm`.
+* `name` 
+
+For private Helm repos you configure access credentials and HTTPS settings using:
+ 
+* `usernameSecret`
+* `passwordSecret`
+* `caSecret`
+* `certSecret` 
+* `keySecret` 
+
+Example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  repositories: |
+    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
+      type: helm
+      name: istio.io
+    - url: https://argoproj.github.io/argo-helm
+      type: helm
+      name: argo
+      usernameSecret:
+        name: my-secret
+        key: username
+      passwordSecret:
+        name: my-secret
+        key: password
+      caSecret:
+        name: my-secret
+        key: ca
+      certSecret:
+        name: my-secret
+        key: cert
+      keySecret:
+        name: my-secret
+        key: key
 ```
 
 ## Clusters
@@ -181,43 +243,6 @@ stringData:
         "caData": "<base64 encoded certificate>"
       }
     }
-```
-
-## Helm Chart repositories
-
-Non standard Helm Chart repositories have to be registered under the `helm.repositories` key in the
-`argocd-cm` ConfigMap. Each repository must have `url` and `name` fields. For private Helm repos you
-may need to configure access credentials and HTTPS settings using `usernameSecret`, `passwordSecret`,
-`caSecret`, `certSecret` and `keySecret` fields.
-
-Example:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-data:
-  helm.repositories: |
-    - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
-      name: istio.io
-    - url: https://argoproj.github.io/argo-helm
-      name: argo
-      usernameSecret:
-        name: my-secret
-        key: username
-      passwordSecret:
-        name: my-secret
-        key: password
-      caSecret:
-        name: my-secret
-        key: ca
-      certSecret:
-        name: my-secret
-        key: cert
-      keySecret:
-        name: my-secret
-        key: key
 ```
 
 ## Resource Exclusion
