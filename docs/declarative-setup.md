@@ -162,6 +162,12 @@ metadata:
   name: argocd-cm
 data:
   repositories: |
+    - url: https://kubernetes-charts.storage.googleapis.com
+      type: helm
+      name: stable
+    - url: http://127.0.0.1:8879/charts
+      type: helm
+      name: local
     - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
       type: helm
       name: istio.io
