@@ -29,7 +29,10 @@ RUN wget https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-lin
     chmod +x /usr/local/bin/dep
 
 # Install golangci-lint
-RUN curl -sLo- https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh
+RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
+    chmod +x ./golangci-lint.sh && \
+    ./golangci-lint.sh -b /usr/local/bin && \
+    golangci-lint help
 
 # Install packr
 ENV PACKR_VERSION=1.21.9
