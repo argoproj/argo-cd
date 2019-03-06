@@ -43,12 +43,10 @@ func (f *fakeGitClientFactory) NewClient(repoURL, repoType, path, username, pass
 		root = f.root
 	}
 	mockClient.On("Root", mock.Anything, mock.Anything).Return(root)
-	mockClient.On("Init", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("Fetch", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
-	mockClient.On("LsRemote", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
+	mockClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
+	mockClient.On("ResolveRevision", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
 	mockClient.On("LsFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
-	mockClient.On("CommitSHA", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
+	mockClient.On("LatestRevision", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
 	return &mockClient, nil
 }
 
