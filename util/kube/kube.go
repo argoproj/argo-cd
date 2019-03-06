@@ -75,6 +75,10 @@ func (k *ResourceKey) String() string {
 	return fmt.Sprintf("%s/%s/%s/%s", k.Group, k.Kind, k.Namespace, k.Name)
 }
 
+func (k ResourceKey) GroupKind() schema.GroupKind {
+	return schema.GroupKind{Group: k.Group, Kind: k.Kind}
+}
+
 func isObsoleteExtensionsGroupKind(group string, kind string) (string, bool) {
 	if group == "extensions" {
 		newGroup, ok := obsoleteExtensionsKinds[kind]
