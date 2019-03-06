@@ -893,12 +893,12 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", err
 	}
-	commitSHA, err := client.ResolveRevision(ambiguousRevision)
+	resolvedRevision, err := client.ResolveRevision(ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}
-	displayRevision := fmt.Sprintf("%s (%s)", ambiguousRevision, commitSHA)
-	return commitSHA, displayRevision, nil
+	displayRevision := fmt.Sprintf("%s (%s)", ambiguousRevision, resolvedRevision)
+	return resolvedRevision, displayRevision, nil
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTerminateRequest) (*OperationTerminateResponse, error) {

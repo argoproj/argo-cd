@@ -62,18 +62,18 @@ func NewService(clientFactory repos.ClientFactory, cache *cache.Cache, paralleli
 
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, error) {
-	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, resolvedRevision, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
-	if files, err := s.cache.GetGitListDir(commitSHA, q.Path); err == nil {
-		log.Infof("listdir cache hit: %s/%s", commitSHA, q.Path)
+	if files, err := s.cache.GetGitListDir(resolvedRevision, q.Path); err == nil {
+		log.Infof("listdir cache hit: %s/%s", resolvedRevision, q.Path)
 		return &FileList{Items: files}, nil
 	}
 
 	s.repoLock.Lock(client.Root())
 	defer s.repoLock.Unlock(client.Root())
-	commitSHA, err = checkoutRevision(client, ".", q.Revision)
+	resolvedRevision, err = checkoutRevision(client, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -84,27 +84,27 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 	}
 
 	res := FileList{Items: lsFiles}
-	err = s.cache.SetListDir(commitSHA, q.Path, res.Items)
+	err = s.cache.SetListDir(resolvedRevision, q.Path, res.Items)
 	if err != nil {
-		log.Warnf("listdir cache set error %s/%s: %v", commitSHA, q.Path, err)
+		log.Warnf("listdir cache set error %s/%s: %v", resolvedRevision, q.Path, err)
 	}
 	return &res, nil
 }
 
 func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
-	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, resolvedRevision, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 
-	if data, err := s.cache.GetGitFile(commitSHA, q.Path); err == nil {
-		log.Infof("getfile cache hit: %s/%s", commitSHA, q.Path)
+	if data, err := s.cache.GetGitFile(resolvedRevision, q.Path); err == nil {
+		log.Infof("getfile cache hit: %s/%s", resolvedRevision, q.Path)
 		return &GetFileResponse{Data: data}, nil
 	}
 
 	s.repoLock.Lock(client.Root())
 	defer s.repoLock.Unlock(client.Root())
-	commitSHA, err = checkoutRevision(client, q.Path, q.Revision)
+	resolvedRevision, err = checkoutRevision(client, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +115,9 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 	res := GetFileResponse{
 		Data: data,
 	}
-	err = s.cache.SetGitFile(commitSHA, q.Path, data)
+	err = s.cache.SetGitFile(resolvedRevision, q.Path, data)
 	if err != nil {
-		log.Warnf("getfile cache set error %s/%s: %v", commitSHA, q.Path, err)
+		log.Warnf("getfile cache set error %s/%s: %v", resolvedRevision, q.Path, err)
 	}
 	return &res, nil
 }
@@ -497,11 +497,11 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	if err != nil {
 		return nil, "", err
 	}
-	commitSHA, err := client.ResolveRevision(revision)
+	resolvedRevision, err := client.ResolveRevision(revision)
 	if err != nil {
 		return nil, "", err
 	}
-	return client, commitSHA, nil
+	return client, resolvedRevision, nil
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {

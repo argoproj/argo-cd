@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -39,11 +41,13 @@ func (c helmClient) Root() string {
 	return c.root
 }
 
-func (c helmClient) Checkout(path, revision string) (string, error) {
+func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 
-	url := c.repoURL + "/" + path + "-" + revision + ".tgz"
+	chartName := c.chartName(path)
 
-	log.Infof("Helm checkout url=%s, root=%s", url, c.root)
+	url := c.repoURL + "/" + chartName + "-" + chartVersion + ".tgz"
+
+	log.Infof("Helm checkout url=%s, root=%s, path=%s", url, c.root, path)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -69,7 +73,7 @@ func (c helmClient) Checkout(path, revision string) (string, error) {
 
 		switch {
 		case err == io.EOF:
-			return revision, nil
+			return chartVersion, nil
 		case err != nil:
 			return "", err
 		case header == nil:
@@ -101,10 +105,29 @@ func (c helmClient) Checkout(path, revision string) (string, error) {
 	}
 }
 
+func (c helmClient) chartName(path string) string {
+	return strings.Split(path, "/")[0]
+}
+
 func (c helmClient) ResolveRevision(revision string) (string, error) {
 	return revision, nil
 }
 
 func (c helmClient) LsFiles(path string) ([]string, error) {
-	return make([]string, 0), nil
+
+	chartName := c.chartName(path)
+	files, err := ioutil.ReadDir(filepath.Join(c.root, chartName))
+	if err != nil {
+		return nil, err
+	}
+
+	var names = make([]string, 0)
+	for _, f := range files {
+		name := filepath.Join(chartName, f.Name())
+		if ok, _ := filepath.Match(path, name); ok {
+			names = append(names, name)
+		}
+	}
+
+	return names, nil
 }
