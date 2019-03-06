@@ -21,6 +21,7 @@ export interface AutocompleteProps {
     onChange?: (e: React.ChangeEvent<HTMLInputElement>, value: string) => void;
     onSelect?: (value: string, item: any) => void;
     autoCompleteRef?: (api: AutocompleteApi) => any;
+    filterSuggestions?: boolean;
 }
 
 export const Autocomplete = (props: AutocompleteProps) => {
@@ -53,6 +54,7 @@ export const Autocomplete = (props: AutocompleteProps) => {
     wrapperProps.className = classNames('select', wrapperProps.className);
     return (
         <ReactAutocomplete
+            autoHighlight={true}
             ref={(el: any) => {
                 if (el) {
                     if (el.refs.input) {
@@ -98,7 +100,7 @@ export const Autocomplete = (props: AutocompleteProps) => {
             inputProps={props.inputProps}
             wrapperProps={wrapperProps}
             shouldItemRender={(item: AutocompleteOption, val: string) => {
-                return item.label.includes(val);
+                return !props.filterSuggestions || item.label.includes(val);
             }}
             renderMenu={function(menuItems, _, style) {
                 if (menuItems.length === 0) {

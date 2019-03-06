@@ -162,6 +162,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', { search: null }, { replace: true })}/>
                                         )}
                                         <Autocomplete
+                                            filterSuggestions={true}
                                             renderInput={(inputProps) => (
                                                 <input {...inputProps} onFocus={(e) => {
                                                     e.target.select();
