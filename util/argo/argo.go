@@ -160,11 +160,17 @@ func GetSpecErrors(
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 
 	if err != nil {
+		repoType := "git"
+		if repoRes != nil {
+			repoType = string(repoRes.Type)
+		}
+
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			// The repo has not been added to Argo CD so we do not have credentials to access it.
 			// We support the mode where apps can be created from public repositories. Test the
 			// repo to make sure it is publicly accessible
-			err = repos.TestRepo(spec.Source.RepoURL, "git", "", "", "")
+			log.Infof("repoRes=%v", repoRes)
+			err = repos.TestRepo(spec.Source.RepoURL, repoType, "", "", "")
 			if err != nil {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -370,10 +376,6 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 
 	var conditions []argoappv1.ApplicationCondition
-
-	if repoRes.Type == argoappv1.Helm {
-		return conditions
-	}
 
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{

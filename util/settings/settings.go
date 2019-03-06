@@ -63,7 +63,7 @@ type ArgoCDSettings struct {
 	HelmRepositories []RepoCredentials
 	// AppInstanceLabelKey is the configured application instance label key used to label apps. May be empty
 	AppInstanceLabelKey string
-	// ConfigManagementPlugins hols list of configred config management plugins
+	// ConfigManagementPlugins hols list of configured config management plugins
 	ConfigManagementPlugins []v1alpha1.ConfigManagementPlugin
 	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
