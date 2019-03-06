@@ -219,8 +219,8 @@ func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.Resour
 	return children
 }
 
-func (c *clusterInfo) isNamespaced(gk schema.GroupKind) bool {
-	if api, ok := c.apis[gk]; ok && !api.resource.Namespaced {
+func (c *clusterInfo) isNamespaced(obj *unstructured.Unstructured) bool {
+	if api, ok := c.apis[kube.GetResourceKey(obj).GroupKind()]; ok && !api.resource.Namespaced {
 		return false
 	}
 	return true
@@ -242,7 +242,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 	lock := &sync.Mutex{}
 	err := util.RunAllAsync(len(targetObjs), func(i int) error {
 		targetObj := targetObjs[i]
-		key := GetTargetObjKey(a, targetObj, c.isNamespaced(targetObj.GroupVersionKind().GroupKind()))
+		key := GetTargetObjKey(a, targetObj, c.isNamespaced(targetObj))
 		lock.Lock()
 		managedObj := managedObjs[key]
 		lock.Unlock()
