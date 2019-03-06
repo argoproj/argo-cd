@@ -169,7 +169,6 @@ func GetSpecErrors(
 			// The repo has not been added to Argo CD so we do not have credentials to access it.
 			// We support the mode where apps can be created from public repositories. Test the
 			// repo to make sure it is publicly accessible
-			log.Infof("repoRes=%v", repoRes)
 			err = repos.TestRepo(spec.Source.RepoURL, repoType, "", "", "")
 			if err != nil {
 				conditions = append(conditions, argoappv1.ApplicationCondition{

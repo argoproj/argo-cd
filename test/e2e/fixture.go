@@ -395,25 +395,19 @@ func (c *FakeGitClient) Test() error {
 	return nil
 }
 
-func (c *FakeGitClient) Init() error {
-	_, err := exec.Command("rm", "-rf", c.root).Output()
-	if err != nil {
-		return err
-	}
-	_, err = exec.Command("cp", "-r", "../../examples/guestbook", c.root).Output()
-	return err
-}
-
 func (c *FakeGitClient) Root() string {
 	return c.root
 }
 
-func (c *FakeGitClient) Fetch() error {
-	// do nothing
-	return nil
-}
-
 func (c *FakeGitClient) Checkout(path, revision string) (string, error) {
+	_, err := exec.Command("rm", "-rf", c.root).Output()
+	if err != nil {
+		return "", err
+	}
+	_, err = exec.Command("cp", "-r", "../../examples/guestbook", c.root).Output()
+	if err != nil {
+		return "", err
+	}
 	return "abcdef123456890", nil
 }
 
