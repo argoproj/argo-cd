@@ -1199,6 +1199,14 @@
             "type": "string",
             "name": "revision",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "helm.valueFiles",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1588,12 +1596,29 @@
       "type": "object",
       "title": "DirectoryAppSpec contains directory"
     },
+    "repositoryHelmAppDetailsQuery": {
+      "type": "object",
+      "properties": {
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "repositoryHelmAppSpec": {
       "type": "object",
       "title": "HelmAppSpec contains helm app name and path in source repo",
       "properties": {
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          }
         },
         "path": {
           "type": "string"
@@ -1618,6 +1643,12 @@
         },
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KsonnetParameter"
+          }
         },
         "path": {
           "type": "string"
@@ -1661,6 +1692,12 @@
       "type": "object",
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
+        "imageTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
+          }
+        },
         "path": {
           "type": "string"
         }
@@ -1677,12 +1714,6 @@
         },
         "namespace": {
           "type": "string"
-        },
-        "params": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
-          }
         },
         "revision": {
           "type": "string"

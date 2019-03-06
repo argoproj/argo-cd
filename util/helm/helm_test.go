@@ -13,7 +13,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-func findParameter(params []*argoappv1.ComponentParameter, name string) *argoappv1.ComponentParameter {
+func findParameter(params []*argoappv1.HelmParameter, name string) *argoappv1.HelmParameter {
 	for _, param := range params {
 		if param.Name == name {
 			return param

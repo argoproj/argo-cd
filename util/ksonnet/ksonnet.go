@@ -49,8 +49,8 @@ type KsonnetApp interface {
 	// Destination returns the deployment destination for an environment
 	Destination(environment string) (*v1alpha1.ApplicationDestination, error)
 
-	// ListEnvParams returns list of environment parameters
-	ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error)
+	// ListParams returns list of ksonnet parameters
+	ListParams() ([]*v1alpha1.KsonnetParameter, error)
 
 	// SetComponentParams updates component parameter in specified environment.
 	SetComponentParams(environment string, component string, param string, value string) error
@@ -141,14 +141,12 @@ func (k *ksonnetApp) Destination(environment string) (*v1alpha1.ApplicationDesti
 	return Destination(data, environment)
 }
 
-// ListEnvParams returns list of environment parameters
-func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentParameter, error) {
-	log.Infof("listing environment '%s' parameters", environment)
-	out, err := k.ksCmd("param", "list", "--output", "json", "--env", environment)
+// ListParams returns list of ksonnet parameters
+func (k *ksonnetApp) ListParams() ([]*v1alpha1.KsonnetParameter, error) {
+	out, err := k.ksCmd("param", "list", "--output", "json")
 	if err != nil {
 		return nil, err
 	}
-
 	// Auxiliary data to hold unmarshaled JSON output, which may use different field names
 	var ksParams struct {
 		Data []struct {
@@ -160,16 +158,14 @@ func (k *ksonnetApp) ListEnvParams(environment string) ([]*v1alpha1.ComponentPar
 	if err := json.Unmarshal([]byte(out), &ksParams); err != nil {
 		return nil, err
 	}
-
-	var params []*v1alpha1.ComponentParameter
+	var params []*v1alpha1.KsonnetParameter
 	for _, ksParam := range ksParams.Data {
 		value := strings.Trim(ksParam.Value, `'"`)
-		componentParam := v1alpha1.ComponentParameter{
+		params = append(params, &v1alpha1.KsonnetParameter{
 			Component: ksParam.Component,
 			Name:      ksParam.Key,
 			Value:     value,
-		}
-		params = append(params, &componentParam)
+		})
 	}
 	return params, nil
 }

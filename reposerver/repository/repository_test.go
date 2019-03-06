@@ -1,19 +1,56 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	"github.com/argoproj/pkg/exec"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/repos"
+	gitmocks "github.com/argoproj/argo-cd/util/repos/mocks"
 )
+
+func newMockRepoServerService(root string) *Service {
+	return &Service{
+		repoLock:      util.NewKeyLock(),
+		clientFactory: newFakeGitClientFactory(root),
+		cache:         cache.NewCache(cache.NewInMemoryCache(time.Hour)),
+	}
+}
+
+func newFakeGitClientFactory(root string) repos.ClientFactory {
+	return &fakeGitClientFactory{root: root}
+}
+
+type fakeGitClientFactory struct {
+	root string
+}
+
+func (f *fakeGitClientFactory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (repos.Client, error) {
+	mockClient := gitmocks.Client{}
+	root := "./testdata"
+	if f.root != "" {
+		root = f.root
+	}
+	mockClient.On("Root", mock.Anything, mock.Anything).Return(root)
+	mockClient.On("Init", mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("Fetch", mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+	mockClient.On("LsRemote", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
+	mockClient.On("LsFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
+	mockClient.On("CommitSHA", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
+	return &mockClient, nil
+}
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
@@ -145,4 +182,76 @@ func TestGenerateFromUTF16(t *testing.T) {
 	res1, err := GenerateManifests("./testdata/utf-16", &q)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
+}
+
+func TestGetAppDetailsHelm(t *testing.T) {
+	serve := newMockRepoServerService("../../util/helm/testdata")
+	ctx := context.Background()
+
+	// verify default parameters are returned when not supplying values
+	{
+		res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
+			Path: "redis",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "Always"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
+		assert.Equal(t, 49, len(res.Helm.Parameters))
+	}
+
+	// verify values specific parameters are returned when a values is specified
+	{
+		res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
+			Path: "redis",
+			Helm: &HelmAppDetailsQuery{
+				ValueFiles: []string{"values-production.yaml"},
+			},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+		assert.Equal(t, argoappv1.HelmParameter{Name: "image.pullPolicy", Value: "IfNotPresent"}, getHelmParameter("image.pullPolicy", res.Helm.Parameters))
+		assert.Equal(t, 49, len(res.Helm.Parameters))
+	}
+}
+
+func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.HelmParameter {
+	for _, p := range params {
+		if name == p.Name {
+			return *p
+		}
+	}
+	panic(name + " not in params")
+}
+
+func TestGetAppDetailsKsonnet(t *testing.T) {
+	serve := newMockRepoServerService("../../util/ksonnet/testdata")
+	ctx := context.Background()
+
+	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
+		Path: "test-app",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "https://1.2.3.4", res.Ksonnet.Environments["test-env"].Destination.Server)
+	assert.Equal(t, "test-namespace", res.Ksonnet.Environments["test-env"].Destination.Namespace)
+	assert.Equal(t, "v1.8.0", res.Ksonnet.Environments["test-env"].K8SVersion)
+	assert.Equal(t, "test-env", res.Ksonnet.Environments["test-env"].Path)
+	assert.Equal(t, argoappv1.KsonnetParameter{Component: "demo", Name: "containerPort", Value: "80"}, *res.Ksonnet.Parameters[0])
+	assert.Equal(t, 6, len(res.Ksonnet.Parameters))
+}
+
+func TestGetAppDetailsKustomize(t *testing.T) {
+	serve := newMockRepoServerService("../../util/kustomize/testdata")
+	ctx := context.Background()
+
+	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
+		Path: "kustomization_yaml",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "nginx", res.Kustomize.ImageTags[0].Name)
+	assert.Equal(t, "1.15.4", res.Kustomize.ImageTags[0].Value)
+	assert.Equal(t, 2, len(res.Kustomize.ImageTags))
 }

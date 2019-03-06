@@ -10,8 +10,8 @@ import (
 	"github.com/argoproj/argo-cd/util/repos"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -47,7 +47,7 @@ func NewServer(clientFactory repos.ClientFactory, cache *cache.Cache, tlsConfCus
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 	tlsConfCustomizer(tlsConfig)
 
-	serverLog := log.NewEntry(log.New())
+	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
 
@@ -69,7 +69,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	version.RegisterVersionServiceServer(server, &version.Server{})
 	manifestService := repository.NewService(a.clientFactory, a.cache, a.parallelismLimit)
-	repository.RegisterRepositoryServiceServer(server, manifestService)
+	repository.RegisterRepoServerServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)

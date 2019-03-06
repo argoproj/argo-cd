@@ -13,6 +13,7 @@ import (
 
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
+	"github.com/ghodss/yaml"
 	jsonnet "github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -187,13 +188,12 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 // GenerateManifests generates manifests from a path
 func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, error) {
 	var targetObjs []*unstructured.Unstructured
-	var params []*v1alpha1.ComponentParameter
 	var dest *v1alpha1.ApplicationDestination
 
 	appSourceType, err := GetAppSourceType(q.ApplicationSource, appPath)
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeKsonnet:
-		targetObjs, params, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
+		targetObjs, dest, err = ksShow(q.AppLabelKey, appPath, q.ApplicationSource.Ksonnet)
 	case v1alpha1.ApplicationSourceTypeHelm:
 		h := helm.NewHelmApp(appPath, q.Repos)
 		err := h.Init()
@@ -214,16 +214,9 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 				return nil, err
 			}
 		}
-		params = make([]*v1alpha1.ComponentParameter, 0)
-		if q.ApplicationSource.Helm != nil {
-			params, err = h.GetParameters(q.ApplicationSource.Helm.ValueFiles)
-			if err != nil {
-				return nil, err
-			}
-		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath)
-		targetObjs, params, err = k.Build(q.ApplicationSource.Kustomize)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Plugins)
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -275,7 +268,6 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 
 	res := ManifestResponse{
 		Manifests:  manifests,
-		Params:     params,
 		SourceType: string(appSourceType),
 	}
 	if dest != nil {
@@ -345,27 +337,23 @@ func checkoutRevision(client repos.Client, path, revision string) (string, error
 }
 
 // ksShow runs `ks show` in an app directory after setting any component parameter overrides
-func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, []*v1alpha1.ComponentParameter, *v1alpha1.ApplicationDestination, error) {
+func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSourceKsonnet) ([]*unstructured.Unstructured, *v1alpha1.ApplicationDestination, error) {
 	ksApp, err := ksonnet.NewKsonnetApp(appPath)
 	if err != nil {
-		return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
+		return nil, nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
 	}
 	if ksonnetOpts == nil {
-		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "Ksonnet environment not set")
-	}
-	params, err := ksApp.ListEnvParams(ksonnetOpts.Environment)
-	if err != nil {
-		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "Failed to list ksonnet app params: %v", err)
+		return nil, nil, status.Errorf(codes.InvalidArgument, "Ksonnet environment not set")
 	}
 	for _, override := range ksonnetOpts.Parameters {
 		err = ksApp.SetComponentParams(ksonnetOpts.Environment, override.Component, override.Name, override.Value)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 	}
 	dest, err := ksApp.Destination(ksonnetOpts.Environment)
 	if err != nil {
-		return nil, nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	targetObjs, err := ksApp.Show(ksonnetOpts.Environment)
 	if err == nil && appLabelKey == common.LabelKeyLegacyApplicationName {
@@ -375,9 +363,9 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 		}
 	}
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	return targetObjs, params, dest, nil
+	return targetObjs, dest, nil
 }
 
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
@@ -537,4 +525,121 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1
 		return nil, err
 	}
 	return kube.SplitYAML(out)
+}
+
+func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error) {
+	revision := q.Revision
+	if revision == "" {
+		revision = "HEAD"
+	}
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, revision)
+	if err != nil {
+		return nil, err
+	}
+	getCached := func() *RepoAppDetailsResponse {
+		var res RepoAppDetailsResponse
+		err = s.cache.GetAppDetails(commitSHA, q.Path, q.valueFiles(), &res)
+		if err == nil {
+			log.Infof("manifest cache hit: %s/%s", commitSHA, q.Path)
+			return &res
+		}
+		if err != cache.ErrCacheMiss {
+			log.Warnf("manifest cache error %s: %v", commitSHA, q.Path)
+		} else {
+			log.Infof("manifest cache miss: %s/%s", commitSHA, q.Path)
+		}
+		return nil
+	}
+	cached := getCached()
+	if cached != nil {
+		return cached, nil
+	}
+	s.repoLock.Lock(gitClient.Root())
+	defer s.repoLock.Unlock(gitClient.Root())
+	cached = getCached()
+	if cached != nil {
+		return cached, nil
+	}
+
+	commitSHA, err = checkoutRevision(gitClient, q.Path, commitSHA)
+	if err != nil {
+		return nil, err
+	}
+
+	appPath := filepath.Join(gitClient.Root(), q.Path)
+
+	appSourceType, err := GetAppSourceType(&v1alpha1.ApplicationSource{}, appPath)
+	if err != nil {
+		return nil, err
+	}
+
+	res := RepoAppDetailsResponse{
+		Type: string(appSourceType),
+	}
+
+	switch appSourceType {
+	case v1alpha1.ApplicationSourceTypeKsonnet:
+		var ksonnetAppSpec KsonnetAppSpec
+		data, err := ioutil.ReadFile(filepath.Join(appPath, "app.yaml"))
+		if err != nil {
+			return nil, err
+		}
+		err = yaml.Unmarshal(data, &ksonnetAppSpec)
+		if err != nil {
+			return nil, err
+		}
+		ksApp, err := ksonnet.NewKsonnetApp(appPath)
+		if err != nil {
+			return nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
+		}
+		params, err := ksApp.ListParams()
+		if err != nil {
+			return nil, err
+		}
+		ksonnetAppSpec.Parameters = params
+		res.Ksonnet = &ksonnetAppSpec
+	case v1alpha1.ApplicationSourceTypeHelm:
+		res.Helm = &HelmAppSpec{}
+		res.Helm.Path = q.Path
+		files, err := ioutil.ReadDir(appPath)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range files {
+			if f.IsDir() {
+				continue
+			}
+			fName := f.Name()
+			if strings.Contains(fName, "values") && (filepath.Ext(fName) == ".yaml" || filepath.Ext(fName) == ".yml") {
+				res.Helm.ValueFiles = append(res.Helm.ValueFiles, fName)
+			}
+		}
+		h := helm.NewHelmApp(appPath, q.Repos)
+		err = h.Init()
+		if err != nil {
+			return nil, err
+		}
+		params, err := h.GetParameters(q.valueFiles())
+		if err != nil {
+			return nil, err
+		}
+		res.Helm.Parameters = params
+	case v1alpha1.ApplicationSourceTypeKustomize:
+		res.Kustomize = &KustomizeAppSpec{}
+		res.Kustomize.Path = q.Path
+		k := kustomize.NewKustomizeApp(appPath)
+		_, params, err := k.Build(nil)
+		if err != nil {
+			return nil, err
+		}
+		res.Kustomize.ImageTags = params
+	}
+	return &res, nil
+}
+
+func (q *RepoServerAppDetailsQuery) valueFiles() []string {
+	if q.Helm == nil {
+		return nil
+	}
+	return q.Helm.ValueFiles
 }

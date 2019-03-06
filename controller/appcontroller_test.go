@@ -42,10 +42,10 @@ func newFakeController(data *fakeData) *ApplicationController {
 	}
 
 	// Mock out call to GenerateManifest
-	mockRepoClient := mockrepoclient.RepositoryServiceClient{}
+	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
 	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
 	mockRepoClientset := mockreposerver.Clientset{}
-	mockRepoClientset.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoClient, nil)
+	mockRepoClientset.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoClient, nil)
 
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

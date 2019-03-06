@@ -61,18 +61,6 @@ message ApplicationSyncRequest {
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7 [(gogoproto.nullable) = false];
 }
 
-// ParameterOverrides is a wrapper on a list of parameters. If omitted, the application's overrides
-// in the spec will be used. If set, will use the supplied list of overrides
-message ParameterOverrides {
-	repeated Parameter overrides = 1;
-}
-
-message Parameter {
-	required string name = 1 [(gogoproto.nullable) = false];
-	optional string value = 2 [(gogoproto.nullable) = false];
-	optional string component = 3 [(gogoproto.nullable) = false];
-}
-
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
