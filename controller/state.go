@@ -278,7 +278,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		conditions:       conditions,
 		hooks:            hooks,
 		diffNormalizer:   diffNormalizer,
-		appSourceType:    v1alpha1.ApplicationSourceType(manifestInfo.SourceType),
+	}
+	if manifestInfo != nil {
+		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 	}
 	return &compRes, nil
 }
