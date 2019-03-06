@@ -23,7 +23,7 @@ import (
 func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "repo",
-		Short: "Manage git repository credentials",
+		Short: "Manage repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -46,7 +46,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	)
 	var command = &cobra.Command{
 		Use:   "add REPO",
-		Short: "Add git repository credentials",
+		Short: "Add repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -90,7 +90,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
-	command.Flags().StringVar(&repo.Name, "name", "", "the name of the the repo (default is the URL)")
+	command.Flags().StringVar(&repo.Name, "name", "", "the name of the the repo")
 	command.Flags().StringVar(&repoType, "type", "git", "the type of the the repo (default is git)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	return command
@@ -100,7 +100,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm REPO",
-		Short: "Remove git repository credentials",
+		Short: "Remove repository credentials",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)

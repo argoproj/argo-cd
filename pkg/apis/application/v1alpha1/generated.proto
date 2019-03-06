@@ -46,7 +46,7 @@ message AppProjectList {
 
 // AppProjectSpec is the specification of an AppProject
 message AppProjectSpec {
-  // SourceRepos contains list of git repository URLs which can be used for deployment
+  // SourceRepos contains list of repository URLs which can be used for deployment
   repeated string sourceRepos = 1;
 
   // Destinations contains list of destinations available for deployment

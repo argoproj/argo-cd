@@ -128,7 +128,7 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 }
 
 // GetSpecErrors returns list of conditions which indicates that app spec is invalid. Following is checked:
-// * the git repository is accessible
+// * the repository is accessible
 // * the git path contains valid manifests
 // * the referenced cluster has been added to Argo CD
 // * the app source repo and destination namespace/cluster are permitted in app project

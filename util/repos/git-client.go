@@ -53,7 +53,7 @@ func (m *nativeGitClient) Test() error {
 	return err
 }
 
-// Init initializes a local git repository and sets the remote origin
+// Init initializes a local repository and sets the remote origin
 func (m *nativeGitClient) init() error {
 	_, err := git.PlainOpen(m.root)
 	if err == nil {
