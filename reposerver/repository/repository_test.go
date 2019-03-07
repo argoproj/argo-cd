@@ -108,7 +108,7 @@ func TestGenerateHelmChartWithDependencies(t *testing.T) {
 	}
 	res1, err := GenerateManifests("../../util/helm/testdata/wordpress", &q)
 	assert.Nil(t, err)
-	assert.Equal(t, 12, len(res1.Manifests))
+	assert.Equal(t, 11, len(res1.Manifests))
 }
 
 func TestGenerateNullList(t *testing.T) {
