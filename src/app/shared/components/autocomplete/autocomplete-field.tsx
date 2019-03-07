@@ -13,8 +13,8 @@ export const AutocompleteField = ReactForm.FormField((props: AutocompleteProps &
     return (
         <Autocomplete
             wrapperProps={{className: classNames(props.className, { 'argo-has-value': forceHasValue })}}
-            onSelect={(selected) => {
-                setValue(selected);
+            onSelect={(_, item) => {
+                setValue(item.value);
             }}
             inputProps={{
                 className: props.className,
@@ -41,4 +41,4 @@ export const AutocompleteField = ReactForm.FormField((props: AutocompleteProps &
             onChange={(val) => setValue(val.target.value)}
             {...rest}/>
     );
-}) as React.ComponentType<ReactForm.FieldProps & { items: (AutocompleteOption | string)[], className?: string }>;
+}) as React.ComponentType<ReactForm.FieldProps & { items: (AutocompleteOption | string)[], className?: string, filterSuggestions?: boolean }>;

@@ -1,4 +1,4 @@
-import { DataLoader, DropDownMenu, FormField, FormSelect } from 'argo-ui';
+import { DataLoader, DropDownMenu, FormField } from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import { Form, FormApi, Text } from 'react-form';
@@ -26,7 +26,7 @@ const DEFAULT_APP: Partial<models.Application> = {
     },
     spec: {
         destination: {
-            namespace: 'default',
+            namespace: '',
             server: '',
         },
         source: {
@@ -61,20 +61,15 @@ export const ApplicationCreatePanel = (props: {
     return (
         <React.Fragment>
             <DataLoader key='creation-deps' load={() => Promise.all([
-                services.projects.list().then((projects) => projects.map((proj) => proj.metadata.name)),
-                services.clusters.list().then((clusters) => clusters.map((cluster) => ({title: `${cluster.name || 'in-cluster'}: ${cluster.server}`, value: cluster.server}))),
-                services.repos.list().then((repos) => repos.map((repo) => repo.repo)),
+                services.projects.list().then((projects) => projects.map((proj) => proj.metadata.name).sort()),
+                services.clusters.list().then((clusters) => clusters
+                    .map((cluster) => ({label: `${cluster.name || 'in-cluster'}: ${cluster.server}`, value: cluster.server}))
+                    .sort((first, second) => first.label.localeCompare(second.label)),
+                ),
+                services.repos.list().then((repos) => repos.map((repo) => repo.repo).sort()),
             ]).then(([projects, clusters, repos]) => ({projects, clusters, repos}))}>
             {({projects, clusters, repos}) => {
-                const defaultApp = deepMerge(DEFAULT_APP, {
-                    spec: {
-                        project: projects[0],
-                        destination: {
-                            server: clusters.length > 0 ? clusters[0].value : '',
-                        },
-                    },
-                });
-                const app = deepMerge(defaultApp, props.app || {});
+                const app = deepMerge(DEFAULT_APP, props.app || {});
                 return (
                     <div className='application-create-panel'>
                         {yamlMode && (
@@ -125,12 +120,14 @@ export const ApplicationCreatePanel = (props: {
                                                     input={{ repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision }}
                                                     load={async (src) => src.repoURL &&
                                                         services.repos.apps(src.repoURL, src.revision)
-                                                            .then((apps) => Array.from(new Set(apps.map((item) => item.path))))
+                                                            .then((apps) => Array.from(new Set(apps.map((item) => item.path))).sort())
                                                             .catch(() => new Array<string>()) ||
                                                         new Array<string>()
                                                     }>
                                             {(apps: string[]) => (
-                                                <FormField formApi={api} label='Path' field='spec.source.path' component={AutocompleteField} componentProps={{ items: apps }}/>
+                                                <FormField formApi={api} label='Path' field='spec.source.path' component={AutocompleteField} componentProps={{
+                                                    items: apps, filterSuggestions: true,
+                                                }}/>
                                             )}
                                             </DataLoader>
                                         </div>
@@ -142,7 +139,7 @@ export const ApplicationCreatePanel = (props: {
                                         <p>DESTINATION</p>
                                         <div className='argo-form-row'>
                                             <FormField formApi={api}
-                                                label='Cluster URL' field='spec.destination.server' componentProps={{options: clusters}} component={FormSelect}/>
+                                                label='Cluster URL' field='spec.destination.server' componentProps={{items: clusters}} component={AutocompleteField}/>
                                         </div>
                                         <div className='argo-form-row'>
                                             <FormField formApi={api} label='Namespace' field='spec.destination.namespace' component={Text}/>
