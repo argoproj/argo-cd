@@ -156,7 +156,7 @@ func GetSpecErrors(
 		return nil, err
 	}
 	defer util.Close(conn)
-	repoAccessable := false
+	repoAccessible := false
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 
 	if err != nil {
@@ -176,13 +176,13 @@ func GetSpecErrors(
 					Message: fmt.Sprintf("No credentials available for source repository and repository is not publicly accessible: %v", err),
 				})
 			} else {
-				repoAccessable = true
+				repoAccessible = true
 			}
 		} else {
 			return nil, err
 		}
 	} else {
-		repoAccessable = true
+		repoAccessible = true
 	}
 
 	// Verify only one source type is defined
@@ -194,7 +194,7 @@ func GetSpecErrors(
 		})
 	}
 
-	if repoAccessable {
+	if repoAccessible {
 		var appSourceType argoappv1.ApplicationSourceType
 		if explicitSourceType != nil {
 			appSourceType = *explicitSourceType
@@ -288,7 +288,6 @@ func QueryAppSourceType(ctx context.Context, app *argoappv1.Application, repoCli
 }
 
 func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
-
 	req := repository.ListDirRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
@@ -373,9 +372,7 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 
 // verifyHelmChart verifies a helm chart is functional
 func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
-
 	var conditions []argoappv1.ApplicationCondition
-
 	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,

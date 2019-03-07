@@ -6,7 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -17,6 +21,10 @@ import (
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
+	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
+	"github.com/argoproj/argo-cd/reposerver/repository"
+	mockreposerver "github.com/argoproj/argo-cd/reposerver/repository/mocks"
+	mockdb "github.com/argoproj/argo-cd/util/db/mocks"
 )
 
 func TestRefreshApp(t *testing.T) {
@@ -31,6 +39,108 @@ func TestRefreshApp(t *testing.T) {
 	// so can't verify it was set in unit tests.
 	//_, ok := newApp.Annotations[common.AnnotationKeyRefresh]
 	//assert.True(t, ok)
+}
+
+type fakeCloser struct {
+}
+
+func (f fakeCloser) Close() error {
+	return nil
+}
+
+func TestGetSpecErrors(t *testing.T) {
+	// nice values
+	knownGitRepoUrl := "https://github.com/argoproj/argo-cd"
+	knownHelmRepoUrl := "https://kubernetes-charts.storage.googleapis.com"
+	notFoundRepoUrl := "http://0.0.0.0"
+	path := "xxx"
+	targetRevision := ""
+	server := "http://1.1.1.1"
+	namespace := "default"
+
+	var spec argoappv1.ApplicationSpec
+	before := func() {
+		spec = argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{RepoURL: knownGitRepoUrl, Path: path, TargetRevision: targetRevision}, Destination: argoappv1.ApplicationDestination{Namespace: namespace, Server: server}}
+	}
+	project := argoappv1.AppProject{Spec: argoappv1.AppProjectSpec{SourceRepos: []string{knownGitRepoUrl, knownHelmRepoUrl}, Destinations: []argoappv1.ApplicationDestination{{Server: server, Namespace: namespace}}}}
+
+	mockRepoServiceClient := mockreposerver.RepoServerServiceClient{}
+	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(&repository.FileList{}, nil)
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
+
+	mockRepoClient := mockrepo.Clientset{}
+	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
+
+	mockDb := mockdb.ArgoDB{}
+	mockDb.On("GetRepository", mock.Anything, knownGitRepoUrl).Return(&argoappv1.Repository{}, nil)
+	mockDb.On("GetRepository", mock.Anything, knownHelmRepoUrl).Return(&argoappv1.Repository{Type: argoappv1.Helm}, nil)
+	mockDb.On("GetRepository", mock.Anything, notFoundRepoUrl).Return(nil, status.Error(codes.NotFound, ""))
+	mockDb.On("GetCluster", mock.Anything, server).Return(&argoappv1.Cluster{}, nil)
+
+	t.Run("MissingRepoUrl", func(t *testing.T) {
+		before()
+		spec.Source.RepoURL = ""
+
+		conditions, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+
+		assert.NoError(t, err)
+		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "spec.source.repoURL and spec.source.path are required"}}, conditions)
+	})
+
+	t.Run("MissingPath", func(t *testing.T) {
+		before()
+		spec.Source.Path = ""
+
+		conditions, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+
+		assert.NoError(t, err)
+		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "spec.source.repoURL and spec.source.path are required"}}, conditions)
+	})
+
+	t.Run("MissingDestinationServer", func(t *testing.T) {
+		before()
+		spec.Destination.Server = ""
+
+		conditions, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+
+		assert.NoError(t, err)
+		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "Destination server and/or namespace missing from app spec"}}, conditions)
+	})
+
+	t.Run("MissingDestinationServer", func(t *testing.T) {
+		before()
+		spec.Destination.Server = ""
+
+		conditions, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+
+		assert.NoError(t, err)
+		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "Destination server and/or namespace missing from app spec"}}, conditions)
+	})
+	t.Run("UnknownRepo", func(t *testing.T) {
+		before()
+		spec.Source.RepoURL = notFoundRepoUrl
+
+		conditions, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+
+		assert.NoError(t, err)
+		assert.Contains(t, conditions[0].Message, "No credentials available for source repository and repository is not publicly accessible")
+	})
+	t.Run("Git", func(t *testing.T) {
+		before()
+		conditions, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+
+		assert.NoError(t, err)
+		assert.Equal(t, []argoappv1.ApplicationCondition{}, conditions)
+	})
+	t.Run("Helm", func(t *testing.T) {
+		before()
+		spec.Source.RepoURL = knownHelmRepoUrl
+
+		conditions, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+
+		assert.NoError(t, err)
+		assert.Equal(t, []argoappv1.ApplicationCondition{}, conditions)
+	})
 }
 
 func TestGetAppProjectWithNoProjDefined(t *testing.T) {
