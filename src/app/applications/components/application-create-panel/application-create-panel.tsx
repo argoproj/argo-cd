@@ -1,7 +1,7 @@
-import { DataLoader, DropDownMenu, FormField } from 'argo-ui';
+import { DataLoader, DropDownMenu, FormField, Select } from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
-import { Form, FormApi, Text } from 'react-form';
+import { FieldApi, Form, FormApi, FormField as ReactFormField, Text } from 'react-form';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -37,6 +37,34 @@ const DEFAULT_APP: Partial<models.Application> = {
         project: '',
     },
 };
+
+const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi, className: string }) => {
+    const manual = 'Manual';
+    const auto = 'Automatic, but do not automatically prune resources';
+    const autoWithPrune = 'Automatic with automatic pruning';
+
+    const { fieldApi: {getValue, setValue}} = props;
+    const value = getValue() as models.SyncPolicy;
+
+    let selectedOption = manual;
+    if (value && value.automated) {
+        selectedOption = value.automated.prune && autoWithPrune || auto;
+    }
+
+    return (
+    <Select value={selectedOption} options={[ manual, auto, autoWithPrune ]} onChange={(opt) => {
+        let policy: models.SyncPolicy;
+        switch (opt.value) {
+            case auto:
+                policy = { automated: { prune: false } };
+                break;
+            case autoWithPrune:
+                policy = { automated: { prune: true } };
+                break;
+        }
+        setValue(policy);
+    }} />);
+});
 
 export const ApplicationCreatePanel = (props: {
     app: models.Application,
@@ -101,6 +129,9 @@ export const ApplicationCreatePanel = (props: {
                                         </div>
                                         <div className='argo-form-row'>
                                             <FormField formApi={api} label='Project' field='spec.project' component={AutocompleteField} componentProps={{items: projects}} />
+                                        </div>
+                                        <div className='argo-form-row'>
+                                            <FormField formApi={api} label='Sync-policy' field='spec.syncPolicy' component={AutoSyncFormField} />
                                         </div>
                                     </div>
                                 );
