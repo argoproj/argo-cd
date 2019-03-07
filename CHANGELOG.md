@@ -1,5 +1,164 @@
 # Changelog
 
+## v0.12.0 (Unreleased)
+
+### New Features
+
+#### Improved UI
+
+Many improvements to the UI were made, including:
+
+* Table view when viewing applications
+* Filters on applications
+* Table view when viewing application resources
+* YAML editor in UI
+* Switch to text-based diff instead of json diff
+* Ability to edit application specs
+
+#### Custom Health Assessments (CRD Health)
+
+Argo CD has long been able to perform health assessments on resources, however this could only
+assess the health for a few native kubernetes types (deployments, statefulsets, daemonsets, etc...).
+Now, Argo CD can be extended to gain understanding of any CRD health, in the form of Lua scripts.
+For example, using this feature, Argo CD now understands the CertManager Certificate CRD and will
+report a Degraded status when there are issues with the cert.
+
+#### Configuration Management Plugins
+
+Argo CD introduces Config Management Plugins to support custom configuration management tools other
+than the set that Argo CD provides out-of-the-box (Helm, Kustomize, Ksonnet, Jsonnet). Using config
+management plugins, Argo CD can be configured to run specified commands to render manifests. This
+makes it possible for Argo CD to support other config management tools (kubecfg, kapitan, shell
+scripts, etc...).
+
+#### High Availability
+
+Argo CD is now fully HA. A set HA of manifests are provided for users who wish to run Argo CD in
+a highly available manner. NOTE: The HA installation will require at least three different nodes due
+to pod anti-affinity roles in the specs.
+
+#### Improved Application Source
+
+* Support for Kustomize 2
+* YAML/JSON/Jsonnet Directories can now be recursed
+* Support for Jsonnet external variables and top-level arguments
+
+#### Additional Prometheus Metrics
+
+Argo CD provides the following additional prometheus metrics:
+* Sync counter to track sync activity and results over time
+* Application reconciliation (refresh) performance to track Argo CD performance and controller activity
+* Argo CD API Server metrics for monitoring HTTP/gRPC requests
+
+#### Fuzzy Diff Logic
+
+Argo CD can now be configured to ignore known differences for resource types by specifying a json
+pointer to the field path to ignore. This helps prevent OutOfSync conditions when a user has no
+control over the manifests. Ignored differences can be configured either at an application level, 
+or a system level, based on a group/kind.
+
+#### Resource Exclusions
+
+Argo CD can now be configured to completely ignore entire classes of resources group/kinds.
+Excluding high-volume resources improves performance and memory usage, and reduces load and
+bandwidth to the Kubernetes API server. It also allows users to fine-tune the permissions that
+Argo CD needs to a cluster by preventing Argo CD from attempting to watch resources of that
+group/kind.
+
+#### gRPC-Web Support
+
+The argocd CLI can be now configured to communicate to the Argo CD API server using gRPC-Web
+(HTTP1.1) using a new CLI flag `--grpc-web`. This resolves some compatibility issues users were
+experiencing with ingresses and gRPC (HTTP2), and should enable argocd CLI to work with virtually
+any load balancer, ingress controller, or API gateway.
+
+#### CLI features
+
+Argo CD introduces some additional CLI commands:
+
+* `argocd app edit APPNAME` - to edit an application spec using preferred EDITOR
+* `argocd proj edit PROJNAME` - to edit an project spec using preferred EDITOR
+* `argocd app patch APPNAME` - to patch an application spec
+* `argocd app patch-resource APPNAME` - to patch a specific resource which is part of an application
+
+
+### Breaking Changes
+
+#### Label selector changes, dex-server rename
+
+The label selectors for deployments were been renamed to use kubernetes common labels
+(`app.kuberentes.io/name=NAME` instead of `app=NAME`). Since K8s deployment label selectors are
+immutable, during an upgrade from v0.11 to v0.12, the old deployments should be deleted using
+`--cascade=false` which allows the new deployments to be created without introducing downtime.
+Once the new deployments are ready, the older replicasets can be deleted. Use the following
+instructions to upgrade from v0.11 to v0.12 without introducing downtime:
+
+```
+# delete the deployments with cascade=false. this orphan the replicasets, but leaves the pods running
+kubectl delete deploy --cascade=false argocd-server argocd-repo-server argocd-application-controller
+
+# apply the new manifests and wait for them to finish rolling out
+kubectl apply <new install manifests>
+kubectl rollout status deploy/argocd-application-controller
+kubectl rollout status deploy/argocd-repo-server
+kubectl rollout status deploy/argocd-application-controller
+
+# delete old replicasets which are using the legacy label
+kubectl delete rs -l app=argocd-server
+kubectl delete rs -l app=argocd-repo-server
+kubectl delete rs -l app=argocd-application-controller
+
+# delete the legacy dex-server which was renamed
+kubectl delete deploy dex-server
+```
+
+#### Deprecation of spec.source.componentParameterOverrides
+
+For declarative application specs, the `spec.source.componentParameterOverrides` field is now
+deprecated in favor of application source specific config. They are replaced with new fields
+specific to their respective config management. For example, a Helm application spec using the
+legacy field:
+
+```yaml
+spec:
+  source:
+    componentParameterOverrides:
+    - name: image.tag
+      value: v1.2
+```
+
+should move to:
+
+```yaml
+spec:
+  source:
+    helm:
+      parameters:
+      - name: image.tag
+        value: v1.2
+```
+
+Argo CD will automatically duplicate the legacy field values to the new locations (and vice versa)
+as part of automatic migration. The legacy `spec.source.componentParameterOverrides` field will be
+kept around for the v0.12 release (for migration purposes) and will be removed in the next Argo CD
+release.
+
+#### Removal of spec.source.environment and spec.source.valuesFiles
+
+The `spec.source.environment` and `spec.source.valuesFiles` fields, which were deprecated in v0.11,
+are now completely removed from the Application spec.
+
+
+#### API/CLI compatibility
+
+Due to API spec changes related to the deprecation of componentParameterOverrides, Argo CD v0.12
+has a minimum client version of v0.12.0. Older CLI clients will be rejected.
+
+
+### Changes since v0.11:
+- 
+
+
 ## v0.11.2 (2019-02-19)
 + Adds client retry. Fixes #959 (#1119)
 - Prevent deletion hotloop (#1115)

@@ -248,7 +248,7 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 		Path: "kustomization_yaml",
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, "nginx", res.Kustomize.ImageTags[0].Name)
-	assert.Equal(t, "1.15.4", res.Kustomize.ImageTags[0].Value)
+	assert.Equal(t, "k8s.gcr.io/nginx-slim", res.Kustomize.ImageTags[0].Name)
+	assert.Equal(t, "0.8", res.Kustomize.ImageTags[0].Value)
 	assert.Equal(t, 2, len(res.Kustomize.ImageTags))
 }

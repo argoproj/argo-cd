@@ -7,7 +7,7 @@ other than what Argo CD bundles. Some reasons to do this might be:
 * To upgrade/downgrade to a specific version of a tool due to bugs or bug fixes.
 * To install additional dependencies which to be used by kustomize's configmap/secret generators
   (e.g. curl, vault, gpg, AWS CLI)
-* In the future, to install a [custom templating tool](https://github.com/argoproj/argo-cd/issues/701)
+* To install a [config management plugin](application_sources.md#config-management-plugins)
 
 As the Argo CD repo-server is the single service responsible for generating Kubernetes manifests, it
 can be customized to use alternative toolchain required by your environment.
