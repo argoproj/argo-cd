@@ -83,6 +83,11 @@ func (h *helm) DependencyBuild() error {
 		}()
 
 		for _, repo := range h.repos {
+
+			if repo.Type != argoappv1.Helm {
+				continue
+			}
+
 			args := []string{"repo", "add"}
 
 			for flag, data := range map[string][]byte{"--ca-file": repo.CAData, "--cert-file": repo.CertData, "--key-file": repo.KeyData} {
