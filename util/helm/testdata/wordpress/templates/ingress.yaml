@@ -1,36 +1,37 @@
 {{- if .Values.ingress.enabled }}
-{{- range .Values.ingress.hosts }}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: "{{- printf "%s-%s" .name $.Release.Name | trunc 63 | trimSuffix "-" -}}"
+  name: {{ template "wordpress.fullname" . }}
   labels:
-    app: {{ template "fullname" $ }}
-    chart: "{{ $.Chart.Name }}-{{ $.Chart.Version }}"
-    release: "{{ $.Release.Name }}"
-    heritage: "{{ $.Release.Service }}"
+    app: "{{ template "wordpress.fullname" . }}"
+    chart: "{{ template "wordpress.chart" . }}"
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
   annotations:
-    {{- if .tls }}
-    ingress.kubernetes.io/secure-backends: "true"
+    {{- if .Values.ingress.certManager }}
+    kubernetes.io/tls-acme: "true"
     {{- end }}
-    {{- range $key, $value := .annotations }}
+    {{- range $key, $value := .Values.ingress.annotations }}
     {{ $key }}: {{ $value | quote }}
     {{- end }}
 spec:
   rules:
+  {{- range .Values.ingress.hosts }}
   - host: {{ .name }}
     http:
       paths:
-        - path: {{ default "/" .path }}
-          backend:
-            serviceName: {{ template "fullname" $ }}
-            servicePort: 80
-{{- if .tls }}
+      - path: {{ default "/" .path }}
+        backend:
+          serviceName: "{{ template "wordpress.fullname" $ }}"
+          servicePort: http
+  {{- end }}
   tls:
+  {{- range .Values.ingress.hosts }}
+  {{- if .tls }}
   - hosts:
     - {{ .name }}
     secretName: {{ .tlsSecret }}
-{{- end }}
----
-{{- end }}
+  {{- end }}
+  {{- end }}
 {{- end }}

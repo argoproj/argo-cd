@@ -1,6 +1,6 @@
 dependencies:
 - name: mariadb
-  version: 4.x.x
+  version: 5.x.x
   repository: https://kubernetes-charts.storage.googleapis.com/
   condition: mariadb.enabled
   tags:

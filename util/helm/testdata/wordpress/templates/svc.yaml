@@ -1,29 +1,36 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "fullname" . }}
+  name: {{ template "wordpress.fullname" . }}
   labels:
-    app: {{ template "fullname" . }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    app: "{{ template "wordpress.fullname" . }}"
+    chart: "{{ template "wordpress.chart" . }}"
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
+  annotations:
+{{- if .Values.service.annotations }}
+{{ toYaml .Values.service.annotations | indent 4 }}
+{{- end }}
 spec:
-  type: {{ .Values.serviceType }}
-  {{- if (or (eq .Values.serviceType "LoadBalancer") (eq .Values.serviceType "NodePort")) }}
-  externalTrafficPolicy: {{ .Values.serviceExternalTrafficPolicy | quote }}
+  type: {{ .Values.service.type }}
+  {{- if (or (eq .Values.service.type "LoadBalancer") (eq .Values.service.type "NodePort")) }}
+  externalTrafficPolicy: {{ .Values.service.externalTrafficPolicy | quote }}
   {{- end }}
   ports:
     - name: http
-      port: 80
+      port: {{ .Values.service.port }}
       targetPort: http
-      {{- if (and (eq .Values.serviceType "NodePort") (not (empty .Values.nodePorts.http)))}}
-      nodePort: {{ .Values.nodePorts.http }}
+      {{- if (and (eq .Values.service.type "NodePort") (not (empty .Values.service.nodePorts.http)))}}
+      nodePort: {{ .Values.service.nodePorts.http }}
       {{- end }}
     - name: https
-      port: 443
+      port: {{ .Values.service.httpsPort }}
       targetPort: https
-      {{- if (and (eq .Values.serviceType "NodePort") (not (empty .Values.nodePorts.https)))}}
-      nodePort: {{ .Values.nodePorts.https }}
+      {{- if (and (eq .Values.service.type "NodePort") (not (empty .Values.service.nodePorts.https)))}}
+      nodePort: {{ .Values.service.nodePorts.https }}
       {{- end }}
+{{- if .Values.service.extraPorts }}
+{{ toYaml .Values.service.extraPorts | indent 6 }}
+{{- end }}      
   selector:
-    app: {{ template "fullname" . }}
+    app: "{{ template "wordpress.fullname" . }}"

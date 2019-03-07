@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: {{ .Release.Name }}-credentials-test
-    image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+    image: {{ template "wordpress.image" . }}
     imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
     env:
       - name: MARIADB_HOST

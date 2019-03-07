@@ -1,20 +1,33 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: {{ template "fullname" . }}
+  name: {{ template "wordpress.fullname" . }}
   labels:
-    app: {{ template "fullname" . }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    app: "{{ template "wordpress.fullname" . }}"
+    chart: "{{ template "wordpress.chart" . }}"
+    release: {{ .Release.Name | quote }}
+    heritage: {{ .Release.Service | quote }}
 spec:
+  selector:
+    matchLabels:
+      app: "{{ template "wordpress.fullname" . }}"
+      release: {{ .Release.Name | quote }}
   replicas: {{ .Values.replicaCount }}
   template:
     metadata:
       labels:
-        app: {{ template "fullname" . }}
-        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-        release: "{{ .Release.Name }}"
+        app: "{{ template "wordpress.fullname" . }}"
+        chart: "{{ template "wordpress.chart" . }}"
+        release: {{ .Release.Name | quote }}
+{{- if or .Values.podAnnotations .Values.metrics.enabled }}
+      annotations:
+{{- if .Values.podAnnotations }}
+{{ toYaml .Values.podAnnotations | indent 8 }}
+{{- end }}
+{{- if .Values.metrics.podAnnotations }}
+{{ toYaml .Values.metrics.podAnnotations | indent 8 }}
+{{- end }}
+{{- end }}
     spec:
       {{- if .Values.image.pullSecrets }}
       imagePullSecrets:
@@ -22,9 +35,13 @@ spec:
         - name: {{ . }}
       {{- end}}
       {{- end }}
+      hostAliases:
+      - ip: "127.0.0.1"
+        hostnames:
+        - "status.localhost"
       containers:
-      - name: {{ template "fullname" . }}
-        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+      - name: wordpress
+        image: {{ template "wordpress.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
         env:
         - name: ALLOW_EMPTY_PASSWORD
@@ -72,7 +89,7 @@ spec:
         - name: WORDPRESS_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ template "fullname" . }}
+              name: {{ template "wordpress.fullname" . }}
               key: wordpress-password
         - name: WORDPRESS_EMAIL
           value: {{ .Values.wordpressEmail | quote }}
@@ -80,25 +97,39 @@ spec:
           value: {{ .Values.wordpressFirstName | quote }}
         - name: WORDPRESS_LAST_NAME
           value: {{ .Values.wordpressLastName | quote }}
+        - name: WORDPRESS_HTACCESS_OVERRIDE_NONE
+          value: {{ .Values.allowOverrideNone | quote }}
         - name: WORDPRESS_BLOG_NAME
           value: {{ .Values.wordpressBlogName | quote }}
         - name: WORDPRESS_TABLE_PREFIX
           value: {{ .Values.wordpressTablePrefix | quote }}
+        {{- if .Values.smtpHost }}
         - name: SMTP_HOST
           value: {{ .Values.smtpHost | quote }}
+        {{- end }}
+        {{- if .Values.smtpPort }}
         - name: SMTP_PORT
           value: {{ .Values.smtpPort | quote }}
+        {{- end }}
+        {{- if .Values.smtpUser }}
         - name: SMTP_USER
           value: {{ .Values.smtpUser | quote }}
+        {{- end }}
+        {{- if .Values.smtpPassword }}
         - name: SMTP_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ template "fullname" . }}
+              name: {{ template "wordpress.fullname" . }}
               key: smtp-password
+        {{- end }}
+        {{- if .Values.smtpUsername }}
         - name: SMTP_USERNAME
           value: {{ .Values.smtpUsername | quote }}
+        {{- end }}
+        {{- if .Values.smtpProtocol }}
         - name: SMTP_PROTOCOL
           value: {{ .Values.smtpProtocol | quote }}
+        {{- end }}
         ports:
         - name: http
           containerPort: 80
@@ -113,6 +144,10 @@ spec:
             port: https
             scheme: HTTPS
           {{- end }}
+          {{- if .Values.livenessProbeHeaders }}
+            httpHeaders:
+{{ toYaml .Values.livenessProbeHeaders | indent 14 }}
+          {{- end }}
 {{ toYaml .Values.livenessProbe | indent 10 }}
         readinessProbe:
           httpGet:
@@ -122,6 +157,10 @@ spec:
           {{- else }}
             port: https
             scheme: HTTPS
+          {{- end }}
+          {{- if .Values.readinessProbeHeaders }}
+            httpHeaders:
+{{ toYaml .Values.readinessProbeHeaders | indent 14 }}
           {{- end }}
 {{ toYaml .Values.readinessProbe | indent 10 }}
         volumeMounts:
@@ -134,13 +173,49 @@ spec:
         - mountPath: /bitnami/php
           name: wordpress-data
           subPath: php
+        {{- if and .Values.allowOverrideNone .Values.customHTAccessCM}}
+        - mountPath: /opt/bitnami/wordpress
+          name: custom-htaccess
+          subPath: wordpress-htaccess.conf
+        {{- end }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
+{{- if .Values.metrics.enabled }}
+      - name: metrics
+        image: {{ template "metrics.image" . }}
+        imagePullPolicy: {{ .Values.metrics.image.pullPolicy | quote }}
+        command: [ '/bin/apache_exporter', '-scrape_uri', 'http://status.localhost:80/server-status/?auto']
+        ports:
+        - name: metrics
+          containerPort: 9117
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+        resources:
+{{ toYaml .Values.metrics.resources | indent 10 }}
+{{- end }}
+{{- if .Values.sidecars }}
+{{ toYaml .Values.sidecars | indent 6 }}
+{{- end }}
       volumes:
+      {{- if and .Values.allowOverrideNone .Values.customHTAccessCM}}
+      - name: custom-htaccess
+        configMap:
+          name: {{ template "wordpress.customHTAccessCM" . }}
+      {{- end }} 
       - name: wordpress-data
       {{- if .Values.persistence.enabled }}
         persistentVolumeClaim:
-          claimName: {{ .Values.persistence.existingClaim | default (include "fullname" .) }}
+          claimName: {{ .Values.persistence.existingClaim | default (include "wordpress.fullname" .) }}
       {{- else }}
         emptyDir: {}
       {{ end }}
@@ -156,4 +231,3 @@ spec:
       tolerations:
 {{ toYaml . | indent 8 }}
     {{- end }}
-
