@@ -109,7 +109,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 	}
 	clean()
 	defer clean()
-	h := NewHelmApp("./testdata/wordpress", []*argoappv1.Repository{})
+	h := NewHelmApp("./testdata/wordpress", []*argoappv1.Repository{{Repo: "http://0.0.0.0", Type: argoappv1.Git}})
 	helmHome, err := ioutil.TempDir("", "")
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(helmHome) }()
