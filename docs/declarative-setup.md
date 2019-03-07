@@ -106,11 +106,11 @@ definition as a Kubernetes manifest.
 Each repository must have:
  
  * `url` 
- * `type` - Must be `git`.
  
  Optionally:
  
- * `usernameSecret` 
+ * `type` - Must be `git`.
+  * `usernameSecret` 
  * `passwordSecret` 
  * `sshPrivateKeySecret`
 
@@ -137,6 +137,8 @@ data:
 ```
 
 ### Helm Repositories
+
+Note: Helm repos used to configured using `helm.repositories`. You must migrate them to the below format as of v0.13. 
 
 Helm Chart repositories must be under `repositories` key too. Each repository must have:
 
