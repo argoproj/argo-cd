@@ -28,21 +28,6 @@ ENV DEP_VERSION=0.5.0
 RUN wget https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -O /usr/local/bin/dep && \
     chmod +x /usr/local/bin/dep
 
-# Install golangci-lint
-RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
-    chmod +x ./golangci-lint.sh && \
-    ./golangci-lint.sh -b /usr/local/bin && \
-    golangci-lint linters
-
-# Force download of latest linters
-RUN go get -u github.com/argoproj/argo-cd && \
-    cd $GOPATH/src/github.com/argoproj/argo-cd && \
-    git remote add alexec https://github.com/alexec/argo-cd && \
-    git fetch alexec && \
-    git checkout golangci-lint && \
-    dep ensure && \
-    golangci-lint run
-
 # Install gometalinter
 ENV GOMETALINTER_VERSION=2.0.12
 RUN curl -sLo- https://github.com/alecthomas/gometalinter/releases/download/v${GOMETALINTER_VERSION}/gometalinter-${GOMETALINTER_VERSION}-linux-amd64.tar.gz | \
@@ -94,6 +79,17 @@ ENV AWS_IAM_AUTHENTICATOR_VERSION=0.4.0-alpha.1
 RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/${AWS_IAM_AUTHENTICATOR_VERSION}/aws-iam-authenticator_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/aws-iam-authenticator
 
+# Install golangci-lint
+RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
+    chmod +x ./golangci-lint.sh && \
+    ./golangci-lint.sh -b $GOPATH/bin && \
+    golangci-lint linters
+
+COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
+
+RUN cd ${GOPATH}/src/dummy && \
+    touch dummy.go \
+    golangci-lint run
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
