@@ -66,7 +66,6 @@ spec:
   - group: ''
     kind: Namespace
   # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
-  clusterResourceWhitelist:
   - group: ''
     kind: ResourceQuota
   - group: ''
