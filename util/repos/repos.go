@@ -8,14 +8,19 @@ import (
 
 // Client is a generic git client interface
 type Client interface {
+	// Return the directory of the checkout code. Aka "working tree".
 	Root() string
+	// Test that we can connect to the remote repo.
 	Test() error
+	// Checkout out the specified revision of the code from the remote repo into the working tree.
 	Checkout(path, revision string) (string, error)
+	// Resolve a potentially ambiguous revision (e.g. tag or branch) into non-ambiguous revision.
 	ResolveRevision(revision string) (string, error)
+	// List files in the local working tree.
 	LsFiles(path string) ([]string, error)
 }
 
-// ClientFactory is a factory of Git Clients
+// ClientFactory is a factory of Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
 	NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error)
