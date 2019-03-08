@@ -1,7 +1,9 @@
 package repos
 
 import (
+	"io/ioutil"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -100,7 +102,14 @@ func IsSSHURL(url string) bool {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(repo, repoType, username, password string, sshPrivateKey string) error {
-	clnt, err := NewFactory().NewClient(repo, repoType, "", username, password, sshPrivateKey)
+
+	tmp, err := ioutil.TempDir("", "repos")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(tmp) }()
+
+	clnt, err := NewFactory().NewClient(repo, repoType, tmp, username, password, sshPrivateKey)
 	if err != nil {
 		return err
 	}

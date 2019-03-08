@@ -48,7 +48,7 @@ func NewServer(
 	}
 }
 
-func (s *Server) HydrateConnectionState(ctx context.Context, repo *appsv1.Repository) {
+func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repository) {
 	connectionState, err := s.cache.GetRepoConnectionState(repo.Repo)
 	if err == nil {
 		repo.ConnectionState = connectionState
@@ -83,22 +83,40 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	if err != nil {
 		return nil, err
 	}
-	items := make([]appsv1.Repository, 0)
-	if repos != nil {
-		for _, repo := range repos {
-			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo) {
-				items = append(items, appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name})
-			}
-		}
-	}
-	err = util.RunAllAsync(len(items), func(i int) error {
-		s.HydrateConnectionState(ctx, &items[i])
+
+	repos = s.filterAllowed(ctx, repos)
+
+	// do this after filtering to reduce cost
+	err = util.RunAllAsync(len(repos), func(i int) error {
+		s.populateConnectionState(ctx, repos[i])
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
+
+	items := redact(repos)
+
 	return &appsv1.RepositoryList{Items: items}, nil
+}
+
+func (s *Server) filterAllowed(ctx context.Context, repos []*appsv1.Repository) []*appsv1.Repository {
+	filtered := make([]*appsv1.Repository, 0)
+	for _, repo := range repos {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo) {
+			filtered = append(filtered, repo)
+		}
+	}
+	return filtered
+}
+
+func redact(repos []*appsv1.Repository) []appsv1.Repository {
+	items := make([]appsv1.Repository, len(repos))
+	for i, repo := range repos {
+		items[i] = appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name, ConnectionState: repo.ConnectionState}
+	}
+	return items
 }
 
 func (s *Server) listAppsPaths(

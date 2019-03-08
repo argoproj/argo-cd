@@ -49,7 +49,7 @@ func (m *nativeGitClient) Root() string {
 }
 
 func (m *nativeGitClient) Test() error {
-	_, err := m.Checkout(".", "HEAD")
+	_, err := m.ResolveRevision("HEAD")
 	return err
 }
 
