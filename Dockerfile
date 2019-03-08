@@ -94,6 +94,7 @@ RUN groupadd -g 999 argocd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
