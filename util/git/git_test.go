@@ -1,8 +1,10 @@
 package git
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -127,8 +129,7 @@ func TestLsRemote(t *testing.T) {
 func TestGitClient(t *testing.T) {
 	testRepos := []string{
 		"https://github.com/argoproj/argocd-example-apps",
-		// TODO: add this back when azure repos are supported
-		//"https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen",
+		"https://jsuen0437@dev.azure.com/jsuen0437/jsuen/_git/jsuen",
 	}
 	for _, repo := range testRepos {
 		dirName, err := ioutil.TempDir("", "git-client-test-")
@@ -142,22 +143,21 @@ func TestGitClient(t *testing.T) {
 	}
 }
 
-// TestPrivateGitRepo tests the ability to operate on a private git repo. This test needs to be run
-// manually since we do not have a private git repo for testing
-//
-// export TEST_REPO=https://github.com/jessesuen/private-argocd-example-apps
-// export GITHUB_TOKEN=<YOURGITHUBTOKEN>
-// go test -v -run ^(TestPrivateGitRepo)$ ./util/git/...
+// TestPrivateGitRepo tests the ability to operate on a private git repo.
 func TestPrivateGitRepo(t *testing.T) {
-	repo := os.Getenv("TEST_REPO")
-	username := os.Getenv("TEST_USERNAME")
-	password := os.Getenv("GITHUB_TOKEN")
-	if username == "" {
-		username = "git" // username does not matter for tokens
-	}
-	if repo == "" || password == "" {
-		t.Skip("skipping private git repo test since no repo or password supplied")
-	}
+	repo := "https://gitlab.com/argo-cd-test/argocd-example-apps.git"
+	username := "blah"
+	// This is a personal access token generated with read only access in a throwaway gitlab test
+	// account/repo
+	password := "B5sBDeoqAVUouoHkrovy"
+
+	// add the hack path which has the git-ask-pass.sh shell script
+	osPath := os.Getenv("PATH")
+	hackPath, err := filepath.Abs("../../hack")
+	assert.NoError(t, err)
+	err = os.Setenv("PATH", fmt.Sprintf("%s:%s", osPath, hackPath))
+	assert.NoError(t, err)
+	defer func() { _ = os.Setenv("PATH", osPath) }()
 
 	dirName, err := ioutil.TempDir("", "git-client-test-")
 	assert.NoError(t, err)
