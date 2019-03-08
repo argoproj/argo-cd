@@ -38,9 +38,9 @@ export const Autocomplete = (props: AutocompleteProps) => {
     const [autocompleteEl, setAutocompleteEl] = React.useState(null);
 
     React.useEffect(() => {
-        const listener = () => {
+        const listener = (event: any) => {
             // Recalculate menu position on scroll
-            if (autocompleteEl && autocompleteEl.refs.input && autocompleteEl.refs.menu) {
+            if (autocompleteEl && autocompleteEl.refs.input && autocompleteEl.refs.menu && !(event.target === autocompleteEl.refs.menu)) {
                 autocompleteEl.setMenuPositions();
             }
         };
