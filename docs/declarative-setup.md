@@ -169,6 +169,9 @@ data:
     - url: http://127.0.0.1:8879/charts
       type: helm
       name: local
+    - url: http://localhost:8090/charts
+      type: helm
+      name: chartmuseeum
     - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
       type: helm
       name: istio.io
