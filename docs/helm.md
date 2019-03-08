@@ -11,7 +11,8 @@ argocd app create wordpress \
     --repo https://kubernetes-charts.storage.googleapis.com \
     --path wordpress \
     --revision 5.4.0 \
-    --dest-namespace default
+    --dest-namespace default \
+    --dest-server https://localhost:6443
 ~~~
 
 ## Notes
