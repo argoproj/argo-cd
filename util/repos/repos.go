@@ -36,7 +36,7 @@ func NewFactory() ClientFactory {
 
 func (f *factory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error) {
 	if repoType == "helm" {
-		return f.newHelmClient(repoURL, path)
+		return f.newHelmClient(repoURL, path, username, password)
 	} else {
 		return f.newGitClient(repoURL, path, username, password, sshPrivateKey)
 	}

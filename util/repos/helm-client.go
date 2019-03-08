@@ -3,6 +3,7 @@ package repos
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -20,11 +21,13 @@ type helmClient struct {
 	// URL
 	repoURL string
 	// destination
-	root string
+	root     string
+	username string
+	password string
 }
 
-func (f *factory) newHelmClient(repoURL, path string) (Client, error) {
-	return helmClient{repoURL, path}, nil
+func (f *factory) newHelmClient(repoURL, path, username, password string) (Client, error) {
+	return helmClient{repoURL, path, username, password}, nil
 }
 
 func (c helmClient) Test() error {
@@ -32,10 +35,8 @@ func (c helmClient) Test() error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
-		return errors.New(fmt.Sprintf("%s expected 200, got %d", c.repoURL, resp.StatusCode))
-	}
-	return nil
+	// we cannot check HTTP status code, it may be 404
+	return resp.Body.Close()
 }
 
 func (c helmClient) Root() string {
@@ -55,7 +56,16 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 		return "", fmt.Errorf("unable to clean repo at %s: %v", c.root, err)
 	}
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if c.username != "" {
+		req.Header["Authorization"] = []string{"Basic " + base64.StdEncoding.EncodeToString([]byte(c.username+":"+c.password))}
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
