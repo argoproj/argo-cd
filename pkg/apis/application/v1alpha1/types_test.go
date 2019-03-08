@@ -7,18 +7,19 @@ import (
 )
 
 func TestValidateRepository(t *testing.T) {
-	assert.Error(t, Repository{}.Validate())
+	assert.EqualError(t, Repository{}.Validate(), "invalid repository, must specify Repo")
 
+	assert.EqualError(t, Repository{Repo: "://", Type: Helm}.Validate(), "invalid repository, must specify Name")
 	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo"}.Validate())
-	assert.NoError(t, Repository{Repo: "://", Type: Helm, CAData: []byte{}}.Validate())
-	assert.NoError(t, Repository{Repo: "://", Type: Helm, CertData: []byte{}}.Validate())
-	assert.NoError(t, Repository{Repo: "://", Type: Helm, KeyData: []byte{}}.Validate())
-	assert.Error(t, Repository{Repo: "://", Type: Helm, SSHPrivateKey: "foo"}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", CAData: []byte{}}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", CertData: []byte{}}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", KeyData: []byte{}}.Validate())
+	assert.EqualError(t, Repository{Repo: "://", Type: Helm, Name: "foo", SSHPrivateKey: "foo"}.Validate(), "invalid repository, must not specify SSHPrivateKey")
 
-	assert.Error(t, Repository{Repo: "://", Type: Git, Name: "foo"}.Validate())
-	assert.Error(t, Repository{Repo: "://", Type: Git, CAData: []byte{}}.Validate())
-	assert.Error(t, Repository{Repo: "://", Type: Git, CertData: []byte{}}.Validate())
-	assert.Error(t, Repository{Repo: "://", Type: Git, KeyData: []byte{}}.Validate())
+	assert.EqualError(t, Repository{Repo: "://", Type: Git, Name: "foo"}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
+	assert.EqualError(t, Repository{Repo: "://", Type: Git, CAData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
+	assert.EqualError(t, Repository{Repo: "://", Type: Git, CertData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
+	assert.EqualError(t, Repository{Repo: "://", Type: Git, KeyData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
 	assert.NoError(t, Repository{Repo: "://", Type: Git, SSHPrivateKey: "foo"}.Validate())
 }
 

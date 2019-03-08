@@ -682,6 +682,9 @@ func (r Repository) Validate() error {
 		return errors.New("invalid repository, must specify Repo")
 	}
 	if r.Type == Helm {
+		if r.Name == "" {
+			return errors.New("invalid repository, must specify Name")
+		}
 		if r.SSHPrivateKey != "" {
 			return errors.New("invalid repository, must not specify SSHPrivateKey")
 		}
