@@ -155,10 +155,10 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repos, err := repoIf.List(context.Background(), &repository.RepoQuery{})
 			errors.CheckError(err)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			_, err = fmt.Fprintf(w, "REPO\tNAME\tTYPE\tUSER\tSTATUS\tMESSAGE\n")
+			_, err = fmt.Fprintf(w, "REPO\tTYPE\tNAME\tUSER\tSTATUS\tMESSAGE\n")
 			errors.CheckError(err)
 			for _, r := range repos.Items {
-				_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Repo, r.Name, r.Type, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
+				_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Repo, r.Type, r.Name, r.Username, r.ConnectionState.Status, r.ConnectionState.Message)
 				errors.CheckError(err)
 			}
 			_ = w.Flush()

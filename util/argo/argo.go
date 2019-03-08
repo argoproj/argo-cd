@@ -276,11 +276,14 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		Path:     fmt.Sprintf("%s/*.yaml", spec.Source.Path),
 	}
 	if repoRes != nil {
-		req.Repo.Name = repoRes.Name
 		req.Repo.Type = repoRes.Type
+		req.Repo.Name = repoRes.Name
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+		req.Repo.CAData = repoRes.CAData
+		req.Repo.CertData = repoRes.CertData
+		req.Repo.KeyData = repoRes.KeyData
 	}
 	getRes, err := repoClient.ListDir(ctx, &req)
 	if err != nil {
@@ -318,11 +321,14 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 		Path:     path.Join(spec.Source.Path, "app.yaml"),
 	}
 	if repoRes != nil {
-		req.Repo.Name = repoRes.Name
 		req.Repo.Type = repoRes.Type
+		req.Repo.Name = repoRes.Name
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+		req.Repo.CAData = repoRes.CAData
+		req.Repo.CertData = repoRes.CertData
+		req.Repo.KeyData = repoRes.KeyData
 	}
 	getRes, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
@@ -367,11 +373,14 @@ func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *a
 		Path:     path.Join(spec.Source.Path, "Chart.yaml"),
 	}
 	if repoRes != nil {
-		req.Repo.Name = repoRes.Name
 		req.Repo.Type = repoRes.Type
+		req.Repo.Name = repoRes.Name
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+		req.Repo.CAData = repoRes.CAData
+		req.Repo.CertData = repoRes.CertData
+		req.Repo.KeyData = repoRes.KeyData
 	}
 	_, err := repoClient.GetFile(ctx, &req)
 	if err != nil {
@@ -404,11 +413,14 @@ func verifyGenerateManifests(
 		ApplicationSource: &spec.Source,
 	}
 	if repoRes != nil {
-		req.Repo.Name = repoRes.Name
 		req.Repo.Type = repoRes.Type
+		req.Repo.Name = repoRes.Name
 		req.Repo.Username = repoRes.Username
 		req.Repo.Password = repoRes.Password
 		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
+		req.Repo.CAData = repoRes.CAData
+		req.Repo.CertData = repoRes.CertData
+		req.Repo.KeyData = repoRes.KeyData
 	}
 
 	// Only check whether we can access the application's path,

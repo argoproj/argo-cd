@@ -71,7 +71,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
 	}
 
-	repoInfo := settings.RepoCredentials{Name: r.Name, URL: r.Repo, Type: settings.RepoType(r.Type)}
+	repoInfo := settings.RepoCredentials{URL: r.Repo, Type: settings.RepoType(r.Type), Name: r.Name}
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 	repoInfo := s.Repositories[index]
-	repo := &appsv1.Repository{Name: repoInfo.Name, Repo: repoInfo.URL, Type: appsv1.RepoType(repoInfo.Type)}
+	repo := &appsv1.Repository{Repo: repoInfo.URL, Type: appsv1.RepoType(repoInfo.Type), Name: repoInfo.Name}
 
 	cache := make(map[string]*apiv1.Secret)
 	err = db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{

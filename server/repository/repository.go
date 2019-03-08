@@ -87,7 +87,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 	if repos != nil {
 		for _, repo := range repos {
 			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, repo) {
-				items = append(items, appsv1.Repository{Name: repo.Name, Repo: repo.Repo, Type: repo.Type})
+				items = append(items, appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name})
 			}
 		}
 	}
@@ -266,7 +266,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 	} else if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create %s", err)
 	}
-	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type}, err
+	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, err
 }
 
 // Update updates a repository
