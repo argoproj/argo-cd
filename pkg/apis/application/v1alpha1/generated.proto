@@ -421,17 +421,17 @@ message ProjectRole {
 message Repository {
   optional string repo = 1;
 
-  optional string username = 2;
+  optional string type = 2;
 
-  optional string password = 3;
+  optional string name = 3;
 
-  optional string sshPrivateKey = 4;
+  optional string username = 4;
 
-  optional ConnectionState connectionState = 5;
+  optional string password = 5;
 
-  optional string name = 6;
+  optional string sshPrivateKey = 6;
 
-  optional string type = 7;
+  optional ConnectionState connectionState = 7;
 
   optional bytes caData = 8;
 

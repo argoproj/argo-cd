@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -665,15 +666,32 @@ const (
 // Repository is a repository holding application configurations
 type Repository struct {
 	Repo            string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	Username        string          `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
-	Password        string          `json:"password,omitempty" protobuf:"bytes,3,opt,name=password"`
-	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,4,opt,name=sshPrivateKey"`
-	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,5,opt,name=connectionState"`
-	Name            string          `json:"name,omitempty" protobuf:"bytes,6,opt,name=name"`
-	Type            RepoType        `json:"type" protobuf:"bytes,7,opt,name=type"`
+	Type            RepoType        `json:"type" protobuf:"bytes,2,opt,name=type"`
+	Name            string          `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Username        string          `json:"username,omitempty" protobuf:"bytes,4,opt,name=username"`
+	Password        string          `json:"password,omitempty" protobuf:"bytes,5,opt,name=password"`
+	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,6,opt,name=sshPrivateKey"`
+	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,7,opt,name=connectionState"`
 	CAData          []byte          `json:"caData,omitempty" protobuf:"bytes,8,opt,name=caData"`
 	CertData        []byte          `json:"certData,omitempty" protobuf:"bytes,9,opt,name=certData"`
 	KeyData         []byte          `json:"keyData,omitempty" protobuf:"bytes,10,opt,name=keyData"`
+}
+
+func (r Repository) Validate() error {
+	if r.Repo == "" {
+		return errors.New("invalid repository, must specify Repo")
+	}
+	if r.Type == Helm {
+		if r.SSHPrivateKey != "" {
+			return errors.New("invalid repository, must not specify SSHPrivateKey")
+		}
+	} else {
+		if r.Name != "" || r.CertData != nil || r.CAData != nil || r.KeyData != nil {
+			return errors.New("invalid repository, must not specify Name, CertData, CAData, or KeyData")
+		}
+	}
+
+	return nil
 }
 
 // RepositoryList is a collection of Repositories.

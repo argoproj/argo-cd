@@ -42,6 +42,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		repo              appsv1.Repository
 		upsert            bool
 		sshPrivateKeyPath string
+		caFile            string
+		certFile          string
+		keyFile           string
 		repoType          string
 	)
 	var command = &cobra.Command{
@@ -60,6 +63,27 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					log.Fatal(err)
 				}
 				repo.SSHPrivateKey = string(keyData)
+			}
+			if caFile != "" {
+				keyData, err := ioutil.ReadFile(caFile)
+				if err != nil {
+					log.Fatal(err)
+				}
+				repo.CAData = keyData
+			}
+			if certFile != "" {
+				keyData, err := ioutil.ReadFile(certFile)
+				if err != nil {
+					log.Fatal(err)
+				}
+				repo.CertData = keyData
+			}
+			if keyFile != "" {
+				keyData, err := ioutil.ReadFile(keyFile)
+				if err != nil {
+					log.Fatal(err)
+				}
+				repo.KeyData = keyData
 			}
 			// First test the repo *without* username/password. This gives us a hint on whether this
 			// is a private repo.
@@ -90,6 +114,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
+	command.Flags().StringVar(&caFile, "ca-file", "", "verify certificates of HTTPS-enabled servers using this CA bundle")
+	command.Flags().StringVar(&certFile, "cert-file", "", "identify HTTPS client using this SSL certificate file")
+	command.Flags().StringVar(&keyFile, "key-file", "", "identify HTTPS client using this SSL key file")
 	command.Flags().StringVar(&repo.Name, "name", "", "the name of the the repo")
 	command.Flags().StringVar(&repoType, "type", "git", "the type of the the repo (default is git)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")

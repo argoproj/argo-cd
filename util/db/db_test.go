@@ -48,6 +48,9 @@ func TestCreateRepository(t *testing.T) {
 	clientset := getClientset(nil)
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
+	_, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{})
+	assert.Error(t, err)
+
 	repo, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
 		Username: "test-username",
@@ -189,6 +192,9 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)
 	assert.Equal(t, "test-ssh-private-key", repo.SSHPrivateKey)
+
+	_, err = db.CreateRepository(context.Background(), &v1alpha1.Repository{})
+	assert.Error(t, err)
 
 	_, err = db.UpdateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-apps", Password: "", Username: "", SSHPrivateKey: ""})

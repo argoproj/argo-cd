@@ -6,6 +6,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestValidateRepository(t *testing.T) {
+	assert.Error(t, Repository{}.Validate())
+
+	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo"}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: Helm, CAData: []byte{}}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: Helm, CertData: []byte{}}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: Helm, KeyData: []byte{}}.Validate())
+	assert.Error(t, Repository{Repo: "://", Type: Helm, SSHPrivateKey: "foo"}.Validate())
+
+	assert.Error(t, Repository{Repo: "://", Type: Git, Name: "foo"}.Validate())
+	assert.Error(t, Repository{Repo: "://", Type: Git, CAData: []byte{}}.Validate())
+	assert.Error(t, Repository{Repo: "://", Type: Git, CertData: []byte{}}.Validate())
+	assert.Error(t, Repository{Repo: "://", Type: Git, KeyData: []byte{}}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: Git, SSHPrivateKey: "foo"}.Validate())
+}
+
 func TestAppProject_IsSourcePermitted(t *testing.T) {
 	testData := []struct {
 		projSources []string

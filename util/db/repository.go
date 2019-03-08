@@ -45,6 +45,11 @@ func (db *db) ListRepositories(ctx context.Context) ([]*appsv1.Repository, error
 
 // CreateRepository creates a repository
 func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+	err := r.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	s, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
@@ -118,6 +123,12 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+
+	err := r.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	s, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
