@@ -3,7 +3,7 @@ package db
 import (
 	"context"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"

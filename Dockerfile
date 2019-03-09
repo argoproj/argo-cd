@@ -79,6 +79,17 @@ ENV AWS_IAM_AUTHENTICATOR_VERSION=0.4.0-alpha.1
 RUN curl -L -o /usr/local/bin/aws-iam-authenticator https://github.com/kubernetes-sigs/aws-iam-authenticator/releases/download/${AWS_IAM_AUTHENTICATOR_VERSION}/aws-iam-authenticator_${AWS_IAM_AUTHENTICATOR_VERSION}_linux_amd64 && \
     chmod +x /usr/local/bin/aws-iam-authenticator
 
+# Install golangci-lint
+RUN wget https://install.goreleaser.com/github.com/golangci/golangci-lint.sh  && \
+    chmod +x ./golangci-lint.sh && \
+    ./golangci-lint.sh -b $GOPATH/bin && \
+    golangci-lint linters
+
+COPY .golangci.yml ${GOPATH}/src/dummy/.golangci.yml
+
+RUN cd ${GOPATH}/src/dummy && \
+    touch dummy.go \
+    golangci-lint run
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -94,6 +105,7 @@ RUN groupadd -g 999 argocd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+COPY hack/git-ask-pass.sh /usr/local/bin/git-ask-pass.sh
 COPY --from=builder /usr/local/bin/ks /usr/local/bin/ks
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
