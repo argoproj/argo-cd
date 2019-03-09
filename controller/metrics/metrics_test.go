@@ -220,7 +220,7 @@ func TestReconcileMetrics(t *testing.T) {
 	metricsServ := NewMetricsServer("localhost:8082", appLister)
 
 	fakeApp := newFakeApp(fakeApp)
-	metricsServ.IncReconcile(fakeApp, time.Duration(5*time.Second))
+	metricsServ.IncReconcile(fakeApp, 5*time.Second)
 
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	assert.NoError(t, err)
