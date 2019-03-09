@@ -1,18 +1,13 @@
 package repos
 
 import (
-	"archive/tar"
-	"compress/gzip"
-	"encoding/base64"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/argoproj/argo-cd/util"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -21,22 +16,75 @@ type helmClient struct {
 	// URL
 	repoURL string
 	// destination
-	root     string
-	username string
-	password string
+	root                      string
+	username, password        string
+	caData, certData, keyData []byte
 }
 
-func (f *factory) newHelmClient(repoURL, path, username, password string) (Client, error) {
-	return helmClient{repoURL, path, username, password}, nil
+func (f factory) newHelmClient(repoURL, path, username, password string, caData, certData, keyData []byte) (Client, error) {
+	return helmClient{repoURL, path, username, password, caData, certData, caData}, nil
 }
 
 func (c helmClient) Test() error {
-	resp, err := http.Get(c.repoURL)
+	err := c.runCommand("repo", "add", "tmp", c.repoURL)
+	defer func() { _ = c.runCommand("repo", "rm", "tmp") }()
+	return err
+
+}
+
+func (c helmClient) runCommand(command, subcommand string, args ...string) error {
+
+	tmp, err := ioutil.TempFile(util.TempDir, "helm")
 	if err != nil {
 		return err
 	}
-	// we cannot check HTTP status code, it may be 404
-	return resp.Body.Close()
+	defer func() { util.DeleteFile(tmp.Name()) }()
+
+	if c.caData != nil {
+		caFile, err := ioutil.TempFile(util.TempDir, "")
+		if err != nil {
+			return err
+		}
+		_, err = caFile.Write(c.caData)
+		if err != nil {
+			return err
+		}
+		args = append([]string{"--ca-file", caFile.Name()}, args...)
+	}
+
+	if c.certData != nil {
+		certFile, err := ioutil.TempFile(util.TempDir, "")
+		if err != nil {
+			return err
+		}
+		_, err = certFile.Write(c.certData)
+		if err != nil {
+			return err
+		}
+		args = append([]string{"--cert-file", certFile.Name()}, args...)
+	}
+
+	if c.keyData != nil {
+		keyFile, err := ioutil.TempFile(util.TempDir, "")
+		if err != nil {
+			return err
+		}
+		_, err = keyFile.Write(c.keyData)
+		if err != nil {
+			return err
+		}
+		args = append([]string{"--key-file", keyFile.Name()}, args...)
+	}
+
+	args = append([]string{
+		command, subcommand,
+		"--username", c.username,
+		"--password", c.password,
+	}, args...)
+
+	bytes, err := exec.Command("helm", args...).Output()
+	log.Debugf("output=%s", bytes)
+	return err
 }
 
 func (c helmClient) Root() string {
@@ -56,69 +104,9 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 		return "", fmt.Errorf("unable to clean repo at %s: %v", c.root, err)
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", err
-	}
+	err = c.runCommand("fetch", "--untar", "--untardir", filepath.Join(c.root, chartName), url)
 
-	if c.username != "" {
-		req.Header["Authorization"] = []string{"Basic " + base64.StdEncoding.EncodeToString([]byte(c.username+":"+c.password))}
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != 200 {
-		return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, expected 200 status code, got %d", url, resp.StatusCode))
-	}
-
-	gzr, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = gzr.Close() }()
-
-	tr := tar.NewReader(gzr)
-
-	for {
-		header, err := tr.Next()
-
-		switch {
-		case err == io.EOF:
-			return chartVersion, nil
-		case err != nil:
-			return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
-		case header == nil:
-			continue
-		}
-
-		target := filepath.Join(c.root, header.Name)
-
-		switch header.Typeflag {
-
-		case tar.TypeReg:
-			dir := filepath.Dir(target)
-			if _, err := os.Stat(dir); err != nil {
-				if err := os.MkdirAll(dir, 0755); err != nil {
-					return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
-				}
-			}
-			file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
-			if err != nil {
-				return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
-			}
-
-			if _, err := io.Copy(file, tr); err != nil {
-				return "", errors.New(fmt.Sprintf("unable to checkout Helm chart %s, %v", url, err))
-			}
-
-			_ = file.Close()
-		}
-	}
+	return chartVersion, err
 }
 
 func (c helmClient) chartName(path string) string {

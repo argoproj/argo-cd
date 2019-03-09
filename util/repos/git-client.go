@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
-	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
@@ -24,7 +24,7 @@ type nativeGitClient struct {
 	auth    transport.AuthMethod
 }
 
-func (f *factory) newGitClient(repoURL, path, username, password, sshPrivateKey string) (Client, error) {
+func (f factory) newGitClient(repoURL, path, username, password, sshPrivateKey string) (Client, error) {
 	clnt := nativeGitClient{
 		repoURL: repoURL,
 		root:    path,

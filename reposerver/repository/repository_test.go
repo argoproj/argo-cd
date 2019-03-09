@@ -36,7 +36,7 @@ type fakeGitClientFactory struct {
 	root string
 }
 
-func (f *fakeGitClientFactory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (repos.Client, error) {
+func (f *fakeGitClientFactory) NewClient(c repos.Config, path string) (repos.Client, error) {
 	mockClient := gitmocks.Client{}
 	root := "./testdata"
 	if f.root != "" {

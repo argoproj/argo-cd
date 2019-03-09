@@ -22,10 +22,15 @@ type Client interface {
 	LsFiles(path string) ([]string, error)
 }
 
+type Config struct {
+	Url, RepoType, Username, Password, SshPrivateKey string
+	CAData, CertData, KeyData                        []byte
+}
+
 // ClientFactory is a factory of Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error)
+	NewClient(c Config, path string) (Client, error)
 }
 
 type factory struct{}
@@ -34,11 +39,11 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (Client, error) {
-	if repoType == "helm" {
-		return f.newHelmClient(repoURL, path, username, password)
+func (f factory) NewClient(c Config, path string) (Client, error) {
+	if c.RepoType == "helm" {
+		return f.newHelmClient(c.Url, path, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
 	} else {
-		return f.newGitClient(repoURL, path, username, password, sshPrivateKey)
+		return f.newGitClient(c.Url, path, c.Username, c.Password, c.SshPrivateKey)
 	}
 }
 
@@ -101,7 +106,7 @@ func IsSSHURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo, repoType, username, password string, sshPrivateKey string) error {
+func TestRepo(c Config) error {
 
 	tmp, err := ioutil.TempDir("", "repos")
 	if err != nil {
@@ -109,7 +114,7 @@ func TestRepo(repo, repoType, username, password string, sshPrivateKey string) e
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	clnt, err := NewFactory().NewClient(repo, repoType, tmp, username, password, sshPrivateKey)
+	clnt, err := NewFactory().NewClient(c, "tmp")
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -380,7 +380,7 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 
 type FakeClientFactory struct{}
 
-func (f *FakeClientFactory) NewClient(repoURL, repoType, path, username, password, sshPrivateKey string) (repos.Client, error) {
+func (f FakeClientFactory) NewClient(c repos.Config, path string) (repos.Client, error) {
 	return &FakeGitClient{
 		root: path,
 	}, nil

@@ -171,7 +171,7 @@ data:
       name: local
     - url: http://localhost:8090/charts
       type: helm
-      name: chartmuseeum
+      name: chartmuseum
     - url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
       type: helm
       name: istio.io

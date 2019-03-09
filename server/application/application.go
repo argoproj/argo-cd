@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -884,7 +884,8 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		log.Info("If we couldn't retrieve from the repo service, assume public repositories")
 		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL, Type: "git"}
 	}
-	client, err := s.clientFactory.NewClient(repo.Repo, string(repo.Type), "", repo.Username, repo.Password, repo.SSHPrivateKey)
+	config := repos.Config{Url: repo.Repo, RepoType: string(repo.Type), Username: repo.Username, Password: repo.Password, SshPrivateKey: repo.SSHPrivateKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
+	client, err := s.clientFactory.NewClient(config, "")
 	if err != nil {
 		return "", "", err
 	}

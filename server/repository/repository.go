@@ -56,7 +56,8 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 	}
 	now := metav1.Now()
 
-	err = repos.TestRepo(repo.Repo, string(repo.Type), repo.Username, repo.Password, repo.SSHPrivateKey)
+	config := repos.Config{Url: repo.Repo, RepoType: string(repo.Type), Username: repo.Username, Password: repo.Password, SshPrivateKey: repo.SSHPrivateKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
+	err = repos.TestRepo(config)
 
 	if err != nil {
 		repo.ConnectionState = appsv1.ConnectionState{
@@ -258,7 +259,8 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, err
 	}
 	r := q.Repo
-	err := repos.TestRepo(r.Repo, string(r.Type), r.Username, r.Password, r.SSHPrivateKey)
+	config := repos.Config{Url: r.Repo, RepoType: string(r.Type), Username: r.Username, Password: r.Password, SshPrivateKey: r.SSHPrivateKey, CAData: r.CAData, CertData: r.CertData, KeyData: r.KeyData}
+	err := repos.TestRepo(config)
 	if err != nil {
 		return nil, err
 	}

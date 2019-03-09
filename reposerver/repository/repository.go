@@ -14,7 +14,7 @@ import (
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
-	jsonnet "github.com/google/go-jsonnet"
+	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
@@ -481,7 +481,8 @@ func pathExists(ss ...string) bool {
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (repos.Client, string, error) {
 	repoURL := repos.NormalizeURL(repo.Repo)
 	appRepoPath := tempRepoPath(repoURL)
-	client, err := s.clientFactory.NewClient(repoURL, string(repo.Type), appRepoPath, repo.Username, repo.Password, repo.SSHPrivateKey)
+	config := repos.Config{Url: repoURL, RepoType: string(repo.Type), Username: repo.Username, Password: repo.Password, SshPrivateKey: repo.SSHPrivateKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
+	client, err := s.clientFactory.NewClient(config, appRepoPath)
 	if err != nil {
 		return nil, "", err
 	}

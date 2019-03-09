@@ -9,7 +9,7 @@ import (
 )
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "git", "/tmp", "", "", "")
+	clnt, err := factory{}.newGitClient("https://github.com/argoproj/argo-cd.git", "/tmp", "", "", "")
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -52,7 +52,7 @@ func TestGitClient(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		clnt, err := NewFactory().NewClient(repo, "git", dirName, "", "", "")
+		clnt, err := factory{}.newGitClient(repo, dirName, "", "", "")
 		assert.NoError(t, err)
 
 		testGitClient(t, clnt)
@@ -80,7 +80,7 @@ func TestPrivateGitRepo(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(dirName) }()
 
-	clnt, err := NewFactory().NewClient(repo, "git", dirName, username, password, "")
+	clnt, err := factory{}.newGitClient(repo, dirName, username, password, "")
 	assert.NoError(t, err)
 
 	testGitClient(t, clnt)
