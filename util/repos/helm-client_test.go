@@ -13,7 +13,7 @@ func TestHelmClient_Checkout(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	client, err := factory{}.newHelmClient("https://kubernetes-charts.storage.googleapis.com", "", "", "", nil, nil, nil)
+	client, err := factory{}.newHelmClient("https://kubernetes-charts.storage.googleapis.com", tmp, "", "", nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NoError(t, client.Test())
 
