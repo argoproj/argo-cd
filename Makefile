@@ -119,10 +119,11 @@ endif
 .PHONY: builder-image
 builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
+	docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG)
 
 .PHONY: dep-ensure
 dep-ensure:
-	dep ensure
+	dep ensure -no-vendor
 
 .PHONY: format-code
 format-code:
@@ -130,7 +131,7 @@ format-code:
 
 .PHONY: lint
 lint:
-	gometalinter.v2 --config gometalinter.json ./...
+	golangci-lint run
 
 .PHONY: test
 test:

@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/gogo/protobuf/proto"
+	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-
-	"github.com/gogo/protobuf/proto"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
-	"github.com/sirupsen/logrus"
 )
 
 func logRequest(entry *logrus.Entry, info string, pbMsg interface{}, ctx context.Context, logClaims bool) {

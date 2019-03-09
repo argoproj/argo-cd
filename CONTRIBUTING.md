@@ -40,10 +40,8 @@ go get -u github.com/golang/protobuf/protoc-gen-go
 go get -u github.com/go-swagger/go-swagger/cmd/swagger
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get -u gopkg.in/alecthomas/gometalinter.v2 
+go get -u github.com/golangci/golangci-lint/cmd/golangci-lint 
 go get -u github.com/mattn/goreman 
-
-gometalinter.v2 --install
 ```
 
 ## Building
