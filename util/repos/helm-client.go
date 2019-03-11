@@ -27,7 +27,10 @@ func (f factory) newHelmClient(repoURL, path, username, password string, caData,
 
 func (c helmClient) Test() error {
 	err := c.runCommand("repo", "add", "tmp", c.repoURL)
-	defer func() { _ = c.runCommand("repo", "rm", "tmp") }()
+	if err != nil {
+		return err
+	}
+	err = c.runCommand("repo", "rm", "tmp")
 	return err
 
 }
@@ -39,6 +42,14 @@ func (c helmClient) runCommand(command, subcommand string, args ...string) error
 		return err
 	}
 	defer func() { util.DeleteFile(tmp.Name()) }()
+
+	if c.username != "" {
+		args = append([]string{"--username", c.username}, args...)
+	}
+
+	if c.password != "" {
+		args = append([]string{"--password", c.password}, args...)
+	}
 
 	if c.caData != nil {
 		caFile, err := ioutil.TempFile(util.TempDir, "")
@@ -76,14 +87,12 @@ func (c helmClient) runCommand(command, subcommand string, args ...string) error
 		args = append([]string{"--key-file", keyFile.Name()}, args...)
 	}
 
-	args = append([]string{
-		command, subcommand,
-		"--username", c.username,
-		"--password", c.password,
-	}, args...)
+	args = append([]string{command, subcommand}, args...)
 
+	log.Debugf("helm args=%v", args)
 	bytes, err := exec.Command("helm", args...).Output()
 	log.Debugf("output=%s", bytes)
+
 	return err
 }
 
