@@ -1,12 +1,10 @@
 package kubetest
 
 import (
-	"context"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/util/kube"
@@ -18,25 +16,13 @@ type KubectlOutput struct {
 }
 
 type MockKubectlCmd struct {
-	APIResources []*v1.APIResourceList
-	Resources    []kube.ResourcesBatch
+	APIResources []kube.APIResourceInfo
 	Commands     map[string]KubectlOutput
-	Events       chan kube.WatchEvent
+	Events       chan watch.Event
 }
 
-func (k MockKubectlCmd) GetAPIResources(config *rest.Config) ([]*v1.APIResourceList, error) {
+func (k MockKubectlCmd) GetAPIResources(config *rest.Config, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
 	return k.APIResources, nil
-}
-
-func (k MockKubectlCmd) GetResources(config *rest.Config, resourceFilter kube.ResourceFilter, namespace string) (chan kube.ResourcesBatch, error) {
-	res := make(chan kube.ResourcesBatch)
-	go func() {
-		defer close(res)
-		for i := range k.Resources {
-			res <- k.Resources[i]
-		}
-	}()
-	return res, nil
 }
 
 func (k MockKubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
@@ -45,12 +31,6 @@ func (k MockKubectlCmd) GetResource(config *rest.Config, gvk schema.GroupVersion
 
 func (k MockKubectlCmd) PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error) {
 	return nil, nil
-}
-
-func (k MockKubectlCmd) WatchResources(
-	ctx context.Context, config *rest.Config, resourceFilter kube.ResourceFilter, versionSource kube.CachedVersionSource) (chan kube.WatchEvent, error) {
-
-	return k.Events, nil
 }
 
 func (k MockKubectlCmd) DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error {
