@@ -89,9 +89,9 @@ func (c helmClient) runCommand(command, subcommand string, args ...string) error
 
 	args = append([]string{command, subcommand}, args...)
 
-	log.Debugf("helm args=%v", args)
+	log.Infof("helm args=%v", args)
 	bytes, err := exec.Command("helm", args...).Output()
-	log.Debugf("output=%s", bytes)
+	log.Infof("output=%s", bytes)
 
 	return err
 }
