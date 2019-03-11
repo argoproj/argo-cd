@@ -26,8 +26,8 @@ func (n *node) resourceKey() kube.ResourceKey {
 }
 
 func (n *node) isParentOf(child *node) bool {
-	ownerGvk := n.ref.GroupVersionKind()
 	for _, ownerRef := range child.ownerRefs {
+		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		if kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name) == n.resourceKey() {
 			return true
 		}
