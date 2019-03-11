@@ -251,8 +251,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         const controlled = managedResources.find((item) => isSameNode(selectedNode, item));
                                         const summary = application.status.resources.find((item) => isSameNode(selectedNode, item));
                                         const controlledState = controlled && summary && { summary, state: controlled } || null;
-                                        const liveState = controlled && controlled.liveState || await services.applications.getResource(
-                                            application.metadata.name, selectedNode).catch(() => null);
+                                        const liveState = await services.applications.getResource(application.metadata.name, selectedNode).catch(() => null);
                                         return { controlledState, liveState };
 
                                     }}>{(data) =>
