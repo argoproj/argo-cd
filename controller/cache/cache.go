@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -73,13 +72,6 @@ func (c *liveStateCache) processEvent(event watch.EventType, obj *unstructured.U
 	return info.processEvent(event, obj)
 }
 
-func (c *liveStateCache) removeCluster(server string) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	delete(c.clusters, server)
-	log.Infof("Dropped cluster %s cache", server)
-}
-
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -90,7 +82,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			return nil, err
 		}
 		info = &clusterInfo{
-			apis:         make(map[schema.GroupKind]*gkInfo),
+			apisMeta:     make(map[schema.GroupKind]*apiMeta),
 			lock:         &sync.Mutex{},
 			nodes:        make(map[kube.ResourceKey]*node),
 			nsIndex:      make(map[string]map[kube.ResourceKey]*node),
@@ -175,135 +167,29 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 
 // Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
 func (c *liveStateCache) Run(ctx context.Context) {
-	watchingClustersLock := sync.Mutex{}
-	watchingClusters := make(map[string]struct {
-		cancel  context.CancelFunc
-		cluster *appv1.Cluster
-	})
-
 	util.RetryUntilSucceed(func() error {
 		clusterEventCallback := func(event *db.ClusterEvent) {
-			info, ok := watchingClusters[event.Cluster.Server]
-			hasApps := isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster)
-
-			// cluster resources must be watched only if cluster has at least one app
-			if (event.Type == watch.Deleted || !hasApps) && ok {
-				info.cancel()
-				watchingClustersLock.Lock()
-				delete(watchingClusters, event.Cluster.Server)
-				watchingClustersLock.Unlock()
-			} else if event.Type != watch.Deleted && !ok && hasApps {
-				ctx, cancel := context.WithCancel(ctx)
-				watchingClustersLock.Lock()
-				watchingClusters[event.Cluster.Server] = struct {
-					cancel  context.CancelFunc
-					cluster *appv1.Cluster
-				}{
-					cancel: func() {
-						c.removeCluster(event.Cluster.Server)
-						cancel()
-					},
-					cluster: event.Cluster,
-				}
-				watchingClustersLock.Unlock()
-				go c.watchClusterResources(ctx, *event.Cluster)
-			}
-		}
-
-		onAppModified := func(obj interface{}) {
-			if app, ok := obj.(*appv1.Application); ok {
-				var cluster *appv1.Cluster
-				info, infoOk := watchingClusters[app.Spec.Destination.Server]
-				if infoOk {
-					cluster = info.cluster
-				} else {
-					cluster, _ = c.db.GetCluster(ctx, app.Spec.Destination.Server)
-				}
-				if cluster != nil {
-					// trigger cluster event every time when app created/deleted to either start or stop watching resources
-					clusterEventCallback(&db.ClusterEvent{Cluster: cluster, Type: watch.Modified})
+			c.lock.Lock()
+			defer c.lock.Unlock()
+			if cluster, ok := c.clusters[event.Cluster.Server]; ok {
+				if event.Type == watch.Deleted {
+					cluster.invalidate()
+					delete(c.clusters, event.Cluster.Server)
+				} else if event.Type == watch.Modified {
+					cluster.cluster = event.Cluster
+					cluster.invalidate()
+				} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
+					go func() {
+						// warm up cache for cluster with apps
+						_ = cluster.ensureSynced()
+					}()
 				}
 			}
 		}
-
-		c.appInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: onAppModified,
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				oldApp, oldOk := oldObj.(*appv1.Application)
-				newApp, newOk := newObj.(*appv1.Application)
-				if oldOk && newOk {
-					if oldApp.Spec.Destination.Server != newApp.Spec.Destination.Server {
-						onAppModified(oldObj)
-						onAppModified(newApp)
-					}
-				}
-			},
-			DeleteFunc: onAppModified,
-		})
 
 		return c.db.WatchClusters(ctx, clusterEventCallback)
 
 	}, "watch clusters", ctx, clusterRetryTimeout)
 
 	<-ctx.Done()
-}
-
-// watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
-func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.Cluster) {
-	util.RetryUntilSucceed(func() (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				err = fmt.Errorf("Recovered from panic: %v\n", r)
-			}
-		}()
-		config := item.RESTConfig()
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		ch, err := c.kubectl.WatchResources(ctx, config, c.settings, func(gk schema.GroupKind) (s string, e error) {
-			clusterInfo, err := c.getSyncedCluster(item.Server)
-			if err != nil {
-				return "", err
-			}
-			return clusterInfo.getResourceVersion(gk), nil
-		})
-		if err != nil {
-			return err
-		}
-		for event := range ch {
-			if event.WatchEvent != nil {
-				eventObj := event.WatchEvent.Object.(*unstructured.Unstructured)
-				if kube.IsCRD(eventObj) {
-					// restart if new CRD has been created after watch started
-					if event.WatchEvent.Type == watch.Added {
-						c.removeCluster(item.Server)
-						return fmt.Errorf("Restarting the watch because a new CRD %s was added", eventObj.GetName())
-					} else if event.WatchEvent.Type == watch.Deleted {
-						c.removeCluster(item.Server)
-						return fmt.Errorf("Restarting the watch because CRD %s was deleted", eventObj.GetName())
-					}
-				}
-				err = c.processEvent(event.WatchEvent.Type, eventObj, item.Server)
-				if err != nil {
-					log.Warnf("Failed to process event %s for obj %v: %v", event.WatchEvent.Type, event.WatchEvent.Object, err)
-				}
-			} else {
-				err = c.updateCache(item.Server, event.CacheRefresh.GVK.GroupKind(), event.CacheRefresh.ResourceVersion, event.CacheRefresh.Objects)
-				if err != nil {
-					log.Warnf("Failed to process event %s for obj %v: %v", event.WatchEvent.Type, event.WatchEvent.Object, err)
-				}
-			}
-
-		}
-		return fmt.Errorf("resource updates channel has closed")
-	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, clusterRetryTimeout)
-}
-
-func (c *liveStateCache) updateCache(server string, gk schema.GroupKind, resourceVersion string, objs []unstructured.Unstructured) error {
-	clusterInfo, err := c.getSyncedCluster(server)
-	if err != nil {
-		return err
-	}
-	clusterInfo.updateCache(gk, resourceVersion, objs)
-	return nil
 }
