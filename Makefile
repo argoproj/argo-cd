@@ -55,7 +55,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen format-code
+codegen: protogen clientgen lint
 
 .PHONY: cli
 cli: clean-debug
@@ -125,13 +125,9 @@ builder-image:
 dep-ensure:
 	dep ensure -no-vendor
 
-.PHONY: format-code
-format-code:
-	./hack/format-code.sh
-
 .PHONY: lint
 lint:
-	golangci-lint run
+	golangci-lint run --fix
 
 .PHONY: test
 test:
@@ -151,7 +147,7 @@ clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
 .PHONY: pre-commit
-pre-commit: dep-ensure codegen format-code test lint
+pre-commit: dep-ensure codegen test lint
 
 .PHONY: release-precheck
 release-precheck: manifests
