@@ -271,8 +271,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 repoURL: application.spec.source.repoURL,
                                                 path: application.spec.source.path,
                                                 targetRevision: application.spec.source.targetRevision,
+                                                details: { helm: application.spec.source.helm },
                                             }} load={(src) =>
-                                                services.repos.appDetails(src.repoURL, src.path, src.targetRevision)
+                                                services.repos.appDetails(src.repoURL, src.path, src.targetRevision, src.details)
                                                 .catch(() => ({ type: 'Directory' as appModels.AppSourceType, path: application.spec.source.path }))}>
                                             {(details: appModels.RepoAppDetails) => <ApplicationParameters
                                                     save={(app) => services.applications.updateSpec(app.metadata.name, app.spec)} application={application} details={details} />}

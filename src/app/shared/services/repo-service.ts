@@ -19,8 +19,12 @@ export class RepositoriesService {
             .then((res) => res.body.items as models.AppInfo[] || []);
     }
 
-    public appDetails(repo: string, path: string, revision: string): Promise<models.RepoAppDetails> {
-        return requests.get(`/repositories/${encodeURIComponent(repo)}/apps/${encodeURIComponent(path)}`).query({revision})
+    public appDetails(repo: string, path: string, revision: string, details?: {helm?: { valueFiles: string[] }}): Promise<models.RepoAppDetails> {
+        const query: any = {revision};
+        (details && details.helm && details.helm.valueFiles || []).forEach((file) => {
+            query['helm.valueFiles'] = file;
+        });
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/apps/${encodeURIComponent(path)}`).query(query)
             .then((res) => res.body as models.RepoAppDetails);
     }
 }
