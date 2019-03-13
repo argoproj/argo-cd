@@ -33,8 +33,11 @@ type Application struct {
 }
 
 type Preview struct {
-	Owner    string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
-	Repo     string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
+	// Owner is the Github owner
+	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
+	// Repo is the Github repository
+	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
+	// Revision is the specific commit SHA
 	Revision string `json:"revision" protobuf:"bytes,3,opt,name=revision"`
 }
 

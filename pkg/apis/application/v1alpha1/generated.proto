@@ -419,10 +419,13 @@ message OperationState {
 }
 
 message Preview {
+  // Owner is the Github owner
   optional string owner = 1;
 
+  // Repo is the Github repository
   optional string repo = 2;
 
+  // Revision is the specific commit SHA
   optional string revision = 3;
 }
 
