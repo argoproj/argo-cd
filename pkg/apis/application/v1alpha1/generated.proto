@@ -201,6 +201,9 @@ message ApplicationSpec {
 
   // IgnoreDifferences controls resources fields which should be ignored during comparison
   repeated ResourceIgnoreDifferences ignoreDifferences = 5;
+
+  // Preview indicates that the app is a preview app
+  optional Preview preview = 6;
 }
 
 // ApplicationStatus contains information about application sync, health status
@@ -413,6 +416,14 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+}
+
+message Preview {
+  optional string owner = 1;
+
+  optional string repo = 2;
+
+  optional string revision = 3;
 }
 
 // ProjectRole represents a role that has access to a project

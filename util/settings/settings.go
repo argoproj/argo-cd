@@ -49,7 +49,9 @@ type ArgoCDSettings struct {
 	ServerSignature []byte `json:"serverSignature,omitempty"`
 	// Certificate holds the certificate/private key for the Argo CD API server.
 	// If nil, will run insecure without TLS.
-	Certificate *tls.Certificate `json:"-"`
+	Certificate        *tls.Certificate `json:"-"`
+	GitHubClientID     string
+	GitHubClientSecret string
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
@@ -122,7 +124,9 @@ const (
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
-	settingsOIDCConfigKey = "oidc.config"
+	settingsOIDCConfigKey             = "oidc.config"
+	settingsWebhookGitHubClientId     = "github.clientId"
+	settingsWebhookGitHubClientSecret = "github.clientSecret"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
@@ -403,6 +407,12 @@ func updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secr
 	} else {
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
 	}
+	if githubClientID := argoCDSecret.Data[settingsWebhookGitHubClientId]; len(githubClientID) > 0 {
+		settings.GitHubClientID = string(githubClientID)
+	}
+	if githubClientSecret := argoCDSecret.Data[settingsWebhookGitHubClientSecret]; len(githubClientSecret) > 0 {
+		settings.GitHubClientSecret = string(githubClientSecret)
+	}
 	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
 		settings.WebhookGitHubSecret = string(githubWebhookSecret)
 	}
@@ -536,6 +546,12 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
 	argoCDSecret.Data[settingAdminPasswordHashKey] = []byte(settings.AdminPasswordHash)
 	argoCDSecret.Data[settingAdminPasswordMtimeKey] = []byte(settings.AdminPasswordMtime.Format(time.RFC3339))
+	if settings.GitHubClientID != "" {
+		argoCDSecret.Data[settingsWebhookGitHubClientId] = []byte(settings.GitHubClientID)
+	}
+	if settings.GitHubClientSecret != "" {
+		argoCDSecret.Data[settingsWebhookGitHubClientSecret] = []byte(settings.GitHubClientSecret)
+	}
 	if settings.WebhookGitHubSecret != "" {
 		argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
 	}

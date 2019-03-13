@@ -32,6 +32,16 @@ type Application struct {
 	Operation         *Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
 }
 
+type Preview struct {
+	Owner    string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
+	Repo     string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
+	Revision string `json:"revision" protobuf:"bytes,3,opt,name=revision"`
+}
+
+func (p Preview) IsZero() bool {
+	return p.Owner == "" && p.Repo == "" && p.Revision == ""
+}
+
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
 	// Source is a reference to the location ksonnet application definition
@@ -44,6 +54,8 @@ type ApplicationSpec struct {
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 	// IgnoreDifferences controls resources fields which should be ignored during comparison
 	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
+	// Preview indicates that the app is a preview app
+	Preview Preview `json:"preview,omitempty" protobuf:"bytes,6,name=preview"`
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	webhooks "gopkg.in/go-playground/webhooks.v3"
+	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/bitbucket"
 	"gopkg.in/go-playground/webhooks.v3/github"
 	"gopkg.in/go-playground/webhooks.v3/gitlab"
@@ -16,12 +16,14 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/preview"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type ArgoCDWebhookHandler struct {
 	ns               string
 	appClientset     appclientset.Interface
+	previewService   preview.PreviewService
 	github           *github.Webhook
 	githubHandler    http.Handler
 	gitlab           *gitlab.Webhook
@@ -30,15 +32,16 @@ type ArgoCDWebhookHandler struct {
 	bitbucketHandler http.Handler
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, appClientset appclientset.Interface, prevewService preview.PreviewService, set *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:           namespace,
-		appClientset: appClientset,
-		github:       github.New(&github.Config{Secret: set.WebhookGitHubSecret}),
-		gitlab:       gitlab.New(&gitlab.Config{Secret: set.WebhookGitLabSecret}),
-		bitbucket:    bitbucket.New(&bitbucket.Config{UUID: set.WebhookBitbucketUUID}),
+		ns:             namespace,
+		appClientset:   appClientset,
+		previewService: prevewService,
+		github:         github.New(&github.Config{Secret: set.WebhookGitHubSecret}),
+		gitlab:         gitlab.New(&gitlab.Config{Secret: set.WebhookGitLabSecret}),
+		bitbucket:      bitbucket.New(&bitbucket.Config{UUID: set.WebhookBitbucketUUID}),
 	}
-	acdWebhook.github.RegisterEvents(acdWebhook.HandleEvent, github.PushEvent)
+	acdWebhook.github.RegisterEvents(acdWebhook.HandleEvent, github.PushEvent, github.PullRequestEvent)
 	acdWebhook.gitlab.RegisterEvents(acdWebhook.HandleEvent, gitlab.PushEvents, gitlab.TagEvents)
 	acdWebhook.bitbucket.RegisterEvents(acdWebhook.HandleEvent, bitbucket.RepoPushEvent)
 	acdWebhook.githubHandler = webhooks.Handler(acdWebhook.github)
@@ -64,6 +67,11 @@ func affectedRevisionInfo(payloadIf interface{}) (string, string, bool) {
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURL = payload.Repository.HTMLURL
 		revision = parseRef(payload.Ref)
+		touchedHead = bool(payload.Repository.DefaultBranch == revision)
+	case github.PullRequestPayload:
+		// See: https://developer.github.com/v3/activity/events/types/#pullrequestevent
+		webURL = payload.Repository.HTMLURL
+		revision = parseRef(payload.PullRequest.Head.Ref)
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
 	case gitlab.PushEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
@@ -95,14 +103,14 @@ func affectedRevisionInfo(payloadIf interface{}) (string, string, bool) {
 }
 
 // HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}, header webhooks.Header) {
-	webURL, revision, touchedHead := affectedRevisionInfo(payload)
+func (a *ArgoCDWebhookHandler) HandleEvent(payloadIf interface{}, header webhooks.Header) {
+	webURL, revision, touchedHead := affectedRevisionInfo(payloadIf)
 	// NOTE: the webURL does not include the .git extension
 	if webURL == "" {
 		log.Info("Ignoring webhook event")
 		return
 	}
-	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
+	log.Infof("Received event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	appIf := a.appClientset.ArgoprojV1alpha1().Applications(a.ns)
 	apps, err := appIf.List(metav1.ListOptions{})
 	if err != nil {
@@ -122,22 +130,65 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}, header webhooks.
 	}
 
 	for _, app := range apps.Items {
-		if !repoRegexp.MatchString(app.Spec.Source.RepoURL) {
-			log.Debugf("%s does not match", app.Spec.Source.RepoURL)
+		appName := app.ObjectMeta.Name
+		repoUrl := app.Spec.Source.RepoURL
+		targetRevision := app.Spec.Source.TargetRevision
+
+		log.Debugf("matching with appName=%s, revision=%s, targetRevision=%s", appName, revision, targetRevision)
+		if !repoRegexp.MatchString(repoUrl) {
+			log.Debugf("repoRegexp=%s, does not match repoUrl=%s", regexpStr, repoUrl)
 			continue
 		}
-		targetRev := app.Spec.Source.TargetRevision
-		if targetRev == "HEAD" || targetRev == "" {
-			if !touchedHead {
+
+		switch payload := payloadIf.(type) {
+		case github.PushPayload, gitlab.PushEventPayload:
+			if targetRevision == "HEAD" || targetRevision == "" {
+				if !touchedHead {
+					log.Debugf("targetRevision=%s does not match revision=%s", targetRevision, revision)
+					continue
+				}
+			} else if targetRevision != revision {
+				log.Debugf("targetRevision=%s does not match revision=%s", targetRevision, revision)
 				continue
 			}
-		} else if targetRev != revision {
-			continue
-		}
-		_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-		if err != nil {
-			log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
-			continue
+			log.Infof("pushed change, time to sync the app")
+			_, err = argo.RefreshApp(appIf, appName, v1alpha1.RefreshTypeNormal)
+			if err != nil {
+				log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", appName, err)
+			}
+		case github.PullRequestPayload:
+
+			if targetRevision != payload.PullRequest.Base.Ref {
+				log.Debugf("targetRevision=%s matches revision=%s", targetRevision, revision)
+				continue
+			}
+
+			log.Infof("payload.action=%s", payload.Action)
+
+			owner := payload.Repository.Owner.Login
+			repo := payload.Repository.Name
+			sha := payload.PullRequest.Head.Sha
+
+			switch payload.Action {
+			case "opened", "reopened":
+				log.Infof("opened PR, time to set-up a new preview app")
+
+				err := a.previewService.Create(app, revision, owner, repo, sha)
+				if err != nil {
+					log.Warnf("Failed to create preview app appName=%s, err=%v", appName, err)
+				}
+
+				_, err = argo.RefreshApp(appIf, appName, v1alpha1.RefreshTypeNormal)
+				if err != nil {
+					log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", appName, err)
+				}
+			case "closed":
+				log.Infof("closed PR, time to tear-down the preview app")
+				err := a.previewService.Delete(app, owner, repo, sha, revision)
+				if err != nil {
+					log.Warnf("Failed to delete preview app appName=%s, err=%v", appName, err)
+				}
+			}
 		}
 	}
 }

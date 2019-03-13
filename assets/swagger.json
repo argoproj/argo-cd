@@ -2506,6 +2506,9 @@
             "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
           }
         },
+        "preview": {
+          "$ref": "#/definitions/v1alpha1Preview"
+        },
         "project": {
           "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
           "type": "string"
@@ -2796,6 +2799,20 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        }
+      }
+    },
+    "v1alpha1Preview": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
         }
       }
     },

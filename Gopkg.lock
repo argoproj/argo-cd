@@ -418,6 +418,14 @@
   revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
 
 [[projects]]
+  digest = "1:e38ad2825940d58bd8425be40bcd4211099d0c1988c158c35828197413b3cf85"
+  name = "github.com/google/go-github"
+  packages = ["github"]
+  pruneopts = ""
+  revision = "7462feb2032c2da9e3b85e9b04e6853a6e9e14ca"
+  version = "v24.0.1"
+
+[[projects]]
   digest = "1:14d826ee25139b4674e9768ac287a135f4e7c14e1134a5b15e4e152edfd49f41"
   name = "github.com/google/go-jsonnet"
   packages = [
@@ -427,6 +435,14 @@
   ]
   pruneopts = ""
   revision = "dfddf2b4e3aec377b0dcdf247ff92e7d078b8179"
+
+[[projects]]
+  digest = "1:cea4aa2038169ee558bf507d5ea02c94ca85bcca28a4c7bb99fd59b31e43a686"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  pruneopts = ""
+  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -946,6 +962,7 @@
   name = "golang.org/x/oauth2"
   packages = [
     ".",
+    "github",
     "google",
     "internal",
     "jws",
@@ -1562,6 +1579,7 @@
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/protoc-gen-go",
     "github.com/golang/protobuf/ptypes/empty",
+    "github.com/google/go-github/github",
     "github.com/google/go-jsonnet",
     "github.com/google/shlex",
     "github.com/grpc-ecosystem/go-grpc-middleware",
@@ -1597,6 +1615,7 @@
     "golang.org/x/crypto/ssh/terminal",
     "golang.org/x/net/context",
     "golang.org/x/oauth2",
+    "golang.org/x/oauth2/github",
     "golang.org/x/sync/errgroup",
     "golang.org/x/sync/semaphore",
     "google.golang.org/genproto/googleapis/api/annotations",

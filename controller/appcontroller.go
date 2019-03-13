@@ -10,6 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/oauth"
+	"github.com/argoproj/argo-cd/util/preview"
+
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -527,15 +530,33 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if state.Phase.Successful() {
 				eventInfo.Type = v1.EventTypeNormal
 				messages = append(messages, "succeeded")
+				ctrl.setStatus(app, "success")
 			} else {
 				eventInfo.Type = v1.EventTypeWarning
 				messages = append(messages, "failed:", state.Message)
+				ctrl.setStatus(app, "failure")
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 			ctrl.metricsServer.IncSync(app, state)
+		} else {
+			ctrl.setStatus(app, "pending")
 		}
 		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
+}
+
+func (ctrl *ApplicationController) setStatus(app *appv1.Application, state string) {
+	if app.Spec.Preview.IsZero() {
+		log.Infof("not a preview, no status update possible")
+		return
+	}
+	log.Infof("settings preview status for appName=%s, state=%s", app.Name, state)
+	oAuthService := oauth.NewOAuthService(*ctrl.settings)
+	statusService := preview.NewStatusService(oAuthService)
+	err := statusService.SetStatus(app.Name, app.Spec.Preview.Owner, app.Spec.Preview.Repo, app.Spec.Preview.Revision, state)
+	if err != nil {
+		log.Warnf("failed to set status: %v", err)
+	}
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {

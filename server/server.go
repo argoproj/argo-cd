@@ -15,6 +15,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/preview"
+
+	"github.com/argoproj/argo-cd/util/oauth"
+
 	golang_proto "github.com/golang/protobuf/proto"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -504,10 +508,16 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
+	oAuthService := oauth.NewOAuthService(*a.settings)
+	statusService := preview.NewStatusService(oAuthService)
+	previewService := preview.NewPreviewService(a.AppClientset, statusService)
 
 	// Webhook handler for git events
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, a.settings)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.AppClientset, previewService, a.settings)
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
+
+	mux.HandleFunc("/oauth/authorize", oAuthService.NewAuthorizeHandler())
+	mux.HandleFunc("/oauth/token", oAuthService.NewTokenHandler())
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")

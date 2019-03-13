@@ -65,3 +65,7 @@ required = [
 [[constraint]]
   branch = "master"
   name = "github.com/yudai/gojsondiff"
+
+[[constraint]]
+  name = "github.com/google/go-github"
+  version = "24.0.1"
