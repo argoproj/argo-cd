@@ -167,9 +167,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payloadIf interface{}, header webhook
 			log.Infof("payload.action=%s", payload.Action)
 
 			preview := v1alpha1.Preview{
-				payload.Repository.Owner.Login,
-				payload.Repository.Name,
-				revision,
+				Owner:    payload.Repository.Owner.Login,
+				Repo:     payload.Repository.Name,
+				Revision: revision,
 			}
 
 			switch payload.Action {
