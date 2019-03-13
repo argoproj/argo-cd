@@ -66,7 +66,6 @@ spec:
   - group: ''
     kind: Namespace
   # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
-  clusterResourceWhitelist:
   - group: ''
     kind: ResourceQuota
   - group: ''
@@ -92,6 +91,21 @@ spec:
     jwtTokens:
     - iat: 1535390316
 ```
+
+## Externally Facing URL
+
+Argo CD's externally facing base URL:
+
+Example:
+
+~~~yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  url: https://argo-cd-demo.argoproj.io
+~~~
 
 ## Repositories
 

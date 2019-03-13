@@ -10,13 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/previews"
+
 	"github.com/argoproj/argo-cd/util/oauth"
-	"github.com/argoproj/argo-cd/util/preview"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -73,6 +74,8 @@ type ApplicationController struct {
 	refreshRequestedApps      map[string]bool
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
+	oAuthService              oauth.OAuthService
+	statusService             previews.StatusService
 }
 
 type ApplicationControllerConfig struct {
@@ -96,6 +99,7 @@ func NewApplicationController(
 		return nil, err
 	}
 	kubectlCmd := kube.KubectlCmd{}
+	oAuthService := oauth.NewOAuthService(*settings)
 	ctrl := ApplicationController{
 		cache:                     argoCache,
 		namespace:                 namespace,
@@ -112,6 +116,8 @@ func NewApplicationController(
 		auditLogger:               argo.NewAuditLogger(namespace, kubeClientset, "argocd-application-controller"),
 		settingsMgr:               settingsMgr,
 		settings:                  settings,
+		oAuthService:              oAuthService,
+		statusService:             previews.NewStatusService(oAuthService, settings.URL),
 	}
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
@@ -474,6 +480,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
+	ctrl.setStatus(app, *state)
+
 	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
@@ -530,30 +538,37 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if state.Phase.Successful() {
 				eventInfo.Type = v1.EventTypeNormal
 				messages = append(messages, "succeeded")
-				ctrl.setStatus(app, "success")
+				ctrl.setStatus(app, *state)
 			} else {
 				eventInfo.Type = v1.EventTypeWarning
 				messages = append(messages, "failed:", state.Message)
-				ctrl.setStatus(app, "failure")
+				ctrl.setStatus(app, *state)
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 			ctrl.metricsServer.IncSync(app, state)
 		} else {
-			ctrl.setStatus(app, "pending")
+			ctrl.setStatus(app, *state)
 		}
 		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
 }
 
-func (ctrl *ApplicationController) setStatus(app *appv1.Application, state string) {
+func (ctrl *ApplicationController) setStatus(app *appv1.Application, operationState appv1.OperationState) {
 	if app.Spec.Preview.IsZero() {
 		log.Infof("not a preview, no status update possible")
 		return
 	}
-	log.Infof("settings preview status for appName=%s, state=%s", app.Name, state)
-	oAuthService := oauth.NewOAuthService(*ctrl.settings)
-	statusService := preview.NewStatusService(oAuthService)
-	err := statusService.SetStatus(app.Name, app.Spec.Preview.Owner, app.Spec.Preview.Repo, app.Spec.Preview.Revision, state)
+
+	state := "pending"
+	if operationState.Phase.Completed() {
+		if operationState.Phase.Successful() {
+			state = "success"
+		} else {
+			state = "failed"
+		}
+	}
+
+	err := ctrl.statusService.SetStatus(*app, operationState.Operation.Sync.Revision, state)
 	if err != nil {
 		log.Warnf("failed to set status: %v", err)
 	}

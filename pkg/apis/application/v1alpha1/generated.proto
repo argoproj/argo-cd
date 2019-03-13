@@ -425,7 +425,7 @@ message Preview {
   // Repo is the Github repository
   optional string repo = 2;
 
-  // Revision is the specific commit SHA
+  // Revision is the branch
   optional string revision = 3;
 }
 

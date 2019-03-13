@@ -2815,7 +2815,7 @@
         },
         "revision": {
           "type": "string",
-          "title": "Revision is the specific commit SHA"
+          "title": "Revision is the branch"
         }
       }
     },

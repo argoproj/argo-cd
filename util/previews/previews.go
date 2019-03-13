@@ -1,10 +1,10 @@
-package preview
+package previews
 
 import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -39,11 +39,11 @@ func (p PreviewService) Exists(previewAppName, revision string) (bool, error) {
 	return true, nil
 }
 
-func (p PreviewService) Create(app v1alpha1.Application, revision, owner, repo, sha string) error {
+func (p PreviewService) Create(app v1alpha1.Application, preview v1alpha1.Preview, sha string) error {
 
-	previewApp := previewApp(app, owner, repo, sha, revision)
+	previewApp := previewApp(app, preview)
 
-	exists, err := p.Exists(previewApp.Name, revision)
+	exists, err := p.Exists(previewApp.Name, preview.Revision)
 	if err != nil {
 		return err
 	}
@@ -59,13 +59,13 @@ func (p PreviewService) Create(app v1alpha1.Application, revision, owner, repo, 
 		}
 	}
 
-	return p.statusService.AddMessageStatus(previewApp.Name, owner, repo, sha, "Creating "+app.Spec.Destination.Server+"/"+app.Spec.Destination.Namespace+"/"+app.Name)
+	return p.statusService.SetStatus(*previewApp, sha, "pending")
 }
 
-func (p PreviewService) Delete(app v1alpha1.Application, owner, repo, sha, revision string) error {
-	previewApp := previewApp(app, owner, repo, sha, revision)
+func (p PreviewService) Delete(app v1alpha1.Application, preview v1alpha1.Preview) error {
+	previewApp := previewApp(app, preview)
 
-	exists, err := p.Exists(previewApp.Name, revision)
+	exists, err := p.Exists(previewApp.Name, preview.Revision)
 	if err != nil {
 		return err
 	}
@@ -80,29 +80,25 @@ func (p PreviewService) Delete(app v1alpha1.Application, owner, repo, sha, revis
 		return applications.Delete(previewApp.Name, &v1.DeleteOptions{})
 	}
 
-	return p.statusService.AddMessageStatus(previewApp.Name, owner, repo, sha, "Deleting "+app.Spec.Destination.Server+"/"+app.Spec.Destination.Namespace+"/"+app.Name)
+	return nil
 }
 
 func (p PreviewService) getApplications() alpha1.ApplicationInterface {
 	return p.appClientset.ArgoprojV1alpha1().Applications("argocd")
 }
 
-func previewApp(app v1alpha1.Application, owner, repo, sha, revision string) *v1alpha1.Application {
+func previewApp(app v1alpha1.Application, preview v1alpha1.Preview) *v1alpha1.Application {
 	previewApp := &v1alpha1.Application{}
 
-	previewApp.Name = app.Name + "-preview-" + revision
+	previewApp.Name = app.Name + "-preview-" + preview.Revision
 
 	previewApp.Spec = *app.Spec.DeepCopy()
 
-	previewApp.Spec.Preview = v1alpha1.Preview{
-		Owner:    owner,
-		Repo:     repo,
-		Revision: sha,
-	}
+	previewApp.Spec.Preview = preview
 
 	previewApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{Prune: true}}
 
-	previewApp.Spec.Source.TargetRevision = revision
+	previewApp.Spec.Source.TargetRevision = preview.Revision
 
 	previewApp.Spec.Destination.Namespace = previewNamespace
 	previewApp.Spec.Destination.Server = app.Spec.Destination.Server

@@ -37,7 +37,7 @@ type Preview struct {
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
 	// Repo is the Github repository
 	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
-	// Revision is the specific commit SHA
+	// Revision is the branch
 	Revision string `json:"revision" protobuf:"bytes,3,opt,name=revision"`
 }
 

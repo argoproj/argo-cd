@@ -7,17 +7,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/preview"
-
 	"github.com/stretchr/testify/assert"
 
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/util/previews"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func NewMockHandler() *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset()
-	return NewHandler("", appClientset, preview.PreviewService{}, &settings.ArgoCDSettings{})
+	return NewHandler("", appClientset, previews.PreviewService{}, &settings.ArgoCDSettings{})
 }
 func TestGitHubCommitEvent(t *testing.T) {
 	h := NewMockHandler()

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/argoproj/argo-cd/util/previews"
+
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/go-playground/webhooks.v3"
 	"gopkg.in/go-playground/webhooks.v3/bitbucket"
@@ -16,14 +18,13 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/util/argo"
-	"github.com/argoproj/argo-cd/util/preview"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
 type ArgoCDWebhookHandler struct {
 	ns               string
 	appClientset     appclientset.Interface
-	previewService   preview.PreviewService
+	previewService   previews.PreviewService
 	github           *github.Webhook
 	githubHandler    http.Handler
 	gitlab           *gitlab.Webhook
@@ -32,7 +33,7 @@ type ArgoCDWebhookHandler struct {
 	bitbucketHandler http.Handler
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, prevewService preview.PreviewService, set *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, appClientset appclientset.Interface, prevewService previews.PreviewService, set *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:             namespace,
 		appClientset:   appClientset,
@@ -165,15 +166,17 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payloadIf interface{}, header webhook
 
 			log.Infof("payload.action=%s", payload.Action)
 
-			owner := payload.Repository.Owner.Login
-			repo := payload.Repository.Name
-			sha := payload.PullRequest.Head.Sha
+			preview := v1alpha1.Preview{
+				payload.Repository.Owner.Login,
+				payload.Repository.Name,
+				revision,
+			}
 
 			switch payload.Action {
 			case "opened", "reopened":
 				log.Infof("opened PR, time to set-up a new preview app")
 
-				err := a.previewService.Create(app, revision, owner, repo, sha)
+				err := a.previewService.Create(app, preview, payload.PullRequest.Head.Sha)
 				if err != nil {
 					log.Warnf("Failed to create preview app appName=%s, err=%v", appName, err)
 				}
@@ -184,7 +187,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payloadIf interface{}, header webhook
 				}
 			case "closed":
 				log.Infof("closed PR, time to tear-down the preview app")
-				err := a.previewService.Delete(app, owner, repo, sha, revision)
+				err := a.previewService.Delete(app, preview)
 				if err != nil {
 					log.Warnf("Failed to delete preview app appName=%s, err=%v", appName, err)
 				}
