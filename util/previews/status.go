@@ -45,13 +45,13 @@ func (s StatusService) SetStatus(app v1alpha1.Application, sha, state string) er
 	client := github.NewClient(oauthClient)
 
 	name := "Argo CD"
-	url := s.url + "/applications/" + app.Name
+	targetUrl := s.url + "/applications/" + app.Name
 
 	_, _, err = client.Repositories.CreateStatus(context.Background(), app.Spec.Preview.Owner, app.Spec.Preview.Repo, sha, &github.RepoStatus{
-		Context:     &name,
 		State:       &state,
+		TargetURL:   &targetUrl,
 		Description: &description,
-		URL:         &url,
+		Context:     &name,
 	})
 
 	return err

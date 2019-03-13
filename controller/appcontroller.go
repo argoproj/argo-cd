@@ -480,7 +480,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setStatus(app, *state)
+	ctrl.notifyOperationState(app, *state)
 
 	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
@@ -538,26 +538,34 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if state.Phase.Successful() {
 				eventInfo.Type = v1.EventTypeNormal
 				messages = append(messages, "succeeded")
-				ctrl.setStatus(app, *state)
+				ctrl.notifyOperationState(app, *state)
 			} else {
 				eventInfo.Type = v1.EventTypeWarning
 				messages = append(messages, "failed:", state.Message)
-				ctrl.setStatus(app, *state)
+				ctrl.notifyOperationState(app, *state)
 			}
 			ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "))
 			ctrl.metricsServer.IncSync(app, state)
 		} else {
-			ctrl.setStatus(app, *state)
+			ctrl.notifyOperationState(app, *state)
 		}
 		return nil
 	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
 }
+func (ctrl *ApplicationController) notifySyncStatus(app *appv1.Application, syncStatus appv1.SyncStatus) {
 
-func (ctrl *ApplicationController) setStatus(app *appv1.Application, operationState appv1.OperationState) {
-	if app.Spec.Preview.IsZero() {
-		log.Infof("not a preview, no status update possible")
-		return
+	state := "pending"
+	switch syncStatus.Status {
+	case appv1.SyncStatusCodeSynced:
+		state = "success"
+	case appv1.SyncStatusCodeOutOfSync:
+		state = "failed"
 	}
+
+	ctrl.notifyStatus(app, syncStatus.Revision, state)
+}
+
+func (ctrl *ApplicationController) notifyOperationState(app *appv1.Application, operationState appv1.OperationState) {
 
 	state := "pending"
 	if operationState.Phase.Completed() {
@@ -568,7 +576,16 @@ func (ctrl *ApplicationController) setStatus(app *appv1.Application, operationSt
 		}
 	}
 
-	err := ctrl.statusService.SetStatus(*app, operationState.Operation.Sync.Revision, state)
+	ctrl.notifyStatus(app, operationState.Operation.Sync.Revision, state)
+}
+
+func (ctrl *ApplicationController) notifyStatus(app *appv1.Application, revision, state string) {
+	if app.Spec.Preview.IsZero() {
+		log.Infof("not a preview, no status update possible")
+		return
+	}
+
+	err := ctrl.statusService.SetStatus(*app, revision, state)
 	if err != nil {
 		log.Warnf("failed to set status: %v", err)
 	}
@@ -808,6 +825,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
+		ctrl.notifySyncStatus(app, *syncStatus)
 		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
 		return nil
 	}
