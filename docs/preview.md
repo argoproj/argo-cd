@@ -74,4 +74,6 @@ git checkout -b test
 vi guestbook/guestbook-ui-deployment.yaml ;# maybe increase the replicas
 ~~~
 
-Et voila - you should see a new app name `guestbook-preview-test`: 
+Et voila - you should see a new app name `guestbook-preview-test`. You should also see the application status in Github:
+
+![Github Pull Request Status](assets/github-pull-request-status.png)
