@@ -10,6 +10,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO: move this into shared test package after resolving import cycle
+const (
+	// This is a throwaway gitlab test account/repo with a read-only personal access token for the
+	// purposes of testing private git repos
+	PrivateGitRepo     = "https://gitlab.com/argo-cd-test/test-apps.git"
+	PrivateGitUsername = "blah"
+	PrivateGitPassword = "B5sBDeoqAVUouoHkrovy"
+)
+
 func TestIsCommitSHA(t *testing.T) {
 	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
 	assert.True(t, IsCommitSHA("9D921F65F3C5373B682E2EB4B37AFBA6592E8F8B"))
@@ -145,12 +154,6 @@ func TestGitClient(t *testing.T) {
 
 // TestPrivateGitRepo tests the ability to operate on a private git repo.
 func TestPrivateGitRepo(t *testing.T) {
-	repo := "https://gitlab.com/argo-cd-test/argocd-example-apps.git"
-	username := "blah"
-	// This is a personal access token generated with read only access in a throwaway gitlab test
-	// account/repo
-	password := "B5sBDeoqAVUouoHkrovy"
-
 	// add the hack path which has the git-ask-pass.sh shell script
 	osPath := os.Getenv("PATH")
 	hackPath, err := filepath.Abs("../../hack")
@@ -163,7 +166,7 @@ func TestPrivateGitRepo(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(dirName) }()
 
-	clnt, err := NewFactory().NewClient(repo, dirName, username, password, "")
+	clnt, err := NewFactory().NewClient(PrivateGitRepo, dirName, PrivateGitUsername, PrivateGitPassword, "")
 	assert.NoError(t, err)
 
 	testGitClient(t, clnt)
