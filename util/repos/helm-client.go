@@ -90,7 +90,7 @@ func (c helmClient) runCommand(command, subcommand string, args ...string) error
 	args = append([]string{command, subcommand}, args...)
 
 	log.Infof("helm args=%v", args)
-	bytes, err := exec.Command("helm", args...).Output()
+	bytes, err := exec.Command("helm", args...).CombinedOutput()
 	log.Infof("output=%s", bytes)
 
 	return err
@@ -113,7 +113,7 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 		return "", fmt.Errorf("unable to clean repo at %s: %v", c.root, err)
 	}
 
-	err = c.runCommand("fetch", "--untar", "--untardir", filepath.Join(c.root, chartName), url)
+	err = c.runCommand("fetch", "--untar", "--untardir", c.root, url)
 
 	return chartVersion, err
 }
