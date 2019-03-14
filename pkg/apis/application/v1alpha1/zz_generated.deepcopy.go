@@ -479,7 +479,7 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 		*out = make([]ApplicationCondition, len(*in))
 		copy(*out, *in)
 	}
-	in.ObservedAt.DeepCopyInto(&out.ObservedAt)
+	in.ReconciledAt.DeepCopyInto(&out.ReconciledAt)
 	if in.OperationState != nil {
 		in, out := &in.OperationState, &out.OperationState
 		if *in == nil {
@@ -489,6 +489,7 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 			(*in).DeepCopyInto(*out)
 		}
 	}
+	in.ObservedAt.DeepCopyInto(&out.ObservedAt)
 	return
 }
 
