@@ -215,7 +215,7 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 			}
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		k := kustomize.NewKustomizeApp(appPath)
+		k := kustomize.NewKustomizeApp(appPath, kustomizeCredentials(q.Repo))
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Plugins)
@@ -628,7 +628,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		res.Kustomize = &KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
-		k := kustomize.NewKustomizeApp(appPath)
+		k := kustomize.NewKustomizeApp(appPath, kustomizeCredentials(q.Repo))
 		_, params, err := k.Build(nil)
 		if err != nil {
 			return nil, err
@@ -643,4 +643,14 @@ func (q *RepoServerAppDetailsQuery) valueFiles() []string {
 		return nil
 	}
 	return q.Helm.ValueFiles
+}
+
+func kustomizeCredentials(repo *v1alpha1.Repository) *kustomize.GitCredentials {
+	if repo == nil || repo.Password == "" {
+		return nil
+	}
+	return &kustomize.GitCredentials{
+		Username: repo.Username,
+		Password: repo.Password,
+	}
 }

@@ -42,7 +42,7 @@ func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isName
 	return key
 }
 
-func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settings *settings.ArgoCDSettings, kubectl kube.Kubectl, onAppUpdated func(appName string)) LiveStateCache {
+func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settings *settings.ArgoCDSettings, kubectl kube.Kubectl, onAppUpdated func(appName string, fullRefresh bool)) LiveStateCache {
 	return &liveStateCache{
 		appInformer:  appInformer,
 		db:           db,
@@ -59,7 +59,7 @@ type liveStateCache struct {
 	clusters     map[string]*clusterInfo
 	lock         *sync.Mutex
 	appInformer  cache.SharedIndexInformer
-	onAppUpdated func(appName string)
+	onAppUpdated func(appName string, fullRefresh bool)
 	kubectl      kube.Kubectl
 	settings     *settings.ArgoCDSettings
 }
@@ -178,12 +178,12 @@ func (c *liveStateCache) Run(ctx context.Context) {
 				} else if event.Type == watch.Modified {
 					cluster.cluster = event.Cluster
 					cluster.invalidate()
-				} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
-					go func() {
-						// warm up cache for cluster with apps
-						_ = cluster.ensureSynced()
-					}()
 				}
+			} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
+				go func() {
+					// warm up cache for cluster with apps
+					_, _ = c.getSyncedCluster(event.Cluster.Server)
+				}()
 			}
 		}
 

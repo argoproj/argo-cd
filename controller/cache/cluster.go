@@ -43,7 +43,7 @@ type clusterInfo struct {
 	nodes   map[kube.ResourceKey]*node
 	nsIndex map[string]map[kube.ResourceKey]*node
 
-	onAppUpdated func(appName string)
+	onAppUpdated func(appName string, fullRefresh bool)
 	kubectl      kube.Kubectl
 	cluster      *appv1.Cluster
 	log          *log.Entry
@@ -462,18 +462,23 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 			if app == "" || skipAppRequeing(key) {
 				continue
 			}
-			toNotify[app] = true
+			toNotify[app] = n.isRootAppNode() || toNotify[app]
 		}
 	}
-	for name := range toNotify {
-		c.onAppUpdated(name)
+	for name, full := range toNotify {
+		c.onAppUpdated(name, full)
 	}
 }
 
-func (c *clusterInfo) onNodeRemoved(key kube.ResourceKey, existingNode *node) {
+func (c *clusterInfo) onNodeRemoved(key kube.ResourceKey, n *node) {
+	appName := n.appName
+	if ns, ok := c.nsIndex[key.Namespace]; ok {
+		appName = n.getApp(ns)
+	}
+
 	c.removeNode(key)
-	if existingNode.appName != "" {
-		c.onAppUpdated(existingNode.appName)
+	if appName != "" {
+		c.onAppUpdated(appName, n.isRootAppNode())
 	}
 }
 
