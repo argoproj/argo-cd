@@ -1,110 +1,51 @@
 package repos
 
 import (
-	"fmt"
 	"io/ioutil"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util"
-
-	log "github.com/sirupsen/logrus"
+	helmcmd "github.com/argoproj/argo-cd/util/helm/cmd"
 )
 
 type helmClient struct {
 	repoURL                   string
 	name                      string
+	helm                      helmcmd.Helm
 	workDir                   string
 	username, password        string
 	caData, certData, keyData []byte
 }
 
 func (f factory) newHelmClient(repoURL, name, workDir, username, password string, caData, certData, keyData []byte) (Client, error) {
-	return helmClient{repoURL, name, workDir, username, password, caData, certData, keyData}, nil
+	return helmClient{
+		repoURL, name, helmcmd.NewHelm(workDir), workDir,
+		username, password,
+		caData, certData, keyData,
+	}, nil
 }
 
 func (c helmClient) Test() error {
 
-	err := runHelmCommand("init", "--client-only", "--skip-refresh")
+	_, err := c.helm.Init()
 	if err != nil {
 		return err
 	}
 
-	err = c.addRepo(c.name, c.repoURL)
+	_, err = c.addRepo()
 	if err != nil {
 		return err
 	}
 
-	return runHelmCommand("repo", "rm", c.name)
-}
-
-func (c helmClient) addRepo(name, url string) error {
-
-	tmp, err := ioutil.TempFile(util.TempDir, "helm")
-	if err != nil {
-		return err
-	}
-	defer func() { util.DeleteFile(tmp.Name()) }()
-
-	args := []string{"repo", "add"}
-
-	if c.username != "" {
-		args = append([]string{"--username", c.username}, args...)
-	}
-
-	if c.password != "" {
-		args = append([]string{"--password", c.password}, args...)
-	}
-
-	if c.caData != nil {
-		caFile, err := ioutil.TempFile(util.TempDir, "")
-		if err != nil {
-			return err
-		}
-		_, err = caFile.Write(c.caData)
-		if err != nil {
-			return err
-		}
-		args = append([]string{"--ca-file", caFile.Name()}, args...)
-	}
-
-	if c.certData != nil {
-		certFile, err := ioutil.TempFile(util.TempDir, "")
-		if err != nil {
-			return err
-		}
-		_, err = certFile.Write(c.certData)
-		if err != nil {
-			return err
-		}
-		args = append([]string{"--cert-file", certFile.Name()}, args...)
-	}
-
-	if c.keyData != nil {
-		keyFile, err := ioutil.TempFile(util.TempDir, "")
-		if err != nil {
-			return err
-		}
-		_, err = keyFile.Write(c.keyData)
-		if err != nil {
-			return err
-		}
-		args = append([]string{"--key-file", keyFile.Name()}, args...)
-	}
-
-	args = append(args, name, url)
-
-	return runHelmCommand(args...)
-}
-
-func runHelmCommand(args ...string) error {
-
-	log.Infof("helm args=%v", args)
-	bytes, err := exec.Command("helm", args...).CombinedOutput()
-	log.Infof("output=%s", bytes)
-
+	_, err = c.helm.RepoRm(c.name)
 	return err
+}
+
+func (c helmClient) addRepo() (string, error) {
+	return c.helm.RepoAdd(c.name, c.repoURL, helmcmd.RepoAddOpts{
+		Username: c.username, Password: c.password,
+		CAData: c.caData, CertData: c.certData, KeyData: c.keyData,
+	})
 }
 
 func (c helmClient) WorkDir() string {
@@ -113,32 +54,23 @@ func (c helmClient) WorkDir() string {
 
 func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 
-	chartName := c.chartName(path)
-
-	url := c.repoURL + "/" + chartName + "-" + chartVersion + ".tgz"
-
-	log.Infof("Helm checkout url=%s, workDir=%s, path=%s", url, c.workDir, path)
-
-	_, err := exec.Command("rm", "-rf", c.workDir).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("unable to clean repo at %s: %v", c.workDir, err)
-	}
-
-	err = c.addRepo(c.name, c.repoURL)
-	if err != nil {
-		return "", err
-	}
-	err = runHelmCommand("repo", "update")
+	_, err := c.addRepo()
 	if err != nil {
 		return "", err
 	}
 
-	err = runHelmCommand("fetch", "--untar", "--untardir", c.workDir, url)
+	_, err = c.helm.RepoUpdate()
+	if err != nil {
+		return "", err
+	}
 
+	_, err = c.helm.Fetch(c.name, chartName(path), helmcmd.FetchOpts{
+		Version: chartVersion, Destination: path,
+	})
 	return chartVersion, err
 }
 
-func (c helmClient) chartName(path string) string {
+func chartName(path string) string {
 	return strings.Split(path, "/")[0]
 }
 
@@ -148,7 +80,7 @@ func (c helmClient) ResolveRevision(revision string) (string, error) {
 
 func (c helmClient) LsFiles(path string) ([]string, error) {
 
-	chartName := c.chartName(path)
+	chartName := chartName(path)
 	files, err := ioutil.ReadDir(filepath.Join(c.workDir, chartName))
 	if err != nil {
 		return nil, err

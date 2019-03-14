@@ -380,31 +380,31 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 
 type FakeClientFactory struct{}
 
-func (f FakeClientFactory) NewClient(c repos.Config, path string) (repos.Client, error) {
+func (f FakeClientFactory) NewClient(c repos.Config, workDir string) (repos.Client, error) {
 	return &FakeGitClient{
-		root: path,
+		workDir: workDir,
 	}, nil
 }
 
 // FakeGitClient is a test git client implementation which always clone local test repo.
 type FakeGitClient struct {
-	root string
+	workDir string
 }
 
 func (c *FakeGitClient) Test() error {
 	return nil
 }
 
-func (c *FakeGitClient) Root() string {
-	return c.root
+func (c *FakeGitClient) WorkDir() string {
+	return c.workDir
 }
 
 func (c *FakeGitClient) Checkout(path, revision string) (string, error) {
-	_, err := exec.Command("rm", "-rf", c.root).Output()
+	_, err := exec.Command("rm", "-rf", c.workDir).Output()
 	if err != nil {
 		return "", err
 	}
-	_, err = exec.Command("cp", "-r", "../../examples/guestbook", c.root).Output()
+	_, err = exec.Command("cp", "-r", "../../examples/guestbook", c.workDir).Output()
 	if err != nil {
 		return "", err
 	}
@@ -421,12 +421,12 @@ func (c *FakeGitClient) ResolveRevision(s string) (string, error) {
 }
 
 func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
-	matches, err := filepath.Glob(path.Join(c.root, s))
+	matches, err := filepath.Glob(path.Join(c.workDir, s))
 	if err != nil {
 		return nil, err
 	}
 	for i := range matches {
-		matches[i] = strings.TrimPrefix(matches[i], c.root)
+		matches[i] = strings.TrimPrefix(matches[i], c.workDir)
 	}
 	return matches, nil
 }

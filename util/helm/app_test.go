@@ -115,7 +115,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 	helmHome, err := ioutil.TempDir("", "")
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(helmHome) }()
-	h.SetHome(helmHome)
+
 	err = h.Init()
 	assert.NoError(t, err)
 	_, err = h.Template("wordpress", "", nil)

@@ -5,18 +5,17 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"sort"
 	"strings"
 
 	"github.com/ghodss/yaml"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/config"
+	helmcmd "github.com/argoproj/argo-cd/util/helm/cmd"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -24,24 +23,22 @@ import (
 type App interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
-	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
+	// GetParameters returns a list of chart parameters taking into account Values in provided YAML files.
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
-	// SetHome sets the helm home location (default "~/.helm")
-	SetHome(path string)
 	// Init runs `helm init --client-only`
 	Init() error
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
 func NewApp(path string, repos []*argoappv1.Repository) App {
-	return &helm{path: path, repos: repos}
+	return &app{path: path, helm: helmcmd.NewHelm(path), repos: repos}
 }
 
-type helm struct {
+type app struct {
 	path             string
-	home             string
+	helm             helmcmd.Helm
 	repos            []*argoappv1.Repository
 	reposInitialized bool
 }
@@ -51,29 +48,31 @@ func IsMissingDependencyErr(err error) bool {
 	return strings.Contains(err.Error(), "found in requirements.yaml, but missing in charts")
 }
 
-func (h *helm) Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
-	args := []string{
-		"template", ".", "--name", appName,
+func (h *app) Template(appName string, namespace string, source *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
+
+	opts := helmcmd.TemplateOpts{
+		Name:      appName,
+		Namespace: namespace,
+		Set:       make(map[string]string),
+		Values:    []string{},
 	}
-	if namespace != "" {
-		args = append(args, "--namespace", namespace)
-	}
-	if opts != nil {
-		for _, valuesFile := range opts.ValueFiles {
-			args = append(args, "-f", valuesFile)
+
+	if source != nil {
+		for _, valuesFile := range source.ValueFiles {
+			opts.Values = append(opts.Values, valuesFile)
 		}
-		for _, p := range opts.Parameters {
-			args = append(args, "--set", fmt.Sprintf("%s=%s", p.Name, p.Value))
+		for _, p := range source.Parameters {
+			opts.Set[p.Name] = p.Value
 		}
 	}
-	out, err := h.helmCmd(args...)
+	out, err := h.helm.Template(".", opts)
 	if err != nil {
 		return nil, err
 	}
 	return kube.SplitYAML(out)
 }
 
-func (h *helm) DependencyBuild() error {
+func (h *app) DependencyBuild() error {
 	if !h.reposInitialized {
 		var files []*os.File
 		defer func() {
@@ -88,66 +87,26 @@ func (h *helm) DependencyBuild() error {
 				continue
 			}
 
-			args := []string{"repo", "add"}
-
-			for flag, data := range map[string][]byte{"--ca-file": repo.CAData, "--cert-file": repo.CertData, "--key-file": repo.KeyData} {
-				if repo.KeyData != nil {
-					f, err := ioutil.TempFile(util.TempDir, "")
-					if err != nil {
-						return fmt.Errorf("failed to generate temp file for %s: %v", flag, err)
-					}
-					files = append(files, f)
-					_, err = f.Write(data)
-					if err != nil {
-						return fmt.Errorf("failed to write temp file for %s: %v", flag, err)
-					}
-					_ = f.Close()
-					args = append(args, flag, f.Name())
-				}
-			}
-			if repo.Username != "" {
-				args = append(args, "--username", repo.Username)
-			}
-			if repo.Password != "" {
-				args = append(args, "--password", repo.Password)
-			}
-
-			_, err := h.helmCmdExt(append(args, repo.Name, repo.Repo), func(log string) string {
-				if repo.Username != "" {
-					log = strings.Replace(log, fmt.Sprintf("--username %s", repo.Username), "--username ***", 1)
-				}
-				if repo.Password != "" {
-					log = strings.Replace(log, fmt.Sprintf("--password %s", repo.Password), "--password ***", 1)
-				}
-				return log
+			_, err := h.helm.RepoAdd(repo.Name, repo.Repo, helmcmd.RepoAddOpts{
+				Username: repo.Username, Password: repo.Password, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData,
 			})
+
 			if err != nil {
 				return err
 			}
 		}
 	}
-	_, err := h.helmCmd("dependency", "build")
+	_, err := h.helm.DependencyBuild()
 	return err
 }
 
-func (h *helm) SetHome(home string) {
-	h.home = home
-}
-
-func (h *helm) Init() error {
-	if h.home == "" {
-		home, err := ioutil.TempDir("", "helm")
-		if err != nil {
-			return err
-		}
-		h.home = home
-	}
-	_, err := h.helmCmd("init", "--client-only", "--skip-refresh")
+func (h *app) Init() error {
+	_, err := h.helm.Init()
 	return err
 }
 
-func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error) {
-	out, err := h.helmCmd("inspect", "values", ".")
+func (h *app) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error) {
+	out, err := h.helm.InspectValues(".")
 	if err != nil {
 		return nil, err
 	}
@@ -186,35 +145,6 @@ func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, 
 		return params[i].Name < params[j].Name
 	})
 	return params, nil
-}
-
-func (h *helm) helmCmd(args ...string) (string, error) {
-	return h.helmCmdExt(args, func(s string) string {
-		return s
-	})
-}
-
-func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string, error) {
-	cmd := exec.Command("helm", args...)
-	cmd.Dir = h.path
-	if h.home != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.home))
-	}
-	cmdStr := logFormat(strings.Join(cmd.Args, " "))
-	log.Info(cmdStr)
-	outBytes, err := cmd.Output()
-	if err != nil {
-		exErr, ok := err.(*exec.ExitError)
-		if !ok {
-			return "", err
-		}
-		errOutput := string(exErr.Stderr)
-		log.Errorf("`%s` failed: %s", cmdStr, errOutput)
-		return "", fmt.Errorf(strings.TrimSpace(errOutput))
-	}
-	out := string(outBytes)
-	log.Debug(out)
-	return out, nil
 }
 
 func flatVals(input map[string]interface{}, output map[string]string, prefixes ...string) {

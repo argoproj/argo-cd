@@ -38,11 +38,11 @@ type fakeClientFactory struct {
 
 func (f *fakeClientFactory) NewClient(c repos.Config, path string) (repos.Client, error) {
 	mockClient := gitmocks.Client{}
-	root := "./testdata"
+	workDir := "./testdata"
 	if f.workDir != "" {
-		root = f.workDir
+		workDir = f.workDir
 	}
-	mockClient.On("WorkDir", mock.Anything, mock.Anything).Return(root)
+	mockClient.On("WorkDir", mock.Anything, mock.Anything).Return(workDir)
 	mockClient.On("Checkout", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
 	mockClient.On("ResolveRevision", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
 	mockClient.On("LsFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
