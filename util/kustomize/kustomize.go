@@ -25,13 +25,22 @@ type Kustomize interface {
 	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.KustomizeImageTag, error)
 }
 
+type GitCredentials struct {
+	Username string
+	Password string
+}
+
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string) Kustomize {
-	return &kustomize{path: path}
+func NewKustomizeApp(path string, creds *GitCredentials) Kustomize {
+	return &kustomize{
+		path:  path,
+		creds: creds,
+	}
 }
 
 type kustomize struct {
-	path string
+	path  string
+	creds *GitCredentials
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.KustomizeImageTag, error) {
@@ -67,7 +76,15 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 		}
 	}
 
-	out, err := argoexec.RunCommand(commandName, "build", k.path)
+	cmd := exec.Command(commandName, "build", k.path)
+	cmd.Env = os.Environ()
+	if k.creds != nil {
+		cmd.Env = append(cmd.Env, "GIT_ASKPASS=git-ask-pass.sh")
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_USERNAME=%s", k.creds.Username))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_PASSWORD=%s", k.creds.Password))
+	}
+
+	out, err := argoexec.RunCommandExt(cmd)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -104,7 +121,6 @@ var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Ku
 func (k *kustomize) findKustomization() (string, error) {
 	for _, file := range KustomizationNames {
 		kustomization := filepath.Join(k.path, file)
-		log.Infof("path=%s, file=%s", k.path, file)
 		if _, err := os.Stat(kustomization); err == nil {
 			return kustomization, nil
 		}
@@ -131,8 +147,6 @@ func (k *kustomize) getKustomizationVersion() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	log.Infof("using kustomization=%s", kustomizationFile)
 
 	dat, err := ioutil.ReadFile(kustomizationFile)
 	if err != nil {
