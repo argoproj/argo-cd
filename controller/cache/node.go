@@ -21,6 +21,10 @@ type node struct {
 	resource        *unstructured.Unstructured
 }
 
+func (n *node) isRootAppNode() bool {
+	return n.appName != "" && len(n.ownerRefs) == 0
+}
+
 func (n *node) resourceKey() kube.ResourceKey {
 	return kube.NewResourceKey(n.ref.GroupVersionKind().Group, n.ref.Kind, n.ref.Namespace, n.ref.Name)
 }
