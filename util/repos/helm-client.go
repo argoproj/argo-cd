@@ -13,17 +13,15 @@ import (
 )
 
 type helmClient struct {
-	// URL
-	repoURL string
-	// destination
+	repoURL                   string
 	name                      string
-	root                      string
+	workDir                   string
 	username, password        string
 	caData, certData, keyData []byte
 }
 
-func (f factory) newHelmClient(repoURL, name, path, username, password string, caData, certData, keyData []byte) (Client, error) {
-	return helmClient{repoURL, name, path, username, password, caData, certData, keyData}, nil
+func (f factory) newHelmClient(repoURL, name, workDir, username, password string, caData, certData, keyData []byte) (Client, error) {
+	return helmClient{repoURL, name, workDir, username, password, caData, certData, keyData}, nil
 }
 
 func (c helmClient) Test() error {
@@ -109,8 +107,8 @@ func runHelmCommand(args ...string) error {
 	return err
 }
 
-func (c helmClient) Root() string {
-	return c.root
+func (c helmClient) WorkDir() string {
+	return c.workDir
 }
 
 func (c helmClient) Checkout(path, chartVersion string) (string, error) {
@@ -119,11 +117,11 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 
 	url := c.repoURL + "/" + chartName + "-" + chartVersion + ".tgz"
 
-	log.Infof("Helm checkout url=%s, root=%s, path=%s", url, c.root, path)
+	log.Infof("Helm checkout url=%s, workDir=%s, path=%s", url, c.workDir, path)
 
-	_, err := exec.Command("rm", "-rf", c.root).CombinedOutput()
+	_, err := exec.Command("rm", "-rf", c.workDir).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("unable to clean repo at %s: %v", c.root, err)
+		return "", fmt.Errorf("unable to clean repo at %s: %v", c.workDir, err)
 	}
 
 	err = c.addRepo(c.name, c.repoURL)
@@ -135,7 +133,7 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 		return "", err
 	}
 
-	err = runHelmCommand("fetch", "--untar", "--untardir", c.root, url)
+	err = runHelmCommand("fetch", "--untar", "--untardir", c.workDir, url)
 
 	return chartVersion, err
 }
@@ -151,7 +149,7 @@ func (c helmClient) ResolveRevision(revision string) (string, error) {
 func (c helmClient) LsFiles(path string) ([]string, error) {
 
 	chartName := c.chartName(path)
-	files, err := ioutil.ReadDir(filepath.Join(c.root, chartName))
+	files, err := ioutil.ReadDir(filepath.Join(c.workDir, chartName))
 	if err != nil {
 		return nil, err
 	}

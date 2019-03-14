@@ -72,8 +72,8 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 		return &FileList{Items: files}, nil
 	}
 
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.WorkDir())
+	defer s.repoLock.Unlock(client.WorkDir())
 	resolvedRevision, err = checkoutRevision(client, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
@@ -103,13 +103,13 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 		return &GetFileResponse{Data: data}, nil
 	}
 
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.WorkDir())
+	defer s.repoLock.Unlock(client.WorkDir())
 	resolvedRevision, err = checkoutRevision(client, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
-	data, err := ioutil.ReadFile(filepath.Join(client.Root(), q.Path))
+	data, err := ioutil.ReadFile(filepath.Join(client.WorkDir(), q.Path))
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +150,8 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return cached, nil
 	}
 
-	s.repoLock.Lock(client.Root())
-	defer s.repoLock.Unlock(client.Root())
+	s.repoLock.Lock(client.WorkDir())
+	defer s.repoLock.Unlock(client.WorkDir())
 
 	cached = getCached()
 	if cached != nil {
@@ -170,7 +170,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 	if err != nil {
 		return nil, err
 	}
-	appPath := filepath.Join(client.Root(), q.ApplicationSource.Path)
+	appPath := filepath.Join(client.WorkDir(), q.ApplicationSource.Path)
 
 	genRes, err := GenerateManifests(appPath, q)
 	if err != nil {
@@ -555,8 +555,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	if cached != nil {
 		return cached, nil
 	}
-	s.repoLock.Lock(gitClient.Root())
-	defer s.repoLock.Unlock(gitClient.Root())
+	s.repoLock.Lock(gitClient.WorkDir())
+	defer s.repoLock.Unlock(gitClient.WorkDir())
 	cached = getCached()
 	if cached != nil {
 		return cached, nil
@@ -567,7 +567,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		return nil, err
 	}
 
-	appPath := filepath.Join(gitClient.Root(), q.Path)
+	appPath := filepath.Join(gitClient.WorkDir(), q.Path)
 
 	appSourceType, err := GetAppSourceType(&v1alpha1.ApplicationSource{}, appPath)
 	if err != nil {

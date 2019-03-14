@@ -23,26 +23,26 @@ import (
 func newMockRepoServerService(root string) *Service {
 	return &Service{
 		repoLock:      util.NewKeyLock(),
-		clientFactory: newFakeGitClientFactory(root),
+		clientFactory: newFakeClientFactory(root),
 		cache:         cache.NewCache(cache.NewInMemoryCache(time.Hour)),
 	}
 }
 
-func newFakeGitClientFactory(root string) repos.ClientFactory {
-	return &fakeGitClientFactory{root: root}
+func newFakeClientFactory(workDir string) repos.ClientFactory {
+	return &fakeClientFactory{workDir: workDir}
 }
 
-type fakeGitClientFactory struct {
-	root string
+type fakeClientFactory struct {
+	workDir string
 }
 
-func (f *fakeGitClientFactory) NewClient(c repos.Config, path string) (repos.Client, error) {
+func (f *fakeClientFactory) NewClient(c repos.Config, path string) (repos.Client, error) {
 	mockClient := gitmocks.Client{}
 	root := "./testdata"
-	if f.root != "" {
-		root = f.root
+	if f.workDir != "" {
+		root = f.workDir
 	}
-	mockClient.On("Root", mock.Anything, mock.Anything).Return(root)
+	mockClient.On("WorkDir", mock.Anything, mock.Anything).Return(root)
 	mockClient.On("Checkout", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
 	mockClient.On("ResolveRevision", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
 	mockClient.On("LsFiles", mock.Anything, mock.Anything).Return([]string{}, nil)

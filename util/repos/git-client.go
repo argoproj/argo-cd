@@ -20,14 +20,14 @@ import (
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
 	repoURL string
-	root    string
+	workDir string
 	auth    transport.AuthMethod
 }
 
-func (f factory) newGitClient(repoURL, path, username, password, sshPrivateKey string) (Client, error) {
+func (f factory) newGitClient(repoURL, workDir, username, password, sshPrivateKey string) (Client, error) {
 	clnt := nativeGitClient{
 		repoURL: repoURL,
-		root:    path,
+		workDir: workDir,
 	}
 	if sshPrivateKey != "" {
 		signer, err := ssh.ParsePrivateKey([]byte(sshPrivateKey))
@@ -44,8 +44,8 @@ func (f factory) newGitClient(repoURL, path, username, password, sshPrivateKey s
 	return &clnt, nil
 }
 
-func (m *nativeGitClient) Root() string {
-	return m.root
+func (m *nativeGitClient) WorkDir() string {
+	return m.workDir
 }
 
 func (m *nativeGitClient) Test() error {
@@ -55,23 +55,23 @@ func (m *nativeGitClient) Test() error {
 
 // Init initializes a local repository and sets the remote origin
 func (m *nativeGitClient) init() error {
-	_, err := git.PlainOpen(m.root)
+	_, err := git.PlainOpen(m.workDir)
 	if err == nil {
 		return nil
 	}
 	if err != git.ErrRepositoryNotExists {
 		return err
 	}
-	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = exec.Command("rm", "-rf", m.root).Output()
+	log.Infof("Initializing %s to %s", m.repoURL, m.workDir)
+	_, err = exec.Command("rm", "-rf", m.workDir).Output()
 	if err != nil {
-		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
+		return fmt.Errorf("unable to clean repo at %s: %v", m.workDir, err)
 	}
-	err = os.MkdirAll(m.root, 0755)
+	err = os.MkdirAll(m.workDir, 0755)
 	if err != nil {
 		return err
 	}
-	repo, err := git.PlainInit(m.root, false)
+	repo, err := git.PlainInit(m.workDir, false)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (m *nativeGitClient) init() error {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) fetch() error {
-	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
+	log.Debugf("Fetching repo %s at %s", m.repoURL, m.workDir)
 	// Two techniques are used for fetching the remote depending if the remote is SSH vs. HTTPS
 	// If http, we fork/exec the git CLI since the go-git client does not properly support git
 	// providers such as AWS CodeCommit and Azure DevOps.
@@ -97,7 +97,7 @@ func (m *nativeGitClient) fetch() error {
 
 // goGitFetch fetches the remote using go-git
 func (m *nativeGitClient) goGitFetch() error {
-	repo, err := git.PlainOpen(m.root)
+	repo, err := git.PlainOpen(m.workDir)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 // Checkout checkout specified git sha
 func (m *nativeGitClient) Checkout(_, revision string) (string, error) {
 
-	log.Debugf("Checking out Git repo repo=%s, revision=%s, root=%s", m.repoURL, revision, m.root)
+	log.Debugf("Checking out Git repo repo=%s, revision=%s, workDir=%s", m.repoURL, revision, m.workDir)
 
 	err := m.init()
 	if err != nil {
@@ -251,7 +251,7 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) (st
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	log.Debug(strings.Join(cmd.Args, " "))
-	cmd.Dir = m.root
+	cmd.Dir = m.workDir
 	cmd.Env = append(cmd.Env, os.Environ()...)
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
 	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")

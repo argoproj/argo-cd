@@ -11,7 +11,7 @@ import (
 // Client is a generic git client interface
 type Client interface {
 	// Return the directory of the checkout code. Aka "working tree".
-	Root() string
+	WorkDir() string
 	// Test that we can connect to the remote repo.
 	Test() error
 	// Checkout out the specified revision of the code from the remote repo into the working tree.
@@ -39,11 +39,11 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f factory) NewClient(c Config, path string) (Client, error) {
+func (f factory) NewClient(c Config, workDir string) (Client, error) {
 	if c.RepoType == "helm" {
-		return f.newHelmClient(c.Url, c.Name, path, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
+		return f.newHelmClient(c.Url, c.Name, workDir, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
 	} else {
-		return f.newGitClient(c.Url, path, c.Username, c.Password, c.SshPrivateKey)
+		return f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SshPrivateKey)
 	}
 }
 
@@ -114,9 +114,9 @@ func TestRepo(c Config) error {
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	clnt, err := NewFactory().NewClient(c, "tmp")
+	client, err := NewFactory().NewClient(c, "tmp")
 	if err != nil {
 		return err
 	}
-	return clnt.Test()
+	return client.Test()
 }

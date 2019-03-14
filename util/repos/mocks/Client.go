@@ -74,20 +74,6 @@ func (_m *Client) ResolveRevision(revision string) (string, error) {
 	return r0, r1
 }
 
-// Root provides a mock function with given fields:
-func (_m *Client) Root() string {
-	ret := _m.Called()
-
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	return r0
-}
-
 // Test provides a mock function with given fields:
 func (_m *Client) Test() error {
 	ret := _m.Called()
@@ -97,6 +83,20 @@ func (_m *Client) Test() error {
 		r0 = rf()
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// WorkDir provides a mock function with given fields:
+func (_m *Client) WorkDir() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
 	}
 
 	return r0
