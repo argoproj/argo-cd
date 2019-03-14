@@ -646,7 +646,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		conditions = append(conditions, *syncErrCond)
 	}
 
-	app.Status.ObservedAt = compareResult.observedAt
+	app.Status.ObservedAt = compareResult.reconciledAt
+	app.Status.ReconciledAt = compareResult.reconciledAt
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
@@ -664,7 +665,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	var reason string
 	fullRefresh := true
 	refreshType := appv1.RefreshTypeNormal
-	expired := app.Status.ObservedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
+	expired := app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
@@ -678,7 +679,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
 		reason = "spec.destination differs"
 	} else if expired {
-		reason = fmt.Sprintf("comparison expired. observedAt: %v, expiry: %v", app.Status.ObservedAt, statusRefreshTimeout)
+		reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
 	}
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s)", reason)
