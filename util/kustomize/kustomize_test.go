@@ -1,16 +1,26 @@
 package kustomize
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"testing"
 
+	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/pkg/exec"
-
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+)
+
+// TODO: move this into shared test package after resolving import cycle
+const (
+	// This is a throwaway gitlab test account/repo with a read-only personal access token for the
+	// purposes of testing private git repos
+	PrivateGitRepo     = "https://gitlab.com/argo-cd-test/test-apps.git"
+	PrivateGitUsername = "blah"
+	PrivateGitPassword = "B5sBDeoqAVUouoHkrovy"
 )
 
 const kustomization1 = "kustomization_yaml"
@@ -33,7 +43,7 @@ func TestKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir()
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
-	kustomize := NewKustomizeApp(appPath)
+	kustomize := NewKustomizeApp(appPath, nil)
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		ImageTags: []v1alpha1.KustomizeImageTag{
@@ -98,9 +108,28 @@ func TestGetCommandName(t *testing.T) {
 }
 
 func TestIsKustomization(t *testing.T) {
-
 	assert.True(t, IsKustomization("kustomization.yaml"))
 	assert.True(t, IsKustomization("kustomization.yml"))
 	assert.True(t, IsKustomization("Kustomization"))
 	assert.False(t, IsKustomization("rubbish.yml"))
+}
+
+// TestPrivateRemoteBase verifies we can supply git credentials to a private remote base
+func TestPrivateRemoteBase(t *testing.T) {
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "true")
+	defer os.Unsetenv("GIT_CONFIG_NOSYSTEM")
+
+	// add the hack path which has the git-ask-pass.sh shell script
+	osPath := os.Getenv("PATH")
+	hackPath, err := filepath.Abs("../../hack")
+	assert.NoError(t, err)
+	err = os.Setenv("PATH", fmt.Sprintf("%s:%s", osPath, hackPath))
+	assert.NoError(t, err)
+	defer func() { _ = os.Setenv("PATH", osPath) }()
+
+	kust := NewKustomizeApp("./testdata/private-remote-base", &GitCredentials{Username: PrivateGitUsername, Password: PrivateGitPassword})
+
+	objs, _, err := kust.Build(nil)
+	assert.NoError(t, err)
+	assert.Len(t, objs, 2)
 }
