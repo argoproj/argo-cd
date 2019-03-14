@@ -9,7 +9,7 @@ Argo CD applications, projects and settings can be defined declaratively using K
 | [`argocd-secret.yaml`](argocd-secret.yaml) | Secret | Password, Certificates, Signing Key |
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | ConfigMap | RBAC Configuration |
 | [`application.yaml`](application.yaml) | Application | Example application spec |
-| [`project.yaml`](argocd-rbac-cm.yaml) | AppProject | Example project spec |
+| [`project.yaml`](project.yaml) | AppProject | Example project spec |
 
 ## Applications
 
