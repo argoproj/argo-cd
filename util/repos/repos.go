@@ -23,8 +23,8 @@ type Client interface {
 }
 
 type Config struct {
-	Url, RepoType, Username, Password, SshPrivateKey string
-	CAData, CertData, KeyData                        []byte
+	Name, Url, RepoType, Username, Password, SshPrivateKey string
+	CAData, CertData, KeyData                              []byte
 }
 
 // ClientFactory is a factory of Clients
@@ -41,7 +41,7 @@ func NewFactory() ClientFactory {
 
 func (f factory) NewClient(c Config, path string) (Client, error) {
 	if c.RepoType == "helm" {
-		return f.newHelmClient(c.Url, path, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
+		return f.newHelmClient(c.Url, c.Name, path, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
 	} else {
 		return f.newGitClient(c.Url, path, c.Username, c.Password, c.SshPrivateKey)
 	}

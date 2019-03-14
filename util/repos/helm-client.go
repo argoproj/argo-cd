@@ -16,37 +16,40 @@ type helmClient struct {
 	// URL
 	repoURL string
 	// destination
+	name                      string
 	root                      string
 	username, password        string
 	caData, certData, keyData []byte
 }
 
-func (f factory) newHelmClient(repoURL, path, username, password string, caData, certData, keyData []byte) (Client, error) {
-	return helmClient{repoURL, path, username, password, caData, certData, caData}, nil
+func (f factory) newHelmClient(repoURL, name, path, username, password string, caData, certData, keyData []byte) (Client, error) {
+	return helmClient{repoURL, name, path, username, password, caData, certData, keyData}, nil
 }
 
 func (c helmClient) Test() error {
-	err := c.runCommand("init", "--client-only", "--skip-refresh")
+
+	err := runHelmCommand("init", "--client-only", "--skip-refresh")
 	if err != nil {
 		return err
 	}
 
-	err = c.runCommand("repo", "add", "tmp", c.repoURL)
+	err = c.addRepo(c.name, c.repoURL)
 	if err != nil {
 		return err
 	}
-	err = c.runCommand("repo", "rm", "tmp")
-	return err
 
+	return runHelmCommand("repo", "rm", c.name)
 }
 
-func (c helmClient) runCommand(command, subcommand string, args ...string) error {
+func (c helmClient) addRepo(name, url string) error {
 
 	tmp, err := ioutil.TempFile(util.TempDir, "helm")
 	if err != nil {
 		return err
 	}
 	defer func() { util.DeleteFile(tmp.Name()) }()
+
+	args := []string{"repo", "add"}
 
 	if c.username != "" {
 		args = append([]string{"--username", c.username}, args...)
@@ -92,7 +95,12 @@ func (c helmClient) runCommand(command, subcommand string, args ...string) error
 		args = append([]string{"--key-file", keyFile.Name()}, args...)
 	}
 
-	args = append([]string{command, subcommand}, args...)
+	args = append(args, name, url)
+
+	return runHelmCommand(args...)
+}
+
+func runHelmCommand(args ...string) error {
 
 	log.Infof("helm args=%v", args)
 	bytes, err := exec.Command("helm", args...).CombinedOutput()
@@ -113,12 +121,21 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 
 	log.Infof("Helm checkout url=%s, root=%s, path=%s", url, c.root, path)
 
-	_, err := exec.Command("rm", "-rf", c.root).Output()
+	_, err := exec.Command("rm", "-rf", c.root).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("unable to clean repo at %s: %v", c.root, err)
 	}
 
-	err = c.runCommand("fetch", "--untar", "--untardir", c.root, url)
+	err = c.addRepo(c.name, c.repoURL)
+	if err != nil {
+		return "", err
+	}
+	err = runHelmCommand("repo", "update")
+	if err != nil {
+		return "", err
+	}
+
+	err = runHelmCommand("fetch", "--untar", "--untardir", c.root, url)
 
 	return chartVersion, err
 }
