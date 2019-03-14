@@ -10,9 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLsRemote(t *testing.T) {
-	config := Config{Url: "https://github.com/argoproj/argo-cd.git"}
-	clnt, err := NewFactory().NewClient(config, "/tmp")
+func TestResolveRevision(t *testing.T) {
+	clnt, err := NewFactory().NewClient(Config{Url: "https://github.com/argoproj/argo-cd.git"}, "/tmp")
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -54,8 +53,7 @@ func TestGitClient(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		config := Config{Url: repo, RepoType: dirName}
-		clnt, err := NewFactory().NewClient(config, dirName)
+		clnt, err := NewFactory().NewClient(Config{Url: repo}, dirName)
 		assert.NoError(t, err)
 
 		testGitClient(t, clnt)
@@ -64,12 +62,6 @@ func TestGitClient(t *testing.T) {
 
 // TestPrivateGitRepo tests the ability to operate on a private git repo.
 func TestPrivateGitRepo(t *testing.T) {
-	repo := "https://gitlab.com/argo-cd-test/argocd-example-apps.git"
-	username := "blah"
-	// This is a personal access token generated with read only access in a throwaway gitlab test
-	// account/repo
-	password := "B5sBDeoqAVUouoHkrovy"
-
 	// add the hack path which has the git-ask-pass.sh shell script
 	osPath := os.Getenv("PATH")
 	hackPath, err := filepath.Abs("../../hack")
@@ -82,8 +74,7 @@ func TestPrivateGitRepo(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(dirName) }()
 
-	config := Config{Url: repo, Username: username, Password: password}
-	clnt, err := NewFactory().NewClient(config, dirName)
+	clnt, err := NewFactory().NewClient(Config{Url: PrivateGitRepo, Username: PrivateGitUsername, Password: PrivateGitPassword}, dirName)
 	assert.NoError(t, err)
 
 	testGitClient(t, clnt)
