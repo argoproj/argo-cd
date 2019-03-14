@@ -13,9 +13,9 @@ func TestIsCommitSHA(t *testing.T) {
 	assert.False(t, IsCommitSHA("master"))
 	assert.False(t, IsCommitSHA("HEAD"))
 	assert.False(t, IsCommitSHA("9d921f6")) // only consider 40 characters hex strings as a commit-sha
-	assert.True(t, IsTruncatedRevision("9d921f6"))
-	assert.False(t, IsTruncatedRevision("9d921f")) // we only consider 7+ characters
-	assert.False(t, IsTruncatedRevision("branch-name"))
+	assert.True(t, IsTruncatedCommitSHA("9d921f6"))
+	assert.False(t, IsTruncatedCommitSHA("9d921f")) // we only consider 7+ characters
+	assert.False(t, IsTruncatedCommitSHA("branch-name"))
 }
 
 func TestEnsurePrefix(t *testing.T) {

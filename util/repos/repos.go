@@ -72,8 +72,8 @@ func IsCommitSHA(sha string) bool {
 
 var truncatedCommitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{7,}$")
 
-// IsTruncatedRevision returns whether or not a string is a truncated  SHA-1
-func IsTruncatedRevision(sha string) bool {
+// IsTruncatedCommitSHA returns whether or not a string is a truncated  SHA-1
+func IsTruncatedCommitSHA(sha string) bool {
 	return truncatedCommitSHARegex.MatchString(sha)
 }
 
@@ -114,7 +114,7 @@ func TestRepo(c Config) error {
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	client, err := NewFactory().NewClient(c, "tmp")
+	client, err := NewFactory().NewClient(c, tmp)
 	if err != nil {
 		return err
 	}

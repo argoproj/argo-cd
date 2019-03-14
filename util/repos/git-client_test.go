@@ -32,7 +32,7 @@ func TestLsRemote(t *testing.T) {
 	commitSHA, err := clnt.ResolveRevision("4e22a3c")
 	assert.NoError(t, err)
 	assert.False(t, IsCommitSHA(commitSHA))
-	assert.True(t, IsTruncatedRevision(commitSHA))
+	assert.True(t, IsTruncatedCommitSHA(commitSHA))
 
 	xfail := []string{
 		"unresolvable",

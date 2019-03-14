@@ -214,7 +214,7 @@ func (m *nativeGitClient) ResolveRevision(revision string) (string, error) {
 		}
 	}
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
-	if IsTruncatedRevision(revision) {
+	if IsTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
 		return revision, nil
 	}

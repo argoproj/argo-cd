@@ -259,7 +259,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, err
 	}
 	r := q.Repo
-	config := repos.Config{Url: r.Repo, RepoType: string(r.Type), Username: r.Username, Password: r.Password, SshPrivateKey: r.SSHPrivateKey, CAData: r.CAData, CertData: r.CertData, KeyData: r.KeyData}
+	config := repos.Config{Url: r.Repo, RepoType: string(r.Type), Name: r.Name, Username: r.Username, Password: r.Password, SshPrivateKey: r.SSHPrivateKey, CAData: r.CAData, CertData: r.CertData, KeyData: r.KeyData}
 	err := repos.TestRepo(config)
 	if err != nil {
 		return nil, err
