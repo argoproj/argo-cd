@@ -112,8 +112,8 @@ func NewApplicationController(
 	}
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, func(appName string) {
-		ctrl.requestAppRefresh(appName)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, func(appName string, fullRefresh bool) {
+		ctrl.requestAppRefresh(appName, fullRefresh)
 		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
 	})
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer)
@@ -143,11 +143,11 @@ func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, erro
 }
 
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) error {
-	tree, err := ctrl.resourceTree(a, comparisonResult.managedResources)
+	managedResources, err := ctrl.managedResources(a, comparisonResult)
 	if err != nil {
 		return err
 	}
-	managedResources, err := ctrl.managedResources(a, comparisonResult)
+	tree, err := ctrl.resourceTree(a, managedResources)
 	if err != nil {
 		return err
 	}
@@ -158,20 +158,37 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 	return ctrl.cache.SetAppManagedResources(a.Name, managedResources)
 }
 
-func (ctrl *ApplicationController) resourceTree(a *appv1.Application, resources []managedResource) ([]*appv1.ResourceNode, error) {
+func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) ([]*appv1.ResourceNode, error) {
 	items := make([]*appv1.ResourceNode, 0)
-	for i := range resources {
-		managedResource := resources[i]
-		node := appv1.ResourceNode{
-			Name:      managedResource.Name,
-			Version:   managedResource.Version,
-			Kind:      managedResource.Kind,
-			Group:     managedResource.Group,
-			Namespace: managedResource.Namespace,
+	for i := range managedResources {
+		managedResource := managedResources[i]
+		var live = &unstructured.Unstructured{}
+		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
+		if err != nil {
+			return nil, err
 		}
-		if managedResource.Live != nil {
-			node.ResourceVersion = managedResource.Live.GetResourceVersion()
-			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, managedResource.Live)
+		var target = &unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(managedResource.LiveState), &target)
+		if err != nil {
+			return nil, err
+		}
+		version := ""
+		if target != nil {
+			version = target.GetResourceVersion()
+		} else if live != nil {
+			version = live.GetResourceVersion()
+		}
+
+		node := appv1.ResourceNode{
+			Name:            managedResource.Name,
+			Kind:            managedResource.Kind,
+			Group:           managedResource.Group,
+			Namespace:       managedResource.Namespace,
+			ResourceVersion: version,
+		}
+
+		if live != nil {
+			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, live)
 			if err != nil {
 				return nil, err
 			}
@@ -269,20 +286,20 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	<-ctx.Done()
 }
 
-func (ctrl *ApplicationController) requestAppRefresh(appName string) {
+func (ctrl *ApplicationController) requestAppRefresh(appName string, fullRefresh bool) {
 	ctrl.refreshRequestedAppsMutex.Lock()
 	defer ctrl.refreshRequestedAppsMutex.Unlock()
-	ctrl.refreshRequestedApps[appName] = true
+	ctrl.refreshRequestedApps[appName] = fullRefresh || ctrl.refreshRequestedApps[appName]
 }
 
-func (ctrl *ApplicationController) isRefreshRequested(appName string) bool {
+func (ctrl *ApplicationController) isRefreshRequested(appName string) (bool, bool) {
 	ctrl.refreshRequestedAppsMutex.Lock()
 	defer ctrl.refreshRequestedAppsMutex.Unlock()
-	_, ok := ctrl.refreshRequestedApps[appName]
+	fullRefresh, ok := ctrl.refreshRequestedApps[appName]
 	if ok {
 		delete(ctrl.refreshRequestedApps, appName)
 	}
-	return ok
+	return ok, fullRefresh
 }
 
 func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext bool) {
@@ -475,7 +492,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
-		ctrl.requestAppRefresh(app.ObjectMeta.Name)
+		ctrl.requestAppRefresh(app.ObjectMeta.Name, true)
 	}
 }
 
@@ -566,19 +583,39 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	needRefresh, refreshType := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
+	needRefresh, refreshType, fullRefresh := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout)
 
 	if !needRefresh {
 		return
 	}
+
 	startTime := time.Now()
 	defer func() {
 		reconcileDuration := time.Now().Sub(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
-		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3})
+		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "full": fullRefresh})
 		logCtx.Info("Reconciliation completed")
 	}()
+
 	app := origApp.DeepCopy()
+	if !fullRefresh {
+		logCtx := log.WithFields(log.Fields{"application": app.Name})
+		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
+			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
+		} else {
+			if tree, err := ctrl.resourceTree(app, managedResources); err != nil {
+				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
+			} else {
+				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
+					logCtx.Errorf("Failed to cache resources tree: %v", err)
+					return
+				}
+			}
+			app.Status.ObservedAt = metav1.Now()
+			ctrl.persistAppStatus(origApp, &app.Status)
+			return
+		}
+	}
 
 	conditions, hasErrors := ctrl.refreshAppConditions(app)
 	if hasErrors {
@@ -617,15 +654,19 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 // needRefreshAppStatus answers if application status needs to be refreshed.
 // Returns true if application never been compared, has changed or comparison result has expired.
-func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) (bool, appv1.RefreshType) {
+// Additionally returns whether full refresh was requested or not.
+// If full refresh is requested then target and live state should be reconciled, else only live state tree should be updated.
+func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout time.Duration) (bool, appv1.RefreshType, bool) {
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	var reason string
+	fullRefresh := true
 	refreshType := appv1.RefreshTypeNormal
 	expired := app.Status.ObservedAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
-	} else if ctrl.isRefreshRequested(app.Name) {
+	} else if requested, full := ctrl.isRefreshRequested(app.Name); requested {
+		fullRefresh = full
 		reason = fmt.Sprintf("controller refresh requested")
 	} else if app.Status.Sync.Status == appv1.SyncStatusCodeUnknown && expired {
 		reason = "comparison status unknown"
@@ -638,9 +679,9 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	}
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s)", reason)
-		return true, refreshType
+		return true, refreshType, fullRefresh
 	}
-	return false, refreshType
+	return false, refreshType, fullRefresh
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) ([]appv1.ApplicationCondition, bool) {
@@ -858,7 +899,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if oldOK && newOK {
 					if toggledAutomatedSync(oldApp, newApp) {
 						log.WithField("application", newApp.Name).Info("Enabled automated sync")
-						ctrl.requestAppRefresh(newApp.Name)
+						ctrl.requestAppRefresh(newApp.Name, true)
 					}
 				}
 				ctrl.appRefreshQueue.Add(key)

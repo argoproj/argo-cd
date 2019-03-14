@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -103,7 +104,7 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
 		lock:         &sync.Mutex{},
 		nodes:        make(map[kube.ResourceKey]*node),
-		onAppUpdated: func(appName string) {},
+		onAppUpdated: func(appName string, fullRefresh bool) {},
 		kubectl:      kubectl,
 		nsIndex:      make(map[string]map[kube.ResourceKey]*node),
 		cluster:      &appv1.Cluster{},
@@ -271,8 +272,8 @@ func TestUpdateResourceTags(t *testing.T) {
 func TestUpdateAppResource(t *testing.T) {
 	updatesReceived := make([]string, 0)
 	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.onAppUpdated = func(appName string) {
-		updatesReceived = append(updatesReceived, appName)
+	cluster.onAppUpdated = func(appName string, fullRefresh bool) {
+		updatesReceived = append(updatesReceived, fmt.Sprintf("%s: %v", appName, fullRefresh))
 	}
 
 	err := cluster.ensureSynced()
@@ -281,7 +282,7 @@ func TestUpdateAppResource(t *testing.T) {
 	err = cluster.processEvent(watch.Modified, mustToUnstructured(testPod))
 	assert.Nil(t, err)
 
-	assert.Contains(t, updatesReceived, "helm-guestbook")
+	assert.Contains(t, updatesReceived, "helm-guestbook: false")
 }
 
 func TestCircularReference(t *testing.T) {
