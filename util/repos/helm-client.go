@@ -32,7 +32,7 @@ func (c helmClient) Test() error {
 		return err
 	}
 
-	_, err = c.addRepo()
+	_, err = c.repoAdd()
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (c helmClient) Test() error {
 	return err
 }
 
-func (c helmClient) addRepo() (string, error) {
+func (c helmClient) repoAdd() (string, error) {
 	return c.helm.RepoAdd(c.name, c.repoURL, helmcmd.RepoAddOpts{
 		Username: c.username, Password: c.password,
 		CAData: c.caData, CertData: c.certData, KeyData: c.keyData,
@@ -54,7 +54,7 @@ func (c helmClient) WorkDir() string {
 
 func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 
-	_, err := c.addRepo()
+	_, err := c.repoAdd()
 	if err != nil {
 		return "", err
 	}
