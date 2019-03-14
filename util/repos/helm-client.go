@@ -26,7 +26,12 @@ func (f factory) newHelmClient(repoURL, path, username, password string, caData,
 }
 
 func (c helmClient) Test() error {
-	err := c.runCommand("repo", "add", "tmp", c.repoURL)
+	err := c.runCommand("init", "--client-only", "--skip-refresh")
+	if err != nil {
+		return err
+	}
+
+	err = c.runCommand("repo", "add", "tmp", c.repoURL)
 	if err != nil {
 		return err
 	}
