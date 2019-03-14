@@ -168,23 +168,26 @@ func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedRes
 			return nil, err
 		}
 		var target = &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(managedResource.LiveState), &target)
+		err = json.Unmarshal([]byte(managedResource.TargetState), &target)
 		if err != nil {
 			return nil, err
 		}
 		version := ""
-		if target != nil {
-			version = target.GetResourceVersion()
-		} else if live != nil {
-			version = live.GetResourceVersion()
+		resourceVersion := ""
+		if live != nil {
+			resourceVersion = live.GetResourceVersion()
+			version = live.GroupVersionKind().Version
+		} else if target != nil {
+			version = target.GroupVersionKind().Version
 		}
 
 		node := appv1.ResourceNode{
+			Version:         version,
+			ResourceVersion: resourceVersion,
 			Name:            managedResource.Name,
 			Kind:            managedResource.Kind,
 			Group:           managedResource.Group,
 			Namespace:       managedResource.Namespace,
-			ResourceVersion: version,
 		}
 
 		if live != nil {
