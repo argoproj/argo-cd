@@ -15,7 +15,7 @@ const config = {
     entry: './src/app/index.tsx',
     output: {
         filename: '[name].[hash].js',
-        chunkFilename: '[name].chunk.js',
+        chunkFilename: '[name].[hash].chunk.js',
         path: __dirname + '/../../dist/app'
     },
 
