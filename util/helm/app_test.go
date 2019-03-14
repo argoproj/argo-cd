@@ -25,7 +25,7 @@ func findParameter(params []*argoappv1.HelmParameter, name string) *argoappv1.He
 var repositories = []*argoappv1.Repository{{Repo: "https://kubernetes-charts.storage.googleapis.com/", Type: argoappv1.Helm}, {Repo: "http://github.com/argoproj/argo-cd"}}
 
 func TestHelmTemplateParams(t *testing.T) {
-	h := NewHelmApp("./testdata/minio", repositories)
+	h := NewApp("./testdata/minio", repositories)
 	opts := argoappv1.ApplicationSourceHelm{
 		Parameters: []argoappv1.HelmParameter{
 			{
@@ -54,7 +54,7 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", repositories)
+	h := NewApp("./testdata/redis", repositories)
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"values-production.yaml"},
 	}
@@ -73,7 +73,7 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmTemplateValuesURL(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", repositories)
+	h := NewApp("./testdata/redis", repositories)
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"},
 	}
@@ -86,7 +86,7 @@ func TestHelmTemplateValuesURL(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", repositories)
+	h := NewApp("./testdata/redis", repositories)
 	params, err := h.GetParameters([]string{})
 	assert.Nil(t, err)
 
@@ -96,7 +96,7 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h := NewHelmApp("./testdata/redis", repositories)
+	h := NewApp("./testdata/redis", repositories)
 	params, err := h.GetParameters([]string{"values-production.yaml"})
 	assert.Nil(t, err)
 
@@ -111,7 +111,7 @@ func TestHelmDependencyBuild(t *testing.T) {
 	}
 	clean()
 	defer clean()
-	h := NewHelmApp("./testdata/wordpress", repositories)
+	h := NewApp("./testdata/wordpress", repositories)
 	helmHome, err := ioutil.TempDir("", "")
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(helmHome) }()

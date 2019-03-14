@@ -20,8 +20,8 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
-// Helm provides wrapper functionality around the `helm` command.
-type Helm interface {
+// App provides wrapper functionality around the `helm` command.
+type App interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(appName string, namespace string, opts *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
@@ -35,7 +35,7 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(path string, repos []*argoappv1.Repository) Helm {
+func NewApp(path string, repos []*argoappv1.Repository) App {
 	return &helm{path: path, repos: repos}
 }
 
