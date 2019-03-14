@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -25,7 +24,8 @@ func findParameter(params []*argoappv1.HelmParameter, name string) *argoappv1.He
 var repositories = []*argoappv1.Repository{{Repo: "https://kubernetes-charts.storage.googleapis.com/", Type: argoappv1.Helm}, {Repo: "http://github.com/argoproj/argo-cd"}}
 
 func TestHelmTemplateParams(t *testing.T) {
-	h := NewApp("./testdata/minio", repositories)
+	h, err := NewApp("./testdata/minio", repositories)
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		Parameters: []argoappv1.HelmParameter{
 			{
@@ -54,7 +54,8 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h := NewApp("./testdata/redis", repositories)
+	h, err := NewApp("./testdata/redis", repositories)
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"values-production.yaml"},
 	}
@@ -73,7 +74,8 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmTemplateValuesURL(t *testing.T) {
-	h := NewApp("./testdata/redis", repositories)
+	h, err := NewApp("./testdata/redis", repositories)
+	assert.NoError(t, err)
 	opts := argoappv1.ApplicationSourceHelm{
 		ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"},
 	}
@@ -86,7 +88,8 @@ func TestHelmTemplateValuesURL(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h := NewApp("./testdata/redis", repositories)
+	h, err := NewApp("./testdata/redis", repositories)
+	assert.NoError(t, err)
 	params, err := h.GetParameters([]string{})
 	assert.Nil(t, err)
 
@@ -96,7 +99,8 @@ func TestHelmGetParams(t *testing.T) {
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h := NewApp("./testdata/redis", repositories)
+	h, err := NewApp("./testdata/redis", repositories)
+	assert.NoError(t, err)
 	params, err := h.GetParameters([]string{"values-production.yaml"})
 	assert.Nil(t, err)
 
@@ -111,13 +115,9 @@ func TestHelmDependencyBuild(t *testing.T) {
 	}
 	clean()
 	defer clean()
-	h := NewApp("./testdata/wordpress", repositories)
-	helmHome, err := ioutil.TempDir("", "")
+	h, err := NewApp("./testdata/wordpress", repositories)
 	assert.NoError(t, err)
-	defer func() { _ = os.RemoveAll(helmHome) }()
 
-	err = h.Init()
-	assert.NoError(t, err)
 	_, err = h.Template("wordpress", "", nil)
 	assert.Error(t, err)
 	err = h.DependencyBuild()

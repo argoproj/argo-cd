@@ -18,8 +18,12 @@ type helmClient struct {
 }
 
 func (f factory) newHelmClient(repoURL, name, workDir, username, password string, caData, certData, keyData []byte) (Client, error) {
+	helm, err := helmcmd.NewHelm(workDir)
+	if err != nil {
+		return nil, err
+	}
 	return helmClient{
-		repoURL, name, helmcmd.NewHelm(workDir), workDir,
+		repoURL, name, *helm, workDir,
 		username, password,
 		caData, certData, keyData,
 	}, nil

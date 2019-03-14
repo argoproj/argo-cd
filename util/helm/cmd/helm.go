@@ -13,11 +13,16 @@ import (
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
 type Helm struct {
-	workDir string
+	helmHome string
+	workDir  string
 }
 
-func NewHelm(workDir string) Helm {
-	return Helm{workDir: workDir}
+func NewHelm(workDir string) (*Helm, error) {
+	tmpDir, err := ioutil.TempDir("", "helm")
+	if err != nil {
+		return nil, err
+	}
+	return &Helm{workDir: workDir, helmHome: tmpDir}, err
 }
 
 func (h Helm) run(args ...string) (string, error) {
@@ -25,6 +30,9 @@ func (h Helm) run(args ...string) (string, error) {
 	log.Infof("%s: helm %s", h.workDir, redact(args))
 	cmd := exec.Command("helm", args...)
 	cmd.Dir = h.workDir
+	if h.helmHome != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.helmHome))
+	}
 	bytes, err := cmd.Output()
 
 	output := string(bytes)

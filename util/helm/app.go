@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"path"
 	"sort"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/config"
 	helmcmd "github.com/argoproj/argo-cd/util/helm/cmd"
 	"github.com/argoproj/argo-cd/util/kube"
@@ -27,13 +25,16 @@ type App interface {
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
-	// Init runs `helm init --client-only`
-	Init() error
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewApp(path string, repos []*argoappv1.Repository) App {
-	return &app{path: path, helm: helmcmd.NewHelm(path), repos: repos}
+func NewApp(path string, repos []*argoappv1.Repository) (App, error) {
+	helm, err := helmcmd.NewHelm(path)
+	if err != nil {
+		return nil, err
+	}
+	_, err = helm.Init()
+	return &app{path: path, helm: *helm, repos: repos}, err
 }
 
 type app struct {
@@ -74,13 +75,6 @@ func (h *app) Template(appName string, namespace string, source *argoappv1.Appli
 
 func (h *app) DependencyBuild() error {
 	if !h.reposInitialized {
-		var files []*os.File
-		defer func() {
-			for i := range files {
-				util.DeleteFile(files[i].Name())
-			}
-		}()
-
 		for _, repo := range h.repos {
 
 			if repo.Type != argoappv1.Helm {
@@ -97,11 +91,6 @@ func (h *app) DependencyBuild() error {
 		}
 	}
 	_, err := h.helm.DependencyBuild()
-	return err
-}
-
-func (h *app) Init() error {
-	_, err := h.helm.Init()
 	return err
 }
 
