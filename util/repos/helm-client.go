@@ -22,6 +22,10 @@ func (f factory) newHelmClient(repoURL, name, workDir, username, password string
 	if err != nil {
 		return nil, err
 	}
+	_, err = helm.Init()
+	if err != nil {
+		return nil, err
+	}
 	return helmClient{
 		repoURL, name, *helm, workDir,
 		username, password,
@@ -31,12 +35,7 @@ func (f factory) newHelmClient(repoURL, name, workDir, username, password string
 
 func (c helmClient) Test() error {
 
-	_, err := c.helm.Init()
-	if err != nil {
-		return err
-	}
-
-	_, err = c.repoAdd()
+	_, err := c.repoAdd()
 	if err != nil {
 		return err
 	}
@@ -69,7 +68,7 @@ func (c helmClient) Checkout(path, chartVersion string) (string, error) {
 	}
 
 	_, err = c.helm.Fetch(c.name, chartName(path), helmcmd.FetchOpts{
-		Version: chartVersion, Destination: path,
+		Version: chartVersion, Destination: ".",
 	})
 	return chartVersion, err
 }
