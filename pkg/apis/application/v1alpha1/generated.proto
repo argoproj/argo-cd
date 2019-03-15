@@ -446,6 +446,8 @@ message Repository {
   optional string sshPrivateKey = 4;
 
   optional ConnectionState connectionState = 5;
+
+  optional bool insecureIgnoreHostKey = 6;
 }
 
 // RepositoryList is a collection of Repositories.

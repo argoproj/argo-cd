@@ -103,7 +103,7 @@ func TestSameURL(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", "", "", "")
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", "", "", "", false)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -145,7 +145,7 @@ func TestGitClient(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		clnt, err := NewFactory().NewClient(repo, dirName, "", "", "")
+		clnt, err := NewFactory().NewClient(repo, dirName, "", "", "", false)
 		assert.NoError(t, err)
 
 		testGitClient(t, clnt)
@@ -166,7 +166,7 @@ func TestPrivateGitRepo(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(dirName) }()
 
-	clnt, err := NewFactory().NewClient(PrivateGitRepo, dirName, PrivateGitUsername, PrivateGitPassword, "")
+	clnt, err := NewFactory().NewClient(PrivateGitRepo, dirName, PrivateGitUsername, PrivateGitPassword, "", false)
 	assert.NoError(t, err)
 
 	testGitClient(t, clnt)
