@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	mockrepoclient "github.com/argoproj/argo-cd/reposerver/repository/mocks"
 	"github.com/argoproj/argo-cd/test"
+	utilcache "github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -42,10 +42,10 @@ func newFakeController(data *fakeData) *ApplicationController {
 	}
 
 	// Mock out call to GenerateManifest
-	mockRepoClient := mockrepoclient.RepositoryServiceClient{}
+	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
 	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
 	mockRepoClientset := mockreposerver.Clientset{}
-	mockRepoClientset.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoClient, nil)
+	mockRepoClientset.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoClient, nil)
 
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -72,16 +72,16 @@ func newFakeController(data *fakeData) *ApplicationController {
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
+		utilcache.NewCache(utilcache.NewInMemoryCache(1*time.Hour)),
 		time.Minute,
 	)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go ctrl.projInformer.Run(ctx.Done())
-	cache.WaitForCacheSync(ctx.Done(), ctrl.projInformer.HasSynced)
-
 	if err != nil {
 		panic(err)
 	}
+	cancelProj := test.StartInformer(ctrl.projInformer)
+	defer cancelProj()
+	cancelApp := test.StartInformer(ctrl.appInformer)
+	defer cancelApp()
 	// Mock out call to GetManagedLiveObjs if fake data supplied
 	if data.managedLiveObjs != nil {
 		mockStateCache := mockstatecache.LiveStateCache{}
@@ -89,9 +89,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
 		ctrl.stateCache = &mockStateCache
 		ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
-
 	}
-
 	return ctrl
 }
 
@@ -152,6 +150,9 @@ status:
         namespace: default
         status: Synced
       revision: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      source:
+        path: some/path
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
 `
 
 func newFakeApp() *argoappv1.Application {
@@ -182,76 +183,104 @@ func TestAutoSync(t *testing.T) {
 func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
-	app := newFakeApp()
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus := argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeOutOfSync,
-		Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	{
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	cond := ctrl.autoSync(app, &syncStatus)
-	assert.Nil(t, cond)
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
 
 	// Verify we skip when we are already Synced (even if revision is different)
-	app = newFakeApp()
-	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus = argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeSynced,
-		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	{
+		app := newFakeApp()
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeSynced,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	cond = ctrl.autoSync(app, &syncStatus)
-	assert.Nil(t, cond)
-	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
 
 	// Verify we skip when auto-sync is disabled
-	app = newFakeApp()
-	app.Spec.SyncPolicy = nil
-	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus = argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeOutOfSync,
-		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	{
+		app := newFakeApp()
+		app.Spec.SyncPolicy = nil
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	cond = ctrl.autoSync(app, &syncStatus)
-	assert.Nil(t, cond)
-	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
+
+	// Verify we skip when application is marked for deletion
+	{
+		app := newFakeApp()
+		now := metav1.Now()
+		app.DeletionTimestamp = &now
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	}
 
 	// Verify we skip when previous sync attempt failed and return error condition
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
-	app = newFakeApp()
-	app.Status.OperationState = &argoappv1.OperationState{
-		Operation: argoappv1.Operation{
-			Sync: &argoappv1.SyncOperation{},
-		},
-		Phase: argoappv1.OperationFailed,
-		SyncResult: &argoappv1.SyncOperationResult{
+	{
+		app := newFakeApp()
+		app.Status.OperationState = &argoappv1.OperationState{
+			Operation: argoappv1.Operation{
+				Sync: &argoappv1.SyncOperation{},
+			},
+			Phase: argoappv1.OperationFailed,
+			SyncResult: &argoappv1.SyncOperationResult{
+				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				Source:   *app.Spec.Source.DeepCopy(),
+			},
+		}
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		},
+		}
+		cond := ctrl.autoSync(app, &syncStatus)
+		assert.NotNil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	}
-	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}})
-	syncStatus = argoappv1.SyncStatus{
-		Status:   argoappv1.SyncStatusCodeOutOfSync,
-		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-	}
-	cond = ctrl.autoSync(app, &syncStatus)
-	assert.NotNil(t, cond)
-	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get("my-app", metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Nil(t, app.Operation)
 }
 
 // TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed
 func TestAutoSyncIndicateError(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.Source.ComponentParameterOverrides = []argoappv1.ComponentParameter{
-		{
-			Name:  "a",
-			Value: "1",
+	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
+		Parameters: []argoappv1.HelmParameter{
+			{
+				Name:  "a",
+				Value: "1",
+			},
 		},
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -262,17 +291,13 @@ func TestAutoSyncIndicateError(t *testing.T) {
 	app.Status.OperationState = &argoappv1.OperationState{
 		Operation: argoappv1.Operation{
 			Sync: &argoappv1.SyncOperation{
-				ParameterOverrides: argoappv1.ParameterOverrides{
-					{
-						Name:  "a",
-						Value: "1",
-					},
-				},
+				Source: app.Spec.Source.DeepCopy(),
 			},
 		},
 		Phase: argoappv1.OperationFailed,
 		SyncResult: &argoappv1.SyncOperationResult{
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Source:   *app.Spec.Source.DeepCopy(),
 		},
 	}
 	cond := ctrl.autoSync(app, &syncStatus)
@@ -285,10 +310,12 @@ func TestAutoSyncIndicateError(t *testing.T) {
 // TestAutoSyncParameterOverrides verifies we auto-sync if revision is same but parameter overrides are different
 func TestAutoSyncParameterOverrides(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.Source.ComponentParameterOverrides = []argoappv1.ComponentParameter{
-		{
-			Name:  "a",
-			Value: "1",
+	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
+		Parameters: []argoappv1.HelmParameter{
+			{
+				Name:  "a",
+				Value: "1",
+			},
 		},
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
@@ -299,10 +326,14 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 	app.Status.OperationState = &argoappv1.OperationState{
 		Operation: argoappv1.Operation{
 			Sync: &argoappv1.SyncOperation{
-				ParameterOverrides: argoappv1.ParameterOverrides{
-					{
-						Name:  "a",
-						Value: "2", // this value changed
+				Source: &argoappv1.ApplicationSource{
+					Helm: &argoappv1.ApplicationSourceHelm{
+						Parameters: []argoappv1.HelmParameter{
+							{
+								Name:  "a",
+								Value: "2", // this value changed
+							},
+						},
 					},
 				},
 			},
@@ -340,50 +371,74 @@ func TestFinalizeAppDeletion(t *testing.T) {
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
 func TestNormalizeApplication(t *testing.T) {
+	defaultProj := argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []argoappv1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
 	app := newFakeApp()
 	app.Spec.Project = ""
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	cancel := test.StartInformer(ctrl.appInformer)
-	defer cancel()
-	key, _ := cache.MetaNamespaceKeyFunc(app)
-	ctrl.appRefreshQueue.Add(key)
+	app.Spec.Source.Kustomize = &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo-"}
+	data := fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
 
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	fakeAppCs.ReactionChain = nil
-	normalized := false
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
-				normalized = true
+	{
+		// Verify we normalize the app because project is missing
+		ctrl := newFakeController(&data)
+		key, _ := cache.MetaNamespaceKeyFunc(app)
+		ctrl.appRefreshQueue.Add(key)
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.ReactionChain = nil
+		normalized := false
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+					normalized = true
+				}
 			}
-		}
-		return true, nil, nil
-	})
-	ctrl.processAppRefreshQueueItem()
-	assert.True(t, normalized)
-}
+			return true, nil, nil
+		})
+		ctrl.processAppRefreshQueueItem()
+		assert.True(t, normalized)
+	}
 
-// TestDontNormalizeApplication verifies we dont unnecessarily normalize an application
-func TestDontNormalizeApplication(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Project = "default"
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
-	cancel := test.StartInformer(ctrl.appInformer)
-	defer cancel()
-	key, _ := cache.MetaNamespaceKeyFunc(app)
-	ctrl.appRefreshQueue.Add(key)
-
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	fakeAppCs.ReactionChain = nil
-	normalized := false
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			if strings.HasPrefix(string(patchAction.GetPatch()), `{"spec":`) {
-				normalized = true
+	{
+		// Verify we don't unnecessarily normalize app when project is set
+		app.Spec.Project = "default"
+		data.apps[0] = app
+		ctrl := newFakeController(&data)
+		key, _ := cache.MetaNamespaceKeyFunc(app)
+		ctrl.appRefreshQueue.Add(key)
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.ReactionChain = nil
+		normalized := false
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+					normalized = true
+				}
 			}
-		}
-		return true, nil, nil
-	})
-	ctrl.processAppRefreshQueueItem()
-	assert.False(t, normalized)
+			return true, nil, nil
+		})
+		ctrl.processAppRefreshQueueItem()
+		assert.False(t, normalized)
+	}
 }

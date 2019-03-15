@@ -54,3 +54,27 @@ func NewDexHTTPReverseProxy(serverAddr string) func(writer http.ResponseWriter, 
 		proxy.ServeHTTP(w, r)
 	}
 }
+
+// NewDexRewriteURLRoundTripper creates a new DexRewriteURLRoundTripper
+func NewDexRewriteURLRoundTripper(dexServerAddr string, T http.RoundTripper) DexRewriteURLRoundTripper {
+	dexURL, _ := url.Parse(dexServerAddr)
+	return DexRewriteURLRoundTripper{
+		DexURL: dexURL,
+		T:      T,
+	}
+}
+
+// DexRewriteURLRoundTripper is an HTTP RoundTripper to rewrite HTTP requests to the specified
+// dex server address. This is used when reverse proxying Dex to avoid the API server from
+// unnecessarily communicating to Argo CD through its externally facing load balancer, which is not
+// always permitted in firewalled/air-gapped networks.
+type DexRewriteURLRoundTripper struct {
+	DexURL *url.URL
+	T      http.RoundTripper
+}
+
+func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	r.URL.Host = s.DexURL.Host
+	r.URL.Scheme = s.DexURL.Scheme
+	return s.T.RoundTrip(r)
+}

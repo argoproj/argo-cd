@@ -2,24 +2,28 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: repo-server
-    app.kubernetes.io/name: argo-cd
   name: argocd-repo-server
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/component: repo-server
+      app.kubernetes.io/name: argocd-repo-server
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: repo-server
+        app.kubernetes.io/name: argocd-repo-server
     spec:
       automountServiceAccountToken: false
       containers:
       - name: argocd-repo-server
         image: argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [argocd-repo-server]
+        command:
+        - argocd-repo-server
+        - --redis
+        - argocd-redis:6379
         ports:
         - containerPort: 8081
         readinessProbe:

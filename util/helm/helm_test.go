@@ -13,7 +13,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-func findParameter(params []*argoappv1.ComponentParameter, name string) *argoappv1.ComponentParameter {
+func findParameter(params []*argoappv1.HelmParameter, name string) *argoappv1.HelmParameter {
 	for _, param := range params {
 		if param.Name == name {
 			return param
@@ -24,17 +24,19 @@ func findParameter(params []*argoappv1.ComponentParameter, name string) *argoapp
 
 func TestHelmTemplateParams(t *testing.T) {
 	h := NewHelmApp("./testdata/minio", []*argoappv1.HelmRepository{})
-	overrides := []*argoappv1.ComponentParameter{
-		{
-			Name:  "service.type",
-			Value: "LoadBalancer",
-		},
-		{
-			Name:  "service.port",
-			Value: "1234",
+	opts := argoappv1.ApplicationSourceHelm{
+		Parameters: []argoappv1.HelmParameter{
+			{
+				Name:  "service.type",
+				Value: "LoadBalancer",
+			},
+			{
+				Name:  "service.port",
+				Value: "1234",
+			},
 		},
 	}
-	objs, err := h.Template("test", HelmTemplateOpts{}, overrides)
+	objs, err := h.Template("test", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(objs))
 
@@ -51,8 +53,10 @@ func TestHelmTemplateParams(t *testing.T) {
 
 func TestHelmTemplateValues(t *testing.T) {
 	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
-	valuesFiles := []string{"values-production.yaml"}
-	objs, err := h.Template("test", HelmTemplateOpts{ValueFiles: valuesFiles}, nil)
+	opts := argoappv1.ApplicationSourceHelm{
+		ValueFiles: []string{"values-production.yaml"},
+	}
+	objs, err := h.Template("test", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
 
@@ -68,11 +72,13 @@ func TestHelmTemplateValues(t *testing.T) {
 
 func TestHelmTemplateValuesURL(t *testing.T) {
 	h := NewHelmApp("./testdata/redis", []*argoappv1.HelmRepository{})
-	valuesFiles := []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"}
-	objs, err := h.Template("test", HelmTemplateOpts{ValueFiles: valuesFiles}, nil)
+	opts := argoappv1.ApplicationSourceHelm{
+		ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argo-cd/master/util/helm/testdata/redis/values-production.yaml"},
+	}
+	objs, err := h.Template("test", "", &opts)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, len(objs))
-	params, err := h.GetParameters(valuesFiles)
+	params, err := h.GetParameters(opts.ValueFiles)
 	assert.NoError(t, err)
 	assert.True(t, len(params) > 0)
 }
@@ -110,10 +116,10 @@ func TestHelmDependencyBuild(t *testing.T) {
 	h.SetHome(helmHome)
 	err = h.Init()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", HelmTemplateOpts{}, nil)
+	_, err = h.Template("wordpress", "", nil)
 	assert.Error(t, err)
 	err = h.DependencyBuild()
 	assert.NoError(t, err)
-	_, err = h.Template("wordpress", HelmTemplateOpts{}, nil)
+	_, err = h.Template("wordpress", "", nil)
 	assert.NoError(t, err)
 }

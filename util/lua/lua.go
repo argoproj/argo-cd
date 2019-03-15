@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/gobuffalo/packr"
-	log "github.com/sirupsen/logrus"
-	"github.com/yuin/gopher-lua"
+	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	luajson "layeh.com/gopher-json"
 
@@ -123,7 +122,6 @@ func (vm VM) getPredefinedLuaScripts(objKey string, scriptType string) (string, 
 	data, err := box.MustBytes(filepath.Join(objKey, scriptType))
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Debugf("No Lua Script found for resource key '%s'", objKey)
 			return "", nil
 		}
 		return "", err
@@ -133,7 +131,7 @@ func (vm VM) getPredefinedLuaScripts(objKey string, scriptType string) (string, 
 
 func isValidHealthStatusCode(statusCode string) bool {
 	switch statusCode {
-	case appv1.HealthStatusUnknown, appv1.HealthStatusProgressing, appv1.HealthStatusHealthy, appv1.HealthStatusDegraded, appv1.HealthStatusMissing:
+	case appv1.HealthStatusUnknown, appv1.HealthStatusProgressing, appv1.HealthStatusSuspended, appv1.HealthStatusHealthy, appv1.HealthStatusDegraded, appv1.HealthStatusMissing:
 		return true
 	}
 	return false

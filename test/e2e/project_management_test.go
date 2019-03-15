@@ -254,7 +254,11 @@ func TestProjectManagement(t *testing.T) {
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Source: v1alpha1.ApplicationSource{
-					RepoURL: "https://github.com/argoproj/argo-cd.git", Path: ".", Environment: "minikube",
+					RepoURL: "https://github.com/argoproj/argo-cd.git",
+					Path:    ".",
+					Ksonnet: &v1alpha1.ApplicationSourceKsonnet{
+						Environment: "minikube",
+					},
 				},
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    fixture.Config.Host,

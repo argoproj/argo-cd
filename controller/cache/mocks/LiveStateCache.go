@@ -5,7 +5,6 @@ package mocks
 import context "context"
 import kube "github.com/argoproj/argo-cd/util/kube"
 import mock "github.com/stretchr/testify/mock"
-import schema "k8s.io/apimachinery/pkg/runtime/schema"
 import unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 import v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 
@@ -79,20 +78,20 @@ func (_m *LiveStateCache) Invalidate() {
 	_m.Called()
 }
 
-// IsNamespaced provides a mock function with given fields: server, gvk
-func (_m *LiveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error) {
-	ret := _m.Called(server, gvk)
+// IsNamespaced provides a mock function with given fields: server, obj
+func (_m *LiveStateCache) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
+	ret := _m.Called(server, obj)
 
 	var r0 bool
-	if rf, ok := ret.Get(0).(func(string, schema.GroupVersionKind) bool); ok {
-		r0 = rf(server, gvk)
+	if rf, ok := ret.Get(0).(func(string, *unstructured.Unstructured) bool); ok {
+		r0 = rf(server, obj)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, schema.GroupVersionKind) error); ok {
-		r1 = rf(server, gvk)
+	if rf, ok := ret.Get(1).(func(string, *unstructured.Unstructured) error); ok {
+		r1 = rf(server, obj)
 	} else {
 		r1 = ret.Error(1)
 	}

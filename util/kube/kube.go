@@ -75,6 +75,10 @@ func (k *ResourceKey) String() string {
 	return fmt.Sprintf("%s/%s/%s/%s", k.Group, k.Kind, k.Namespace, k.Name)
 }
 
+func (k ResourceKey) GroupKind() schema.GroupKind {
+	return schema.GroupKind{Group: k.Group, Kind: k.Kind}
+}
+
 func isObsoleteExtensionsGroupKind(group string, kind string) (string, bool) {
 	if group == "extensions" {
 		newGroup, ok := obsoleteExtensionsKinds[kind]
@@ -244,72 +248,6 @@ func IsCRDGroupVersionKind(gvk schema.GroupVersionKind) bool {
 
 func IsCRD(obj *unstructured.Unstructured) bool {
 	return IsCRDGroupVersionKind(obj.GroupVersionKind())
-}
-
-func isExcludedResourceGroup(resource metav1.APIResource) bool {
-	return false
-}
-
-type apiResourceInterface struct {
-	groupVersion string
-	apiResource  metav1.APIResource
-	resourceIf   dynamic.ResourceInterface
-}
-
-type filterFunc func(groupVersion string, apiResource *metav1.APIResource) bool
-
-func filterAPIResources(config *rest.Config, filter filterFunc, namespace string) ([]apiResourceInterface, error) {
-	dynamicIf, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	serverResources, err := disco.ServerPreferredResources()
-	if err != nil {
-		if len(serverResources) == 0 {
-			return nil, err
-		}
-		log.Warnf("Partial success when performing preferred resource discovery: %v", err)
-	}
-	apiResIfs := make([]apiResourceInterface, 0)
-	for _, apiResourcesList := range serverResources {
-		gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
-		if err != nil {
-			gv = schema.GroupVersion{}
-		}
-		if gv.Group == "events.k8s.io" {
-			continue
-		}
-		for _, apiResource := range apiResourcesList.APIResources {
-			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok || gv.Group == "" && apiResource.Kind == "Event" {
-				continue
-			}
-			if filter(apiResourcesList.GroupVersion, &apiResource) {
-				resource := ToGroupVersionResource(apiResourcesList.GroupVersion, &apiResource)
-				resourceIf := ToResourceInterface(dynamicIf, &apiResource, resource, namespace)
-				apiResIf := apiResourceInterface{
-					groupVersion: apiResourcesList.GroupVersion,
-					apiResource:  apiResource,
-					resourceIf:   resourceIf,
-				}
-				apiResIfs = append(apiResIfs, apiResIf)
-			}
-		}
-	}
-	return apiResIfs, nil
-}
-
-// isSupportedVerb returns whether or not a APIResource supports a specific verb
-func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
-	for _, v := range apiResource.Verbs {
-		if v == verb {
-			return true
-		}
-	}
-	return false
 }
 
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go

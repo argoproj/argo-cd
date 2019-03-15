@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/health"
@@ -50,18 +51,20 @@ func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) (*comparisonResult, error)
+	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
 type comparisonResult struct {
-	observedAt       metav1.Time
+	reconciledAt     metav1.Time
 	syncStatus       *v1alpha1.SyncStatus
 	healthStatus     *v1alpha1.HealthStatus
 	resources        []v1alpha1.ResourceStatus
 	managedResources []managedResource
 	conditions       []v1alpha1.ApplicationCondition
 	hooks            []*unstructured.Unstructured
+	diffNormalizer   diff.Normalizer
+	appSourceType    v1alpha1.ApplicationSourceType
 }
 
 // appStateManager allows to compare applications to git
@@ -76,50 +79,37 @@ type appStateManager struct {
 	namespace      string
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache bool) ([]*unstructured.Unstructured, []*unstructured.Unstructured, *repository.ManifestResponse, error) {
 	helmRepos, err := m.db.ListHelmRepos(context.Background())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	repo := m.getRepo(app.Spec.Source.RepoURL)
-	conn, repoClient, err := m.repoClientset.NewRepositoryClient()
+	repo := m.getRepo(source.RepoURL)
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	defer util.Close(conn)
 
 	if revision == "" {
-		revision = app.Spec.Source.TargetRevision
+		revision = source.TargetRevision
 	}
 
-	// Decide what overrides to compare with.
-	var mfReqOverrides []*v1alpha1.ComponentParameter
-	if overrides != nil {
-		// If overrides is supplied, use that
-		mfReqOverrides = make([]*v1alpha1.ComponentParameter, len(overrides))
-		for i := range overrides {
-			item := overrides[i]
-			mfReqOverrides[i] = &item
-		}
-	} else {
-		// Otherwise, use the overrides in the app spec
-		mfReqOverrides = make([]*v1alpha1.ComponentParameter, len(app.Spec.Source.ComponentParameterOverrides))
-		for i := range app.Spec.Source.ComponentParameterOverrides {
-			item := app.Spec.Source.ComponentParameterOverrides[i]
-			mfReqOverrides[i] = &item
-		}
+	tools := make([]*appv1.ConfigManagementPlugin, len(m.settings.ConfigManagementPlugins))
+	for i := range m.settings.ConfigManagementPlugins {
+		tools[i] = &m.settings.ConfigManagementPlugins[i]
 	}
 
 	manifestInfo, err := repoClient.GenerateManifest(context.Background(), &repository.ManifestRequest{
-		Repo:                        repo,
-		HelmRepos:                   helmRepos,
-		Revision:                    revision,
-		NoCache:                     noCache,
-		ComponentParameterOverrides: mfReqOverrides,
-		AppLabelKey:                 appLabelKey,
-		AppLabelValue:               app.Name,
-		Namespace:                   app.Spec.Destination.Namespace,
-		ApplicationSource:           &app.Spec.Source,
+		Repo:              repo,
+		HelmRepos:         helmRepos,
+		Revision:          revision,
+		NoCache:           noCache,
+		AppLabelKey:       appLabelKey,
+		AppLabelValue:     app.Name,
+		Namespace:         app.Spec.Destination.Namespace,
+		ApplicationSource: &source,
+		Plugins:           tools,
 	})
 	if err != nil {
 		return nil, nil, nil, err
@@ -142,16 +132,20 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, appLabelKey, re
 }
 
 // CompareAppState compares application git state to the live app state, using the specified
-// revision and supplied overrides. If revision or overrides are empty, then compares against
+// revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter, noCache bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool) (*comparisonResult, error) {
+	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, m.settings.ResourceOverrides)
+	if err != nil {
+		return nil, err
+	}
 	logCtx := log.WithField("application", app.Name)
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 	observedAt := metav1.Now()
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	appLabelKey := m.settings.GetAppInstanceLabelKey()
-	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, appLabelKey, revision, overrides, noCache)
+	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, source, appLabelKey, revision, noCache)
 	if err != nil {
 		targetObjs = make([]*unstructured.Unstructured, 0)
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
@@ -181,7 +175,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
 		ns := util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace)
-		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj.GroupVersionKind()); err == nil && !namespaced {
+		if namespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, obj); err == nil && !namespaced {
 			ns = ""
 		}
 		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
@@ -202,7 +196,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	// Do the actual comparison
-	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj)
+	diffResults, err := diff.DiffArray(targetObjs, managedLiveObj, diffNormalizer)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +255,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 	syncStatus := v1alpha1.SyncStatus{
 		ComparedTo: appv1.ComparedTo{
-			Source:      app.Spec.Source,
+			Source:      source,
 			Destination: app.Spec.Destination,
 		},
 		Status: syncCode,
@@ -276,13 +270,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	compRes := comparisonResult{
-		observedAt:       observedAt,
+		reconciledAt:     observedAt,
 		syncStatus:       &syncStatus,
 		healthStatus:     healthStatus,
 		resources:        resourceSummaries,
 		managedResources: managedResources,
 		conditions:       conditions,
 		hooks:            hooks,
+		diffNormalizer:   diffNormalizer,
+	}
+	if manifestInfo != nil {
+		compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 	}
 	return &compRes, nil
 }
@@ -296,20 +294,16 @@ func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 	return repo
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, overrides []v1alpha1.ComponentParameter) error {
-
-	var nextID int64 = 0
+func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource) error {
+	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History[len(app.Status.History)-1].ID + 1
 	}
-	if overrides == nil {
-		overrides = app.Spec.Source.ComponentParameterOverrides
-	}
 	history := append(app.Status.History, v1alpha1.RevisionHistory{
-		ComponentParameterOverrides: overrides,
-		Revision:                    revision,
-		DeployedAt:                  metav1.NewTime(time.Now().UTC()),
-		ID:                          nextID,
+		Revision:   revision,
+		DeployedAt: metav1.NewTime(time.Now().UTC()),
+		ID:         nextID,
+		Source:     source,
 	})
 
 	if len(history) > common.RevisionHistoryLimit {

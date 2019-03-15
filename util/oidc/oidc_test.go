@@ -5,9 +5,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"golang.org/x/oauth2"
-
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 )
 
 var (

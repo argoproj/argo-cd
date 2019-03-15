@@ -2,16 +2,12 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -22,7 +18,7 @@ import (
 )
 
 type LiveStateCache interface {
-	IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error)
+	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
 	// Returns child nodes for a given k8s resource
 	GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error)
 	// Returns state of live nodes which correspond for target nodes of specified application.
@@ -46,7 +42,7 @@ func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isName
 	return key
 }
 
-func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settings *settings.ArgoCDSettings, kubectl kube.Kubectl, onAppUpdated func(appName string)) LiveStateCache {
+func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settings *settings.ArgoCDSettings, kubectl kube.Kubectl, onAppUpdated func(appName string, fullRefresh bool)) LiveStateCache {
 	return &liveStateCache{
 		appInformer:  appInformer,
 		db:           db,
@@ -63,7 +59,7 @@ type liveStateCache struct {
 	clusters     map[string]*clusterInfo
 	lock         *sync.Mutex
 	appInformer  cache.SharedIndexInformer
-	onAppUpdated func(appName string)
+	onAppUpdated func(appName string, fullRefresh bool)
 	kubectl      kube.Kubectl
 	settings     *settings.ArgoCDSettings
 }
@@ -76,13 +72,6 @@ func (c *liveStateCache) processEvent(event watch.EventType, obj *unstructured.U
 	return info.processEvent(event, obj)
 }
 
-func (c *liveStateCache) removeCluster(server string) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	delete(c.clusters, server)
-	log.Infof("Dropped cluster %s cache", server)
-}
-
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -93,7 +82,7 @@ func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 			return nil, err
 		}
 		info = &clusterInfo{
-			apis:         make(map[schema.GroupVersionKind]metav1.APIResource),
+			apisMeta:     make(map[schema.GroupKind]*apiMeta),
 			lock:         &sync.Mutex{},
 			nodes:        make(map[kube.ResourceKey]*node),
 			nsIndex:      make(map[string]map[kube.ResourceKey]*node),
@@ -143,12 +132,12 @@ func (c *liveStateCache) Delete(server string, obj *unstructured.Unstructured) e
 	return clusterInfo.delete(obj)
 }
 
-func (c *liveStateCache) IsNamespaced(server string, gvk schema.GroupVersionKind) (bool, error) {
+func (c *liveStateCache) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return false, err
 	}
-	return clusterInfo.isNamespaced(gvk), nil
+	return clusterInfo.isNamespaced(obj), nil
 }
 
 func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error) {
@@ -178,130 +167,29 @@ func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 
 // Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
 func (c *liveStateCache) Run(ctx context.Context) {
-	watchingClusters := make(map[string]struct {
-		cancel  context.CancelFunc
-		cluster *appv1.Cluster
-	})
-
 	util.RetryUntilSucceed(func() error {
 		clusterEventCallback := func(event *db.ClusterEvent) {
-			info, ok := watchingClusters[event.Cluster.Server]
-			hasApps := isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster)
-
-			// cluster resources must be watched only if cluster has at least one app
-			if (event.Type == watch.Deleted || !hasApps) && ok {
-				info.cancel()
-				delete(watchingClusters, event.Cluster.Server)
-			} else if event.Type != watch.Deleted && !ok && hasApps {
-				ctx, cancel := context.WithCancel(ctx)
-				watchingClusters[event.Cluster.Server] = struct {
-					cancel  context.CancelFunc
-					cluster *appv1.Cluster
-				}{
-					cancel: func() {
-						c.removeCluster(event.Cluster.Server)
-						cancel()
-					},
-					cluster: event.Cluster,
+			c.lock.Lock()
+			defer c.lock.Unlock()
+			if cluster, ok := c.clusters[event.Cluster.Server]; ok {
+				if event.Type == watch.Deleted {
+					cluster.invalidate()
+					delete(c.clusters, event.Cluster.Server)
+				} else if event.Type == watch.Modified {
+					cluster.cluster = event.Cluster
+					cluster.invalidate()
 				}
-				go c.watchClusterResources(ctx, *event.Cluster)
+			} else if event.Type == watch.Added && isClusterHasApps(c.appInformer.GetStore().List(), event.Cluster) {
+				go func() {
+					// warm up cache for cluster with apps
+					_, _ = c.getSyncedCluster(event.Cluster.Server)
+				}()
 			}
 		}
-
-		onAppModified := func(obj interface{}) {
-			if app, ok := obj.(*appv1.Application); ok {
-				var cluster *appv1.Cluster
-				info, infoOk := watchingClusters[app.Spec.Destination.Server]
-				if infoOk {
-					cluster = info.cluster
-				} else {
-					cluster, _ = c.db.GetCluster(ctx, app.Spec.Destination.Server)
-				}
-				if cluster != nil {
-					// trigger cluster event every time when app created/deleted to either start or stop watching resources
-					clusterEventCallback(&db.ClusterEvent{Cluster: cluster, Type: watch.Modified})
-				}
-			}
-		}
-
-		c.appInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: onAppModified,
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				oldApp, oldOk := oldObj.(*appv1.Application)
-				newApp, newOk := newObj.(*appv1.Application)
-				if oldOk && newOk {
-					if oldApp.Spec.Destination.Server != newApp.Spec.Destination.Server {
-						onAppModified(oldObj)
-						onAppModified(newApp)
-					}
-				}
-			},
-			DeleteFunc: onAppModified,
-		})
 
 		return c.db.WatchClusters(ctx, clusterEventCallback)
 
 	}, "watch clusters", ctx, clusterRetryTimeout)
 
 	<-ctx.Done()
-}
-
-// watchClusterResources watches for resource changes annotated with application label on specified cluster and schedule corresponding app refresh.
-func (c *liveStateCache) watchClusterResources(ctx context.Context, item appv1.Cluster) {
-	util.RetryUntilSucceed(func() (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				err = fmt.Errorf("Recovered from panic: %v\n", r)
-			}
-		}()
-		config := item.RESTConfig()
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
-
-		knownCRDs, err := getCRDs(config)
-		if err != nil {
-			return err
-		}
-		ch, err := c.kubectl.WatchResources(ctx, config, "")
-		if err != nil {
-			return err
-		}
-		for event := range ch {
-			eventObj := event.Object.(*unstructured.Unstructured)
-			if kube.IsCRD(eventObj) {
-				// restart if new CRD has been created after watch started
-				if event.Type == watch.Added {
-					if !knownCRDs[eventObj.GetName()] {
-						c.removeCluster(item.Server)
-						return fmt.Errorf("Restarting the watch because a new CRD %s was added", eventObj.GetName())
-					} else {
-						log.Infof("CRD %s updated", eventObj.GetName())
-					}
-				} else if event.Type == watch.Deleted {
-					c.removeCluster(item.Server)
-					return fmt.Errorf("Restarting the watch because CRD %s was deleted", eventObj.GetName())
-				}
-			}
-			err = c.processEvent(event.Type, eventObj, item.Server)
-			if err != nil {
-				log.Warnf("Failed to process event %s for obj %v: %v", event.Type, event.Object, err)
-			}
-		}
-		return fmt.Errorf("resource updates channel has closed")
-	}, fmt.Sprintf("watch app resources on %s", item.Server), ctx, clusterRetryTimeout)
-}
-
-// getCRDs returns a map of crds
-func getCRDs(config *rest.Config) (map[string]bool, error) {
-	crdsByName := make(map[string]bool)
-	apiextensionsClientset := apiextensionsclient.NewForConfigOrDie(config)
-	crds, err := apiextensionsClientset.ApiextensionsV1beta1().CustomResourceDefinitions().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, crd := range crds.Items {
-		crdsByName[crd.Name] = true
-	}
-	// TODO: support api service, like ServiceCatalog
-	return crdsByName, nil
 }

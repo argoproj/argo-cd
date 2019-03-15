@@ -35,6 +35,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 * [ksonnet](https://ksonnet.io) applications
 * [jsonnet](https://jsonnet.org) files 
 * Plain directory of YAML/json manifests
+* Any custom config management tool configured as a config management plugin
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of
@@ -81,6 +82,7 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Parameter overrides for overriding ksonnet/helm parameters in git
 
 ## Community Blogs and Presentations
+* GitOps with Argo CD: [Simplify and Automate Deployments Using GitOps with IBM Multicloud Manager](https://www.ibm.com/blogs/bluemix/2019/02/simplify-and-automate-deployments-using-gitops-with-ibm-multicloud-manager-3-1-2/)
 * KubeCon talk: [CI/CD in Light Speed with K8s and Argo CD](https://www.youtube.com/watch?v=OdzH82VpMwI&feature=youtu.be)
 * KubeCon talk: [Machine Learning as Code](https://www.youtube.com/watch?v=VXrGp5er1ZE&t=0s&index=135&list=PLj6h78yzYM2PZf9eA7bhWnIh_mK1vyOfU)
   * Among other things, desribes how Kubeflow uses Argo CD to implement GitOPs for ML

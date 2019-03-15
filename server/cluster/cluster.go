@@ -5,10 +5,11 @@ import (
 	"reflect"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -18,21 +19,19 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
-	log "github.com/sirupsen/logrus"
 )
 
 // Server provides a Cluster service
 type Server struct {
 	db    db.ArgoDB
 	enf   *rbac.Enforcer
-	cache cache.Cache
+	cache *cache.Cache
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache cache.Cache) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *cache.Cache) *Server {
 	return &Server{
 		db:    db,
 		enf:   enf,
@@ -40,18 +39,12 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache cache.Cache) *Server {
 	}
 }
 
-const (
-	DefaultClusterStatusCacheExpiration = 1 * time.Hour
-)
-
 func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) appv1.ConnectionState {
-	cacheKey := fmt.Sprintf("connection-state-%s", cluster.Server)
-	var connectionState appv1.ConnectionState
-	if err := s.cache.Get(cacheKey, &connectionState); err == nil {
+	if connectionState, err := s.cache.GetClusterConnectionState(cluster.Server); err == nil {
 		return connectionState
 	}
 	now := v1.Now()
-	connectionState = appv1.ConnectionState{
+	connectionState := appv1.ConnectionState{
 		Status:     appv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
@@ -66,13 +59,9 @@ func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) 
 		connectionState.Status = appv1.ConnectionStatusFailed
 		connectionState.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
 	}
-	err = s.cache.Set(&cache.Item{
-		Object:     &connectionState,
-		Key:        cacheKey,
-		Expiration: DefaultClusterStatusCacheExpiration,
-	})
+	err = s.cache.SetClusterConnectionState(cluster.Server, &connectionState)
 	if err != nil {
-		log.Warnf("getConnectionState cache set error %s: %v", cacheKey, err)
+		log.Warnf("getConnectionState cache set error %s: %v", cluster.Server, err)
 	}
 	return connectionState
 }
@@ -108,8 +97,8 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, q *ClusterCreateRequest) (*appv1.Cluster, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, q.Cluster.Server) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, q.Cluster.Server); err != nil {
+		return nil, err
 	}
 	c := q.Cluster
 	err := kube.TestConfig(q.Cluster.RESTConfig())
@@ -188,8 +177,8 @@ func (s *Server) CreateFromKubeConfig(ctx context.Context, q *ClusterCreateFromK
 
 // Get returns a cluster from a query
 func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, q.Server); err != nil {
+		return nil, err
 	}
 	clust, err := s.db.GetCluster(ctx, q.Server)
 	return redact(clust), err
@@ -197,8 +186,8 @@ func (s *Server) Get(ctx context.Context, q *ClusterQuery) (*appv1.Cluster, erro
 
 // Update updates a cluster
 func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cluster, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, q.Cluster.Server); err != nil {
+		return nil, err
 	}
 	err := kube.TestConfig(q.Cluster.RESTConfig())
 	if err != nil {
@@ -210,8 +199,8 @@ func (s *Server) Update(ctx context.Context, q *ClusterUpdateRequest) (*appv1.Cl
 
 // Delete deletes a cluster by name
 func (s *Server) Delete(ctx context.Context, q *ClusterQuery) (*ClusterResponse, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, q.Server) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, q.Server); err != nil {
+		return nil, err
 	}
 	err := s.db.DeleteCluster(ctx, q.Server)
 	return &ClusterResponse{}, err

@@ -12,7 +12,6 @@ import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/reposerver/repository/repository.proto";
-import "github.com/argoproj/argo-cd/controller/services/application.proto";
 
 
 // ApplicationQuery is a query for application resources
@@ -59,26 +58,19 @@ message ApplicationSyncRequest {
 	optional bool dryRun = 3 [(gogoproto.nullable) = false];
 	optional bool prune = 4 [(gogoproto.nullable) = false];
 	optional github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
-	optional ParameterOverrides parameter = 6;
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7 [(gogoproto.nullable) = false];
-}
-
-// ParameterOverrides is a wrapper on a list of parameters. If omitted, the application's overrides
-// in the spec will be used. If set, will use the supplied list of overrides
-message ParameterOverrides {
-	repeated Parameter overrides = 1;
-}
-
-message Parameter {
-	required string name = 1 [(gogoproto.nullable) = false];
-	optional string value = 2 [(gogoproto.nullable) = false];
-	optional string component = 3 [(gogoproto.nullable) = false];
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
 	required github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2 [(gogoproto.nullable) = false];
+}
+
+// ApplicationPatchRequest is a request to patch an application
+message ApplicationPatchRequest {
+	required string name = 1;
+	required string patch = 2 [(gogoproto.nullable) = false];
 }
 
 message ApplicationRollbackRequest {
@@ -147,6 +139,19 @@ message OperationTerminateRequest {
 message OperationTerminateResponse {
 }
 
+
+message ResourcesQuery {
+	required string applicationName = 1 [(gogoproto.nullable) = true];
+}
+
+message ResourceTreeResponse {
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceNode items = 1;
+}
+
+message ManagedResourcesResponse {
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+}
+
 // ApplicationService
 service ApplicationService {
 
@@ -199,6 +204,14 @@ service ApplicationService {
 		};
 	}
 
+	// Patch patch an application
+	rpc Patch(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			patch: "/api/v1/applications/{name}"
+			body: "*"
+		};
+	}
+
 	// Delete deletes an application
 	rpc Delete(ApplicationDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
@@ -212,11 +225,11 @@ service ApplicationService {
 		};
 	}
 
-	rpc ManagedResources(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ManagedResourcesResponse) {
+	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
-	rpc ResourceTree(github.com.argoproj.argo_cd.controller.services.ResourcesQuery) returns (github.com.argoproj.argo_cd.controller.services.ResourceTreeResponse) {
+	rpc ResourceTree(ResourcesQuery) returns (ResourceTreeResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
 
@@ -242,7 +255,10 @@ service ApplicationService {
 
 	// PatchResource patch single application resource
 	rpc PatchResource(ApplicationResourcePatchRequest) returns (ApplicationResourceResponse) {
-		option (google.api.http).post = "/api/v1/applications/{name}/resource";
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/resource"
+			body: "patch"
+		};
 	}
 
 	// DeleteResource deletes a single application resource

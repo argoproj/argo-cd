@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/spf13/cobra"
+
 	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/spf13/cobra"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root

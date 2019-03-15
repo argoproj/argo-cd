@@ -6,7 +6,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,13 +21,17 @@ type node struct {
 	resource        *unstructured.Unstructured
 }
 
+func (n *node) isRootAppNode() bool {
+	return n.appName != "" && len(n.ownerRefs) == 0
+}
+
 func (n *node) resourceKey() kube.ResourceKey {
 	return kube.NewResourceKey(n.ref.GroupVersionKind().Group, n.ref.Kind, n.ref.Namespace, n.ref.Name)
 }
 
 func (n *node) isParentOf(child *node) bool {
-	ownerGvk := n.ref.GroupVersionKind()
 	for _, ownerRef := range child.ownerRefs {
+		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		if kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name) == n.resourceKey() {
 			return true
 		}

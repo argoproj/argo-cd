@@ -47,7 +47,11 @@ func TestAppManagement(t *testing.T) {
 	testApp := &v1alpha1.Application{
 		Spec: v1alpha1.ApplicationSpec{
 			Source: v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/argoproj/argo-cd.git", Path: ".", Environment: "minikube",
+				RepoURL: "https://github.com/argoproj/argo-cd.git",
+				Path:    ".",
+				Ksonnet: &v1alpha1.ApplicationSourceKsonnet{
+					Environment: "minikube",
+				},
 			},
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    fixture.Config.Host,
@@ -75,7 +79,7 @@ func TestAppManagement(t *testing.T) {
 		}
 		assert.Equal(t, appName, app.Name)
 		assert.Equal(t, "https://github.com/argoproj/argo-cd.git", app.Spec.Source.RepoURL)
-		assert.Equal(t, "minikube", v1alpha1.KsonnetEnv(&app.Spec.Source))
+		assert.Equal(t, "minikube", app.Spec.Source.Ksonnet.Environment)
 		assert.Equal(t, ".", app.Spec.Source.Path)
 		assert.Equal(t, fixture.Namespace, app.Spec.Destination.Namespace)
 		assert.Equal(t, fixture.Config.Host, app.Spec.Destination.Server)
@@ -129,13 +133,13 @@ func TestAppManagement(t *testing.T) {
 
 		appWithHistory := app.DeepCopy()
 		appWithHistory.Status.History = []v1alpha1.RevisionHistory{{
-			ID:                          1,
-			Revision:                    "abc",
-			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+			ID:       1,
+			Revision: "abc",
+			Source:   app.Spec.Source,
 		}, {
-			ID:                          2,
-			Revision:                    "cdb",
-			ComponentParameterOverrides: app.Spec.Source.ComponentParameterOverrides,
+			ID:       2,
+			Revision: "cdb",
+			Source:   app.Spec.Source,
 		}}
 		patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &v1alpha1.Application{})
 		assert.Nil(t, err)
@@ -197,9 +201,9 @@ func TestAppManagement(t *testing.T) {
 		})
 
 		// deploy app which fails and make sure it became unhealthy
-		app.Spec.Source.ComponentParameterOverrides = append(
-			app.Spec.Source.ComponentParameterOverrides,
-			v1alpha1.ComponentParameter{Name: "command", Value: "wrong-command", Component: "guestbook-ui"})
+		app.Spec.Source.Ksonnet.Parameters = append(
+			app.Spec.Source.Ksonnet.Parameters,
+			v1alpha1.KsonnetParameter{Name: "command", Value: "wrong-command", Component: "guestbook-ui"})
 		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Update(app)
 		if err != nil {
 			t.Fatalf("Unable to set app parameter %v", err)

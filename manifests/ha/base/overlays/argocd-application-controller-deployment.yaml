@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-application-controller
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        command:
+        - argocd-application-controller
+        - --status-processors
+        - "20"
+        - --operation-processors
+        - "10"
+        - --sentinel
+        - argocd-redis-ha-announce-0:26379
+        - --sentinel
+        - argocd-redis-ha-announce-1:26379
+        - --sentinel
+        - argocd-redis-ha-announce-2:26379
+        - --sentinelmaster
+        - argocd

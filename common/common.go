@@ -2,12 +2,12 @@ package common
 
 // Default service addresses and URLS of Argo CD internal services
 const (
-	// DefaultAppControllerServerAddr is the gRPC address of the Argo CD app controller server
-	DefaultAppControllerServerAddr = "argocd-application-controller:8083"
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
 	DefaultDexServerAddr = "http://argocd-dex-server:5556"
+	// DefaultRedisAddr is the default redis address
+	DefaultRedisAddr = "argocd-redis:6379"
 )
 
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings
@@ -15,6 +15,13 @@ const (
 	ArgoCDConfigMapName     = "argocd-cm"
 	ArgoCDSecretName        = "argocd-secret"
 	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+)
+
+const (
+	PortAPIServer              = 8080
+	PortRepoServer             = 8081
+	PortArgoCDMetrics          = 8082
+	PortArgoCDAPIServerMetrics = 8083
 )
 
 // Argo CD application related constants
@@ -95,4 +102,14 @@ const (
 	// EnvVarFakeInClusterConfig is an environment variable to fake an in-cluster RESTConfig using
 	// the current kubectl context (for development purposes)
 	EnvVarFakeInClusterConfig = "ARGOCD_FAKE_IN_CLUSTER"
+)
+
+const (
+	// MinClientVersion is the minimum client version that can interface with this API server.
+	// When introducing breaking changes to the API or datastructures, this number should be bumped.
+	// The value here may be lower than the current value in VERSION
+	MinClientVersion = "0.12.0"
+	// CacheVersion is a objects version cached using util/cache/cache.go.
+	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
+	CacheVersion = "0.12.0"
 )

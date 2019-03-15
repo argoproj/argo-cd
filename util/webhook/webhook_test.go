@@ -7,9 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/util/settings"
-	"github.com/stretchr/testify/assert"
 )
 
 func NewMockHandler() *ArgoCDWebhookHandler {

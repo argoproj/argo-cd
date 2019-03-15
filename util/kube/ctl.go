@@ -2,24 +2,18 @@ package kube
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
-	"runtime/debug"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -35,112 +29,85 @@ type Kubectl interface {
 	DeleteResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, forceDelete bool) error
 	GetResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	PatchResource(config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte) (*unstructured.Unstructured, error)
-	WatchResources(ctx context.Context, config *rest.Config, namespace string) (chan watch.Event, error)
-	GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error)
-	GetAPIResources(config *rest.Config) ([]*metav1.APIResourceList, error)
+	GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
 }
 
 type KubectlCmd struct{}
 
-func (k KubectlCmd) GetAPIResources(config *rest.Config) ([]*metav1.APIResourceList, error) {
+type APIResourceInfo struct {
+	GroupKind schema.GroupKind
+	Meta      metav1.APIResource
+	Interface dynamic.ResourceInterface
+}
+
+type filterFunc func(apiResource *metav1.APIResource) bool
+
+func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filter filterFunc, namespace string) ([]APIResourceInfo, error) {
+	dynamicIf, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return disco.ServerResources()
-}
-
-// GetResources returns all kubernetes resources
-func (k KubectlCmd) GetResources(config *rest.Config, namespace string) ([]*unstructured.Unstructured, error) {
-
-	listSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, listVerb) && !isExcludedResourceGroup(*apiResource)
-	}
-	apiResIfs, err := filterAPIResources(config, listSupported, namespace)
+	serverResources, err := disco.ServerPreferredResources()
 	if err != nil {
-		return nil, err
-	}
-
-	var asyncErr error
-	var result []*unstructured.Unstructured
-	var wg sync.WaitGroup
-	var lock sync.Mutex
-	wg.Add(len(apiResIfs))
-	for _, apiResIf := range apiResIfs {
-		go func(resourceIf dynamic.ResourceInterface) {
-			defer wg.Done()
-			list, err := resourceIf.List(metav1.ListOptions{})
-			if err != nil {
-				if !apierr.IsNotFound(err) {
-					asyncErr = err
-				}
-				return
-			}
-			for i := range list.Items {
-				item := list.Items[i]
-				lock.Lock()
-				result = append(result, &item)
-				lock.Unlock()
-			}
-		}(apiResIf.resourceIf)
-	}
-	wg.Wait()
-	return result, asyncErr
-}
-
-const watchResourcesRetryTimeout = 1 * time.Second
-
-// WatchResources Watches all the existing resources with the provided label name in the provided namespace in the cluster provided by the config
-func (k KubectlCmd) WatchResources(
-	ctx context.Context,
-	config *rest.Config,
-	namespace string,
-) (chan watch.Event, error) {
-	watchSupported := func(groupVersion string, apiResource *metav1.APIResource) bool {
-		return isSupportedVerb(apiResource, watchVerb) && !isExcludedResourceGroup(*apiResource)
-	}
-	log.Infof("Start watching for resources changes with in cluster %s", config.Host)
-	apiResIfs, err := filterAPIResources(config, watchSupported, namespace)
-	if err != nil {
-		return nil, err
-	}
-	ch := make(chan watch.Event)
-	go func() {
-		var wg sync.WaitGroup
-		wg.Add(len(apiResIfs))
-		for _, a := range apiResIfs {
-			go func(apiResIf apiResourceInterface) {
-				defer wg.Done()
-
-				util.RetryUntilSucceed(func() (err error) {
-					defer func() {
-						if r := recover(); r != nil {
-							message := fmt.Sprintf("Recovered from panic: %+v\n%s", r, debug.Stack())
-							log.Error(message)
-							err = errors.New(message)
-						}
-					}()
-					watchCh := WatchWithRetry(ctx, func() (i watch.Interface, e error) {
-						return apiResIf.resourceIf.Watch(metav1.ListOptions{})
-					})
-					for next := range watchCh {
-						if next.Error != nil {
-							return next.Error
-						}
-						ch <- watch.Event{
-							Object: next.Object,
-							Type:   next.Type,
-						}
-					}
-					return nil
-				}, fmt.Sprintf("watch resources %s %s/%s", config.Host, apiResIf.groupVersion, apiResIf.apiResource.Kind), ctx, watchResourcesRetryTimeout)
-			}(a)
+		if len(serverResources) == 0 {
+			return nil, err
 		}
-		wg.Wait()
-		close(ch)
-		log.Infof("Stop watching for resources changes with in cluster %s", config.Host)
-	}()
-	return ch, nil
+		log.Warnf("Partial success when performing preferred resource discovery: %v", err)
+	}
+	apiResIfs := make([]APIResourceInfo, 0)
+	for _, apiResourcesList := range serverResources {
+		gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
+		if err != nil {
+			gv = schema.GroupVersion{}
+		}
+		for _, apiResource := range apiResourcesList.APIResources {
+			if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
+				continue
+			}
+			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok {
+				continue
+			}
+			if filter(&apiResource) {
+				resource := ToGroupVersionResource(apiResourcesList.GroupVersion, &apiResource)
+				resourceIf := ToResourceInterface(dynamicIf, &apiResource, resource, namespace)
+				gv, err := schema.ParseGroupVersion(apiResourcesList.GroupVersion)
+				if err != nil {
+					return nil, err
+				}
+				apiResIf := APIResourceInfo{
+					GroupKind: schema.GroupKind{Group: gv.Group, Kind: apiResource.Kind},
+					Meta:      apiResource,
+					Interface: resourceIf,
+				}
+				apiResIfs = append(apiResIfs, apiResIf)
+			}
+		}
+	}
+	return apiResIfs, nil
+}
+
+// isSupportedVerb returns whether or not a APIResource supports a specific verb
+func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
+	for _, v := range apiResource.Verbs {
+		if v == verb {
+			return true
+		}
+	}
+	return false
+}
+
+func (k KubectlCmd) GetAPIResources(config *rest.Config, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
+	apiResIfs, err := filterAPIResources(config, resourceFilter, func(apiResource *metav1.APIResource) bool {
+		return isSupportedVerb(apiResource, listVerb) && isSupportedVerb(apiResource, watchVerb)
+	}, "")
+	if err != nil {
+		return nil, err
+	}
+	return apiResIfs, err
 }
 
 // GetResource returns resource

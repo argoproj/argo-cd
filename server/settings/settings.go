@@ -1,9 +1,10 @@
 package settings
 
 import (
-	"github.com/argoproj/argo-cd/util/settings"
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
+
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // Server provides a Settings service
@@ -25,7 +26,8 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 		return nil, err
 	}
 	set := Settings{
-		URL: argoCDSettings.URL,
+		URL:         argoCDSettings.URL,
+		AppLabelKey: argoCDSettings.GetAppInstanceLabelKey(),
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg DexConfig

@@ -42,6 +42,17 @@ type ApplicationSpec struct {
 	Project string `json:"project" protobuf:"bytes,3,name=project"`
 	// SyncPolicy controls when a sync will be performed
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	// IgnoreDifferences controls resources fields which should be ignored during comparison
+	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
+}
+
+// ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
+type ResourceIgnoreDifferences struct {
+	Group        string   `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Kind         string   `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name         string   `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace    string   `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,5,opt,name=jsonPointers"`
 }
 
 // ApplicationSource contains information about github repository, path within repository and target application environment.
@@ -51,16 +62,12 @@ type ApplicationSource struct {
 	// Path is a directory path within the repository containing a
 	Path string `json:"path" protobuf:"bytes,2,opt,name=path"`
 	// Environment is a ksonnet application environment name
-	// DEPRECATED: specify environment in spec.source.ksonnet.environment instead
-	Environment string `json:"environment,omitempty" protobuf:"bytes,3,opt,name=environment"`
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
 	// ComponentParameterOverrides are a list of parameter override values
+	// DEPRECATED: use app source specific config instead
 	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
-	// ValuesFiles is a list of Helm values files to use when generating a template
-	// DEPRECATED: specify values in spec.source.helm.valueFiles instead
-	ValuesFiles []string `json:"valuesFiles,omitempty" protobuf:"bytes,6,opt,name=valuesFiles"`
 	// Helm holds helm specific options
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
 	// Kustomize holds kustomize specific options
@@ -69,6 +76,20 @@ type ApplicationSource struct {
 	Ksonnet *ApplicationSourceKsonnet `json:"ksonnet,omitempty" protobuf:"bytes,9,opt,name=ksonnet"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
+	// ConfigManagementPlugin holds config management plugin specific options
+	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
+}
+
+func (a ApplicationSource) IsZero() bool {
+	return a.RepoURL == "" &&
+		a.Path == "" &&
+		a.TargetRevision == "" &&
+		len(a.ComponentParameterOverrides) == 0 &&
+		a.Helm.IsZero() &&
+		a.Kustomize.IsZero() &&
+		a.Ksonnet.IsZero() &&
+		a.Directory.IsZero() &&
+		a.Plugin.IsZero()
 }
 
 type ApplicationSourceType string
@@ -78,6 +99,7 @@ const (
 	ApplicationSourceTypeKustomize ApplicationSourceType = "Kustomize"
 	ApplicationSourceTypeKsonnet   ApplicationSourceType = "Ksonnet"
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
+	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
 
 type RefreshType string
@@ -91,38 +113,96 @@ const (
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
+	// Parameters are parameters to the helm template
+	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
+}
+
+// HelmParameter is a parameter to a helm template
+type HelmParameter struct {
+	// Name is the name of the helm parameter
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Value is the value for the helm parameter
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return len(h.ValueFiles) == 0
+	return len(h.ValueFiles) == 0 && len(h.Parameters) == 0
 }
 
 // ApplicationSourceKustomize holds kustomize specific options
 type ApplicationSourceKustomize struct {
 	// NamePrefix is a prefix appended to resources for kustomize apps
 	NamePrefix string `json:"namePrefix" protobuf:"bytes,1,opt,name=namePrefix"`
+	// ImageTags are kustomize 1.0 image tag overrides
+	ImageTags []KustomizeImageTag `json:"imageTags" protobuf:"bytes,2,opt,name=imageTags"`
+}
+
+// KustomizeImageTag is a kustomize image tag
+type KustomizeImageTag struct {
+	// Name is the name of the image (e.g. nginx)
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Value is the value for the new tag (e.g. 1.8.0)
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
 func (k *ApplicationSourceKustomize) IsZero() bool {
-	return k.NamePrefix == ""
+	return k.NamePrefix == "" && len(k.ImageTags) == 0
+}
+
+// JsonnetVar is a jsonnet variable
+type JsonnetVar struct {
+	Name  string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Value string `json:"value" protobuf:"bytes,2,opt,name=value"`
+	Code  bool   `json:"code,omitempty" protobuf:"bytes,3,opt,name=code"`
+}
+
+// ApplicationSourceJsonnet holds jsonnet specific options
+type ApplicationSourceJsonnet struct {
+	// ExtVars is a list of Jsonnet External Variables
+	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
+	// TLAS is a list of Jsonnet Top-level Arguments
+	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+}
+
+func (j *ApplicationSourceJsonnet) IsZero() bool {
+	return len(j.ExtVars) == 0 && len(j.TLAs) == 0
 }
 
 // ApplicationSourceKsonnet holds ksonnet specific options
 type ApplicationSourceKsonnet struct {
 	// Environment is a ksonnet application environment name
 	Environment string `json:"environment,omitempty" protobuf:"bytes,1,opt,name=environment"`
+	// Parameters are a list of ksonnet component parameter override values
+	Parameters []KsonnetParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
+}
+
+// KsonnetParameter is a ksonnet component parameter
+type KsonnetParameter struct {
+	Component string `json:"component,omitempty" protobuf:"bytes,1,opt,name=component"`
+	Name      string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	Value     string `json:"value" protobuf:"bytes,3,opt,name=value"`
 }
 
 func (k *ApplicationSourceKsonnet) IsZero() bool {
-	return k.Environment == ""
+	return k.Environment == "" && len(k.Parameters) == 0
 }
 
 type ApplicationSourceDirectory struct {
-	Recurse bool `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+	Recurse bool                     `json:"recurse,omitempty" protobuf:"bytes,1,opt,name=recurse"`
+	Jsonnet ApplicationSourceJsonnet `json:"jsonnet,omitempty" protobuf:"bytes,2,opt,name=jsonnet"`
 }
 
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return d.Recurse == false
+	return !d.Recurse && d.Jsonnet.IsZero()
+}
+
+// ApplicationSourcePlugin holds config management plugin specific options
+type ApplicationSourcePlugin struct {
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+}
+
+func (c *ApplicationSourcePlugin) IsZero() bool {
+	return c.Name == ""
 }
 
 // ApplicationDestination contains deployment destination information
@@ -140,8 +220,9 @@ type ApplicationStatus struct {
 	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
 	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,6,opt,name=observedAt"`
+	ReconciledAt   metav1.Time            `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
+	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 }
 
 // Operation contains requested operation parameters.
@@ -175,21 +256,11 @@ type SyncOperation struct {
 	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 	// SyncStrategy describes how to perform the sync
 	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
-	// ParameterOverrides applies any parameter overrides as part of the sync
-	// If nil, uses the parameter override set in application.
-	// If empty, sets no parameter overrides
-	ParameterOverrides ParameterOverrides `json:"parameterOverrides" protobuf:"bytes,5,opt,name=parameterOverrides"`
 	// Resources describes which resources to sync
 	Resources []SyncOperationResource `json:"resources,omitempty" protobuf:"bytes,6,opt,name=resources"`
-}
-
-// ParameterOverrides masks the value so protobuf can generate
-// +protobuf.nullable=true
-// +protobuf.options.(gogoproto.goproto_stringer)=false
-type ParameterOverrides []ComponentParameter
-
-func (po ParameterOverrides) String() string {
-	return fmt.Sprintf("%v", []ComponentParameter(po))
+	// Source overrides the source definition set in the application.
+	// This is typically set in a Rollback operation and nil during a Sync operation
+	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 }
 
 type OperationPhase string
@@ -292,6 +363,8 @@ type SyncOperationResult struct {
 	Resources []*ResourceResult `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	// Revision holds the git commit SHA of the sync
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	// Source records the application source information of the sync, used for comparing auto-sync
+	Source ApplicationSource `json:"source" protobuf:"bytes,3,opt,name=source"`
 }
 
 type ResultCode string
@@ -334,10 +407,10 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
-	Revision                    string               `json:"revision" protobuf:"bytes,2,opt,name=revision"`
-	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,3,opt,name=componentParameterOverrides"`
-	DeployedAt                  metav1.Time          `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
-	ID                          int64                `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Revision   string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	DeployedAt metav1.Time       `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
+	ID         int64             `json:"id" protobuf:"bytes,5,opt,name=id"`
+	Source     ApplicationSource `json:"source" protobuf:"bytes,6,opt,name=source"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -430,6 +503,7 @@ const (
 	HealthStatusUnknown     HealthStatusCode = "Unknown"
 	HealthStatusProgressing HealthStatusCode = "Progressing"
 	HealthStatusHealthy     HealthStatusCode = "Healthy"
+	HealthStatusSuspended   HealthStatusCode = "Suspended"
 	HealthStatusDegraded    HealthStatusCode = "Degraded"
 	HealthStatusMissing     HealthStatusCode = "Missing"
 )
@@ -666,6 +740,19 @@ type JWTToken struct {
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
+// Command holds binary path and arguments list
+type Command struct {
+	Command []string `json:"command,omitempty" yaml:"command,omitempty" protobuf:"bytes,1,name=command"`
+	Args    []string `json:"args,omitempty" yaml:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
+}
+
+// ConfigManagementPlugin contains config management plugin configuration
+type ConfigManagementPlugin struct {
+	Name     string   `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,1,name=name"`
+	Init     *Command `json:"init,omitempty" yaml:"init,omitempty" protobuf:"bytes,2,name=init"`
+	Generate Command  `json:"generate,omitempty" yaml:"generate,omitempty" protobuf:"bytes,3,name=generate"`
+}
+
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
@@ -744,13 +831,44 @@ func (condition *ApplicationCondition) IsError() bool {
 }
 
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
-func (source ApplicationSource) Equals(other ApplicationSource) bool {
-	return reflect.DeepEqual(source, other)
+func (source *ApplicationSource) Equals(other ApplicationSource) bool {
+	return reflect.DeepEqual(*source, other)
+}
+
+func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) {
+	var appTypes []ApplicationSourceType
+	if source.Kustomize != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeKustomize)
+	}
+	if source.Helm != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeHelm)
+	}
+	if source.Ksonnet != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeKsonnet)
+	}
+	if source.Directory != nil {
+		appTypes = append(appTypes, ApplicationSourceTypeDirectory)
+	}
+	if source.Plugin != nil {
+		appTypes = append(appTypes, ApplicationSourceTypePlugin)
+	}
+	if len(appTypes) == 0 {
+		return nil, nil
+	}
+	if len(appTypes) > 1 {
+		typeNames := make([]string, len(appTypes))
+		for i := range appTypes {
+			typeNames[i] = string(appTypes[i])
+		}
+		return nil, fmt.Errorf("multiple application sources defined: %s", strings.Join(typeNames, ","))
+	}
+	appType := appTypes[0]
+	return &appType, nil
 }
 
 // Equals compares two instances of ApplicationDestination and return true if instances are equal.
-func (source ApplicationDestination) Equals(other ApplicationDestination) bool {
-	return reflect.DeepEqual(source, other)
+func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
+	return reflect.DeepEqual(dest, other)
 }
 
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
@@ -881,22 +999,4 @@ func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 
 func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
-}
-
-// KsonnetEnv is helper to get the ksonnet environment from the legacy field or structured field
-// TODO: delete this helper when we drop the top level Environment field
-func KsonnetEnv(source *ApplicationSource) string {
-	if source.Ksonnet != nil && source.Ksonnet.Environment != "" {
-		return source.Ksonnet.Environment
-	}
-	return source.Environment
-}
-
-// HelmValueFiles is helper to get the helm value files from the legacy field or structured field
-// TODO: delete this helper when we drop the top level ValuesFiles field
-func HelmValueFiles(source *ApplicationSource) []string {
-	if source.Helm != nil && len(source.Helm.ValueFiles) > 0 {
-		return source.Helm.ValueFiles
-	}
-	return source.ValuesFiles
 }

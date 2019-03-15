@@ -1,12 +1,17 @@
 package cache
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic/fake"
+
 	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kube/kubetest"
 	"github.com/argoproj/argo-cd/util/settings"
-	log "github.com/sirupsen/logrus"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -49,8 +53,7 @@ var (
     resourceVersion: "123"`)
 
 	testRS = strToUnstructured(`
-  apiVersion: v1
-  apiVersion: extensions/v1beta1
+  apiVersion: apps/v1
   kind: ReplicaSet
   metadata:
     name: helm-guestbook-rs
@@ -62,7 +65,7 @@ var (
     resourceVersion: "123"`)
 
 	testDeploy = strToUnstructured(`
-  apiVersion: extensions/v1beta1
+  apiVersion: apps/v1
   kind: Deployment
   metadata:
     labels:
@@ -72,21 +75,44 @@ var (
     resourceVersion: "123"`)
 )
 
-func newCluster(resources ...*unstructured.Unstructured) *clusterInfo {
+func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
+	runtimeObjs := make([]runtime.Object, len(objs))
+	for i := range objs {
+		runtimeObjs[i] = objs[i]
+	}
+	scheme := runtime.NewScheme()
+	client := fake.NewSimpleDynamicClient(scheme, runtimeObjs...)
+
+	apiResources := []kube.APIResourceInfo{{
+		GroupKind: schema.GroupKind{Group: "", Kind: "Pod"},
+		Interface: client.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}),
+		Meta:      metav1.APIResource{Namespaced: true},
+	}, {
+		GroupKind: schema.GroupKind{Group: "apps", Kind: "ReplicaSet"},
+		Interface: client.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}),
+		Meta:      metav1.APIResource{Namespaced: true},
+	}, {
+		GroupKind: schema.GroupKind{Group: "apps", Kind: "Deployment"},
+		Interface: client.Resource(schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}),
+		Meta:      metav1.APIResource{Namespaced: true},
+	}}
+
+	return newClusterExt(kubetest.MockKubectlCmd{APIResources: apiResources})
+}
+
+func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
 		lock:         &sync.Mutex{},
 		nodes:        make(map[kube.ResourceKey]*node),
-		onAppUpdated: func(appName string) {},
-		kubectl: kubetest.MockKubectlCmd{
-			Resources: resources,
-		},
-		nsIndex:  make(map[string]map[kube.ResourceKey]*node),
-		cluster:  &appv1.Cluster{},
-		syncTime: nil,
-		syncLock: &sync.Mutex{},
-		apis:     make(map[schema.GroupVersionKind]metav1.APIResource),
-		log:      log.WithField("cluster", "test"),
-		settings: &settings.ArgoCDSettings{},
+		onAppUpdated: func(appName string, fullRefresh bool) {},
+		kubectl:      kubectl,
+		nsIndex:      make(map[string]map[kube.ResourceKey]*node),
+		cluster:      &appv1.Cluster{},
+		syncTime:     nil,
+		syncLock:     &sync.Mutex{},
+		apisMeta:     make(map[schema.GroupKind]*apiMeta),
+		log:          log.WithField("cluster", "test"),
+		settings:     &settings.ArgoCDSettings{},
 	}
 }
 
@@ -112,8 +138,8 @@ func TestGetChildren(t *testing.T) {
 		Kind:            "ReplicaSet",
 		Namespace:       "default",
 		Name:            "helm-guestbook-rs",
-		Group:           "extensions",
-		Version:         "v1beta1",
+		Group:           "apps",
+		Version:         "v1",
 		ResourceVersion: "123",
 		Children:        rsChildren,
 		Info:            []appv1.InfoItem{},
@@ -126,7 +152,7 @@ func TestGetManagedLiveObjs(t *testing.T) {
 	assert.Nil(t, err)
 
 	targetDeploy := strToUnstructured(`
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: helm-guestbook
@@ -246,8 +272,8 @@ func TestUpdateResourceTags(t *testing.T) {
 func TestUpdateAppResource(t *testing.T) {
 	updatesReceived := make([]string, 0)
 	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.onAppUpdated = func(appName string) {
-		updatesReceived = append(updatesReceived, appName)
+	cluster.onAppUpdated = func(appName string, fullRefresh bool) {
+		updatesReceived = append(updatesReceived, fmt.Sprintf("%s: %v", appName, fullRefresh))
 	}
 
 	err := cluster.ensureSynced()
@@ -256,7 +282,7 @@ func TestUpdateAppResource(t *testing.T) {
 	err = cluster.processEvent(watch.Modified, mustToUnstructured(testPod))
 	assert.Nil(t, err)
 
-	assert.Equal(t, []string{"helm-guestbook"}, updatesReceived)
+	assert.Contains(t, updatesReceived, "helm-guestbook: false")
 }
 
 func TestCircularReference(t *testing.T) {
@@ -273,4 +299,35 @@ func TestCircularReference(t *testing.T) {
 
 	children := cluster.getChildren(dep)
 	assert.Len(t, children, 1)
+}
+
+func TestWatchCacheUpdated(t *testing.T) {
+	removed := testPod.DeepCopy()
+	removed.SetName(testPod.GetName() + "-removed-pod")
+
+	updated := testPod.DeepCopy()
+	updated.SetName(testPod.GetName() + "-updated-pod")
+	updated.SetResourceVersion("updated-pod-version")
+
+	cluster := newCluster(removed, updated)
+	err := cluster.ensureSynced()
+
+	assert.Nil(t, err)
+
+	added := testPod.DeepCopy()
+	added.SetName(testPod.GetName() + "-new-pod")
+
+	podGroupKind := testPod.GroupVersionKind().GroupKind()
+
+	cluster.replaceResourceCache(podGroupKind, "updated-list-version", []unstructured.Unstructured{*updated, *added})
+
+	_, ok := cluster.nodes[kube.GetResourceKey(removed)]
+	assert.False(t, ok)
+
+	updatedNode, ok := cluster.nodes[kube.GetResourceKey(updated)]
+	assert.True(t, ok)
+	assert.Equal(t, updatedNode.resourceVersion, "updated-pod-version")
+
+	_, ok = cluster.nodes[kube.GetResourceKey(added)]
+	assert.True(t, ok)
 }

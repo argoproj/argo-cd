@@ -111,3 +111,63 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
 	}
 }
+
+func TestExplicitType(t *testing.T) {
+	src := ApplicationSource{
+		Ksonnet: &ApplicationSourceKsonnet{
+			Environment: "foo",
+		},
+		Kustomize: &ApplicationSourceKustomize{
+			NamePrefix: "foo",
+		},
+		Helm: &ApplicationSourceHelm{
+			ValueFiles: []string{"foo"},
+		},
+	}
+	explicitType, err := src.ExplicitType()
+	assert.NotNil(t, err)
+	assert.Nil(t, explicitType)
+	src = ApplicationSource{
+		Helm: &ApplicationSourceHelm{
+			ValueFiles: []string{"foo"},
+		},
+	}
+
+	explicitType, err = src.ExplicitType()
+	assert.Nil(t, err)
+	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+}
+
+func TestExplicitTypeWithDirectory(t *testing.T) {
+	src := ApplicationSource{
+		Ksonnet: &ApplicationSourceKsonnet{
+			Environment: "foo",
+		},
+		Directory: &ApplicationSourceDirectory{},
+	}
+	_, err := src.ExplicitType()
+	assert.NotNil(t, err, "cannot add directory with any other types")
+}
+
+func TestAppSourceEquality(t *testing.T) {
+	left := &ApplicationSource{
+		Directory: &ApplicationSourceDirectory{
+			Recurse: true,
+		},
+	}
+	right := left.DeepCopy()
+	assert.True(t, left.Equals(*right))
+	right.Directory.Recurse = false
+	assert.False(t, left.Equals(*right))
+}
+
+func TestAppDestinationEquality(t *testing.T) {
+	left := &ApplicationDestination{
+		Server:    "https://kubernetes.default.svc",
+		Namespace: "default",
+	}
+	right := left.DeepCopy()
+	assert.True(t, left.Equals(*right))
+	right.Namespace = "kube-system"
+	assert.False(t, left.Equals(*right))
+}

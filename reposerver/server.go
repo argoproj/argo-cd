@@ -10,8 +10,8 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -22,13 +22,13 @@ import (
 type ArgoCDRepoServer struct {
 	log              *log.Entry
 	gitFactory       git.ClientFactory
-	cache            cache.Cache
+	cache            *cache.Cache
 	opts             []grpc.ServerOption
 	parallelismLimit int64
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(gitFactory git.ClientFactory, cache cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(gitFactory git.ClientFactory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
@@ -47,7 +47,7 @@ func NewServer(gitFactory git.ClientFactory, cache cache.Cache, tlsConfCustomize
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 	tlsConfCustomizer(tlsConfig)
 
-	serverLog := log.NewEntry(log.New())
+	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
 
@@ -69,7 +69,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	version.RegisterVersionServiceServer(server, &version.Server{})
 	manifestService := repository.NewService(a.gitFactory, a.cache, a.parallelismLimit)
-	repository.RegisterRepositoryServiceServer(server, manifestService)
+	repository.RegisterRepoServerServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)

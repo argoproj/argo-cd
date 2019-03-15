@@ -2,17 +2,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
     app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argo-cd
   name: argocd-application-controller
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/component: application-controller
+      app.kubernetes.io/name: argocd-application-controller
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: application-controller
+        app.kubernetes.io/name: argocd-application-controller
     spec:
       containers:
       - command:
@@ -25,10 +26,10 @@ spec:
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
-        - containerPort: 8083
+        - containerPort: 8082
         readinessProbe:
           tcpSocket:
-            port: 8083
+            port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
       serviceAccountName: argocd-application-controller

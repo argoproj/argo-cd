@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/argoproj/argo-cd/common"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,6 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/argoproj/argo-cd/common"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 var (

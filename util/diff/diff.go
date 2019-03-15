@@ -28,20 +28,24 @@ type DiffResultList struct {
 	Modified bool
 }
 
+type Normalizer interface {
+	Normalize(un *unstructured.Unstructured) (*unstructured.Unstructured, error)
+}
+
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
-func Diff(config, live *unstructured.Unstructured) *DiffResult {
+func Diff(config, live *unstructured.Unstructured, normalizer Normalizer) *DiffResult {
 	if config != nil {
 		config = stripTypeInformation(config)
-		Normalize(config)
+		Normalize(config, normalizer)
 	}
 	if live != nil {
 		live = stripTypeInformation(live)
-		Normalize(live)
+		Normalize(live, normalizer)
 	}
 	orig := GetLastAppliedConfigAnnotation(live)
 	if orig != nil && config != nil {
-		Normalize(orig)
+		Normalize(orig, normalizer)
 		dr, err := ThreeWayDiff(orig, config, live)
 		if err == nil {
 			return dr
@@ -207,7 +211,7 @@ func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) *unstructur
 
 // DiffArray performs a diff on a list of unstructured objects. Objects are expected to match
 // environments
-func DiffArray(configArray, liveArray []*unstructured.Unstructured) (*DiffResultList, error) {
+func DiffArray(configArray, liveArray []*unstructured.Unstructured, normalizer Normalizer) (*DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
@@ -219,7 +223,7 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured) (*DiffResult
 	for i := 0; i < numItems; i++ {
 		config := configArray[i]
 		live := liveArray[i]
-		diffRes := Diff(config, live)
+		diffRes := Diff(config, live, normalizer)
 		diffResultList.Diffs[i] = *diffRes
 		if diffRes.Modified {
 			diffResultList.Modified = true
@@ -240,10 +244,20 @@ func (d *DiffResult) ASCIIFormat(left *unstructured.Unstructured, formatOpts for
 	return asciiFmt.Format(d.Diff)
 }
 
-func Normalize(un *unstructured.Unstructured) {
+func Normalize(un *unstructured.Unstructured, normalizer Normalizer) {
 	if un == nil {
 		return
 	}
+
+	if normalizer != nil {
+		normalized, err := normalizer.Normalize(un)
+		if err == nil {
+			un = normalized
+		} else {
+			log.Warnf("Failed to normalize %s/%s/%s: %v", un.GroupVersionKind(), un.GetNamespace(), un.GetName(), err)
+		}
+	}
+
 	// creationTimestamp is sometimes set to null in the config when exported (e.g. SealedSecrets)
 	// Removing the field allows a cleaner diff.
 	unstructured.RemoveNestedField(un.Object, "metadata", "creationTimestamp")

@@ -16,10 +16,13 @@ import (
 	"time"
 
 	golang_proto "github.com/golang/protobuf/proto"
-	"github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	netCtx "golang.org/x/net/context"
@@ -35,20 +38,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd"
+	argocd "github.com/argoproj/argo-cd"
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
-	applister "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/server/account"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/server/metrics"
 	"github.com/argoproj/argo-cd/server/project"
 	"github.com/argoproj/argo-cd/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/server/repository"
@@ -73,14 +73,6 @@ import (
 	"github.com/argoproj/argo-cd/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 	"github.com/argoproj/argo-cd/util/webhook"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-)
-
-const (
-	// minClientVersion is the minimum client version that can interface with this API server.
-	// When introducing breaking changes to the API or datastructures, this number should be bumped.
-	// The value here may be lower than the current value in VERSION
-	minClientVersion = "0.11.0"
 )
 
 var (
@@ -103,7 +95,7 @@ var backoff = wait.Backoff{
 }
 
 var (
-	clientConstraint = fmt.Sprintf(">= %s", minClientVersion)
+	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
 )
 
@@ -117,8 +109,6 @@ type ArgoCDServer struct {
 	sessionMgr   *util_session.SessionManager
 	settingsMgr  *settings_util.SettingsManager
 	enf          *rbac.Enforcer
-	appInformer  cache.SharedIndexInformer
-	appLister    applister.ApplicationLister
 	projInformer cache.SharedIndexInformer
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
@@ -126,17 +116,17 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth            bool
-	Insecure               bool
-	Namespace              string
-	DexServerAddr          string
-	StaticAssetsDir        string
-	BaseHRef               string
-	KubeClientset          kubernetes.Interface
-	AppClientset           appclientset.Interface
-	RepoClientset          reposerver.Clientset
-	AppControllerClientset controller.Clientset
-	TLSConfigCustomizer    tlsutil.ConfigCustomizer
+	DisableAuth         bool
+	Insecure            bool
+	Namespace           string
+	DexServerAddr       string
+	StaticAssetsDir     string
+	BaseHRef            string
+	KubeClientset       kubernetes.Interface
+	AppClientset        appclientset.Interface
+	RepoClientset       reposerver.Clientset
+	Cache               *argocache.Cache
+	TLSConfigCustomizer tlsutil.ConfigCustomizer
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -164,11 +154,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	errors.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
-	sessionMgr := util_session.NewSessionManager(settingsMgr)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, opts.DexServerAddr)
 
 	factory := appinformer.NewFilteredSharedInformerFactory(opts.AppClientset, 0, opts.Namespace, func(options *metav1.ListOptions) {})
-	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-	appLister := factory.Argoproj().V1alpha1().Applications().Lister()
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
 
@@ -183,13 +171,11 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 
 	return &ArgoCDServer{
 		ArgoCDServerOpts: opts,
-		log:              log.NewEntry(log.New()),
+		log:              log.NewEntry(log.StandardLogger()),
 		settings:         settings,
 		sessionMgr:       sessionMgr,
 		settingsMgr:      settingsMgr,
 		enf:              enf,
-		appInformer:      appInformer,
-		appLister:        appLister,
 		projInformer:     projInformer,
 	}
 }
@@ -209,6 +195,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	} else {
 		httpS = a.newHTTPServer(ctx, port, grpcWebS)
 	}
+	metricsServ := newAPIServerMetricsServer()
 
 	// Start listener
 	var conn net.Listener
@@ -251,13 +238,11 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 		httpsL = tlsm.Match(cmux.HTTP1Fast())
 		grpcL = tlsm.Match(cmux.Any())
 	}
-	metricsServ := metrics.NewMetricsServer(8082, a.appLister)
 
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		argocd.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
 
-	go a.appInformer.Run(ctx.Done())
 	go a.projInformer.Run(ctx.Done())
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -269,9 +254,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int) {
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
-	if !cache.WaitForCacheSync(ctx.Done(), a.appInformer.HasSynced) {
-		log.Fatal("Timed out waiting for application cache to sync")
-	}
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
@@ -400,6 +382,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		grpc_logrus.StreamServerInterceptor(a.log),
+		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
@@ -411,6 +394,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
 		grpc_logrus.UnaryServerInterceptor(a.log),
+		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx netCtx.Context, fullMethodName string, servingObject interface{}) bool {
@@ -421,11 +405,11 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 	db := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	clusterService := cluster.NewServer(db, a.enf, argocache.NewInMemoryCache(cluster.DefaultClusterStatusCacheExpiration))
-	repoService := repository.NewServer(a.RepoClientset, db, a.enf, argocache.NewInMemoryCache(repository.DefaultRepoStatusCacheExpiration))
+	clusterService := cluster.NewServer(db, a.enf, a.Cache)
+	repoService := repository.NewServer(a.RepoClientset, db, a.enf, a.Cache)
 	sessionService := session.NewServer(a.sessionMgr)
 	projectLock := util.NewKeyLock()
-	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.AppControllerClientset, kube.KubectlCmd{}, db, a.enf, projectLock, a.settingsMgr)
+	applicationService := application.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.RepoClientset, a.Cache, kube.KubectlCmd{}, db, a.enf, projectLock, a.settingsMgr)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr)
 	settingsService := settings.NewServer(a.settingsMgr)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr)
@@ -439,6 +423,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 	account.RegisterAccountServiceServer(grpcS, accountService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
+	grpc_prometheus.Register(grpcS)
 	return grpcS
 }
 
@@ -449,7 +434,11 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		if !a.Insecure {
 			flags = append(flags, "Secure")
 		}
-		cookie := httputil.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
+		cookie, err := httputil.MakeCookieMetadata(common.AuthCookieName, sessionResp.Token, flags...)
+		if err != nil {
+			return err
+		}
+
 		w.Header().Set("Set-Cookie", cookie)
 	}
 	return nil
@@ -540,7 +529,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr))
 	tlsConfig := a.settings.TLSConfig()
 	tlsConfig.InsecureSkipVerify = true
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.Cache, a.DexServerAddr)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
@@ -608,6 +597,16 @@ func indexFilePath(srcPath string, baseHRef string) (string, error) {
 	}
 
 	return filePath, nil
+}
+
+// newAPIServerMetricsServer returns HTTP server which serves prometheus metrics on gRPC requests
+func newAPIServerMetricsServer() *http.Server {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	return &http.Server{
+		Addr:    fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDAPIServerMetrics),
+		Handler: mux,
+	}
 }
 
 // newStaticAssetsHandler returns an HTTP handler to serve UI static assets

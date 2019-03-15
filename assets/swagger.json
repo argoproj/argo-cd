@@ -156,7 +156,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesManagedResourcesResponse"
+              "$ref": "#/definitions/applicationManagedResourcesResponse"
             }
           }
         }
@@ -180,7 +180,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/servicesResourceTreeResponse"
+              "$ref": "#/definitions/applicationResourceTreeResponse"
             }
           }
         }
@@ -242,6 +242,37 @@
             "description": "(empty)",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Patch patch an application",
+        "operationId": "Patch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationPatchRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
             }
           }
         }
@@ -476,6 +507,14 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1160,6 +1199,14 @@
             "type": "string",
             "name": "revision",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "name": "helm.valueFiles",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1301,6 +1348,18 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
+    "applicationApplicationPatchRequest": {
+      "type": "object",
+      "title": "ApplicationPatchRequest is a request to patch an application",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "patch": {
+          "type": "string"
+        }
+      }
+    },
     "applicationApplicationResourceResponse": {
       "type": "object",
       "properties": {
@@ -1343,9 +1402,6 @@
         "name": {
           "type": "string"
         },
-        "parameter": {
-          "$ref": "#/definitions/applicationParameterOverrides"
-        },
         "prune": {
           "type": "boolean",
           "format": "boolean"
@@ -1375,43 +1431,27 @@
         }
       }
     },
-    "applicationOperationTerminateResponse": {
-      "type": "object"
-    },
-    "applicationParameter": {
+    "applicationManagedResourcesResponse": {
       "type": "object",
-      "properties": {
-        "component": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      }
-    },
-    "applicationParameterOverrides": {
-      "type": "object",
-      "title": "ParameterOverrides is a wrapper on a list of parameters. If omitted, the application's overrides\nin the spec will be used. If set, will use the supplied list of overrides",
-      "properties": {
-        "overrides": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/applicationParameter"
-          }
-        }
-      }
-    },
-    "applicationv1alpha1ParameterOverrides": {
-      "type": "object",
-      "title": "ParameterOverrides masks the value so protobuf can generate\n+protobuf.nullable=true\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "properties": {
         "items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        }
+      }
+    },
+    "applicationOperationTerminateResponse": {
+      "type": "object"
+    },
+    "applicationResourceTreeResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         }
       }
@@ -1477,6 +1517,9 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "appLabelKey": {
+          "type": "string"
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
@@ -1553,12 +1596,29 @@
       "type": "object",
       "title": "DirectoryAppSpec contains directory"
     },
+    "repositoryHelmAppDetailsQuery": {
+      "type": "object",
+      "properties": {
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "repositoryHelmAppSpec": {
       "type": "object",
       "title": "HelmAppSpec contains helm app name and path in source repo",
       "properties": {
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          }
         },
         "path": {
           "type": "string"
@@ -1583,6 +1643,12 @@
         },
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KsonnetParameter"
+          }
         },
         "path": {
           "type": "string"
@@ -1626,6 +1692,12 @@
       "type": "object",
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
+        "imageTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
+          }
+        },
         "path": {
           "type": "string"
         }
@@ -1643,16 +1715,13 @@
         "namespace": {
           "type": "string"
         },
-        "params": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
-          }
-        },
         "revision": {
           "type": "string"
         },
         "server": {
+          "type": "string"
+        },
+        "sourceType": {
           "type": "string"
         }
       }
@@ -1692,28 +1761,6 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
-    },
-    "servicesManagedResourcesResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceDiff"
-          }
-        }
-      }
-    },
-    "servicesResourceTreeResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
-        }
-      }
     },
     "sessionSessionCreateRequest": {
       "description": "SessionCreateRequest is for logging in.",
@@ -2316,17 +2363,13 @@
       "properties": {
         "componentParameterOverrides": {
           "type": "array",
-          "title": "ComponentParameterOverrides are a list of parameter override values",
+          "title": "ComponentParameterOverrides are a list of parameter override values\nDEPRECATED: use app source specific config instead",
           "items": {
             "$ref": "#/definitions/v1alpha1ComponentParameter"
           }
         },
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
-        },
-        "environment": {
-          "type": "string",
-          "title": "Environment is a ksonnet application environment name\nDEPRECATED: specify environment in spec.source.ksonnet.environment instead"
         },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
@@ -2341,26 +2384,25 @@
           "type": "string",
           "title": "Path is a directory path within the repository containing a"
         },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
+        },
         "repoURL": {
           "type": "string",
           "title": "RepoURL is the git repository URL of the application manifests"
         },
         "targetRevision": {
           "type": "string",
-          "title": "TargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
-        },
-        "valuesFiles": {
-          "type": "array",
-          "title": "ValuesFiles is a list of Helm values files to use when generating a template\nDEPRECATED: specify values in spec.source.helm.valueFiles instead",
-          "items": {
-            "type": "string"
-          }
+          "title": "Environment is a ksonnet application environment name\nTargetRevision defines the commit, tag, or branch in which to sync the application to.\nIf omitted, will sync to HEAD"
         }
       }
     },
     "v1alpha1ApplicationSourceDirectory": {
       "type": "object",
       "properties": {
+        "jsonnet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet"
+        },
         "recurse": {
           "type": "boolean",
           "format": "boolean"
@@ -2371,11 +2413,38 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
+        "parameters": {
+          "type": "array",
+          "title": "Parameters are parameters to the helm template",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          }
+        },
         "valueFiles": {
           "type": "array",
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceJsonnet": {
+      "type": "object",
+      "title": "ApplicationSourceJsonnet holds jsonnet specific options",
+      "properties": {
+        "extVars": {
+          "type": "array",
+          "title": "ExtVars is a list of Jsonnet External Variables",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          }
+        },
+        "tlas": {
+          "type": "array",
+          "title": "TLAS is a list of Jsonnet Top-level Arguments",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
         }
       }
@@ -2387,6 +2456,13 @@
         "environment": {
           "type": "string",
           "title": "Environment is a ksonnet application environment name"
+        },
+        "parameters": {
+          "type": "array",
+          "title": "Parameters are a list of ksonnet component parameter override values",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KsonnetParameter"
+          }
         }
       }
     },
@@ -2394,9 +2470,25 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds kustomize specific options",
       "properties": {
+        "imageTags": {
+          "type": "array",
+          "title": "ImageTags are kustomize 1.0 image tag overrides",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
+          }
+        },
         "namePrefix": {
           "type": "string",
           "title": "NamePrefix is a prefix appended to resources for kustomize apps"
+        }
+      }
+    },
+    "v1alpha1ApplicationSourcePlugin": {
+      "type": "object",
+      "title": "ApplicationSourcePlugin holds config management plugin specific options",
+      "properties": {
+        "name": {
+          "type": "string"
         }
       }
     },
@@ -2406,6 +2498,13 @@
       "properties": {
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
+        },
+        "ignoreDifferences": {
+          "type": "array",
+          "title": "IgnoreDifferences controls resources fields which should be ignored during comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          }
         },
         "project": {
           "description": "Project is a application project name. Empty name means that application belongs to 'default' project.",
@@ -2443,6 +2542,9 @@
         },
         "operationState": {
           "$ref": "#/definitions/v1alpha1OperationState"
+        },
+        "reconciledAt": {
+          "$ref": "#/definitions/v1Time"
         },
         "resources": {
           "type": "array",
@@ -2578,6 +2680,20 @@
         }
       }
     },
+    "v1alpha1HelmParameter": {
+      "type": "object",
+      "title": "HelmParameter is a parameter to a helm template",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the helm parameter"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value for the helm parameter"
+        }
+      }
+    },
     "v1alpha1InfoItem": {
       "type": "object",
       "title": "InfoItem contains human readable information about object",
@@ -2603,6 +2719,51 @@
         "iat": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1alpha1JsonnetVar": {
+      "type": "object",
+      "title": "JsonnetVar is a jsonnet variable",
+      "properties": {
+        "code": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KsonnetParameter": {
+      "type": "object",
+      "title": "KsonnetParameter is a ksonnet component parameter",
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1KustomizeImageTag": {
+      "type": "object",
+      "title": "KustomizeImageTag is a kustomize image tag",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the image (e.g. nginx)"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value for the new tag (e.g. 1.8.0)"
         }
       }
     },
@@ -2739,6 +2900,30 @@
         }
       }
     },
+    "v1alpha1ResourceIgnoreDifferences": {
+      "description": "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "jsonPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ResourceNode": {
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
@@ -2843,12 +3028,6 @@
       "type": "object",
       "title": "RevisionHistory contains information relevant to an application deployment",
       "properties": {
-        "componentParameterOverrides": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
-          }
-        },
         "deployedAt": {
           "$ref": "#/definitions/v1Time"
         },
@@ -2858,6 +3037,9 @@
         },
         "revision": {
           "type": "string"
+        },
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
       }
     },
@@ -2869,9 +3051,6 @@
           "type": "boolean",
           "format": "boolean",
           "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
-        },
-        "parameterOverrides": {
-          "$ref": "#/definitions/applicationv1alpha1ParameterOverrides"
         },
         "prune": {
           "type": "boolean",
@@ -2888,6 +3067,9 @@
         "revision": {
           "description": "Revision is the git revision in which to sync the application to.\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
+        },
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
         "syncStrategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
@@ -2923,6 +3105,9 @@
         "revision": {
           "type": "string",
           "title": "Revision holds the git commit SHA of the sync"
+        },
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
       }
     },

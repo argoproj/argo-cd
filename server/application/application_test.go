@@ -9,6 +9,8 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -106,13 +107,13 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	_, err = db.CreateCluster(ctx, fakeCluster())
 	errors.CheckError(err)
 
-	mockRepoServiceClient := mockreposerver.RepositoryServiceClient{}
+	mockRepoServiceClient := mockreposerver.RepoServerServiceClient{}
 	mockRepoServiceClient.On("GetFile", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
 	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
 
 	mockRepoClient := &mockrepo.Clientset{}
-	mockRepoClient.On("NewRepositoryClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
+	mockRepoClient.On("NewRepoServerClient").Return(&fakeCloser{}, &mockRepoServiceClient, nil)
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -167,7 +168,8 @@ spec:
     path: some/path
     repoURL: https://git.com/repo.git
     targetRevision: HEAD
-    environment: default
+    ksonnet:
+      environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
     server: https://cluster-api.com
@@ -213,8 +215,11 @@ func TestUpdateAppSpec(t *testing.T) {
 		Name: &testApp.Name,
 		Spec: testApp.Spec,
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, spec.Project, "default")
+	assert.NoError(t, err)
+	assert.Equal(t, "default", spec.Project)
+	app, err := appServer.Get(context.Background(), &ApplicationQuery{Name: &testApp.Name})
+	assert.NoError(t, err)
+	assert.Equal(t, "default", app.Spec.Project)
 }
 
 func TestDeleteApp(t *testing.T) {
@@ -307,6 +312,7 @@ func TestRollbackApp(t *testing.T) {
 	testApp.Status.History = []appsv1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
+		Source:   *testApp.Spec.Source.DeepCopy(),
 	}}
 	appServer := newTestAppServer(testApp)
 
@@ -319,8 +325,7 @@ func TestRollbackApp(t *testing.T) {
 
 	assert.NotNil(t, updatedApp.Operation)
 	assert.NotNil(t, updatedApp.Operation.Sync)
-	assert.NotNil(t, updatedApp.Operation.Sync.ParameterOverrides)
-	assert.Len(t, updatedApp.Operation.Sync.ParameterOverrides, 0)
+	assert.NotNil(t, updatedApp.Operation.Sync.Source)
 	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
 }
 
@@ -339,7 +344,7 @@ func TestUpdateAppProject(t *testing.T) {
 	// Verify caller cannot update to another project
 	testApp.Spec.Project = "my-proj"
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without create privileges in new project
 	appServer.enf.SetBuiltinPolicy(`
@@ -347,7 +352,7 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in new project
 	appServer.enf.SetBuiltinPolicy(`
@@ -355,7 +360,7 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, create, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in old project
 	appServer.enf.SetBuiltinPolicy(`
@@ -363,7 +368,7 @@ p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, err, grpc.ErrPermissionDenied)
+	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify can update project with proper permissions
 	appServer.enf.SetBuiltinPolicy(`
@@ -374,4 +379,24 @@ p, admin, applications, update, my-proj/test-app, allow
 	updatedApp, err := appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
 	assert.NoError(t, err)
 	assert.Equal(t, "my-proj", updatedApp.Spec.Project)
+}
+
+func TestPatch(t *testing.T) {
+	testApp := newTestApp()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	appServer := newTestAppServer(testApp)
+	appServer.enf.SetDefaultRole("")
+
+	app, err := appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: "garbage"})
+	assert.Error(t, err)
+	assert.Nil(t, app)
+
+	app, err = appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: "[]"})
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+
+	app, err = appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
+	assert.NoError(t, err)
+	assert.Equal(t, "foo", app.Spec.Source.Path)
 }

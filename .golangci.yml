@@ -1,0 +1,22 @@
+run:
+  deadline: 8m
+  skip-files:
+    - ".*\\.pb\\.go"
+  skip-dirs:
+    - pkg/client
+    - vendor
+linter-settings:
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd
+linters:
+  enable:
+    - vet
+    - gofmt
+    - goimports
+    - deadcode
+    - varcheck
+    - structcheck
+    - ineffassign
+    - unconvert
+    - misspell
+  disable-all: true

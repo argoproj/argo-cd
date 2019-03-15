@@ -15,10 +15,10 @@ message ManifestRequest {
     bool noCache = 3;
     string appLabelKey = 4;
     string appLabelValue = 5;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter componentParameterOverrides = 6;
     string namespace = 8;
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmRepository helmRepos = 11;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
 }
 
 message ManifestResponse {
@@ -26,7 +26,7 @@ message ManifestResponse {
     string namespace = 2;
     string server = 3;
     string revision = 4;
-    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ComponentParameter params = 5;
+    string sourceType = 6;
 }
 
 // ListDirRequest requests a repository directory structure
@@ -54,10 +54,79 @@ message GetFileResponse {
     bytes data = 1;
 }
 
-// ManifestService
-service RepositoryService {
+// RepoServerAppDetailsQuery contains query information for app details request
+message RepoServerAppDetailsQuery {
+    github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
+	string revision = 2;
+	string path = 3;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmRepository helmRepos = 4;
+    repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 5;
+    HelmAppDetailsQuery helm = 6;
+}
 
-    // Generate manifest for application in specified repo name and revision
+message HelmAppDetailsQuery {
+	repeated string valueFiles = 1;
+}
+
+// RepoAppDetailsResponse application details
+message RepoAppDetailsResponse {
+	string type = 1;
+	KsonnetAppSpec ksonnet = 2;
+	HelmAppSpec helm = 3;
+	KustomizeAppSpec kustomize = 4;
+	DirectoryAppSpec directory = 5;
+}
+
+// KsonnetAppSpec contains Ksonnet app response
+// This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
+message KsonnetAppSpec {
+	string name = 1;
+	string path = 2;
+	map<string, KsonnetEnvironment> environments = 3;
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KsonnetParameter parameters = 4;
+}
+
+// HelmAppSpec contains helm app name and path in source repo
+message HelmAppSpec {
+	string name = 1;
+	string path = 2;
+	repeated string valueFiles = 3;
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
+}
+
+// KustomizeAppSpec contains kustomize app name and path in source repo
+message KustomizeAppSpec {
+	string path = 1;
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeImageTag imageTags = 2;
+}
+
+message KsonnetEnvironment {
+    // Name is the user defined name of an environment
+    string name = 1;
+    // KubernetesVersion is the kubernetes version the targetted cluster is running on.
+    string k8sVersion = 2;
+    // Path is the relative project path containing metadata for this environment.
+    string path = 3;
+    // Destination stores the cluster address that this environment points to.
+    KsonnetEnvironmentDestination destination = 4;
+}
+
+message KsonnetEnvironmentDestination {
+    // Server is the Kubernetes server that the cluster is running on.
+    string server = 1;
+    // Namespace is the namespace of the Kubernetes server that targets should be deployed to
+    string namespace = 2;
+}
+
+// DirectoryAppSpec contains directory
+message DirectoryAppSpec {
+
+}
+
+// ManifestService
+service RepoServerService {
+
+    // GenerateManifest generates manifest for application in specified repo name and revision
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
     }
 
@@ -69,4 +138,7 @@ service RepositoryService {
     rpc GetFile(GetFileRequest) returns (GetFileResponse) {
     }
 
+    // Generate manifest for application in specified repo name and revision
+    rpc GetAppDetails(RepoServerAppDetailsQuery) returns (RepoAppDetailsResponse) {
+    }
 }

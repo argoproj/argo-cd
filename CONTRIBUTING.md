@@ -1,10 +1,11 @@
+# Contributing
 ## Before You Start
 
 You must install and run the ArgoCD using a local Kubernetes (e.g. Docker for Desktop or Minikube) first. This will help you understand the application, but also get your local environment set-up.
 
 Then, to get a good grounding in Go, try out [the tutorial](https://tour.golang.org/).
 
-## Pre-requisites  
+## Pre-requisites
 
 Install:
 
@@ -39,10 +40,8 @@ go get -u github.com/golang/protobuf/protoc-gen-go
 go get -u github.com/go-swagger/go-swagger/cmd/swagger
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-go get -u gopkg.in/alecthomas/gometalinter.v2 
+go get -u github.com/golangci/golangci-lint/cmd/golangci-lint 
 go get -u github.com/mattn/goreman 
-
-gometalinter.v2 --install
 ```
 
 ## Building
@@ -82,9 +81,10 @@ You should scale the deployemnts to zero:
 
 ```
 kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
-kubectl -n argocd scale deployment.extensions/dex-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment.extensions/argocd-server --replicas 0
+kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 0
 ```
 
 Then checkout and build the UI next to your code
@@ -92,8 +92,11 @@ Then checkout and build the UI next to your code
 ```
 cd ~/go/src/github.com/argoproj
 git clone git@github.com:argoproj/argo-cd-ui.git
-# Follow README to build.
 ```
+
+Follow the UI's [README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md) to build it.
+
+Note: you'll need to use the https://localhost:6443 cluster now.
 
 Then start the services:
 
@@ -105,10 +108,66 @@ goreman start
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:
 
 ```
-app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
+argocd app set guestbook --path guestbook --repo https://github.com/argoproj/argocd-example-apps.git --dest-server https://localhost:6443  --dest-namespace default --server localhost:8080 --plaintext --insecure
 ```
 
 You can open the UI: http://localhost:8080
+
+Note: you'll need to use the https://kubernetes.default.svc cluster now.
+
+## Running Local Containers
+
+You may need to run containers locally, so here's how:
+
+Create login to Docker Hub, then login.
+
+```
+docker login
+```
+
+Add your username as the environment variable, e.g. to your `~/.bash_profile`:
+
+```
+export IMAGE_NAMESPACE=alexcollinsintuit
+```
+
+If you have not built the UI image (see [the UI README](https://github.com/argoproj/argo-cd-ui/blob/master/README.md)), then do the following:
+
+```
+docker pull argoproj/argocd-ui:latest
+docker tag argoproj/argocd-ui:latest $IMAGE_NAMESPACE/argocd-ui:latest
+docker push $IMAGE_NAMESPACE/argocd-ui:latest
+```
+
+Build the images:
+
+```
+DOCKER_PUSH=true make image
+```
+
+Update the manifests:
+
+```
+make manifests
+```
+
+Install the manifests:
+
+```
+kubectl -n argocd apply --force -f manifests/install.yaml
+```
+
+Scale your deployments up:
+
+```
+kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-dex-server --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-repo-server --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-server --replicas 1
+kubectl -n argocd scale deployment.extensions/argocd-redis --replicas 1
+```
+
+Now you can set-up the port-forwarding (see [README](README.md)) and open the UI or CLI.
 
 ## Pre-commit Checks
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -21,8 +22,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/controller/services"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
@@ -31,9 +30,9 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	argoutil "github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
@@ -42,18 +41,18 @@ import (
 
 // Server provides a Application service
 type Server struct {
-	ns                  string
-	kubeclientset       kubernetes.Interface
-	appclientset        appclientset.Interface
-	repoClientset       reposerver.Clientset
-	controllerClientset controller.Clientset
-	kubectl             kube.Kubectl
-	db                  db.ArgoDB
-	enf                 *rbac.Enforcer
-	projectLock         *util.KeyLock
-	auditLogger         *argo.AuditLogger
-	gitFactory          git.ClientFactory
-	settingsMgr         *settings.SettingsManager
+	ns            string
+	kubeclientset kubernetes.Interface
+	appclientset  appclientset.Interface
+	repoClientset reposerver.Clientset
+	kubectl       kube.Kubectl
+	db            db.ArgoDB
+	enf           *rbac.Enforcer
+	projectLock   *util.KeyLock
+	auditLogger   *argo.AuditLogger
+	gitFactory    git.ClientFactory
+	settingsMgr   *settings.SettingsManager
+	cache         *cache.Cache
 }
 
 // NewServer returns a new instance of the Application service
@@ -62,7 +61,7 @@ func NewServer(
 	kubeclientset kubernetes.Interface,
 	appclientset appclientset.Interface,
 	repoClientset reposerver.Clientset,
-	controllerClientset controller.Clientset,
+	cache *cache.Cache,
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
@@ -71,18 +70,18 @@ func NewServer(
 ) ApplicationServiceServer {
 
 	return &Server{
-		ns:                  namespace,
-		appclientset:        appclientset,
-		kubeclientset:       kubeclientset,
-		controllerClientset: controllerClientset,
-		db:                  db,
-		repoClientset:       repoClientset,
-		kubectl:             kubectl,
-		enf:                 enf,
-		projectLock:         projectLock,
-		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		gitFactory:          git.NewFactory(),
-		settingsMgr:         settingsMgr,
+		ns:            namespace,
+		appclientset:  appclientset,
+		kubeclientset: kubeclientset,
+		cache:         cache,
+		db:            db,
+		repoClientset: repoClientset,
+		kubectl:       kubectl,
+		enf:           enf,
+		projectLock:   projectLock,
+		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		gitFactory:    git.NewFactory(),
+		settingsMgr:   settingsMgr,
 	}
 }
 
@@ -114,16 +113,15 @@ func (s *Server) List(ctx context.Context, q *ApplicationQuery) (*appv1.Applicat
 
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv1.Application, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(q.Application)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(q.Application)); err != nil {
+		return nil, err
 	}
 
 	s.projectLock.Lock(q.Application.Spec.Project)
 	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
-	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
-	err := s.validateApp(ctx, &a)
+	err := s.validateAndNormalizeApp(ctx, &a)
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +133,8 @@ func (s *Server) Create(ctx context.Context, q *ApplicationCreateRequest) (*appv
 			return nil, status.Errorf(codes.Internal, "unable to check existing application details: %v", getErr)
 		}
 		if q.Upsert != nil && *q.Upsert {
-			if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)) {
-				return nil, grpc.ErrPermissionDenied
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(a)); err != nil {
+				return nil, err
 			}
 			existing.Spec = a.Spec
 			out, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(existing)
@@ -160,24 +158,16 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 	repo := s.getRepo(ctx, a.Spec.Source.RepoURL)
 
-	conn, repoClient, err := s.repoClientset.NewRepositoryClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(conn)
-	overrides := make([]*appv1.ComponentParameter, len(a.Spec.Source.ComponentParameterOverrides))
-	if a.Spec.Source.ComponentParameterOverrides != nil {
-		for i := range a.Spec.Source.ComponentParameterOverrides {
-			item := a.Spec.Source.ComponentParameterOverrides[i]
-			overrides[i] = &item
-		}
-	}
-
 	revision := a.Spec.Source.TargetRevision
 	if q.Revision != "" {
 		revision = q.Revision
@@ -190,15 +180,19 @@ func (s *Server) GetManifests(ctx context.Context, q *ApplicationManifestQuery) 
 	if err != nil {
 		return nil, err
 	}
+	tools := make([]*appv1.ConfigManagementPlugin, len(settings.ConfigManagementPlugins))
+	for i := range settings.ConfigManagementPlugins {
+		tools[i] = &settings.ConfigManagementPlugins[i]
+	}
 	manifestInfo, err := repoClient.GenerateManifest(ctx, &repository.ManifestRequest{
-		Repo:                        repo,
-		Revision:                    revision,
-		ComponentParameterOverrides: overrides,
-		AppLabelKey:                 settings.GetAppInstanceLabelKey(),
-		AppLabelValue:               a.Name,
-		Namespace:                   a.Spec.Destination.Namespace,
-		ApplicationSource:           &a.Spec.Source,
-		HelmRepos:                   helmRepos,
+		Repo:              repo,
+		Revision:          revision,
+		AppLabelKey:       settings.GetAppInstanceLabelKey(),
+		AppLabelValue:     a.Name,
+		Namespace:         a.Spec.Destination.Namespace,
+		ApplicationSource: &a.Spec.Source,
+		HelmRepos:         helmRepos,
+		Plugins:           tools,
 	})
 	if err != nil {
 		return nil, err
@@ -214,8 +208,8 @@ func (s *Server) Get(ctx context.Context, q *ApplicationQuery) (*appv1.Applicati
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 	if q.Refresh != nil {
 		refreshType := appv1.RefreshTypeNormal
@@ -240,8 +234,8 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 	var (
 		kubeClientset kubernetes.Interface
@@ -284,16 +278,15 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *ApplicationResourceE
 
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *ApplicationUpdateRequest) (*appv1.Application, error) {
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*q.Application)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*q.Application)); err != nil {
+		return nil, err
 	}
 
 	s.projectLock.Lock(q.Application.Spec.Project)
 	defer s.projectLock.Unlock(q.Application.Spec.Project)
 
 	a := q.Application
-	a.Spec = *argo.NormalizeApplicationSpec(&a.Spec)
-	err := s.validateApp(ctx, a)
+	err := s.validateAndNormalizeApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -313,22 +306,22 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)); err != nil {
+		return nil, err
 	}
-	q.Spec = *argo.NormalizeApplicationSpec(&q.Spec)
 	a.Spec = q.Spec
-	err = s.validateApp(ctx, a)
+	err = s.validateAndNormalizeApp(ctx, a)
 	if err != nil {
 		return nil, err
 	}
+	normalizedSpec := a.Spec.DeepCopy()
 
 	for i := 0; i < 10; i++ {
-		a.Spec = q.Spec
+		a.Spec = *normalizedSpec
 		_, err = s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(a)
 		if err == nil {
 			s.logEvent(a, ctx, argo.EventReasonResourceUpdated, "updated application spec")
-			return &q.Spec, nil
+			return normalizedSpec, nil
 		}
 		if !apierr.IsConflict(err) {
 			return nil, err
@@ -341,6 +334,46 @@ func (s *Server) UpdateSpec(ctx context.Context, q *ApplicationUpdateSpecRequest
 	return nil, status.Errorf(codes.Internal, "Failed to update application spec. Too many conflicts")
 }
 
+// Patch patches an application
+func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.Application, error) {
+
+	patch, err := jsonpatch.DecodePatch([]byte(q.Patch))
+	if err != nil {
+		return nil, err
+	}
+
+	app, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*app)); err != nil {
+		return nil, err
+	}
+
+	jsonApp, err := json.Marshal(app)
+	if err != nil {
+		return nil, err
+	}
+
+	patchApp, err := patch.Apply(jsonApp)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(patchApp, &app)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.validateAndNormalizeApp(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Update(app)
+}
+
 // Delete removes an application and all associated resources
 func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*ApplicationResponse, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.Name, metav1.GetOptions{})
@@ -351,8 +384,8 @@ func (s *Server) Delete(ctx context.Context, q *ApplicationDeleteRequest) (*Appl
 	s.projectLock.Lock(a.Spec.Project)
 	defer s.projectLock.Unlock(a.Spec.Project)
 
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 
 	patchFinalizer := false
@@ -430,7 +463,7 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	return nil
 }
 
-func (s *Server) validateApp(ctx context.Context, app *appv1.Application) error {
+func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application) error {
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(app.Spec.GetProject(), metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -450,21 +483,23 @@ func (s *Server) validateApp(ctx context.Context, app *appv1.Application) error 
 	if currApp != nil && currApp.Spec.GetProject() != app.Spec.GetProject() {
 		// When changing projects, caller must have application create & update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
-		if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(*app)) {
-			return grpc.ErrPermissionDenied
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACName(*app)); err != nil {
+			return err
 		}
 		// They also need 'update' privileges in the old project
-		if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*currApp)) {
-			return grpc.ErrPermissionDenied
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*currApp)); err != nil {
+			return err
 		}
 	}
-	conditions, err := argo.GetSpecErrors(ctx, &app.Spec, proj, s.repoClientset, s.db)
+
+	conditions, appSourceType, err := argo.GetSpecErrors(ctx, &app.Spec, proj, s.repoClientset, s.db)
 	if err != nil {
 		return err
 	}
 	if len(conditions) > 0 {
 		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
 	}
+	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec, appSourceType)
 	return nil
 }
 
@@ -481,13 +516,12 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 	return config, namespace, err
 }
 
-func (s *Server) getAppResources(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
-	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
+func (s *Server) getAppResources(ctx context.Context, q *ResourcesQuery) (*ResourceTreeResponse, error) {
+	items, err := s.cache.GetAppResourcesTree(*q.ApplicationName)
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(closer)
-	return client.ResourceTree(ctx, q)
+	return &ResourceTreeResponse{Items: items}, nil
 }
 
 func (s *Server) getAppResource(ctx context.Context, action string, q *ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
@@ -495,11 +529,11 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *Applicati
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, appRBACName(*a)) {
-		return nil, nil, nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, appRBACName(*a)); err != nil {
+		return nil, nil, nil, err
 	}
 
-	resources, err := s.getAppResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
+	resources, err := s.getAppResources(ctx, &ResourcesQuery{ApplicationName: &a.Name})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -565,8 +599,8 @@ func (s *Server) PatchResource(ctx context.Context, q *ApplicationResourcePatchR
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 
 	manifest, err := s.kubectl.PatchResource(config, res.GroupKindVersion(), res.Name, res.Namespace, types.PatchType(q.PatchType), []byte(q.Patch))
@@ -601,8 +635,8 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDelet
 		return nil, err
 	}
 
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 	var force bool
 	if q.Force != nil {
@@ -616,31 +650,30 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDelet
 	return &ApplicationResponse{}, nil
 }
 
-func (s *Server) ResourceTree(ctx context.Context, q *services.ResourcesQuery) (*services.ResourceTreeResponse, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.ApplicationName, metav1.GetOptions{})
+func (s *Server) ResourceTree(ctx context.Context, q *ResourcesQuery) (*ResourceTreeResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 	return s.getAppResources(ctx, q)
 }
 
-func (s *Server) ManagedResources(ctx context.Context, q *services.ResourcesQuery) (*services.ManagedResourcesResponse, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(q.ApplicationName, metav1.GetOptions{})
+func (s *Server) ManagedResources(ctx context.Context, q *ResourcesQuery) (*ManagedResourcesResponse, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(*a)); err != nil {
+		return nil, err
 	}
-	closer, client, err := s.controllerClientset.NewApplicationServiceClient()
+	items, err := s.cache.GetAppManagedResources(a.Name)
 	if err != nil {
 		return nil, err
 	}
-	defer util.Close(closer)
-	return client.ManagedResources(ctx, &services.ResourcesQuery{ApplicationName: a.Name})
+	return &ManagedResourcesResponse{Items: items}, nil
 }
 
 func findResource(resources []*appv1.ResourceNode, q *ApplicationResourceRequest) *appv1.ResourceNode {
@@ -749,8 +782,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
@@ -761,26 +794,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 		}
 	}
 
-	parameterOverrides := make(appv1.ParameterOverrides, 0)
-	if syncReq.Parameter != nil {
-		// If parameter overrides are supplied, the caller explicitly states to use the provided
-		// list of overrides. NOTE: gogo/protobuf cannot currently distinguish between empty arrays
-		// vs nil arrays, which is why the wrapping syncReq.Parameter is examined for intent.
-		// See: https://github.com/gogo/protobuf/issues/181
-		for _, p := range syncReq.Parameter.Overrides {
-			parameterOverrides = append(parameterOverrides, appv1.ComponentParameter{
-				Name:      p.Name,
-				Value:     p.Value,
-				Component: p.Component,
-			})
-		}
-	} else {
-		// If parameter overrides are omitted completely, we use what is set in the application
-		if a.Spec.Source.ComponentParameterOverrides != nil {
-			parameterOverrides = appv1.ParameterOverrides(a.Spec.Source.ComponentParameterOverrides)
-		}
-	}
-
 	commitSHA, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
@@ -788,12 +801,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:           commitSHA,
-			Prune:              syncReq.Prune,
-			DryRun:             syncReq.DryRun,
-			SyncStrategy:       syncReq.Strategy,
-			ParameterOverrides: parameterOverrides,
-			Resources:          syncReq.Resources,
+			Revision:     commitSHA,
+			Prune:        syncReq.Prune,
+			DryRun:       syncReq.DryRun,
+			SyncStrategy: syncReq.Strategy,
+			Resources:    syncReq.Resources,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
@@ -813,8 +825,8 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
@@ -831,21 +843,22 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *ApplicationRollbackR
 		}
 	}
 	if deploymentInfo == nil {
-		return nil, fmt.Errorf("application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
+		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.Name, rollbackReq.ID)
 	}
-	overrides := deploymentInfo.ComponentParameterOverrides
-	// Nil overrides in deployment history means no overrides, so sync operation request should contains empty overrides set
-	if overrides == nil {
-		overrides = make([]appv1.ComponentParameter, 0)
+	if deploymentInfo.Source.IsZero() {
+		// Since source type was introduced to history starting with v0.12, and is now required for
+		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
+		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}
+
 	// Rollback is just a convenience around Sync
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:           deploymentInfo.Revision,
-			DryRun:             rollbackReq.DryRun,
-			Prune:              rollbackReq.Prune,
-			SyncStrategy:       &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
-			ParameterOverrides: overrides,
+			Revision:     deploymentInfo.Revision,
+			DryRun:       rollbackReq.DryRun,
+			Prune:        rollbackReq.Prune,
+			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
+			Source:       &deploymentInfo.Source,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
@@ -888,8 +901,8 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *OperationTer
 	if err != nil {
 		return nil, err
 	}
-	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)) {
-		return nil, grpc.ErrPermissionDenied
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, appRBACName(*a)); err != nil {
+		return nil, err
 	}
 
 	for i := 0; i < 10; i++ {

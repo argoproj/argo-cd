@@ -2,6 +2,15 @@
 
 Argo CD applications, projects and settings can be defined declaratively using Kubernetes manifests.
 
+## Quick Reference
+| Name | Kind | Description |
+|------|------|-------------|
+| [`argocd-cm.yaml`](argocd-cm.yaml) | ConfigMap | General Argo CD configuration |
+| [`argocd-secret.yaml`](argocd-secret.yaml) | Secret | Password, Certificates, Signing Key |
+| [`argocd-rbac-cm.yaml`](argocd-rbac-cm.yaml) | ConfigMap | RBAC Configuration |
+| [`application.yaml`](application.yaml) | Application | Example application spec |
+| [`project.yaml`](project.yaml) | AppProject | Example project spec |
+
 ## Applications
 
 The Application CRD is the Kubernetes resource object representing a deployed application instance
@@ -9,7 +18,7 @@ in an environment. It is defined by two key pieces of information:
 * `source` reference to the desired state in git (repository, revision, path, environment)
 * `destination` reference to the target cluster and namespace.
 
-An example Application spec is as follows:
+A minimal Application spec is as follows:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -26,6 +35,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: guestbook
 ```
+
+See [application.yaml](application.yaml) for additional fields
 
 ## Projects
 The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
@@ -95,27 +106,21 @@ Example:
 
 ```yaml
 apiVersion: v1
-data:
-  dex.config: |
-    connectors:
-    - type: github
-      id: github
-      name: GitHub
-      config:
-        clientID: e8f597564a82e99ba9aa
-        clientSecret: e551007c6c6dbc666bdade281ff095caec150159
-  repositories: |
-    - passwordSecret:
-        key: password
-        name: my-secret
-      url: https://github.com/argoproj/my-private-repository
-      usernameSecret:
-        key: username
-        name: my-secret
-  url: http://localhost:4000
 kind: ConfigMap
 metadata:
   name: argocd-cm
+data:
+  repositories: |
+    - url: https://github.com/argoproj/my-private-repository
+      passwordSecret:
+        name: my-secret
+        key: password
+      usernameSecret:
+        name: my-secret
+        key: username
+      sshPrivateKeySecret:
+        name: my-secret
+        key: sshPrivateKey
 ```
 
 ## Clusters
@@ -198,10 +203,10 @@ data:
       name: istio.io
     - url: https://argoproj.github.io/argo-helm
       name: argo
-      caUsername:
+      usernameSecret:
         name: my-secret
         key: username
-      caPassword:
+      passwordSecret:
         name: my-secret
         key: password
       caSecret:
@@ -214,6 +219,49 @@ data:
         name: my-secret
         key: key
 ```
+
+## Resource Exclusion
+
+Resources can be excluded from discovery and sync so that ArgoCD is unaware of them. For example, `events.k8s.io` and `metrics.k8s.io` are always excluded. Use cases:
+
+* You have temporal issues and you want to exclude problematic resources.
+* There are many of a kind of resources that impacts ArgoCD's performance.
+* Restrict ArgoCD's access to certain kinds of resources, e.g. secrets. See [security.md#cluster-rbac](security.md#cluster-rbac).
+
+To configure this, edit the `argcd-cm` config map:
+
+```
+kubectl edit configmap argocd-cm -n argocdconfigmap/argocd-cm edited
+```
+
+Add `resource.exclusions`, e.g.:
+
+```yaml
+apiVersion: v1
+data:
+  resource.exclusions: |
+    - apiGroups:
+      - "*"
+      kinds:
+      - "*"
+      clusters:
+      - https://192.168.0.20
+kind: ConfigMap
+```
+
+The `resource.exclusions` node is a list of objects. Each object can have:
+
+- `apiGroups` A list of globs to match the API group.
+- `kinds` A list of kinds to match. Can be "*" to match all.
+- `cluster` A list of globs to match the cluster.
+
+If all three match, then the resource is ignored.
+
+Notes:
+
+* Quote globs in your YAML to avoid parsing errors.
+* Invalid globs result in the whole rule being ignored.
+* If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
 
 ## SSO & RBAC
 

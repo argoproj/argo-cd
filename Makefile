@@ -55,7 +55,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen
+codegen: protogen clientgen lint
 
 .PHONY: cli
 cli: clean-debug
@@ -119,10 +119,15 @@ endif
 .PHONY: builder-image
 builder-image:
 	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
+	docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG)
+
+.PHONY: dep-ensure
+dep-ensure:
+	dep ensure -no-vendor
 
 .PHONY: lint
 lint:
-	gometalinter.v2 --config gometalinter.json ./...
+	golangci-lint run --fix
 
 .PHONY: test
 test:
@@ -141,8 +146,8 @@ clean-debug:
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
-.PHONY: precheckin
-precheckin: test lint
+.PHONY: pre-commit
+pre-commit: dep-ensure codegen test lint
 
 .PHONY: release-precheck
 release-precheck: manifests

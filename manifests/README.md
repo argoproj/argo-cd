@@ -1,6 +1,8 @@
 # Argo CD Installation Manifests
 
-Two sets of installation manifests are provided:
+Four sets of installation manifests are provided:
+
+## Normal Installation:
 
 * [install.yaml](install.yaml) - Standard Argo CD installation with cluster-admin access. Use this
   manifest set if you plan to use Argo CD to deploy applications in the same cluster that Argo CD runs
@@ -14,3 +16,11 @@ Two sets of installation manifests are provided:
   Argo CD instances for different teams, where each instance will bedeploying applications to
   external clusters. Will still be possible to deploy to the same cluster (kubernetes.svc.default)
   with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster`).
+
+## High Availability:
+
+* [ha/install.yaml](ha/install.yaml) - the same as install.yaml but with multiple replicas for
+  supported components.
+
+* [ha/namespace-install.yaml](ha/namespace-install.yaml) - the same as namespace-install.yaml but
+  with multiple replicas for supported components.

@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	fakedisco "k8s.io/client-go/discovery/fake"
@@ -442,6 +442,9 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
+	app.Status.OperationState = nil
+	app.Status.History = nil
+
 	defaultProject := &v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
@@ -460,26 +463,66 @@ func TestPersistRevisionHistory(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 
-	ctrl.appStateManager.SyncAppState(app, &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+	// Sync with source unspecified
+	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
-	}})
+	}}
+	ctrl.appStateManager.SyncAppState(app, opState)
+	// Ensure we record spec.source into sync result
+	assert.Equal(t, app.Spec.Source, opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, v1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(updatedApp.Status.History))
-	assert.Equal(t, 0, len(updatedApp.Status.History[0].ComponentParameterOverrides))
+	assert.Equal(t, app.Spec.Source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
+}
 
-	overrides := []v1alpha1.ComponentParameter{{Name: "test", Value: "123"}}
-	ctrl.appStateManager.SyncAppState(app, &v1alpha1.OperationState{Operation: v1alpha1.Operation{
-		Sync: &v1alpha1.SyncOperation{
-			ParameterOverrides: overrides,
+func TestPersistRevisionHistoryRollback(t *testing.T) {
+	app := newFakeApp()
+	app.Status.OperationState = nil
+	app.Status.History = nil
+	defaultProject := &v1alpha1.AppProject{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: test.FakeArgoCDNamespace,
+			Name:      "default",
 		},
-	}})
+	}
+	data := fakeData{
+		apps: []runtime.Object{app, defaultProject},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data)
 
-	updatedApp, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, v1.GetOptions{})
+	// Sync with source specified
+	source := v1alpha1.ApplicationSource{
+		Helm: &v1alpha1.ApplicationSourceHelm{
+			Parameters: []v1alpha1.HelmParameter{
+				{
+					Name:  "test",
+					Value: "123",
+				},
+			},
+		},
+	}
+	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			Source: &source,
+		},
+	}}
+	ctrl.appStateManager.SyncAppState(app, opState)
+	// Ensure we record opState's source into sync result
+	assert.Equal(t, source, opState.SyncResult.Source)
+
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, v1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(updatedApp.Status.History))
-	assert.ElementsMatch(t, overrides, updatedApp.Status.History[0].ComponentParameterOverrides)
+	assert.Equal(t, source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
