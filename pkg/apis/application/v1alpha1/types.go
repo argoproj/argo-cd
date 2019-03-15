@@ -221,8 +221,9 @@ type ApplicationStatus struct {
 	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
 	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,6,opt,name=observedAt"`
+	ReconciledAt   metav1.Time            `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
+	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 }
 
 // Operation contains requested operation parameters.

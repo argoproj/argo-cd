@@ -2543,6 +2543,9 @@
         "operationState": {
           "$ref": "#/definitions/v1alpha1OperationState"
         },
+        "reconciledAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "resources": {
           "type": "array",
           "items": {

@@ -56,7 +56,7 @@ type AppStateManager interface {
 }
 
 type comparisonResult struct {
-	observedAt       metav1.Time
+	reconciledAt     metav1.Time
 	syncStatus       *v1alpha1.SyncStatus
 	healthStatus     *v1alpha1.HealthStatus
 	resources        []v1alpha1.ResourceStatus
@@ -270,7 +270,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	}
 
 	compRes := comparisonResult{
-		observedAt:       observedAt,
+		reconciledAt:     observedAt,
 		syncStatus:       &syncStatus,
 		healthStatus:     healthStatus,
 		resources:        resourceSummaries,
