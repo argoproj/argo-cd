@@ -31,7 +31,7 @@ type Client interface {
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string) (Client, error)
+	NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error)
 }
 
 // nativeGitClient implements Client interface using git CLI
@@ -47,7 +47,7 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey string) (Client, error) {
+func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
 	clnt := nativeGitClient{
 		repoURL: repoURL,
 		root:    path,
@@ -58,7 +58,9 @@ func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey str
 			return nil, err
 		}
 		auth := &ssh2.PublicKeys{User: "git", Signer: signer}
-		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		if insecureIgnoreHostKey {
+			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		}
 		clnt.auth = auth
 	} else if username != "" || password != "" {
 		auth := &http.BasicAuth{Username: username, Password: password}

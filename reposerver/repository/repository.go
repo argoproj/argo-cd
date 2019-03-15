@@ -489,7 +489,7 @@ func pathExists(ss ...string) bool {
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (git.Client, string, error) {
 	repoURL := git.NormalizeGitURL(repo.Repo)
 	appRepoPath := tempRepoPath(repoURL)
-	gitClient, err := s.gitFactory.NewClient(repoURL, appRepoPath, repo.Username, repo.Password, repo.SSHPrivateKey)
+	gitClient, err := s.gitFactory.NewClient(repoURL, appRepoPath, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	if err != nil {
 		return nil, "", err
 	}

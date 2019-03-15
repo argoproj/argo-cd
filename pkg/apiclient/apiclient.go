@@ -3,7 +3,6 @@ package apiclient
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -39,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 	"github.com/argoproj/argo-cd/util/localconfig"
+	tls_util "github.com/argoproj/argo-cd/util/tls"
 )
 
 const (
@@ -389,7 +389,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 func (c *client) tlsConfig() (*tls.Config, error) {
 	var tlsConfig tls.Config
 	if len(c.CertPEMData) > 0 {
-		cp := x509.NewCertPool()
+		cp := tls_util.BestEffortSystemCertPool()
 		if !cp.AppendCertsFromPEM(c.CertPEMData) {
 			return nil, fmt.Errorf("credentials: failed to append certificates")
 		}

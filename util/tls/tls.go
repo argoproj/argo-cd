@@ -50,6 +50,15 @@ type CertOptions struct {
 
 type ConfigCustomizer = func(*tls.Config)
 
+// BestEffortSystemCertPool returns system cert pool as best effort, otherwise an empty cert pool
+func BestEffortSystemCertPool() *x509.CertPool {
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		return x509.NewCertPool()
+	}
+	return rootCAs
+}
+
 func getTLSVersionByString(version string) (uint16, error) {
 	if version == "" {
 		return 0, nil
