@@ -59,7 +59,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	}
 	repo, err := s.db.GetRepository(ctx, url)
 	if err == nil {
-		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey)
+		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	}
 	if err != nil {
 		connectionState.Status = appsv1.ConnectionStatusFailed
@@ -235,7 +235,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, err
 	}
 	r := q.Repo
-	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey)
+	err := git.TestRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
 	if err != nil {
 		return nil, err
 	}

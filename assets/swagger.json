@@ -2844,6 +2844,10 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "insecureIgnoreHostKey": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "password": {
           "type": "string"
         },

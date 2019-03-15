@@ -86,10 +86,11 @@ type OIDCConfig struct {
 }
 
 type RepoCredentials struct {
-	URL                 string                   `json:"url,omitempty"`
-	UsernameSecret      *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret      *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	SshPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	URL                   string                   `json:"url,omitempty"`
+	UsernameSecret        *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	PasswordSecret        *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	SSHPrivateKeySecret   *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	InsecureIgnoreHostKey bool                     `json:"insecureIgnoreHostKey,omitempty"`
 }
 
 type HelmRepoCredentials struct {
@@ -234,7 +235,7 @@ func (mgr *SettingsManager) MigrateLegacyRepoSettings(settings *ArgoCDSettings) 
 			}
 		}
 		if sshPrivateKey, ok := s.Data["sshPrivateKey"]; ok && string(sshPrivateKey) != "" {
-			cred.SshPrivateKeySecret = &apiv1.SecretKeySelector{
+			cred.SSHPrivateKeySecret = &apiv1.SecretKeySelector{
 				LocalObjectReference: apiv1.LocalObjectReference{Name: s.Name},
 				Key:                  "sshPrivateKey",
 			}

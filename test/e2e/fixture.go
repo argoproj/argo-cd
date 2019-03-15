@@ -380,7 +380,7 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 
 type FakeGitClientFactory struct{}
 
-func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string) (git.Client, error) {
+func (f *FakeGitClientFactory) NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (git.Client, error) {
 	return &FakeGitClient{
 		root: path,
 	}, nil
