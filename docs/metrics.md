@@ -47,3 +47,9 @@ spec:
   endpoints:
   - port: metrics
 ```
+
+## Dashboards
+
+You can find an example Grafana dashboard [here](docs/assets/dashboard.json)
+
+![dashboard](docs/assets/dashboard.json)
