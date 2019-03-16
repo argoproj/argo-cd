@@ -652,6 +652,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.Health = *compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
 	app.Status.Conditions = conditions
+	app.Status.SourceType = compareResult.appSourceType
 	ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }

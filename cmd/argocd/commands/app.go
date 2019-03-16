@@ -33,7 +33,6 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
-	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -116,7 +115,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					},
 				}
 				setAppOptions(c.Flags(), &app, &appOpts)
-				setParameterOverrides(&app, argocdClient, appOpts.parameters)
+				setParameterOverrides(&app, appOpts.parameters)
 			}
 			if app.Name == "" {
 				c.HelpFunc()(c, args)
@@ -354,7 +353,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			setParameterOverrides(app, argocdClient, appOpts.parameters)
+			setParameterOverrides(app, appOpts.parameters)
 			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
@@ -1291,21 +1290,30 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 // If the app is a ksonnet app, then parameters are expected to be in the form: component=param=value
 // Otherwise, the app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func setParameterOverrides(app *argoappv1.Application, argocdClient argocdclient.Client, parameters []string) {
+func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 	if len(parameters) == 0 {
 		return
 	}
-	conn, repoIf := argocdClient.NewRepoClientOrDie()
-	defer util.Close(conn)
+	var sourceType argoappv1.ApplicationSourceType
+	if st, _ := app.Spec.Source.ExplicitType(); st != nil {
+		sourceType = *st
+	} else if app.Status.SourceType != "" {
+		sourceType = app.Status.SourceType
+	} else {
+		// HACK: we don't know the source type, so make an educated guess based on the supplied
+		// parameter string. This code handles the corner case where app doesn't exist yet, and the
+		// command is something like: `argocd app create MYAPP -p foo=bar`
+		// This logic is not foolproof, but when ksonnet is deprecated, this will no longer matter
+		// since helm will remain as the only source type which has parameters.
+		if len(strings.SplitN(parameters[0], "=", 3)) == 3 {
+			sourceType = argoappv1.ApplicationSourceTypeKsonnet
+		} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
+			sourceType = argoappv1.ApplicationSourceTypeHelm
+		}
+	}
 
-	appDetails, err := repoIf.GetAppDetails(context.Background(), &apirepository.RepoAppDetailsQuery{
-		Repo:     app.Spec.Source.RepoURL,
-		Revision: app.Spec.Source.TargetRevision,
-		Path:     app.Spec.Source.Path,
-	})
-	errors.CheckError(err)
-
-	if appDetails.Ksonnet != nil {
+	switch sourceType {
+	case argoappv1.ApplicationSourceTypeKsonnet:
 		if app.Spec.Source.Ksonnet == nil {
 			app.Spec.Source.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
 		}
@@ -1331,7 +1339,7 @@ func setParameterOverrides(app *argoappv1.Application, argocdClient argocdclient
 				app.Spec.Source.Ksonnet.Parameters = append(app.Spec.Source.Ksonnet.Parameters, newParam)
 			}
 		}
-	} else if appDetails.Helm != nil {
+	case argoappv1.ApplicationSourceTypeHelm:
 		if app.Spec.Source.Helm == nil {
 			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
 		}
@@ -1356,7 +1364,7 @@ func setParameterOverrides(app *argoappv1.Application, argocdClient argocdclient
 				app.Spec.Source.Helm.Parameters = append(app.Spec.Source.Helm.Parameters, newParam)
 			}
 		}
-	} else {
+	default:
 		log.Fatalf("Parameters can only be set against Ksonnet or Helm applications")
 	}
 }
