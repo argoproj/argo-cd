@@ -22,6 +22,7 @@ const (
 	PortRepoServer             = 8081
 	PortArgoCDMetrics          = 8082
 	PortArgoCDAPIServerMetrics = 8083
+	PortRepoServerMetrics      = 8084
 )
 
 // Argo CD application related constants

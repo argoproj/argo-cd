@@ -60,6 +60,8 @@ var (
 func NewMetricsServer(addr string, appLister applister.ApplicationLister) *MetricsServer {
 	mux := http.NewServeMux()
 	appRegistry := NewAppRegistry(appLister)
+	appRegistry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	appRegistry.MustRegister(prometheus.NewGoCollector())
 	mux.Handle(MetricsPath, promhttp.HandlerFor(appRegistry, promhttp.HandlerOpts{}))
 
 	syncCounter := prometheus.NewCounterVec(
