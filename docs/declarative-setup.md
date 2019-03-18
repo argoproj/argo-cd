@@ -110,9 +110,10 @@ Each repository must have:
  Optionally:
  
  * `type` - Must be `git`.
-  * `usernameSecret` 
+ * `usernameSecret` 
  * `passwordSecret` 
  * `sshPrivateKeySecret`
+ * `insecureIgnoreHostKey`
 
 Example:
 

@@ -92,7 +92,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// NOTE: it is important not to run git commands to test git credentials on the user's
 			// system since it may mess with their git credential store (e.g. osx keychain).
 			// See issue #315
-			config := repos.Config{Url: repo.Repo, RepoType: repoType, SshPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey}
+			config := repos.Config{Url: repo.Repo, Type: repoType, Name: repo.Name, SSHPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey}
 			err := repos.TestRepo(config)
 			if err != nil {
 				if repos.IsSSHURL(repo.Repo) {

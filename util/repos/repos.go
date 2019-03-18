@@ -22,12 +22,6 @@ type Client interface {
 	LsFiles(path string) ([]string, error)
 }
 
-type Config struct {
-	Name, Url, RepoType, Username, Password, SshPrivateKey string
-	InsecureIgnoreHostKey                                  bool
-	CAData, CertData, KeyData                              []byte
-}
-
 // ClientFactory is a factory of Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
@@ -41,10 +35,10 @@ func NewFactory() ClientFactory {
 }
 
 func (f factory) NewClient(c Config, workDir string) (Client, error) {
-	if c.RepoType == "helm" {
+	if c.Type == "helm" {
 		return f.newHelmClient(c.Url, c.Name, workDir, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
 	} else {
-		return f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SshPrivateKey, c.InsecureIgnoreHostKey)
+		return f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SSHPrivateKey, c.InsecureIgnoreHostKey)
 	}
 }
 
@@ -108,6 +102,11 @@ func IsSSHURL(url string) bool {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(c Config) error {
+
+	err := c.Validate()
+	if err != nil {
+		return err
+	}
 
 	tmp, err := ioutil.TempDir("", "repos")
 	if err != nil {

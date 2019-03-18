@@ -15,6 +15,7 @@ func TestValidateRepository(t *testing.T) {
 	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", CertData: []byte{}}.Validate())
 	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", KeyData: []byte{}}.Validate())
 	assert.EqualError(t, Repository{Repo: "://", Type: Helm, Name: "foo", SSHPrivateKey: "foo"}.Validate(), "invalid repository, must not specify SSHPrivateKey")
+	assert.EqualError(t, Repository{Repo: "://", Type: Helm, Name: "foo", InsecureIgnoreHostKey: true}.Validate(), "invalid repository, must not specify InsecureIgnoreHostKey")
 
 	assert.EqualError(t, Repository{Repo: "://", Type: Git, Name: "foo"}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
 	assert.EqualError(t, Repository{Repo: "://", Type: Git, CAData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")

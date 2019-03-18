@@ -74,6 +74,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	repoInfo := settings.RepoCredentials{
 		URL:                   r.Repo,
 		Type:                  settings.RepoType(r.Type),
+		Name:                  r.Name,
 		InsecureIgnoreHostKey: r.InsecureIgnoreHostKey,
 	}
 	err = db.updateSecrets(&repoInfo, r)
