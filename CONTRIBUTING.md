@@ -21,6 +21,9 @@ Install:
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
 * [minikube](https://kubernetes.io/docs/setup/minikube/) or Docker for Desktop
 
+Note about Kustomize:
+Since Argo CD supports Kustomize v1.0 and v2.0, you will need to install both versions in order for the unit tests to run. The kustomize1 unit test expects to find a kustomize1 binary in the path.  You can use this (link)[https://github.com/argoproj/argo-cd/blob/master/Dockerfile#L66-L69] to find the Kustomize1 currently used by Argo CD and modify the curl command to download the correct OS.
+
 ```
 brew tap go-swagger/go-swagger
 brew install go dep protobuf kubectl ksonnet/tap/ks kubernetes-helm jq go-swagger 
