@@ -1,4 +1,52 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "6.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph",
+      "version": "5.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "heatmap",
+      "name": "Heatmap",
+      "version": "5.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "5.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "singlestat",
+      "name": "Singlestat",
+      "version": "5.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": "5.0.0"
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -15,15 +63,15 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 11,
-  "iteration": 1552651187898,
+  "id": null,
+  "iteration": 1552787040008,
   "links": [],
   "panels": [
     {
       "content": "![argoimage](https://avatars1.githubusercontent.com/u/30269780?s=200&v=4)   ",
       "gridPos": {
-        "h": 4,
-        "w": 2,
+        "h": 6,
+        "w": 3,
         "x": 0,
         "y": 0
       },
@@ -43,7 +91,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "dtdurations",
       "gauge": {
         "maxValue": 100,
@@ -54,8 +102,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 4,
-        "x": 2,
+        "w": 3,
+        "x": 3,
         "y": 0
       },
       "id": 32,
@@ -95,7 +143,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "time() - max(process_start_time_seconds{job=\"argocd-server-metrics\"})",
+          "expr": "time() - max(process_start_time_seconds{job=\"argocd-server-metrics\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -123,7 +171,6 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "re-prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -175,7 +222,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum(argocd_app_info)",
+          "expr": "sum(argocd_app_info{namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -220,7 +267,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#629e51"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -264,15 +311,15 @@
         }
       ],
       "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "fillColor": "rgb(27, 62, 27)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
+        "lineColor": "#37872D",
         "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum (argocd_app_health_status { health_status=\"Healthy\"} == 1)\n",
+          "expr": "sum(argocd_app_health_status{health_status=\"Healthy\",namespace=~\"$namespace\"} == 1)",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -280,7 +327,6 @@
       ],
       "thresholds": "0,1",
       "title": "Healthy",
-      "transparent": false,
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
@@ -298,11 +344,11 @@
       "colorPostfix": false,
       "colorValue": true,
       "colors": [
-        "#cca300",
-        "rgba(237, 129, 40, 0.89)",
-        "#e5ac0e"
+        "#5794F2",
+        "#5794F2",
+        "#5794F2"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -348,13 +394,13 @@
       "sparkline": {
         "fillColor": "rgba(31, 118, 189, 0.18)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "#5794F2",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum (argocd_app_health_status { health_status=\"Progressing\" } == 1)",
+          "expr": "sum(argocd_app_health_status{health_status=\"Progressing\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -376,13 +422,13 @@
     {
       "cacheTimeout": null,
       "colorBackground": false,
-      "colorValue": false,
+      "colorValue": true,
       "colors": [
-        "#299c46",
-        "rgba(237, 129, 40, 0.89)",
-        "#d44a3a"
+        "#FF9830",
+        "#FF9830",
+        "#FF9830"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -397,7 +443,7 @@
         "x": 8,
         "y": 8
       },
-      "id": 8,
+      "id": 12,
       "interval": null,
       "links": [],
       "mappingType": 1,
@@ -428,20 +474,20 @@
       "sparkline": {
         "fillColor": "rgba(31, 118, 189, 0.18)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "#FF9830",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum (argocd_app_health_status { health_status=\"Missing\" } == 1)",
+          "expr": "sum(argocd_app_health_status{health_status=\"Suspended\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
         }
       ],
       "thresholds": "0,1",
-      "title": "Missing",
+      "title": "Suspended",
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
@@ -456,13 +502,13 @@
     {
       "cacheTimeout": null,
       "colorBackground": false,
-      "colorValue": false,
+      "colorValue": true,
       "colors": [
         "#299c46",
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -506,15 +552,15 @@
         }
       ],
       "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "fillColor": "rgb(101, 32, 33)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "#F2495C",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum (argocd_app_health_status { health_status=\"Degraded\"} == 1)",
+          "expr": "sum(argocd_app_health_status{health_status=\"Degraded\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -536,13 +582,13 @@
     {
       "cacheTimeout": null,
       "colorBackground": false,
-      "colorValue": false,
+      "colorValue": true,
       "colors": [
-        "#d44a3a",
-        "rgba(237, 129, 40, 0.89)",
-        "#299c46"
+        "#B877D9",
+        "#B877D9",
+        "#A352CC"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -557,7 +603,7 @@
         "x": 16,
         "y": 8
       },
-      "id": 12,
+      "id": 8,
       "interval": null,
       "links": [],
       "mappingType": 1,
@@ -586,22 +632,22 @@
         }
       ],
       "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "fillColor": "rgb(65, 27, 83)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "#B877D9",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum (argocd_app_health_status { health_status=\"Suspended\"} == 1)",
+          "expr": "sum(argocd_app_health_status{health_status=\"Missing\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
         }
       ],
-      "thresholds": "1, 3",
-      "title": "Suspended",
+      "thresholds": "0,1",
+      "title": "Missing",
       "type": "singlestat",
       "valueFontSize": "80%",
       "valueMaps": [
@@ -620,9 +666,9 @@
       "colors": [
         "#d44a3a",
         "rgba(237, 129, 40, 0.89)",
-        "#299c46"
+        "rgb(0, 0, 0)"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -666,15 +712,15 @@
         }
       ],
       "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "fillColor": "rgba(98, 98, 98, 0.18)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "rgb(182, 182, 182)",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum (argocd_app_health_status { health_status=\"Unknown\"} == 1)",
+          "expr": "sum(argocd_app_health_status{health_status=\"Unknown\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -717,7 +763,6 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
-      "datasource": "re-prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -728,7 +773,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 10,
+        "w": 8,
         "x": 0,
         "y": 15
       },
@@ -761,15 +806,15 @@
         }
       ],
       "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "fillColor": "rgba(31, 189, 61, 0.18)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "rgb(96, 175, 87)",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum( argocd_app_sync_status {sync_status = \"Synced\"} == 1)",
+          "expr": "sum(argocd_app_sync_status{sync_status=\"Synced\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -791,13 +836,12 @@
     {
       "cacheTimeout": null,
       "colorBackground": false,
-      "colorValue": false,
+      "colorValue": true,
       "colors": [
         "#d44a3a",
-        "rgba(237, 129, 40, 0.89)",
-        "#299c46"
+        "#F2495C",
+        "#F2495C"
       ],
-      "datasource": "re-prometheus",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -809,7 +853,7 @@
       "gridPos": {
         "h": 5,
         "w": 8,
-        "x": 10,
+        "x": 8,
         "y": 15
       },
       "id": 20,
@@ -841,15 +885,15 @@
         }
       ],
       "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "fillColor": "rgba(189, 31, 34, 0.18)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "#F2495C",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum( argocd_app_sync_status {sync_status = \"OutOfSync\"} == 1)",
+          "expr": "sum(argocd_app_sync_status{sync_status=\"OutOfSync\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -877,7 +921,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#299c46"
       ],
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -888,8 +932,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
-        "x": 18,
+        "w": 8,
+        "x": 16,
         "y": 15
       },
       "id": 22,
@@ -921,15 +965,15 @@
         }
       ],
       "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "fillColor": "rgba(147, 147, 147, 0.18)",
         "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": false
+        "lineColor": "rgb(255, 255, 255)",
+        "show": true
       },
       "tableColumn": "",
       "targets": [
         {
-          "expr": "sum( argocd_app_sync_status {sync_status = \"Unknown\"} == 1)",
+          "expr": "sum(argocd_app_sync_status{sync_status=\"Unknown\",namespace=~\"$namespace\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -949,7 +993,7 @@
       "valueName": "current"
     },
     {
-      "content": "## Applications:",
+      "content": "## Controller Stats:",
       "gridPos": {
         "h": 2,
         "w": 24,
@@ -964,108 +1008,230 @@
       "type": "text"
     },
     {
-      "columns": [],
-      "datasource": "re-prometheus",
-      "fontSize": "100%",
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "fill": 1,
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 24,
         "x": 0,
         "y": 22
       },
-      "hideTimeOverride": true,
-      "id": 30,
-      "links": [],
-      "pageSize": 6,
-      "repeat": null,
-      "repeatDirection": "h",
-      "scroll": true,
-      "showHeader": true,
-      "sort": {
-        "col": 8,
-        "desc": true
+      "id": 56,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
       },
-      "styles": [
-        {
-          "alias": "Application",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "mappingType": 1,
-          "pattern": "name",
-          "thresholds": [],
-          "type": "string",
-          "unit": "short"
-        },
-        {
-          "alias": "Sync Status",
-          "colorMode": "cell",
-          "colors": [
-            "rgba(50, 172, 45, 0.97)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(245, 54, 54, 0.9)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "mappingType": 1,
-          "pattern": "sync_status",
-          "thresholds": [
-            ""
-          ],
-          "type": "string",
-          "unit": "short",
-          "valueMaps": []
-        },
-        {
-          "alias": "Project",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "mappingType": 1,
-          "pattern": "project",
-          "thresholds": [],
-          "type": "string",
-          "unit": "short"
-        },
-        {
-          "alias": "",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "decimals": 2,
-          "pattern": "/.*/",
-          "thresholds": [],
-          "type": "hidden",
-          "unit": "short"
-        }
-      ],
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "paceLength": 10,
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
-          "expr": "argocd_app_sync_status==1",
-          "format": "table",
-          "instant": true,
+          "expr": "sum(increase(argocd_app_sync_total{namespace=~\"$namespace\"}[10m])) by (phase)",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Sync Activity",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "fill": 1,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 58,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "paceLength": 10,
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\"}[10m]))",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Reconciliation Activity",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "cards": {
+        "cardPadding": null,
+        "cardRound": null
+      },
+      "color": {
+        "cardColor": "#b4ff00",
+        "colorScale": "sqrt",
+        "colorScheme": "interpolateSpectral",
+        "exponent": 0.5,
+        "mode": "spectrum"
+      },
+      "dataFormat": "tsbuckets",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
+      "heatmap": {},
+      "highlightCards": true,
+      "id": 60,
+      "legend": {
+        "show": true
+      },
+      "links": [],
+      "targets": [
+        {
+          "expr": "sum(increase(argocd_app_reconcile_bucket{namespace=\"$namespace\"}[5m])) by (le)",
+          "format": "heatmap",
           "intervalFactor": 1,
           "refId": "A"
         }
       ],
       "timeFrom": null,
-      "title": "",
-      "transform": "table",
-      "transparent": false,
-      "type": "table"
+      "timeShift": null,
+      "title": "Reconciliation Performance",
+      "tooltip": {
+        "show": true,
+        "showHistogram": true
+      },
+      "type": "heatmap",
+      "xAxis": {
+        "show": true
+      },
+      "xBucketNumber": null,
+      "xBucketSize": null,
+      "yAxis": {
+        "decimals": null,
+        "format": "short",
+        "logBase": 1,
+        "max": null,
+        "min": null,
+        "show": true,
+        "splitFactor": null
+      },
+      "yBucketBound": "auto",
+      "yBucketNumber": null,
+      "yBucketSize": null
     },
     {
       "content": "## Server Stats:",
@@ -1073,7 +1239,7 @@
         "h": 2,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 47
       },
       "id": 53,
       "links": [],
@@ -1087,13 +1253,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 49
       },
       "id": 34,
       "legend": {
@@ -1109,6 +1275,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "connected",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1119,7 +1286,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\"}",
+          "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{pod}}",
@@ -1128,6 +1295,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Memory Used",
       "tooltip": {
@@ -1171,13 +1339,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 57
       },
       "id": 38,
       "legend": {
@@ -1193,6 +1361,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "connected",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1203,7 +1372,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "go_gc_duration_seconds{job=\"argocd-server-metrics\", quantile=\"1\"}",
+          "expr": "go_gc_duration_seconds{job=\"argocd-server-metrics\", quantile=\"1\", namespace=~\"$namespace\"}",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "{{pod}}",
@@ -1212,6 +1381,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "GC Time Quantiles",
       "tooltip": {
@@ -1255,13 +1425,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 57
       },
       "id": 36,
       "legend": {
@@ -1277,6 +1447,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1287,7 +1458,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "go_goroutines{job=\"argocd-server-metrics\"}",
+          "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{pod}}",
@@ -1296,6 +1467,7 @@
       ],
       "thresholds": [],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "Goroutines",
       "tooltip": {
@@ -1340,7 +1512,7 @@
         "h": 2,
         "w": 22,
         "x": 0,
-        "y": 48
+        "y": 66
       },
       "id": 54,
       "links": [],
@@ -1354,13 +1526,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 50
+        "y": 68
       },
       "id": 40,
       "legend": {
@@ -1376,6 +1548,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1386,7 +1559,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"application.ApplicationService\"} > 0",
+          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"application.ApplicationService\",namespace=~\"$namespace\"} > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{grpc_code}},{{grpc_method}}",
@@ -1403,6 +1576,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "grpc service ApplicationService",
       "tooltip": {
@@ -1446,13 +1620,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 50
+        "y": 68
       },
       "id": 42,
       "legend": {
@@ -1468,6 +1642,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1478,7 +1653,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.ClusterService\"} > 0",
+          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"cluster.ClusterService\",namespace=~\"$namespace\"} > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{grpc_code}},{{grpc_method}}",
@@ -1495,6 +1670,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "grpc service ClusterService",
       "tooltip": {
@@ -1538,13 +1714,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 59
+        "y": 77
       },
       "id": 44,
       "legend": {
@@ -1560,6 +1736,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1570,7 +1747,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"project.ProjectService\"} > 0",
+          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"project.ProjectService\",namespace=~\"$namespace\"} > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{grpc_code}},{{grpc_method}}",
@@ -1587,6 +1764,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "grpc service ProjectService",
       "tooltip": {
@@ -1630,13 +1808,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 59
+        "y": 77
       },
       "id": 46,
       "legend": {
@@ -1652,6 +1830,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1662,7 +1841,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"repository.RepositoryService\"} > 0",
+          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"repository.RepositoryService\",namespace=~\"$namespace\"} > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{grpc_code}},{{grpc_method}}",
@@ -1679,6 +1858,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "grpc service RepositoryService",
       "tooltip": {
@@ -1722,13 +1902,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 68
+        "y": 86
       },
       "id": 48,
       "legend": {
@@ -1744,6 +1924,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1754,7 +1935,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"session.SessionService\"} > 0",
+          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"session.SessionService\",namespace=~\"$namespace\"} > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{grpc_code}},{{grpc_method}}",
@@ -1771,6 +1952,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "grpc service SessionService",
       "tooltip": {
@@ -1814,13 +1996,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 68
+        "y": 86
       },
       "id": 49,
       "legend": {
@@ -1836,6 +2018,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1846,7 +2029,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"version.VersionService\"} > 0",
+          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"version.VersionService\",namespace=~\"$namespace\"} > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{grpc_code}},{{grpc_method}}",
@@ -1863,6 +2046,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "grpc service VersionService",
       "tooltip": {
@@ -1906,13 +2090,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "re-prometheus",
+      "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 77
+        "y": 95
       },
       "id": 50,
       "legend": {
@@ -1928,6 +2112,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null as zero",
+      "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
       "points": false,
@@ -1938,7 +2123,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"account.AccountService\"} >1",
+          "expr": "grpc_server_handled_total{job=\"argocd-server-metrics\",grpc_service=\"account.AccountService\",namespace=~\"$namespace\"} >1",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{grpc_code}},{{grpc_method}}",
@@ -1955,6 +2140,7 @@
         }
       ],
       "timeFrom": null,
+      "timeRegions": [],
       "timeShift": null,
       "title": "grpc service AccountService",
       "tooltip": {
@@ -1994,14 +2180,37 @@
       }
     }
   ],
-  "schemaVersion": 16,
+  "schemaVersion": 18,
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {},
+        "datasource": "${DS_PROMETHEUS}",
+        "definition": "label_values(kube_pod_info, namespace)",
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": false,
+        "name": "namespace",
+        "options": [],
+        "query": "label_values(kube_pod_info, namespace)",
+        "refresh": 1,
+        "regex": ".*argocd.*",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-2d",
     "to": "now"
   },
   "timepicker": {
@@ -2032,5 +2241,5 @@
   "timezone": "",
   "title": "ArgoCD",
   "uid": "BjWwX3jik",
-  "version": 15
+  "version": 23
 }
