@@ -43,7 +43,7 @@ export class YamlEditor<T> extends React.Component<{
                                         try {
                                             const updated = jsYaml.load(this.model.getLinesContent().join('\n'));
                                             const patch = jsonMergePatch.generate(props.input, updated);
-                                            const unmounted = await this.props.onSave(JSON.stringify(patch || {}), 'application/strategic-merge-patch+json');
+                                            const unmounted = await this.props.onSave(JSON.stringify(patch || {}), 'application/merge-patch+json');
                                             if (unmounted !== true) {
                                                 this.setState({ editing: false });
                                             }
