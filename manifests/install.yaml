@@ -199,6 +199,7 @@ rules:
   verbs:
   - delete
   - get
+  - patch
 - apiGroups:
   - ""
   resources:

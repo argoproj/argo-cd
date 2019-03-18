@@ -2552,6 +2552,9 @@
             "$ref": "#/definitions/v1alpha1ResourceStatus"
           }
         },
+        "sourceType": {
+          "type": "string"
+        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncStatus"
         }
