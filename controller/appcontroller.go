@@ -717,11 +717,12 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 
 	// List of condition types which have to be reevaluated by controller; all remaining conditions should stay as is.
 	reevaluateTypes := map[appv1.ApplicationConditionType]bool{
-		appv1.ApplicationConditionInvalidSpecError:      true,
-		appv1.ApplicationConditionUnknownError:          true,
-		appv1.ApplicationConditionComparisonError:       true,
-		appv1.ApplicationConditionSharedResourceWarning: true,
-		appv1.ApplicationConditionSyncError:             true,
+		appv1.ApplicationConditionInvalidSpecError:        true,
+		appv1.ApplicationConditionUnknownError:            true,
+		appv1.ApplicationConditionComparisonError:         true,
+		appv1.ApplicationConditionSharedResourceWarning:   true,
+		appv1.ApplicationConditionSyncError:               true,
+		appv1.ApplicationConditionRepeatedResourceWarning: true,
 	}
 	appConditions := make([]appv1.ApplicationCondition, 0)
 	for i := 0; i < len(app.Status.Conditions); i++ {
