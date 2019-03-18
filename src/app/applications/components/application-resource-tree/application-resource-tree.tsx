@@ -24,11 +24,12 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
 }
 
 function filterGraph(app: models.Application, graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+    const appKey = appNodeKey(app);
     let filtered = 0;
     graph.nodes().forEach((nodeId) => {
         const node: ResourceTreeNode = graph.node(nodeId) as any;
         const parentIds = graph.predecessors(nodeId);
-        if (node.root != null && !predicate(node)) {
+        if (node.root != null && !predicate(node) && appKey !== nodeId) {
             const childIds = graph.successors(nodeId);
             graph.removeNode(nodeId);
             filtered++;
