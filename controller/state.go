@@ -131,6 +131,41 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	return targetObjs, hooks, manifestInfo, nil
 }
 
+func (m *appStateManager) deduplicateTargetObjects(
+	server string,
+	namespace string,
+	objs []*unstructured.Unstructured,
+) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
+	for i := range objs {
+		obj := objs[i]
+		isNamespaced, err := m.liveStateCache.IsNamespaced(server, obj)
+		if err != nil {
+			return objs, nil, err
+		}
+		if !isNamespaced {
+			obj.SetNamespace("")
+		} else if obj.GetNamespace() == "" {
+			obj.SetNamespace(namespace)
+		}
+		key := kubeutil.GetResourceKey(obj)
+		targetByKey[key] = append(targetByKey[key], obj)
+	}
+	conditions := make([]v1alpha1.ApplicationCondition, 0)
+	result := make([]*unstructured.Unstructured, 0)
+	for key, targets := range targetByKey {
+		if len(targets) > 1 {
+			conditions = append(conditions, appv1.ApplicationCondition{
+				Type:    appv1.ApplicationConditionRepeatedResourceWarning,
+				Message: fmt.Sprintf("Resource %s appeared %d times among application resources.", key.String(), len(targets)),
+			})
+		}
+		result = append(result, targets[len(targets)-1])
+	}
+
+	return result, conditions, nil
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -151,6 +186,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
+	targetObjs, dedupConditions, err := m.deduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs)
+	if err != nil {
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+	}
+	conditions = append(conditions, dedupConditions...)
+
 	logCtx.Debugf("Generated config manifests")
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {

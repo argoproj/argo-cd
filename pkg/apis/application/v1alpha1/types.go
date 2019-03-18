@@ -469,6 +469,8 @@ const (
 	ApplicationConditionUnknownError = "UnknownError"
 	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
 	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
+	// ApplicationConditionRepeatedResourceWarning indicates that application source has resource with same Group, Kind, Name, Namespace multiple times
+	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
 )
 
 // ApplicationCondition contains details about current application condition
