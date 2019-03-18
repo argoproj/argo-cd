@@ -49,6 +49,10 @@ func GetLiveObjs(res []managedResource) []*unstructured.Unstructured {
 	return objs
 }
 
+type ResourceInfoProvider interface {
+	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
+}
+
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool) (*comparisonResult, error)
@@ -131,15 +135,17 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	return targetObjs, hooks, manifestInfo, nil
 }
 
-func (m *appStateManager) deduplicateTargetObjects(
+func DeduplicateTargetObjects(
 	server string,
 	namespace string,
 	objs []*unstructured.Unstructured,
+	infoProvider ResourceInfoProvider,
 ) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
-		isNamespaced, err := m.liveStateCache.IsNamespaced(server, obj)
+		isNamespaced, err := infoProvider.IsNamespaced(server, obj)
 		if err != nil {
 			return objs, nil, err
 		}
@@ -186,7 +192,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 		failedToLoadObjs = true
 	}
-	targetObjs, dedupConditions, err := m.deduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs)
+	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
