@@ -480,7 +480,7 @@ func pathExists(ss ...string) bool {
 func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (repos.Client, string, error) {
 	repoURL := repos.NormalizeURL(repo.Repo)
 	appRepoPath := tempRepoPath(repoURL)
-	config := repos.Config{Url: repoURL, RepoType: string(repo.Type), Name: repo.Name, Username: repo.Username, Password: repo.Password, SshPrivateKey: repo.SSHPrivateKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
+	config := repos.Config{Url: repoURL, RepoType: string(repo.Type), Name: repo.Name, Username: repo.Username, Password: repo.Password, SshPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
 	client, err := s.clientFactory.NewClient(config, appRepoPath)
 	if err != nil {
 		return nil, "", err

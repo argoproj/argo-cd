@@ -380,7 +380,7 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 
 type FakeClientFactory struct{}
 
-func (f FakeClientFactory) NewClient(c repos.Config, workDir string) (repos.Client, error) {
+func (f *FakeClientFactory) NewClient(c repos.Config, workDir string) (repos.Client, error) {
 	return &FakeGitClient{
 		workDir: workDir,
 	}, nil

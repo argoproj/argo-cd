@@ -56,7 +56,7 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 	}
 	now := metav1.Now()
 
-	config := repos.Config{Url: repo.Repo, RepoType: string(repo.Type), Username: repo.Username, Password: repo.Password, SshPrivateKey: repo.SSHPrivateKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
+	config := repos.Config{Url: repo.Repo, RepoType: string(repo.Type), Username: repo.Username, Password: repo.Password, SshPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
 	err = repos.TestRepo(config)
 
 	if err != nil {
@@ -259,7 +259,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, err
 	}
 	r := q.Repo
-	config := repos.Config{Url: r.Repo, RepoType: string(r.Type), Name: r.Name, Username: r.Username, Password: r.Password, SshPrivateKey: r.SSHPrivateKey, CAData: r.CAData, CertData: r.CertData, KeyData: r.KeyData}
+	config := repos.Config{Url: r.Repo, RepoType: string(r.Type), Name: r.Name, Username: r.Username, Password: r.Password, SshPrivateKey: r.SSHPrivateKey, InsecureIgnoreHostKey: r.InsecureIgnoreHostKey, CAData: r.CAData, CertData: r.CertData, KeyData: r.KeyData}
 	err := repos.TestRepo(config)
 	if err != nil {
 		return nil, err

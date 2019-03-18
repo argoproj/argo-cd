@@ -39,13 +39,14 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewRepoAddCommand returns a new instance of an `argocd repo add` command
 func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repo              appsv1.Repository
-		upsert            bool
-		sshPrivateKeyPath string
-		caFile            string
-		certFile          string
-		keyFile           string
-		repoType          string
+		repo                  appsv1.Repository
+		upsert                bool
+		sshPrivateKeyPath     string
+		caFile                string
+		certFile              string
+		keyFile               string
+		repoType              string
+		insecureIgnoreHostKey bool
 	)
 	var command = &cobra.Command{
 		Use:   "add REPO",
@@ -64,6 +65,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 				repo.SSHPrivateKey = string(keyData)
 			}
+			repo.InsecureIgnoreHostKey = insecureIgnoreHostKey
 			if caFile != "" {
 				keyData, err := ioutil.ReadFile(caFile)
 				if err != nil {
@@ -90,7 +92,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// NOTE: it is important not to run git commands to test git credentials on the user's
 			// system since it may mess with their git credential store (e.g. osx keychain).
 			// See issue #315
-			config := repos.Config{Url: repo.Repo, RepoType: repoType, SshPrivateKey: repo.SSHPrivateKey}
+			config := repos.Config{Url: repo.Repo, RepoType: repoType, SshPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey}
 			err := repos.TestRepo(config)
 			if err != nil {
 				if repos.IsSSHURL(repo.Repo) {
@@ -115,6 +117,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
+	command.Flags().BoolVar(&insecureIgnoreHostKey, "insecure-ignore-host-key", false, "disables SSH strict host key checking")
 	command.Flags().StringVar(&caFile, "ca-file", "", "verify certificates of HTTPS-enabled servers using this CA bundle")
 	command.Flags().StringVar(&certFile, "cert-file", "", "identify HTTPS client using this SSL certificate file")
 	command.Flags().StringVar(&keyFile, "key-file", "", "identify HTTPS client using this SSL key file")

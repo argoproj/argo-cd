@@ -666,16 +666,17 @@ const (
 
 // Repository is a repository holding application configurations
 type Repository struct {
-	Repo            string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	Type            RepoType        `json:"type" protobuf:"bytes,2,opt,name=type"`
-	Name            string          `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-	Username        string          `json:"username,omitempty" protobuf:"bytes,4,opt,name=username"`
-	Password        string          `json:"password,omitempty" protobuf:"bytes,5,opt,name=password"`
-	SSHPrivateKey   string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,6,opt,name=sshPrivateKey"`
-	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,7,opt,name=connectionState"`
-	CAData          []byte          `json:"caData,omitempty" protobuf:"bytes,8,opt,name=caData"`
-	CertData        []byte          `json:"certData,omitempty" protobuf:"bytes,9,opt,name=certData"`
-	KeyData         []byte          `json:"keyData,omitempty" protobuf:"bytes,10,opt,name=keyData"`
+	Repo                  string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
+	Type                  RepoType        `json:"type" protobuf:"bytes,2,opt,name=type"`
+	Name                  string          `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Username              string          `json:"username,omitempty" protobuf:"bytes,4,opt,name=username"`
+	Password              string          `json:"password,omitempty" protobuf:"bytes,5,opt,name=password"`
+	SSHPrivateKey         string          `json:"sshPrivateKey,omitempty" protobuf:"bytes,6,opt,name=sshPrivateKey"`
+	InsecureIgnoreHostKey bool            `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,7,opt,name=insecureIgnoreHostKey"`
+	ConnectionState       ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,8,opt,name=connectionState"`
+	CAData                []byte          `json:"caData,omitempty" protobuf:"bytes,9,opt,name=caData"`
+	CertData              []byte          `json:"certData,omitempty" protobuf:"bytes,10,opt,name=certData"`
+	KeyData               []byte          `json:"keyData,omitempty" protobuf:"bytes,11,opt,name=keyData"`
 }
 
 func (r Repository) Validate() error {

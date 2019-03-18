@@ -433,13 +433,15 @@ message Repository {
 
   optional string sshPrivateKey = 6;
 
-  optional ConnectionState connectionState = 7;
+  optional bool insecureIgnoreHostKey = 7;
 
-  optional bytes caData = 8;
+  optional ConnectionState connectionState = 8;
 
-  optional bytes certData = 9;
+  optional bytes caData = 9;
 
-  optional bytes keyData = 10;
+  optional bytes certData = 10;
+
+  optional bytes keyData = 11;
 }
 
 // RepositoryList is a collection of Repositories.

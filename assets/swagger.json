@@ -2852,6 +2852,10 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "insecureIgnoreHostKey": {
+          "type": "boolean",
+          "format": "boolean"
+        },
         "keyData": {
           "type": "string",
           "format": "byte"

@@ -71,7 +71,11 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		data[sshPrivateKey] = []byte(r.SSHPrivateKey)
 	}
 
-	repoInfo := settings.RepoCredentials{URL: r.Repo, Type: settings.RepoType(r.Type), Name: r.Name}
+	repoInfo := settings.RepoCredentials{
+		URL:                   r.Repo,
+		Type:                  settings.RepoType(r.Type),
+		InsecureIgnoreHostKey: r.InsecureIgnoreHostKey,
+	}
 	err = db.updateSecrets(&repoInfo, r)
 	if err != nil {
 		return nil, err
@@ -97,7 +101,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 	repoInfo := s.Repositories[index]
-	repo := &appsv1.Repository{Repo: repoInfo.URL, Type: appsv1.RepoType(repoInfo.Type), Name: repoInfo.Name}
+	repo := &appsv1.Repository{Repo: repoInfo.URL, Type: appsv1.RepoType(repoInfo.Type), Name: repoInfo.Name, InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey}
 
 	cache := make(map[string]*apiv1.Secret)
 	err = db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{
@@ -112,7 +116,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	err = db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:      repoInfo.UsernameSecret,
 		&repo.Password:      repoInfo.PasswordSecret,
-		&repo.SSHPrivateKey: repoInfo.SshPrivateKeySecret,
+		&repo.SSHPrivateKey: repoInfo.SSHPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	if err != nil {
 		return nil, err
@@ -206,7 +210,7 @@ func (db *db) updateSecrets(repoInfo *settings.RepoCredentials, r *appsv1.Reposi
 
 	repoInfo.UsernameSecret = setSecretData(repoInfo.UsernameSecret, r.Username, username)
 	repoInfo.PasswordSecret = setSecretData(repoInfo.PasswordSecret, r.Password, password)
-	repoInfo.SshPrivateKeySecret = setSecretData(repoInfo.SshPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
+	repoInfo.SSHPrivateKeySecret = setSecretData(repoInfo.SSHPrivateKeySecret, r.SSHPrivateKey, sshPrivateKey)
 	for k, v := range secretsData {
 		err := db.upsertSecret(k, v)
 		if err != nil {

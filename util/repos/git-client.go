@@ -24,7 +24,7 @@ type nativeGitClient struct {
 	auth    transport.AuthMethod
 }
 
-func (f factory) newGitClient(repoURL, workDir, username, password, sshPrivateKey string) (Client, error) {
+func (f *factory) newGitClient(repoURL, workDir, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
 	clnt := nativeGitClient{
 		repoURL: repoURL,
 		workDir: workDir,
@@ -35,7 +35,9 @@ func (f factory) newGitClient(repoURL, workDir, username, password, sshPrivateKe
 			return nil, err
 		}
 		auth := &ssh2.PublicKeys{User: "git", Signer: signer}
-		auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		if insecureIgnoreHostKey {
+			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		}
 		clnt.auth = auth
 	} else if username != "" || password != "" {
 		auth := &http.BasicAuth{Username: username, Password: password}

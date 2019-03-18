@@ -24,6 +24,7 @@ type Client interface {
 
 type Config struct {
 	Name, Url, RepoType, Username, Password, SshPrivateKey string
+	InsecureIgnoreHostKey                                  bool
 	CAData, CertData, KeyData                              []byte
 }
 
@@ -43,7 +44,7 @@ func (f factory) NewClient(c Config, workDir string) (Client, error) {
 	if c.RepoType == "helm" {
 		return f.newHelmClient(c.Url, c.Name, workDir, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
 	} else {
-		return f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SshPrivateKey)
+		return f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SshPrivateKey, c.InsecureIgnoreHostKey)
 	}
 }
 
