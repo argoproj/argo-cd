@@ -220,6 +220,8 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
+
+  optional string sourceType = 9;
 }
 
 // ApplicationWatchEvent contains information about application change.
