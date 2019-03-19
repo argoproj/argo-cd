@@ -65,6 +65,6 @@ spec:
 
 ## Dashboards
 
-You can find an example Grafana dashboard [here](examples/dashboard.json)
+You can find an example Grafana dashboard [here](../examples/dashboard.json)
 
 ![dashboard](assets/dashboard.jpg)
