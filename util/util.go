@@ -33,7 +33,9 @@ type Closer interface {
 // Close is a convenience function to close a object that has a Close() method, ignoring any errors
 // Used to satisfy errcheck lint
 func Close(c Closer) {
-	_ = c.Close()
+	if err := c.Close(); err != nil {
+		log.Warnf("failed to close %v: %v", c, err)
+	}
 }
 
 // DeleteFile is best effort deletion of a file
