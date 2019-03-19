@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
@@ -611,6 +612,17 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 	return objs
 }
 
+type resourceInfoProvider struct {
+	namespacedByGk map[schema.GroupKind]bool
+}
+
+// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
+// If live object is missing then it does not matter if target is namespaced or not.
+func (p *resourceInfoProvider) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
+	key := kube.GetResourceKey(obj)
+	return p.namespacedByGk[key.GroupKind()], nil
+}
+
 func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
 	namespacedByGk := make(map[schema.GroupKind]bool)
 	for i := range liveObjs {
@@ -619,22 +631,13 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
 		}
 	}
+	localObs, _, err := controller.DeduplicateTargetObjects("", appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
+	errors.CheckError(err)
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
-		gk := obj.GroupVersionKind().GroupKind()
-		// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
-		// If live object is missing then it does not matter if target is namespaced or not.
-		namespace := obj.GetNamespace()
-		if !namespacedByGk[gk] {
-			namespace = ""
-		} else {
-			if namespace == "" {
-				namespace = appNamespace
-			}
-		}
 		if !hook.IsHook(obj) {
-			objByKey[kube.NewResourceKey(gk.Group, gk.Kind, namespace, obj.GetName())] = obj
+			objByKey[kube.GetResourceKey(obj)] = obj
 		}
 	}
 	return objByKey
@@ -684,9 +687,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					err := json.Unmarshal([]byte(res.LiveState), &live)
 					errors.CheckError(err)
 
-					key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
+					key := kube.GetResourceKey(live)
 					if local, ok := localObjs[key]; ok || live != nil {
-						if local != nil {
+						if local != nil && !kube.IsCRD(live) {
 							err = kube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
 							errors.CheckError(err)
 						}
