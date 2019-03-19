@@ -274,6 +274,9 @@ func (c *clusterInfo) sync() (err error) {
 
 	c.log.Info("Start syncing cluster")
 
+	for i := range c.apisMeta {
+		c.apisMeta[i].watchCancel()
+	}
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.nodes = make(map[kube.ResourceKey]*node)
 
