@@ -48,8 +48,23 @@ spec:
   - port: metrics
 ```
 
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-repo-server-metrics
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-repo-server
+  endpoints:
+  - port: metrics
+```
+
 ## Dashboards
 
 You can find an example Grafana dashboard [here](examples/dashboard.json)
 
-![dashboard](docs/assets/dashboard.jpg)
+![dashboard](assets/dashboard.jpg)
