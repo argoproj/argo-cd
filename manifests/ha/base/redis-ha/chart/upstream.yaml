@@ -8,7 +8,7 @@ metadata:
   labels:
     heritage: Tiller
     release: argocd
-    chart: redis-ha-3.1.6
+    chart: redis-ha-3.3.1
     app: argocd-redis-ha
 data:
   redis.conf: |
@@ -20,7 +20,7 @@ data:
     rdbchecksum yes
     rdbcompression yes
     repl-diskless-sync yes
-    save 900 1
+    save ""
 
   sentinel.conf: |
     dir "/data"
@@ -66,8 +66,9 @@ data:
         echo "Setting up defaults"
         if [ "$INDEX" = "0" ]; then
             echo "Setting this pod as the default master"
-            sed -i "s/^.*slaveof.*//" "$REDIS_CONF"
+            redis_update "$ANNOUNCE_IP"
             sentinel_update "$ANNOUNCE_IP"
+            sed -i "s/^.*slaveof.*//" "$REDIS_CONF"
         else
             DEFAULT_MASTER="$(getent hosts "$SERVICE-announce-0" | awk '{ print $1 }')"
             if [ -z "$DEFAULT_MASTER" ]; then
@@ -135,7 +136,7 @@ metadata:
   labels:
     heritage: Tiller
     release: argocd
-    chart: redis-ha-3.1.6
+    chart: redis-ha-3.3.1
     app: argocd-redis-ha
 data:
   check-quorum.sh: |
@@ -171,6 +172,59 @@ data:
     fi
 
 ---
+# Source: redis-ha/charts/redis-ha/templates/redis-ha-serviceaccount.yaml
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-redis-ha
+  labels:
+    heritage: Tiller
+    release: argocd
+    chart: redis-ha-3.3.1
+    app: argocd-redis-ha
+
+---
+# Source: redis-ha/charts/redis-ha/templates/redis-ha-role.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-redis-ha
+  labels:
+    heritage: Tiller
+    release: argocd
+    chart: redis-ha-3.3.1
+    app: argocd-redis-ha
+rules:
+- apiGroups:
+    - ""
+  resources:
+    - endpoints
+  verbs:
+    - get
+
+---
+# Source: redis-ha/charts/redis-ha/templates/redis-ha-rolebinding.yaml
+
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: argocd-redis-ha
+  labels:
+    heritage: Tiller
+    release: argocd
+    chart: redis-ha-3.3.1
+    app: argocd-redis-ha
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis-ha
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis-ha
+
+---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-announce-service.yaml
 
 ---
@@ -182,7 +236,7 @@ metadata:
     app: redis-ha
     heritage: "Tiller"
     release: "argocd"
-    chart: redis-ha-3.1.6
+    chart: redis-ha-3.3.1
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -210,7 +264,7 @@ metadata:
     app: redis-ha
     heritage: "Tiller"
     release: "argocd"
-    chart: redis-ha-3.1.6
+    chart: redis-ha-3.3.1
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -238,7 +292,7 @@ metadata:
     app: redis-ha
     heritage: "Tiller"
     release: "argocd"
-    chart: redis-ha-3.1.6
+    chart: redis-ha-3.3.1
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -268,7 +322,7 @@ metadata:
     app: redis-ha
     heritage: "Tiller"
     release: "argocd"
-    chart: redis-ha-3.1.6
+    chart: redis-ha-3.3.1
   annotations:
 spec:
   type: ClusterIP
@@ -296,7 +350,7 @@ metadata:
     app: redis-ha
     heritage: "Tiller"
     release: "argocd"
-    chart: redis-ha-3.1.6
+    chart: redis-ha-3.3.1
 spec:
   selector:
     matchLabels:
@@ -310,8 +364,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: fd61dcd77a6f4a93ac6609398c79958da8eeae692c1203f77809abf3301e09e6
-        checksum/probe-config: 6a71f32ef8f1e6e6046352b15c3ee4e201a0288442ae2abc3a64461df55d7bc4
+        checksum/init-config: 06440ee4a409be2aa01dfa08c14dd964fe3bad2ada57da1a538ad5cd771a045f
+        checksum/probe-config: 4b9888f173366e436f167856ee3469e8c1fd5221e29caa2129373db23578ec10
       labels:
         release: argocd
         app: redis-ha
@@ -338,6 +392,7 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         
+      serviceAccountName: argocd-redis-ha
       initContainers:
       - name: config-init
         image: redis:5.0.3-alpine
@@ -351,13 +406,13 @@ spec:
         - /readonly-config/init.sh
         env:
         - name: SENTINEL_ID_0
-          value: fcf9c936f413aee4a7faceeef0817f2894e477ff
+          value: e791a161cb06f0d3eb0cc392117d34cf0eae9d71
 
         - name: SENTINEL_ID_1
-          value: cdf48d26a604810dc199f2d532723d2087f68e1e
+          value: d9b3204a90597a7500530efd881942d8145996ac
 
         - name: SENTINEL_ID_2
-          value: 4e85671bbbc383ff723c51ffb0ac2bc2e7a60cea
+          value: d9deb539c0402841c2492e9959c8086602fa4284
 
         volumeMounts:
         - name: config
