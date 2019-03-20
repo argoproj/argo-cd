@@ -127,7 +127,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}, header webhooks.
 			continue
 		}
 		targetRev := app.Spec.Source.TargetRevision
-		if targetRev == "HEAD" || targetRev == "" {
+		if targetRev == "" {
 			if !touchedHead {
 				continue
 			}

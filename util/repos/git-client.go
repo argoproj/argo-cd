@@ -51,7 +51,7 @@ func (m *nativeGitClient) WorkDir() string {
 }
 
 func (m *nativeGitClient) Test() error {
-	_, err := m.ResolveRevision("HEAD")
+	_, err := m.ResolveRevision("")
 	return err
 }
 

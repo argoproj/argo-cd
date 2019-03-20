@@ -14,7 +14,7 @@ func TestResolveRevision(t *testing.T) {
 	clnt, err := NewFactory().NewClient(Config{Url: "https://github.com/argoproj/argo-cd.git"}, "/tmp")
 	assert.NoError(t, err)
 	xpass := []string{
-		"HEAD",
+		"",
 		"master",
 		"release-0.8",
 		"v0.8.0",
@@ -81,7 +81,7 @@ func TestPrivateGitRepo(t *testing.T) {
 }
 
 func testGitClient(t *testing.T, clnt Client) {
-	commitSHA, err := clnt.ResolveRevision("HEAD")
+	commitSHA, err := clnt.ResolveRevision("")
 	assert.NoError(t, err)
 
 	// Do a second fetch to make sure we can treat `already up-to-date` error as not an error

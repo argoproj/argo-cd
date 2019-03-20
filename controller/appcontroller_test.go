@@ -137,7 +137,7 @@ status:
     message: successfully synced
     operation:
       sync:
-        revision: HEAD
+        revision: ""
     phase: Succeeded
     startedAt: 2018-09-21T23:50:25Z
     syncResult:

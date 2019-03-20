@@ -167,7 +167,6 @@ spec:
   source:
     path: some/path
     repoURL: https://git.com/repo.git
-    targetRevision: HEAD
     ksonnet:
       environment: default
   destination:
@@ -286,7 +285,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.Nil(t, err)
 	event := events.Items[1]
 
-	assert.Regexp(t, ".*initiated sync to HEAD \\([0-9A-Fa-f]{40}\\).*", event.Message)
+	assert.Regexp(t, ".*initiated sync to  \\([0-9A-Fa-f]{40}\\).*", event.Message)
 
 	// set status.operationState to pretend that an operation has started by controller
 	app.Status.OperationState = &appsv1.OperationState{

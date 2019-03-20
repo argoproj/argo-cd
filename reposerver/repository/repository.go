@@ -529,9 +529,6 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1
 
 func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error) {
 	revision := q.Revision
-	if revision == "" {
-		revision = "HEAD"
-	}
 	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, revision)
 	if err != nil {
 		return nil, err

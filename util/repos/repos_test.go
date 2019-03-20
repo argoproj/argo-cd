@@ -20,6 +20,7 @@ func TestIsCommitSHA(t *testing.T) {
 	assert.True(t, IsCommitSHA("9D921F65F3C5373B682E2EB4B37AFBA6592E8F8B"))
 	assert.False(t, IsCommitSHA("gd921f65f3c5373b682e2eb4b37afba6592e8f8b"))
 	assert.False(t, IsCommitSHA("master"))
+	assert.False(t, IsCommitSHA(""))
 	assert.False(t, IsCommitSHA("HEAD"))
 	assert.False(t, IsCommitSHA("9d921f6")) // only consider 40 characters hex strings as a commit-sha
 	assert.True(t, IsTruncatedCommitSHA("9d921f6"))

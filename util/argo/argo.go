@@ -303,10 +303,6 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 
 // verifyAppYAML verifies that a ksonnet app.yaml is functional
 func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) error {
-	// Default revision to HEAD if unspecified
-	if spec.Source.TargetRevision == "" {
-		spec.Source.TargetRevision = "HEAD"
-	}
 
 	req := repository.GetFileRequest{
 		Repo: &argoappv1.Repository{
