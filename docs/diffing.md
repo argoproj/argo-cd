@@ -53,7 +53,7 @@ of a `MutatingWebhookConfiguration` webhooks:
 data:
   resource.customizations: |
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
-      ignoreDifferences:
+      ignoreDifferences: |
         jsonPointers:
-        - webhooks/0/clientConfig/caBundle
+        - /webhooks/0/clientConfig/caBundle
 ```

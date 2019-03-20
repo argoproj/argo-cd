@@ -199,6 +199,7 @@ rules:
   verbs:
   - delete
   - get
+  - patch
 - apiGroups:
   - ""
   resources:
@@ -571,8 +572,14 @@ metadata:
   name: argocd-repo-server
 spec:
   ports:
-  - port: 8081
+  - name: server
+    port: 8081
+    protocol: TCP
     targetPort: 8081
+  - name: metrics
+    port: 8084
+    protocol: TCP
+    targetPort: 8084
   selector:
     app.kubernetes.io/name: argocd-repo-server
 ---
@@ -753,6 +760,7 @@ spec:
         name: argocd-repo-server
         ports:
         - containerPort: 8081
+        - containerPort: 8084
         readinessProbe:
           initialDelaySeconds: 5
           periodSeconds: 10

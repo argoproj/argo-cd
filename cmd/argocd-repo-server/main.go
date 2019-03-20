@@ -3,18 +3,20 @@ package main
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	argocd "github.com/argoproj/argo-cd"
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/repos"
 	"github.com/argoproj/argo-cd/util/stats"
 	"github.com/argoproj/argo-cd/util/tls"
@@ -23,7 +25,6 @@ import (
 const (
 	// CLIName is the name of the CLI
 	cliName = "argocd-repo-server"
-	port    = 8081
 )
 
 func newCommand() *cobra.Command {
@@ -48,14 +49,13 @@ func newCommand() *cobra.Command {
 			server, err := reposerver.NewServer(repos.NewFactory(), cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
-			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", common.PortRepoServer))
 			errors.CheckError(err)
 
-			ksVers, err := ksonnet.KsonnetVersion()
-			errors.CheckError(err)
+			http.Handle("/metrics", promhttp.Handler())
+			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf(":%d", common.PortRepoServerMetrics), nil)) }()
 
 			log.Infof("argocd-repo-server %s serving on %s", argocd.GetVersion(), listener.Addr())
-			log.Infof("ksonnet version: %s", ksVers)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

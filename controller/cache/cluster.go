@@ -163,8 +163,6 @@ func (c *clusterInfo) stopWatching(gk schema.GroupKind) {
 
 // startMissingWatches lists supported cluster resources and start watching for changes unless watch is already running
 func (c *clusterInfo) startMissingWatches() error {
-	c.syncLock.Lock()
-	defer c.syncLock.Unlock()
 
 	apis, err := c.kubectl.GetAPIResources(c.cluster.RESTConfig(), c.settings)
 	if err != nil {
@@ -254,7 +252,10 @@ func (c *clusterInfo) watchEvents(ctx context.Context, api kube.APIResourceInfo,
 								c.stopWatching(gk)
 							}
 						} else {
-							err = c.startMissingWatches()
+							err = runSynced(c.syncLock, func() error {
+								return c.startMissingWatches()
+							})
+
 						}
 					}
 					if err != nil {
@@ -273,6 +274,9 @@ func (c *clusterInfo) sync() (err error) {
 
 	c.log.Info("Start syncing cluster")
 
+	for i := range c.apisMeta {
+		c.apisMeta[i].watchCancel()
+	}
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.nodes = make(map[kube.ResourceKey]*node)
 
@@ -292,15 +296,14 @@ func (c *clusterInfo) sync() (err error) {
 		for i := range list.Items {
 			c.setNode(createObjInfo(&list.Items[i], c.settings.GetAppInstanceLabelKey()))
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		info := &apiMeta{namespaced: api.Meta.Namespaced, resourceVersion: list.GetResourceVersion(), watchCancel: cancel}
-		c.apisMeta[api.GroupKind] = info
 		lock.Unlock()
-
-		go c.watchEvents(ctx, api, info)
-
 		return nil
 	})
+
+	if err == nil {
+		err = c.startMissingWatches()
+	}
+
 	if err != nil {
 		log.Errorf("Failed to sync cluster %s: %v", c.cluster.Server, err)
 		return err

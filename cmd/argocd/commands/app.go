@@ -27,13 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/controller"
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/pkg/apiclient"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
-	apirepository "github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/server/settings"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -116,7 +116,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					},
 				}
 				setAppOptions(c.Flags(), &app, &appOpts)
-				setParameterOverrides(&app, argocdClient, appOpts.parameters)
+				setParameterOverrides(&app, appOpts.parameters)
 			}
 			if app.Name == "" {
 				c.HelpFunc()(c, args)
@@ -354,7 +354,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			setParameterOverrides(app, argocdClient, appOpts.parameters)
+			setParameterOverrides(app, appOpts.parameters)
 			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 				Name: &app.Name,
 				Spec: app.Spec,
@@ -612,6 +612,17 @@ func getLocalObjects(app *argoappv1.Application, local string, appLabelKey strin
 	return objs
 }
 
+type resourceInfoProvider struct {
+	namespacedByGk map[schema.GroupKind]bool
+}
+
+// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
+// If live object is missing then it does not matter if target is namespaced or not.
+func (p *resourceInfoProvider) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
+	key := kube.GetResourceKey(obj)
+	return p.namespacedByGk[key.GroupKind()], nil
+}
+
 func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
 	namespacedByGk := make(map[schema.GroupKind]bool)
 	for i := range liveObjs {
@@ -620,22 +631,13 @@ func groupLocalObjs(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
 		}
 	}
+	localObs, _, err := controller.DeduplicateTargetObjects("", appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
+	errors.CheckError(err)
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
-		gk := obj.GroupVersionKind().GroupKind()
-		// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
-		// If live object is missing then it does not matter if target is namespaced or not.
-		namespace := obj.GetNamespace()
-		if !namespacedByGk[gk] {
-			namespace = ""
-		} else {
-			if namespace == "" {
-				namespace = appNamespace
-			}
-		}
 		if !hook.IsHook(obj) {
-			objByKey[kube.NewResourceKey(gk.Group, gk.Kind, namespace, obj.GetName())] = obj
+			objByKey[kube.GetResourceKey(obj)] = obj
 		}
 	}
 	return objByKey
@@ -652,11 +654,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
 		Short: shortDesc,
-		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.",
+		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(2)
 			}
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
@@ -685,9 +687,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					err := json.Unmarshal([]byte(res.LiveState), &live)
 					errors.CheckError(err)
 
-					key := kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)
+					key := kube.GetResourceKey(live)
 					if local, ok := localObjs[key]; ok || live != nil {
-						if local != nil {
+						if local != nil && !kube.IsCRD(live) {
 							err = kube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
 							errors.CheckError(err)
 						}
@@ -738,6 +740,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 
+			foundDiffs := false
 			for i := range items {
 				item := items[i]
 				// TODO (amatyushentsev): use resource overrides exposed from API server
@@ -745,8 +748,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live, normalizer)
-				fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 				if diffRes.Modified || item.target == nil || item.live == nil {
+					fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 					var live *unstructured.Unstructured
 					var target *unstructured.Unstructured
 					if item.target != nil && item.live != nil {
@@ -758,8 +761,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						target = item.target
 					}
 
+					foundDiffs = true
 					printDiff(item.key.Name, target, live)
 				}
+			}
+			if foundDiffs {
+				os.Exit(1)
 			}
 
 		},
@@ -1291,21 +1298,30 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 // If the app is a ksonnet app, then parameters are expected to be in the form: component=param=value
 // Otherwise, the app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func setParameterOverrides(app *argoappv1.Application, argocdClient argocdclient.Client, parameters []string) {
+func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 	if len(parameters) == 0 {
 		return
 	}
-	conn, repoIf := argocdClient.NewRepoClientOrDie()
-	defer util.Close(conn)
+	var sourceType argoappv1.ApplicationSourceType
+	if st, _ := app.Spec.Source.ExplicitType(); st != nil {
+		sourceType = *st
+	} else if app.Status.SourceType != "" {
+		sourceType = app.Status.SourceType
+	} else {
+		// HACK: we don't know the source type, so make an educated guess based on the supplied
+		// parameter string. This code handles the corner case where app doesn't exist yet, and the
+		// command is something like: `argocd app create MYAPP -p foo=bar`
+		// This logic is not foolproof, but when ksonnet is deprecated, this will no longer matter
+		// since helm will remain as the only source type which has parameters.
+		if len(strings.SplitN(parameters[0], "=", 3)) == 3 {
+			sourceType = argoappv1.ApplicationSourceTypeKsonnet
+		} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
+			sourceType = argoappv1.ApplicationSourceTypeHelm
+		}
+	}
 
-	appDetails, err := repoIf.GetAppDetails(context.Background(), &apirepository.RepoAppDetailsQuery{
-		Repo:     app.Spec.Source.RepoURL,
-		Revision: app.Spec.Source.TargetRevision,
-		Path:     app.Spec.Source.Path,
-	})
-	errors.CheckError(err)
-
-	if appDetails.Ksonnet != nil {
+	switch sourceType {
+	case argoappv1.ApplicationSourceTypeKsonnet:
 		if app.Spec.Source.Ksonnet == nil {
 			app.Spec.Source.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
 		}
@@ -1331,7 +1347,7 @@ func setParameterOverrides(app *argoappv1.Application, argocdClient argocdclient
 				app.Spec.Source.Ksonnet.Parameters = append(app.Spec.Source.Ksonnet.Parameters, newParam)
 			}
 		}
-	} else if appDetails.Helm != nil {
+	case argoappv1.ApplicationSourceTypeHelm:
 		if app.Spec.Source.Helm == nil {
 			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
 		}
@@ -1356,7 +1372,7 @@ func setParameterOverrides(app *argoappv1.Application, argocdClient argocdclient
 				app.Spec.Source.Helm.Parameters = append(app.Spec.Source.Helm.Parameters, newParam)
 			}
 		}
-	} else {
+	default:
 		log.Fatalf("Parameters can only be set against Ksonnet or Helm applications")
 	}
 }

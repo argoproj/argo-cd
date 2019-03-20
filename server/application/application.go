@@ -433,6 +433,11 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 	if err != nil {
 		return err
 	}
+	defer w.Stop()
+	logCtx := log.NewEntry(log.New())
+	if q.Name != nil {
+		logCtx = logCtx.WithField("application", *q.Name)
+	}
 	claims := ws.Context().Value("claims")
 	done := make(chan bool)
 	go func() {
@@ -448,17 +453,17 @@ func (s *Server) Watch(q *ApplicationQuery, ws ApplicationService_WatchServer) e
 					Application: a,
 				})
 				if err != nil {
-					log.Warnf("Unable to send stream message: %v", err)
+					logCtx.Warnf("Unable to send stream message: %v", err)
 				}
 			}
 		}
-		done <- true
+		logCtx.Info("k8s application watch event channel closed")
+		close(done)
 	}()
 	select {
 	case <-ws.Context().Done():
-		w.Stop()
+		logCtx.Info("client watch grpc context closed")
 	case <-done:
-		w.Stop()
 	}
 	return nil
 }
@@ -723,7 +728,10 @@ func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLo
 	if err != nil {
 		return err
 	}
+	logCtx := log.WithField("application", q.Name)
+	defer util.Close(stream)
 	done := make(chan bool)
+	gracefulExit := false
 	go func() {
 		scanner := bufio.NewScanner(stream)
 		for scanner.Scan() {
@@ -740,18 +748,25 @@ func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLo
 							TimeStamp: metaLogTime,
 						})
 						if err != nil {
-							log.Warnf("Unable to send stream message: %v", err)
+							logCtx.Warnf("Unable to send stream message: %v", err)
 						}
 					}
 				}
 			}
 		}
-
-		done <- true
+		if gracefulExit {
+			logCtx.Info("k8s pod logs scanner completed due to closed grpc context")
+		} else if err := scanner.Err(); err != nil {
+			logCtx.Warnf("k8s pod logs scanner failed with error: %v", err)
+		} else {
+			logCtx.Info("k8s pod logs scanner completed with EOF")
+		}
+		close(done)
 	}()
 	select {
 	case <-ws.Context().Done():
-		util.Close(stream)
+		logCtx.Info("client pod logs grpc context closed")
+		gracefulExit = true
 	case <-done:
 	}
 	return nil

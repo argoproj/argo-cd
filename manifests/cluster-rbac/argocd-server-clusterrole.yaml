@@ -7,26 +7,24 @@ metadata:
     app.kubernetes.io/component: server
   name: argocd-server
 rules:
-# support viewing and deleting a live object view in UI
 - apiGroups:
   - '*'
   resources:
   - '*'
   verbs:
-  - delete
-  - get
-# support listing events of 
+  - delete  # supports deletion a live object in UI
+  - get     # supports viewing live object manifest in UI
+  - patch   # supports `argocd app patch`
 - apiGroups:
   - ""
   resources:
   - events
   verbs:
-  - list
-# support viewing pod logs from UI
+  - list    # supports listing events in UI
 - apiGroups:
   - ""
   resources:
   - pods
   - pods/log
   verbs:
-  - get
+  - get     # supports viewing pod logs from UI

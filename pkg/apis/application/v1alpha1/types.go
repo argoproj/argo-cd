@@ -224,6 +224,7 @@ type ApplicationStatus struct {
 	ReconciledAt   metav1.Time            `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
 	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 }
 
 // Operation contains requested operation parameters.
@@ -470,6 +471,8 @@ const (
 	ApplicationConditionUnknownError = "UnknownError"
 	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
 	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
+	// ApplicationConditionRepeatedResourceWarning indicates that application source has resource with same Group, Kind, Name, Namespace multiple times
+	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
 )
 
 // ApplicationCondition contains details about current application condition

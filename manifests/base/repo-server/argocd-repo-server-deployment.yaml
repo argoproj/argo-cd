@@ -26,6 +26,7 @@ spec:
         - argocd-redis:6379
         ports:
         - containerPort: 8081
+        - containerPort: 8084
         readinessProbe:
           tcpSocket:
             port: 8081

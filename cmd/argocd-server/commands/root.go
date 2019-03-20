@@ -81,7 +81,7 @@ func NewCommand() *cobra.Command {
 				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				argocd := server.NewServer(ctx, argoCDOpts)
-				argocd.Run(ctx, 8080)
+				argocd.Run(ctx, common.PortAPIServer)
 				cancel()
 			}
 		},
