@@ -38,9 +38,9 @@ func NewFactory() ClientFactory {
 
 func (f factory) NewClient(c Config, workDir string) (Client, error) {
 	if c.Type == "helm" {
-		return f.newHelmClient(c.Url, c.Name, workDir, c.Username, c.Password, c.CAData, c.CertData, c.KeyData)
+		return newDebug(f.newHelmClient(c.Url, c.Name, workDir, c.Username, c.Password, c.CAData, c.CertData, c.KeyData))
 	} else {
-		return f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SSHPrivateKey, c.InsecureIgnoreHostKey)
+		return newDebug(f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SSHPrivateKey, c.InsecureIgnoreHostKey))
 	}
 }
 
