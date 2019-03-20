@@ -652,11 +652,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
 		Short: shortDesc,
-		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.",
+		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found",
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				os.Exit(2)
 			}
 
 			clientset := argocdclient.NewClientOrDie(clientOpts)
@@ -738,6 +738,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 
+			foundDiffs := false
 			for i := range items {
 				item := items[i]
 				// TODO (amatyushentsev): use resource overrides exposed from API server
@@ -745,8 +746,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live, normalizer)
-				fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 				if diffRes.Modified || item.target == nil || item.live == nil {
+					fmt.Printf("===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
 					var live *unstructured.Unstructured
 					var target *unstructured.Unstructured
 					if item.target != nil && item.live != nil {
@@ -758,8 +759,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						target = item.target
 					}
 
+					foundDiffs = true
 					printDiff(item.key.Name, target, live)
 				}
+			}
+			if foundDiffs {
+				os.Exit(1)
 			}
 
 		},
