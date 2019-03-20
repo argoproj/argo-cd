@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -27,19 +28,24 @@ func NewHelm(workDir string) (*Helm, error) {
 
 func (h Helm) run(args ...string) (string, error) {
 
-	log.Infof("%s: helm %s", h.workDir, redact(args))
+	log.WithFields(log.Fields{"workDir": h.workDir, "redactedArgs": string(redact(args)), "helmHome": h.helmHome}).Info("running helm")
+
 	cmd := exec.Command("helm", args...)
 	cmd.Dir = h.workDir
 	if h.helmHome != "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.helmHome))
 	}
+
+	start := time.Now()
 	bytes, err := cmd.Output()
 
 	output := string(bytes)
 
 	for lineNo, line := range strings.Split(output, "\n") {
-		log.Debugf("output %d: %s", lineNo, line)
+		log.WithFields(log.Fields{"lineNo": lineNo, "line": line}).Info("output")
 	}
+
+	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took")
 
 	if err != nil {
 		exErr, ok := err.(*exec.ExitError)
@@ -47,8 +53,11 @@ func (h Helm) run(args ...string) (string, error) {
 			return "", err
 		}
 		errOutput := string(exErr.Stderr)
-		log.Errorf("`%s", errOutput)
-		return "", fmt.Errorf(strings.TrimSpace(errOutput))
+		err := fmt.Errorf(strings.TrimSpace(errOutput))
+
+		log.Error(err)
+
+		return "", err
 	}
 
 	return output, err
