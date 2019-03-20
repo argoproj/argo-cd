@@ -57,6 +57,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -119,6 +128,22 @@ rules:
   - get
   - list
   - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -194,6 +219,22 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-dex-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-ha
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis-ha
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis-ha
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -242,18 +283,19 @@ data:
     $REDIS_PORT\" >> $REDIS_CONF\n}\n\ncopy_config() {\n    cp /readonly-config/redis.conf
     \"$REDIS_CONF\"\n    cp /readonly-config/sentinel.conf \"$SENTINEL_CONF\"\n}\n\nsetup_defaults()
     {\n    echo \"Setting up defaults\"\n    if [ \"$INDEX\" = \"0\" ]; then\n        echo
-    \"Setting this pod as the default master\"\n        sed -i \"s/^.*slaveof.*//\"
-    \"$REDIS_CONF\"\n        sentinel_update \"$ANNOUNCE_IP\"\n    else\n        DEFAULT_MASTER=\"$(getent
-    hosts \"$SERVICE-announce-0\" | awk '{ print $1 }')\"\n        if [ -z \"$DEFAULT_MASTER\"
-    ]; then\n            echo \"Unable to resolve host\"\n            exit 1\n        fi\n
-    \       echo \"Setting default slave config..\"\n        redis_update \"$DEFAULT_MASTER\"\n
-    \       sentinel_update \"$DEFAULT_MASTER\"\n    fi\n}\n\nfind_master() {\n    echo
-    \"Attempting to find master\"\n    if [ \"$(redis-cli -h \"$MASTER\" ping)\" !=
-    \"PONG\" ]; then\n       echo \"Can't ping master, attempting to force failover\"\n
-    \      if redis-cli -h \"$SERVICE\" -p \"$SENTINEL_PORT\" sentinel failover \"$MASTER_GROUP\"
-    | grep -q 'NOGOODSLAVE' ; then \n           setup_defaults\n           return
-    0\n       fi\n       sleep 10\n       MASTER=\"$(redis-cli -h $SERVICE -p $SENTINEL_PORT
-    sentinel get-master-addr-by-name $MASTER_GROUP | grep -E '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')\"\n
+    \"Setting this pod as the default master\"\n        redis_update \"$ANNOUNCE_IP\"\n
+    \       sentinel_update \"$ANNOUNCE_IP\"\n        sed -i \"s/^.*slaveof.*//\"
+    \"$REDIS_CONF\"\n    else\n        DEFAULT_MASTER=\"$(getent hosts \"$SERVICE-announce-0\"
+    | awk '{ print $1 }')\"\n        if [ -z \"$DEFAULT_MASTER\" ]; then\n            echo
+    \"Unable to resolve host\"\n            exit 1\n        fi\n        echo \"Setting
+    default slave config..\"\n        redis_update \"$DEFAULT_MASTER\"\n        sentinel_update
+    \"$DEFAULT_MASTER\"\n    fi\n}\n\nfind_master() {\n    echo \"Attempting to find
+    master\"\n    if [ \"$(redis-cli -h \"$MASTER\" ping)\" != \"PONG\" ]; then\n
+    \      echo \"Can't ping master, attempting to force failover\"\n       if redis-cli
+    -h \"$SERVICE\" -p \"$SENTINEL_PORT\" sentinel failover \"$MASTER_GROUP\" | grep
+    -q 'NOGOODSLAVE' ; then \n           setup_defaults\n           return 0\n       fi\n
+    \      sleep 10\n       MASTER=\"$(redis-cli -h $SERVICE -p $SENTINEL_PORT sentinel
+    get-master-addr-by-name $MASTER_GROUP | grep -E '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}')\"\n
     \      if [ \"$MASTER\" ]; then\n           sentinel_update \"$MASTER\"\n           redis_update
     \"$MASTER\"\n       else\n          echo \"Could not failover, exiting...\"\n
     \         exit 1\n       fi\n    else\n        echo \"Found reachable master,
@@ -273,7 +315,7 @@ data:
     rdbchecksum yes
     rdbcompression yes
     repl-diskless-sync yes
-    save 900 1
+    save ""
   sentinel.conf: |
     dir "/data"
     sentinel down-after-milliseconds argocd 10000
@@ -777,8 +819,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: fd61dcd77a6f4a93ac6609398c79958da8eeae692c1203f77809abf3301e09e6
-        checksum/probe-config: 6a71f32ef8f1e6e6046352b15c3ee4e201a0288442ae2abc3a64461df55d7bc4
+        checksum/init-config: 06440ee4a409be2aa01dfa08c14dd964fe3bad2ada57da1a538ad5cd771a045f
+        checksum/probe-config: 4b9888f173366e436f167856ee3469e8c1fd5221e29caa2129373db23578ec10
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -868,11 +910,11 @@ spec:
         - sh
         env:
         - name: SENTINEL_ID_0
-          value: fcf9c936f413aee4a7faceeef0817f2894e477ff
+          value: e791a161cb06f0d3eb0cc392117d34cf0eae9d71
         - name: SENTINEL_ID_1
-          value: cdf48d26a604810dc199f2d532723d2087f68e1e
+          value: d9b3204a90597a7500530efd881942d8145996ac
         - name: SENTINEL_ID_2
-          value: 4e85671bbbc383ff723c51ffb0ac2bc2e7a60cea
+          value: d9deb539c0402841c2492e9959c8086602fa4284
         image: redis:5.0.3-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
@@ -887,6 +929,7 @@ spec:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
+      serviceAccountName: argocd-redis-ha
       volumes:
       - configMap:
           name: argocd-redis-ha-configmap
