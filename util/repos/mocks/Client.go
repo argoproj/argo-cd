@@ -53,20 +53,20 @@ func (_m *Client) LsFiles(path string) ([]string, error) {
 	return r0, r1
 }
 
-// ResolveRevision provides a mock function with given fields: revision
-func (_m *Client) ResolveRevision(revision string) (string, error) {
-	ret := _m.Called(revision)
+// ResolveRevision provides a mock function with given fields: path, revision
+func (_m *Client) ResolveRevision(path string, revision string) (string, error) {
+	ret := _m.Called(path, revision)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(revision)
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(path, revision)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(revision)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(path, revision)
 	} else {
 		r1 = ret.Error(1)
 	}

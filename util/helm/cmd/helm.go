@@ -142,7 +142,14 @@ type FetchOpts struct {
 }
 
 func (h Helm) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
-	return h.run("fetch", "--untar", "--untardir", opts.Destination, "--version", opts.Version, repo+"/"+chartName)
+	args := []string{"fetch", "--untar", "--untardir", opts.Destination}
+
+	if opts.Version != "" {
+		args = append(args, "--version", opts.Version)
+	}
+
+	args = append(args, repo+"/"+chartName)
+	return h.run(args...)
 }
 
 func (h Helm) DependencyBuild() (string, error) {

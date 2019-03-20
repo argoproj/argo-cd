@@ -51,7 +51,7 @@ func (m *nativeGitClient) WorkDir() string {
 }
 
 func (m *nativeGitClient) Test() error {
-	_, err := m.ResolveRevision("")
+	_, err := m.ResolveRevision("", "")
 	return err
 }
 
@@ -158,7 +158,7 @@ func (m *nativeGitClient) Checkout(_, revision string) (string, error) {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) ResolveRevision(revision string) (string, error) {
+func (m *nativeGitClient) ResolveRevision(path, revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}

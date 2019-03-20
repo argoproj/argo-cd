@@ -63,7 +63,7 @@ func NewService(clientFactory repos.ClientFactory, cache *cache.Cache, paralleli
 
 // ListDir lists the contents of a GitHub repo
 func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, error) {
-	client, resolvedRevision, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, resolvedRevision, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (s *Service) ListDir(ctx context.Context, q *ListDirRequest) (*FileList, er
 }
 
 func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileResponse, error) {
-	client, resolvedRevision, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, resolvedRevision, err := s.newClientResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (s *Service) GetFile(ctx context.Context, q *GetFileRequest) (*GetFileRespo
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
-	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	client, commitSHA, err := s.newClientResolveRevision(q.Repo, q.ApplicationSource.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +477,7 @@ func pathExists(ss ...string) bool {
 
 // newClientResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
-func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision string) (repos.Client, string, error) {
+func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, path, revision string) (repos.Client, string, error) {
 	repoURL := repos.NormalizeURL(repo.Repo)
 	appRepoPath := tempRepoPath(repoURL)
 	config := repos.Config{Url: repoURL, Type: string(repo.Type), Name: repo.Name, Username: repo.Username, Password: repo.Password, SSHPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
@@ -485,7 +485,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	if err != nil {
 		return nil, "", err
 	}
-	resolvedRevision, err := client.ResolveRevision(revision)
+	resolvedRevision, err := client.ResolveRevision(path, revision)
 	if err != nil {
 		return nil, "", err
 	}
@@ -529,7 +529,7 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1
 
 func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error) {
 	revision := q.Revision
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, revision)
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Path, revision)
 	if err != nil {
 		return nil, err
 	}

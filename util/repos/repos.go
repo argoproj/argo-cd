@@ -15,9 +15,11 @@ type Client interface {
 	// Test that we can connect to the remote repo.
 	Test() error
 	// Checkout out the specified revision of the code from the remote repo into the working tree.
+	// revision can be empty string, which should be treated as HEAD/latest
 	Checkout(path, revision string) (string, error)
 	// Resolve a potentially ambiguous revision (e.g. tag or branch) into non-ambiguous revision.
-	ResolveRevision(revision string) (string, error)
+	// revision can be empty string, which should be treated as HEAD/latest
+	ResolveRevision(path, revision string) (string, error)
 	// List files in the local working tree.
 	LsFiles(path string) ([]string, error)
 }
@@ -25,7 +27,7 @@ type Client interface {
 // ClientFactory is a factory of Clients
 // Primarily used to support creation of mock git clients during unit testing
 type ClientFactory interface {
-	NewClient(c Config, path string) (Client, error)
+	NewClient(c Config, workDir string) (Client, error)
 }
 
 type factory struct{}

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -900,11 +902,16 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL, Type: "git"}
 	}
 	config := repos.Config{Url: repo.Repo, Type: string(repo.Type), Name: repo.Name, Username: repo.Username, Password: repo.Password, SSHPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
-	client, err := s.clientFactory.NewClient(config, "")
+	wordDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return "", "", err
 	}
-	resolvedRevision, err := client.ResolveRevision(ambiguousRevision)
+	defer func() { _ = os.RemoveAll(wordDir) }()
+	client, err := s.clientFactory.NewClient(config, wordDir)
+	if err != nil {
+		return "", "", err
+	}
+	resolvedRevision, err := client.ResolveRevision(app.Spec.Source.Path, ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}

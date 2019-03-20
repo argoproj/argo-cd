@@ -416,7 +416,7 @@ func (c *FakeGitClient) Reset() error {
 	return nil
 }
 
-func (c *FakeGitClient) ResolveRevision(s string) (string, error) {
+func (c *FakeGitClient) ResolveRevision(path, revision string) (string, error) {
 	return "abcdef123456890", nil
 }
 
