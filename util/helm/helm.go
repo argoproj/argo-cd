@@ -191,6 +191,7 @@ func (h *helm) helmCmd(args ...string) (string, error) {
 
 func (h *helm) helmCmdExt(args []string, logFormat func(string) string) (string, error) {
 	cmd := exec.Command("helm", args...)
+	cmd.Env = os.Environ()
 	cmd.Dir = h.path
 	if h.home != "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.home))
