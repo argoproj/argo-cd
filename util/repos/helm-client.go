@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	glob2 "github.com/gobwas/glob"
 	"github.com/pkg/errors"
@@ -158,6 +159,9 @@ type index struct {
 }
 
 func (c helmClient) getIndex() (*index, error) {
+
+	start := time.Now()
+
 	resp, err := http.Get(c.repoURL + "/index.yaml")
 	if err != nil {
 		return nil, err
@@ -170,6 +174,9 @@ func (c helmClient) getIndex() (*index, error) {
 
 	index := &index{}
 	err = yaml.NewDecoder(resp.Body).Decode(index)
+
+	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Debug("took to get index")
+
 	if err != nil {
 		return nil, err
 	}
