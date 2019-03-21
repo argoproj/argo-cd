@@ -687,9 +687,18 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					err := json.Unmarshal([]byte(res.LiveState), &live)
 					errors.CheckError(err)
 
-					key := kube.GetResourceKey(live)
+					var key kube.ResourceKey
+					if live != nil {
+						key = kube.GetResourceKey(live)
+					} else {
+						var target = &unstructured.Unstructured{}
+						err = json.Unmarshal([]byte(res.TargetState), &target)
+						errors.CheckError(err)
+						key = kube.GetResourceKey(target)
+					}
+
 					if local, ok := localObjs[key]; ok || live != nil {
-						if local != nil && !kube.IsCRD(live) {
+						if local != nil && !kube.IsCRD(local) {
 							err = kube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
 							errors.CheckError(err)
 						}
