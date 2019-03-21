@@ -92,12 +92,12 @@ func repoConnectionStateKey(repo string) string {
 	return fmt.Sprintf("repo|%s|connection-state", repo)
 }
 
-func listDirKey(commitSHA string, path string) string {
-	return fmt.Sprintf("ldir|%s|%s", path, commitSHA)
+func listDirKey(repo, path string) string {
+	return fmt.Sprintf("ldir|%s|%s", repo, path)
 }
 
-func gitFileKey(commitSHA string, path string) string {
-	return fmt.Sprintf("gfile|%s|%s", path, commitSHA)
+func fileKey(repo, path, revision string) string {
+	return fmt.Sprintf("gfile|%s|%s|%s", repo, path, revision)
 }
 
 func oidcStateKey(key string) string {
@@ -172,9 +172,9 @@ func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState
 	return c.setItem(repoConnectionStateKey(repo), &state, connectionStatusCacheExpiration, state == nil)
 }
 
-func (c *Cache) GetGitListDir(commitSha string, path string) ([]string, error) {
+func (c *Cache) GetListDir(repo, path string) ([]string, error) {
 	res := make([]string, 0)
-	err := c.getItem(listDirKey(commitSha, path), &res)
+	err := c.getItem(listDirKey(repo, path), &res)
 	return res, err
 }
 
@@ -182,14 +182,14 @@ func (c *Cache) SetListDir(commitSha string, path string, files []string) error 
 	return c.setItem(listDirKey(commitSha, path), files, repoCacheExpiration, files == nil)
 }
 
-func (c *Cache) GetGitFile(commitSha string, path string) ([]byte, error) {
+func (c *Cache) GetFile(repo, path, revision string) ([]byte, error) {
 	res := make([]byte, 0)
-	err := c.getItem(gitFileKey(commitSha, path), &res)
+	err := c.getItem(fileKey(repo, path, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetGitFile(commitSha string, path string, data []byte) error {
-	return c.setItem(gitFileKey(commitSha, path), data, repoCacheExpiration, data == nil)
+func (c *Cache) SetFile(repo, path, revision string, data []byte) error {
+	return c.setItem(fileKey(repo, path, revision), data, repoCacheExpiration, data == nil)
 }
 
 func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {

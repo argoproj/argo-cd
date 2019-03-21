@@ -86,7 +86,7 @@ func (m *nativeGitClient) init() error {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) fetch() error {
-	log.Debugf("Fetching repo %s at %s", m.repoURL, m.workDir)
+	log.WithFields(log.Fields{"repoUrl": m.repoURL, "workDir": m.workDir}).Debug("Fetching repo")
 	// Two techniques are used for fetching the remote depending if the remote is SSH vs. HTTPS
 	// If http, we fork/exec the git CLI since the go-git client does not properly support git
 	// providers such as AWS CodeCommit and Azure DevOps.
@@ -118,8 +118,8 @@ func (m *nativeGitClient) goGitFetch() error {
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
-func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
-	out, err := m.runCmd("git", "ls-files", "--full-name", "-z", "--", path)
+func (m *nativeGitClient) LsFiles(glob string) ([]string, error) {
+	out, err := m.runCmd("git", "ls-files", "--full-name", "-z", "--", glob)
 	if err != nil {
 		return nil, err
 	}
@@ -130,9 +130,6 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 
 // Checkout checkout specified git sha
 func (m *nativeGitClient) Checkout(_, revision string) (string, error) {
-
-	log.Debugf("Checking out Git repo repo=%s, revision=%s, workDir=%s", m.repoURL, revision, m.workDir)
-
 	err := m.init()
 	if err != nil {
 		return "", err
@@ -158,7 +155,7 @@ func (m *nativeGitClient) Checkout(_, revision string) (string, error) {
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) ResolveRevision(path, revision string) (string, error) {
+func (m *nativeGitClient) ResolveRevision(_, revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}

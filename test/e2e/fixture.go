@@ -399,7 +399,7 @@ func (c *FakeGitClient) WorkDir() string {
 	return c.workDir
 }
 
-func (c *FakeGitClient) Checkout(path, revision string) (string, error) {
+func (c *FakeGitClient) Checkout(_, revision string) (string, error) {
 	_, err := exec.Command("rm", "-rf", c.workDir).Output()
 	if err != nil {
 		return "", err
@@ -416,12 +416,12 @@ func (c *FakeGitClient) Reset() error {
 	return nil
 }
 
-func (c *FakeGitClient) ResolveRevision(path, revision string) (string, error) {
+func (c *FakeGitClient) ResolveRevision(_, revision string) (string, error) {
 	return "abcdef123456890", nil
 }
 
-func (c *FakeGitClient) LsFiles(s string) ([]string, error) {
-	matches, err := filepath.Glob(path.Join(c.workDir, s))
+func (c *FakeGitClient) LsFiles(glob string) ([]string, error) {
+	matches, err := filepath.Glob(path.Join(c.workDir, glob))
 	if err != nil {
 		return nil, err
 	}

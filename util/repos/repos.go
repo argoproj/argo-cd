@@ -13,15 +13,16 @@ type Client interface {
 	// Return the directory of the checkout code. Aka "working tree".
 	WorkDir() string
 	// Test that we can connect to the remote repo.
+	// Should return nil if everything is OK, or the error failing to connect.
 	Test() error
 	// Checkout out the specified revision of the code from the remote repo into the working tree.
-	// revision can be empty string, which should be treated as HEAD/latest
-	Checkout(path, revision string) (string, error)
+	// revision can be empty string, which should be treated as HEAD/latest.
+	Checkout(glob, revision string) (string, error)
 	// Resolve a potentially ambiguous revision (e.g. tag or branch) into non-ambiguous revision.
 	// revision can be empty string, which should be treated as HEAD/latest
-	ResolveRevision(path, revision string) (string, error)
-	// List files in the local working tree.
-	LsFiles(path string) ([]string, error)
+	ResolveRevision(glob, revision string) (string, error)
+	// List files in the repository matching the glob.
+	LsFiles(glob string) ([]string, error)
 }
 
 // ClientFactory is a factory of Clients
