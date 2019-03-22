@@ -1,4 +1,4 @@
-import { FormField, FormSelect, getNestedField } from 'argo-ui';
+import { FormField, FormSelect } from 'argo-ui';
 import * as React from 'react';
 import { FieldApi, FormApi, FormField as ReactFormField, Text } from 'react-form';
 
@@ -27,6 +27,8 @@ function overridesFirst(first: { overrideIndex: number}, second: { overrideIndex
 
 function getParamsEditableItems<T extends { name: string, value: string }>(
     fieldsPath: string,
+    removedOverrides: boolean[],
+    setRemovedOverrides: React.Dispatch<boolean[]>,
     params: {
         key?: string;
         overrideIndex: number;
@@ -44,9 +46,7 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
         ),
         edit: (formApi: FormApi) => {
             const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 1} as any;
-            const overrideRemoved =
-                    getNestedField(formApi.values, fieldsPath) != null &&
-                    getNestedField(formApi.values, fieldsPath)[i] === null;
+            const overrideRemoved = removedOverrides[i];
             const fieldItemPath = `${fieldsPath}[${i}]`;
             return (
                 <React.Fragment>
@@ -57,9 +57,17 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
                             metadata: param.metadata,
                         }}/>
                     )}
-                    {param.metadata.value !== param.original && !overrideRemoved && <a onClick={() => formApi.setValue(fieldItemPath, null)} style={labelStyle}>
+                    {param.metadata.value !== param.original && !overrideRemoved && <a onClick={() => {
+                        formApi.setValue(fieldItemPath, null);
+                        removedOverrides[i] = true;
+                        setRemovedOverrides(removedOverrides);
+                    }} style={labelStyle}>
                         Remove override</a>}
-                    {overrideRemoved && <a onClick={() => formApi.setValue(fieldItemPath, param.metadata)} style={labelStyle}>
+                    {overrideRemoved && <a onClick={() => {
+                        formApi.setValue(fieldItemPath, param.metadata);
+                        removedOverrides[i] = false;
+                        setRemovedOverrides(removedOverrides);
+                    }} style={labelStyle}>
                         Keep override</a>}
                 </React.Fragment>
             );
@@ -74,6 +82,7 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
 export const ApplicationParameters = (props: { application: models.Application, details: models.RepoAppDetails, save?: (application: models.Application) => Promise<any> }) => {
     const app = props.application;
     const source = props.application.spec.source;
+    const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
 
@@ -93,7 +102,7 @@ export const ApplicationParameters = (props: { application: models.Application, 
         (props.details.ksonnet && props.details.ksonnet.parameters || []).forEach((param) => paramsByComponentName.set(`${param.component}-${param.name}` , param));
         const overridesByComponentName = new Map<string, number>();
         (source.ksonnet && source.ksonnet.parameters || []).forEach((override, i) => overridesByComponentName.set(`${override.component}-${override.name}`, i));
-        attributes = attributes.concat(getParamsEditableItems('spec.source.ksonnet.parameters',
+        attributes = attributes.concat(getParamsEditableItems('spec.source.ksonnet.parameters', removedOverrides, setRemovedOverrides,
                 distinct(paramsByComponentName.keys(), overridesByComponentName.keys()).map((componentName) => {
             const param = paramsByComponentName.get(componentName);
             const original = param && param.value || '';
@@ -114,7 +123,7 @@ export const ApplicationParameters = (props: { application: models.Application, 
         (props.details.kustomize && props.details.kustomize.imageTags || []).forEach((img) => imagesByName.set(img.name, img));
         const overridesByName = new Map<string, number>();
         (source.kustomize && source.kustomize.imageTags || []).forEach((override, i) => overridesByName.set(override.name, i));
-        attributes = attributes.concat(getParamsEditableItems('spec.source.kustomize.imageTags',
+        attributes = attributes.concat(getParamsEditableItems('spec.source.kustomize.imageTags', removedOverrides, setRemovedOverrides,
                 distinct(imagesByName.keys(), overridesByName.keys()).map((name) => {
             const param = imagesByName.get(name);
             const original = param && param.value || '';
@@ -140,7 +149,8 @@ export const ApplicationParameters = (props: { application: models.Application, 
         (props.details.helm.parameters || []).forEach((param) => paramsByName.set(param.name, param));
         const overridesByName = new Map<string, number>();
         (source.helm && source.helm.parameters || []).forEach((override, i) => overridesByName.set(override.name, i));
-        attributes = attributes.concat(getParamsEditableItems('spec.source.helm.parameters', distinct(paramsByName.keys(), overridesByName.keys()).map((name) => {
+        attributes = attributes.concat(getParamsEditableItems(
+            'spec.source.helm.parameters', removedOverrides, setRemovedOverrides, distinct(paramsByName.keys(), overridesByName.keys()).map((name) => {
             const param = paramsByName.get(name);
             const original = param && param.value || '';
             let overrideIndex = overridesByName.get(name);
@@ -163,14 +173,18 @@ export const ApplicationParameters = (props: { application: models.Application, 
     return (
         <EditablePanel
             save={props.save && (async (input: models.Application) => {
+                function isDefined(item: any) {
+                    return item !== null && item !== undefined;
+                }
+
                 if (input.spec.source.helm && input.spec.source.helm.parameters) {
-                    input.spec.source.helm.parameters = input.spec.source.helm.parameters.filter((item) => item !== null);
+                    input.spec.source.helm.parameters = input.spec.source.helm.parameters.filter(isDefined);
                 }
                 if (input.spec.source.ksonnet && input.spec.source.ksonnet.parameters) {
-                    input.spec.source.ksonnet.parameters = input.spec.source.ksonnet.parameters.filter((item) => item !== null);
+                    input.spec.source.ksonnet.parameters = input.spec.source.ksonnet.parameters.filter(isDefined);
                 }
                 if (input.spec.source.kustomize && input.spec.source.kustomize.imageTags) {
-                    input.spec.source.kustomize.imageTags = input.spec.source.kustomize.imageTags.filter((item) => item !== null);
+                    input.spec.source.kustomize.imageTags = input.spec.source.kustomize.imageTags.filter(isDefined);
                 }
                 props.save(input);
             })}

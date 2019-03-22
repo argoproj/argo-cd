@@ -19,7 +19,7 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
                 <div className='columns small-2'>HEALTH</div>
             </div>
         </div>
-        {resources.map((res) => (
+        {resources.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second))).map((res) => (
             <div key={nodeKey(res)} className='argo-table-list__row' onClick={() => onNodeClick(nodeKey(res))}>
                 <div className='row'>
                     <div className='columns small-3'>
