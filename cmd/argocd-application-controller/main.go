@@ -43,6 +43,7 @@ func newCommand() *cobra.Command {
 		statusProcessors    int
 		operationProcessors int
 		logLevel            string
+		forceLogColors      bool
 		glogLevel           int
 		cacheSrc            func() (*cache.Cache, error)
 	)
@@ -50,7 +51,7 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "application-controller is a controller to operate on applications CRD",
 		RunE: func(c *cobra.Command, args []string) error {
-			cli.SetLogLevel(logLevel)
+			cli.SetLogLevel(logLevel, forceLogColors)
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
@@ -101,6 +102,7 @@ func newCommand() *cobra.Command {
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().BoolVar(&forceLogColors, "forcelogcolors", false, "Force colored logging")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
 	return &command

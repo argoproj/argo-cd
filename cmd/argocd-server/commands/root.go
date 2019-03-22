@@ -24,6 +24,7 @@ func NewCommand() *cobra.Command {
 	var (
 		insecure               bool
 		logLevel               string
+		forceLogColors         bool
 		glogLevel              int
 		clientConfig           clientcmd.ClientConfig
 		staticAssetsDir        string
@@ -39,7 +40,7 @@ func NewCommand() *cobra.Command {
 		Short: "Run the argocd API server",
 		Long:  "Run the argocd API server",
 		Run: func(c *cobra.Command, args []string) {
-			cli.SetLogLevel(logLevel)
+			cli.SetLogLevel(logLevel, forceLogColors)
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
@@ -92,6 +93,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", "", "Static assets directory path")
 	command.Flags().StringVar(&baseHRef, "basehref", "/", "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().BoolVar(&forceLogColors, "forcelogcolors", false, "Force colored logging")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", common.DefaultDexServerAddr, "Dex server address")

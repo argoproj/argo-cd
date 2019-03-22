@@ -138,10 +138,13 @@ func ReadAndConfirmPassword() (string, error) {
 }
 
 // SetLogLevel parses and sets a logrus log level
-func SetLogLevel(logLevel string) {
+func SetLogLevel(logLevel string, forceLogColors bool) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
 	log.SetLevel(level)
+	if (forceLogColors) {
+		log.SetFormatter(&log.TextFormatter{ForceColors:forceLogColors})
+	}
 }
 
 // SetGLogLevel set the glog level for the k8s go-client
