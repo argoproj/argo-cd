@@ -85,10 +85,13 @@ func MakeSignature(size int) ([]byte, error) {
 // RetryUntilSucceed keep retrying given action with specified timeout until action succeed or specified context is done.
 func RetryUntilSucceed(action func() error, desc string, ctx context.Context, timeout time.Duration) {
 	ctxCompleted := false
+	stop := make(chan bool)
+	defer close(stop)
 	go func() {
 		select {
 		case <-ctx.Done():
 			ctxCompleted = true
+		case <-stop:
 		}
 	}()
 	for {
