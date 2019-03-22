@@ -590,6 +590,8 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:

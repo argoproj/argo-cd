@@ -7,6 +7,8 @@ metadata:
     app.kubernetes.io/component: application-controller
   name: argocd-application-controller
 spec:
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
