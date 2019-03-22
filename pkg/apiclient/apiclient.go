@@ -201,7 +201,11 @@ func (c *client) OIDCConfig(ctx context.Context, set *settings.Settings) (*oauth
 		clientID = common.ArgoCDCLIClientAppID
 		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
 	} else if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
-		clientID = set.OIDCConfig.ClientID
+		if set.OIDCConfig.CLIClientID != "" {
+			clientID = set.OIDCConfig.CLIClientID
+		} else {
+			clientID = set.OIDCConfig.ClientID
+		}
 		issuerURL = set.OIDCConfig.Issuer
 	} else {
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)

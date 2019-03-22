@@ -38,9 +38,10 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 	}
 	if oidcConfig := argoCDSettings.OIDCConfig(); oidcConfig != nil {
 		set.OIDCConfig = &OIDCConfig{
-			Name:     oidcConfig.Name,
-			Issuer:   oidcConfig.Issuer,
-			ClientID: oidcConfig.ClientID,
+			Name:        oidcConfig.Name,
+			Issuer:      oidcConfig.Issuer,
+			ClientID:    oidcConfig.ClientID,
+			CLIClientID: oidcConfig.CLIClientID,
 		}
 	}
 	return &set, nil
