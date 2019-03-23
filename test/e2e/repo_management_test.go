@@ -10,42 +10,38 @@ import (
 	"github.com/argoproj/argo-cd/util"
 )
 
-func TestRepoManagement(t *testing.T) {
-	t.Run("TestAddRemovePublicRepo", func(t *testing.T) {
-		repoUrl := "https://github.com/argoproj/argo-cd.git"
-		_, err := fixture.RunCli("repo", "add", repoUrl)
-		assert.Nil(t, err)
-		clientSet, err := fixture.NewApiClientset()
-		assert.Nil(t, err)
+func TestAddRemovePublicRepo(t *testing.T) {
+	repoUrl := "https://github.com/argoproj/argocd-example-apps.git"
+	_, err := fixture.RunCli("repo", "add", repoUrl)
+	assert.NoError(t, err)
 
-		conn, repoClient, err := clientSet.NewRepoClient()
-		assert.Nil(t, err)
-		defer util.Close(conn)
+	conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+	assert.Nil(t, err)
+	defer util.Close(conn)
 
-		repo, err := repoClient.List(context.Background(), &repository.RepoQuery{})
+	repo, err := repoClient.List(context.Background(), &repository.RepoQuery{})
 
-		assert.Nil(t, err)
-		exists := false
-		for i := range repo.Items {
-			if repo.Items[i].Repo == repoUrl {
-				exists = true
-				break
-			}
+	assert.Nil(t, err)
+	exists := false
+	for i := range repo.Items {
+		if repo.Items[i].Repo == repoUrl {
+			exists = true
+			break
 		}
-		assert.True(t, exists)
+	}
+	assert.True(t, exists)
 
-		_, err = fixture.RunCli("repo", "rm", repoUrl)
-		assert.Nil(t, err)
+	_, err = fixture.RunCli("repo", "rm", repoUrl)
+	assert.Nil(t, err)
 
-		repo, err = repoClient.List(context.Background(), &repository.RepoQuery{})
-		assert.Nil(t, err)
-		exists = false
-		for i := range repo.Items {
-			if repo.Items[i].Repo == repoUrl {
-				exists = true
-				break
-			}
+	repo, err = repoClient.List(context.Background(), &repository.RepoQuery{})
+	assert.Nil(t, err)
+	exists = false
+	for i := range repo.Items {
+		if repo.Items[i].Repo == repoUrl {
+			exists = true
+			break
 		}
-		assert.False(t, exists)
-	})
+	}
+	assert.False(t, exists)
 }
