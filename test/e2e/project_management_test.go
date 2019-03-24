@@ -11,276 +11,274 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 )
 
-func TestProjectManagement(t *testing.T) {
-	assertProjHasEvent := func(a *v1alpha1.AppProject, message string, reason string) {
-		list, err := fixture.KubeClient.CoreV1().Events(fixture.Namespace).List(metav1.ListOptions{
-			FieldSelector: fields.SelectorFromSet(map[string]string{
-				"involvedObject.name":      a.Name,
-				"involvedObject.uid":       string(a.UID),
-				"involvedObject.namespace": fixture.Namespace,
-			}).String(),
-		})
-		if err != nil {
-			t.Fatalf("Unable to get app events %v", err)
+func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, reason string) {
+	list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(map[string]string{
+			"involvedObject.name":      a.Name,
+			"involvedObject.uid":       string(a.UID),
+			"involvedObject.namespace": fixture.ArgoCDNamespace,
+		}).String(),
+	})
+	assert.NoError(t, err)
+
+	for i := range list.Items {
+		event := list.Items[i]
+		if event.Reason == reason && strings.Contains(event.Message, message) {
+			return
 		}
-		for i := range list.Items {
-			event := list.Items[i]
-			if event.Reason == reason && strings.Contains(event.Message, message) {
-				return
-			}
-		}
-		t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
+	}
+	t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
+}
+
+func TestProjectCreation(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.RunCli("proj", "create", projectName,
+		"--description", "Test description",
+		"-d", "https://192.168.99.100:8443,default",
+		"-d", "https://192.168.99.100:8443,service",
+		"-s", "https://github.com/argoproj/argo-cd.git")
+	assert.Nil(t, err)
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, projectName, proj.Name)
+	assert.Equal(t, 2, len(proj.Spec.Destinations))
+
+	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
+	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
+
+	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
+	assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
+
+	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
+
+	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
+}
+
+func TestProjectDeletion(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("proj", "delete", projectName)
+	assert.NoError(t, err)
+
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.True(t, errors.IsNotFound(err))
+	assertProjHasEvent(t, proj, "delete", argo.EventReasonResourceDeleted)
+}
+
+func TestSetProject(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("proj", "set", projectName,
+		"--description", "updated description",
+		"-d", "https://192.168.99.100:8443,default",
+		"-d", "https://192.168.99.100:8443,service")
+	assert.NoError(t, err)
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, projectName, proj.Name)
+	assert.Equal(t, 2, len(proj.Spec.Destinations))
+
+	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
+	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
+
+	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
+	assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+}
+
+func TestAddProjectDestination(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
+	if err != nil {
+		t.Fatalf("Unable to create project %v", err)
 	}
 
-	t.Run("TestProjectCreation", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.RunCli("proj", "create", projectName,
-			"--description", "Test description",
-			"-d", "https://192.168.99.100:8443,default",
-			"-d", "https://192.168.99.100:8443,service",
-			"-s", "https://github.com/argoproj/argo-cd.git")
-		assert.Nil(t, err)
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"https://192.168.99.100:8443",
+		"test1",
+	)
 
-		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get project %v", err)
-		}
-		assert.Equal(t, projectName, proj.Name)
-		assert.Equal(t, 2, len(proj.Spec.Destinations))
+	if err != nil {
+		t.Fatalf("Unable to add project destination %v", err)
+	}
 
-		assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
-		assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"https://192.168.99.100:8443",
+		"test1",
+	)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "already defined"))
 
-		assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
-		assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, projectName, proj.Name)
+	assert.Equal(t, 1, len(proj.Spec.Destinations))
 
-		assert.Equal(t, 1, len(proj.Spec.SourceRepos))
-		assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
+	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
+	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+}
 
-		assertProjHasEvent(proj, "create", argo.EventReasonResourceCreated)
+func TestRemoveProjectDestination(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Spec: v1alpha1.AppProjectSpec{
+			Destinations: []v1alpha1.ApplicationDestination{{
+				Server:    "https://192.168.99.100:8443",
+				Namespace: "test",
+			}},
+		},
 	})
 
-	t.Run("TestProjectDeletion", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
+	if err != nil {
+		t.Fatalf("Unable to create project %v", err)
+	}
 
-		_, err = fixture.RunCli("proj", "delete", projectName)
-		if err != nil {
-			t.Fatalf("Unable to delete project %v", err)
-		}
+	_, err = fixture.RunCli("proj", "remove-destination", projectName,
+		"https://192.168.99.100:8443",
+		"test",
+	)
 
-		_, err = fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
-		assert.True(t, errors.IsNotFound(err))
-		assertProjHasEvent(proj, "delete", argo.EventReasonResourceDeleted)
+	if err != nil {
+		t.Fatalf("Unable to remove project destination %v", err)
+	}
+
+	_, err = fixture.RunCli("proj", "remove-destination", projectName,
+		"https://192.168.99.100:8443",
+		"test1",
+	)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "does not exist"))
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Unable to get project %v", err)
+	}
+	assert.Equal(t, projectName, proj.Name)
+	assert.Equal(t, 0, len(proj.Spec.Destinations))
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+}
+
+func TestAddProjectSource(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
+	if err != nil {
+		t.Fatalf("Unable to create project %v", err)
+	}
+
+	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
+
+	if err != nil {
+		t.Fatalf("Unable to add project source %v", err)
+	}
+
+	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
+	assert.Nil(t, err)
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, projectName, proj.Name)
+	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+
+	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
+}
+
+func TestRemoveProjectSource(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"https://github.com/argoproj/argo-cd.git"},
+		},
 	})
 
-	t.Run("TestSetProject", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
+	assert.NoError(t, err)
 
-		_, err = fixture.RunCli("proj", "set", projectName,
-			"--description", "updated description",
-			"-d", "https://192.168.99.100:8443,default",
-			"-d", "https://192.168.99.100:8443,service")
-		if err != nil {
-			t.Fatalf("Unable to update project %v", err)
-		}
+	_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
 
-		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get project %v", err)
-		}
-		assert.Equal(t, projectName, proj.Name)
-		assert.Equal(t, 2, len(proj.Spec.Destinations))
+	assert.NoError(t, err)
 
-		assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
-		assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
+	_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
+	assert.Nil(t, err)
 
-		assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
-		assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
-		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
-	})
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, projectName, proj.Name)
+	assert.Equal(t, 0, len(proj.Spec.SourceRepos))
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+}
 
-	t.Run("TestAddProjectDestination", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
+func TestUseJWTToken(t *testing.T) {
+	fixture.EnsureCleanState()
 
-		_, err = fixture.RunCli("proj", "add-destination", projectName,
-			"https://192.168.99.100:8443",
-			"test1",
-		)
-
-		if err != nil {
-			t.Fatalf("Unable to add project destination %v", err)
-		}
-
-		_, err = fixture.RunCli("proj", "add-destination", projectName,
-			"https://192.168.99.100:8443",
-			"test1",
-		)
-		assert.NotNil(t, err)
-		assert.True(t, strings.Contains(err.Error(), "already defined"))
-
-		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get project %v", err)
-		}
-		assert.Equal(t, projectName, proj.Name)
-		assert.Equal(t, 1, len(proj.Spec.Destinations))
-
-		assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
-		assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
-		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
-	})
-
-	t.Run("TestRemoveProjectDestination", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: projectName},
-			Spec: v1alpha1.AppProjectSpec{
-				Destinations: []v1alpha1.ApplicationDestination{{
-					Server:    "https://192.168.99.100:8443",
-					Namespace: "test",
-				}},
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
+	roleName := "roleTest"
+	testApp := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: appName,
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: v1alpha1.ApplicationSource{
+				RepoURL: fixture.RepoURL(),
+				Path:    "guestbook",
 			},
-		})
-
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
-
-		_, err = fixture.RunCli("proj", "remove-destination", projectName,
-			"https://192.168.99.100:8443",
-			"test",
-		)
-
-		if err != nil {
-			t.Fatalf("Unable to remove project destination %v", err)
-		}
-
-		_, err = fixture.RunCli("proj", "remove-destination", projectName,
-			"https://192.168.99.100:8443",
-			"test1",
-		)
-		assert.NotNil(t, err)
-		assert.True(t, strings.Contains(err.Error(), "does not exist"))
-
-		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get project %v", err)
-		}
-		assert.Equal(t, projectName, proj.Name)
-		assert.Equal(t, 0, len(proj.Spec.Destinations))
-		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
-	})
-
-	t.Run("TestAddProjectSource", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
-
-		_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-
-		if err != nil {
-			t.Fatalf("Unable to add project source %v", err)
-		}
-
-		_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-		assert.Nil(t, err)
-
-		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get project %v", err)
-		}
-		assert.Equal(t, projectName, proj.Name)
-		assert.Equal(t, 1, len(proj.Spec.SourceRepos))
-
-		assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
-	})
-
-	t.Run("TestRemoveProjectSource", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: projectName},
-			Spec: v1alpha1.AppProjectSpec{
-				SourceRepos: []string{"https://github.com/argoproj/argo-cd.git"},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    common.KubernetesInternalAPIServerAddr,
+				Namespace: fixture.ArgoCDNamespace,
 			},
-		})
-
-		if err != nil {
-			t.Fatalf("Unable to create project %v", err)
-		}
-
-		_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
-
-		if err != nil {
-			t.Fatalf("Unable to remove project source %v", err)
-		}
-
-		_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
-		assert.Nil(t, err)
-
-		proj, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Get(projectName, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get project %v", err)
-		}
-		assert.Equal(t, projectName, proj.Name)
-		assert.Equal(t, 0, len(proj.Spec.SourceRepos))
-		assertProjHasEvent(proj, "update", argo.EventReasonResourceUpdated)
+			Project: projectName,
+		},
+	}
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Spec: v1alpha1.AppProjectSpec{
+			Destinations: []v1alpha1.ApplicationDestination{{
+				Server:    common.KubernetesInternalAPIServerAddr,
+				Namespace: fixture.ArgoCDNamespace,
+			}},
+			SourceRepos: []string{"*"},
+		},
 	})
+	assert.Nil(t, err)
 
-	t.Run("TestUseJWTToken", func(t *testing.T) {
-		projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
-		appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
-		roleName := "roleTest"
-		testApp := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: appName,
-			},
-			Spec: v1alpha1.ApplicationSpec{
-				Source: v1alpha1.ApplicationSource{
-					RepoURL: "https://github.com/argoproj/argo-cd.git",
-					Path:    ".",
-					Ksonnet: &v1alpha1.ApplicationSourceKsonnet{
-						Environment: "minikube",
-					},
-				},
-				Destination: v1alpha1.ApplicationDestination{
-					Server:    fixture.Config.Host,
-					Namespace: fixture.Namespace,
-				},
-				Project: projectName,
-			},
-		}
-		_, err := fixture.AppClient.ArgoprojV1alpha1().AppProjects(fixture.Namespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
-		assert.Nil(t, err)
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(testApp)
+	assert.Nil(t, err)
 
-		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Create(testApp)
-		assert.Nil(t, err)
+	_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
+	assert.Nil(t, err)
 
-		_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
-		assert.Nil(t, err)
+	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
+	assert.Nil(t, err)
 
-		_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
-		assert.Nil(t, err)
+	_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", "get", "-o", "*", "-p", "allow")
+	assert.Nil(t, err)
 
-		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", "get", "-o", "*", "-p", "allow")
-		assert.Nil(t, err)
-
-	})
 }
