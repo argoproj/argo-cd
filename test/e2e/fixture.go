@@ -205,11 +205,10 @@ func (f *Fixture) deleteDeploymentNamespace() {
 }
 
 func (f *Fixture) RunCli(args ...string) (string, error) {
-	args = append([]string{"run", "../../cmd/argocd/main.go"}, args...)
 	if f.plainText {
 		args = append(args, "--plaintext")
 	}
-	cmd := exec.Command("go", append(args, "--server", f.apiServerAddress, "--auth-token", f.token, "--insecure")...)
+	cmd := exec.Command("../../dist/argocd", append(args, "--server", f.apiServerAddress, "--auth-token", f.token, "--insecure")...)
 	log.Infof("CLI: %s", strings.Join(cmd.Args, " "))
 	outBytes, err := cmd.Output()
 	if err != nil {
