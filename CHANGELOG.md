@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.12.0 (Unreleased)
+## v0.12.0 (2019-03-20)
 
 ### New Features
 
@@ -156,8 +156,39 @@ has a minimum client version of v0.12.0. Older CLI clients will be rejected.
 
 
 ### Changes since v0.11:
-- 
-
++ Improved UI
++ Custom Health Assessments (CRD Health)
++ Configuration Management Plugins
++ High Availability
++ Fuzzy Diff Logic
++ Resource Exclusions
++ gRPC-Web Support
++ CLI features
++ Additional prometheus metrics
++ Sample Grafana dashboard (#1277) (@hartman17)
++ Support for Kustomize 2
++ YAML/JSON/Jsonnet Directories can now be recursed
++ Support for Jsonnet external variables and top-level arguments
++ Optimized reconciliation performance for applications with very active resources (#1267)
++ Support a separate OAuth2 CLI clientID different from server (#1307)
++ argocd diff: only print to stdout, if there is a diff + exit code (#1288) (@marcb1)
++ Detection and handling of duplicated resource definitions (#1284)
++ Support kustomize apps with remote bases in private repos in the same host (#1264)
++ Support patching resource using REST API (#1186)
+* Deprecate componentParameterOverrides in favor of source specific config (#1207)
+* Support talking to Dex using local cluster address instead of public address (#1211)
+* Use Recreate deployment strategy for controller (#1315)
+* Honor os environment variables for helm commands (#1306) (@1337andre)
+* Disable CGO_ENABLED for server/controller binaries (#1286)
+* Documentation fixes and improvements (@twz123, @yann-soubeyrand, @OmerKahani, @dulltz)
+- Fix CRD creation/deletion handling (#1249)
+- Git cloning via SSH was not verifying host public key (#1276)
+- Fixed multiple goroutine leaks in controller and api-server
+- Fix isssue where `argocd app set -p` required repo privileges. (#1280)
+- Fix local diff of non-namespaced resources. Also handle duplicates in local diff (#1289)
+- Deprecated resource kinds from 'extensions' groups are not reconciled correctly (#1232)
+- Fix issue where CLI would panic after timeout when cli did not have get permissions (#1209)
+- invalidate repo cache on delete (#1182) (@narg95)
 
 ## v0.11.2 (2019-02-19)
 + Adds client retry. Fixes #959 (#1119)
