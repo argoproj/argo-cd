@@ -17,11 +17,4 @@ argocd app create wordpress \
 
 ## Notes
 
-Unlike Git repos, Helm repos do not support directory listings. So this mean they do not support
-
-* Auto-completion of paths when creating apps.
-* Automatic syncing.
-
-Additionally:
-
 * The field `source/repoUrl` is inferred as a Helm apps only if it is set as a Helm repo in the settings. 
