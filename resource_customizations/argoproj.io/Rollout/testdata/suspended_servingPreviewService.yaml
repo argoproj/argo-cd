@@ -15,6 +15,7 @@ metadata:
   uid: 29802403-1e66-11e9-a6a4-025000000001
 spec:
   minReadySeconds: 30
+  paused: true
   replicas: 3
   selector:
     matchLabels:
@@ -37,20 +38,21 @@ spec:
         - containerPort: 83
         resources: {}
 status:
-  blueGreen:
-    activeSelector: 85f9884f5d
-    previewSelector: 697fb9575c
   availableReplicas: 6
+  blueGreen:
+    activeSelector: 74d854cfd6
+    previewSelector: b6b6f4c9c
+  canary: {}
   conditions:
-  - lastTransitionTime: 2019-01-25T07:44:26Z
-    lastUpdateTime: 2019-01-25T07:44:26Z
-    message: Rollout is serving traffic from the active service.
-    reason: Available
-    status: "True"
-    type: Available
-  currentPodHash: 697fb9575c
-  observedGeneration: 767f98959f
+    - lastTransitionTime: '2019-03-25T18:06:57Z'
+      lastUpdateTime: '2019-03-25T18:06:57Z'
+      message: Rollout is serving traffic from the active service.
+      reason: Available
+      status: 'True'
+      type: Available
+  currentPodHash: b6b6f4c9c
+  observedGeneration: 7cb78b9667
+  pauseStartTime: '2019-03-25T18:32:52Z'
   readyReplicas: 6
   replicas: 6
   updatedReplicas: 3
-  verifyingPreview: true
