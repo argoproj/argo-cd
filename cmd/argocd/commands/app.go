@@ -1691,7 +1691,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		for i := range liveObjs {
 			obj := liveObjs[i]
 			gvk := obj.GroupVersionKind()
-			if command.Flags().Changed("group") && kind != gvk.Group {
+			if command.Flags().Changed("group") && group != gvk.Group {
 				continue
 			}
 			if namespace != "" && namespace != obj.GetNamespace() {
