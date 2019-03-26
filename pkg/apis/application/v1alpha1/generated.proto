@@ -179,7 +179,7 @@ message ApplicationSourceKustomize {
   // ImageTags are kustomize 1.0 image tag overrides
   repeated KustomizeImageTag imageTags = 2;
 
-  // ImageS are kustomize 2.0 image overrides
+  // Images are kustomize 2.0 image overrides
   repeated string images = 3;
 }
 

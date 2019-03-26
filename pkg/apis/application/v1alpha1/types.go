@@ -135,7 +135,7 @@ type ApplicationSourceKustomize struct {
 	NamePrefix string `json:"namePrefix" protobuf:"bytes,1,opt,name=namePrefix"`
 	// ImageTags are kustomize 1.0 image tag overrides
 	ImageTags []KustomizeImageTag `json:"imageTags" protobuf:"bytes,2,opt,name=imageTags"`
-	// ImageS are kustomize 2.0 image overrides
+	// Images are kustomize 2.0 image overrides
 	Images []string `json:"images" protobuf:"bytes,3,opt,name=images"`
 }
 

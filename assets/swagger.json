@@ -2482,7 +2482,7 @@
         },
         "images": {
           "type": "array",
-          "title": "ImageS are kustomize 2.0 image overrides",
+          "title": "Images are kustomize 2.0 image overrides",
           "items": {
             "type": "string"
           }

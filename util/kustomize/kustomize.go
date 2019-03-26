@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
+// represents a Docker image in the format NAME[:TAG].
 type Image = string
 
 // Kustomize provides wrapper functionality around the `kustomize` command.
