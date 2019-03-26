@@ -636,11 +636,11 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		res.Kustomize = &KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
 		k := kustomize.NewKustomizeApp(appPath, kustomizeCredentials(q.Repo))
-		_, params, err := k.Build(nil)
+		_, images, err := k.Build(nil)
 		if err != nil {
 			return nil, err
 		}
-		res.Kustomize.ImageTags = params
+		res.Kustomize.Images = images
 	}
 	return &res, nil
 }

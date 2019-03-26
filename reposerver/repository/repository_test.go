@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/kustomize"
+
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -251,7 +253,5 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 		Path: "kustomization_yaml",
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, "k8s.gcr.io/nginx-slim", res.Kustomize.ImageTags[0].Name)
-	assert.Equal(t, "0.8", res.Kustomize.ImageTags[0].Value)
-	assert.Equal(t, 2, len(res.Kustomize.ImageTags))
+	assert.Equal(t, []kustomize.Image{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
 }

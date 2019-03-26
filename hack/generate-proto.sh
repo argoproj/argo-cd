@@ -117,7 +117,7 @@ clean_swagger() {
     /usr/bin/find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
 }
 
-collect_swagger server 24
+collect_swagger server 23
 clean_swagger server
 clean_swagger reposerver
 clean_swagger controller

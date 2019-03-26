@@ -97,7 +97,7 @@ message HelmAppSpec {
 // KustomizeAppSpec contains kustomize app name and path in source repo
 message KustomizeAppSpec {
 	string path = 1;
-	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.KustomizeImageTag imageTags = 2;
+	repeated string images = 2;
 }
 
 message KsonnetEnvironment {
