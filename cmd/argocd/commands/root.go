@@ -19,7 +19,7 @@ var logLevel string
 var forceLogColors bool
 
 func initConfig() {
-	cli.SetLogLevel(logLevel, forceLogColors)
+	cli.SetLogLevel(logLevel)
 }
 
 // NewCommand returns a new instance of an argocd command

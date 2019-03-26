@@ -30,7 +30,6 @@ const (
 func newCommand() *cobra.Command {
 	var (
 		logLevel               string
-		forceLogColors         bool
 		parallelismLimit       int64
 		cacheSrc               func() (*cache.Cache, error)
 		tlsConfigCustomizerSrc func() (tls.ConfigCustomizer, error)
@@ -39,7 +38,7 @@ func newCommand() *cobra.Command {
 		Use:   cliName,
 		Short: "Run argocd-repo-server",
 		RunE: func(c *cobra.Command, args []string) error {
-			cli.SetLogLevel(logLevel, forceLogColors)
+			cli.SetLogLevel(logLevel)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
@@ -67,7 +66,6 @@ func newCommand() *cobra.Command {
 	}
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().BoolVar(&forceLogColors, "forcelogcolors", false, "Force colored logging")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", 0, "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = cache.AddCacheFlagsToCmd(&command)
