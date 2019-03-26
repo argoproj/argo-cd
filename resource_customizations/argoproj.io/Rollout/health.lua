@@ -1,7 +1,7 @@
 hs = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
-    for i, condition in ipairs(obj.status.conditions) do
+    for _, condition in ipairs(obj.status.conditions) do
       if condition.type == "InvalidSpec" then
         hs.status = "Degraded"
         hs.message = condition.message
@@ -15,13 +15,14 @@ if obj.status ~= nil then
 	  hs.message = "Waiting for roll out to finish: More replicas need to be updated"
       return hs
     end
-    local verifyingPreview = false
-    if obj.status.verifyingPreview ~= nil then
-      verifyingPreview = obj.status.verifyingPreview
-    end
-    if verifyingPreview and obj.status.blueGreen.previewSelector ~= nil and obj.status.blueGreen.previewSelector == obj.status.currentPodHash then
+
+    if obj.spec.paused then
       hs.status = "Suspended"
-      hs.message = "The preview Service is serving traffic to the current pod spec"
+      if obj.status.blueGreen.previewSelector ~= nil and obj.status.blueGreen.previewSelector == obj.status.currentPodHash then
+        hs.message = "The preview Service is serving traffic to the current pod spec"
+      elseif obj.status.blueGreen.activeSelector ~= nil and obj.status.blueGreen.activeSelector == obj.status.currentPodHash then
+        hs.message = "The active Service is serving traffic to the current pod spec"
+      end
       return hs
     end
 
@@ -46,6 +47,6 @@ if obj.status ~= nil then
     return hs
   end
 end
-hs.status = "Unknown"
-hs.message = "Rollout should not reach here. Please file a bug at https://github.com/argoproj/argo-cd/issues/new"
+hs.status = "Progressing"
+hs.message = "Waiting for rollout to finish: status has not been reconciled."
 return hs
