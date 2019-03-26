@@ -39,10 +39,6 @@ required = [
   name = "k8s.io/api"
 
 [[constraint]]
-  name = "k8s.io/apiextensions-apiserver"
-  branch = "release-1.12"
-
-[[constraint]]
   branch = "release-1.12"
   name = "k8s.io/code-generator"
 

@@ -1262,14 +1262,7 @@
   branch = "release-1.12"
   digest = "1:39be82077450762b5e14b5268e679a14ac0e9c7d3286e2fcface437556a29e4c"
   name = "k8s.io/apiextensions-apiserver"
-  packages = [
-    "pkg/apis/apiextensions",
-    "pkg/apis/apiextensions/v1beta1",
-    "pkg/client/clientset/clientset",
-    "pkg/client/clientset/clientset/scheme",
-    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
-    "pkg/features",
-  ]
+  packages = ["pkg/features"]
   pruneopts = ""
   revision = "ca1024863b48cf0701229109df75ac5f0bb4907e"
 
@@ -1624,7 +1617,6 @@
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
-    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
     "k8s.io/apimachinery/pkg/api/equality",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
