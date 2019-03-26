@@ -20,7 +20,7 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
 
 	argoexec "github.com/argoproj/pkg/exec"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
