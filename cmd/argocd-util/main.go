@@ -44,8 +44,7 @@ const (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		logLevel       string
-		forceLogColors bool
+		logLevel string
 	)
 
 	var command = &cobra.Command{
@@ -64,7 +63,6 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewClusterConfig())
 
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().BoolVar(&forceLogColors, "forcelogcolors", false, "Force colored logging")
 	return command
 }
 

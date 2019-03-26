@@ -138,12 +138,12 @@ func ReadAndConfirmPassword() (string, error) {
 }
 
 // SetLogLevel parses and sets a logrus log level
-func SetLogLevel(logLevel string, forceLogColors bool) {
+func SetLogLevel(logLevel string) {
 	level, err := log.ParseLevel(logLevel)
 	errors.CheckError(err)
 	log.SetLevel(level)
-	if (forceLogColors) {
-		log.SetFormatter(&log.TextFormatter{ForceColors:forceLogColors})
+	if os.Getenv("FORCE_LOG_COLORS") == "1" {
+		log.SetFormatter(&log.TextFormatter{ForceColors: true})
 	}
 }
 
