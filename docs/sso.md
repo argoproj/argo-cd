@@ -103,4 +103,10 @@ data:
     issuer: https://dev-123456.oktapreview.com
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
+
+    # Some OIDC providers require a separate clientID for different callback URLs.
+    # For example, if configuring Argo CD with self-hosted Dex, you will need a separate client ID
+    # for the 'localhost' (CLI) client to Dex. This field is optional. If omitted, the CLI will
+    # use the same clientID as the Argo CD server
+    cliClientID: vvvvwwwwxxxxyyyyzzzz
 ```

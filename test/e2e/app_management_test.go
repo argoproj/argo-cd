@@ -6,217 +6,226 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/argoproj/argo-cd/util/diff"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
 
-	// load the gcp plugin (required to authenticate against GKE clusters).
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-
+	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/diff"
 )
 
-func TestAppManagement(t *testing.T) {
-	assertAppHasEvent := func(a *v1alpha1.Application, message string, reason string) {
-		list, err := fixture.KubeClient.CoreV1().Events(fixture.Namespace).List(metav1.ListOptions{
-			FieldSelector: fields.SelectorFromSet(map[string]string{
-				"involvedObject.name":      a.Name,
-				"involvedObject.uid":       string(a.UID),
-				"involvedObject.namespace": fixture.Namespace,
-			}).String(),
-		})
-		if err != nil {
-			t.Fatalf("Unable to get app events %v", err)
-		}
-		for i := range list.Items {
-			event := list.Items[i]
-			if event.Reason == reason && strings.Contains(event.Message, message) {
-				return
-			}
-		}
-		t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
-	}
+const (
+	guestbookPath = "guestbook"
+)
 
-	testApp := &v1alpha1.Application{
+func assertAppHasEvent(t *testing.T, a *v1alpha1.Application, message string, reason string) {
+	list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(map[string]string{
+			"involvedObject.name":      a.Name,
+			"involvedObject.uid":       string(a.UID),
+			"involvedObject.namespace": fixture.ArgoCDNamespace,
+		}).String(),
+	})
+	assert.NoError(t, err)
+	for i := range list.Items {
+		event := list.Items[i]
+		if event.Reason == reason && strings.Contains(event.Message, message) {
+			return
+		}
+	}
+	t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
+}
+
+func getTestApp() *v1alpha1.Application {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "test-app",
+		},
 		Spec: v1alpha1.ApplicationSpec{
 			Source: v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/argoproj/argo-cd.git",
-				Path:    ".",
-				Ksonnet: &v1alpha1.ApplicationSourceKsonnet{
-					Environment: "minikube",
-				},
+				RepoURL: fixture.RepoURL(),
+				Path:    guestbookPath,
 			},
 			Destination: v1alpha1.ApplicationDestination{
-				Server:    fixture.Config.Host,
-				Namespace: fixture.Namespace,
+				Server:    common.KubernetesInternalAPIServerAddr,
+				Namespace: fixture.DeploymentNamespace,
 			},
 		},
 	}
+}
 
-	t.Run("TestAppCreation", func(t *testing.T) {
-		appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
-		_, err := fixture.RunCli("app", "create",
-			"--name", appName,
-			"--repo", "https://github.com/argoproj/argo-cd.git",
-			"--env", "minikube",
-			"--path", ".",
-			"--dest-server", fixture.Config.Host,
-			"--dest-namespace", fixture.Namespace)
-		if err != nil {
-			t.Fatalf("Unable to create app %v", err)
-		}
+func TestAppCreation(t *testing.T) {
+	fixture.EnsureCleanState()
 
-		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(appName, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get app %v", err)
-		}
-		assert.Equal(t, appName, app.Name)
-		assert.Equal(t, "https://github.com/argoproj/argo-cd.git", app.Spec.Source.RepoURL)
-		assert.Equal(t, "minikube", app.Spec.Source.Ksonnet.Environment)
-		assert.Equal(t, ".", app.Spec.Source.Path)
-		assert.Equal(t, fixture.Namespace, app.Spec.Destination.Namespace)
-		assert.Equal(t, fixture.Config.Host, app.Spec.Destination.Server)
-		assertAppHasEvent(app, "create", argo.EventReasonResourceCreated)
+	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.RunCli("app", "create",
+		"--name", appName,
+		"--repo", fixture.RepoURL(),
+		"--path", guestbookPath,
+		"--dest-server", common.KubernetesInternalAPIServerAddr,
+		"--dest-namespace", fixture.DeploymentNamespace)
+	assert.NoError(t, err)
+
+	var app *v1alpha1.Application
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(appName, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
 	})
 
-	t.Run("TestAppDeletion", func(t *testing.T) {
-		app := fixture.CreateApp(t, testApp)
-		_, err := fixture.RunCli("app", "delete", app.Name)
+	assert.Equal(t, appName, app.Name)
+	assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
+	assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+	assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
+	assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
+	assertAppHasEvent(t, app, "create", argo.EventReasonResourceCreated)
+}
 
+func TestAppDeletion(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(getTestApp())
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
+	})
+
+	_, err = fixture.RunCli("app", "delete", app.Name)
+
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (bool, error) {
+		_, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
 		if err != nil {
-			t.Fatalf("Unable to delete app %v", err)
-		}
-
-		WaitUntil(t, func() (bool, error) {
-			_, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.Name, metav1.GetOptions{})
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return true, nil
-				}
-				return false, err
+			if errors.IsNotFound(err) {
+				return true, nil
 			}
-			return false, nil
-		})
-
-		assertAppHasEvent(app, "delete", argo.EventReasonResourceDeleted)
+			return false, err
+		}
+		return false, nil
 	})
 
-	t.Run("TestTrackAppStateAndSyncApp", func(t *testing.T) {
-		app := fixture.CreateApp(t, testApp)
+	assertAppHasEvent(t, app, "delete", argo.EventReasonResourceDeleted)
+}
 
-		// sync app and make sure it reaches InSync state
-		_, err := fixture.RunCli("app", "sync", app.Name)
-		if err != nil {
-			t.Fatalf("Unable to sync app %v", err)
-		}
-		assertAppHasEvent(app, "sync", argo.EventReasonResourceUpdated)
+func TestTrackAppStateAndSyncApp(t *testing.T) {
+	fixture.EnsureCleanState()
 
-		WaitUntil(t, func() (done bool, err error) {
-			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
-		})
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
-		assert.True(t, app.Status.OperationState.SyncResult != nil)
-		assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(getTestApp())
+	assert.NoError(t, err)
+
+	// sync app and make sure it reaches InSync state
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
+	assertAppHasEvent(t, app, "sync", argo.EventReasonResourceUpdated)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
+	})
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
+	assert.True(t, app.Status.OperationState.SyncResult != nil)
+	assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
+}
+
+func TestAppRollbackSuccessful(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	// create app and ensure it's comparison status is not SyncStatusCodeUnknown
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(getTestApp())
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Revision != "", nil
 	})
 
-	t.Run("TestAppRollbackSuccessful", func(t *testing.T) {
-		// create app and ensure it's comparion status is not SyncStatusCodeUnknown
-		app := fixture.CreateApp(t, testApp)
+	appWithHistory := app.DeepCopy()
+	appWithHistory.Status.History = []v1alpha1.RevisionHistory{{
+		ID:       1,
+		Revision: app.Status.Sync.Revision,
+		Source:   app.Spec.Source,
+	}, {
+		ID:       2,
+		Revision: "cdb",
+		Source:   app.Spec.Source,
+	}}
+	patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &v1alpha1.Application{})
+	assert.NoError(t, err)
 
-		appWithHistory := app.DeepCopy()
-		appWithHistory.Status.History = []v1alpha1.RevisionHistory{{
-			ID:       1,
-			Revision: "abc",
-			Source:   app.Spec.Source,
-		}, {
-			ID:       2,
-			Revision: "cdb",
-			Source:   app.Spec.Source,
-		}}
-		patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &v1alpha1.Application{})
-		assert.Nil(t, err)
+	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Patch(app.Name, types.MergePatchType, patch)
+	assert.NoError(t, err)
 
-		app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Patch(app.Name, types.MergePatchType, patch)
-		assert.Nil(t, err)
+	// sync app and make sure it reaches InSync state
+	_, err = fixture.RunCli("app", "rollback", app.Name, "1")
+	assert.NoError(t, err)
 
-		// sync app and make sure it reaches InSync state
-		_, err = fixture.RunCli("app", "rollback", app.Name, "1")
-		if err != nil {
-			t.Fatalf("Unable to sync app %v", err)
-		}
+	assertAppHasEvent(t, app, "rollback", argo.EventReasonOperationStarted)
 
-		assertAppHasEvent(app, "rollback", argo.EventReasonOperationStarted)
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
+	})
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
+	assert.True(t, app.Status.OperationState.SyncResult != nil)
+	assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
+	assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
+	assert.Equal(t, 3, len(app.Status.History))
+}
 
-		WaitUntil(t, func() (done bool, err error) {
-			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
-		})
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
-		assert.True(t, app.Status.OperationState.SyncResult != nil)
-		assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
-		assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
-		assert.Equal(t, 3, len(app.Status.History))
+func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	invalidApp := getTestApp()
+	invalidApp.Spec.Destination.Server = "https://not-registered-cluster/api"
+
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(invalidApp)
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeUnknown && len(app.Status.Conditions) > 0, err
 	})
 
-	t.Run("TestComparisonFailsIfClusterNotAdded", func(t *testing.T) {
-		invalidApp := testApp.DeepCopy()
-		invalidApp.Spec.Destination.Server = "https://not-registered-cluster/api"
+	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
 
-		app := fixture.CreateApp(t, invalidApp)
+	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 
-		WaitUntil(t, func() (done bool, err error) {
-			app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeUnknown && len(app.Status.Conditions) > 0, err
-		})
+	_, err = fixture.RunCli("app", "delete", app.Name, "--cascade=false")
+	assert.NoError(t, err)
+}
 
-		app, err := fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		if err != nil {
-			t.Fatalf("Unable to get app %v", err)
-		}
+func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
+	fixture.EnsureCleanState()
 
-		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+	app := getTestApp()
+
+	// deploy app and make sure it is healthy
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusHealthy, err
 	})
 
-	t.Run("TestArgoCDWaitEnsureAppIsNotCrashing", func(t *testing.T) {
-		updatedApp := testApp.DeepCopy()
+	_, err = fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
+	assert.NoError(t, err)
 
-		// deploy app and make sure it is healthy
-		app := fixture.CreateApp(t, updatedApp)
-		_, err := fixture.RunCli("app", "sync", app.Name)
-		if err != nil {
-			t.Fatalf("Unable to sync app %v", err)
-		}
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
 
-		WaitUntil(t, func() (done bool, err error) {
-			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusHealthy, err
-		})
-
-		// deploy app which fails and make sure it became unhealthy
-		app.Spec.Source.Ksonnet.Parameters = append(
-			app.Spec.Source.Ksonnet.Parameters,
-			v1alpha1.KsonnetParameter{Name: "command", Value: "wrong-command", Component: "guestbook-ui"})
-		_, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Update(app)
-		if err != nil {
-			t.Fatalf("Unable to set app parameter %v", err)
-		}
-
-		_, err = fixture.RunCli("app", "sync", app.Name)
-		if err != nil {
-			t.Fatalf("Unable to sync app %v", err)
-		}
-
-		WaitUntil(t, func() (done bool, err error) {
-			app, err = fixture.AppClient.ArgoprojV1alpha1().Applications(fixture.Namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-			return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
-		})
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
 	})
 }

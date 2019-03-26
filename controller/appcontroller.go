@@ -601,8 +601,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}()
 
 	app := origApp.DeepCopy()
+	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if !fullRefresh {
-		logCtx := log.WithFields(log.Fields{"application": app.Name})
 		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
@@ -638,7 +638,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	err = ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
-		conditions = append(conditions, appv1.ApplicationCondition{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()})
+		logCtx.Errorf("Failed to cache app resources: %v", err)
 	}
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)

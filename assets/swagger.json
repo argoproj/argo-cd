@@ -1503,6 +1503,9 @@
     "clusterOIDCConfig": {
       "type": "object",
       "properties": {
+        "cliClientID": {
+          "type": "string"
+        },
         "clientID": {
           "type": "string"
         },

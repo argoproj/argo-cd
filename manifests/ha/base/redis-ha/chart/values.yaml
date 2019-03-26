@@ -3,3 +3,5 @@ redis-ha:
     enabled: false
   redis:
     masterGroupName: argocd
+    config:
+      save: "\"\""

@@ -42,6 +42,23 @@ patchesJson6902:
     kind: StatefulSet
     name: argocd-redis-ha-server
   path: overlays/modify-labels.yaml
+- target:
+    version: v1
+    kind: ServiceAccount
+    name: argocd-redis-ha
+  path: overlays/modify-labels.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: Role
+    name: argocd-redis-ha
+  path: overlays/modify-labels.yaml
+- target:
+    group: rbac.authorization.k8s.io
+    version: v1
+    kind: RoleBinding
+    name: argocd-redis-ha
+  path: overlays/modify-labels.yaml
 
 # add pod template labels
 - target:

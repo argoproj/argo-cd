@@ -98,9 +98,5 @@ For additional details, see [architecture overview](docs/architecture.md).
 
 ## Roadmap
 
-### v0.12
-* Support for custom K8S manifest templating engines
-* Support for custom health assessments (e.g. CRD health)
-* Improved prometheus metrics
-* Higher availability
-* UI improvements
+### v0.13
+* See: https://github.com/argoproj/argo-cd/milestone/12

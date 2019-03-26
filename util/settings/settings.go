@@ -88,6 +88,7 @@ type OIDCConfig struct {
 	Issuer       string `json:"issuer,omitempty"`
 	ClientID     string `json:"clientID,omitempty"`
 	ClientSecret string `json:"clientSecret,omitempty"`
+	CLIClientID  string `json:"cliClientID,omitempty"`
 }
 
 type RepoCredentials struct {

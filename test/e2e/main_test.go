@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 		os.Exit(-1)
 	} else {
 		code := m.Run()
-		fixture.TearDown()
+		fixture.cleanup()
 		os.Exit(code)
 	}
 }

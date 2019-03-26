@@ -2,342 +2,214 @@ package e2e
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/json"
 	"fmt"
-	"log"
-	"net"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"github.com/argoproj/argo-cd/errors"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/server/session"
+	"github.com/argoproj/argo-cd/util"
+	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+
+	argoexec "github.com/argoproj/pkg/exec"
+	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/argoproj/argo-cd/cmd/argocd/commands"
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/controller"
-	"github.com/argoproj/argo-cd/errors"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/reposerver"
-	"github.com/argoproj/argo-cd/server"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/server/cluster"
-	"github.com/argoproj/argo-cd/test"
-	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/assets"
-	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/repos"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
 	TestTimeout = time.Minute * 3
+
+	defaultAriServer = "localhost:8080"
+	adminPassword    = "password"
+	testingLabel     = "e2e.argoproj.io"
 )
 
 // Fixture represents e2e tests fixture.
 type Fixture struct {
-	Config                  *rest.Config
-	KubeClient              kubernetes.Interface
-	ExtensionsClient        apiextensionsclient.Interface
-	AppClient               appclientset.Interface
-	DB                      db.ArgoDB
-	Namespace               string
-	RepoServerAddress       string
-	ApiServerAddress        string
-	ControllerServerAddress string
-	Enforcer                *rbac.Enforcer
-	SettingsMgr             *settings.SettingsManager
+	KubeClientset       kubernetes.Interface
+	AppClientset        appclientset.Interface
+	ArgoCDNamespace     string
+	DeploymentNamespace string
+	ArgoCDClientset     argocdclient.Client
 
-	tearDownCallback func()
+	repoDirectory    string
+	apiServerAddress string
+	token            string
+	plainText        bool
 }
 
-func createNamespace(kubeClient *kubernetes.Clientset) (string, error) {
-	ns := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "argo-e2e-test-",
-		},
-	}
-	cns, err := kubeClient.CoreV1().Namespaces().Create(ns)
-	if err != nil {
-		return "", err
-	}
-	return cns.Name, nil
-}
-
-func (f *Fixture) setup() error {
-	_, err := exec.Command("kubectl", "apply", "-f", "../../manifests/crds/application-crd.yaml", "-f", "../../manifests/crds/appproject-crd.yaml").Output()
-	if err != nil {
-		return err
-	}
-	cm := v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: common.ArgoCDRBACConfigMapName,
-		},
-		Data: map[string]string{
-			rbac.ConfigMapPolicyDefaultKey: "role:admin",
-		},
-	}
-	_, err = f.KubeClient.CoreV1().ConfigMaps(f.Namespace).Create(&cm)
-	if err != nil {
-		return err
-	}
-
-	err = f.SettingsMgr.SaveSettings(&settings.ArgoCDSettings{})
-	if err != nil {
-		return err
-	}
-
-	err = f.ensureClusterRegistered()
-	if err != nil {
-		return err
-	}
-
-	repoServerPort, err := test.GetFreePort()
-	if err != nil {
-		return err
-	}
-
-	apiServerPort, err := test.GetFreePort()
-	if err != nil {
-		return err
-	}
-
-	controllerServerPort, err := test.GetFreePort()
-	if err != nil {
-		return err
-	}
-
-	repoSrv, err := reposerver.NewServer(&FakeClientFactory{}, cache.NewCache(cache.NewInMemoryCache(1*time.Hour)), func(config *tls.Config) {}, 0)
-	if err != nil {
-		return err
-	}
-	repoServerGRPC := repoSrv.CreateGRPC()
-
-	f.RepoServerAddress = fmt.Sprintf("127.0.0.1:%d", repoServerPort)
-	f.ApiServerAddress = fmt.Sprintf("127.0.0.1:%d", apiServerPort)
-	f.ControllerServerAddress = fmt.Sprintf("127.0.0.1:%d", controllerServerPort)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	apiServer := server.NewServer(ctx, server.ArgoCDServerOpts{
-		Namespace:     f.Namespace,
-		AppClientset:  f.AppClient,
-		DisableAuth:   true,
-		Insecure:      true,
-		KubeClientset: f.KubeClient,
-		RepoClientset: reposerver.NewRepoServerClientset(f.RepoServerAddress),
-		Cache:         cache.NewCache(cache.NewInMemoryCache(1 * time.Hour)),
-	})
-
-	go func() {
-		apiServer.Run(ctx, apiServerPort)
-	}()
-
-	err = waitUntilE(func() (done bool, err error) {
-		clientset, err := f.NewApiClientset()
-		if err != nil {
-			return false, nil
-		}
-		conn, appClient, err := clientset.NewApplicationClient()
-		if err != nil {
-			return false, nil
-		}
-		defer util.Close(conn)
-		_, err = appClient.List(context.Background(), &application.ApplicationQuery{})
-		return err == nil, nil
-	})
-
-	if err != nil {
-		cancel()
-		return err
-	}
-
-	ctrl, err := f.createController()
-	if err != nil {
-		cancel()
-		return err
-	}
-
-	ctrlCtx, cancelCtrl := context.WithCancel(context.Background())
-	go ctrl.Run(ctrlCtx, 1, 1)
-
-	go func() {
-		var listener net.Listener
-		listener, err = net.Listen("tcp", f.RepoServerAddress)
-		if err == nil {
-			err = repoServerGRPC.Serve(listener)
-		}
-	}()
-
-	f.tearDownCallback = func() {
-		cancel()
-		cancelCtrl()
-		repoServerGRPC.Stop()
-	}
-
-	return err
-}
-
-func (f *Fixture) ensureClusterRegistered() error {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-	conf, err := clientConfig.ClientConfig()
-	if err != nil {
-		return err
-	}
-	// Install RBAC resources for managing the cluster
-	clientset, err := kubernetes.NewForConfig(conf)
-	errors.CheckError(err)
-	managerBearerToken, err := common.InstallClusterManagerRBAC(clientset)
-	errors.CheckError(err)
-	clst := commands.NewCluster(f.Config.Host, conf, managerBearerToken, nil)
-	clstCreateReq := cluster.ClusterCreateRequest{Cluster: clst}
-	_, err = cluster.NewServer(f.DB, f.Enforcer, cache.NewCache(cache.NewInMemoryCache(1*time.Minute))).Create(context.Background(), &clstCreateReq)
-	return err
-}
-
-// TearDown deletes fixture resources.
-func (f *Fixture) TearDown() {
-	if f.tearDownCallback != nil {
-		f.tearDownCallback()
-	}
-	apps, err := f.AppClient.ArgoprojV1alpha1().Applications(f.Namespace).List(metav1.ListOptions{})
-	if err == nil {
-		for _, app := range apps.Items {
-			if len(app.Finalizers) > 0 {
-				var patch []byte
-				patch, err = json.Marshal(map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"finalizers": make([]string, 0),
-					},
-				})
-				if err == nil {
-					_, err = f.AppClient.ArgoprojV1alpha1().Applications(app.Namespace).Patch(app.Name, types.MergePatchType, patch)
-				}
-			}
-			if err != nil {
-				break
-			}
-		}
-	}
-	if err == nil {
-		err = f.KubeClient.CoreV1().Namespaces().Delete(f.Namespace, &metav1.DeleteOptions{})
-	}
-	if err != nil {
-		println("Unable to tear down fixture")
-	}
-}
-
-// GetKubeConfig creates new kubernetes client config using specified config path and config overrides variables
-func GetKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
+// getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
+func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.ExplicitPath = configPath
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
-	var err error
 	restConfig, err := clientConfig.ClientConfig()
-	if err != nil {
-		log.Fatal(err)
-	}
+	errors.CheckError(err)
 	return restConfig
 }
 
 // NewFixture creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func NewFixture() (*Fixture, error) {
-	config := GetKubeConfig("", clientcmd.ConfigOverrides{})
-	extensionsClient := apiextensionsclient.NewForConfigOrDie(config)
+	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	appClient := appclientset.NewForConfigOrDie(config)
 	kubeClient := kubernetes.NewForConfigOrDie(config)
-	namespace, err := createNamespace(kubeClient)
-	if err != nil {
-		return nil, err
+	apiServerAddress := os.Getenv(argocdclient.EnvArgoCDServer)
+	if apiServerAddress == "" {
+		apiServerAddress = defaultAriServer
 	}
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, namespace)
-	db := db.NewDB(namespace, settingsMgr, kubeClient)
-	enforcer := rbac.NewEnforcer(kubeClient, namespace, common.ArgoCDRBACConfigMapName, nil)
-	err = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	if err != nil {
-		return nil, err
-	}
-	enforcer.SetDefaultRole("role:admin")
+	log.Warnf("Using Argo CD server %s", apiServerAddress)
+
+	tlsTestResult, err := grpc_util.TestTLS(apiServerAddress)
+	errors.CheckError(err)
+
+	argocdclientset, err := argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	errors.CheckError(err)
+
+	closer, client, err := argocdclientset.NewSessionClient()
+	errors.CheckError(err)
+
+	defer util.Close(closer)
+
+	sessionResponse, err := client.Create(context.Background(), &session.SessionCreateRequest{Username: "admin", Password: adminPassword})
+	errors.CheckError(err)
+
+	argocdclientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
+		Insecure:   true,
+		ServerAddr: apiServerAddress,
+		AuthToken:  sessionResponse.Token,
+		PlainText:  !tlsTestResult.TLS,
+	})
+	errors.CheckError(err)
+
+	testRepo, err := ioutil.TempDir("/tmp", "argocd-e2e")
+	errors.CheckError(err)
+	testRepo = path.Base(testRepo)
+	errors.CheckError(err)
+	_, err = argoexec.RunCommand(
+		"sh", "-c",
+		fmt.Sprintf("cp -r testdata/* /tmp/%s && chmod 777 /tmp/%s && cd /tmp/%s && git init && git add . && git commit -m 'initial commit'", testRepo, testRepo, testRepo))
+	errors.CheckError(err)
 
 	fixture := &Fixture{
-		Config:           config,
-		ExtensionsClient: extensionsClient,
-		AppClient:        appClient,
-		DB:               db,
-		KubeClient:       kubeClient,
-		Namespace:        namespace,
-		Enforcer:         enforcer,
-		SettingsMgr:      settingsMgr,
+		AppClientset:     appClient,
+		KubeClientset:    kubeClient,
+		ArgoCDClientset:  argocdclientset,
+		ArgoCDNamespace:  "argocd-e2e",
+		apiServerAddress: apiServerAddress,
+		token:            sessionResponse.Token,
+		repoDirectory:    testRepo,
+		plainText:        !tlsTestResult.TLS,
 	}
-	err = fixture.setup()
-	if err != nil {
-		return nil, err
-	}
+
+	fixture.DeploymentNamespace = fixture.createDeploymentNamespace()
 	return fixture, nil
 }
 
-// CreateApp creates application
-func (f *Fixture) CreateApp(t *testing.T, application *v1alpha1.Application) *v1alpha1.Application {
-	application = application.DeepCopy()
-	application.Name = fmt.Sprintf("e2e-test-%v", time.Now().Unix())
-	labels := application.ObjectMeta.Labels
-	if labels == nil {
-		labels = make(map[string]string)
-		application.ObjectMeta.Labels = labels
-	}
-	application.Spec.Source.Ksonnet.Parameters = append(
-		application.Spec.Source.Ksonnet.Parameters,
-		v1alpha1.KsonnetParameter{Name: "name", Value: application.Name, Component: "guestbook-ui"})
-
-	app, err := f.AppClient.ArgoprojV1alpha1().Applications(f.Namespace).Create(application)
-	if err != nil {
-		t.Fatal(fmt.Sprintf("Unable to create app %v", err))
-	}
-	return app
+func (f *Fixture) RepoURL() string {
+	return fmt.Sprintf("file:///tmp/%s", f.repoDirectory)
 }
 
-// createController creates new controller instance
-func (f *Fixture) createController() (*controller.ApplicationController, error) {
-	return controller.NewApplicationController(
-		f.Namespace,
-		f.SettingsMgr,
-		f.KubeClient,
-		f.AppClient,
-		reposerver.NewRepoServerClientset(f.RepoServerAddress),
-		cache.NewCache(cache.NewInMemoryCache(1*time.Hour)),
-		10*time.Second)
+// cleanup deletes test namespace resources.
+func (f *Fixture) cleanup() {
+	f.deleteDeploymentNamespace()
+	f.cleanupTestRepo()
+	f.EnsureCleanState()
 }
 
-func (f *Fixture) NewApiClientset() (argocdclient.Client, error) {
-	return argocdclient.NewClient(&argocdclient.ClientOptions{
-		Insecure:   true,
-		PlainText:  true,
-		ServerAddr: f.ApiServerAddress,
+func (f *Fixture) cleanupTestRepo() {
+	err := os.RemoveAll(path.Join("/tmp", f.repoDirectory))
+	errors.CheckError(err)
+}
+
+func (f *Fixture) createDeploymentNamespace() string {
+	ns, err := f.KubeClientset.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			GenerateName: "argocd-e2e-",
+			Labels: map[string]string{
+				testingLabel: "true",
+			},
+		},
 	})
+	errors.CheckError(err)
+	return ns.Name
+}
+
+func (f *Fixture) EnsureCleanState() {
+	closer, client := f.ArgoCDClientset.NewApplicationClientOrDie()
+	defer util.Close(closer)
+	apps, err := client.List(context.Background(), &application.ApplicationQuery{})
+	errors.CheckError(err)
+	err = util.RunAllAsync(len(apps.Items), func(i int) error {
+		cascade := true
+		appName := apps.Items[i].Name
+		_, err := client.Delete(context.Background(), &application.ApplicationDeleteRequest{Name: &appName, Cascade: &cascade})
+		if err != nil {
+			return nil
+		}
+		return waitUntilE(func() (bool, error) {
+			_, err := f.AppClientset.ArgoprojV1alpha1().Applications(f.ArgoCDNamespace).Get(appName, v1.GetOptions{})
+			if apierrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		})
+	})
+	errors.CheckError(err)
+
+	projs, err := f.AppClientset.ArgoprojV1alpha1().AppProjects(f.ArgoCDNamespace).List(v1.ListOptions{})
+	errors.CheckError(err)
+	err = util.RunAllAsync(len(projs.Items), func(i int) error {
+		if projs.Items[i].Name == "default" {
+			return nil
+		}
+		return f.AppClientset.ArgoprojV1alpha1().AppProjects(f.ArgoCDNamespace).Delete(projs.Items[i].Name, &v1.DeleteOptions{})
+	})
+	errors.CheckError(err)
+}
+
+func (f *Fixture) deleteDeploymentNamespace() {
+	labelSelector := labels.NewSelector()
+	req, err := labels.NewRequirement(testingLabel, selection.Equals, []string{"true"})
+	errors.CheckError(err)
+	labelSelector = labelSelector.Add(*req)
+
+	namespaces, err := f.KubeClientset.CoreV1().Namespaces().List(v1.ListOptions{LabelSelector: labelSelector.String()})
+	errors.CheckError(err)
+
+	for _, ns := range namespaces.Items {
+		if ns.DeletionTimestamp == nil {
+			err = f.KubeClientset.CoreV1().Namespaces().Delete(ns.Name, &v1.DeleteOptions{})
+			if err != nil {
+				log.Warnf("Failed to delete e2e deployment namespace: %s", ns.Name)
+			}
+		}
+	}
 }
 
 func (f *Fixture) RunCli(args ...string) (string, error) {
-	args = append([]string{"run", "../../cmd/argocd/main.go"}, args...)
-	cmd := exec.Command("go", append(args, "--server", f.ApiServerAddress, "--plaintext")...)
+	if f.plainText {
+		args = append(args, "--plaintext")
+	}
+	cmd := exec.Command("../../dist/argocd", append(args, "--server", f.apiServerAddress, "--auth-token", f.token, "--insecure")...)
+	log.Infof("CLI: %s", strings.Join(cmd.Args, " "))
 	outBytes, err := cmd.Output()
 	if err != nil {
 		exErr, ok := err.(*exec.ExitError)
@@ -376,57 +248,4 @@ func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
 	if err != nil {
 		t.Fatalf("Failed to wait for expected condition: %v", err)
 	}
-}
-
-type FakeClientFactory struct{}
-
-func (f *FakeClientFactory) NewClient(c repos.Config, workDir string) (repos.Client, error) {
-	return &FakeGitClient{
-		workDir: workDir,
-	}, nil
-}
-
-// FakeGitClient is a test git client implementation which always clone local test repo.
-type FakeGitClient struct {
-	workDir string
-}
-
-func (c *FakeGitClient) Test() error {
-	return nil
-}
-
-func (c *FakeGitClient) WorkDir() string {
-	return c.workDir
-}
-
-func (c *FakeGitClient) Checkout(_, revision string) (string, error) {
-	_, err := exec.Command("rm", "-rf", c.workDir).Output()
-	if err != nil {
-		return "", err
-	}
-	_, err = exec.Command("cp", "-r", "../../examples/guestbook", c.workDir).Output()
-	if err != nil {
-		return "", err
-	}
-	return "abcdef123456890", nil
-}
-
-func (c *FakeGitClient) Reset() error {
-	// do nothing
-	return nil
-}
-
-func (c *FakeGitClient) ResolveRevision(_, revision string) (string, error) {
-	return "abcdef123456890", nil
-}
-
-func (c *FakeGitClient) LsFiles(glob string) ([]string, error) {
-	matches, err := filepath.Glob(path.Join(c.workDir, glob))
-	if err != nil {
-		return nil, err
-	}
-	for i := range matches {
-		matches[i] = strings.TrimPrefix(matches[i], c.workDir)
-	}
-	return matches, nil
 }
