@@ -40,7 +40,7 @@ func Destination(data []byte, environment string) (*v1alpha1.ApplicationDestinat
 // KsonnetApp represents a ksonnet application directory and provides wrapper functionality around
 // the `ks` command.
 type KsonnetApp interface {
-	// WorkDir is the root path ksonnet application directory
+	// Root is the root path ksonnet application directory
 	Root() string
 
 	// Show returns a list of unstructured objects that would be applied to an environment

@@ -31,6 +31,7 @@ func (h Helm) run(args ...string) (string, error) {
 	log.WithFields(log.Fields{"workDir": h.workDir, "redactedArgs": string(redact(args)), "helmHome": h.helmHome}).Info("running helm")
 
 	cmd := exec.Command("helm", args...)
+	cmd.Env = os.Environ()
 	cmd.Dir = h.workDir
 	if h.helmHome != "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_HOME=%s", h.helmHome))
