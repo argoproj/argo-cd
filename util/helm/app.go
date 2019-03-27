@@ -13,7 +13,6 @@ import (
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/config"
-	helmcmd "github.com/argoproj/argo-cd/util/helm/cmd"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -29,17 +28,17 @@ type App interface {
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
 func NewApp(path string, repos []*argoappv1.Repository) (App, error) {
-	helm, err := helmcmd.NewHelm(path)
+	helm, err := newCmd(path)
 	if err != nil {
 		return nil, err
 	}
 	_, err = helm.Init()
-	return &app{path: path, helm: *helm, repos: repos}, err
+	return &app{path: path, cmd: *helm, repos: repos}, err
 }
 
 type app struct {
 	path             string
-	helm             helmcmd.Helm
+	cmd              cmd
 	repos            []*argoappv1.Repository
 	reposInitialized bool
 }
@@ -51,7 +50,7 @@ func IsMissingDependencyErr(err error) bool {
 
 func (h *app) Template(appName string, namespace string, source *argoappv1.ApplicationSourceHelm) ([]*unstructured.Unstructured, error) {
 
-	opts := helmcmd.TemplateOpts{
+	opts := templateOpts{
 		Name:      appName,
 		Namespace: namespace,
 		Set:       make(map[string]string),
@@ -66,7 +65,7 @@ func (h *app) Template(appName string, namespace string, source *argoappv1.Appli
 			opts.Set[p.Name] = p.Value
 		}
 	}
-	out, err := h.helm.Template(".", opts)
+	out, err := h.cmd.template(".", opts)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func (h *app) DependencyBuild() error {
 				continue
 			}
 
-			_, err := h.helm.RepoAdd(repo.Name, repo.Repo, helmcmd.RepoAddOpts{
+			_, err := h.cmd.repoAdd(repo.Name, repo.Repo, repoAddOpts{
 				Username: repo.Username, Password: repo.Password, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData,
 			})
 
@@ -90,12 +89,12 @@ func (h *app) DependencyBuild() error {
 			}
 		}
 	}
-	_, err := h.helm.DependencyBuild()
+	_, err := h.cmd.dependencyBuild()
 	return err
 }
 
 func (h *app) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error) {
-	out, err := h.helm.InspectValues(".")
+	out, err := h.cmd.inspectValues(".")
 	if err != nil {
 		return nil, err
 	}

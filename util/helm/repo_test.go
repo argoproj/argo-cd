@@ -1,4 +1,4 @@
-package repos
+package helm
 
 import (
 	"io/ioutil"
@@ -13,7 +13,7 @@ func TestHelmClient(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	client, err := factory{}.newHelmClient("https://kubernetes-charts.storage.googleapis.com", "test", tmp, "", "", nil, nil, nil)
+	client, err := NewRepo("https://kubernetes-charts.storage.googleapis.com", "test", tmp, "", "", nil, nil, nil)
 	assert.NoError(t, err)
 
 	t.Run("Test", func(t *testing.T) {

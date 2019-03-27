@@ -4,8 +4,11 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
+
+	"github.com/argoproj/argo-cd/util/git"
+
+	"github.com/argoproj/argo-cd/util/helm"
 )
 
 // Client is a generic git client interface
@@ -39,10 +42,14 @@ func NewFactory() ClientFactory {
 
 func (f factory) NewClient(c Config, workDir string) (Client, error) {
 	if c.Type == "helm" {
-		return newDebug(f.newHelmClient(c.Url, c.Name, workDir, c.Username, c.Password, c.CAData, c.CertData, c.KeyData))
+		return newDebug(newHelmClient(c.Url, c.Name, workDir, c.Username, c.Password, c.CAData, c.CertData, c.KeyData))
 	} else {
-		return newDebug(f.newGitClient(c.Url, workDir, c.Username, c.Password, c.SSHPrivateKey, c.InsecureIgnoreHostKey))
+		return newDebug(newGitClient(c.Url, workDir, c.Username, c.Password, c.SSHPrivateKey, c.InsecureIgnoreHostKey))
 	}
+}
+
+func newHelmClient(url, name, workDir, username, password string, caData, certData, keyData []byte) (Client, error) {
+	return helm.NewRepo(url, name, workDir, username, password, caData, certData, keyData)
 }
 
 // EnsurePrefix idempotently ensures that a base string has a given prefix.
@@ -59,20 +66,6 @@ func removeSuffix(s, suffix string) string {
 		return s[0 : len(s)-len(suffix)]
 	}
 	return s
-}
-
-var commitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{40}$")
-
-// IsCommitSHA returns whether or not a string is a 40 character SHA-1
-func IsCommitSHA(sha string) bool {
-	return commitSHARegex.MatchString(sha)
-}
-
-var truncatedCommitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{7,}$")
-
-// IsTruncatedCommitSHA returns whether or not a string is a truncated  SHA-1
-func IsTruncatedCommitSHA(sha string) bool {
-	return truncatedCommitSHARegex.MatchString(sha)
 }
 
 // SameURL returns whether or not the two repository URLs are equivalent in location
@@ -101,6 +94,14 @@ func NormalizeURL(repo string) string {
 // IsSSHURL returns true if supplied URL is SSH URL
 func IsSSHURL(url string) bool {
 	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
+}
+
+func IsCommitSHA(revision string) bool {
+	return git.IsCommitSHA(revision)
+}
+
+func IsTruncatedCommitSHA(revision string) bool {
+	return git.IsTruncatedCommitSHA(revision)
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials

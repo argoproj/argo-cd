@@ -5,9 +5,10 @@ import (
 	"hash/fnv"
 	"strings"
 
+	"github.com/argoproj/argo-cd/util/repos"
+
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/repos"
 	"github.com/argoproj/argo-cd/util/settings"
 
 	"golang.org/x/net/context"

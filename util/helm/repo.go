@@ -1,4 +1,4 @@
-package repos
+package helm
 
 import (
 	"io/ioutil"
@@ -11,21 +11,19 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-
-	helmcmd "github.com/argoproj/argo-cd/util/helm/cmd"
 )
 
-type helmClient struct {
+type Repo struct {
 	repoURL                   string
 	name                      string
-	helm                      helmcmd.Helm
+	cmd                       cmd
 	workDir                   string
 	username, password        string
 	caData, certData, keyData []byte
 }
 
-func (f factory) newHelmClient(repoURL, name, workDir, username, password string, caData, certData, keyData []byte) (Client, error) {
-	helm, err := helmcmd.NewHelm(workDir)
+func NewRepo(repoURL, name, workDir, username, password string, caData, certData, keyData []byte) (*Repo, error) {
+	helm, err := newCmd(workDir)
 	if err != nil {
 		return nil, err
 	}
@@ -33,32 +31,32 @@ func (f factory) newHelmClient(repoURL, name, workDir, username, password string
 	if err != nil {
 		return nil, err
 	}
-	return helmClient{
+	return &Repo{
 		repoURL, name, *helm, workDir,
 		username, password,
 		caData, certData, keyData,
 	}, nil
 }
 
-func (c helmClient) Test() error {
+func (c Repo) Test() error {
 
 	_, err := c.repoAdd()
 
 	return err
 }
 
-func (c helmClient) repoAdd() (string, error) {
-	return c.helm.RepoAdd(c.name, c.repoURL, helmcmd.RepoAddOpts{
+func (c Repo) repoAdd() (string, error) {
+	return c.cmd.repoAdd(c.name, c.repoURL, repoAddOpts{
 		Username: c.username, Password: c.password,
 		CAData: c.caData, CertData: c.certData, KeyData: c.keyData,
 	})
 }
 
-func (c helmClient) WorkDir() string {
+func (c Repo) WorkDir() string {
 	return c.workDir
 }
 
-func (c helmClient) checkKnownChart(chartName string) error {
+func (c Repo) checkKnownChart(chartName string) error {
 	knownChart, err := c.isKnownChart(chartName)
 	if err != nil {
 		return err
@@ -69,7 +67,7 @@ func (c helmClient) checkKnownChart(chartName string) error {
 	return nil
 }
 
-func (c helmClient) isKnownChart(chartName string) (bool, error) {
+func (c Repo) isKnownChart(chartName string) (bool, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
@@ -81,14 +79,14 @@ func (c helmClient) isKnownChart(chartName string) (bool, error) {
 	return ok, nil
 }
 
-func (c helmClient) Checkout(path, revision string) (string, error) {
+func (c Repo) Checkout(path, revision string) (string, error) {
 
 	_, err := c.repoAdd()
 	if err != nil {
 		return "", err
 	}
 
-	_, err = c.helm.RepoUpdate()
+	_, err = c.cmd.repoUpdate()
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +100,7 @@ func (c helmClient) Checkout(path, revision string) (string, error) {
 
 	log.WithFields(log.Fields{"chartName": chartName}).Debug("chart name")
 
-	_, err = c.helm.Fetch(c.name, chartName, helmcmd.FetchOpts{
+	_, err = c.cmd.fetch(c.name, chartName, fetchOpts{
 		Version: revision, Destination: ".",
 	})
 
@@ -125,7 +123,7 @@ type chart struct {
 	Version string
 }
 
-func (c helmClient) getChartVersion(chartName string) (string, error) {
+func (c Repo) getChartVersion(chartName string) (string, error) {
 	bytes, err := ioutil.ReadFile(filepath.Join(chartName, "Chart.yaml"))
 	if err != nil {
 		return "", err
@@ -140,7 +138,7 @@ func (c helmClient) getChartVersion(chartName string) (string, error) {
 	return chart.Version, nil
 }
 
-func (c helmClient) ResolveRevision(glob, revision string) (string, error) {
+func (c Repo) ResolveRevision(glob, revision string) (string, error) {
 
 	// empty string string means latest, otherwise we have a non-ambiguous version
 	if revision != "" {
@@ -158,7 +156,7 @@ type index struct {
 	Entries map[string][]entry
 }
 
-func (c helmClient) getIndex() (*index, error) {
+func (c Repo) getIndex() (*index, error) {
 
 	start := time.Now()
 
@@ -183,7 +181,7 @@ func (c helmClient) getIndex() (*index, error) {
 	return index, nil
 }
 
-func (c helmClient) LsFiles(glob string) ([]string, error) {
+func (c Repo) LsFiles(glob string) ([]string, error) {
 
 	matcher, err := glob2.Compile(glob)
 	if err != nil {

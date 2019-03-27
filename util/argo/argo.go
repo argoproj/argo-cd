@@ -227,7 +227,7 @@ func GetSpecErrors(
 		}
 	}
 
-	if !proj.IsSourcePermitted(spec.Source) {
+	if !proj.IsSourcePermitted(spec.Source, repos.NormalizeURL) {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("application source %v is not permitted in project '%s'", spec.Source, spec.Project),

@@ -1,4 +1,4 @@
-package cmd
+package helm
 
 import (
 	"fmt"
@@ -13,20 +13,20 @@ import (
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
-type Helm struct {
+type cmd struct {
 	helmHome string
 	workDir  string
 }
 
-func NewHelm(workDir string) (*Helm, error) {
+func newCmd(workDir string) (*cmd, error) {
 	tmpDir, err := ioutil.TempDir("", "helm")
 	if err != nil {
 		return nil, err
 	}
-	return &Helm{workDir: workDir, helmHome: tmpDir}, err
+	return &cmd{workDir: workDir, helmHome: tmpDir}, err
 }
 
-func (h Helm) run(args ...string) (string, error) {
+func (h cmd) run(args ...string) (string, error) {
 
 	log.WithFields(log.Fields{"workDir": h.workDir, "redactedArgs": string(redact(args)), "helmHome": h.helmHome}).Info("running helm")
 
@@ -43,7 +43,7 @@ func (h Helm) run(args ...string) (string, error) {
 	output := string(bytes)
 
 	for lineNo, line := range strings.Split(output, "\n") {
-		log.WithFields(log.Fields{"lineNo": lineNo, "line": line}).Info("output")
+		log.WithFields(log.Fields{"lineNo": lineNo, "line": line}).Debug("output")
 	}
 
 	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took")
@@ -71,16 +71,16 @@ func redact(args []string) []byte {
 	return line
 }
 
-func (h Helm) Init() (string, error) {
+func (h cmd) Init() (string, error) {
 	return h.run("init", "--client-only", "--skip-refresh")
 }
 
-type RepoAddOpts struct {
+type repoAddOpts struct {
 	Username, Password        string
 	CAData, CertData, KeyData []byte
 }
 
-func (h Helm) RepoAdd(name, url string, opts RepoAddOpts) (string, error) {
+func (h cmd) repoAdd(name, url string, opts repoAddOpts) (string, error) {
 
 	tmp, err := ioutil.TempDir("", "helm")
 	if err != nil {
@@ -139,19 +139,19 @@ func (h Helm) RepoAdd(name, url string, opts RepoAddOpts) (string, error) {
 	return h.run(args...)
 }
 
-func (h Helm) RepoRm(name string) (string, error) {
+func (h cmd) repoRm(name string) (string, error) {
 	return h.run("repo", "rm", name)
 }
 
-func (h Helm) RepoUpdate() (string, error) {
+func (h cmd) repoUpdate() (string, error) {
 	return h.run("repo", "update")
 }
 
-type FetchOpts struct {
+type fetchOpts struct {
 	Version, Destination string
 }
 
-func (h Helm) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
+func (h cmd) fetch(repo, chartName string, opts fetchOpts) (string, error) {
 	args := []string{"fetch", "--untar", "--untardir", opts.Destination}
 
 	if opts.Version != "" {
@@ -162,22 +162,22 @@ func (h Helm) Fetch(repo, chartName string, opts FetchOpts) (string, error) {
 	return h.run(args...)
 }
 
-func (h Helm) DependencyBuild() (string, error) {
+func (h cmd) dependencyBuild() (string, error) {
 	return h.run("dependency", "build")
 }
 
-func (h Helm) InspectValues(values string) (string, error) {
+func (h cmd) inspectValues(values string) (string, error) {
 	return h.run("inspect", "values", values)
 }
 
-type TemplateOpts struct {
+type templateOpts struct {
 	Name      string
 	Namespace string
 	Set       map[string]string
 	Values    []string
 }
 
-func (h Helm) Template(chart string, opts TemplateOpts) (string, error) {
+func (h cmd) template(chart string, opts templateOpts) (string, error) {
 	args := []string{"template", "--name", opts.Name}
 
 	if opts.Namespace != "" {

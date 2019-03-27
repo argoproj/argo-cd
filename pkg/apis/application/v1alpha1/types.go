@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util/repos"
 )
 
 // Application is a definition of Application resource.
@@ -943,10 +942,10 @@ func globMatch(pattern string, val string) bool {
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
-func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
-	srcNormalized := repos.NormalizeURL(src.RepoURL)
+func (proj AppProject) IsSourcePermitted(src ApplicationSource, urlNormalizer func(string) string) bool {
+	srcNormalized := urlNormalizer(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
-		normalized := repos.NormalizeURL(repoURL)
+		normalized := urlNormalizer(repoURL)
 		if globMatch(normalized, srcNormalized) {
 			return true
 		}

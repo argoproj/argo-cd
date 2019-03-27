@@ -1,4 +1,4 @@
-package repos
+package git
 
 import (
 	"fmt"
@@ -10,11 +10,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestResolveRevision(t *testing.T) {
-	clnt, err := NewFactory().NewClient(Config{Url: "https://github.com/argoproj/argo-cd.git"}, "/tmp")
+// TODO: move this into shared test package after resolving import cycle
+const (
+	// This is a throwaway gitlab test account/repo with a read-only personal access token for the
+	// purposes of testing private git repos
+	PrivateGitRepo     = "https://gitlab.com/argo-cd-test/test-apps.git"
+	PrivateGitUsername = "blah"
+	PrivateGitPassword = "B5sBDeoqAVUouoHkrovy"
+)
+
+func TestIsCommitSHA(t *testing.T) {
+	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
+	assert.True(t, IsCommitSHA("9D921F65F3C5373B682E2EB4B37AFBA6592E8F8B"))
+	assert.False(t, IsCommitSHA("gd921f65f3c5373b682e2eb4b37afba6592e8f8b"))
+	assert.False(t, IsCommitSHA("master"))
+	assert.False(t, IsCommitSHA("HEAD"))
+	assert.False(t, IsCommitSHA("9d921f6")) // only consider 40 characters hex strings as a commit-sha
+	assert.True(t, IsTruncatedCommitSHA("9d921f6"))
+	assert.False(t, IsTruncatedCommitSHA("9d921f")) // we only consider 7+ characters
+	assert.False(t, IsTruncatedCommitSHA("branch-name"))
+}
+
+func TestLsRemote(t *testing.T) {
+	clnt, err := NewFactory().NewClient("https://github.com/argoproj/argo-cd.git", "/tmp", "", "", "", false)
 	assert.NoError(t, err)
 	xpass := []string{
-		"",
+		"HEAD",
 		"master",
 		"release-0.8",
 		"v0.8.0",
@@ -22,13 +43,13 @@ func TestResolveRevision(t *testing.T) {
 		//"4e22a3c",
 	}
 	for _, revision := range xpass {
-		commitSHA, err := clnt.ResolveRevision("", revision)
+		commitSHA, err := clnt.LsRemote(revision)
 		assert.NoError(t, err)
 		assert.True(t, IsCommitSHA(commitSHA))
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
-	commitSHA, err := clnt.ResolveRevision("", "4e22a3c")
+	commitSHA, err := clnt.LsRemote("4e22a3c")
 	assert.NoError(t, err)
 	assert.False(t, IsCommitSHA(commitSHA))
 	assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -38,7 +59,7 @@ func TestResolveRevision(t *testing.T) {
 		"4e22a3", // too short (6 characters)
 	}
 	for _, revision := range xfail {
-		_, err := clnt.ResolveRevision("", revision)
+		_, err := clnt.LsRemote(revision)
 		assert.Error(t, err)
 	}
 }
@@ -53,7 +74,7 @@ func TestGitClient(t *testing.T) {
 		assert.NoError(t, err)
 		defer func() { _ = os.RemoveAll(dirName) }()
 
-		clnt, err := NewFactory().NewClient(Config{Url: repo}, dirName)
+		clnt, err := NewFactory().NewClient(repo, dirName, "", "", "", false)
 		assert.NoError(t, err)
 
 		testGitClient(t, clnt)
@@ -74,21 +95,30 @@ func TestPrivateGitRepo(t *testing.T) {
 	assert.NoError(t, err)
 	defer func() { _ = os.RemoveAll(dirName) }()
 
-	clnt, err := NewFactory().NewClient(Config{Url: PrivateGitRepo, Username: PrivateGitUsername, Password: PrivateGitPassword}, dirName)
+	clnt, err := NewFactory().NewClient(PrivateGitRepo, dirName, PrivateGitUsername, PrivateGitPassword, "", false)
 	assert.NoError(t, err)
 
 	testGitClient(t, clnt)
 }
 
 func testGitClient(t *testing.T, clnt Client) {
-	commitSHA, err := clnt.ResolveRevision("", "")
+	commitSHA, err := clnt.LsRemote("HEAD")
+	assert.NoError(t, err)
+
+	err = clnt.Init()
+	assert.NoError(t, err)
+
+	err = clnt.Fetch()
 	assert.NoError(t, err)
 
 	// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-	_, err = clnt.Checkout(".", commitSHA)
+	err = clnt.Fetch()
 	assert.NoError(t, err)
 
-	commitSHA2, err := clnt.Checkout(".", commitSHA)
+	err = clnt.Checkout(commitSHA)
+	assert.NoError(t, err)
+
+	commitSHA2, err := clnt.CommitSHA()
 	assert.NoError(t, err)
 
 	assert.Equal(t, commitSHA, commitSHA2)

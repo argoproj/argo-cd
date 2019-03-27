@@ -6,28 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: move this into shared test package after resolving import cycle
-const (
-	// This is a throwaway gitlab test account/repo with a read-only personal access token for the
-	// purposes of testing private git repos
-	PrivateGitRepo     = "https://gitlab.com/argo-cd-test/test-apps.git"
-	PrivateGitUsername = "blah"
-	PrivateGitPassword = "B5sBDeoqAVUouoHkrovy"
-)
-
-func TestIsCommitSHA(t *testing.T) {
-	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
-	assert.True(t, IsCommitSHA("9D921F65F3C5373B682E2EB4B37AFBA6592E8F8B"))
-	assert.False(t, IsCommitSHA("gd921f65f3c5373b682e2eb4b37afba6592e8f8b"))
-	assert.False(t, IsCommitSHA("master"))
-	assert.False(t, IsCommitSHA(""))
-	assert.False(t, IsCommitSHA("HEAD"))
-	assert.False(t, IsCommitSHA("9d921f6")) // only consider 40 characters hex strings as a commit-sha
-	assert.True(t, IsTruncatedCommitSHA("9d921f6"))
-	assert.False(t, IsTruncatedCommitSHA("9d921f")) // we only consider 7+ characters
-	assert.False(t, IsTruncatedCommitSHA("branch-name"))
-}
-
 func TestEnsurePrefix(t *testing.T) {
 	data := [][]string{
 		{"world", "hello", "helloworld"},
@@ -96,5 +74,20 @@ func TestSameURL(t *testing.T) {
 	}
 	for k, v := range data {
 		assert.True(t, SameURL(k, v))
+	}
+}
+
+func TestNormalizeURL(t *testing.T) {
+	testData := []struct {
+		normalizedUrl string
+		url           string
+	}{
+		{normalizedUrl: "https://github.com/argoproj/test", url: "https://github.com/argoproj/test.git"},
+		{normalizedUrl: "git@github.com:argoproj/test", url: "ssh://git@github.com:argoproj/test"},
+	}
+	for _, data := range testData {
+		t.Run(data.url, func(t *testing.T) {
+			assert.Equal(t, data.normalizedUrl, NormalizeURL(data.url))
+		})
 	}
 }

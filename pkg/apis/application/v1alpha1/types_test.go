@@ -34,7 +34,7 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 	}, {
 		projSources: []string{"https://github.com/argoproj/test.git"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
 	}, {
-		projSources: []string{"ssh://git@GITHUB.com:argoproj/test"}, appSource: "ssh://git@github.com:argoproj/test", isPermitted: true,
+		projSources: []string{"ssh://git@github.com:argoproj/test"}, appSource: "ssh://git@github.com:argoproj/test", isPermitted: true,
 	}, {
 		projSources: []string{"https://github.com/argoproj/*"}, appSource: "https://github.com/argoproj/argoproj.git", isPermitted: true,
 	}, {
@@ -48,14 +48,18 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 	}}
 
 	for _, data := range testData {
-		proj := AppProject{
-			Spec: AppProjectSpec{
-				SourceRepos: data.projSources,
-			},
-		}
-		assert.Equal(t, proj.IsSourcePermitted(ApplicationSource{
-			RepoURL: data.appSource,
-		}), data.isPermitted)
+		t.Run(data.appSource, func(t *testing.T) {
+			proj := AppProject{
+				Spec: AppProjectSpec{
+					SourceRepos: data.projSources,
+				},
+			}
+			assert.Equal(t, proj.IsSourcePermitted(ApplicationSource{
+				RepoURL: data.appSource,
+			}, func(url string) string {
+				return url
+			}), data.isPermitted)
+		})
 	}
 }
 
