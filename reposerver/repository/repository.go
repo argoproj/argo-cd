@@ -216,7 +216,7 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		}
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		k := kustomize.NewKustomizeApp(appPath, kustomizeCredentials(q.Repo))
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize)
+		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		targetObjs, err = runConfigManagementPlugin(appPath, q, q.Plugins)
 	case v1alpha1.ApplicationSourceTypeDirectory:
@@ -636,13 +636,22 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		res.Kustomize = &KustomizeAppSpec{}
 		res.Kustomize.Path = q.Path
 		k := kustomize.NewKustomizeApp(appPath, kustomizeCredentials(q.Repo))
-		_, images, err := k.Build(nil)
+		_, imageTags, images, err := k.Build(nil)
 		if err != nil {
 			return nil, err
 		}
+		res.Kustomize.ImageTags = kustomizeImageTags(imageTags)
 		res.Kustomize.Images = images
 	}
 	return &res, nil
+}
+
+func kustomizeImageTags(imageTags []kustomize.ImageTag) []*v1alpha1.KustomizeImageTag {
+	output := make([]*v1alpha1.KustomizeImageTag, len(imageTags))
+	for i, imageTag := range imageTags {
+		output[i] = &v1alpha1.KustomizeImageTag{Name: imageTag.Name, Value: imageTag.Value}
+	}
+	return output
 }
 
 func (q *RepoServerAppDetailsQuery) valueFiles() []string {

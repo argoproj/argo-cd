@@ -1695,6 +1695,12 @@
       "type": "object",
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
+        "imageTags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeImageTag"
+          }
+        },
         "images": {
           "type": "array",
           "items": {

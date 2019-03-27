@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
@@ -18,13 +19,27 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
+type ImageTag struct {
+	Name  string
+	Value string
+}
+
+func newImageTag(image Image) ImageTag {
+	split := strings.Split(image, ":")
+	if len(split) > 0 {
+		return ImageTag{Name: split[0], Value: split[1]}
+	} else {
+		return ImageTag{Name: split[0], Value: "latest"}
+	}
+}
+
 // represents a Docker image in the format NAME[:TAG].
 type Image = string
 
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []Image, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error)
 }
 
 type GitCredentials struct {
@@ -45,11 +60,11 @@ type kustomize struct {
 	creds *GitCredentials
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []Image, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
 
 	version, err := k.getKustomizationVersion()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	commandName := GetCommandName(version)
@@ -60,7 +75,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 			cmd.Dir = k.path
 			_, err := argoexec.RunCommandExt(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -73,7 +88,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 					cmd.Dir = k.path
 					_, err := argoexec.RunCommandExt(cmd)
 					if err != nil {
-						return nil, nil, err
+						return nil, nil, nil, err
 					}
 				}
 			}
@@ -91,7 +106,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 				cmd.Dir = k.path
 				_, err := argoexec.RunCommandExt(cmd)
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, nil, err
 				}
 			}
 		}
@@ -107,17 +122,19 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 
 	out, err := argoexec.RunCommandExt(cmd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	objs, err := kube.SplitYAML(out)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	parameters := getImageParameters(objs)
+	if version == 1 {
+		return objs, getImageTagParameters(objs), nil, nil
+	}
 
-	return objs, parameters, nil
+	return objs, nil, getImageParameters(objs), nil
 }
 
 func GetCommandName(version int) string {
@@ -178,13 +195,21 @@ func (k *kustomize) getKustomizationVersion() (int, error) {
 	return 1, nil
 }
 
+func getImageTagParameters(objs []*unstructured.Unstructured) []ImageTag {
+	var images []ImageTag
+	for _, image := range getImageParameters(objs) {
+		images = append(images, newImageTag(image))
+	}
+	return images
+}
+
 func getImageParameters(objs []*unstructured.Unstructured) []Image {
 	var images []Image
 	for _, obj := range objs {
 		images = append(images, getImages(obj.Object)...)
 	}
 	sort.Slice(images, func(i, j int) bool {
-		return i < j
+		return j < j
 	})
 	return images
 }

@@ -54,10 +54,11 @@ func TestKustomizeBuild(t *testing.T) {
 		},
 		Images: []string{"nginx:1.15.5"},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource)
+	objs, imageTags, images, err := kustomize.Build(&kustomizeSource)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
+		assert.Equal(t, len(imageTags), 0)
 		assert.Equal(t, len(images), 2)
 	}
 	for _, obj := range objs {
@@ -130,7 +131,7 @@ func TestPrivateRemoteBase(t *testing.T) {
 
 	kust := NewKustomizeApp("./testdata/private-remote-base", &GitCredentials{Username: PrivateGitUsername, Password: PrivateGitPassword})
 
-	objs, _, err := kust.Build(nil)
+	objs, _, _, err := kust.Build(nil)
 	assert.NoError(t, err)
 	assert.Len(t, objs, 2)
 }
