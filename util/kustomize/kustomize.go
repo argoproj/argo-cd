@@ -12,17 +12,34 @@ import (
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
+type ImageTag struct {
+	Name  string
+	Value string
+}
+
+func newImageTag(image Image) ImageTag {
+	parts := strings.Split(image, ":")
+	if len(parts) > 0 {
+		return ImageTag{Name: parts[0], Value: parts[1]}
+	} else {
+		return ImageTag{Name: parts[0], Value: "latest"}
+	}
+}
+
+// represents a Docker image in the format NAME[:TAG].
+type Image = string
+
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.KustomizeImageTag, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error)
 }
 
 type GitCredentials struct {
@@ -43,11 +60,11 @@ type kustomize struct {
 	creds *GitCredentials
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []*v1alpha1.KustomizeImageTag, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstructured.Unstructured, []ImageTag, []Image, error) {
 
 	version, err := k.getKustomizationVersion()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	commandName := GetCommandName(version)
@@ -58,21 +75,40 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 			cmd.Dir = k.path
 			_, err := argoexec.RunCommandExt(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
-		if version == 1 {
-			for _, override := range opts.ImageTags {
-				cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
+		if len(opts.ImageTags) > 0 {
+			if version != 1 {
+				log.Warn("ignoring image tags as kustomize is not version 1")
+			} else {
+				for _, override := range opts.ImageTags {
+					cmd := exec.Command(commandName, "edit", "set", "imagetag", fmt.Sprintf("%s:%s", override.Name, override.Value))
+					cmd.Dir = k.path
+					_, err := argoexec.RunCommandExt(cmd)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+				}
+			}
+		}
+
+		if len(opts.Images) > 0 {
+			if version != 2 {
+				log.Warn("ignoring images as kustomize is not version 2")
+			} else {
+				// set image postgres=eu.gcr.io/my-project/postgres:latest my-app=my-registry/my-app@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
+				// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
+				args := []string{"edit", "set", "image"}
+				args = append(args, opts.Images...)
+				cmd := exec.Command(commandName, args...)
 				cmd.Dir = k.path
 				_, err := argoexec.RunCommandExt(cmd)
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, nil, err
 				}
 			}
-		} else if len(opts.ImageTags) > 0 {
-			log.Info("ignoring overrides as kustomize is not version 1")
 		}
 	}
 
@@ -86,26 +122,19 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize) ([]*unstruc
 
 	out, err := argoexec.RunCommandExt(cmd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	objs, err := kube.SplitYAML(out)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	parameters := k.getParameters(objs)
-
-	return objs, parameters, nil
-}
-
-func (k *kustomize) getParameters(objs []*unstructured.Unstructured) []*v1alpha1.KustomizeImageTag {
-	version, _ := k.getKustomizationVersion() // cannot be an error at this line
 	if version == 1 {
-		return getImageParameters(objs)
-	} else {
-		return []*v1alpha1.KustomizeImageTag{}
+		return objs, getImageTagParameters(objs), nil, nil
 	}
+
+	return objs, nil, getImageParameters(objs), nil
 }
 
 func GetCommandName(version int) string {
@@ -166,33 +195,27 @@ func (k *kustomize) getKustomizationVersion() (int, error) {
 	return 1, nil
 }
 
-func getImageParameters(objs []*unstructured.Unstructured) []*v1alpha1.KustomizeImageTag {
-	images := make(map[string]string)
-	for _, obj := range objs {
-		for _, img := range getImages(obj.Object) {
-			parts := strings.Split(img, ":")
-			if len(parts) > 1 {
-				images[parts[0]] = parts[1]
-			} else {
-				images[img] = "latest"
-			}
-		}
+func getImageTagParameters(objs []*unstructured.Unstructured) []ImageTag {
+	var images []ImageTag
+	for _, image := range getImageParameters(objs) {
+		images = append(images, newImageTag(image))
 	}
-	var params []*v1alpha1.KustomizeImageTag
-	for img, version := range images {
-		params = append(params, &v1alpha1.KustomizeImageTag{
-			Name:  img,
-			Value: version,
-		})
-	}
-	sort.Slice(params, func(i, j int) bool {
-		return params[i].Name < params[j].Name
-	})
-	return params
+	return images
 }
 
-func getImages(object map[string]interface{}) []string {
-	var images []string
+func getImageParameters(objs []*unstructured.Unstructured) []Image {
+	var images []Image
+	for _, obj := range objs {
+		images = append(images, getImages(obj.Object)...)
+	}
+	sort.Slice(images, func(i, j int) bool {
+		return j < j
+	})
+	return images
+}
+
+func getImages(object map[string]interface{}) []Image {
+	var images []Image
 	for k, v := range object {
 		if array, ok := v.([]interface{}); ok {
 			if k == "containers" || k == "initContainers" {

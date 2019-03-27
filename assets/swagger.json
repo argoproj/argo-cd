@@ -1701,6 +1701,12 @@
             "$ref": "#/definitions/v1alpha1KustomizeImageTag"
           }
         },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "path": {
           "type": "string"
         }
@@ -2478,6 +2484,13 @@
           "title": "ImageTags are kustomize 1.0 image tag overrides",
           "items": {
             "$ref": "#/definitions/v1alpha1KustomizeImageTag"
+          }
+        },
+        "images": {
+          "type": "array",
+          "title": "Images are kustomize 2.0 image overrides",
+          "items": {
+            "type": "string"
           }
         },
         "namePrefix": {
