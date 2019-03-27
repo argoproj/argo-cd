@@ -25,11 +25,11 @@ type ImageTag struct {
 }
 
 func newImageTag(image Image) ImageTag {
-	split := strings.Split(image, ":")
-	if len(split) > 0 {
-		return ImageTag{Name: split[0], Value: split[1]}
+	parts := strings.Split(image, ":")
+	if len(parts) > 0 {
+		return ImageTag{Name: parts[0], Value: parts[1]}
 	} else {
-		return ImageTag{Name: split[0], Value: "latest"}
+		return ImageTag{Name: parts[0], Value: "latest"}
 	}
 }
 
