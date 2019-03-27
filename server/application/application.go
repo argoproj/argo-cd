@@ -892,7 +892,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	if repos.IsCommitSHA(ambiguousRevision) {
+	if repos.IsUnambiguousRevision(ambiguousRevision) {
 		// If it's already a commit SHA, then no need to look it up
 		return ambiguousRevision, ambiguousRevision, nil
 	}

@@ -250,7 +250,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	case argoappv1.SyncStatusCodeOutOfSync:
 		syncStatusStr += fmt.Sprintf(" from %s", app.Spec.Source.TargetRevision)
 	}
-	if !repos.IsCommitSHA(app.Spec.Source.TargetRevision) && !repos.IsTruncatedCommitSHA(app.Spec.Source.TargetRevision) && len(app.Status.Sync.Revision) > 7 {
+	if !repos.IsUnambiguousRevision(app.Spec.Source.TargetRevision) && !repos.IsTruncatedCommitSHA(app.Spec.Source.TargetRevision) && len(app.Status.Sync.Revision) > 7 {
 		syncStatusStr += fmt.Sprintf(" (%s)", app.Status.Sync.Revision[0:7])
 	}
 	fmt.Printf(printOpFmtStr, "Sync Status:", syncStatusStr)

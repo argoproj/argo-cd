@@ -96,7 +96,7 @@ func IsSSHURL(url string) bool {
 	return strings.HasPrefix(url, "git@") || strings.HasPrefix(url, "ssh://")
 }
 
-func IsCommitSHA(revision string) bool {
+func IsUnambiguousRevision(revision string) bool {
 	return git.IsCommitSHA(revision)
 }
 
