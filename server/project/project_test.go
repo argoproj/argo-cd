@@ -91,7 +91,7 @@ func TestProjectServer(t *testing.T) {
 
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestProjectServer(t *testing.T) {
 
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
 
 	t.Run("TestDeleteProjectSuccessful", func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: defaultProj.Name})
 		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
 
 	t.Run("TestDeleteProjectReferencedByApp", func(t *testing.T) {
@@ -160,7 +160,7 @@ func TestProjectServer(t *testing.T) {
 
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
 
 	t.Run("TestCreateTokenSuccesfully", func(t *testing.T) {
