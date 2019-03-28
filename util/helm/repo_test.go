@@ -20,7 +20,7 @@ func TestHelmClient(t *testing.T) {
 		assert.NoError(t, client.Test())
 	})
 
-	const latestWordpressVersion = "5.7.0"
+	const latestWordpressVersion = "5.7.1"
 
 	t.Run("ResolveLatestRevision", func(t *testing.T) {
 		resolvedRevision, err := client.ResolveRevision("wordpress", "")
