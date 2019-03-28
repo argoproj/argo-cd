@@ -58,9 +58,7 @@ func (h *app) Template(appName string, namespace string, source *argoappv1.Appli
 	}
 
 	if source != nil {
-		for _, valuesFile := range source.ValueFiles {
-			opts.Values = append(opts.Values, valuesFile)
-		}
+		opts.Values = append(opts.Values, source.ValueFiles...)
 		for _, p := range source.Parameters {
 			opts.Set[p.Name] = p.Value
 		}

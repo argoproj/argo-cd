@@ -80,7 +80,7 @@ func TestGetSpecErrors(t *testing.T) {
 		before()
 		spec.Source.RepoURL = ""
 
-		conditions, _, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+		conditions, _, err := GetSpecErrors(context.TODO(), &spec, &project, &mockRepoClient, &mockDb)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "spec.source.repoURL and spec.source.path are required"}}, conditions)
@@ -90,7 +90,7 @@ func TestGetSpecErrors(t *testing.T) {
 		before()
 		spec.Source.Path = ""
 
-		conditions, _, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+		conditions, _, err := GetSpecErrors(context.TODO(), &spec, &project, &mockRepoClient, &mockDb)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "spec.source.repoURL and spec.source.path are required"}}, conditions)
@@ -100,7 +100,7 @@ func TestGetSpecErrors(t *testing.T) {
 		before()
 		spec.Destination.Server = ""
 
-		conditions, _, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+		conditions, _, err := GetSpecErrors(context.TODO(), &spec, &project, &mockRepoClient, &mockDb)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "Destination server and/or namespace missing from app spec"}}, conditions)
@@ -110,7 +110,7 @@ func TestGetSpecErrors(t *testing.T) {
 		before()
 		spec.Destination.Server = ""
 
-		conditions, _, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+		conditions, _, err := GetSpecErrors(context.TODO(), &spec, &project, &mockRepoClient, &mockDb)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []argoappv1.ApplicationCondition{{Type: "InvalidSpecError", Message: "Destination server and/or namespace missing from app spec"}}, conditions)
@@ -119,14 +119,14 @@ func TestGetSpecErrors(t *testing.T) {
 		before()
 		spec.Source.RepoURL = notFoundRepoUrl
 
-		conditions, _, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+		conditions, _, err := GetSpecErrors(context.TODO(), &spec, &project, &mockRepoClient, &mockDb)
 
 		assert.NoError(t, err)
 		assert.Contains(t, conditions[0].Message, "No credentials available for source repository and repository is not publicly accessible")
 	})
 	t.Run("Git", func(t *testing.T) {
 		before()
-		conditions, _, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+		conditions, _, err := GetSpecErrors(context.TODO(), &spec, &project, &mockRepoClient, &mockDb)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []argoappv1.ApplicationCondition{}, conditions)
@@ -135,7 +135,7 @@ func TestGetSpecErrors(t *testing.T) {
 		before()
 		spec.Source.RepoURL = knownHelmRepoUrl
 
-		conditions, _, err := GetSpecErrors(nil, &spec, &project, &mockRepoClient, &mockDb)
+		conditions, _, err := GetSpecErrors(context.TODO(), &spec, &project, &mockRepoClient, &mockDb)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []argoappv1.ApplicationCondition{}, conditions)

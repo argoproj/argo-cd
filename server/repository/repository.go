@@ -172,8 +172,9 @@ func getKustomizationRes(ctx context.Context, repoClient repository.RepoServerSe
 		kustomizationRes, err := repoClient.ListDir(ctx, &request)
 		if err != nil {
 			return nil, err
+		} else {
+			return kustomizationRes, nil
 		}
-		return kustomizationRes, nil
 	}
 	return nil, errors.New("could not find kustomization")
 }

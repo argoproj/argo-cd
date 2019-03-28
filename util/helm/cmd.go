@@ -139,10 +139,6 @@ func (h cmd) repoAdd(name, url string, opts repoAddOpts) (string, error) {
 	return h.run(args...)
 }
 
-func (h cmd) repoRm(name string) (string, error) {
-	return h.run("repo", "rm", name)
-}
-
 func (h cmd) repoUpdate() (string, error) {
 	return h.run("repo", "update")
 }
