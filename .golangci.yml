@@ -19,3 +19,7 @@ linters:
     - ineffassign
     - unconvert
     - misspell
+  disable:
+    - errcheck
+    - gosimple
+    - staticcheck
