@@ -394,6 +394,11 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 		*out = make([]KustomizeImageTag, len(*in))
 		copy(*out, *in)
 	}
+	if in.Images != nil {
+		in, out := &in.Images, &out.Images
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

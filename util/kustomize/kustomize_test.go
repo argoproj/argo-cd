@@ -52,12 +52,14 @@ func TestKustomizeBuild(t *testing.T) {
 				Value: "latest",
 			},
 		},
+		Images: []string{"nginx:1.15.5"},
 	}
-	objs, params, err := kustomize.Build(&kustomizeSource)
+	objs, imageTags, images, err := kustomize.Build(&kustomizeSource)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
-		assert.Equal(t, len(params), 2)
+		assert.Equal(t, len(imageTags), 0)
+		assert.Equal(t, len(images), 2)
 	}
 	for _, obj := range objs {
 		switch obj.GetKind() {
@@ -68,12 +70,12 @@ func TestKustomizeBuild(t *testing.T) {
 		}
 	}
 
-	for _, param := range params {
-		switch param.Value {
+	for _, image := range images {
+		switch image {
 		case "nginx":
-			assert.Equal(t, "1.15.4", param.Value)
+			assert.Equal(t, "1.15.5", image)
 		case "k8s.gcr.io/nginx-slim":
-			assert.Equal(t, "latest", param.Value)
+			assert.Equal(t, "latest", image)
 		}
 	}
 }
@@ -129,7 +131,7 @@ func TestPrivateRemoteBase(t *testing.T) {
 
 	kust := NewKustomizeApp("./testdata/private-remote-base", &GitCredentials{Username: PrivateGitUsername, Password: PrivateGitPassword})
 
-	objs, _, err := kust.Build(nil)
+	objs, _, _, err := kust.Build(nil)
 	assert.NoError(t, err)
 	assert.Len(t, objs, 2)
 }

@@ -1696,9 +1696,17 @@
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
         "imageTags": {
+          "description": "imageTags is a list of available image tags. This is only populated for Kustomize 1.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1KustomizeImageTag"
+          }
+        },
+        "images": {
+          "description": "images is a list of available images. This is only populated for Kustomize 2.",
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         },
         "path": {
@@ -2478,6 +2486,13 @@
           "title": "ImageTags are kustomize 1.0 image tag overrides",
           "items": {
             "$ref": "#/definitions/v1alpha1KustomizeImageTag"
+          }
+        },
+        "images": {
+          "type": "array",
+          "title": "Images are kustomize 2.0 image overrides",
+          "items": {
+            "type": "string"
           }
         },
         "namePrefix": {
