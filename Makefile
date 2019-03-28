@@ -129,8 +129,12 @@ dep-ensure:
 lint:
 	golangci-lint run --fix
 
+.PHONY: build
+build: lint
+	go build `go list ./... | grep -v resource_customizations`
+
 .PHONY: test
-test:
+test: build
 	go test -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 
 .PHONY: test-e2e
@@ -147,7 +151,7 @@ clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
 .PHONY: pre-commit
-pre-commit: dep-ensure codegen test lint
+pre-commit: dep-ensure codegen test
 
 .PHONY: release-precheck
 release-precheck: manifests
