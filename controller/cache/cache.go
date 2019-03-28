@@ -64,14 +64,6 @@ type liveStateCache struct {
 	settings     *settings.ArgoCDSettings
 }
 
-func (c *liveStateCache) processEvent(event watch.EventType, obj *unstructured.Unstructured, url string) error {
-	info, err := c.getSyncedCluster(url)
-	if err != nil {
-		return err
-	}
-	return info.processEvent(event, obj)
-}
-
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()

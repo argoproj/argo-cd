@@ -110,15 +110,6 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alph
 	return nil
 }
 
-// enforceNoClaims handles the RBAC enforcement case when there are no or invalid JWT claims
-func (p *RBACPolicyEnforcer) enforceNoClaims(rvals ...interface{}) bool {
-	if rvals[0] == nil {
-		vals := append([]interface{}{""}, rvals[1:]...)
-		return p.enf.Enforce(vals...)
-	}
-	return p.enf.Enforce(rvals...)
-}
-
 // enforceProjectToken will check to see the valid token has not yet been revoked in the project
 func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, claims jwt.MapClaims, proj *v1alpha1.AppProject, rvals ...interface{}) bool {
 	subjectSplit := strings.Split(subject, ":")
@@ -142,14 +133,4 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, claims jwt.MapC
 	vals := append([]interface{}{subject}, rvals[1:]...)
 	return p.enf.EnforceRuntimePolicy(proj.ProjectPoliciesString(), vals...)
 
-}
-
-// enforceApplicationResource handles enforcement of application resources, taking into
-// consideration OIDC group bindings defined in the project
-func (p *RBACPolicyEnforcer) getProjectPolicy(projName string) string {
-	proj, err := p.projLister.Get(projName)
-	if err != nil {
-		return ""
-	}
-	return proj.ProjectPoliciesString()
 }

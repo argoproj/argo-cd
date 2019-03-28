@@ -329,10 +329,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 // startedPreSyncPhase detects if we already started the PreSync stage of a sync operation.
 // This is equal to if we have anything in our resource or hook list
 func (sc *syncContext) startedPreSyncPhase() bool {
-	if len(sc.syncRes.Resources) > 0 {
-		return true
-	}
-	return false
+	return len(sc.syncRes.Resources) > 0
 }
 
 // startedSyncPhase detects if we have already started the Sync stage of a sync operation.
@@ -464,8 +461,7 @@ func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update b
 		wg.Add(1)
 		go func(t syncTask) {
 			defer wg.Done()
-			var resDetails appv1.ResourceResult
-			resDetails = sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
+			resDetails := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
 			if !resDetails.Status.Successful() {
 				syncSuccessful = false
 			}

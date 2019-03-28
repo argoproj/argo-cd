@@ -174,8 +174,8 @@ func AddGroupToRole(p *v1alpha1.AppProject, roleName, group string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	for _, group := range role.Groups {
-		if group == group {
+	for _, roleGroup := range role.Groups {
+		if group == roleGroup {
 			return false, nil
 		}
 	}
@@ -190,8 +190,8 @@ func RemoveGroupFromRole(p *v1alpha1.AppProject, roleName, group string) (bool, 
 	if err != nil {
 		return false, err
 	}
-	for i, group := range role.Groups {
-		if group == group {
+	for i, roleGroup := range role.Groups {
+		if group == roleGroup {
 			role.Groups = append(role.Groups[0:i], role.Groups[i:]...)
 			p.Spec.Roles[roleIndex] = *role
 			return true, nil

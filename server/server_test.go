@@ -126,14 +126,14 @@ func TestEnforceProjectToken(t *testing.T) {
 func TestEnforceClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	policy := `
 g, org2:team2, role:admin
 g, bob, role:admin
 `
-	enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(policy)
 	allowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
 		jwt.StandardClaims{Subject: "admin"},
@@ -158,7 +158,7 @@ g, bob, role:admin
 func TestDefaultRoleWithClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
@@ -172,7 +172,7 @@ func TestDefaultRoleWithClaims(t *testing.T) {
 func TestEnforceNilClaims(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
-	enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	assert.False(t, enf.Enforce(nil, "applications", "get", "foo/obj"))
@@ -273,7 +273,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 	log.Println(existingProj.ProjectPoliciesString())
 	existingProj.Spec.Roles[0].Groups = nil
 	log.Println(existingProj.ProjectPoliciesString())
-	s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
+	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
 	time.Sleep(100 * time.Millisecond) // this lets the informer get synced
 	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
@@ -322,7 +322,7 @@ func TestRevokedToken(t *testing.T) {
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	// Now revoke the token by deleting the token
 	existingProj.Spec.Roles[0].JWTTokens = nil
-	s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
+	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(&existingProj)
 	time.Sleep(200 * time.Millisecond) // this lets the informer get synced
 	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))

@@ -482,11 +482,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec, sourceType argoap
 			}
 			if len(spec.Source.Ksonnet.Parameters) == 0 {
 				for _, p := range spec.Source.ComponentParameterOverrides {
-					spec.Source.Ksonnet.Parameters = append(spec.Source.Ksonnet.Parameters, argoappv1.KsonnetParameter{
-						Component: p.Component,
-						Name:      p.Name,
-						Value:     p.Value,
-					})
+					spec.Source.Ksonnet.Parameters = append(spec.Source.Ksonnet.Parameters, argoappv1.KsonnetParameter(p))
 
 				}
 			}
@@ -528,11 +524,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec, sourceType argoap
 	var cpo []argoappv1.ComponentParameter
 	if spec.Source.Ksonnet != nil {
 		for _, p := range spec.Source.Ksonnet.Parameters {
-			cpo = append(cpo, argoappv1.ComponentParameter{
-				Component: p.Component,
-				Name:      p.Name,
-				Value:     p.Value,
-			})
+			cpo = append(cpo, argoappv1.ComponentParameter(p))
 		}
 	}
 	if spec.Source.Helm != nil {

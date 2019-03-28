@@ -128,10 +128,8 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			}
 
 			go func() {
-				select {
-				case <-stream.Context().Done():
-					util.Close(resp.Body)
-				}
+				<-stream.Context().Done()
+				util.Close(resp.Body)
 			}()
 			defer util.Close(resp.Body)
 

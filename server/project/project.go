@@ -182,7 +182,7 @@ func getRemovedDestination(oldProj, newProj *v1alpha1.AppProject) map[string]v1a
 		newDest[fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)] = dest
 	}
 
-	removed := make(map[string]v1alpha1.ApplicationDestination, 0)
+	removed := make(map[string]v1alpha1.ApplicationDestination)
 	for key, dest := range oldDest {
 		if _, ok := newDest[key]; !ok {
 			removed[key] = dest

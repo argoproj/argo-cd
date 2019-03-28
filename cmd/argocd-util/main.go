@@ -189,7 +189,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 				errors.CheckError(err)
 				maskedDexCfgBytes, err := yaml.Marshal(dexCfg)
 				errors.CheckError(err)
-				fmt.Printf(string(maskedDexCfgBytes))
+				fmt.Print(string(maskedDexCfgBytes))
 			} else {
 				err = ioutil.WriteFile(out, dexCfgBytes, 0644)
 				errors.CheckError(err)
