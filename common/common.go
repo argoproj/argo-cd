@@ -112,5 +112,5 @@ const (
 	MinClientVersion = "0.12.0"
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
-	CacheVersion = "0.12.0"
+	CacheVersion = "0.13.0"
 )

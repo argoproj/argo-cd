@@ -1,10 +1,18 @@
 package e2e
 
 import (
+	"context"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/server/application"
+
+	"github.com/argoproj/argo-cd/util"
+
+	"github.com/argoproj/argo-cd/util/kube"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -227,5 +235,51 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
+	})
+}
+
+func TestManipulateApplicationResources(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := getTestApp()
+
+	// deploy app and make sure it is healthy
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
+
+	manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+	assert.NoError(t, err)
+
+	resources, err := kube.SplitYAML(manifests)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 2, len(resources))
+	index := sort.Search(len(resources), func(i int) bool {
+		return resources[i].GetKind() == kube.DeploymentKind
+	})
+	assert.True(t, index > -1)
+
+	deployment := resources[index]
+
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	_, err = client.DeleteResource(context.Background(), &application.ApplicationResourceDeleteRequest{
+		Name:         &app.Name,
+		Group:        deployment.GroupVersionKind().Group,
+		Kind:         deployment.GroupVersionKind().Kind,
+		Version:      deployment.GroupVersionKind().Version,
+		Namespace:    deployment.GetNamespace(),
+		ResourceName: deployment.GetName(),
+	})
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
 	})
 }

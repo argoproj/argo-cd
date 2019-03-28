@@ -521,29 +521,44 @@ type InfoItem struct {
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
-// ResourceNode contains information about live resource and its children
-type ResourceNode struct {
-	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind            string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Name            string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Info            []InfoItem     `json:"info,omitempty" protobuf:"bytes,6,opt,name=info"`
-	Children        []ResourceNode `json:"children,omitempty" protobuf:"bytes,7,opt,name=children"`
-	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,8,opt,name=resourceVersion"`
+// ResourceNetworkingInfo holds networking resource related information
+type ResourceNetworkingInfo struct {
+	TargetLabels map[string]string `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
+	TargetRefs   []ResourceRef     `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`
+
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
 }
 
-func (n *ResourceNode) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
-	if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
-		return n
-	}
-	for i := range n.Children {
-		res := n.Children[i].FindNode(group, kind, namespace, name)
-		if res != nil {
-			return res
+// ApplicationTree holds nodes which belongs to the application
+type ApplicationTree struct {
+	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+}
+
+func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
+	for _, n := range t.Nodes {
+		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
+			return &n
 		}
 	}
 	return nil
+}
+
+// ResourceRef includes fields which unique identify resource
+type ResourceRef struct {
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version   string `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind      string `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name      string `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+}
+
+// ResourceNode contains information about live resource and its children
+type ResourceNode struct {
+	ResourceRef     `json:",inline" protobuf:"bytes,1,opt,name=resourceRef"`
+	ParentRefs      []ResourceRef           `json:"parentRefs,omitempty" protobuf:"bytes,2,opt,name=parentRefs"`
+	Info            []InfoItem              `json:"info,omitempty" protobuf:"bytes,3,opt,name=info"`
+	NetworkingInfo  *ResourceNetworkingInfo `json:"networkingInfo,omitempty" protobuf:"bytes,4,opt,name=networkingInfo"`
+	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
 }
 
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {

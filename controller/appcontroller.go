@@ -141,8 +141,9 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 	return ctrl.cache.SetAppManagedResources(a.Name, managedResources)
 }
 
-func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) ([]*appv1.ResourceNode, error) {
-	items := make([]*appv1.ResourceNode, 0)
+func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
+	nodes := make([]appv1.ResourceNode, 0)
+
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		var live = &unstructured.Unstructured{}
@@ -155,34 +156,28 @@ func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedRes
 		if err != nil {
 			return nil, err
 		}
-		version := ""
-		resourceVersion := ""
-		if live != nil {
-			resourceVersion = live.GetResourceVersion()
-			version = live.GroupVersionKind().Version
-		} else if target != nil {
-			version = target.GroupVersionKind().Version
-		}
 
-		node := appv1.ResourceNode{
-			Version:         version,
-			ResourceVersion: resourceVersion,
-			Name:            managedResource.Name,
-			Kind:            managedResource.Kind,
-			Group:           managedResource.Group,
-			Namespace:       managedResource.Namespace,
-		}
-
-		if live != nil {
-			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, live)
+		if live == nil {
+			nodes = append(nodes, appv1.ResourceNode{
+				ResourceRef: appv1.ResourceRef{
+					Version:   target.GroupVersionKind().Version,
+					Name:      managedResource.Name,
+					Kind:      managedResource.Kind,
+					Group:     managedResource.Group,
+					Namespace: managedResource.Namespace,
+				},
+			})
+		} else {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode) {
+				nodes = append(nodes, child)
+			})
 			if err != nil {
 				return nil, err
 			}
-			node.Children = children
+
 		}
-		items = append(items, &node)
 	}
-	return items, nil
+	return &appv1.ApplicationTree{Nodes: nodes}, nil
 }
 
 func (ctrl *ApplicationController) managedResources(a *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
