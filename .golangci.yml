@@ -19,4 +19,3 @@ linters:
     - ineffassign
     - unconvert
     - misspell
-  disable-all: true
