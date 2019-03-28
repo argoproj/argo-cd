@@ -20,6 +20,5 @@ linters:
     - unconvert
     - misspell
   disable:
-    - errcheck
     - gosimple
     - staticcheck
