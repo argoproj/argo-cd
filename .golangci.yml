@@ -21,4 +21,3 @@ linters:
     - misspell
   disable:
     - gosimple
-    - staticcheck
