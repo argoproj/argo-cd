@@ -16,7 +16,6 @@ func init() {
 }
 
 var logLevel string
-var forceLogColors bool
 
 func initConfig() {
 	cli.SetLogLevel(logLevel)
@@ -57,6 +56,5 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", config.GetFlag("auth-token", ""), "Authentication token")
 	command.PersistentFlags().BoolVar(&clientOpts.GRPCWeb, "grpc-web", config.GetBoolFlag("grpc-web"), "Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.")
 	command.PersistentFlags().StringVar(&logLevel, "loglevel", config.GetFlag("loglevel", "info"), "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().BoolVar(&forceLogColors, "forcelogcolors", false, "Force colored logging")
 	return command
 }
