@@ -11,14 +11,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-openapi/errors"
-
-	"github.com/argoproj/argo-cd/util/git"
-	"github.com/argoproj/argo-cd/util/repos/api"
-
 	"github.com/TomOnTime/utfutil"
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/ghodss/yaml"
+	"github.com/go-openapi/errors"
 	"github.com/google/go-jsonnet"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -31,11 +27,13 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/ksonnet"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/repos"
+	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
 const (
