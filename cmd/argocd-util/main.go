@@ -438,7 +438,7 @@ func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
 		}
 	}
 	if helmReposRAW, ok := cm.Data["helm.repositories"]; ok {
-		helmRepoCreds := make([]settings.HelmRepoCredentials, 0)
+		helmRepoCreds := make([]settings.RepoCredentials, 0)
 		err := yaml.Unmarshal([]byte(helmReposRAW), &helmRepoCreds)
 		errors.CheckError(err)
 		for _, cred := range helmRepoCreds {
