@@ -384,7 +384,7 @@ func SplitYAML(out string) ([]*unstructured.Unstructured, error) {
 		}
 		remObj, err := Remarshal(&obj)
 		if err != nil {
-			log.Warnf("Failed to remarshal oject: %v", err)
+			log.Debugf("Failed to remarshal oject: %v", err)
 		} else {
 			obj = *remObj
 		}
