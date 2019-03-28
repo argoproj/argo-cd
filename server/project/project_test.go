@@ -42,7 +42,7 @@ func TestProjectServer(t *testing.T) {
 	})
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true

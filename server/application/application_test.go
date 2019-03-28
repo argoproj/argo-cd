@@ -136,7 +136,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
@@ -337,7 +337,7 @@ func TestUpdateAppProject(t *testing.T) {
 	appServer.enf.SetDefaultRole("")
 
 	// Verify normal update works (without changing project)
-	appServer.enf.SetBuiltinPolicy(`p, admin, applications, update, default/test-app, allow`)
+	_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, update, default/test-app, allow`)
 	_, err := appServer.Update(ctx, &ApplicationUpdateRequest{Application: testApp})
 	assert.NoError(t, err)
 
@@ -347,7 +347,7 @@ func TestUpdateAppProject(t *testing.T) {
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without create privileges in new project
-	appServer.enf.SetBuiltinPolicy(`
+	_ = appServer.enf.SetBuiltinPolicy(`
 p, admin, applications, update, default/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
@@ -355,7 +355,7 @@ p, admin, applications, update, my-proj/test-app, allow
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in new project
-	appServer.enf.SetBuiltinPolicy(`
+	_ = appServer.enf.SetBuiltinPolicy(`
 p, admin, applications, update, default/test-app, allow
 p, admin, applications, create, my-proj/test-app, allow
 `)
@@ -363,7 +363,7 @@ p, admin, applications, create, my-proj/test-app, allow
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify inability to change projects without update privileges in old project
-	appServer.enf.SetBuiltinPolicy(`
+	_ = appServer.enf.SetBuiltinPolicy(`
 p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
@@ -371,7 +371,7 @@ p, admin, applications, update, my-proj/test-app, allow
 	assert.Equal(t, status.Code(err), codes.PermissionDenied)
 
 	// Verify can update project with proper permissions
-	appServer.enf.SetBuiltinPolicy(`
+	_ = appServer.enf.SetBuiltinPolicy(`
 p, admin, applications, update, default/test-app, allow
 p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
