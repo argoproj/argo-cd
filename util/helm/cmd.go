@@ -71,7 +71,7 @@ func redact(args []string) []byte {
 	return line
 }
 
-func (h cmd) Init() (string, error) {
+func (h cmd) init() (string, error) {
 	return h.run("init", "--client-only", "--skip-refresh")
 }
 

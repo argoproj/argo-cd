@@ -21,14 +21,14 @@ import (
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
 	log              *log.Entry
-	clientFactory    repos.ClientFactory
+	registry         repos.Registry
 	cache            *cache.Cache
 	opts             []grpc.ServerOption
 	parallelismLimit int64
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(clientFactory repos.ClientFactory, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(registry repos.Registry, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
@@ -53,7 +53,7 @@ func NewServer(clientFactory repos.ClientFactory, cache *cache.Cache, tlsConfCus
 
 	return &ArgoCDRepoServer{
 		log:              serverLog,
-		clientFactory:    clientFactory,
+		registry:         registry,
 		cache:            cache,
 		parallelismLimit: parallelismLimit,
 		opts: []grpc.ServerOption{
@@ -68,7 +68,7 @@ func NewServer(clientFactory repos.ClientFactory, cache *cache.Cache, tlsConfCus
 func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	version.RegisterVersionServiceServer(server, &version.Server{})
-	manifestService := repository.NewService(a.clientFactory, a.cache, a.parallelismLimit)
+	manifestService := repository.NewService(a.registry, a.cache, a.parallelismLimit)
 	repository.RegisterRepoServerServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.

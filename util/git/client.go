@@ -17,24 +17,24 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
-// Client is a generic git client interface
-type Client interface {
-	Root() string
-	Init() error
-	Fetch() error
-	Checkout(revision string) error
-	LsRemote(revision string) (string, error)
-	LsFiles(path string) ([]string, error)
-	CommitSHA() (string, error)
+// client is a generic git client interface
+type client interface {
+	getRoot() string
+	init() error
+	fetch() error
+	checkout(revision string) error
+	lsRemote(revision string) (string, error)
+	lsFiles(path string) ([]string, error)
+	commitSHA() (string, error)
 }
 
 // ClientFactory is a factory of Git Clients
 // Primarily used to support creation of mock git clients during unit testing
-type ClientFactory interface {
-	NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error)
+type clientFactory interface {
+	newClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (client, error)
 }
 
-// nativeGitClient implements Client interface using git CLI
+// nativeGitClient implements client interface using git CLI
 type nativeGitClient struct {
 	repoURL string
 	root    string
@@ -43,11 +43,11 @@ type nativeGitClient struct {
 
 type factory struct{}
 
-func NewFactory() ClientFactory {
+func newFactory() clientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
+func (f *factory) newClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (client, error) {
 	clnt := nativeGitClient{
 		repoURL: repoURL,
 		root:    path,
@@ -69,12 +69,11 @@ func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey str
 	return &clnt, nil
 }
 
-func (m *nativeGitClient) Root() string {
-	return m.root
-}
+// init initializes a local git repository and sets the remote origin
+func (m *nativeGitClient) init() error {
 
-// Init initializes a local git repository and sets the remote origin
-func (m *nativeGitClient) Init() error {
+	log.WithFields(log.Fields{"repoURL": m.repoURL, "root": m.root}).Info("init")
+
 	_, err := git.PlainOpen(m.root)
 	if err == nil {
 		return nil
@@ -82,7 +81,7 @@ func (m *nativeGitClient) Init() error {
 	if err != git.ErrRepositoryNotExists {
 		return err
 	}
-	log.Infof("Initializing %s to %s", m.repoURL, m.root)
+
 	_, err = exec.Command("rm", "-rf", m.root).Output()
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
@@ -102,9 +101,13 @@ func (m *nativeGitClient) Init() error {
 	return err
 }
 
-// Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch() error {
-	log.Debugf("Fetching repo %s at %s", m.repoURL, m.root)
+func (m *nativeGitClient) getRoot() string {
+	return m.root
+}
+
+// fetch fetches latest updates from origin
+func (m *nativeGitClient) fetch() error {
+	log.WithFields(log.Fields{"root": m.root}).Info("fetch")
 	// Two techniques are used for fetching the remote depending if the remote is SSH vs. HTTPS
 	// If http, we fork/exec the git CLI since the go-git client does not properly support git
 	// providers such as AWS CodeCommit and Azure DevOps.
@@ -135,8 +138,9 @@ func (m *nativeGitClient) goGitFetch() error {
 	return err
 }
 
-// LsFiles lists the local working tree, including only files that are under source control
-func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
+// lsFiles lists the local working tree, including only files that are under source control
+func (m *nativeGitClient) lsFiles(path string) ([]string, error) {
+	log.WithFields(log.Fields{"path": path}).Info("listing files")
 	out, err := m.runCmd("git", "ls-files", "--full-name", "-z", "--", path)
 	if err != nil {
 		return nil, err
@@ -146,8 +150,9 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 	return ss[:len(ss)-1], nil
 }
 
-// Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(revision string) error {
+// checkout checkout specified git sha
+func (m *nativeGitClient) checkout(revision string) error {
+	log.WithFields(log.Fields{"revision": revision}).Info("checkout")
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -160,13 +165,14 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	return nil
 }
 
-// LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
+// lsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
 // does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
 // runs with in-memory storage and is safe to run concurrently, or to be run without a git
 // repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (string, error) {
-	if IsCommitSHA(revision) {
+func (m *nativeGitClient) lsRemote(revision string) (string, error) {
+	log.WithFields(log.Fields{"repoURL": m.repoURL, "revision": revision}).Info("listing remote")
+	if isCommitSHA(revision) {
 		return revision, nil
 	}
 	repo, err := git.Init(memory.NewStorage(), nil)
@@ -223,7 +229,7 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 		}
 	}
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
-	if IsTruncatedCommitSHA(revision) {
+	if isTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
 		return revision, nil
 	}
@@ -232,8 +238,8 @@ func (m *nativeGitClient) LsRemote(revision string) (string, error) {
 	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
 }
 
-// CommitSHA returns current commit sha from `git rev-parse HEAD`
-func (m *nativeGitClient) CommitSHA() (string, error) {
+// commitSHA returns current commit sha from `git rev-parse HEAD`
+func (m *nativeGitClient) commitSHA() (string, error) {
 	out, err := m.runCmd("git", "rev-parse", "HEAD")
 	if err != nil {
 		return "", err

@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
+	"github.com/argoproj/argo-cd/util/repos/api"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -60,28 +61,16 @@ func fakeCluster() *appsv1.Cluster {
 	}
 }
 
-func fakeFileResponse() *repository.GetFileResponse {
-	return &repository.GetFileResponse{
-		Data: []byte(`
-apiVersion: 0.1.0
-environments:
-  default:
-    destination:
-      namespace: default
-      server: https://cluster-api.com
-    k8sVersion: v1.10.0
-    path: minikube
-kind: ksonnet.io/app
-name: test-app
-version: 0.0.1
-`),
+func fakeFileResponse() *repository.GetAppCfgResponse {
+	return &repository.GetAppCfgResponse{
+		AppType: api.KsonnetAppType,
 	}
 }
 
-func fakeListDirResponse() *repository.FileList {
-	return &repository.FileList{
-		Items: []string{
-			"some/path/app.yaml",
+func fakeListDirResponse() *repository.AppCfgList {
+	return &repository.AppCfgList{
+		AppCfgs: map[string]string{
+			"some/path": "ksonnet",
 		},
 	}
 }
@@ -108,7 +97,7 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	errors.CheckError(err)
 
 	mockRepoServiceClient := mockreposerver.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetFile", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
+	mockRepoServiceClient.On("GetAppCfg", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
 	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
 

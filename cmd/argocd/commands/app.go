@@ -42,7 +42,6 @@ import (
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/repos"
 	argosettings "github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -250,7 +249,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 	case argoappv1.SyncStatusCodeOutOfSync:
 		syncStatusStr += fmt.Sprintf(" from %s", app.Spec.Source.TargetRevision)
 	}
-	if !repos.IsUnambiguousRevision(app.Spec.Source.TargetRevision) && !repos.IsTruncatedCommitSHA(app.Spec.Source.TargetRevision) && len(app.Status.Sync.Revision) > 7 {
+	if len(app.Status.Sync.Revision) > 7 {
 		syncStatusStr += fmt.Sprintf(" (%s)", app.Status.Sync.Revision[0:7])
 	}
 	fmt.Printf(printOpFmtStr, "Sync Status:", syncStatusStr)

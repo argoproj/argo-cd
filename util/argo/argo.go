@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,10 +25,10 @@ import (
 	"github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/ksonnet"
+	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/kustomize"
 	"github.com/argoproj/argo-cd/util/repos"
+	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
 const (
@@ -159,12 +157,22 @@ func GetSpecErrors(
 	repoAccessible := false
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 
+	repoType := "git"
+	if repoRes != nil && repoRes.Type != "" {
+		repoType = string(repoRes.Type)
+	}
+	factory := repos.NewRegistry().NewFactory(repoType)
+
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			// The repo has not been added to Argo CD so we do not have credentials to access it.
 			// We support the mode where apps can be created from public repositories. Test the
 			// repo to make sure it is publicly accessible
-			err = repos.TestRepo(repos.Config{Url: spec.Source.RepoURL})
+			switch f := factory.(type) {
+			case git.RepoCfgFactory:
+				_, err = f.NewRepoCfg(spec.Source.RepoURL, "", "", "", false)
+			}
+
 			if err != nil {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -191,7 +199,6 @@ func GetSpecErrors(
 	}
 
 	if repoAccessible {
-		var appSourceType argoappv1.ApplicationSourceType
 		if explicitSourceType != nil {
 			appSourceType = *explicitSourceType
 		} else {
@@ -204,30 +211,14 @@ func GetSpecErrors(
 				Message: fmt.Sprintf("Unable to determine app source type: %v", err),
 			})
 		} else {
-			switch appSourceType {
-			case argoappv1.ApplicationSourceTypeKsonnet:
-				err := verifyAppYAML(ctx, repoRes, spec, repoClient)
-				if err != nil {
-					conditions = append(conditions, argoappv1.ApplicationCondition{
-						Type:    argoappv1.ApplicationConditionInvalidSpecError,
-						Message: err.Error(),
-					})
-				}
-			case argoappv1.ApplicationSourceTypeHelm:
-				helmConditions := verifyHelmChart(ctx, repoRes, spec, repoClient)
-				if len(helmConditions) > 0 {
-					conditions = append(conditions, helmConditions...)
-				}
-			case argoappv1.ApplicationSourceTypeDirectory, argoappv1.ApplicationSourceTypeKustomize:
-				maniDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.Repository{}, spec, repoClient)
-				if len(maniDirConditions) > 0 {
-					conditions = append(conditions, maniDirConditions...)
-				}
+			maniDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.Repository{}, spec, repoClient)
+			if len(maniDirConditions) > 0 {
+				conditions = append(conditions, maniDirConditions...)
 			}
 		}
 	}
 
-	if !proj.IsSourcePermitted(spec.Source, repos.NormalizeURL) {
+	if !proj.IsSourcePermitted(spec.Source, factory.NormalizeURL) {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("application source %v is not permitted in project '%s'", spec.Source, spec.Project),
@@ -263,12 +254,12 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 }
 
 func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
-	req := repository.ListDirRequest{
+	req := repository.GetAppCfgRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
 		Revision: spec.Source.TargetRevision,
-		Path:     fmt.Sprintf("%s/*.yaml", spec.Source.Path),
+		Path:     spec.Source.Path,
 	}
 	if repoRes != nil {
 		req.Repo.Type = repoRes.Type
@@ -280,107 +271,20 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		req.Repo.CertData = repoRes.CertData
 		req.Repo.KeyData = repoRes.KeyData
 	}
-	getRes, err := repoClient.ListDir(ctx, &req)
+	getRes, err := repoClient.GetAppCfg(ctx, &req)
 	if err != nil {
 		return "", err
 	}
-	for _, gitPath := range getRes.Items {
-		// gitPath may look like: app.yaml, or some/subpath/app.yaml
-		trimmedPath := strings.TrimPrefix(gitPath, filepath.Clean(spec.Source.Path))
-		trimmedPath = strings.TrimPrefix(trimmedPath, "/")
-		if trimmedPath == "app.yaml" {
-			return argoappv1.ApplicationSourceTypeKsonnet, nil
-		}
-		if trimmedPath == "Chart.yaml" {
-			return argoappv1.ApplicationSourceTypeHelm, nil
-		}
-		if kustomize.IsKustomization(trimmedPath) {
-			return argoappv1.ApplicationSourceTypeKustomize, nil
-		}
+
+	switch getRes.AppType {
+	case api.KsonnetAppType:
+		return argoappv1.ApplicationSourceTypeKsonnet, nil
+	case api.HelmAppType:
+		return argoappv1.ApplicationSourceTypeHelm, nil
+	case api.KustomizeAppType:
+		return argoappv1.ApplicationSourceTypeKustomize, nil
 	}
 	return argoappv1.ApplicationSourceTypeDirectory, nil
-}
-
-// verifyAppYAML verifies that a ksonnet app.yaml is functional
-func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) error {
-
-	req := repository.GetFileRequest{
-		Repo: &argoappv1.Repository{
-			Repo: spec.Source.RepoURL,
-		},
-		Revision: spec.Source.TargetRevision,
-		Path:     path.Join(spec.Source.Path, "app.yaml"),
-	}
-	if repoRes != nil {
-		req.Repo.Type = repoRes.Type
-		req.Repo.Name = repoRes.Name
-		req.Repo.Username = repoRes.Username
-		req.Repo.Password = repoRes.Password
-		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
-		req.Repo.CAData = repoRes.CAData
-		req.Repo.CertData = repoRes.CertData
-		req.Repo.KeyData = repoRes.KeyData
-	}
-	getRes, err := repoClient.GetFile(ctx, &req)
-	if err != nil {
-		return fmt.Errorf("Unable to load app.yaml: %v", err)
-	}
-
-	// Verify the specified environment is defined in the app spec
-	if spec.Source.Ksonnet == nil {
-		return fmt.Errorf("Ksonnet environment not specified")
-	}
-
-	dest, err := ksonnet.Destination(getRes.Data, spec.Source.Ksonnet.Environment)
-	if err != nil {
-		return err
-	}
-
-	// If server and namespace are not supplied, pull it from the app.yaml
-	if spec.Destination.Server == "" {
-		spec.Destination.Server = dest.Server
-	}
-	if spec.Destination.Namespace == "" {
-		spec.Destination.Namespace = dest.Namespace
-	}
-
-	return nil
-}
-
-// verifyHelmChart verifies a helm chart is functional
-func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
-	var conditions []argoappv1.ApplicationCondition
-	if spec.Destination.Server == "" || spec.Destination.Namespace == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: errDestinationMissing,
-		})
-	}
-	req := repository.GetFileRequest{
-		Repo: &argoappv1.Repository{
-			Repo: spec.Source.RepoURL,
-		},
-		Revision: spec.Source.TargetRevision,
-		Path:     path.Join(spec.Source.Path, "Chart.yaml"),
-	}
-	if repoRes != nil {
-		req.Repo.Type = repoRes.Type
-		req.Repo.Name = repoRes.Name
-		req.Repo.Username = repoRes.Username
-		req.Repo.Password = repoRes.Password
-		req.Repo.SSHPrivateKey = repoRes.SSHPrivateKey
-		req.Repo.CAData = repoRes.CAData
-		req.Repo.CertData = repoRes.CertData
-		req.Repo.KeyData = repoRes.KeyData
-	}
-	_, err := repoClient.GetFile(ctx, &req)
-	if err != nil {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Unable to load Chart.yaml: %v", err),
-		})
-	}
-	return conditions
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests

@@ -64,7 +64,8 @@ func TestGetSpecErrors(t *testing.T) {
 	project := argoappv1.AppProject{Spec: argoappv1.AppProjectSpec{SourceRepos: []string{knownGitRepoUrl, knownHelmRepoUrl}, Destinations: []argoappv1.ApplicationDestination{{Server: server, Namespace: namespace}}}}
 
 	mockRepoServiceClient := mockreposerver.RepoServerServiceClient{}
-	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(&repository.FileList{}, nil)
+	mockRepoServiceClient.On("ListAppCfgs", mock.Anything, mock.Anything).Return(&repository.AppCfgList{}, nil)
+	mockRepoServiceClient.On("GetAppCfg", mock.Anything, mock.Anything).Return(&repository.GetAppCfgResponse{}, nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
 
 	mockRepoClient := mockrepo.Clientset{}

@@ -1,10 +1,8 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 	"path"
-	"path/filepath"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -20,9 +18,11 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/kustomize"
+	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/repos"
+	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
 // Server provides a Repository service
@@ -56,8 +56,13 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 	}
 	now := metav1.Now()
 
-	config := repos.Config{Url: repo.Repo, Type: string(repo.Type), Name: repo.Name, Username: repo.Username, Password: repo.Password, SSHPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
-	err = repos.TestRepo(config)
+	factory := repos.NewRegistry().NewFactory(api.RepoType(repo.Type))
+	switch f := factory.(type) {
+	case git.RepoCfgFactory:
+		_, err = f.NewRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	case helm.RepoCfgFactory:
+		_, err = f.NewRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+	}
 
 	if err != nil {
 		repo.ConnectionState = appsv1.ConnectionState{
@@ -123,60 +128,17 @@ func redact(repos []*appsv1.Repository) []appsv1.Repository {
 func (s *Server) listAppsPaths(
 	ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (map[string]appsv1.ApplicationSourceType, error) {
 
-	ksonnetRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*app.yaml")})
-	if err != nil {
-		return nil, err
-	}
-	componentRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*components/params.libsonnet")})
+	appCfgList, err := repoClient.ListAppCfgs(ctx, &repository.ListAppCfgsRequest{Repo: repo, Revision: revision})
 	if err != nil {
 		return nil, err
 	}
 
-	helmRes, err := repoClient.ListDir(ctx, &repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*Chart.yaml")})
-	if err != nil {
-		return nil, err
+	output := make(map[string]appsv1.ApplicationSourceType)
+	for appPath := range appCfgList.AppCfgs {
+		output[appPath] = appsv1.ApplicationSourceType(appCfgList.AppCfgs[appPath])
 	}
 
-	kustomizationRes, err := getKustomizationRes(ctx, repoClient, repo, revision, subPath)
-	if err != nil {
-		return nil, err
-	}
-
-	componentDirs := make(map[string]interface{})
-	for _, i := range componentRes.Items {
-		d := filepath.Dir(filepath.Dir(i))
-		componentDirs[d] = struct{}{}
-	}
-
-	pathToType := make(map[string]appsv1.ApplicationSourceType)
-	for _, i := range ksonnetRes.Items {
-		d := filepath.Dir(i)
-		if _, ok := componentDirs[d]; ok {
-			pathToType[i] = appsv1.ApplicationSourceTypeKsonnet
-		}
-	}
-
-	for i := range helmRes.Items {
-		pathToType[helmRes.Items[i]] = appsv1.ApplicationSourceTypeHelm
-	}
-
-	for i := range kustomizationRes.Items {
-		pathToType[kustomizationRes.Items[i]] = appsv1.ApplicationSourceTypeKustomize
-	}
-	return pathToType, nil
-}
-
-func getKustomizationRes(ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (*repository.FileList, error) {
-	for _, kustomization := range kustomize.KustomizationNames {
-		request := repository.ListDirRequest{Repo: repo, Revision: revision, Path: path.Join(subPath, "*"+kustomization)}
-		kustomizationRes, err := repoClient.ListDir(ctx, &request)
-		if err != nil {
-			return nil, err
-		} else {
-			return kustomizationRes, nil
-		}
-	}
-	return nil, errors.New("could not find kustomization")
+	return output, nil
 }
 
 // ListApps returns list of apps in the repo
@@ -253,8 +215,15 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 		return nil, err
 	}
 	r := q.Repo
-	config := repos.Config{Url: r.Repo, Type: string(r.Type), Name: r.Name, Username: r.Username, Password: r.Password, SSHPrivateKey: r.SSHPrivateKey, InsecureIgnoreHostKey: r.InsecureIgnoreHostKey, CAData: r.CAData, CertData: r.CertData, KeyData: r.KeyData}
-	err := repos.TestRepo(config)
+
+	factory := repos.NewRegistry().NewFactory(api.RepoType(r.Type))
+	var err error
+	switch f := factory.(type) {
+	case git.RepoCfgFactory:
+		_, err = f.NewRepoCfg(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
+	case helm.RepoCfgFactory:
+		_, err = f.NewRepoCfg(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
+	}
 	if err != nil {
 		return nil, err
 	}

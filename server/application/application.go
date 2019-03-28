@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -34,9 +32,12 @@ import (
 	argoutil "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/git"
+	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/repos"
+	"github.com/argoproj/argo-cd/util/repos/api"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -52,7 +53,7 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	clientFactory repos.ClientFactory
+	registry      repos.Registry
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -82,7 +83,7 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		clientFactory: repos.NewFactory(),
+		registry:      repos.NewRegistry(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -892,26 +893,25 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if ambiguousRevision == "" {
 		ambiguousRevision = app.Spec.Source.TargetRevision
 	}
-	if repos.IsUnambiguousRevision(ambiguousRevision) {
-		// If it's already a commit SHA, then no need to look it up
-		return ambiguousRevision, ambiguousRevision, nil
-	}
+
 	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
 	if err != nil {
 		log.Info("If we couldn't retrieve from the repo service, assume public repositories")
 		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL, Type: "git"}
 	}
-	config := repos.Config{Url: repo.Repo, Type: string(repo.Type), Name: repo.Name, Username: repo.Username, Password: repo.Password, SSHPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey, CAData: repo.CAData, CertData: repo.CertData, KeyData: repo.KeyData}
-	wordDir, err := ioutil.TempDir("", "")
+	factory := repos.NewRegistry().NewFactory(api.RepoType(repo.Type))
+	var repoCfg api.RepoCfg
+	switch f := factory.(type) {
+	case git.RepoCfgFactory:
+		repoCfg, err = f.NewRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	case helm.RepoCfgFactory:
+		repoCfg, err = f.NewRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+	}
 	if err != nil {
 		return "", "", err
 	}
-	defer func() { _ = os.RemoveAll(wordDir) }()
-	client, err := s.clientFactory.NewClient(config, wordDir)
-	if err != nil {
-		return "", "", err
-	}
-	resolvedRevision, err := client.ResolveRevision(app.Spec.Source.Path, ambiguousRevision)
+
+	resolvedRevision, err := repoCfg.ResolveRevision(app.Spec.Source.Path, ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}

@@ -5,48 +5,32 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
 	"github.com/argoproj/argo-cd/util/repos"
-	gitmocks "github.com/argoproj/argo-cd/util/repos/mocks"
 )
 
-func newMockRepoServerService(root string) *Service {
+func newMockRepoServerService() *Service {
 	return &Service{
-		repoLock:      util.NewKeyLock(),
-		clientFactory: newFakeClientFactory(root),
-		cache:         cache.NewCache(cache.NewInMemoryCache(time.Hour)),
+		repoLock:     util.NewKeyLock(),
+		repoRegistry: repos.NewRegistry(),
+		cache:        cache.NewCache(cache.NewInMemoryCache(time.Hour)),
 	}
 }
 
-func newFakeClientFactory(workDir string) repos.ClientFactory {
-	return &fakeClientFactory{workDir: workDir}
-}
+func repoUrl() string {
+	wd, _ := os.Getwd()
 
-type fakeClientFactory struct {
-	workDir string
-}
-
-func (f *fakeClientFactory) NewClient(c repos.Config, path string) (repos.Client, error) {
-	mockClient := gitmocks.Client{}
-	workDir := "./testdata"
-	if f.workDir != "" {
-		workDir = f.workDir
-	}
-	mockClient.On("WorkDir", mock.Anything, mock.Anything).Return(workDir)
-	mockClient.On("Checkout", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
-	mockClient.On("ResolveRevision", mock.Anything, mock.Anything).Return("aaaaaaaaaabbbbbbbbbbccccccccccdddddddddd", nil)
-	mockClient.On("LsFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
-	return &mockClient, nil
+	return "file://" + filepath.Join(wd, "../..")
 }
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
@@ -182,14 +166,14 @@ func TestGenerateFromUTF16(t *testing.T) {
 }
 
 func TestGetAppDetailsHelm(t *testing.T) {
-	serve := newMockRepoServerService("../../util/helm/testdata")
+	serve := newMockRepoServerService()
 	ctx := context.Background()
 
 	// verify default parameters are returned when not supplying values
 	{
 		res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
-			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-			Path: "redis",
+			Repo: &argoappv1.Repository{Repo: repoUrl()},
+			Path: "util/helm/testdata/redis",
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
@@ -200,8 +184,8 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	// verify values specific parameters are returned when a values is specified
 	{
 		res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
-			Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-			Path: "redis",
+			Repo: &argoappv1.Repository{Repo: repoUrl()},
+			Path: "util/helm/testdata/redis",
 			Helm: &HelmAppDetailsQuery{
 				ValueFiles: []string{"values-production.yaml"},
 			},
@@ -223,12 +207,12 @@ func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.
 }
 
 func TestGetAppDetailsKsonnet(t *testing.T) {
-	serve := newMockRepoServerService("../../util/ksonnet/testdata")
+	serve := newMockRepoServerService()
 	ctx := context.Background()
 
 	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		Path: "test-app",
+		Repo: &argoappv1.Repository{Repo: repoUrl()},
+		Path: "util/ksonnet/testdata/test-app",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://1.2.3.4", res.Ksonnet.Environments["test-env"].Destination.Server)
@@ -240,12 +224,12 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {
-	serve := newMockRepoServerService("../../util/kustomize/testdata")
+	serve := newMockRepoServerService()
 	ctx := context.Background()
 
 	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		Path: "kustomization_yaml",
+		Repo: &argoappv1.Repository{Repo: repoUrl()},
+		Path: "util/kustomize/testdata/kustomization_yaml",
 	})
 	assert.NoError(t, err)
 	assert.Nil(t, res.Kustomize.Images)

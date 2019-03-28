@@ -28,12 +28,12 @@ type App interface {
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
 func NewApp(path string, repos []*argoappv1.Repository) (App, error) {
-	helm, err := newCmd(path)
+	cmd, err := newCmd(path)
 	if err != nil {
 		return nil, err
 	}
-	_, err = helm.Init()
-	return &app{path: path, cmd: *helm, repos: repos}, err
+	_, err = cmd.init()
+	return &app{path: path, cmd: *cmd, repos: repos}, err
 }
 
 type app struct {

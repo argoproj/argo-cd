@@ -16,7 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cli"
-	"github.com/argoproj/argo-cd/util/repos"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -58,6 +57,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 			repo.Repo = args[0]
 			repo.Type = appsv1.RepoType(repoType)
+			if repo.Username != "" && repo.Password == "" {
+				repo.Password = cli.PromptPassword("Password")
+			}
 			if sshPrivateKeyPath != "" {
 				keyData, err := ioutil.ReadFile(sshPrivateKeyPath)
 				if err != nil {
@@ -87,22 +89,6 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 				repo.KeyData = keyData
 			}
-			// First test the repo *without* username/password. This gives us a hint on whether this
-			// is a private repo.
-			// NOTE: it is important not to run git commands to test git credentials on the user's
-			// system since it may mess with their git credential store (e.g. osx keychain).
-			// See issue #315
-			config := repos.Config{Url: repo.Repo, Type: repoType, Name: repo.Name, SSHPrivateKey: repo.SSHPrivateKey, InsecureIgnoreHostKey: repo.InsecureIgnoreHostKey}
-			err := repos.TestRepo(config)
-			if err != nil {
-				if repos.IsSSHURL(repo.Repo) {
-					// If we failed using git SSH credentials, then the repo is automatically bad
-					log.Fatal(err)
-				}
-				// If we can't test the repo, it's probably private. Prompt for credentials and
-				// let the server test it.
-				repo.Username, repo.Password = cli.PromptCredentials(repo.Username, repo.Password)
-			}
 			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
 			defer util.Close(conn)
 			repoCreateReq := repository.RepoCreateRequest{
@@ -115,7 +101,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
-	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
+	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository, if omitted, it will be requested")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().BoolVar(&insecureIgnoreHostKey, "insecure-ignore-host-key", false, "disables SSH strict host key checking")
 	command.Flags().StringVar(&caFile, "ca-file", "", "verify certificates of HTTPS-enabled servers using this CA bundle")

@@ -5,18 +5,18 @@ import (
 	"hash/fnv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/util/repos"
-
-	"github.com/argoproj/argo-cd/common"
-	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/settings"
-
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/common"
+	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/repos"
+	"github.com/argoproj/argo-cd/util/repos/api"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -272,7 +272,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 
 func getRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
 	for i, cred := range s.Repositories {
-		if repos.SameURL(cred.URL, repoURL) {
+		if repos.NewRegistry().NewFactory(api.RepoType(cred.Type)).SameURL(cred.URL, repoURL) {
 			return i
 		}
 	}

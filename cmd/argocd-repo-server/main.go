@@ -46,7 +46,7 @@ func newCommand() *cobra.Command {
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 
-			server, err := reposerver.NewServer(repos.NewFactory(), cache, tlsConfigCustomizer, parallelismLimit)
+			server, err := reposerver.NewServer(repos.NewRegistry(), cache, tlsConfigCustomizer, parallelismLimit)
 			errors.CheckError(err)
 			grpc := server.CreateGRPC()
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%d", common.PortRepoServer))

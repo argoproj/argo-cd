@@ -29,29 +29,27 @@ message ManifestResponse {
     string sourceType = 6;
 }
 
-// ListDirRequest requests a repository directory structure
-message ListDirRequest {
+// ListAppCfgRequest requests a repository's apps
+message ListAppCfgsRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
-    string path = 3;
 }
 
-// FileList returns the contents of the repo of a ListDir request
-message FileList {
-    repeated string items = 1;
+// AppCfgList returns a list of app c fgs
+message AppCfgList {
+    map<string,string> appCfgs = 1;
 }
 
 // GetFileRequest return
-message GetFileRequest {
+message GetAppCfgRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
     string path = 3;
 }
 
-
-// GetFileResponse returns the contents of the file of a GetFile request
-message GetFileResponse {
-    bytes data = 1;
+// GetAppCfgResponse returns the type of app
+message GetAppCfgResponse {
+    string appType = 1;
 }
 
 // RepoServerAppDetailsQuery contains query information for app details request
@@ -130,18 +128,18 @@ message DirectoryAppSpec {
 service RepoServerService {
 
     // GenerateManifest generates manifest for application in specified repo name and revision
-    rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    rpc GenerateManifest (ManifestRequest) returns (ManifestResponse) {
     }
 
     // ListDir returns the file contents at the specified repo and path
-    rpc ListDir(ListDirRequest) returns (FileList) {
+    rpc ListAppCfgs (ListAppCfgsRequest) returns (AppCfgList) {
     }
 
     // GetFile returns the file contents at the specified repo and path
-    rpc GetFile(GetFileRequest) returns (GetFileResponse) {
+    rpc GetAppCfg (GetAppCfgRequest) returns (GetAppCfgResponse) {
     }
 
     // Generate manifest for application in specified repo name and revision
-    rpc GetAppDetails(RepoServerAppDetailsQuery) returns (RepoAppDetailsResponse) {
+    rpc GetAppDetails (RepoServerAppDetailsQuery) returns (RepoAppDetailsResponse) {
     }
 }
