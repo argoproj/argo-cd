@@ -10,8 +10,6 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/util"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -24,6 +22,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/util"
 
 	"github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util/cli"
@@ -188,7 +189,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 				errors.CheckError(err)
 				maskedDexCfgBytes, err := yaml.Marshal(dexCfg)
 				errors.CheckError(err)
-				fmt.Printf(string(maskedDexCfgBytes))
+				fmt.Print(string(maskedDexCfgBytes))
 			} else {
 				err = ioutil.WriteFile(out, dexCfgBytes, 0644)
 				errors.CheckError(err)

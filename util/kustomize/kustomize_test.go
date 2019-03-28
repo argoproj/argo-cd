@@ -18,7 +18,6 @@ import (
 const (
 	// This is a throwaway gitlab test account/repo with a read-only personal access token for the
 	// purposes of testing private git repos
-	PrivateGitRepo     = "https://gitlab.com/argo-cd-test/test-apps.git"
 	PrivateGitUsername = "blah"
 	PrivateGitPassword = "B5sBDeoqAVUouoHkrovy"
 )

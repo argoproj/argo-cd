@@ -12,16 +12,6 @@ import (
 )
 
 func TestSwaggerUI(t *testing.T) {
-	const sentinel = `{
-  "swagger": "2.0",
-  "info": {
-    "title": "Consolidate Services",
-    "description": "Description of all APIs",
-    "version": "version not set"
-  },
-  "paths": {}
-}`
-
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port
 		listener, err := net.Listen("tcp", ":0")

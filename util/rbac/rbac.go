@@ -135,11 +135,11 @@ func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc Claims
 	// check if subject is jwt.Claims vs. a normal subject string and run custom claims
 	// enforcement func (if set)
 	sub := rvals[0]
-	switch sub.(type) {
+	switch s := sub.(type) {
 	case string:
 		// noop
 	case jwt.Claims:
-		if claimsEnforcerFunc != nil && claimsEnforcerFunc(sub.(jwt.Claims), rvals...) {
+		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, rvals...) {
 			return true
 		}
 		rvals = append([]interface{}{""}, rvals[1:]...)

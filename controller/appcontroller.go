@@ -11,8 +11,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,21 +123,6 @@ func NewApplicationController(
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDMetrics)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, ctrl.appLister)
 	return &ctrl, nil
-}
-
-func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, error) {
-	obj, exists, err := ctrl.appInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ctrl.namespace, name))
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("unable to find application with name %s", name))
-	}
-	a, ok := (obj).(*appv1.Application)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, fmt.Sprintf("unexpected object type in app informer"))
-	}
-	return a, nil
 }
 
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) error {
@@ -594,7 +577,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	startTime := time.Now()
 	defer func() {
-		reconcileDuration := time.Now().Sub(startTime)
+		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
 		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "full": fullRefresh})
 		logCtx.Info("Reconciliation completed")
@@ -871,10 +854,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	specSource.TargetRevision = ""
 	syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
 	syncResSource.TargetRevision = ""
-	if !reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source) {
-		return false
-	}
-	return true
+	return reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source)
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {

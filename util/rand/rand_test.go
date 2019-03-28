@@ -5,8 +5,7 @@ import (
 )
 
 func TestRandString(t *testing.T) {
-	var ss string
-	ss = RandStringCharset(10, "A")
+	ss := RandStringCharset(10, "A")
 	if ss != "AAAAAAAAAA" {
 		t.Errorf("Expected 10 As, but got %q", ss)
 	}

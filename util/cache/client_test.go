@@ -21,7 +21,7 @@ func TestCache(t *testing.T) {
 		Foo: "foo",
 		Bar: []byte("bar"),
 	}
-	c.Set(&Item{
+	_ = c.Set(&Item{
 		Key:    "key",
 		Object: &cacheObj,
 	})
