@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -90,7 +90,8 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
 
 		assert.NotNil(t, err)
-		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode)
 	})
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
@@ -123,7 +124,8 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
 
 		assert.NotNil(t, err)
-		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode)
 	})
 
 	t.Run("TestDeleteProjectSuccessful", func(t *testing.T) {
@@ -142,7 +144,8 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, util.NewKeyLock(), nil)
 
 		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: defaultProj.Name})
-		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode)
 	})
 
 	t.Run("TestDeleteProjectReferencedByApp", func(t *testing.T) {
@@ -156,7 +159,8 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.Delete(context.Background(), &ProjectQuery{Name: "test"})
 
 		assert.NotNil(t, err)
-		assert.Equal(t, codes.InvalidArgument, grpc.Code(err))
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode)
 	})
 
 	t.Run("TestCreateTokenSuccesfully", func(t *testing.T) {

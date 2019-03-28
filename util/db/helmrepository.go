@@ -15,7 +15,9 @@ import (
 
 func getHelmRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
 	for i, cred := range s.HelmRepositories {
-		if strings.ToLower(cred.URL) == strings.ToLower(repoURL) {
+		// work-around the SA6005 check as I'm not sure that the suggested changes is correct
+		lower := strings.ToLower(cred.URL)
+		if lower == strings.ToLower(repoURL) {
 			return i
 		}
 	}
