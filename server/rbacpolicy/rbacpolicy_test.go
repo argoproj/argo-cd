@@ -51,8 +51,7 @@ func TestEnforceAllPolicies(t *testing.T) {
 	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 
-	var claims jwt.MapClaims
-	claims = jwt.MapClaims{"sub": "alice"}
+	claims := jwt.MapClaims{"sub": "alice"}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 	claims = jwt.MapClaims{"sub": "bob"}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))

@@ -790,7 +790,7 @@ func printDiff(name string, live *unstructured.Unstructured, target *unstructure
 	tempDir, err := ioutil.TempDir("", "argocd-diff")
 	errors.CheckError(err)
 
-	targetFile := path.Join(tempDir, fmt.Sprintf("%s", name))
+	targetFile := path.Join(tempDir, name)
 	targetData := []byte("")
 	if target != nil {
 		targetData, err = yaml.Marshal(target)

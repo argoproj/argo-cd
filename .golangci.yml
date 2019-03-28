@@ -19,5 +19,3 @@ linters:
     - ineffassign
     - unconvert
     - misspell
-  disable:
-    - gosimple

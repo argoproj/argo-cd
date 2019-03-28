@@ -1,7 +1,6 @@
 package http
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -20,7 +19,7 @@ func MakeCookieMetadata(key, value string, flags ...string) (string, error) {
 
 	const maxLength = 4093
 	if len(header) > maxLength {
-		return "", errors.New(fmt.Sprintf("invalid cookie, longer than max length %v", maxLength))
+		return "", fmt.Errorf("invalid cookie, longer than max length %v", maxLength)
 	}
 	return header, nil
 }

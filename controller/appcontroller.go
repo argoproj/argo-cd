@@ -577,7 +577,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	startTime := time.Now()
 	defer func() {
-		reconcileDuration := time.Now().Sub(startTime)
+		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
 		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "full": fullRefresh})
 		logCtx.Info("Reconciliation completed")
@@ -854,10 +854,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	specSource.TargetRevision = ""
 	syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
 	syncResSource.TargetRevision = ""
-	if !reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source) {
-		return false
-	}
-	return true
+	return reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source)
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
