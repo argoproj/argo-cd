@@ -58,9 +58,9 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 	factory := repos.NewRegistry().NewFactory(api.RepoType(repo.Type))
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:
-		_, err = f.NewRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+		_, err = f.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	case helm.RepoCfgFactory:
-		_, err = f.NewRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+		_, err = f.GetRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
 	}
 
 	if err != nil {
@@ -219,9 +219,9 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 	var err error
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:
-		_, err = f.NewRepoCfg(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
+		_, err = f.GetRepoCfg(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
 	case helm.RepoCfgFactory:
-		_, err = f.NewRepoCfg(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
+		_, err = f.GetRepoCfg(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
 	}
 	if err != nil {
 		return nil, err

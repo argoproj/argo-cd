@@ -27,7 +27,7 @@ func (f RepoCfgFactory) IsResolvedRevision(revision string) bool {
 	return isCommitSHA(revision)
 }
 
-func (f RepoCfgFactory) NewRepoCfg(url, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (api.RepoCfg, error) {
+func (f RepoCfgFactory) GetRepoCfg(url, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (api.RepoCfg, error) {
 	url = f.NormalizeURL(url)
 
 	workDir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(url, "/", "_"))

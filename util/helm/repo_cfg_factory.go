@@ -27,7 +27,8 @@ func (f RepoCfgFactory) NormalizeURL(url string) string {
 func (f RepoCfgFactory) IsResolvedRevision(revision string) bool {
 	return revision != ""
 }
-func (f RepoCfgFactory) NewRepoCfg(
+
+func (f RepoCfgFactory) GetRepoCfg(
 	url, name, username, password string,
 	caData, certData, keyData []byte) (api.RepoCfg, error) {
 	url = f.NormalizeURL(url)

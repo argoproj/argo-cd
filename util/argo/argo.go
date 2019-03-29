@@ -170,7 +170,7 @@ func GetSpecErrors(
 			// repo to make sure it is publicly accessible
 			switch f := factory.(type) {
 			case git.RepoCfgFactory:
-				_, err = f.NewRepoCfg(spec.Source.RepoURL, "", "", "", false)
+				_, err = f.GetRepoCfg(spec.Source.RepoURL, "", "", "", false)
 			}
 
 			if err != nil {

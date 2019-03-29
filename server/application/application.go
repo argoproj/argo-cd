@@ -903,9 +903,9 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	var repoCfg api.RepoCfg
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:
-		repoCfg, err = f.NewRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+		repoCfg, err = f.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	case helm.RepoCfgFactory:
-		repoCfg, err = f.NewRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+		repoCfg, err = f.GetRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
 	}
 	if err != nil {
 		return "", "", err

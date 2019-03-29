@@ -459,9 +459,9 @@ func (s *Service) newRepoCfg(repo *v1alpha1.Repository) (api.RepoCfg, error) {
 
 	switch i := factory.(type) {
 	case git.RepoCfgFactory:
-		return i.NewRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+		return i.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	case helm.RepoCfgFactory:
-		return i.NewRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+		return i.GetRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
 	}
 
 	return nil, errors.NotFound("unknown repo type")

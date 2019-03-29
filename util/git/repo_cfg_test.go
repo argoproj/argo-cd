@@ -12,7 +12,7 @@ import (
 func TestRepoCfg(t *testing.T) {
 
 	t.Run("GarbageUrl", func(t *testing.T) {
-		_, err := RepoCfgFactory{}.NewRepoCfg("xxx", "", "", "", false)
+		_, err := RepoCfgFactory{}.GetRepoCfg("xxx", "", "", "", false)
 		assert.EqualError(t, err, "repository not found")
 	})
 
@@ -27,7 +27,7 @@ func TestRepoCfg(t *testing.T) {
 		"sock-shop":               "kustomize",
 	}
 
-	repoCfg, err := RepoCfgFactory{}.NewRepoCfg("https://github.com/argoproj/argocd-example-apps", "", "", "", false)
+	repoCfg, err := RepoCfgFactory{}.GetRepoCfg("https://github.com/argoproj/argocd-example-apps", "", "", "", false)
 	assert.NoError(t, err)
 
 	t.Run("FindAppCfgs", func(t *testing.T) {

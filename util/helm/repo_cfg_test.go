@@ -8,16 +8,16 @@ import (
 
 func TestHelmRepoCfg(t *testing.T) {
 	t.Run("Unnamed", func(t *testing.T) {
-		_, err := RepoCfgFactory{}.NewRepoCfg("http://0.0.0.0", "", "", "", nil, nil, nil)
+		_, err := RepoCfgFactory{}.GetRepoCfg("http://0.0.0.0", "", "", "", nil, nil, nil)
 		assert.EqualError(t, err, "must name repo")
 	})
 
 	t.Run("GarbageRepo", func(t *testing.T) {
-		_, err := RepoCfgFactory{}.NewRepoCfg("http://0.0.0.0", "test", "", "", nil, nil, nil)
+		_, err := RepoCfgFactory{}.GetRepoCfg("http://0.0.0.0", "test", "", "", nil, nil, nil)
 		assert.Error(t, err)
 	})
 
-	client, err := RepoCfgFactory{}.NewRepoCfg("https://kubernetes-charts.storage.googleapis.com", "test", "", "", nil, nil, nil)
+	client, err := RepoCfgFactory{}.GetRepoCfg("https://kubernetes-charts.storage.googleapis.com", "test", "", "", nil, nil, nil)
 	assert.NoError(t, err)
 
 	const latestWordpressVersion = "5.7.1"
