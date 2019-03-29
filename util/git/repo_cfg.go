@@ -29,7 +29,7 @@ func (c repoCfg) makeReady(resolvedRevision string) error {
 	return c.client.checkout(resolvedRevision)
 }
 
-func (c repoCfg) FindAppCfgs(revision string) (map[string]string, error) {
+func (c repoCfg) FindApps(revision string) (map[string]string, error) {
 
 	resolvedRevision, err := c.client.lsRemote(revision)
 	if err != nil {
@@ -41,10 +41,10 @@ func (c repoCfg) FindAppCfgs(revision string) (map[string]string, error) {
 		return nil, err
 	}
 
-	return disco.FindAppCfgs(c.client.getRoot())
+	return disco.FindAppTemplates(c.client.getRoot())
 }
 
-func (c repoCfg) GetAppCfg(path, resolvedRevision string) (string, string, error) {
+func (c repoCfg) GetTemplate(path, resolvedRevision string) (string, string, error) {
 	if !isCommitSHA(resolvedRevision) {
 		return "", "", errors.New("must be resolved resolvedRevision")
 	}

@@ -60,15 +60,15 @@ func fakeCluster() *appsv1.Cluster {
 	}
 }
 
-func fakeFileResponse() *repository.GetAppCfgResponse {
-	return &repository.GetAppCfgResponse{
-		AppType: "ksonnet",
+func fakeGetApp() *repository.GetAppResponse {
+	return &repository.GetAppResponse{
+		Tool: "ksonnet",
 	}
 }
 
-func fakeListDirResponse() *repository.AppCfgList {
-	return &repository.AppCfgList{
-		AppCfgs: map[string]string{
+func fakeListApps() *repository.ListAppsResponse {
+	return &repository.ListAppsResponse{
+		Apps: map[string]string{
 			"some/path": "ksonnet",
 		},
 	}
@@ -96,8 +96,8 @@ func newTestAppServer(objects ...runtime.Object) *Server {
 	errors.CheckError(err)
 
 	mockRepoServiceClient := mockreposerver.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetAppCfg", mock.Anything, mock.Anything).Return(fakeFileResponse(), nil)
-	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListDirResponse(), nil)
+	mockRepoServiceClient.On("GetTemplate", mock.Anything, mock.Anything).Return(fakeGetApp(), nil)
+	mockRepoServiceClient.On("ListDir", mock.Anything, mock.Anything).Return(fakeListApps(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&repository.ManifestResponse{}, nil)
 
 	mockRepoClient := &mockrepo.Clientset{}

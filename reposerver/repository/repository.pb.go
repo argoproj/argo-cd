@@ -47,7 +47,7 @@ func (m *ManifestRequest) Reset()         { *m = ManifestRequest{} }
 func (m *ManifestRequest) String() string { return proto.CompactTextString(m) }
 func (*ManifestRequest) ProtoMessage()    {}
 func (*ManifestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{0}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{0}
 }
 func (m *ManifestRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -154,7 +154,7 @@ func (m *ManifestResponse) Reset()         { *m = ManifestResponse{} }
 func (m *ManifestResponse) String() string { return proto.CompactTextString(m) }
 func (*ManifestResponse) ProtoMessage()    {}
 func (*ManifestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{1}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{1}
 }
 func (m *ManifestResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -218,8 +218,8 @@ func (m *ManifestResponse) GetSourceType() string {
 	return ""
 }
 
-// ListAppCfgRequest requests a repository's apps
-type ListAppCfgsRequest struct {
+// ListAppTemplateRequest requests a repository's apps
+type ListAppsRequest struct {
 	Repo                 *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
 	Revision             string               `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
@@ -227,18 +227,18 @@ type ListAppCfgsRequest struct {
 	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *ListAppCfgsRequest) Reset()         { *m = ListAppCfgsRequest{} }
-func (m *ListAppCfgsRequest) String() string { return proto.CompactTextString(m) }
-func (*ListAppCfgsRequest) ProtoMessage()    {}
-func (*ListAppCfgsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{2}
+func (m *ListAppsRequest) Reset()         { *m = ListAppsRequest{} }
+func (m *ListAppsRequest) String() string { return proto.CompactTextString(m) }
+func (*ListAppsRequest) ProtoMessage()    {}
+func (*ListAppsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{2}
 }
-func (m *ListAppCfgsRequest) XXX_Unmarshal(b []byte) error {
+func (m *ListAppsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ListAppCfgsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ListAppsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ListAppCfgsRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ListAppsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -248,52 +248,52 @@ func (m *ListAppCfgsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (dst *ListAppCfgsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ListAppCfgsRequest.Merge(dst, src)
+func (dst *ListAppsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListAppsRequest.Merge(dst, src)
 }
-func (m *ListAppCfgsRequest) XXX_Size() int {
+func (m *ListAppsRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *ListAppCfgsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ListAppCfgsRequest.DiscardUnknown(m)
+func (m *ListAppsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListAppsRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ListAppCfgsRequest proto.InternalMessageInfo
+var xxx_messageInfo_ListAppsRequest proto.InternalMessageInfo
 
-func (m *ListAppCfgsRequest) GetRepo() *v1alpha1.Repository {
+func (m *ListAppsRequest) GetRepo() *v1alpha1.Repository {
 	if m != nil {
 		return m.Repo
 	}
 	return nil
 }
 
-func (m *ListAppCfgsRequest) GetRevision() string {
+func (m *ListAppsRequest) GetRevision() string {
 	if m != nil {
 		return m.Revision
 	}
 	return ""
 }
 
-// AppCfgList returns a list of app c fgs
-type AppCfgList struct {
-	AppCfgs              map[string]string `protobuf:"bytes,1,rep,name=appCfgs" json:"appCfgs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+// AppTemplateList returns a list of app c fgs
+type ListAppsResponse struct {
+	Apps                 map[string]string `protobuf:"bytes,1,rep,name=apps" json:"apps,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *AppCfgList) Reset()         { *m = AppCfgList{} }
-func (m *AppCfgList) String() string { return proto.CompactTextString(m) }
-func (*AppCfgList) ProtoMessage()    {}
-func (*AppCfgList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{3}
+func (m *ListAppsResponse) Reset()         { *m = ListAppsResponse{} }
+func (m *ListAppsResponse) String() string { return proto.CompactTextString(m) }
+func (*ListAppsResponse) ProtoMessage()    {}
+func (*ListAppsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{3}
 }
-func (m *AppCfgList) XXX_Unmarshal(b []byte) error {
+func (m *ListAppsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *AppCfgList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *ListAppsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_AppCfgList.Marshal(b, m, deterministic)
+		return xxx_messageInfo_ListAppsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -303,27 +303,27 @@ func (m *AppCfgList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (dst *AppCfgList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppCfgList.Merge(dst, src)
+func (dst *ListAppsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListAppsResponse.Merge(dst, src)
 }
-func (m *AppCfgList) XXX_Size() int {
+func (m *ListAppsResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *AppCfgList) XXX_DiscardUnknown() {
-	xxx_messageInfo_AppCfgList.DiscardUnknown(m)
+func (m *ListAppsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListAppsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_AppCfgList proto.InternalMessageInfo
+var xxx_messageInfo_ListAppsResponse proto.InternalMessageInfo
 
-func (m *AppCfgList) GetAppCfgs() map[string]string {
+func (m *ListAppsResponse) GetApps() map[string]string {
 	if m != nil {
-		return m.AppCfgs
+		return m.Apps
 	}
 	return nil
 }
 
 // GetFileRequest return
-type GetAppCfgRequest struct {
+type GetAppRequest struct {
 	Repo                 *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
 	Revision             string               `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	Path                 string               `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
@@ -332,18 +332,18 @@ type GetAppCfgRequest struct {
 	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *GetAppCfgRequest) Reset()         { *m = GetAppCfgRequest{} }
-func (m *GetAppCfgRequest) String() string { return proto.CompactTextString(m) }
-func (*GetAppCfgRequest) ProtoMessage()    {}
-func (*GetAppCfgRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{4}
+func (m *GetAppRequest) Reset()         { *m = GetAppRequest{} }
+func (m *GetAppRequest) String() string { return proto.CompactTextString(m) }
+func (*GetAppRequest) ProtoMessage()    {}
+func (*GetAppRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{4}
 }
-func (m *GetAppCfgRequest) XXX_Unmarshal(b []byte) error {
+func (m *GetAppRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *GetAppCfgRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetAppRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_GetAppCfgRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetAppRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -353,59 +353,59 @@ func (m *GetAppCfgRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, er
 		return b[:n], nil
 	}
 }
-func (dst *GetAppCfgRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetAppCfgRequest.Merge(dst, src)
+func (dst *GetAppRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetAppRequest.Merge(dst, src)
 }
-func (m *GetAppCfgRequest) XXX_Size() int {
+func (m *GetAppRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *GetAppCfgRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetAppCfgRequest.DiscardUnknown(m)
+func (m *GetAppRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetAppRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetAppCfgRequest proto.InternalMessageInfo
+var xxx_messageInfo_GetAppRequest proto.InternalMessageInfo
 
-func (m *GetAppCfgRequest) GetRepo() *v1alpha1.Repository {
+func (m *GetAppRequest) GetRepo() *v1alpha1.Repository {
 	if m != nil {
 		return m.Repo
 	}
 	return nil
 }
 
-func (m *GetAppCfgRequest) GetRevision() string {
+func (m *GetAppRequest) GetRevision() string {
 	if m != nil {
 		return m.Revision
 	}
 	return ""
 }
 
-func (m *GetAppCfgRequest) GetPath() string {
+func (m *GetAppRequest) GetPath() string {
 	if m != nil {
 		return m.Path
 	}
 	return ""
 }
 
-// GetAppCfgResponse returns the type of app
-type GetAppCfgResponse struct {
-	AppType              string   `protobuf:"bytes,1,opt,name=appType,proto3" json:"appType,omitempty"`
+// GetAppTemplateResponse returns the type of app
+type GetAppResponse struct {
+	Tool                 string   `protobuf:"bytes,1,opt,name=tool,proto3" json:"tool,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GetAppCfgResponse) Reset()         { *m = GetAppCfgResponse{} }
-func (m *GetAppCfgResponse) String() string { return proto.CompactTextString(m) }
-func (*GetAppCfgResponse) ProtoMessage()    {}
-func (*GetAppCfgResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{5}
+func (m *GetAppResponse) Reset()         { *m = GetAppResponse{} }
+func (m *GetAppResponse) String() string { return proto.CompactTextString(m) }
+func (*GetAppResponse) ProtoMessage()    {}
+func (*GetAppResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{5}
 }
-func (m *GetAppCfgResponse) XXX_Unmarshal(b []byte) error {
+func (m *GetAppResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *GetAppCfgResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetAppResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_GetAppCfgResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetAppResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -415,21 +415,21 @@ func (m *GetAppCfgResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return b[:n], nil
 	}
 }
-func (dst *GetAppCfgResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetAppCfgResponse.Merge(dst, src)
+func (dst *GetAppResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetAppResponse.Merge(dst, src)
 }
-func (m *GetAppCfgResponse) XXX_Size() int {
+func (m *GetAppResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *GetAppCfgResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetAppCfgResponse.DiscardUnknown(m)
+func (m *GetAppResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetAppResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetAppCfgResponse proto.InternalMessageInfo
+var xxx_messageInfo_GetAppResponse proto.InternalMessageInfo
 
-func (m *GetAppCfgResponse) GetAppType() string {
+func (m *GetAppResponse) GetTool() string {
 	if m != nil {
-		return m.AppType
+		return m.Tool
 	}
 	return ""
 }
@@ -451,7 +451,7 @@ func (m *RepoServerAppDetailsQuery) Reset()         { *m = RepoServerAppDetailsQ
 func (m *RepoServerAppDetailsQuery) String() string { return proto.CompactTextString(m) }
 func (*RepoServerAppDetailsQuery) ProtoMessage()    {}
 func (*RepoServerAppDetailsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{6}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{6}
 }
 func (m *RepoServerAppDetailsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -533,7 +533,7 @@ func (m *HelmAppDetailsQuery) Reset()         { *m = HelmAppDetailsQuery{} }
 func (m *HelmAppDetailsQuery) String() string { return proto.CompactTextString(m) }
 func (*HelmAppDetailsQuery) ProtoMessage()    {}
 func (*HelmAppDetailsQuery) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{7}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{7}
 }
 func (m *HelmAppDetailsQuery) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -585,7 +585,7 @@ func (m *RepoAppDetailsResponse) Reset()         { *m = RepoAppDetailsResponse{}
 func (m *RepoAppDetailsResponse) String() string { return proto.CompactTextString(m) }
 func (*RepoAppDetailsResponse) ProtoMessage()    {}
 func (*RepoAppDetailsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{8}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{8}
 }
 func (m *RepoAppDetailsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -665,7 +665,7 @@ func (m *KsonnetAppSpec) Reset()         { *m = KsonnetAppSpec{} }
 func (m *KsonnetAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KsonnetAppSpec) ProtoMessage()    {}
 func (*KsonnetAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{9}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{9}
 }
 func (m *KsonnetAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -737,7 +737,7 @@ func (m *HelmAppSpec) Reset()         { *m = HelmAppSpec{} }
 func (m *HelmAppSpec) String() string { return proto.CompactTextString(m) }
 func (*HelmAppSpec) ProtoMessage()    {}
 func (*HelmAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{10}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{10}
 }
 func (m *HelmAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -810,7 +810,7 @@ func (m *KustomizeAppSpec) Reset()         { *m = KustomizeAppSpec{} }
 func (m *KustomizeAppSpec) String() string { return proto.CompactTextString(m) }
 func (*KustomizeAppSpec) ProtoMessage()    {}
 func (*KustomizeAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{11}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{11}
 }
 func (m *KustomizeAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -878,7 +878,7 @@ func (m *KsonnetEnvironment) Reset()         { *m = KsonnetEnvironment{} }
 func (m *KsonnetEnvironment) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironment) ProtoMessage()    {}
 func (*KsonnetEnvironment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{12}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{12}
 }
 func (m *KsonnetEnvironment) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -949,7 +949,7 @@ func (m *KsonnetEnvironmentDestination) Reset()         { *m = KsonnetEnvironmen
 func (m *KsonnetEnvironmentDestination) String() string { return proto.CompactTextString(m) }
 func (*KsonnetEnvironmentDestination) ProtoMessage()    {}
 func (*KsonnetEnvironmentDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{13}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{13}
 }
 func (m *KsonnetEnvironmentDestination) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1003,7 +1003,7 @@ func (m *DirectoryAppSpec) Reset()         { *m = DirectoryAppSpec{} }
 func (m *DirectoryAppSpec) String() string { return proto.CompactTextString(m) }
 func (*DirectoryAppSpec) ProtoMessage()    {}
 func (*DirectoryAppSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_repository_e8bb89bd6498b700, []int{14}
+	return fileDescriptor_repository_1b34eaa99a79d83c, []int{14}
 }
 func (m *DirectoryAppSpec) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1035,11 +1035,11 @@ var xxx_messageInfo_DirectoryAppSpec proto.InternalMessageInfo
 func init() {
 	proto.RegisterType((*ManifestRequest)(nil), "repository.ManifestRequest")
 	proto.RegisterType((*ManifestResponse)(nil), "repository.ManifestResponse")
-	proto.RegisterType((*ListAppCfgsRequest)(nil), "repository.ListAppCfgsRequest")
-	proto.RegisterType((*AppCfgList)(nil), "repository.AppCfgList")
-	proto.RegisterMapType((map[string]string)(nil), "repository.AppCfgList.AppCfgsEntry")
-	proto.RegisterType((*GetAppCfgRequest)(nil), "repository.GetAppCfgRequest")
-	proto.RegisterType((*GetAppCfgResponse)(nil), "repository.GetAppCfgResponse")
+	proto.RegisterType((*ListAppsRequest)(nil), "repository.ListAppsRequest")
+	proto.RegisterType((*ListAppsResponse)(nil), "repository.ListAppsResponse")
+	proto.RegisterMapType((map[string]string)(nil), "repository.ListAppsResponse.AppsEntry")
+	proto.RegisterType((*GetAppRequest)(nil), "repository.GetAppRequest")
+	proto.RegisterType((*GetAppResponse)(nil), "repository.GetAppResponse")
 	proto.RegisterType((*RepoServerAppDetailsQuery)(nil), "repository.RepoServerAppDetailsQuery")
 	proto.RegisterType((*HelmAppDetailsQuery)(nil), "repository.HelmAppDetailsQuery")
 	proto.RegisterType((*RepoAppDetailsResponse)(nil), "repository.RepoAppDetailsResponse")
@@ -1066,9 +1066,9 @@ type RepoServerServiceClient interface {
 	// GenerateManifest generates manifest for application in specified repo name and revision
 	GenerateManifest(ctx context.Context, in *ManifestRequest, opts ...grpc.CallOption) (*ManifestResponse, error)
 	// ListDir returns the file contents at the specified repo and path
-	ListAppCfgs(ctx context.Context, in *ListAppCfgsRequest, opts ...grpc.CallOption) (*AppCfgList, error)
+	ListApps(ctx context.Context, in *ListAppsRequest, opts ...grpc.CallOption) (*ListAppsResponse, error)
 	// GetFile returns the file contents at the specified repo and path
-	GetAppCfg(ctx context.Context, in *GetAppCfgRequest, opts ...grpc.CallOption) (*GetAppCfgResponse, error)
+	GetApp(ctx context.Context, in *GetAppRequest, opts ...grpc.CallOption) (*GetAppResponse, error)
 	// Generate manifest for application in specified repo name and revision
 	GetAppDetails(ctx context.Context, in *RepoServerAppDetailsQuery, opts ...grpc.CallOption) (*RepoAppDetailsResponse, error)
 }
@@ -1090,18 +1090,18 @@ func (c *repoServerServiceClient) GenerateManifest(ctx context.Context, in *Mani
 	return out, nil
 }
 
-func (c *repoServerServiceClient) ListAppCfgs(ctx context.Context, in *ListAppCfgsRequest, opts ...grpc.CallOption) (*AppCfgList, error) {
-	out := new(AppCfgList)
-	err := c.cc.Invoke(ctx, "/repository.RepoServerService/ListAppCfgs", in, out, opts...)
+func (c *repoServerServiceClient) ListApps(ctx context.Context, in *ListAppsRequest, opts ...grpc.CallOption) (*ListAppsResponse, error) {
+	out := new(ListAppsResponse)
+	err := c.cc.Invoke(ctx, "/repository.RepoServerService/ListApps", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *repoServerServiceClient) GetAppCfg(ctx context.Context, in *GetAppCfgRequest, opts ...grpc.CallOption) (*GetAppCfgResponse, error) {
-	out := new(GetAppCfgResponse)
-	err := c.cc.Invoke(ctx, "/repository.RepoServerService/GetAppCfg", in, out, opts...)
+func (c *repoServerServiceClient) GetApp(ctx context.Context, in *GetAppRequest, opts ...grpc.CallOption) (*GetAppResponse, error) {
+	out := new(GetAppResponse)
+	err := c.cc.Invoke(ctx, "/repository.RepoServerService/GetApp", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1123,9 +1123,9 @@ type RepoServerServiceServer interface {
 	// GenerateManifest generates manifest for application in specified repo name and revision
 	GenerateManifest(context.Context, *ManifestRequest) (*ManifestResponse, error)
 	// ListDir returns the file contents at the specified repo and path
-	ListAppCfgs(context.Context, *ListAppCfgsRequest) (*AppCfgList, error)
+	ListApps(context.Context, *ListAppsRequest) (*ListAppsResponse, error)
 	// GetFile returns the file contents at the specified repo and path
-	GetAppCfg(context.Context, *GetAppCfgRequest) (*GetAppCfgResponse, error)
+	GetApp(context.Context, *GetAppRequest) (*GetAppResponse, error)
 	// Generate manifest for application in specified repo name and revision
 	GetAppDetails(context.Context, *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error)
 }
@@ -1152,38 +1152,38 @@ func _RepoServerService_GenerateManifest_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepoServerService_ListAppCfgs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListAppCfgsRequest)
+func _RepoServerService_ListApps_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAppsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RepoServerServiceServer).ListAppCfgs(ctx, in)
+		return srv.(RepoServerServiceServer).ListApps(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/repository.RepoServerService/ListAppCfgs",
+		FullMethod: "/repository.RepoServerService/ListApps",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepoServerServiceServer).ListAppCfgs(ctx, req.(*ListAppCfgsRequest))
+		return srv.(RepoServerServiceServer).ListApps(ctx, req.(*ListAppsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RepoServerService_GetAppCfg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAppCfgRequest)
+func _RepoServerService_GetApp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAppRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RepoServerServiceServer).GetAppCfg(ctx, in)
+		return srv.(RepoServerServiceServer).GetApp(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/repository.RepoServerService/GetAppCfg",
+		FullMethod: "/repository.RepoServerService/GetApp",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepoServerServiceServer).GetAppCfg(ctx, req.(*GetAppCfgRequest))
+		return srv.(RepoServerServiceServer).GetApp(ctx, req.(*GetAppRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1215,12 +1215,12 @@ var _RepoServerService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _RepoServerService_GenerateManifest_Handler,
 		},
 		{
-			MethodName: "ListAppCfgs",
-			Handler:    _RepoServerService_ListAppCfgs_Handler,
+			MethodName: "ListApps",
+			Handler:    _RepoServerService_ListApps_Handler,
 		},
 		{
-			MethodName: "GetAppCfg",
-			Handler:    _RepoServerService_GetAppCfg_Handler,
+			MethodName: "GetApp",
+			Handler:    _RepoServerService_GetApp_Handler,
 		},
 		{
 			MethodName: "GetAppDetails",
@@ -1390,7 +1390,7 @@ func (m *ManifestResponse) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *ListAppCfgsRequest) Marshal() (dAtA []byte, err error) {
+func (m *ListAppsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -1400,7 +1400,7 @@ func (m *ListAppCfgsRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ListAppCfgsRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *ListAppsRequest) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -1427,7 +1427,7 @@ func (m *ListAppCfgsRequest) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *AppCfgList) Marshal() (dAtA []byte, err error) {
+func (m *ListAppsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -1437,16 +1437,16 @@ func (m *AppCfgList) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *AppCfgList) MarshalTo(dAtA []byte) (int, error) {
+func (m *ListAppsResponse) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	if len(m.AppCfgs) > 0 {
-		for k, _ := range m.AppCfgs {
+	if len(m.Apps) > 0 {
+		for k, _ := range m.Apps {
 			dAtA[i] = 0xa
 			i++
-			v := m.AppCfgs[k]
+			v := m.Apps[k]
 			mapSize := 1 + len(k) + sovRepository(uint64(len(k))) + 1 + len(v) + sovRepository(uint64(len(v)))
 			i = encodeVarintRepository(dAtA, i, uint64(mapSize))
 			dAtA[i] = 0xa
@@ -1465,7 +1465,7 @@ func (m *AppCfgList) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *GetAppCfgRequest) Marshal() (dAtA []byte, err error) {
+func (m *GetAppRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -1475,7 +1475,7 @@ func (m *GetAppCfgRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *GetAppCfgRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *GetAppRequest) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -1508,7 +1508,7 @@ func (m *GetAppCfgRequest) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *GetAppCfgResponse) Marshal() (dAtA []byte, err error) {
+func (m *GetAppResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -1518,16 +1518,16 @@ func (m *GetAppCfgResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *GetAppCfgResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *GetAppResponse) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	if len(m.AppType) > 0 {
+	if len(m.Tool) > 0 {
 		dAtA[i] = 0xa
 		i++
-		i = encodeVarintRepository(dAtA, i, uint64(len(m.AppType)))
-		i += copy(dAtA[i:], m.AppType)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.Tool)))
+		i += copy(dAtA[i:], m.Tool)
 	}
 	if m.XXX_unrecognized != nil {
 		i += copy(dAtA[i:], m.XXX_unrecognized)
@@ -2093,7 +2093,7 @@ func (m *ManifestResponse) Size() (n int) {
 	return n
 }
 
-func (m *ListAppCfgsRequest) Size() (n int) {
+func (m *ListAppsRequest) Size() (n int) {
 	var l int
 	_ = l
 	if m.Repo != nil {
@@ -2110,11 +2110,11 @@ func (m *ListAppCfgsRequest) Size() (n int) {
 	return n
 }
 
-func (m *AppCfgList) Size() (n int) {
+func (m *ListAppsResponse) Size() (n int) {
 	var l int
 	_ = l
-	if len(m.AppCfgs) > 0 {
-		for k, v := range m.AppCfgs {
+	if len(m.Apps) > 0 {
+		for k, v := range m.Apps {
 			_ = k
 			_ = v
 			mapEntrySize := 1 + len(k) + sovRepository(uint64(len(k))) + 1 + len(v) + sovRepository(uint64(len(v)))
@@ -2127,7 +2127,7 @@ func (m *AppCfgList) Size() (n int) {
 	return n
 }
 
-func (m *GetAppCfgRequest) Size() (n int) {
+func (m *GetAppRequest) Size() (n int) {
 	var l int
 	_ = l
 	if m.Repo != nil {
@@ -2148,10 +2148,10 @@ func (m *GetAppCfgRequest) Size() (n int) {
 	return n
 }
 
-func (m *GetAppCfgResponse) Size() (n int) {
+func (m *GetAppResponse) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.AppType)
+	l = len(m.Tool)
 	if l > 0 {
 		n += 1 + l + sovRepository(uint64(l))
 	}
@@ -2907,7 +2907,7 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ListAppCfgsRequest) Unmarshal(dAtA []byte) error {
+func (m *ListAppsRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -2930,10 +2930,10 @@ func (m *ListAppCfgsRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ListAppCfgsRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: ListAppsRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ListAppCfgsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ListAppsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -3020,7 +3020,7 @@ func (m *ListAppCfgsRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *AppCfgList) Unmarshal(dAtA []byte) error {
+func (m *ListAppsResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3043,15 +3043,15 @@ func (m *AppCfgList) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: AppCfgList: wiretype end group for non-group")
+			return fmt.Errorf("proto: ListAppsResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: AppCfgList: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: ListAppsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AppCfgs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Apps", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -3075,8 +3075,8 @@ func (m *AppCfgList) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.AppCfgs == nil {
-				m.AppCfgs = make(map[string]string)
+			if m.Apps == nil {
+				m.Apps = make(map[string]string)
 			}
 			var mapkey string
 			var mapvalue string
@@ -3165,7 +3165,7 @@ func (m *AppCfgList) Unmarshal(dAtA []byte) error {
 					iNdEx += skippy
 				}
 			}
-			m.AppCfgs[mapkey] = mapvalue
+			m.Apps[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -3189,7 +3189,7 @@ func (m *AppCfgList) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *GetAppCfgRequest) Unmarshal(dAtA []byte) error {
+func (m *GetAppRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3212,10 +3212,10 @@ func (m *GetAppCfgRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: GetAppCfgRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: GetAppRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: GetAppCfgRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: GetAppRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -3331,7 +3331,7 @@ func (m *GetAppCfgRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *GetAppCfgResponse) Unmarshal(dAtA []byte) error {
+func (m *GetAppResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3354,15 +3354,15 @@ func (m *GetAppCfgResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: GetAppCfgResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: GetAppResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: GetAppCfgResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: GetAppResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field AppType", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Tool", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -3387,7 +3387,7 @@ func (m *GetAppCfgResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.AppType = string(dAtA[iNdEx:postIndex])
+			m.Tool = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -4949,78 +4949,78 @@ var (
 )
 
 func init() {
-	proto.RegisterFile("reposerver/repository/repository.proto", fileDescriptor_repository_e8bb89bd6498b700)
+	proto.RegisterFile("reposerver/repository/repository.proto", fileDescriptor_repository_1b34eaa99a79d83c)
 }
 
-var fileDescriptor_repository_e8bb89bd6498b700 = []byte{
-	// 1101 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x57, 0x5b, 0x6f, 0xdc, 0x44,
-	0x14, 0xae, 0x77, 0x37, 0x97, 0x3d, 0x4e, 0x21, 0x19, 0xaa, 0x60, 0x96, 0x74, 0x59, 0x99, 0x8b,
-	0x82, 0xa0, 0x5e, 0x65, 0x5b, 0xa4, 0x28, 0x12, 0x42, 0x21, 0x09, 0x6d, 0x49, 0x2a, 0x52, 0xa7,
-	0x54, 0xe2, 0x22, 0x55, 0x13, 0x67, 0xe2, 0x75, 0x77, 0xd7, 0x33, 0x78, 0xbc, 0x2b, 0x6d, 0xff,
-	0x40, 0x1f, 0xf8, 0x0d, 0xbc, 0x20, 0xf1, 0x00, 0x7f, 0x82, 0x57, 0x9e, 0x10, 0x6f, 0xf0, 0x88,
-	0xf2, 0x4b, 0x90, 0x8f, 0x6f, 0x63, 0xaf, 0x13, 0x21, 0x2d, 0x55, 0x79, 0xb1, 0x66, 0xce, 0x9c,
-	0xfb, 0x7c, 0xe7, 0xcc, 0x31, 0xbc, 0x17, 0x30, 0xc1, 0x25, 0x0b, 0x26, 0x2c, 0xe8, 0xe2, 0xd2,
-	0x0b, 0x79, 0x30, 0x55, 0x96, 0x96, 0x08, 0x78, 0xc8, 0x09, 0xe4, 0x94, 0xd6, 0x0d, 0x97, 0xbb,
-	0x1c, 0xc9, 0xdd, 0x68, 0x15, 0x73, 0xb4, 0x36, 0x5c, 0xce, 0xdd, 0x21, 0xeb, 0x52, 0xe1, 0x75,
-	0xa9, 0xef, 0xf3, 0x90, 0x86, 0x1e, 0xf7, 0x65, 0x72, 0x6a, 0x0e, 0xb6, 0xa5, 0xe5, 0x71, 0x3c,
-	0x75, 0x78, 0xc0, 0xba, 0x93, 0xad, 0xae, 0xcb, 0x7c, 0x16, 0xd0, 0x90, 0x9d, 0x25, 0x3c, 0xf7,
-	0x5d, 0x2f, 0xec, 0x8f, 0x4f, 0x2d, 0x87, 0x8f, 0xba, 0x34, 0x40, 0x13, 0x4f, 0x71, 0x71, 0xcb,
-	0x39, 0xeb, 0x8a, 0x81, 0x1b, 0x09, 0xcb, 0x2e, 0x15, 0x62, 0xe8, 0x39, 0xa8, 0xbc, 0x3b, 0xd9,
-	0xa2, 0x43, 0xd1, 0xa7, 0x33, 0xaa, 0xcc, 0xdf, 0x1b, 0xf0, 0xea, 0x03, 0xea, 0x7b, 0xe7, 0x4c,
-	0x86, 0x36, 0xfb, 0x6e, 0xcc, 0x64, 0x48, 0xbe, 0x82, 0x46, 0x14, 0x84, 0xa1, 0x75, 0xb4, 0x4d,
-	0xbd, 0x77, 0x60, 0xe5, 0xd6, 0xac, 0xd4, 0x1a, 0x2e, 0x9e, 0x38, 0x67, 0x96, 0x18, 0xb8, 0x56,
-	0x64, 0xcd, 0x52, 0xac, 0x59, 0xa9, 0x35, 0xcb, 0xce, 0x72, 0x61, 0xa3, 0x4a, 0xd2, 0x82, 0xe5,
-	0x80, 0x4d, 0x3c, 0xe9, 0x71, 0xdf, 0xa8, 0x75, 0xb4, 0xcd, 0xa6, 0x9d, 0xed, 0x89, 0x01, 0x4b,
-	0x3e, 0xdf, 0xa3, 0x4e, 0x9f, 0x19, 0xf5, 0x8e, 0xb6, 0xb9, 0x6c, 0xa7, 0x5b, 0xd2, 0x01, 0x9d,
-	0x0a, 0x71, 0x44, 0x4f, 0xd9, 0xf0, 0x90, 0x4d, 0x8d, 0x06, 0x0a, 0xaa, 0x24, 0xf2, 0x0e, 0x5c,
-	0x4f, 0xb7, 0x8f, 0xe9, 0x70, 0xcc, 0x8c, 0x05, 0xe4, 0x29, 0x12, 0xc9, 0x06, 0x34, 0x7d, 0x3a,
-	0x62, 0x52, 0x50, 0x87, 0x19, 0xcb, 0xc8, 0x91, 0x13, 0xc8, 0x33, 0x58, 0x53, 0x82, 0x38, 0xe1,
-	0xe3, 0xc0, 0x61, 0x06, 0x60, 0x0e, 0x8e, 0xe6, 0xc8, 0xc1, 0x6e, 0x59, 0xa7, 0x3d, 0x6b, 0x86,
-	0x7c, 0x03, 0x0b, 0x88, 0x1b, 0x43, 0xef, 0xd4, 0xff, 0xbb, 0x9c, 0xc7, 0x3a, 0xc9, 0x00, 0x96,
-	0xc4, 0x70, 0xec, 0x7a, 0xbe, 0x34, 0x56, 0x50, 0xfd, 0xc3, 0x39, 0xd4, 0xef, 0x71, 0xff, 0xdc,
-	0x73, 0x1f, 0x50, 0x9f, 0xba, 0x6c, 0xc4, 0xfc, 0xf0, 0x18, 0x35, 0xdb, 0xa9, 0x05, 0xf3, 0x47,
-	0x0d, 0x56, 0x73, 0x40, 0x49, 0xc1, 0x7d, 0x89, 0x89, 0x1f, 0x25, 0x34, 0x69, 0x68, 0x9d, 0x7a,
-	0x94, 0xf8, 0x8c, 0x50, 0xbc, 0x96, 0x5a, 0xf9, 0x5a, 0xd6, 0x61, 0x31, 0x2e, 0x3b, 0x44, 0x45,
-	0xd3, 0x4e, 0x76, 0x05, 0x28, 0x35, 0x4a, 0x50, 0x6a, 0x03, 0x48, 0x4c, 0xec, 0xa3, 0xa9, 0x60,
-	0xc6, 0x22, 0x9e, 0x2a, 0x14, 0xf3, 0x7b, 0x0d, 0xc8, 0x91, 0x27, 0xc3, 0x5d, 0x21, 0xf6, 0xce,
-	0x5d, 0xf9, 0x72, 0x81, 0x6f, 0x3e, 0xd7, 0x00, 0x62, 0x4f, 0x22, 0x9f, 0xc8, 0xc7, 0xb0, 0x44,
-	0x63, 0xbf, 0x30, 0x55, 0x7a, 0xef, 0x6d, 0x4b, 0xe9, 0x32, 0x39, 0x63, 0xb2, 0x94, 0x07, 0x7e,
-	0x18, 0x4c, 0xed, 0x54, 0xa6, 0xb5, 0x03, 0x2b, 0xea, 0x01, 0x59, 0x85, 0xfa, 0x80, 0x4d, 0x31,
-	0xa6, 0xa6, 0x1d, 0x2d, 0xc9, 0x0d, 0x58, 0x98, 0x60, 0x91, 0xc4, 0x8e, 0xc4, 0x9b, 0x9d, 0xda,
-	0xb6, 0x66, 0xfe, 0xa0, 0xc1, 0xea, 0x5d, 0x96, 0xa4, 0xe5, 0x25, 0xb7, 0x03, 0x02, 0x0d, 0x41,
-	0xc3, 0x7e, 0x72, 0xeb, 0xb8, 0x36, 0x6f, 0xc1, 0x9a, 0xe2, 0x5e, 0x02, 0x2e, 0x03, 0xf3, 0x85,
-	0x37, 0x1d, 0x07, 0x99, 0x6e, 0xcd, 0x9f, 0xea, 0xf0, 0x46, 0x64, 0xf3, 0x04, 0x11, 0xb3, 0x2b,
-	0xc4, 0x3e, 0x0b, 0xa9, 0x37, 0x94, 0x0f, 0xc7, 0x2c, 0x98, 0xfe, 0x8f, 0xe2, 0xca, 0xcb, 0xbf,
-	0xf1, 0x62, 0xcb, 0x7f, 0xe1, 0x45, 0x97, 0x3f, 0xb9, 0x0d, 0x8d, 0x3e, 0x1b, 0x8e, 0xb0, 0xe6,
-	0xf4, 0xde, 0x5b, 0x2a, 0x72, 0xef, 0xb1, 0xe1, 0xa8, 0x74, 0x07, 0x36, 0x32, 0x9b, 0x1f, 0xc1,
-	0x6b, 0x15, 0x87, 0x51, 0x15, 0x23, 0x34, 0x3f, 0xf3, 0x86, 0x2c, 0x6d, 0x1b, 0x0a, 0xc5, 0x7c,
-	0x5e, 0x83, 0xf5, 0x28, 0xdc, 0x5c, 0x2e, 0xc3, 0x04, 0x81, 0x46, 0x98, 0x03, 0x02, 0xd7, 0xe4,
-	0x0e, 0x2c, 0x0d, 0x24, 0xf7, 0x7d, 0x16, 0xe2, 0x9d, 0xe8, 0xbd, 0x96, 0xea, 0xdd, 0x61, 0x7c,
-	0xb4, 0x2b, 0xc4, 0x89, 0x60, 0x8e, 0x9d, 0xb2, 0x92, 0x0f, 0x92, 0x80, 0xea, 0x28, 0xf2, 0x7a,
-	0x45, 0x40, 0xc8, 0x8f, 0x4c, 0x64, 0x07, 0x9a, 0x83, 0xb1, 0x0c, 0xf9, 0xc8, 0x7b, 0xc6, 0xb0,
-	0x29, 0xe9, 0xbd, 0x8d, 0x82, 0x91, 0xf4, 0x30, 0x15, 0xcb, 0xd9, 0x23, 0xd9, 0x33, 0x2f, 0x60,
-	0x4e, 0xc4, 0x88, 0xcf, 0x57, 0x49, 0x76, 0x3f, 0x3d, 0xcc, 0x64, 0x33, 0x76, 0xf3, 0xaf, 0x1a,
-	0xbc, 0x52, 0x0c, 0x20, 0xca, 0x40, 0xd4, 0x43, 0xd3, 0x0c, 0x44, 0xeb, 0x0c, 0x7a, 0x35, 0x05,
-	0x7a, 0xc7, 0xb0, 0xc2, 0xfc, 0x89, 0x17, 0x70, 0x3f, 0xba, 0x4e, 0x69, 0xd4, 0x11, 0x22, 0x1f,
-	0x5e, 0x9e, 0x1a, 0xeb, 0x40, 0x61, 0x8f, 0x7b, 0x4f, 0x41, 0x03, 0x19, 0x00, 0x08, 0x1a, 0xd0,
-	0x11, 0x0b, 0x59, 0x90, 0x22, 0xfa, 0x70, 0x0e, 0xc8, 0x25, 0xe6, 0x8f, 0x53, 0x9d, 0xb6, 0xa2,
-	0xbe, 0xf5, 0x04, 0xd6, 0x66, 0xfc, 0xa9, 0x68, 0x79, 0x77, 0xd4, 0x96, 0xa7, 0xf7, 0xda, 0x15,
-	0xe1, 0x29, 0x6a, 0xd4, 0x96, 0xf8, 0xab, 0x06, 0xba, 0x72, 0xd1, 0xff, 0x3a, 0xaf, 0x45, 0xf0,
-	0xd6, 0xcb, 0xe0, 0x25, 0xfd, 0x8a, 0x2c, 0xdd, 0x9b, 0x23, 0x4b, 0x91, 0x8f, 0x95, 0x29, 0x32,
-	0x7f, 0xd1, 0x60, 0xb5, 0x0c, 0xbc, 0xcc, 0x65, 0x4d, 0x71, 0xf9, 0x29, 0x34, 0xbd, 0x11, 0x75,
-	0xd9, 0x23, 0xea, 0x4a, 0xa3, 0x86, 0x1e, 0xcd, 0x33, 0xf8, 0x64, 0x36, 0xef, 0x27, 0x4a, 0xed,
-	0x5c, 0x7d, 0xf4, 0xaa, 0xe3, 0x26, 0x4d, 0x4d, 0xb2, 0x33, 0x7f, 0xd6, 0x80, 0xcc, 0x5e, 0x48,
-	0x65, 0xd6, 0xdb, 0x00, 0x83, 0x6d, 0xf9, 0x98, 0x05, 0x4a, 0x9b, 0x55, 0x28, 0x95, 0x8d, 0xf6,
-	0x10, 0xf4, 0x33, 0x26, 0x43, 0xcf, 0x47, 0x5f, 0x93, 0x12, 0x7d, 0xff, 0x6a, 0x34, 0xec, 0xe7,
-	0x02, 0xb6, 0x2a, 0x6d, 0x7e, 0x09, 0x37, 0xaf, 0xe4, 0x56, 0x46, 0x17, 0xad, 0x30, 0xba, 0x5c,
-	0x39, 0xf0, 0x98, 0x04, 0x56, 0xcb, 0xb5, 0xde, 0xfb, 0xb3, 0x06, 0x6b, 0xf9, 0x4b, 0x16, 0x7d,
-	0x3d, 0x87, 0x91, 0x2f, 0xa2, 0xd7, 0x3a, 0x9e, 0xe7, 0xd3, 0x91, 0x8b, 0xbc, 0xa9, 0x06, 0x53,
-	0x9a, 0xec, 0x5b, 0x1b, 0xd5, 0x87, 0x71, 0xd3, 0x34, 0xaf, 0x91, 0xbb, 0xa0, 0x2b, 0x63, 0x11,
-	0x29, 0x94, 0xc9, 0xec, 0xbc, 0xd4, 0x5a, 0xaf, 0x1e, 0x4c, 0xcc, 0x6b, 0xe4, 0x73, 0x68, 0x66,
-	0x0f, 0x35, 0x29, 0x58, 0x2d, 0x8f, 0x17, 0xad, 0x9b, 0x97, 0x9c, 0x66, 0x4e, 0x7d, 0x0b, 0xd7,
-	0x63, 0x72, 0xd2, 0xe4, 0xc9, 0xbb, 0xaa, 0xc4, 0xa5, 0xef, 0x7b, 0xcb, 0x2c, 0xb3, 0xcd, 0xbe,
-	0x13, 0xe6, 0xb5, 0x4f, 0x3f, 0xf9, 0xed, 0xa2, 0xad, 0xfd, 0x71, 0xd1, 0xd6, 0xfe, 0xbe, 0x68,
-	0x6b, 0x5f, 0x6f, 0x5d, 0xf5, 0x67, 0x55, 0xf9, 0x07, 0x78, 0xba, 0x88, 0x3f, 0x52, 0xb7, 0xff,
-	0x09, 0x00, 0x00, 0xff, 0xff, 0x56, 0x5f, 0xbe, 0x2f, 0x21, 0x0e, 0x00, 0x00,
+var fileDescriptor_repository_1b34eaa99a79d83c = []byte{
+	// 1094 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x57, 0x5b, 0x6f, 0x1b, 0x45,
+	0x14, 0xce, 0xda, 0xce, 0xc5, 0xc7, 0xbd, 0x38, 0x43, 0x55, 0xb6, 0x26, 0x18, 0x6b, 0x55, 0xaa,
+	0x20, 0x60, 0xad, 0xb8, 0x45, 0x44, 0x79, 0x41, 0xa1, 0x09, 0x69, 0x95, 0x54, 0xa4, 0x9b, 0x52,
+	0x89, 0x8b, 0x54, 0x4d, 0x36, 0xa7, 0xeb, 0xad, 0xd7, 0x3b, 0xc3, 0xce, 0xda, 0x92, 0xfb, 0x07,
+	0xca, 0x6f, 0xe0, 0x11, 0x89, 0x07, 0xf8, 0x13, 0xbc, 0xf2, 0x54, 0xf1, 0xc8, 0x23, 0xca, 0x2f,
+	0x41, 0x33, 0xde, 0xcb, 0xec, 0x66, 0x1b, 0x21, 0x85, 0xaa, 0x7d, 0x59, 0xcd, 0x9c, 0x39, 0xf7,
+	0xf9, 0xce, 0x99, 0xb3, 0x70, 0x2b, 0x42, 0xce, 0x04, 0x46, 0x53, 0x8c, 0xfa, 0x6a, 0xe9, 0xc7,
+	0x2c, 0x9a, 0x69, 0x4b, 0x9b, 0x47, 0x2c, 0x66, 0x04, 0x72, 0x4a, 0xe7, 0x9a, 0xc7, 0x3c, 0xa6,
+	0xc8, 0x7d, 0xb9, 0x9a, 0x73, 0x74, 0xd6, 0x3c, 0xc6, 0xbc, 0x00, 0xfb, 0x94, 0xfb, 0x7d, 0x1a,
+	0x86, 0x2c, 0xa6, 0xb1, 0xcf, 0x42, 0x91, 0x9c, 0x5a, 0xa3, 0x4d, 0x61, 0xfb, 0x4c, 0x9d, 0xba,
+	0x2c, 0xc2, 0xfe, 0x74, 0xa3, 0xef, 0x61, 0x88, 0x11, 0x8d, 0xf1, 0x24, 0xe1, 0xb9, 0xef, 0xf9,
+	0xf1, 0x70, 0x72, 0x6c, 0xbb, 0x6c, 0xdc, 0xa7, 0x91, 0x32, 0xf1, 0x4c, 0x2d, 0x3e, 0x75, 0x4f,
+	0xfa, 0x7c, 0xe4, 0x49, 0x61, 0xd1, 0xa7, 0x9c, 0x07, 0xbe, 0xab, 0x94, 0xf7, 0xa7, 0x1b, 0x34,
+	0xe0, 0x43, 0x7a, 0x46, 0x95, 0xf5, 0xb2, 0x01, 0x57, 0x1f, 0xd0, 0xd0, 0x7f, 0x8a, 0x22, 0x76,
+	0xf0, 0xc7, 0x09, 0x8a, 0x98, 0x7c, 0x0b, 0x0d, 0x19, 0x84, 0x69, 0xf4, 0x8c, 0xf5, 0xd6, 0x60,
+	0xd7, 0xce, 0xad, 0xd9, 0xa9, 0x35, 0xb5, 0x78, 0xe2, 0x9e, 0xd8, 0x7c, 0xe4, 0xd9, 0xd2, 0x9a,
+	0xad, 0x59, 0xb3, 0x53, 0x6b, 0xb6, 0x93, 0xe5, 0xc2, 0x51, 0x2a, 0x49, 0x07, 0x56, 0x22, 0x9c,
+	0xfa, 0xc2, 0x67, 0xa1, 0x59, 0xeb, 0x19, 0xeb, 0x4d, 0x27, 0xdb, 0x13, 0x13, 0x96, 0x43, 0x76,
+	0x97, 0xba, 0x43, 0x34, 0xeb, 0x3d, 0x63, 0x7d, 0xc5, 0x49, 0xb7, 0xa4, 0x07, 0x2d, 0xca, 0xf9,
+	0x01, 0x3d, 0xc6, 0x60, 0x1f, 0x67, 0x66, 0x43, 0x09, 0xea, 0x24, 0x72, 0x13, 0x2e, 0xa7, 0xdb,
+	0xc7, 0x34, 0x98, 0xa0, 0xb9, 0xa8, 0x78, 0x8a, 0x44, 0xb2, 0x06, 0xcd, 0x90, 0x8e, 0x51, 0x70,
+	0xea, 0xa2, 0xb9, 0xa2, 0x38, 0x72, 0x02, 0x79, 0x0e, 0xab, 0x5a, 0x10, 0x47, 0x6c, 0x12, 0xb9,
+	0x68, 0x82, 0xca, 0xc1, 0xc1, 0x05, 0x72, 0xb0, 0x5d, 0xd6, 0xe9, 0x9c, 0x35, 0x43, 0xbe, 0x87,
+	0x45, 0x85, 0x1b, 0xb3, 0xd5, 0xab, 0xff, 0x7f, 0x39, 0x9f, 0xeb, 0x24, 0x23, 0x58, 0xe6, 0xc1,
+	0xc4, 0xf3, 0x43, 0x61, 0x5e, 0x52, 0xea, 0x1f, 0x5e, 0x40, 0xfd, 0x5d, 0x16, 0x3e, 0xf5, 0xbd,
+	0x07, 0x34, 0xa4, 0x1e, 0x8e, 0x31, 0x8c, 0x0f, 0x95, 0x66, 0x27, 0xb5, 0x60, 0xfd, 0x62, 0x40,
+	0x3b, 0x07, 0x94, 0xe0, 0x2c, 0x14, 0x2a, 0xf1, 0xe3, 0x84, 0x26, 0x4c, 0xa3, 0x57, 0x97, 0x89,
+	0xcf, 0x08, 0xc5, 0x6b, 0xa9, 0x95, 0xaf, 0xe5, 0x3a, 0x2c, 0xcd, 0xcb, 0x4e, 0xa1, 0xa2, 0xe9,
+	0x24, 0xbb, 0x02, 0x94, 0x1a, 0x25, 0x28, 0x75, 0x01, 0x84, 0x4a, 0xec, 0xa3, 0x19, 0x47, 0x73,
+	0x49, 0x9d, 0x6a, 0x14, 0xeb, 0x27, 0x03, 0xae, 0x1e, 0xf8, 0x22, 0xde, 0xe6, 0x5c, 0xbc, 0x59,
+	0xd4, 0x5b, 0x2f, 0x0c, 0x68, 0xe7, 0xae, 0x24, 0xf9, 0xda, 0x82, 0x06, 0xe5, 0x7c, 0x9e, 0xaa,
+	0xd6, 0xe0, 0x96, 0xad, 0x75, 0x99, 0x32, 0xaf, 0xc4, 0x97, 0xd8, 0x0d, 0x63, 0x69, 0x4c, 0xca,
+	0x74, 0x3e, 0x87, 0x66, 0x46, 0x22, 0x6d, 0xa8, 0x8f, 0x70, 0xa6, 0x62, 0x6a, 0x3a, 0x72, 0x49,
+	0xae, 0xc1, 0xe2, 0x54, 0x55, 0xc8, 0xdc, 0x91, 0xf9, 0x66, 0xab, 0xb6, 0x69, 0x58, 0x3f, 0x1b,
+	0x70, 0x79, 0x0f, 0xa5, 0xf2, 0x37, 0xdc, 0x08, 0x08, 0x34, 0x38, 0x8d, 0x87, 0xc9, 0x7d, 0xab,
+	0xb5, 0x75, 0x13, 0xae, 0xa4, 0xbe, 0x25, 0x39, 0x22, 0xd0, 0x88, 0x19, 0x0b, 0x92, 0xd8, 0xd4,
+	0xda, 0xfa, 0xb5, 0x0e, 0x37, 0xa4, 0xa9, 0x23, 0x05, 0x91, 0x6d, 0xce, 0x77, 0x30, 0xa6, 0x7e,
+	0x20, 0x1e, 0x4e, 0x30, 0x9a, 0xbd, 0x45, 0xe1, 0xe4, 0xf5, 0xde, 0x78, 0xbd, 0xf5, 0xbe, 0xf8,
+	0xba, 0xeb, 0x9d, 0xdc, 0x86, 0xc6, 0x10, 0x83, 0xb1, 0x2a, 0xb2, 0xd6, 0xe0, 0x03, 0x1d, 0xaa,
+	0xf7, 0x30, 0x18, 0x97, 0xee, 0xc0, 0x51, 0xcc, 0xd6, 0x67, 0xf0, 0x4e, 0xc5, 0xa1, 0x2c, 0x5b,
+	0x05, 0xc7, 0xaf, 0xfc, 0x00, 0xd3, 0x3e, 0xa1, 0x51, 0xac, 0x17, 0x35, 0xb8, 0x2e, 0xc3, 0xcd,
+	0xe5, 0x0a, 0x68, 0x90, 0xb5, 0x9e, 0xa2, 0x61, 0xc6, 0x91, 0xdc, 0x81, 0xe5, 0x91, 0x60, 0x61,
+	0x88, 0xb1, 0xba, 0x93, 0xd6, 0xa0, 0xa3, 0x7b, 0xb7, 0x3f, 0x3f, 0xda, 0xe6, 0xfc, 0x88, 0xa3,
+	0xeb, 0xa4, 0xac, 0xe4, 0xe3, 0x24, 0xa0, 0xba, 0x12, 0x79, 0xb7, 0x22, 0x20, 0xc5, 0xaf, 0x98,
+	0xc8, 0x16, 0x34, 0x47, 0x13, 0x11, 0xb3, 0xb1, 0xff, 0x1c, 0x55, 0x17, 0x6a, 0x0d, 0xd6, 0x0a,
+	0x46, 0xd2, 0xc3, 0x54, 0x2c, 0x67, 0x97, 0xb2, 0x27, 0x7e, 0x84, 0xae, 0x64, 0x54, 0xef, 0x55,
+	0x49, 0x76, 0x27, 0x3d, 0xcc, 0x64, 0x33, 0x76, 0xeb, 0xef, 0x1a, 0x5c, 0x29, 0x06, 0x20, 0x33,
+	0x20, 0x9b, 0x66, 0x9a, 0x01, 0xb9, 0xce, 0xa0, 0x57, 0xd3, 0xa0, 0x77, 0x08, 0x97, 0x30, 0x9c,
+	0xfa, 0x11, 0x0b, 0xe5, 0x75, 0x0a, 0xb3, 0xae, 0x20, 0xf2, 0xc9, 0xab, 0x53, 0x63, 0xef, 0x6a,
+	0xec, 0xf3, 0x4e, 0x53, 0xd0, 0x40, 0x46, 0x00, 0x9c, 0x46, 0x74, 0x8c, 0x31, 0x46, 0x29, 0xa2,
+	0xf7, 0x2f, 0x00, 0xb9, 0xc4, 0xfc, 0x61, 0xaa, 0xd3, 0xd1, 0xd4, 0x77, 0x9e, 0xc0, 0xea, 0x19,
+	0x7f, 0x2a, 0xda, 0xdc, 0x1d, 0xbd, 0xcd, 0xb5, 0x06, 0xdd, 0x8a, 0xf0, 0x34, 0x35, 0x7a, 0x1b,
+	0xfc, 0xc3, 0x80, 0x96, 0x76, 0xd1, 0xff, 0x39, 0xaf, 0x45, 0xf0, 0xd6, 0xcb, 0xe0, 0x25, 0xc3,
+	0x8a, 0x2c, 0xdd, 0xbb, 0x40, 0x96, 0xa4, 0x8f, 0x95, 0x29, 0xb2, 0x7e, 0x37, 0xa0, 0x5d, 0x06,
+	0x5e, 0xe6, 0xb2, 0xa1, 0xb9, 0xfc, 0x0c, 0x9a, 0xfe, 0x98, 0x7a, 0xf8, 0x88, 0x7a, 0xc2, 0xac,
+	0x29, 0x8f, 0x2e, 0x32, 0xe9, 0x64, 0x36, 0xef, 0x27, 0x4a, 0x9d, 0x5c, 0xbd, 0x7c, 0xc6, 0xd5,
+	0x26, 0x4d, 0x4d, 0xb2, 0xb3, 0x7e, 0x33, 0x80, 0x9c, 0xbd, 0x90, 0xca, 0xac, 0x77, 0x01, 0x46,
+	0x9b, 0xe2, 0x31, 0x46, 0x5a, 0x9b, 0xd5, 0x28, 0x95, 0x8d, 0x76, 0x1f, 0x5a, 0x27, 0x28, 0x62,
+	0x3f, 0x54, 0xbe, 0x26, 0x25, 0xfa, 0xd1, 0xf9, 0x68, 0xd8, 0xc9, 0x05, 0x1c, 0x5d, 0xda, 0xfa,
+	0x06, 0xde, 0x3f, 0x97, 0x5b, 0x9b, 0x55, 0x8c, 0xc2, 0xac, 0x72, 0xee, 0x84, 0x63, 0x11, 0x68,
+	0x97, 0x6b, 0x7d, 0xf0, 0xb2, 0x06, 0xab, 0xf9, 0x4b, 0x26, 0xbf, 0xbe, 0x8b, 0xe4, 0x6b, 0x68,
+	0xef, 0x25, 0x03, 0x7c, 0x3a, 0x63, 0x91, 0xf7, 0xf4, 0x60, 0x4a, 0xa3, 0x7c, 0x67, 0xad, 0xfa,
+	0x70, 0xde, 0x34, 0xad, 0x05, 0xb2, 0x07, 0x2b, 0xe9, 0x40, 0x51, 0x54, 0x54, 0x9a, 0x8e, 0x8a,
+	0x8a, 0xca, 0x33, 0x88, 0xb5, 0x40, 0xb6, 0x61, 0x69, 0xfe, 0x3e, 0x93, 0x1b, 0x3a, 0x67, 0x61,
+	0x9e, 0xe8, 0x74, 0xaa, 0x8e, 0x32, 0x15, 0x3f, 0xa4, 0xe3, 0x47, 0xd2, 0xdb, 0xc9, 0x87, 0x3a,
+	0xfb, 0x2b, 0x9f, 0xf5, 0x8e, 0x55, 0x66, 0x3b, 0xfb, 0x3c, 0x58, 0x0b, 0x5f, 0x7e, 0xf1, 0xe7,
+	0x69, 0xd7, 0xf8, 0xeb, 0xb4, 0x6b, 0xfc, 0x73, 0xda, 0x35, 0xbe, 0xdb, 0x38, 0xef, 0x0f, 0xaa,
+	0xf2, 0x4f, 0xef, 0x78, 0x49, 0xfd, 0x30, 0xdd, 0xfe, 0x37, 0x00, 0x00, 0xff, 0xff, 0x2f, 0xbb,
+	0x15, 0x8d, 0x09, 0x0e, 0x00, 0x00,
 }

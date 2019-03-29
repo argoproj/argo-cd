@@ -14,7 +14,7 @@ func TestRepoCfg(t *testing.T) {
 		assert.EqualError(t, err, "repository not found")
 	})
 
-	appCfgs := map[string]string{
+	appTemplates := map[string]string{
 		"blue-green":              "helm",
 		"helm-dependency":         "helm",
 		"helm-guestbook":          "helm",
@@ -28,22 +28,22 @@ func TestRepoCfg(t *testing.T) {
 	repoCfg, err := RepoCfgFactory{}.GetRepoCfg("https://github.com/argoproj/argocd-example-apps", "", "", "", false)
 	assert.NoError(t, err)
 
-	t.Run("FindAppCfgs", func(t *testing.T) {
+	t.Run("FindApps", func(t *testing.T) {
 		revision, err := repoCfg.ResolveRevision(".", "HEAD")
 		assert.NoError(t, err)
-		actualAppCfgs, err := repoCfg.FindAppCfgs(revision)
+		actualAppTemplates, err := repoCfg.FindApps(revision)
 		assert.NoError(t, err)
-		assert.Equal(t, appCfgs, actualAppCfgs)
+		assert.Equal(t, appTemplates, actualAppTemplates)
 	})
 
-	t.Run("GetAppCfg", func(t *testing.T) {
-		for appPath := range appCfgs {
+	t.Run("GetTemplate", func(t *testing.T) {
+		for appPath := range appTemplates {
 			t.Run(appPath, func(t *testing.T) {
 				revision, err := repoCfg.ResolveRevision(appPath, "HEAD")
 				assert.NoError(t, err)
-				actualAppPath, appType, err := repoCfg.GetAppCfg(appPath, revision)
+				actualAppPath, appType, err := repoCfg.GetTemplate(appPath, revision)
 				assert.NoError(t, err)
-				assert.Equal(t, appCfgs[appPath], appType)
+				assert.Equal(t, appTemplates[appPath], appType)
 				assert.True(t, strings.HasSuffix(actualAppPath, appPath))
 			})
 		}

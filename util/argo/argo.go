@@ -253,7 +253,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 }
 
 func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, repoRes *argoappv1.Repository, repoClient repository.RepoServerServiceClient) (argoappv1.ApplicationSourceType, error) {
-	req := repository.GetAppCfgRequest{
+	req := repository.GetAppRequest{
 		Repo: &argoappv1.Repository{
 			Repo: spec.Source.RepoURL,
 		},
@@ -270,12 +270,12 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 		req.Repo.CertData = repoRes.CertData
 		req.Repo.KeyData = repoRes.KeyData
 	}
-	getRes, err := repoClient.GetAppCfg(ctx, &req)
+	getRes, err := repoClient.GetApp(ctx, &req)
 	if err != nil {
 		return "", err
 	}
 
-	switch getRes.AppType {
+	switch getRes.Tool {
 	case "ksonnet":
 		return argoappv1.ApplicationSourceTypeKsonnet, nil
 	case "helm":

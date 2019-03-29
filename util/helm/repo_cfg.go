@@ -64,7 +64,7 @@ func (c repoCfg) getIndex() (*index, error) {
 	return index, err
 }
 
-func (c repoCfg) FindAppCfgs(_ string) (map[string]string, error) {
+func (c repoCfg) FindApps(_ string) (map[string]string, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
@@ -87,7 +87,7 @@ func (c repoCfg) repoAdd() (string, error) {
 	})
 }
 
-func (c repoCfg) GetAppCfg(path string, resolvedRevision string) (string, string, error) {
+func (c repoCfg) GetTemplate(path string, resolvedRevision string) (string, string, error) {
 
 	if resolvedRevision == "" {
 		return "", "", errors.New("resolvedRevision must be resolved")

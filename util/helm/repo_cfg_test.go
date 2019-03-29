@@ -35,7 +35,7 @@ func TestHelmRepoCfg(t *testing.T) {
 
 	})
 	t.Run("GetSpecificVersion", func(t *testing.T) {
-		_, _, err = client.GetAppCfg("wordpress", latestWordpressVersion)
+		_, _, err = client.GetTemplate("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
 	})
 }

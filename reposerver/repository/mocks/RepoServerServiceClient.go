@@ -42,36 +42,6 @@ func (_m *RepoServerServiceClient) GenerateManifest(ctx context.Context, in *rep
 	return r0, r1
 }
 
-// GetAppCfg provides a mock function with given fields: ctx, in, opts
-func (_m *RepoServerServiceClient) GetAppCfg(ctx context.Context, in *repository.GetAppCfgRequest, opts ...grpc.CallOption) (*repository.GetAppCfgResponse, error) {
-	_va := make([]interface{}, len(opts))
-	for _i := range opts {
-		_va[_i] = opts[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, ctx, in)
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	var r0 *repository.GetAppCfgResponse
-	if rf, ok := ret.Get(0).(func(context.Context, *repository.GetAppCfgRequest, ...grpc.CallOption) *repository.GetAppCfgResponse); ok {
-		r0 = rf(ctx, in, opts...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*repository.GetAppCfgResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *repository.GetAppCfgRequest, ...grpc.CallOption) error); ok {
-		r1 = rf(ctx, in, opts...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetAppDetails provides a mock function with given fields: ctx, in, opts
 func (_m *RepoServerServiceClient) GetAppDetails(ctx context.Context, in *repository.RepoServerAppDetailsQuery, opts ...grpc.CallOption) (*repository.RepoAppDetailsResponse, error) {
 	_va := make([]interface{}, len(opts))
@@ -102,8 +72,8 @@ func (_m *RepoServerServiceClient) GetAppDetails(ctx context.Context, in *reposi
 	return r0, r1
 }
 
-// FindAppCfgs provides a mock function with given fields: ctx, in, opts
-func (_m *RepoServerServiceClient) ListAppCfgs(ctx context.Context, in *repository.ListAppCfgsRequest, opts ...grpc.CallOption) (*repository.AppCfgList, error) {
+// GetAppTemplate provides a mock function with given fields: ctx, in, opts
+func (_m *RepoServerServiceClient) GetAppTemplate(ctx context.Context, in *repository.GetAppRequest, opts ...grpc.CallOption) (*repository.GetAppResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -113,17 +83,47 @@ func (_m *RepoServerServiceClient) ListAppCfgs(ctx context.Context, in *reposito
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
-	var r0 *repository.AppCfgList
-	if rf, ok := ret.Get(0).(func(context.Context, *repository.ListAppCfgsRequest, ...grpc.CallOption) *repository.AppCfgList); ok {
+	var r0 *repository.GetAppResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *repository.GetAppRequest, ...grpc.CallOption) *repository.GetAppResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*repository.AppCfgList)
+			r0 = ret.Get(0).(*repository.GetAppResponse)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *repository.ListAppCfgsRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *repository.GetAppRequest, ...grpc.CallOption) error); ok {
+		r1 = rf(ctx, in, opts...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListApps provides a mock function with given fields: ctx, in, opts
+func (_m *RepoServerServiceClient) ListApps(ctx context.Context, in *repository.ListAppsRequest, opts ...grpc.CallOption) (*repository.ListAppsResponse, error) {
+	_va := make([]interface{}, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *repository.ListAppsResponse
+	if rf, ok := ret.Get(0).(func(context.Context, *repository.ListAppsRequest, ...grpc.CallOption) *repository.ListAppsResponse); ok {
+		r0 = rf(ctx, in, opts...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repository.ListAppsResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *repository.ListAppsRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)

@@ -29,27 +29,27 @@ message ManifestResponse {
     string sourceType = 6;
 }
 
-// ListAppCfgRequest requests a repository's apps
-message ListAppCfgsRequest {
+// ListAppTemplateRequest requests a repository's apps
+message ListAppsRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
 }
 
-// AppCfgList returns a list of app c fgs
-message AppCfgList {
-    map<string,string> appCfgs = 1;
+// AppTemplateList returns a list of app c fgs
+message ListAppsResponse {
+    map<string,string> apps = 1;
 }
 
 // GetFileRequest return
-message GetAppCfgRequest {
+message GetAppRequest {
     github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
     string path = 3;
 }
 
-// GetAppCfgResponse returns the type of app
-message GetAppCfgResponse {
-    string appType = 1;
+// GetAppTemplateResponse returns the type of app
+message GetAppResponse {
+    string tool = 1;
 }
 
 // RepoServerAppDetailsQuery contains query information for app details request
@@ -132,11 +132,11 @@ service RepoServerService {
     }
 
     // ListDir returns the file contents at the specified repo and path
-    rpc ListAppCfgs (ListAppCfgsRequest) returns (AppCfgList) {
+    rpc ListApps (ListAppsRequest) returns (ListAppsResponse) {
     }
 
     // GetFile returns the file contents at the specified repo and path
-    rpc GetAppCfg (GetAppCfgRequest) returns (GetAppCfgResponse) {
+    rpc GetApp (GetAppRequest) returns (GetAppResponse) {
     }
 
     // Generate manifest for application in specified repo name and revision

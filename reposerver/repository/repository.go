@@ -64,53 +64,53 @@ func NewService(repoRegistry repos.Registry, cache *cache.Cache, parallelismLimi
 	}
 }
 
-// FindAppCfgs lists the contents of a repo
-func (s *Service) ListAppCfgs(ctx context.Context, q *ListAppCfgsRequest) (*AppCfgList, error) {
+// FindApps lists the contents of a repo
+func (s *Service) ListApps(ctx context.Context, q *ListAppsRequest) (*ListAppsResponse, error) {
 	repoCfg, err := s.newRepoCfg(q.Repo)
 	if err != nil {
 		return nil, err
 	}
-	if files, err := s.cache.ListAppCfgs(q.Repo.Repo, q.Revision); err == nil {
+	if apps, err := s.cache.ListApps(q.Repo.Repo, q.Revision); err == nil {
 		log.Infof("listdir cache hit: %s/%s", q.Repo.Repo, q.Revision)
-		return &AppCfgList{AppCfgs: files}, nil
+		return &ListAppsResponse{Apps: apps}, nil
 	}
 
 	s.repoLock.Lock(repoCfg.LockKey())
 	defer s.repoLock.Unlock(repoCfg.LockKey())
 
-	appCfgs, err := repoCfg.FindAppCfgs(q.Revision)
+	apps, err := repoCfg.FindApps(q.Revision)
 	if err != nil {
 		return nil, err
 	}
 
-	res := AppCfgList{AppCfgs: appCfgs}
-	err = s.cache.SetAppCfgs(q.Repo.Repo, q.Revision, res.AppCfgs)
+	res := ListAppsResponse{Apps: apps}
+	err = s.cache.SetListApps(q.Repo.Repo, q.Revision, res.Apps)
 	if err != nil {
 		log.Warnf("listdir cache set error %s/%s: %v", q.Repo.Repo, q.Revision, err)
 	}
 	return &res, nil
 }
 
-func (s *Service) GetAppCfg(ctx context.Context, q *GetAppCfgRequest) (*GetAppCfgResponse, error) {
+func (s *Service) GetApp(ctx context.Context, q *GetAppRequest) (*GetAppResponse, error) {
 	repoCfg, resolvedRevision, err := s.newRepoCfgResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
 
-	if appType, err := s.cache.GetAppCfg(q.Repo.Repo, q.Path, resolvedRevision); err == nil {
-		log.Infof("GetAppCfg cache hit: %s/%s", resolvedRevision, q.Path)
-		return &GetAppCfgResponse{AppType: appType}, nil
+	if tool, err := s.cache.GetRepoApp(q.Repo.Repo, q.Path, resolvedRevision); err == nil {
+		log.Infof("GetTemplate cache hit: %s/%s", resolvedRevision, q.Path)
+		return &GetAppResponse{Tool: tool}, nil
 	}
 
 	s.repoLock.Lock(repoCfg.LockKey())
 	defer s.repoLock.Unlock(repoCfg.LockKey())
-	_, appType, err := repoCfg.GetAppCfg(q.Path, resolvedRevision)
+	_, appType, err := repoCfg.GetTemplate(q.Path, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
 
-	res := GetAppCfgResponse{AppType: appType}
-	err = s.cache.SetAppCfg(q.Repo.Repo, q.Path, resolvedRevision, appType)
+	res := GetAppResponse{Tool: appType}
+	err = s.cache.SetRepoApp(q.Repo.Repo, q.Path, resolvedRevision, appType)
 	if err != nil {
 		log.Warnf("getfile cache set error %s/%s: %v", resolvedRevision, q.Path, err)
 	}
@@ -160,7 +160,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		defer s.parallelismLimitSemaphore.Release(1)
 	}
 
-	appPath, _, err := repoCfg.GetAppCfg(q.ApplicationSource.Path, resolvedRevision)
+	appPath, _, err := repoCfg.GetTemplate(q.ApplicationSource.Path, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +546,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		return cached, nil
 	}
 
-	appPath, _, err := repoCfg.GetAppCfg(q.Path, resolvedRevision)
+	appPath, _, err := repoCfg.GetTemplate(q.Path, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}

@@ -92,11 +92,11 @@ func repoConnectionStateKey(repo string) string {
 	return fmt.Sprintf("repo|%s|connection-state", repo)
 }
 
-func appCfgsKey(repo, revision string) string {
+func appTemplatesKey(repo, revision string) string {
 	return fmt.Sprintf("ldir|%s|%s", repo, revision)
 }
 
-func appCfgKey(repo, path, revision string) string {
+func appTemplateKey(repo, path, revision string) string {
 	return fmt.Sprintf("gfile|%s|%s|%s", repo, path, revision)
 }
 
@@ -172,24 +172,24 @@ func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState
 	return c.setItem(repoConnectionStateKey(repo), &state, connectionStatusCacheExpiration, state == nil)
 }
 
-func (c *Cache) ListAppCfgs(repo, revision string) (map[string]string, error) {
+func (c *Cache) ListApps(repo, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.getItem(appCfgsKey(repo, revision), &res)
+	err := c.getItem(appTemplatesKey(repo, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetAppCfgs(repo, revision string, appCfgs map[string]string) error {
-	return c.setItem(appCfgsKey(repo, revision), appCfgs, repoCacheExpiration, appCfgs == nil)
+func (c *Cache) SetListApps(repo, revision string, appTemplates map[string]string) error {
+	return c.setItem(appTemplatesKey(repo, revision), appTemplates, repoCacheExpiration, appTemplates == nil)
 }
 
-func (c *Cache) GetAppCfg(repo, path, revision string) (string, error) {
+func (c *Cache) GetRepoApp(repo, path, revision string) (string, error) {
 	res := ""
-	err := c.getItem(appCfgKey(repo, path, revision), &res)
+	err := c.getItem(appTemplateKey(repo, path, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetAppCfg(repo, path, revision string, appType string) error {
-	return c.setItem(appCfgKey(repo, path, revision), appType, repoCacheExpiration, appType == "")
+func (c *Cache) SetRepoApp(repo, path, revision string, appType string) error {
+	return c.setItem(appTemplateKey(repo, path, revision), appType, repoCacheExpiration, appType == "")
 }
 
 func (c *Cache) GetManifests(commitSHA string, appSrc *appv1.ApplicationSource, namespace string, appLabelKey string, appLabelValue string, res interface{}) error {

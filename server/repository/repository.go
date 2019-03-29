@@ -126,14 +126,14 @@ func redact(repos []*appsv1.Repository) []appsv1.Repository {
 func (s *Server) listAppsPaths(
 	ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string) (map[string]appsv1.ApplicationSourceType, error) {
 
-	appCfgList, err := repoClient.ListAppCfgs(ctx, &repository.ListAppCfgsRequest{Repo: repo, Revision: revision})
+	res, err := repoClient.ListApps(ctx, &repository.ListAppsRequest{Repo: repo, Revision: revision})
 	if err != nil {
 		return nil, err
 	}
 
 	output := make(map[string]appsv1.ApplicationSourceType)
-	for appPath := range appCfgList.AppCfgs {
-		output[appPath] = appsv1.ApplicationSourceType(appCfgList.AppCfgs[appPath])
+	for path := range res.Apps {
+		output[path] = appsv1.ApplicationSourceType(res.Apps[path])
 	}
 
 	return output, nil

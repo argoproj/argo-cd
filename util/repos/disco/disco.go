@@ -11,9 +11,9 @@ import (
 	"github.com/argoproj/argo-cd/util/kustomize"
 )
 
-func FindAppCfgs(root string) (map[string]string, error) {
+func FindAppTemplates(root string) (map[string]string, error) {
 
-	appCfgs := make(map[string]string)
+	appTemplates := make(map[string]string)
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 
 		_, file := filepath.Split(path)
@@ -31,17 +31,17 @@ func FindAppCfgs(root string) (map[string]string, error) {
 			}
 			if appType != "" {
 				appPath := strings.Trim(strings.TrimPrefix(path, root), "/")
-				if _, ok := appCfgs[appPath]; !ok {
-					appCfgs[appPath] = appType
+				if _, ok := appTemplates[appPath]; !ok {
+					appTemplates[appPath] = appType
 				}
 			}
 		}
 		return err
 	})
 
-	log.WithFields(log.Fields{"appCfgs": appCfgs}).Info("found appCfgs")
+	log.WithFields(log.Fields{"appTemplates": appTemplates}).Info("found appTemplates")
 
-	return appCfgs, err
+	return appTemplates, err
 
 }
 
