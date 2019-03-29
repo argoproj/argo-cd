@@ -30,8 +30,10 @@ func TestRepoCfg(t *testing.T) {
 	repoCfg, err := RepoCfgFactory{}.NewRepoCfg("https://github.com/argoproj/argocd-example-apps", "", "", "", false)
 	assert.NoError(t, err)
 
-	t.Run("ListAppCfgs", func(t *testing.T) {
-		actualAppCfgs, err := repoCfg.ListAppCfgs("master")
+	t.Run("FindAppCfgs", func(t *testing.T) {
+		revision, err := repoCfg.ResolveRevision(".", "HEAD")
+		assert.NoError(t, err)
+		actualAppCfgs, err := repoCfg.FindAppCfgs(revision)
 		assert.NoError(t, err)
 		assert.Equal(t, appCfgs, actualAppCfgs)
 	})
@@ -39,7 +41,9 @@ func TestRepoCfg(t *testing.T) {
 	t.Run("GetAppCfg", func(t *testing.T) {
 		for appPath := range appCfgs {
 			t.Run(appPath, func(t *testing.T) {
-				actualAppPath, appType, err := repoCfg.GetAppCfg(appPath, "master")
+				revision, err := repoCfg.ResolveRevision(appPath, "HEAD")
+				assert.NoError(t, err)
+				actualAppPath, appType, err := repoCfg.GetAppCfg(appPath, revision)
 				assert.NoError(t, err)
 				assert.Equal(t, appCfgs[appPath], appType)
 				assert.True(t, strings.HasSuffix(actualAppPath, appPath))

@@ -135,11 +135,11 @@ build: lint
 
 .PHONY: test
 test: build
-	go test -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+	gotestsum -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -v -failfast -timeout 20m ./test/e2e
+	gotestsum -- -v -failfast -timeout 20m ./test/e2e
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug

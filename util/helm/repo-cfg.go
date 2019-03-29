@@ -50,11 +50,11 @@ func (c repoCfg) getIndex() (*index, error) {
 	index := &index{}
 	err = yaml.NewDecoder(resp.Body).Decode(index)
 
-	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Debug("took to get index")
+	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 	return index, err
 }
 
-func (c repoCfg) ListAppCfgs(_ api.RepoRevision) (map[api.AppPath]api.AppType, error) {
+func (c repoCfg) FindAppCfgs(_ api.RepoRevision) (map[api.AppPath]api.AppType, error) {
 
 	index, err := c.getIndex()
 	if err != nil {

@@ -1092,7 +1092,7 @@ func (c *repoServerServiceClient) GenerateManifest(ctx context.Context, in *Mani
 
 func (c *repoServerServiceClient) ListAppCfgs(ctx context.Context, in *ListAppCfgsRequest, opts ...grpc.CallOption) (*AppCfgList, error) {
 	out := new(AppCfgList)
-	err := c.cc.Invoke(ctx, "/repository.RepoServerService/ListAppCfgs", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/repository.RepoServerService/FindAppCfgs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1162,7 +1162,7 @@ func _RepoServerService_ListAppCfgs_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/repository.RepoServerService/ListAppCfgs",
+		FullMethod: "/repository.RepoServerService/FindAppCfgs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RepoServerServiceServer).ListAppCfgs(ctx, req.(*ListAppCfgsRequest))
@@ -1215,7 +1215,7 @@ var _RepoServerService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _RepoServerService_GenerateManifest_Handler,
 		},
 		{
-			MethodName: "ListAppCfgs",
+			MethodName: "FindAppCfgs",
 			Handler:    _RepoServerService_ListAppCfgs_Handler,
 		},
 		{

@@ -102,7 +102,7 @@ func (_m *RepoServerServiceClient) GetAppDetails(ctx context.Context, in *reposi
 	return r0, r1
 }
 
-// ListAppCfgs provides a mock function with given fields: ctx, in, opts
+// FindAppCfgs provides a mock function with given fields: ctx, in, opts
 func (_m *RepoServerServiceClient) ListAppCfgs(ctx context.Context, in *repository.ListAppCfgsRequest, opts ...grpc.CallOption) (*repository.AppCfgList, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {

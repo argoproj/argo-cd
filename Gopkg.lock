@@ -1542,6 +1542,7 @@
     "github.com/dustin/go-humanize",
     "github.com/evanphx/json-patch",
     "github.com/ghodss/yaml",
+    "github.com/go-openapi/errors",
     "github.com/go-openapi/loads",
     "github.com/go-openapi/runtime/middleware",
     "github.com/go-redis/cache",

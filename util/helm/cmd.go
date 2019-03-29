@@ -46,7 +46,7 @@ func (h cmd) run(args ...string) (string, error) {
 		log.WithFields(log.Fields{"lineNo": lineNo, "line": line}).Debug("output")
 	}
 
-	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took")
+	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds(), "redactedArgs": string(redact(args))}).Info("took")
 
 	if err != nil {
 		exErr, ok := err.(*exec.ExitError)

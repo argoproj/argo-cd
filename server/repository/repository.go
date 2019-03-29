@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"path"
 	"reflect"
 
 	log "github.com/sirupsen/logrus"
@@ -126,7 +125,7 @@ func redact(repos []*appsv1.Repository) []appsv1.Repository {
 }
 
 func (s *Server) listAppsPaths(
-	ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string, subPath string) (map[string]appsv1.ApplicationSourceType, error) {
+	ctx context.Context, repoClient repository.RepoServerServiceClient, repo *appsv1.Repository, revision string) (map[string]appsv1.ApplicationSourceType, error) {
 
 	appCfgList, err := repoClient.ListAppCfgs(ctx, &repository.ListAppCfgsRequest{Repo: repo, Revision: revision})
 	if err != nil {
@@ -166,13 +165,13 @@ func (s *Server) ListApps(ctx context.Context, q *RepoAppsQuery) (*RepoAppsRespo
 
 	revision := q.Revision
 
-	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision, "")
+	paths, err := s.listAppsPaths(ctx, repoClient, repo, revision)
 	if err != nil {
 		return nil, err
 	}
 	items := make([]*AppInfo, 0)
-	for appFilePath, appType := range paths {
-		items = append(items, &AppInfo{Path: path.Dir(appFilePath), Type: string(appType)})
+	for appPath, appType := range paths {
+		items = append(items, &AppInfo{Path: appPath, Type: string(appType)})
 	}
 	return &RepoAppsResponse{Items: items}, nil
 }

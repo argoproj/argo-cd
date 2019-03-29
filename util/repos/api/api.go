@@ -9,8 +9,8 @@ type RepoCfgFactory interface {
 }
 type RepoRevision = string
 type RepoCfg interface {
-	ListAppCfgs(revision RepoRevision) (map[AppPath]AppType, error)
-	GetAppCfg(path AppPath, revision AppRevision) (string, AppType, error)
+	FindAppCfgs(revision RepoRevision) (map[AppPath]AppType, error)
+	GetAppCfg(path AppPath, resolvedRevision AppRevision) (string, AppType, error)
 	ResolveRevision(path AppPath, revision AppRevision) (AppRevision, error)
 	LockKey() string
 }

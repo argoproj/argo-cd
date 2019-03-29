@@ -64,7 +64,7 @@ func NewService(repoRegistry repos.Registry, cache *cache.Cache, parallelismLimi
 	}
 }
 
-// ListAppCfgs lists the contents of a repo
+// FindAppCfgs lists the contents of a repo
 func (s *Service) ListAppCfgs(ctx context.Context, q *ListAppCfgsRequest) (*AppCfgList, error) {
 	repoCfg, err := s.newRepoCfg(q.Repo)
 	if err != nil {
@@ -78,12 +78,12 @@ func (s *Service) ListAppCfgs(ctx context.Context, q *ListAppCfgsRequest) (*AppC
 	s.repoLock.Lock(repoCfg.LockKey())
 	defer s.repoLock.Unlock(repoCfg.LockKey())
 
-	lsFiles, err := repoCfg.ListAppCfgs(q.Revision)
+	appCfgs, err := repoCfg.FindAppCfgs(q.Revision)
 	if err != nil {
 		return nil, err
 	}
 
-	res := AppCfgList{AppCfgs: lsFiles}
+	res := AppCfgList{AppCfgs: appCfgs}
 	err = s.cache.SetAppCfgs(q.Repo.Repo, q.Revision, res.AppCfgs)
 	if err != nil {
 		log.Warnf("listdir cache set error %s/%s: %v", q.Repo.Repo, q.Revision, err)
@@ -104,7 +104,7 @@ func (s *Service) GetAppCfg(ctx context.Context, q *GetAppCfgRequest) (*GetAppCf
 
 	s.repoLock.Lock(repoCfg.LockKey())
 	defer s.repoLock.Unlock(repoCfg.LockKey())
-	_, appType, err := repoCfg.GetAppCfg(q.Path, q.Revision)
+	_, appType, err := repoCfg.GetAppCfg(q.Path, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
