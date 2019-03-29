@@ -18,7 +18,7 @@ var repoCache = cache.New(5*time.Minute, 5*time.Minute)
 type RepoCfgFactory struct {
 }
 
-func NewRepoCfgFactory() api.RepoCfgFactory {
+func GetRepoCfgFactory() api.RepoCfgFactory {
 	return RepoCfgFactory{}
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 type Registry interface {
-	NewFactory(repoType RepoType) RepoCfgFactory
+	GetFactory(repoType string) RepoCfgFactory
 }
 
 var singletonRegistry = registry{}
@@ -19,28 +19,28 @@ func GetRegistry() Registry {
 type registry struct {
 }
 
-func (r registry) NewFactory(repoType RepoType) RepoCfgFactory {
+func (r registry) GetFactory(repoType string) RepoCfgFactory {
 	if repoType == "helm" {
-		return helm.NewRepoCfgFactory()
+		return helm.GetRepoCfgFactory()
 	} else {
-		return git.NewRepoCfgFactory()
+		return git.GetRepoCfgFactory()
 	}
 }
 
 func SameURL(leftUrl, rightUrl string) bool {
 
 	return leftUrl == rightUrl ||
-		singletonRegistry.NewFactory("git").SameURL(leftUrl, rightUrl) ||
-		singletonRegistry.NewFactory("helm").SameURL(leftUrl, rightUrl)
+		singletonRegistry.GetFactory("git").SameURL(leftUrl, rightUrl) ||
+		singletonRegistry.GetFactory("helm").SameURL(leftUrl, rightUrl)
 }
 
 func NormalizeURL(url string) string {
 
-	normalizedURL := singletonRegistry.NewFactory("git").NormalizeURL(url)
+	normalizedURL := singletonRegistry.GetFactory("git").NormalizeURL(url)
 
 	if url != normalizedURL {
 		return normalizedURL
 	}
 
-	return singletonRegistry.NewFactory("helm").NormalizeURL(url)
+	return singletonRegistry.GetFactory("helm").NormalizeURL(url)
 }

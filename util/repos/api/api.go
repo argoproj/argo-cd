@@ -1,7 +1,5 @@
 package api
 
-type RepoType = string
-
 type RepoCfgFactory interface {
 	NormalizeURL(url string) string
 	IsResolvedRevision(revision string) bool

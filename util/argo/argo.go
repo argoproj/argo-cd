@@ -160,7 +160,7 @@ func GetSpecErrors(
 	if repoRes != nil && repoRes.Type != "" {
 		repoType = repoRes.Type
 	}
-	factory := repos.GetRegistry().NewFactory(repoType)
+	factory := repos.GetRegistry().GetFactory(repoType)
 
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {

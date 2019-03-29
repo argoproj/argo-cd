@@ -11,7 +11,7 @@ import (
 type RepoCfgFactory struct {
 }
 
-func NewRepoCfgFactory() RepoCfgFactory {
+func GetRepoCfgFactory() RepoCfgFactory {
 	return RepoCfgFactory{}
 }
 

@@ -130,7 +130,7 @@ lint:
 	golangci-lint run --fix
 
 .PHONY: build
-build: lint
+build:
 	go build `go list ./... | grep -v resource_customizations`
 
 .PHONY: test
