@@ -28,6 +28,11 @@ ifeq (${STATIC_BUILD}, true)
 override LDFLAGS += -extldflags "-static"
 endif
 
+TEST_CMD=go test
+ifneq (`which gotestsum`, "")
+	TEST_CMD=gotestsum --
+endif
+
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
@@ -135,11 +140,11 @@ build:
 
 .PHONY: test
 test:
-	gotestsum -- -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+	$(TEST_CMD) -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
-	gotestsum -- -v -failfast -timeout 20m ./test/e2e
+	$(TEST_CMD) -v -failfast -timeout 20m ./test/e2e
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
