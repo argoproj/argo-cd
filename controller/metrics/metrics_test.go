@@ -55,7 +55,7 @@ argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argo
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",repo="https://github.com/argoproj/argocd-example-apps.git"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project",repo="https://github.com/argoproj/argocd-example-apps"} 1
 # HELP argocd_app_sync_status The application current sync status.
 # TYPE argocd_app_sync_status gauge
 argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="OutOfSync"} 0
@@ -96,7 +96,7 @@ argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argo
 argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="default"} 0
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="default",repo="https://github.com/argoproj/argocd-example-apps.git"} 1
+argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="default",repo="https://github.com/argoproj/argocd-example-apps"} 1
 # HELP argocd_app_sync_status The application current sync status.
 # TYPE argocd_app_sync_status gauge
 argocd_app_sync_status{name="my-app",namespace="argocd",project="default",sync_status="OutOfSync"} 0
