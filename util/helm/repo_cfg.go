@@ -80,17 +80,7 @@ func (c repoCfg) GetAppCfg(path api.AppPath, revision api.AppRevision) (string, 
 		return "", "", errors.New("revision must be resolved")
 	}
 
-	_, err := c.repoAdd()
-	if err != nil {
-		return "", "", err
-	}
-
-	_, err = c.cmd.repoUpdate()
-	if err != nil {
-		return "", "", err
-	}
-
-	err = c.checkKnownChart(path)
+	err := c.checkKnownChart(path)
 	if err != nil {
 		return "", "", err
 	}

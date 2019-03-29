@@ -44,6 +44,7 @@ func (f RepoCfgFactory) NewRepoCfg(
 	if err != nil {
 		return nil, err
 	}
+
 	_, err = cmd.init()
 	if err != nil {
 		return nil, err
@@ -62,6 +63,16 @@ func (f RepoCfgFactory) NewRepoCfg(
 	}
 
 	_, err = cfg.getIndex()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = cfg.repoAdd()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = cfg.cmd.repoUpdate()
 
 	return cfg, err
 }
