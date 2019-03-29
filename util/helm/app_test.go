@@ -21,7 +21,7 @@ func findParameter(params []*argoappv1.HelmParameter, name string) *argoappv1.He
 	return nil
 }
 
-var repositories = []*argoappv1.Repository{{Repo: "https://kubernetes-charts.storage.googleapis.com/", Type: argoappv1.Helm}, {Repo: "http://github.com/argoproj/argo-cd"}}
+var repositories = []*argoappv1.Repository{{Repo: "https://kubernetes-charts.storage.googleapis.com/", Type: "helm"}, {Repo: "http://github.com/argoproj/argo-cd"}}
 
 func TestHelmTemplateParams(t *testing.T) {
 	h, err := NewApp("./testdata/minio", repositories)

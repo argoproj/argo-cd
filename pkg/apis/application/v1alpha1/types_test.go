@@ -9,19 +9,19 @@ import (
 func TestValidateRepository(t *testing.T) {
 	assert.EqualError(t, Repository{}.Validate(), "invalid repository, must specify Repo")
 
-	assert.EqualError(t, Repository{Repo: "://", Type: Helm}.Validate(), "invalid repository, must specify Name")
-	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo"}.Validate())
-	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", CAData: []byte{}}.Validate())
-	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", CertData: []byte{}}.Validate())
-	assert.NoError(t, Repository{Repo: "://", Type: Helm, Name: "foo", KeyData: []byte{}}.Validate())
-	assert.EqualError(t, Repository{Repo: "://", Type: Helm, Name: "foo", SSHPrivateKey: "foo"}.Validate(), "invalid repository, must not specify SSHPrivateKey")
-	assert.EqualError(t, Repository{Repo: "://", Type: Helm, Name: "foo", InsecureIgnoreHostKey: true}.Validate(), "invalid repository, must not specify InsecureIgnoreHostKey")
+	assert.EqualError(t, Repository{Repo: "://", Type: "helm"}.Validate(), "invalid repository, must specify Name")
+	assert.NoError(t, Repository{Repo: "://", Type: "helm", Name: "foo"}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: "helm", Name: "foo", CAData: []byte{}}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: "helm", Name: "foo", CertData: []byte{}}.Validate())
+	assert.NoError(t, Repository{Repo: "://", Type: "helm", Name: "foo", KeyData: []byte{}}.Validate())
+	assert.EqualError(t, Repository{Repo: "://", Type: "helm", Name: "foo", SSHPrivateKey: "foo"}.Validate(), "invalid repository, must not specify SSHPrivateKey")
+	assert.EqualError(t, Repository{Repo: "://", Type: "helm", Name: "foo", InsecureIgnoreHostKey: true}.Validate(), "invalid repository, must not specify InsecureIgnoreHostKey")
 
-	assert.EqualError(t, Repository{Repo: "://", Type: Git, Name: "foo"}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
-	assert.EqualError(t, Repository{Repo: "://", Type: Git, CAData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
-	assert.EqualError(t, Repository{Repo: "://", Type: Git, CertData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
-	assert.EqualError(t, Repository{Repo: "://", Type: Git, KeyData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
-	assert.NoError(t, Repository{Repo: "://", Type: Git, SSHPrivateKey: "foo"}.Validate())
+	assert.EqualError(t, Repository{Repo: "://", Type: "git", Name: "foo"}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
+	assert.EqualError(t, Repository{Repo: "://", Type: "git", CAData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
+	assert.EqualError(t, Repository{Repo: "://", Type: "git", CertData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
+	assert.EqualError(t, Repository{Repo: "://", Type: "git", KeyData: []byte{}}.Validate(), "invalid repository, must not specify Name, CertData, CAData, or KeyData")
+	assert.NoError(t, Repository{Repo: "://", Type: "git", SSHPrivateKey: "foo"}.Validate())
 }
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {

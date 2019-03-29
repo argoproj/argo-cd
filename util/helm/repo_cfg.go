@@ -4,13 +4,12 @@ import (
 	"errors"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-
-	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
 var indexCache = cache.New(5*time.Minute, 5*time.Minute)
@@ -45,7 +44,7 @@ func (c repoCfg) getIndex() (*index, error) {
 
 	start := time.Now()
 
-	resp, err := http.Get(c.url + "/index.yaml")
+	resp, err := http.Get(strings.TrimSuffix(c.url, "/") + "/index.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -65,17 +64,17 @@ func (c repoCfg) getIndex() (*index, error) {
 	return index, err
 }
 
-func (c repoCfg) FindAppCfgs(_ api.RepoRevision) (map[api.AppPath]api.AppType, error) {
+func (c repoCfg) FindAppCfgs(_ string) (map[string]string, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
 		return nil, err
 	}
 
-	cfgs := make(map[api.AppPath]api.AppType)
+	cfgs := make(map[string]string)
 
 	for chartName := range index.Entries {
-		cfgs[chartName] = api.HelmAppType
+		cfgs[chartName] = "helm"
 	}
 
 	return cfgs, nil
@@ -88,10 +87,10 @@ func (c repoCfg) repoAdd() (string, error) {
 	})
 }
 
-func (c repoCfg) GetAppCfg(path api.AppPath, revision api.AppRevision) (string, api.AppType, error) {
+func (c repoCfg) GetAppCfg(path string, resolvedRevision string) (string, string, error) {
 
-	if revision == "" {
-		return "", "", errors.New("revision must be resolved")
+	if resolvedRevision == "" {
+		return "", "", errors.New("resolvedRevision must be resolved")
 	}
 
 	err := c.checkKnownChart(path)
@@ -102,10 +101,10 @@ func (c repoCfg) GetAppCfg(path api.AppPath, revision api.AppRevision) (string, 
 	log.WithFields(log.Fields{"chartName": path}).Debug("chart name")
 
 	_, err = c.cmd.fetch(c.name, path, fetchOpts{
-		Version: revision, Destination: ".",
+		Version: resolvedRevision, Destination: ".",
 	})
 
-	return filepath.Join(c.workDir, path), api.HelmAppType, err
+	return filepath.Join(c.workDir, path), "helm", err
 }
 
 func (c repoCfg) checkKnownChart(chartName string) error {
@@ -131,7 +130,7 @@ func (c repoCfg) isKnownChart(chartName string) (bool, error) {
 	return ok, nil
 }
 
-func (c repoCfg) ResolveRevision(path api.AppPath, revision api.AppRevision) (string, error) {
+func (c repoCfg) ResolveRevision(path string, revision string) (string, error) {
 
 	if revision != "" {
 		return revision, nil
@@ -148,8 +147,4 @@ func (c repoCfg) ResolveRevision(path api.AppPath, revision api.AppRevision) (st
 		}
 	}
 	return "", errors.New("failed to find chart " + path)
-}
-
-func (c repoCfg) GetUrl() string {
-	return c.url
 }

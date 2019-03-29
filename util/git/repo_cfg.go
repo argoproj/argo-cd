@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/argoproj/argo-cd/util/repos/disco"
-
-	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
 type repoCfg struct {
@@ -31,7 +29,7 @@ func (c repoCfg) makeReady(resolvedRevision string) error {
 	return c.client.checkout(resolvedRevision)
 }
 
-func (c repoCfg) FindAppCfgs(revision api.RepoRevision) (map[api.AppPath]api.AppType, error) {
+func (c repoCfg) FindAppCfgs(revision string) (map[string]string, error) {
 
 	resolvedRevision, err := c.client.lsRemote(revision)
 	if err != nil {
@@ -46,7 +44,7 @@ func (c repoCfg) FindAppCfgs(revision api.RepoRevision) (map[api.AppPath]api.App
 	return disco.FindAppCfgs(c.client.getRoot())
 }
 
-func (c repoCfg) GetAppCfg(path, resolvedRevision string) (string, api.AppType, error) {
+func (c repoCfg) GetAppCfg(path, resolvedRevision string) (string, string, error) {
 	if !isCommitSHA(resolvedRevision) {
 		return "", "", errors.New("must be resolved resolvedRevision")
 	}
@@ -63,6 +61,6 @@ func (c repoCfg) GetAppCfg(path, resolvedRevision string) (string, api.AppType, 
 	return dir, appType, err
 }
 
-func (c repoCfg) ResolveRevision(path api.AppPath, revision api.AppRevision) (string, error) {
+func (c repoCfg) ResolveRevision(path string, revision string) (string, error) {
 	return c.client.lsRemote(revision)
 }

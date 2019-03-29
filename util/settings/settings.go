@@ -71,13 +71,6 @@ type ArgoCDSettings struct {
 	ResourceExclusions []ExcludedResource
 }
 
-type RepoType string
-
-const (
-	Git  RepoType = "git"
-	Helm RepoType = "helm"
-)
-
 type ResourceOverride struct {
 	HealthLua         string `json:"health.lua,omitempty"`
 	IgnoreDifferences string `json:"ignoreDifferences,omitempty"`
@@ -97,7 +90,7 @@ type RepoCredentials struct {
 	PasswordSecret        *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	SSHPrivateKeySecret   *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	InsecureIgnoreHostKey bool                     `json:"insecureIgnoreHostKey,omitempty"`
-	Type                  RepoType                 `json:"type,omitempty"`
+	Type                  string                   `json:"type,omitempty"`
 	Name                  string                   `json:"name,omitempty"`
 	CASecret              *apiv1.SecretKeySelector `json:"caSecret,omitempty"`
 	CertSecret            *apiv1.SecretKeySelector `json:"certSecret,omitempty"`

@@ -32,7 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/repos/api"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -63,7 +62,7 @@ func fakeCluster() *appsv1.Cluster {
 
 func fakeFileResponse() *repository.GetAppCfgResponse {
 	return &repository.GetAppCfgResponse{
-		AppType: api.KsonnetAppType,
+		AppType: "ksonnet",
 	}
 }
 

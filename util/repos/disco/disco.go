@@ -9,12 +9,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/util/kustomize"
-	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
-func FindAppCfgs(root string) (map[api.AppPath]api.AppType, error) {
+func FindAppCfgs(root string) (map[string]string, error) {
 
-	appCfgs := make(map[api.AppPath]api.AppType)
+	appCfgs := make(map[string]string)
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 
 		_, file := filepath.Split(path)
@@ -46,7 +45,7 @@ func FindAppCfgs(root string) (map[api.AppPath]api.AppType, error) {
 
 }
 
-func GetAppType(dir string) (api.AppType, error) {
+func GetAppType(dir string) (string, error) {
 
 	infos, err := ioutil.ReadDir(dir)
 
@@ -57,11 +56,11 @@ func GetAppType(dir string) (api.AppType, error) {
 	for _, info := range infos {
 		if !info.IsDir() {
 			if strings.HasSuffix(info.Name(), "app.yaml") {
-				return api.KsonnetAppType, nil
+				return "ksonnet", nil
 			} else if info.Name() == "Chart.yaml" {
-				return api.HelmAppType, nil
+				return "helm", nil
 			} else if kustomize.IsKustomization(info.Name()) {
-				return api.KustomizeAppType, nil
+				return "kustomize", nil
 			}
 		}
 	}

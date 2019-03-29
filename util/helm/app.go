@@ -74,7 +74,7 @@ func (h *app) DependencyBuild() error {
 	if !h.reposInitialized {
 		for _, repo := range h.repos {
 
-			if repo.Type != argoappv1.Helm {
+			if repo.Type != "helm" {
 				continue
 			}
 

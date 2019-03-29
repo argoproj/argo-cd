@@ -73,7 +73,7 @@ func TestGetSpecErrors(t *testing.T) {
 
 	mockDb := mockdb.ArgoDB{}
 	mockDb.On("GetRepository", mock.Anything, knownGitRepoUrl).Return(&argoappv1.Repository{}, nil)
-	mockDb.On("GetRepository", mock.Anything, knownHelmRepoUrl).Return(&argoappv1.Repository{Type: argoappv1.Helm}, nil)
+	mockDb.On("GetRepository", mock.Anything, knownHelmRepoUrl).Return(&argoappv1.Repository{Type: "helm"}, nil)
 	mockDb.On("GetRepository", mock.Anything, notFoundRepoUrl).Return(nil, status.Error(codes.NotFound, ""))
 	mockDb.On("GetCluster", mock.Anything, server).Return(&argoappv1.Cluster{}, nil)
 

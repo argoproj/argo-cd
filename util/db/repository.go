@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/repos"
-	"github.com/argoproj/argo-cd/util/repos/api"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -74,7 +73,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 
 	repoInfo := settings.RepoCredentials{
 		URL:                   r.Repo,
-		Type:                  settings.RepoType(r.Type),
+		Type:                  r.Type,
 		Name:                  r.Name,
 		InsecureIgnoreHostKey: r.InsecureIgnoreHostKey,
 	}
@@ -103,7 +102,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 	repoInfo := s.Repositories[index]
-	repo := &appsv1.Repository{Repo: repoInfo.URL, Type: appsv1.RepoType(repoInfo.Type), Name: repoInfo.Name, InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey}
+	repo := &appsv1.Repository{Repo: repoInfo.URL, Type: repoInfo.Type, Name: repoInfo.Name, InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey}
 
 	cache := make(map[string]*apiv1.Secret)
 	err = db.unmarshalFromSecretsBytes(map[*[]byte]*apiv1.SecretKeySelector{
@@ -272,7 +271,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 
 func getRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
 	for i, cred := range s.Repositories {
-		if repos.NewRegistry().NewFactory(api.RepoType(cred.Type)).SameURL(cred.URL, repoURL) {
+		if repos.GetRegistry().NewFactory(cred.Type).SameURL(cred.URL, repoURL) {
 			return i
 		}
 	}

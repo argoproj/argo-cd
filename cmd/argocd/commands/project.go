@@ -10,6 +10,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/repos"
+
 	"github.com/dustin/go-humanize"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
@@ -272,7 +274,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 					fmt.Printf("Source repository '*' already allowed in project\n")
 					return
 				}
-				if item == url {
+				if repos.SameURL(item, url) {
 					fmt.Printf("Source repository '%s' already allowed in project\n", item)
 					return
 				}

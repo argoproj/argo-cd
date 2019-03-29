@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/util/repos/api"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +14,7 @@ func TestRepoCfg(t *testing.T) {
 		assert.EqualError(t, err, "repository not found")
 	})
 
-	appCfgs := map[api.AppPath]api.AppType{
+	appCfgs := map[string]string{
 		"blue-green":              "helm",
 		"helm-dependency":         "helm",
 		"helm-guestbook":          "helm",

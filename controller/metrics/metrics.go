@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/argoproj/argo-cd/util/repos"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -162,7 +164,7 @@ func collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 		addConstMetric(desc, prometheus.GaugeValue, v, lv...)
 	}
 
-	addGauge(descAppInfo, 1, app.Spec.Source.RepoURL, app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	addGauge(descAppInfo, 1, repos.NormalizeURL(app.Spec.Source.RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
 

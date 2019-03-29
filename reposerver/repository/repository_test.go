@@ -22,7 +22,7 @@ import (
 func newMockRepoServerService() *Service {
 	return &Service{
 		repoLock:     util.NewKeyLock(),
-		repoRegistry: repos.NewRegistry(),
+		repoRegistry: repos.GetRegistry(),
 		cache:        cache.NewCache(cache.NewInMemoryCache(time.Hour)),
 	}
 }

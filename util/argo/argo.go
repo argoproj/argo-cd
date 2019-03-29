@@ -28,7 +28,6 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/repos"
-	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
 const (
@@ -159,9 +158,9 @@ func GetSpecErrors(
 
 	repoType := "git"
 	if repoRes != nil && repoRes.Type != "" {
-		repoType = string(repoRes.Type)
+		repoType = repoRes.Type
 	}
-	factory := repos.NewRegistry().NewFactory(repoType)
+	factory := repos.GetRegistry().NewFactory(repoType)
 
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
@@ -277,11 +276,11 @@ func queryAppSourceType(ctx context.Context, spec *argoappv1.ApplicationSpec, re
 	}
 
 	switch getRes.AppType {
-	case api.KsonnetAppType:
+	case "ksonnet":
 		return argoappv1.ApplicationSourceTypeKsonnet, nil
-	case api.HelmAppType:
+	case "helm":
 		return argoappv1.ApplicationSourceTypeHelm, nil
-	case api.KustomizeAppType:
+	case "kustomize":
 		return argoappv1.ApplicationSourceTypeKustomize, nil
 	}
 	return argoappv1.ApplicationSourceTypeDirectory, nil

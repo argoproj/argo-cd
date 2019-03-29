@@ -21,7 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/util/helm"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/repos"
-	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
 // Server provides a Repository service
@@ -55,7 +54,7 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 	}
 	now := metav1.Now()
 
-	factory := repos.NewRegistry().NewFactory(api.RepoType(repo.Type))
+	factory := repos.GetRegistry().NewFactory(repo.Type)
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:
 		_, err = f.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
@@ -215,7 +214,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 	}
 	r := q.Repo
 
-	factory := repos.NewRegistry().NewFactory(api.RepoType(r.Type))
+	factory := repos.GetRegistry().NewFactory(r.Type)
 	var err error
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:

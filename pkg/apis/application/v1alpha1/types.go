@@ -661,17 +661,10 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
-type RepoType string
-
-const (
-	Git  RepoType = "git"
-	Helm RepoType = "helm"
-)
-
 // Repository is a repository holding application configurations
 type Repository struct {
 	Repo                  string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
-	Type                  RepoType        `json:"type" protobuf:"bytes,2,opt,name=type"`
+	Type                  string          `json:"type" protobuf:"bytes,2,opt,name=type"`
 	Name                  string          `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 	Username              string          `json:"username,omitempty" protobuf:"bytes,4,opt,name=username"`
 	Password              string          `json:"password,omitempty" protobuf:"bytes,5,opt,name=password"`
@@ -688,7 +681,7 @@ func (r Repository) Validate() error {
 		return errors.New("invalid repository, must specify Repo")
 	}
 
-	if r.Type == Helm {
+	if r.Type == "helm" {
 		if r.Name == "" {
 			return errors.New("invalid repository, must specify Name")
 		}

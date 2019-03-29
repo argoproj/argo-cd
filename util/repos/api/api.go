@@ -7,20 +7,16 @@ type RepoCfgFactory interface {
 	IsResolvedRevision(revision string) bool
 	SameURL(leftRepo, rightRepo string) bool
 }
-type RepoRevision = string
 type RepoCfg interface {
-	FindAppCfgs(revision RepoRevision) (map[AppPath]AppType, error)
-	GetAppCfg(path AppPath, resolvedRevision AppRevision) (string, AppType, error)
-	ResolveRevision(path AppPath, revision AppRevision) (AppRevision, error)
+	// For a particular revision of the repository (should it have such a thing),  returns:
+	// 1. a map from the app path to the app revision
+	FindAppCfgs(revision string) (map[string]string, error)
+	// Resolve a potentially ambigous revision of an  app to an unambiguous revision, returns:
+	// 1. the unambiguous (aka "resolved") revision
+	ResolveRevision(appPath string, revision string) (string, error)
+	// returns:
+	// 1. path on disk
+	// 2. the app's type, e.g. "ksonnet", "kustomize", ""
+	GetAppCfg(appPath string, resolvedRevision string) (string, string, error)
 	LockKey() string
 }
-
-type AppPath = string
-type AppRevision = string
-type AppType = string
-
-const (
-	HelmAppType      AppType = "helm"
-	KustomizeAppType AppType = "kustomize"
-	KsonnetAppType   AppType = "ksonnet"
-)

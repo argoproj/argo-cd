@@ -56,7 +56,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				os.Exit(1)
 			}
 			repo.Repo = args[0]
-			repo.Type = appsv1.RepoType(repoType)
+			repo.Type = repoType
 			if repo.Username != "" && repo.Password == "" {
 				repo.Password = cli.PromptPassword("Password")
 			}

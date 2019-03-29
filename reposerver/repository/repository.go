@@ -455,7 +455,7 @@ func pathExists(ss ...string) bool {
 
 func (s *Service) newRepoCfg(repo *v1alpha1.Repository) (api.RepoCfg, error) {
 
-	factory := repos.NewRegistry().NewFactory(api.RepoType(repo.Type))
+	factory := repos.GetRegistry().NewFactory(repo.Type)
 
 	switch i := factory.(type) {
 	case git.RepoCfgFactory:
