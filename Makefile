@@ -9,6 +9,7 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum -- || echo go test)
 
 # docker image publishing options
 DOCKER_PUSH=false
@@ -27,8 +28,6 @@ override LDFLAGS += \
 ifeq (${STATIC_BUILD}, true)
 override LDFLAGS += -extldflags "-static"
 endif
-
-TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum || echo go test)
 
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
