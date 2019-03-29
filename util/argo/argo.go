@@ -168,8 +168,8 @@ func GetSpecErrors(
 			// We support the mode where apps can be created from public repositories. Test the
 			// repo to make sure it is publicly accessible
 			switch f := factory.(type) {
-			case git.RepoCfgFactory:
-				_, err = f.GetRepoCfg(spec.Source.RepoURL, "", "", "", false)
+			case git.RepoFactory:
+				_, err = f.GetRepo(spec.Source.RepoURL, "", "", "", false)
 			}
 
 			if err != nil {

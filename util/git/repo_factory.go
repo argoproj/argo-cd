@@ -8,26 +8,22 @@ import (
 	"github.com/argoproj/argo-cd/util/repos/api"
 )
 
-type RepoCfgFactory struct {
+type RepoFactory struct {
 }
 
-func GetRepoCfgFactory() RepoCfgFactory {
-	return RepoCfgFactory{}
+func GetRepoFactory() RepoFactory {
+	return RepoFactory{}
 }
 
-func (f RepoCfgFactory) SameURL(leftRepo, rightRepo string) bool {
+func (f RepoFactory) SameURL(leftRepo, rightRepo string) bool {
 	return sameURL(leftRepo, rightRepo)
 }
 
-func (f RepoCfgFactory) NormalizeURL(url string) string {
+func (f RepoFactory) NormalizeURL(url string) string {
 	return normalizeGitURL(url)
 }
 
-func (f RepoCfgFactory) IsResolvedRevision(revision string) bool {
-	return isCommitSHA(revision)
-}
-
-func (f RepoCfgFactory) GetRepoCfg(url, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (api.RepoCfg, error) {
+func (f RepoFactory) GetRepo(url, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (api.Repo, error) {
 	url = f.NormalizeURL(url)
 
 	workDir, err := ioutil.TempDir(os.TempDir(), strings.Replace(url, "/", "_", -1))
@@ -45,5 +41,5 @@ func (f RepoCfgFactory) GetRepoCfg(url, username, password, sshPrivateKey string
 		return nil, err
 	}
 
-	return repoCfg{client}, nil
+	return repo{client}, nil
 }

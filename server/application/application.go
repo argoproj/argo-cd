@@ -897,19 +897,20 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		log.Info("If we couldn't retrieve from the repo service, assume public repositories")
 		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL, Type: "git"}
 	}
-	factory := repos.GetFactory(repo.Type)
-	var repoCfg api.RepoCfg
-	switch f := factory.(type) {
-	case git.RepoCfgFactory:
-		repoCfg, err = f.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
-	case helm.RepoCfgFactory:
-		repoCfg, err = f.GetRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+
+	var r api.Repo
+	switch f := repos.GetFactory(repo.Type).(type) {
+	case git.RepoFactory:
+		r, err = f.GetRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	case helm.RepoFactory:
+		r, err = f.GetRepo(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
 	}
+
 	if err != nil {
 		return "", "", err
 	}
 
-	resolvedRevision, err := repoCfg.ResolveRevision(app.Spec.Source.Path, ambiguousRevision)
+	resolvedRevision, err := r.ResolveRevision(app.Spec.Source.Path, ambiguousRevision)
 	if err != nil {
 		return "", "", err
 	}

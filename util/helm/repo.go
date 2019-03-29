@@ -14,14 +14,14 @@ import (
 
 var indexCache = cache.New(5*time.Minute, 5*time.Minute)
 
-type repoCfg struct {
+type repo struct {
 	workDir                       string
 	cmd                           *cmd
 	url, name, username, password string
 	caData, certData, keyData     []byte
 }
 
-func (c repoCfg) LockKey() string {
+func (c repo) LockKey() string {
 	return c.workDir
 }
 
@@ -33,7 +33,7 @@ type index struct {
 	Entries map[string][]entry
 }
 
-func (c repoCfg) getIndex() (*index, error) {
+func (c repo) getIndex() (*index, error) {
 
 	cachedIndex, found := indexCache.Get(c.url)
 	if found {
@@ -64,7 +64,7 @@ func (c repoCfg) getIndex() (*index, error) {
 	return index, err
 }
 
-func (c repoCfg) FindApps(_ string) (map[string]string, error) {
+func (c repo) FindApps(_ string) (map[string]string, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
@@ -80,14 +80,14 @@ func (c repoCfg) FindApps(_ string) (map[string]string, error) {
 	return cfgs, nil
 }
 
-func (c repoCfg) repoAdd() (string, error) {
+func (c repo) repoAdd() (string, error) {
 	return c.cmd.repoAdd(c.name, c.url, repoAddOpts{
 		Username: c.username, Password: c.password,
 		CAData: c.caData, CertData: c.certData, KeyData: c.keyData,
 	})
 }
 
-func (c repoCfg) GetTemplate(path string, resolvedRevision string) (string, string, error) {
+func (c repo) GetTemplate(path string, resolvedRevision string) (string, string, error) {
 
 	if resolvedRevision == "" {
 		return "", "", errors.New("resolvedRevision must be resolved")
@@ -107,7 +107,7 @@ func (c repoCfg) GetTemplate(path string, resolvedRevision string) (string, stri
 	return filepath.Join(c.workDir, path), "helm", err
 }
 
-func (c repoCfg) checkKnownChart(chartName string) error {
+func (c repo) checkKnownChart(chartName string) error {
 	knownChart, err := c.isKnownChart(chartName)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (c repoCfg) checkKnownChart(chartName string) error {
 	return nil
 }
 
-func (c repoCfg) isKnownChart(chartName string) (bool, error) {
+func (c repo) isKnownChart(chartName string) (bool, error) {
 
 	index, err := c.getIndex()
 	if err != nil {
@@ -130,7 +130,7 @@ func (c repoCfg) isKnownChart(chartName string) (bool, error) {
 	return ok, nil
 }
 
-func (c repoCfg) ResolveRevision(path string, revision string) (string, error) {
+func (c repo) ResolveRevision(path string, revision string) (string, error) {
 
 	if revision != "" {
 		return revision, nil

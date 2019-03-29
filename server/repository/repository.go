@@ -54,12 +54,11 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 	}
 	now := metav1.Now()
 
-	factory := repos.GetFactory(repo.Type)
-	switch f := factory.(type) {
-	case git.RepoCfgFactory:
-		_, err = f.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
-	case helm.RepoCfgFactory:
-		_, err = f.GetRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+	switch f := repos.GetFactory(repo.Type).(type) {
+	case git.RepoFactory:
+		_, err = f.GetRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	case helm.RepoFactory:
+		_, err = f.GetRepo(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
 	}
 
 	if err != nil {
@@ -83,16 +82,16 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 
 // List returns list of repositories
 func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList, error) {
-	repos, err := s.db.ListRepositories(ctx)
+	repositories, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	repos = s.filterAllowed(ctx, repos)
+	repositories = s.filterAllowed(ctx, repositories)
 
 	// do this after filtering to reduce cost
-	err = util.RunAllAsync(len(repos), func(i int) error {
-		s.populateConnectionState(ctx, repos[i])
+	err = util.RunAllAsync(len(repositories), func(i int) error {
+		s.populateConnectionState(ctx, repositories[i])
 		return nil
 	})
 
@@ -100,7 +99,7 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 		return nil, err
 	}
 
-	items := redact(repos)
+	items := redact(repositories)
 
 	return &appsv1.RepositoryList{Items: items}, nil
 }
@@ -194,7 +193,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 		return nil, err
 	}
 	defer util.Close(conn)
-	repos, err := s.db.ListRepositories(ctx)
+	repositories, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +201,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 		Repo:     repo,
 		Revision: q.Revision,
 		Path:     q.Path,
-		Repos:    repos,
+		Repos:    repositories,
 		Helm:     q.Helm,
 	})
 }
@@ -214,13 +213,12 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 	}
 	r := q.Repo
 
-	factory := repos.GetFactory(r.Type)
 	var err error
-	switch f := factory.(type) {
-	case git.RepoCfgFactory:
-		_, err = f.GetRepoCfg(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
-	case helm.RepoCfgFactory:
-		_, err = f.GetRepoCfg(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
+	switch f := repos.GetFactory(r.Type).(type) {
+	case git.RepoFactory:
+		_, err = f.GetRepo(r.Repo, r.Username, r.Password, r.SSHPrivateKey, r.InsecureIgnoreHostKey)
+	case helm.RepoFactory:
+		_, err = f.GetRepo(r.Repo, r.Name, r.Username, r.Password, r.CAData, r.CertData, r.KeyData)
 	}
 	if err != nil {
 		return nil, err

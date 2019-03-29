@@ -1,21 +1,21 @@
 package git
 
 import (
-	"errors"
+	"fmt"
 	"path/filepath"
 
 	"github.com/argoproj/argo-cd/util/repos/disco"
 )
 
-type repoCfg struct {
+type repo struct {
 	client client
 }
 
-func (c repoCfg) LockKey() string {
+func (c repo) LockKey() string {
 	return c.client.getRoot()
 }
 
-func (c repoCfg) makeReady(resolvedRevision string) error {
+func (c repo) makeReady(resolvedRevision string) error {
 	err := c.client.init()
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func (c repoCfg) makeReady(resolvedRevision string) error {
 	return c.client.checkout(resolvedRevision)
 }
 
-func (c repoCfg) FindApps(revision string) (map[string]string, error) {
+func (c repo) FindApps(revision string) (map[string]string, error) {
 
 	resolvedRevision, err := c.client.lsRemote(revision)
 	if err != nil {
@@ -44,9 +44,9 @@ func (c repoCfg) FindApps(revision string) (map[string]string, error) {
 	return disco.FindAppTemplates(c.client.getRoot())
 }
 
-func (c repoCfg) GetTemplate(path, resolvedRevision string) (string, string, error) {
+func (c repo) GetTemplate(path, resolvedRevision string) (string, string, error) {
 	if !isCommitSHA(resolvedRevision) {
-		return "", "", errors.New("must be resolved resolvedRevision")
+		return "", "", fmt.Errorf("invalid resolved revision \"%s\", must be resolved", resolvedRevision)
 	}
 
 	err := c.makeReady(resolvedRevision)
@@ -61,6 +61,6 @@ func (c repoCfg) GetTemplate(path, resolvedRevision string) (string, string, err
 	return dir, appType, err
 }
 
-func (c repoCfg) ResolveRevision(path string, revision string) (string, error) {
+func (c repo) ResolveRevision(path string, revision string) (string, error) {
 	return c.client.lsRemote(revision)
 }

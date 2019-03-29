@@ -64,7 +64,7 @@ func NewService(cache *cache.Cache, parallelismLimit int64) *Service {
 
 // FindApps lists the contents of a repo
 func (s *Service) ListApps(ctx context.Context, q *ListAppsRequest) (*ListAppsResponse, error) {
-	repoCfg, err := s.newRepoCfg(q.Repo)
+	repo, err := s.newRepo(q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -73,10 +73,10 @@ func (s *Service) ListApps(ctx context.Context, q *ListAppsRequest) (*ListAppsRe
 		return &ListAppsResponse{Apps: apps}, nil
 	}
 
-	s.repoLock.Lock(repoCfg.LockKey())
-	defer s.repoLock.Unlock(repoCfg.LockKey())
+	s.repoLock.Lock(repo.LockKey())
+	defer s.repoLock.Unlock(repo.LockKey())
 
-	apps, err := repoCfg.FindApps(q.Revision)
+	apps, err := repo.FindApps(q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (s *Service) ListApps(ctx context.Context, q *ListAppsRequest) (*ListAppsRe
 }
 
 func (s *Service) GetApp(ctx context.Context, q *GetAppRequest) (*GetAppResponse, error) {
-	repoCfg, resolvedRevision, err := s.newRepoCfgResolveRevision(q.Repo, q.Path, q.Revision)
+	repo, resolvedRevision, err := s.newRepoResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +100,9 @@ func (s *Service) GetApp(ctx context.Context, q *GetAppRequest) (*GetAppResponse
 		return &GetAppResponse{Tool: tool}, nil
 	}
 
-	s.repoLock.Lock(repoCfg.LockKey())
-	defer s.repoLock.Unlock(repoCfg.LockKey())
-	_, appType, err := repoCfg.GetTemplate(q.Path, resolvedRevision)
+	s.repoLock.Lock(repo.LockKey())
+	defer s.repoLock.Unlock(repo.LockKey())
+	_, appType, err := repo.GetTemplate(q.Path, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *Service) GetApp(ctx context.Context, q *GetAppRequest) (*GetAppResponse
 }
 
 func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*ManifestResponse, error) {
-	repoCfg, resolvedRevision, err := s.newRepoCfgResolveRevision(q.Repo, q.ApplicationSource.Path, q.Revision)
+	repo, resolvedRevision, err := s.newRepoResolveRevision(q.Repo, q.ApplicationSource.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +142,8 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		return cached, nil
 	}
 
-	s.repoLock.Lock(repoCfg.LockKey())
-	defer s.repoLock.Unlock(repoCfg.LockKey())
+	s.repoLock.Lock(repo.LockKey())
+	defer s.repoLock.Unlock(repo.LockKey())
 
 	cached = getCached()
 	if cached != nil {
@@ -158,7 +158,7 @@ func (s *Service) GenerateManifest(c context.Context, q *ManifestRequest) (*Mani
 		defer s.parallelismLimitSemaphore.Release(1)
 	}
 
-	appPath, _, err := repoCfg.GetTemplate(q.ApplicationSource.Path, resolvedRevision)
+	appPath, _, err := repo.GetTemplate(q.ApplicationSource.Path, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}
@@ -451,32 +451,32 @@ func pathExists(ss ...string) bool {
 	return true
 }
 
-func (s *Service) newRepoCfg(repo *v1alpha1.Repository) (api.RepoCfg, error) {
+func (s *Service) newRepo(repo *v1alpha1.Repository) (api.Repo, error) {
 
 	factory := repos.GetFactory(repo.Type)
 
 	switch i := factory.(type) {
-	case git.RepoCfgFactory:
-		return i.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
-	case helm.RepoCfgFactory:
-		return i.GetRepoCfg(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
+	case git.RepoFactory:
+		return i.GetRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
+	case helm.RepoFactory:
+		return i.GetRepo(repo.Repo, repo.Name, repo.Username, repo.Password, repo.CAData, repo.CertData, repo.KeyData)
 	}
 
 	return nil, errors.NotFound("unknown repo type")
 }
 
-// newRepoCfgResolveRevision is a helper to perform the common task of instantiating a git client
+// newRepoResolveRevision is a helper to perform the common task of instantiating a git client
 // and resolving a revision to a commit SHA
-func (s *Service) newRepoCfgResolveRevision(repo *v1alpha1.Repository, path, revision string) (api.RepoCfg, string, error) {
-	repoCfg, err := s.newRepoCfg(repo)
+func (s *Service) newRepoResolveRevision(repo *v1alpha1.Repository, path, revision string) (api.Repo, string, error) {
+	r, err := s.newRepo(repo)
 	if err != nil {
 		return nil, "", err
 	}
-	resolvedRevision, err := repoCfg.ResolveRevision(path, revision)
+	resolvedRevision, err := r.ResolveRevision(path, revision)
 	if err != nil {
 		return nil, "", err
 	}
-	return repoCfg, resolvedRevision, nil
+	return r, resolvedRevision, nil
 }
 
 func runCommand(command v1alpha1.Command, path string, env []string) (string, error) {
@@ -515,7 +515,7 @@ func runConfigManagementPlugin(appPath string, q *ManifestRequest, plugins []*v1
 }
 
 func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error) {
-	repoCfg, resolvedRevision, err := s.newRepoCfgResolveRevision(q.Repo, q.Path, q.Revision)
+	repo, resolvedRevision, err := s.newRepoResolveRevision(q.Repo, q.Path, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -537,14 +537,14 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 	if cached != nil {
 		return cached, nil
 	}
-	s.repoLock.Lock(repoCfg.LockKey())
-	defer s.repoLock.Unlock(repoCfg.LockKey())
+	s.repoLock.Lock(repo.LockKey())
+	defer s.repoLock.Unlock(repo.LockKey())
 	cached = getCached()
 	if cached != nil {
 		return cached, nil
 	}
 
-	appPath, _, err := repoCfg.GetTemplate(q.Path, resolvedRevision)
+	appPath, _, err := repo.GetTemplate(q.Path, resolvedRevision)
 	if err != nil {
 		return nil, err
 	}

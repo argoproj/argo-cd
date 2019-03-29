@@ -6,11 +6,11 @@ import (
 	. "github.com/argoproj/argo-cd/util/repos/api"
 )
 
-func GetFactory(repoType string) RepoCfgFactory {
+func GetFactory(repoType string) RepoFactory {
 	if repoType == "helm" {
-		return helm.GetRepoCfgFactory()
+		return helm.GetRepoFactory()
 	} else {
-		return git.GetRepoCfgFactory()
+		return git.GetRepoFactory()
 	}
 }
 

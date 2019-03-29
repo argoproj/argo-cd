@@ -15,37 +15,32 @@ import (
 
 var repoCache = cache.New(5*time.Minute, 5*time.Minute)
 
-type RepoCfgFactory struct {
+type RepoFactory struct {
 }
 
-func GetRepoCfgFactory() api.RepoCfgFactory {
-	return RepoCfgFactory{}
+func GetRepoFactory() api.RepoFactory {
+	return RepoFactory{}
 }
 
-func (f RepoCfgFactory) SameURL(leftRepo, rightRepo string) bool {
+func (f RepoFactory) SameURL(leftRepo, rightRepo string) bool {
 	return leftRepo == rightRepo
 }
 
-func (f RepoCfgFactory) NormalizeURL(url string) string {
+func (f RepoFactory) NormalizeURL(url string) string {
 	return url
 }
 
-func (f RepoCfgFactory) IsResolvedRevision(revision string) bool {
-	return revision != ""
-}
+func (f RepoFactory) GetRepo(url, name, username, password string, caData, certData, keyData []byte) (api.Repo, error) {
 
-func (f RepoCfgFactory) GetRepoCfg(
-	url, name, username, password string,
-	caData, certData, keyData []byte) (api.RepoCfg, error) {
-	url = f.NormalizeURL(url)
 	if name == "" {
 		return nil, errors.New("must name repo")
 	}
+	url = f.NormalizeURL(url)
 
-	cachedRepoCfg, found := repoCache.Get(url)
+	cachedRepo, found := repoCache.Get(url)
 	if found {
 		log.WithFields(log.Fields{"url": url}).Debug("repo cfg cache hit")
-		return cachedRepoCfg.(api.RepoCfg), nil
+		return cachedRepo.(api.Repo), nil
 	}
 
 	workDir, err := ioutil.TempDir(os.TempDir(), strings.Replace(url, "/", "_", -1))
@@ -63,7 +58,7 @@ func (f RepoCfgFactory) GetRepoCfg(
 		return nil, err
 	}
 
-	cfg := repoCfg{
+	cfg := repo{
 		workDir:  workDir,
 		cmd:      cmd,
 		url:      url,

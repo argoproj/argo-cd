@@ -7,12 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRepoCfg(t *testing.T) {
-
-	t.Run("GarbageUrl", func(t *testing.T) {
-		_, err := RepoCfgFactory{}.GetRepoCfg("xxx", "", "", "", false)
-		assert.EqualError(t, err, "repository not found")
-	})
+func TestRepo(t *testing.T) {
 
 	appTemplates := map[string]string{
 		"blue-green":              "helm",
@@ -25,13 +20,13 @@ func TestRepoCfg(t *testing.T) {
 		"sock-shop":               "kustomize",
 	}
 
-	repoCfg, err := RepoCfgFactory{}.GetRepoCfg("https://github.com/argoproj/argocd-example-apps", "", "", "", false)
+	repo, err := RepoFactory{}.GetRepo("https://github.com/argoproj/argocd-example-apps.git", "", "", "", false)
 	assert.NoError(t, err)
 
 	t.Run("FindApps", func(t *testing.T) {
-		revision, err := repoCfg.ResolveRevision(".", "HEAD")
+		revision, err := repo.ResolveRevision(".", "HEAD")
 		assert.NoError(t, err)
-		actualAppTemplates, err := repoCfg.FindApps(revision)
+		actualAppTemplates, err := repo.FindApps(revision)
 		assert.NoError(t, err)
 		assert.Equal(t, appTemplates, actualAppTemplates)
 	})
@@ -39,13 +34,20 @@ func TestRepoCfg(t *testing.T) {
 	t.Run("GetTemplate", func(t *testing.T) {
 		for appPath := range appTemplates {
 			t.Run(appPath, func(t *testing.T) {
-				revision, err := repoCfg.ResolveRevision(appPath, "HEAD")
+				revision, err := repo.ResolveRevision(appPath, "HEAD")
 				assert.NoError(t, err)
-				actualAppPath, appType, err := repoCfg.GetTemplate(appPath, revision)
+				actualAppPath, appType, err := repo.GetTemplate(appPath, revision)
 				assert.NoError(t, err)
 				assert.Equal(t, appTemplates[appPath], appType)
 				assert.True(t, strings.HasSuffix(actualAppPath, appPath))
 			})
 		}
+	})
+
+	t.Run("GetTemplateUnresolvedRevision", func(t *testing.T) {
+		_, _, err := repo.GetTemplate("", "HEAD")
+		assert.EqualError(t, err, "invalid resolved revision \"HEAD\", must be resolved")
+		_, _, err = repo.GetTemplate("", "")
+		assert.EqualError(t, err, "invalid resolved revision \"\", must be resolved")
 	})
 }
