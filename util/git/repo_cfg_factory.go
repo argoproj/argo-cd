@@ -30,7 +30,7 @@ func (f RepoCfgFactory) IsResolvedRevision(revision string) bool {
 func (f RepoCfgFactory) GetRepoCfg(url, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (api.RepoCfg, error) {
 	url = f.NormalizeURL(url)
 
-	workDir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(url, "/", "_"))
+	workDir, err := ioutil.TempDir(os.TempDir(), strings.Replace(url, "/", "_", -1))
 	if err != nil {
 		return nil, err
 	}

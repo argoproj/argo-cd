@@ -48,7 +48,7 @@ func (f RepoCfgFactory) GetRepoCfg(
 		return cachedRepoCfg.(api.RepoCfg), nil
 	}
 
-	workDir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(url, "/", "_"))
+	workDir, err := ioutil.TempDir(os.TempDir(), strings.Replace(url, "/", "_", -1))
 	if err != nil {
 		return nil, err
 	}
