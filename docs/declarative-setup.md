@@ -100,9 +100,9 @@ Repository credentials are stored in secret. Use following steps to configure a 
 1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
 definition as a Kubernetes manifest.
 
-2. Register repository in `argocd-cm` config map. Each repository must have `url` field and `usernameSecret`, `passwordSecret` or `sshPrivateKeySecret`.
+2. Register repository in the `argocd-cm` config map. Each repository must have `url` field and, depending on whether you connect using HTTPS or SSH, `usernameSecret` and `passwordSecret` (for HTTPS) or `sshPrivateKeySecret` (for SSH).
 
-Example:
+Example for HTTPS:
 
 ```yaml
 apiVersion: v1
@@ -118,6 +118,18 @@ data:
       usernameSecret:
         name: my-secret
         key: username
+```
+
+Example for SSH:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  repositories: |
+    - url: git@github.com:argoproj/my-private-repository
       sshPrivateKeySecret:
         name: my-secret
         key: sshPrivateKey
