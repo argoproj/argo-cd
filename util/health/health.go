@@ -17,11 +17,10 @@ import (
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
-func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]settings.ResourceOverride) (*appv1.HealthStatus, error) {
+func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	for i, liveObj := range liveObjs {
@@ -46,7 +45,7 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 }
 
 // GetResourceHealth returns the health of a k8s resource
-func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[string]settings.ResourceOverride) (*appv1.HealthStatus, error) {
+func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
 	var err error
 	var health *appv1.HealthStatus
 
@@ -128,7 +127,7 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 	return newIndex > currentIndex
 }
 
-func getResourceHealthFromLuaScript(obj *unstructured.Unstructured, resourceOverrides map[string]settings.ResourceOverride) (*appv1.HealthStatus, error) {
+func getResourceHealthFromLuaScript(obj *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}

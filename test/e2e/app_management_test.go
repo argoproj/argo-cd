@@ -2,17 +2,12 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/argoproj/argo-cd/server/application"
-
-	"github.com/argoproj/argo-cd/util"
-
-	"github.com/argoproj/argo-cd/util/kube"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -22,8 +17,11 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
@@ -282,4 +280,54 @@ func TestManipulateApplicationResources(t *testing.T) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
 	})
+}
+
+func TestResourceDiffing(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := getTestApp()
+
+	// deploy app and make sure it is healthy
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
+	})
+
+	_, err = fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace).Patch(
+		"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`))
+	assert.NoError(t, err)
+
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	refresh := string(v1alpha1.RefreshTypeNormal)
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+
+	assert.Equal(t, string(v1alpha1.SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
+	diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+	assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace))
+
+	settings, err := fixture.SettingsManager.GetSettings()
+	assert.NoError(t, err)
+	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{
+		"apps/Deployment": {IgnoreDifferences: ` jsonPointers: ["/spec/template/spec/containers/0/image"]`},
+	}
+	err = fixture.SettingsManager.SaveSettings(settings)
+	assert.NoError(t, err)
+
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+	assert.Empty(t, diffOutput)
+	assert.NoError(t, err)
 }

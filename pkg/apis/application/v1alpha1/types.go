@@ -700,6 +700,11 @@ type HelmRepository struct {
 	Password string `json:"password,omitempty" protobuf:"bytes,7,opt,name=password"`
 }
 
+type ResourceOverride struct {
+	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
+	IgnoreDifferences string `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+}
+
 // Repository is a Git repository holding application configurations
 type Repository struct {
 	Repo                  string          `json:"repo" protobuf:"bytes,1,opt,name=repo"`
