@@ -2,6 +2,7 @@ package helm
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -90,7 +91,7 @@ func (c repo) repoAdd() (string, error) {
 func (c repo) GetTemplate(path string, resolvedRevision string) (string, string, error) {
 
 	if resolvedRevision == "" {
-		return "", "", errors.New("resolvedRevision must be resolved")
+		return "", "", fmt.Errorf("invalid resolved revision \"%s\", must be resolved", resolvedRevision)
 	}
 
 	err := c.checkKnownChart(path)
@@ -113,7 +114,7 @@ func (c repo) checkKnownChart(chartName string) error {
 		return err
 	}
 	if !knownChart {
-		return errors.New("unknown chart " + chartName)
+		return fmt.Errorf("unknown chart \"%s\"", chartName)
 	}
 	return nil
 }

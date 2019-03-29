@@ -28,10 +28,7 @@ ifeq (${STATIC_BUILD}, true)
 override LDFLAGS += -extldflags "-static"
 endif
 
-TEST_CMD=go test
-ifneq (`which gotestsum`, "")
-	TEST_CMD=gotestsum --
-endif
+TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum || echo go test)
 
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
