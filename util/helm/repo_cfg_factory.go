@@ -5,9 +5,15 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/patrickmn/go-cache"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/util/repos/api"
 )
+
+var repoCache = cache.New(5*time.Minute, 5*time.Minute)
 
 type RepoCfgFactory struct {
 }
@@ -34,6 +40,12 @@ func (f RepoCfgFactory) GetRepoCfg(
 	url = f.NormalizeURL(url)
 	if name == "" {
 		return nil, errors.New("must name repo")
+	}
+
+	cachedRepoCfg, found := repoCache.Get(url)
+	if found {
+		log.WithFields(log.Fields{"url": url}).Debug("repo cfg cache hit")
+		return cachedRepoCfg.(api.RepoCfg), nil
 	}
 
 	workDir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(url, "/", "_"))
@@ -74,6 +86,8 @@ func (f RepoCfgFactory) GetRepoCfg(
 	}
 
 	_, err = cfg.cmd.repoUpdate()
+
+	repoCache.Set(url, cfg, cache.DefaultExpiration)
 
 	return cfg, err
 }

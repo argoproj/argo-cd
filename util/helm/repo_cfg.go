@@ -6,11 +6,14 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/util/repos/api"
 )
+
+var indexCache = cache.New(5*time.Minute, 5*time.Minute)
 
 type repoCfg struct {
 	workDir                       string
@@ -32,6 +35,14 @@ type index struct {
 }
 
 func (c repoCfg) getIndex() (*index, error) {
+
+	cachedIndex, found := indexCache.Get(c.url)
+	if found {
+		log.WithFields(log.Fields{"url": c.url}).Debug("index cache hit")
+		i := cachedIndex.(index)
+		return &i, nil
+	}
+
 	start := time.Now()
 
 	resp, err := http.Get(c.url + "/index.yaml")
@@ -48,6 +59,9 @@ func (c repoCfg) getIndex() (*index, error) {
 	err = yaml.NewDecoder(resp.Body).Decode(index)
 
 	log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
+
+	indexCache.Set(c.url, *index, cache.DefaultExpiration)
+
 	return index, err
 }
 
