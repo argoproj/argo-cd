@@ -2,11 +2,8 @@ package helm
 
 import (
 	"errors"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -130,10 +127,6 @@ func (c repoCfg) isKnownChart(chartName string) (bool, error) {
 	return ok, nil
 }
 
-func (f RepoCfgFactory) IsResolvedRevision(revision string) bool {
-	return revision != ""
-}
-
 func (c repoCfg) ResolveRevision(path api.AppPath, revision api.AppRevision) (string, error) {
 
 	if revision != "" {
@@ -155,43 +148,4 @@ func (c repoCfg) ResolveRevision(path api.AppPath, revision api.AppRevision) (st
 
 func (c repoCfg) GetUrl() string {
 	return c.url
-}
-
-func (f RepoCfgFactory) NewRepoCfg(
-	url, name, username, password string,
-	caData, certData, keyData []byte) (api.RepoCfg, error) {
-	url = f.NormalizeURL(url)
-	if name == "" {
-		return nil, errors.New("must name repo")
-	}
-
-	workDir, err := ioutil.TempDir(os.TempDir(), strings.ReplaceAll(url, "/", "_"))
-	if err != nil {
-		return nil, err
-	}
-
-	cmd, err := newCmd(workDir)
-	if err != nil {
-		return nil, err
-	}
-	_, err = cmd.init()
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := repoCfg{
-		workDir:  workDir,
-		cmd:      cmd,
-		url:      url,
-		name:     name,
-		username: username,
-		password: password,
-		caData:   caData,
-		certData: certData,
-		keyData:  keyData,
-	}
-
-	_, err = cfg.getIndex()
-
-	return cfg, err
 }
