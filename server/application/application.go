@@ -53,7 +53,6 @@ type Server struct {
 	enf           *rbac.Enforcer
 	projectLock   *util.KeyLock
 	auditLogger   *argo.AuditLogger
-	registry      repos.Registry
 	settingsMgr   *settings.SettingsManager
 	cache         *cache.Cache
 }
@@ -83,7 +82,6 @@ func NewServer(
 		enf:           enf,
 		projectLock:   projectLock,
 		auditLogger:   argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		registry:      repos.GetRegistry(),
 		settingsMgr:   settingsMgr,
 	}
 }
@@ -899,7 +897,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		log.Info("If we couldn't retrieve from the repo service, assume public repositories")
 		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL, Type: "git"}
 	}
-	factory := repos.GetRegistry().GetFactory(repo.Type)
+	factory := repos.GetFactory(repo.Type)
 	var repoCfg api.RepoCfg
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:

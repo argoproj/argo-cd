@@ -54,7 +54,7 @@ func (s *Server) populateConnectionState(ctx context.Context, repo *appsv1.Repos
 	}
 	now := metav1.Now()
 
-	factory := repos.GetRegistry().GetFactory(repo.Type)
+	factory := repos.GetFactory(repo.Type)
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:
 		_, err = f.GetRepoCfg(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
@@ -214,7 +214,7 @@ func (s *Server) Create(ctx context.Context, q *RepoCreateRequest) (*appsv1.Repo
 	}
 	r := q.Repo
 
-	factory := repos.GetRegistry().GetFactory(r.Type)
+	factory := repos.GetFactory(r.Type)
 	var err error
 	switch f := factory.(type) {
 	case git.RepoCfgFactory:

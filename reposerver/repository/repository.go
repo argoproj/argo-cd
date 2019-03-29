@@ -44,13 +44,12 @@ const (
 // Service implements ManifestService interface
 type Service struct {
 	repoLock                  *util.KeyLock
-	repoRegistry              repos.Registry
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 }
 
 // NewService returns a new instance of the Manifest service
-func NewService(repoRegistry repos.Registry, cache *cache.Cache, parallelismLimit int64) *Service {
+func NewService(cache *cache.Cache, parallelismLimit int64) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if parallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(parallelismLimit)
@@ -58,9 +57,8 @@ func NewService(repoRegistry repos.Registry, cache *cache.Cache, parallelismLimi
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 
-		repoLock:     util.NewKeyLock(),
-		repoRegistry: repoRegistry,
-		cache:        cache,
+		repoLock: util.NewKeyLock(),
+		cache:    cache,
 	}
 }
 
@@ -455,7 +453,7 @@ func pathExists(ss ...string) bool {
 
 func (s *Service) newRepoCfg(repo *v1alpha1.Repository) (api.RepoCfg, error) {
 
-	factory := repos.GetRegistry().GetFactory(repo.Type)
+	factory := repos.GetFactory(repo.Type)
 
 	switch i := factory.(type) {
 	case git.RepoCfgFactory:

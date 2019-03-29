@@ -7,7 +7,6 @@ import (
 	"github.com/argoproj/argo-cd/server/version"
 	"github.com/argoproj/argo-cd/util/cache"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/repos"
 	tlsutil "github.com/argoproj/argo-cd/util/tls"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -21,14 +20,13 @@ import (
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
 	log              *log.Entry
-	registry         repos.Registry
 	cache            *cache.Cache
 	opts             []grpc.ServerOption
 	parallelismLimit int64
 }
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(registry repos.Registry, cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
+func NewServer(cache *cache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, parallelismLimit int64) (*ArgoCDRepoServer, error) {
 	// generate TLS cert
 	hosts := []string{
 		"localhost",
@@ -53,7 +51,6 @@ func NewServer(registry repos.Registry, cache *cache.Cache, tlsConfCustomizer tl
 
 	return &ArgoCDRepoServer{
 		log:              serverLog,
-		registry:         registry,
 		cache:            cache,
 		parallelismLimit: parallelismLimit,
 		opts: []grpc.ServerOption{
@@ -68,7 +65,7 @@ func NewServer(registry repos.Registry, cache *cache.Cache, tlsConfCustomizer tl
 func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	version.RegisterVersionServiceServer(server, &version.Server{})
-	manifestService := repository.NewService(a.registry, a.cache, a.parallelismLimit)
+	manifestService := repository.NewService(a.cache, a.parallelismLimit)
 	repository.RegisterRepoServerServiceServer(server, manifestService)
 
 	// Register reflection service on gRPC server.

@@ -271,7 +271,7 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 
 func getRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
 	for i, cred := range s.Repositories {
-		if repos.GetRegistry().GetFactory(cred.Type).SameURL(cred.URL, repoURL) {
+		if repos.GetFactory(cred.Type).SameURL(cred.URL, repoURL) {
 			return i
 		}
 	}

@@ -16,14 +16,12 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/repos"
 )
 
 func newMockRepoServerService() *Service {
 	return &Service{
-		repoLock:     util.NewKeyLock(),
-		repoRegistry: repos.GetRegistry(),
-		cache:        cache.NewCache(cache.NewInMemoryCache(time.Hour)),
+		repoLock: util.NewKeyLock(),
+		cache:    cache.NewCache(cache.NewInMemoryCache(time.Hour)),
 	}
 }
 
