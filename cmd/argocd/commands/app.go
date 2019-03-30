@@ -1288,6 +1288,10 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			var doPrint bool
 			stateKey := newState.Key()
 			if prevState, found := prevStates[stateKey]; found {
+				if watchHealth && prevState.Health != argoappv1.HealthStatusUnknown && prevState.Health != argoappv1.HealthStatusDegraded && newState.Health == argoappv1.HealthStatusDegraded {
+					printFinalStatus(app)
+					return nil, fmt.Errorf("Application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+				}
 				doPrint = prevState.Merge(newState)
 			} else {
 				prevStates[stateKey] = newState
