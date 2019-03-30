@@ -28,8 +28,7 @@ var (
 	}
 )
 
-// ListClusters returns list of clusters
-func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
+func (db *db) listClusterSecrets() ([]*apiv1.Secret, error) {
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
 	if err != nil {
@@ -42,6 +41,15 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 		return nil, err
 	}
 	clusterSecrets, err := secretsLister.Secrets(db.ns).List(labelSelector)
+	if err != nil {
+		return nil, err
+	}
+	return clusterSecrets, nil
+}
+
+// ListClusters returns list of clusters
+func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
+	clusterSecrets, err := db.listClusterSecrets()
 	if err != nil {
 		return nil, err
 	}
@@ -156,32 +164,16 @@ func (db *db) WatchClusters(ctx context.Context, callback func(*ClusterEvent)) e
 }
 
 func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
-	secName, err := serverToSecretName(server)
+	clusterSecrets, err := db.listClusterSecrets()
 	if err != nil {
 		return nil, err
 	}
-	legacySecName, err := serverToLegacySecretName(server)
-	if err != nil {
-		return nil, err
-	}
-	secretsLister, err := db.settingsMgr.GetSecretsLister()
-	if err != nil {
-		return nil, err
-	}
-	for _, name := range []string{secName, legacySecName} {
-		var clusterSecret *apiv1.Secret
-		clusterSecret, err = secretsLister.Secrets(db.ns).Get(name)
-		if err != nil {
-			if apierr.IsNotFound(err) {
-				err = status.Errorf(codes.NotFound, "cluster %q not found", server)
-			} else {
-				return nil, err
-			}
-		} else {
+	for _, clusterSecret := range clusterSecrets {
+		if secretToCluster(clusterSecret).Server == server {
 			return clusterSecret, nil
 		}
 	}
-	return nil, err
+	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 
 }
 
@@ -214,10 +206,6 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 
 // Delete deletes a cluster by name
 func (db *db) DeleteCluster(ctx context.Context, name string) error {
-	legacySecName, err := serverToLegacySecretName(name)
-	if err != nil {
-		return err
-	}
 	secret, err := db.getClusterSecret(name)
 	if err != nil {
 		if errorStatus, ok := status.FromError(err); ok && errorStatus.Code() == codes.NotFound {
@@ -227,7 +215,7 @@ func (db *db) DeleteCluster(ctx context.Context, name string) error {
 		}
 	}
 
-	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD || secret.Name == legacySecName
+	canDelete := secret.Annotations != nil && secret.Annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD
 
 	if canDelete {
 		err = db.kubeclientset.CoreV1().Secrets(db.ns).Delete(secret.Name, &metav1.DeleteOptions{})
@@ -241,24 +229,9 @@ func (db *db) DeleteCluster(ctx context.Context, name string) error {
 	return db.settingsMgr.ResyncInformers()
 }
 
-// serverToSecretName
-func serverToSecretName(server string) (string, error) {
-	serverURL, err := url.ParseRequestURI(server)
-	if err != nil {
-		return "", err
-	}
-	parts := strings.Split(serverURL.Host, ":")
-	host := strings.ToLower(parts[0])
-	port := "443"
-	if len(parts) > 1 {
-		port = parts[1]
-	}
-	return fmt.Sprintf("%s-%s", host, port), nil
-}
-
-// serverToLegacySecretName hashes server address to the secret name using a formula.
+// serverToSecretName hashes server address to the secret name using a formula.
 // Part of the server address is incorporated for debugging purposes
-func serverToLegacySecretName(server string) (string, error) {
+func serverToSecretName(server string) (string, error) {
 	serverURL, err := url.ParseRequestURI(server)
 	if err != nil {
 		return "", err
