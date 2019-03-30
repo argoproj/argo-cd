@@ -39,7 +39,7 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *cache.Cache) *Server {
 	}
 }
 
-func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) appv1.ConnectionState {
+func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster, errorMessage string) appv1.ConnectionState {
 	if connectionState, err := s.cache.GetClusterConnectionState(cluster.Server); err == nil {
 		return connectionState
 	}
@@ -59,6 +59,12 @@ func (s *Server) getConnectionState(ctx context.Context, cluster appv1.Cluster) 
 		connectionState.Status = appv1.ConnectionStatusFailed
 		connectionState.Message = fmt.Sprintf("Unable to connect to cluster: %v", err)
 	}
+
+	if errorMessage != "" {
+		connectionState.Status = appv1.ConnectionStatusFailed
+		connectionState.Message = fmt.Sprintf("%s %s", errorMessage, connectionState.Message)
+	}
+
 	err = s.cache.SetClusterConnectionState(cluster.Server, &connectionState)
 	if err != nil {
 		log.Warnf("getConnectionState cache set error %s: %v", cluster.Server, err)
@@ -72,26 +78,36 @@ func (s *Server) List(ctx context.Context, q *ClusterQuery) (*appv1.ClusterList,
 	if err != nil {
 		return nil, err
 	}
-	newItems := make([]appv1.Cluster, 0)
+	clustersByServer := make(map[string][]appv1.Cluster)
 	for _, clust := range clusterList.Items {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, clust.Server) {
-			newItems = append(newItems, clust)
+			clustersByServer[clust.Server] = append(clustersByServer[clust.Server], clust)
 		}
 	}
+	servers := make([]string, 0)
+	for server := range clustersByServer {
+		servers = append(servers, server)
+	}
 
-	err = util.RunAllAsync(len(newItems), func(i int) error {
-		clust := newItems[i]
-		if clust.ConnectionState.Status == "" {
-			clust.ConnectionState = s.getConnectionState(ctx, clust)
+	items := make([]appv1.Cluster, len(servers))
+	err = util.RunAllAsync(len(servers), func(i int) error {
+		clusters := clustersByServer[servers[i]]
+		clust := clusters[0]
+		warningMessage := ""
+		if len(clusters) > 1 {
+			warningMessage = fmt.Sprintf("There are %d credentials configured this cluster.", len(clusters))
 		}
-		newItems[i] = *redact(&clust)
+		if clust.ConnectionState.Status == "" {
+			clust.ConnectionState = s.getConnectionState(ctx, clust, warningMessage)
+		}
+		items[i] = *redact(&clust)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	clusterList.Items = newItems
+	clusterList.Items = items
 	return clusterList, err
 }
 

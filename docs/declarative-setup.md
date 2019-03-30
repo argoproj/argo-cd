@@ -138,7 +138,7 @@ data:
 ## Clusters
 
 Cluster credentials are stored in secrets same as repository credentials but does not require entry in `argocd-cm` config map. Each secret must have label
-`argocd.argoproj.io/secret-type: cluster` and name which is following convention: `<hostname>-<port>`.
+`argocd.argoproj.io/secret-type: cluster`.
 
 The secret data must include following fields:
 * `name` - cluster name
@@ -178,7 +178,7 @@ Cluster secret example:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: mycluster.com-443
+  name: mycluster-secret
   labels:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
