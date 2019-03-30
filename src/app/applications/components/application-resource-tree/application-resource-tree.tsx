@@ -3,9 +3,16 @@ import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import * as models from '../../../shared/models';
-import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey, ResourceTreeNode } from '../utils';
+import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey } from '../utils';
 
 require('./application-resource-tree.scss');
+
+export interface ResourceTreeNode extends models.ResourceNode {
+    status?: models.SyncStatusCode;
+    health?: models.HealthStatus;
+    hook?: boolean;
+    root?: ResourceTreeNode;
+}
 
 interface Line { x1: number; y1: number; x2: number; y2: number; }
 
@@ -95,13 +102,29 @@ function filteredNode(fullName: string, node: { count: number } & dagre.Node, on
     );
 }
 
+function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.ResourceNetworkingInfo): ResourceTreeNode[] {
+    let result = new Array<ResourceTreeNode>();
+    const refs = new Set((networkingInfo.targetRefs || []).map(nodeKey));
+    result = result.concat(nodes.filter((target) => refs.has(nodeKey(target))));
+    if (networkingInfo.targetLabels) {
+        result = result.concat(nodes.filter((target) => {
+            if (target.networkingInfo && target.networkingInfo.labels) {
+                return Object.keys(networkingInfo.targetLabels).every((key) => networkingInfo.targetLabels[key] === target.networkingInfo.labels[key]);
+            }
+            return false;
+        }));
+    }
+    return result;
+}
+
 export const ApplicationResourceTree = (props: {
-    app: models.Application,
-    resources: ResourceTreeNode[],
-    nodeFilter: (node: ResourceTreeNode) => boolean,
-    selectedNodeFullName?: string,
-    onNodeClick?: (fullName: string) => any,
-    nodeMenuItems?: (node: models.ResourceNode) => MenuItem[],
+    app: models.Application;
+    tree: models.ApplicationTree;
+    useNetworkingHierarchy: boolean;
+    nodeFilter: (node: ResourceTreeNode) => boolean;
+    selectedNodeFullName?: string;
+    onNodeClick?: (fullName: string) => any;
+    nodeMenuItems?: (node: models.ResourceNode) => MenuItem[];
     onClearFilter: () => any;
 }) => {
     const graph = new dagre.graphlib.Graph();
@@ -123,22 +146,58 @@ export const ApplicationResourceTree = (props: {
             value: `${overridesCount} parameter override(s)`,
         }] : [],
     };
-    graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
 
-    function addChildren<T extends (models.ResourceNode | models.ResourceDiff) & { key: string, children: models.ResourceNode[] }>(node: T, root: ResourceTreeNode) {
-        graph.setNode(node.key, Object.assign({}, node, { width: NODE_WIDTH, height: NODE_HEIGHT}));
-        for (const child of (node.children || []).slice().sort(compareNodes)) {
-            const key = nodeKey(child);
-            addChildren({...child, key, root}, root);
-            graph.setEdge(node.key, key);
+    const statusByKey = new Map<string, models.ResourceStatus>();
+    props.app.status.resources.forEach((res) => statusByKey.set(nodeKey(res), res));
+    const nodeByKey = new Map<string, ResourceTreeNode>();
+    props.tree.nodes.forEach((node) => {
+        const status = statusByKey.get(nodeKey(node));
+        const resourceNode: ResourceTreeNode = {...node};
+        if (status) {
+            resourceNode.health = status.health;
+            resourceNode.status = status.status;
+            resourceNode.hook = status.hook;
         }
+        nodeByKey.set(nodeKey(node), resourceNode);
+    });
+    const nodes = Array.from(nodeByKey.values());
+    let roots: ResourceTreeNode[] = null;
+    const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
+    if (props.useNetworkingHierarchy) {
+        const hasParents = new Set<string>();
+        const networkNodes = nodes.filter((node) => node.networkingInfo);
+        networkNodes.forEach((parent) => {
+            findNetworkTargets(networkNodes, parent.networkingInfo).forEach((child) => {
+                const children = childrenByParentKey.get(nodeKey(parent)) || [];
+                hasParents.add(nodeKey(child));
+                children.push(child);
+                childrenByParentKey.set(nodeKey(parent), children);
+            });
+        });
+        roots = networkNodes.filter((node) => !hasParents.has(nodeKey(node)));
+    } else {
+        nodes.forEach((child) => {
+            (child.parentRefs || []).forEach((parent) => {
+                const children = childrenByParentKey.get(nodeKey(parent)) || [];
+                children.push(child);
+                childrenByParentKey.set(nodeKey(parent), children);
+            });
+        });
+        roots = nodes.filter((node) => (node.parentRefs || []).length === 0).sort(compareNodes);
     }
 
-    const resources = (props.resources || []).slice().sort(compareNodes);
-    for (const res of resources) {
-        addChildren({...res, root: res, children: res.children, key: nodeKey(res)}, res);
-        graph.setEdge(appNodeKey(props.app), nodeKey(res));
+    function processNode(node: ResourceTreeNode, root: ResourceTreeNode) {
+        graph.setNode(nodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+        (childrenByParentKey.get(nodeKey(node)) || []).sort(compareNodes).forEach((child) => {
+            graph.setEdge(nodeKey(node), nodeKey(child));
+            processNode(child, root);
+        });
     }
+
+    roots.sort(compareNodes).forEach((node) => processNode(node, node));
+
+    graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
+    roots.forEach((root) => graph.setEdge(appNodeKey(props.app), nodeKey(root)));
 
     if (props.nodeFilter) {
         filterGraph(props.app, graph, props.nodeFilter);
@@ -159,7 +218,8 @@ export const ApplicationResourceTree = (props: {
     });
     const size = getGraphSize(graph.nodes().map((id) => graph.node(id)));
     return (
-        <div className='application-resource-tree' style={{width: size.width + 150, height: size.height + 250}}>
+        <div className={classNames('application-resource-tree', { 'application-resource-tree--network': props.useNetworkingHierarchy })}
+                style={{width: size.width + 150, height: size.height + 250}}>
             {graph.nodes().map((fullName) => {
                 if (fullName === FILTERED_INDICATOR) {
                     return filteredNode(fullName, graph.node(fullName) as any, props.onClearFilter);

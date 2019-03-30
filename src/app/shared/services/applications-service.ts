@@ -30,8 +30,8 @@ export class ApplicationsService {
         return requests.get(`/applications/${name}`).query(query).then((res) => this.parseAppFields(res.body));
     }
 
-    public resourceTree(name: string): Promise<models.ResourceNode[]> {
-        return requests.get(`/applications/${name}/resource-tree`).then((res) => res.body.items as models.ResourceNode[] || []);
+    public resourceTree(name: string): Promise<models.ApplicationTree> {
+        return requests.get(`/applications/${name}/resource-tree`).then((res) => res.body as models.ApplicationTree);
     }
 
     public managedResources(name: string): Promise<models.ResourceDiff[]> {

@@ -88,4 +88,9 @@
             top: -2px;
         }
     }
+    &__item-name, &__item-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }

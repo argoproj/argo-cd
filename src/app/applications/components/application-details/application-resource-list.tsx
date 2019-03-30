@@ -43,8 +43,8 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
                                 namespace: res.namespace,
                                 group: res.group,
                                 info: null,
-                                children: null,
                                 resourceVersion: null,
+                                parentRefs: [],
                             })}/>
                         </div>
                     </div>

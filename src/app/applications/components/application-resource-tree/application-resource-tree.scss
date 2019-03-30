@@ -25,8 +25,43 @@
         }
     }
 
+    &--network {
+        .application-resource-tree__line {
+            background-image: linear-gradient(90deg, $argo-color-teal-5 50%, transparent 50%),
+                linear-gradient(90deg, $argo-color-teal-5 50%, transparent 50%),
+                linear-gradient(0deg, $argo-color-teal-5 50%, transparent 50%),
+                linear-gradient(0deg, $argo-color-teal-5 50%, transparent 50%);
+            background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+            background-size: 20px 2px, 0px 0px, 0px 0px, 0px 0px;
+            background-position: left top, right bottom, left bottom, right top;
+            animation: network-flow 1s infinite linear;
+            height: 2px;
+            border-top: none;
+        }
+        @keyframes network-flow {
+            0% {
+                background-position: left 20px top, right 20px bottom , left bottom 20px , right top 20px;
+            }
+            100% {
+                background-position: left top, right bottom, left bottom, right top;
+            }
+        }
+
+        .application-resource-tree__edge {
+            .application-resource-tree__line {
+                &:last-child {
+                    &:after {
+                        color: $argo-color-teal-6;
+                        top: -9px;
+                    }
+                }
+            }
+        }
+    }
+
     &__node {
         position: absolute;
+        z-index: 1;
         transition: all 0.2s linear;
         padding-left: 3.5em;
         padding-right: 1em;

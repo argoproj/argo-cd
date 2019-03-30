@@ -226,15 +226,29 @@ export interface ResourceStatus {
     hook?: boolean;
 }
 
-export interface ResourceNode {
+export interface ResourceRef {
     kind: string;
     namespace: string;
     name: string;
     version: string;
     group: string;
+}
+
+export interface ResourceNetworkingInfo {
+    targetLabels: {[name: string]: string};
+    targetRefs: ResourceRef[];
+    labels: {[name: string]: string};
+}
+
+export interface ResourceNode extends ResourceRef {
+    parentRefs: ResourceRef[];
     info: { name: string, value: string }[];
-    children: ResourceNode[];
+    networkingInfo?: ResourceNetworkingInfo;
     resourceVersion: string;
+}
+
+export interface ApplicationTree {
+    nodes: ResourceNode[];
 }
 
 export interface ResourceDiff {

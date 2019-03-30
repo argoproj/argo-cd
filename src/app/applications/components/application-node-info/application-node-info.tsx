@@ -5,13 +5,13 @@ import { YamlEditor } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import { services } from '../../../shared/services';
 import { ApplicationResourceDiff } from '../application-resource-diff/application-resource-diff';
-import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon, ResourceTreeNode } from '../utils';
+import { ComparisonStatusIcon, getPodStateReason, HealthStatusIcon } from '../utils';
 
 require('./application-node-info.scss');
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application,
-    node: ResourceTreeNode,
+    node: models.ResourceNode,
     live: models.State,
     controlled: { summary: models.ResourceStatus, state: models.ResourceDiff },
 }) => {

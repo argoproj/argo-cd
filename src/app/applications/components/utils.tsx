@@ -13,13 +13,6 @@ export const ICON_CLASS_BY_KIND = {
     service: 'argo-icon-hosts',
 } as any;
 
-export interface ResourceTreeNode extends appModels.ResourceNode {
-    status?: appModels.SyncStatusCode;
-    health?: appModels.HealthStatus;
-    hook?: boolean;
-    root?: ResourceTreeNode;
-}
-
 export interface NodeId {
     kind: string;
     namespace: string;
@@ -331,7 +324,7 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
     }
 }
 
-export function isAppNode(node: ResourceTreeNode) {
+export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
 
