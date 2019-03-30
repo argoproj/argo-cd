@@ -180,7 +180,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/applicationResourceTreeResponse"
+              "$ref": "#/definitions/v1alpha1ApplicationTree"
             }
           }
         }
@@ -1445,17 +1445,6 @@
     "applicationOperationTerminateResponse": {
       "type": "object"
     },
-    "applicationResourceTreeResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
-        }
-      }
-    },
     "clusterClusterCreateFromKubeConfigRequest": {
       "type": "object",
       "properties": {
@@ -1696,12 +1685,14 @@
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
         "imageTags": {
+          "description": "imageTags is a list of available image tags. This is only populated for Kustomize 1.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1KustomizeImageTag"
           }
         },
         "images": {
+          "description": "images is a list of available images. This is only populated for Kustomize 2.",
           "type": "array",
           "items": {
             "type": "string"
@@ -2576,6 +2567,17 @@
         }
       }
     },
+    "v1alpha1ApplicationTree": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationWatchEvent": {
       "description": "ApplicationWatchEvent contains information about application change.",
       "type": "object",
@@ -2947,24 +2949,61 @@
         }
       }
     },
+    "v1alpha1ResourceNetworkingInfo": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "targetLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "targetRef": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceRef"
+          }
+        }
+      }
+    },
     "v1alpha1ResourceNode": {
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
       "properties": {
-        "children": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
-        },
-        "group": {
-          "type": "string"
-        },
         "info": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1InfoItem"
           }
+        },
+        "networkingInfo": {
+          "$ref": "#/definitions/v1alpha1ResourceNetworkingInfo"
+        },
+        "parentRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceRef"
+          }
+        },
+        "resourceRef": {
+          "$ref": "#/definitions/v1alpha1ResourceRef"
+        },
+        "resourceVersion": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceRef": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
         },
         "kind": {
           "type": "string"
@@ -2973,9 +3012,6 @@
           "type": "string"
         },
         "namespace": {
-          "type": "string"
-        },
-        "resourceVersion": {
           "type": "string"
         },
         "version": {

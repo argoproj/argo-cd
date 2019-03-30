@@ -27,29 +27,6 @@ func (_m *LiveStateCache) Delete(server string, obj *unstructured.Unstructured) 
 	return r0
 }
 
-// GetChildren provides a mock function with given fields: server, obj
-func (_m *LiveStateCache) GetChildren(server string, obj *unstructured.Unstructured) ([]v1alpha1.ResourceNode, error) {
-	ret := _m.Called(server, obj)
-
-	var r0 []v1alpha1.ResourceNode
-	if rf, ok := ret.Get(0).(func(string, *unstructured.Unstructured) []v1alpha1.ResourceNode); ok {
-		r0 = rf(server, obj)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]v1alpha1.ResourceNode)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, *unstructured.Unstructured) error); ok {
-		r1 = rf(server, obj)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetManagedLiveObjs provides a mock function with given fields: a, targetObjs
 func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	ret := _m.Called(a, targetObjs)
@@ -97,6 +74,20 @@ func (_m *LiveStateCache) IsNamespaced(server string, obj *unstructured.Unstruct
 	}
 
 	return r0, r1
+}
+
+// IterateHierarchy provides a mock function with given fields: server, key, action
+func (_m *LiveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(v1alpha1.ResourceNode)) error {
+	ret := _m.Called(server, key, action)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, kube.ResourceKey, func(v1alpha1.ResourceNode)) error); ok {
+		r0 = rf(server, key, action)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // Run provides a mock function with given fields: ctx

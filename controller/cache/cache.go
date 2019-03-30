@@ -19,8 +19,8 @@ import (
 
 type LiveStateCache interface {
 	IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error)
-	// Returns child nodes for a given k8s resource
-	GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error)
+	// Executes give callback against resource specified by the key and all its children
+	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode)) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
@@ -132,12 +132,13 @@ func (c *liveStateCache) IsNamespaced(server string, obj *unstructured.Unstructu
 	return clusterInfo.isNamespaced(obj), nil
 }
 
-func (c *liveStateCache) GetChildren(server string, obj *unstructured.Unstructured) ([]appv1.ResourceNode, error) {
+func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode)) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return clusterInfo.getChildren(obj), nil
+	clusterInfo.iterateHierarchy(key, action)
+	return nil
 }
 
 func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
