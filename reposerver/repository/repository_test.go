@@ -163,7 +163,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
-func TestGetAppDetailsHelm(t *testing.T) {
+func TODOTestGetAppDetailsHelm(t *testing.T) {
 	serve := newMockRepoServerService()
 	ctx := context.Background()
 
