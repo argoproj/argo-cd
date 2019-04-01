@@ -125,23 +125,23 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) error {
+func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
 	managedResources, err := ctrl.managedResources(a, comparisonResult)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	tree, err := ctrl.resourceTree(a, managedResources)
+	tree, err := ctrl.getResourceTree(a, managedResources)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = ctrl.cache.SetAppResourcesTree(a.Name, tree)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ctrl.cache.SetAppManagedResources(a.Name, managedResources)
+	return tree, ctrl.cache.SetAppManagedResources(a.Name, managedResources)
 }
 
-func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
+func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
 
 	for i := range managedResources {
@@ -584,9 +584,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
-			if tree, err := ctrl.resourceTree(app, managedResources); err != nil {
+			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
 				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
 			} else {
+				app.Status.Ingress = tree.GetIngress()
 				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
@@ -614,9 +615,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
 		conditions = append(conditions, compareResult.conditions...)
 	}
-	err = ctrl.setAppManagedResources(app, compareResult)
+	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
+	} else {
+		app.Status.Ingress = tree.GetIngress()
 	}
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)
