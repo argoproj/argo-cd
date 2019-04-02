@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -217,15 +218,16 @@ type ApplicationDestination struct {
 
 // ApplicationStatus contains information about application sync, health status
 type ApplicationStatus struct {
-	Resources      []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	Sync           SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
-	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
-	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ReconciledAt   metav1.Time            `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
-	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
-	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
-	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	Resources      []ResourceStatus         `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Sync           SyncStatus               `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	Health         HealthStatus             `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	History        []RevisionHistory        `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	Conditions     []ApplicationCondition   `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
+	ReconciledAt   metav1.Time              `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	OperationState *OperationState          `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
+	ObservedAt     metav1.Time              `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	SourceType     ApplicationSourceType    `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	Ingress        []v1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,10,opt,name=ingress"`
 }
 
 // Operation contains requested operation parameters.
@@ -523,10 +525,10 @@ type InfoItem struct {
 
 // ResourceNetworkingInfo holds networking resource related information
 type ResourceNetworkingInfo struct {
-	TargetLabels map[string]string `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
-	TargetRefs   []ResourceRef     `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`
-
-	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
+	TargetLabels map[string]string        `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
+	TargetRefs   []ResourceRef            `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`
+	Labels       map[string]string        `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
+	Ingress      []v1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
 }
 
 // ApplicationTree holds nodes which belongs to the application
@@ -541,6 +543,18 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 		}
 	}
 	return nil
+}
+
+func (t *ApplicationTree) GetIngress() []v1.LoadBalancerIngress {
+	ingress := make([]v1.LoadBalancerIngress, 0)
+	for _, node := range t.Nodes {
+		if node.NetworkingInfo != nil {
+			for i := range node.NetworkingInfo.Ingress {
+				ingress = append(ingress, node.NetworkingInfo.Ingress[i])
+			}
+		}
+	}
+	return ingress
 }
 
 // ResourceRef includes fields which unique identify resource

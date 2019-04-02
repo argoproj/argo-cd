@@ -32,9 +32,31 @@ func getNodeInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.
 	return []v1alpha1.InfoItem{}, nil
 }
 
+func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
+	ingress, ok, err := unstructured.NestedSlice(un.Object, "status", "loadBalancer", "ingress")
+	if !ok || err != nil {
+		return nil
+	}
+	res := make([]v1.LoadBalancerIngress, 0)
+	for _, item := range ingress {
+		if lbIngress, ok := item.(map[string]interface{}); ok {
+			if hostname := lbIngress["hostname"]; hostname != nil {
+				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
+			} else if ip := lbIngress["ip"]; ip != nil {
+				res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+			}
+		}
+	}
+	return res
+}
+
 func getServiceInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.ResourceNetworkingInfo) {
 	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
-	return nil, &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels}
+	ingress := make([]v1.LoadBalancerIngress, 0)
+	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
+		ingress = getIngress(un)
+	}
+	return nil, &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
 func getIngressInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.ResourceNetworkingInfo) {
@@ -73,7 +95,7 @@ func getIngressInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alph
 			}
 		}
 	}
-	return nil, &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
+	return nil, &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un)}
 }
 
 func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.ResourceNetworkingInfo) {

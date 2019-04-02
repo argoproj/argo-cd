@@ -1950,6 +1950,20 @@
         }
       }
     },
+    "v1LoadBalancerIngress": {
+      "description": "LoadBalancerIngress represents the status of a load-balancer ingress point:\ntraffic intended for the service should be sent to an ingress point.",
+      "type": "object",
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "title": "Hostname is set for load-balancer ingress points that are DNS based\n(typically AWS load-balancers)\n+optional"
+        },
+        "ip": {
+          "type": "string",
+          "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        }
+      }
+    },
     "v1MicroTime": {
       "description": "MicroTime is version of Time with microsecond level precision.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "type": "object",
@@ -2544,6 +2558,12 @@
             "$ref": "#/definitions/v1alpha1RevisionHistory"
           }
         },
+        "ingress": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1LoadBalancerIngress"
+          }
+        },
         "observedAt": {
           "$ref": "#/definitions/v1Time"
         },
@@ -2569,6 +2589,7 @@
     },
     "v1alpha1ApplicationTree": {
       "type": "object",
+      "title": "ApplicationTree holds nodes which belongs to the application",
       "properties": {
         "nodes": {
           "type": "array",
@@ -2951,7 +2972,14 @@
     },
     "v1alpha1ResourceNetworkingInfo": {
       "type": "object",
+      "title": "ResourceNetworkingInfo holds networking resource related information",
       "properties": {
+        "ingress": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1LoadBalancerIngress"
+          }
+        },
         "labels": {
           "type": "object",
           "additionalProperties": {
@@ -3001,6 +3029,7 @@
     },
     "v1alpha1ResourceRef": {
       "type": "object",
+      "title": "ResourceRef includes fields which unique identify resource",
       "properties": {
         "group": {
           "type": "string"

@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	core_v1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -495,6 +496,11 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 		}
 	}
 	in.ObservedAt.DeepCopyInto(&out.ObservedAt)
+	if in.Ingress != nil {
+		in, out := &in.Ingress, &out.Ingress
+		*out = make([]core_v1.LoadBalancerIngress, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -1061,6 +1067,11 @@ func (in *ResourceNetworkingInfo) DeepCopyInto(out *ResourceNetworkingInfo) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.Ingress != nil {
+		in, out := &in.Ingress, &out.Ingress
+		*out = make([]core_v1.LoadBalancerIngress, len(*in))
+		copy(*out, *in)
 	}
 	return
 }

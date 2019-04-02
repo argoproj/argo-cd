@@ -5,6 +5,7 @@ syntax = 'proto2';
 
 package github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1;
 
+import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
@@ -225,8 +226,11 @@ message ApplicationStatus {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   optional string sourceType = 9;
+
+  repeated k8s.io.api.core.v1.LoadBalancerIngress ingress = 10;
 }
 
+// ApplicationTree holds nodes which belongs to the application
 message ApplicationTree {
   repeated ResourceNode nodes = 1;
 }
@@ -496,12 +500,15 @@ message ResourceIgnoreDifferences {
   repeated string jsonPointers = 5;
 }
 
+// ResourceNetworkingInfo holds networking resource related information
 message ResourceNetworkingInfo {
   map<string, string> targetLabels = 1;
 
   repeated ResourceRef targetRef = 2;
 
   map<string, string> labels = 3;
+
+  repeated k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
 }
 
 // ResourceNode contains information about live resource and its children
@@ -517,6 +524,7 @@ message ResourceNode {
   optional string resourceVersion = 5;
 }
 
+// ResourceRef includes fields which unique identify resource
 message ResourceRef {
   optional string group = 1;
 

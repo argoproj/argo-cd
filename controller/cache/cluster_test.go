@@ -107,7 +107,11 @@ var (
         - backend:
             serviceName: helm-guestbook
             servicePort: 443
-          path: /`)
+          path: /
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
 )
 
 func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
