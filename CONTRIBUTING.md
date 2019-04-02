@@ -1,4 +1,4 @@
-# Contributing
+r# Contributing
 ## Before You Start
 
 You must install and run the ArgoCD using a local Kubernetes (e.g. Docker for Desktop or Minikube) first. This will help you understand the application, but also get your local environment set-up.
@@ -81,7 +81,7 @@ make test-e2e
 
 It is much easier to run and debug if you run ArgoCD on your local machine than in the Kubernetes cluster.
 
-You should scale the deployemnts to zero:
+You should scale the deployments to zero:
 
 ```
 kubectl -n argocd scale deployment.extensions/argocd-application-controller --replicas 0
@@ -106,7 +106,7 @@ Then start the services:
 
 ```
 cd ~/go/src/github.com/argoproj/argo-cd
-goreman start
+make start
 ```
 
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:

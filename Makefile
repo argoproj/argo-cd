@@ -151,6 +151,10 @@ clean-debug:
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
+.PHONY: start
+start:
+	goreman start
+
 .PHONY: pre-commit
 pre-commit: dep-ensure codegen build lint test
 
