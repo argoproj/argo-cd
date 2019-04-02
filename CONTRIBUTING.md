@@ -1,4 +1,4 @@
-r# Contributing
+# Contributing
 ## Before You Start
 
 You must install and run the ArgoCD using a local Kubernetes (e.g. Docker for Desktop or Minikube) first. This will help you understand the application, but also get your local environment set-up.
