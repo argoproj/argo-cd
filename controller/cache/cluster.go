@@ -90,7 +90,7 @@ func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node
 			APIVersion: "",
 		})
 	}
-	info, networkingInfo := getNodeInfo(un)
+	info, images, networkingInfo := getNodeInfo(un)
 	nodeInfo := &node{
 		resourceVersion: un.GetResourceVersion(),
 		ref: v1.ObjectReference{
@@ -102,6 +102,7 @@ func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node
 		ownerRefs:      ownerRefs,
 		info:           info,
 		networkingInfo: networkingInfo,
+		images:         images,
 	}
 	appName := kube.GetAppInstanceLabel(un, appInstanceLabel)
 	if len(ownerRefs) == 0 && appName != "" {

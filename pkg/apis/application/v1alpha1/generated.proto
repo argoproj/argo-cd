@@ -522,6 +522,8 @@ message ResourceNode {
   optional ResourceNetworkingInfo networkingInfo = 4;
 
   optional string resourceVersion = 5;
+
+  repeated string images = 6;
 }
 
 // ResourceRef includes fields which unique identify resource

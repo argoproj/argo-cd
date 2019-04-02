@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
-func getNodeInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.ResourceNetworkingInfo) {
+func getNodeInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, []string, *v1alpha1.ResourceNetworkingInfo) {
 	gvk := un.GroupVersionKind()
 
 	switch gvk.Group {
@@ -21,15 +21,17 @@ func getNodeInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.
 		case kube.PodKind:
 			return getPodInfo(un)
 		case kube.ServiceKind:
-			return getServiceInfo(un)
+			items, networkingInfo := getServiceInfo(un)
+			return items, nil, networkingInfo
 		}
 	case "extensions":
 		switch gvk.Kind {
 		case kube.IngressKind:
-			return getIngressInfo(un)
+			items, networkingInfo := getIngressInfo(un)
+			return items, nil, networkingInfo
 		}
 	}
-	return []v1alpha1.InfoItem{}, nil
+	return []v1alpha1.InfoItem{}, nil, nil
 }
 
 func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
@@ -98,11 +100,11 @@ func getIngressInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alph
 	return nil, &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un)}
 }
 
-func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.ResourceNetworkingInfo) {
+func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, []string, *v1alpha1.ResourceNetworkingInfo) {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
-		return []v1alpha1.InfoItem{}, nil
+		return []v1alpha1.InfoItem{}, nil, nil
 	}
 	restarts := 0
 	totalContainers := len(pod.Spec.Containers)
@@ -114,6 +116,13 @@ func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.R
 	}
 
 	initializing := false
+	var images []string
+
+	// note that I ignore initContainers
+	for _, container := range pod.Spec.Containers {
+		images = append(images, container.Image)
+	}
+
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)
@@ -181,5 +190,5 @@ func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.R
 		info = append(info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 	info = append(info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
-	return info, &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+	return info, images, &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }

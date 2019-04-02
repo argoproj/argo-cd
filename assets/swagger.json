@@ -3004,6 +3004,12 @@
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
       "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "info": {
           "type": "array",
           "items": {

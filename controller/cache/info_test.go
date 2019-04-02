@@ -3,24 +3,40 @@ package cache
 import (
 	"testing"
 
+	v1 "k8s.io/api/core/v1"
+
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/kube"
-	v1 "k8s.io/api/core/v1"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetPodInfo(t *testing.T) {
-	pod := testPod.DeepCopy()
-	pod.SetLabels(map[string]string{"app": "guestbook"})
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    resourceVersion: "123"
+    labels:
+      app: guestbook
+  spec:
+    containers:
+    - image: bar`)
 
-	info, networkInfo := getNodeInfo(pod)
-	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Containers", Value: "0/0"}}, info)
+	info, images, networkInfo := getNodeInfo(pod)
+	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Containers", Value: "0/1"}}, info)
+	assert.Equal(t, []string{"bar"}, images)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, networkInfo)
 }
 
 func TestGetServiceInfo(t *testing.T) {
-	info, networkInfo := getNodeInfo(testService)
+	info, _, networkInfo := getNodeInfo(testService)
 	assert.Equal(t, 0, len(info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
@@ -29,7 +45,7 @@ func TestGetServiceInfo(t *testing.T) {
 }
 
 func TestGetIngressInfo(t *testing.T) {
-	info, networkInfo := getNodeInfo(testIngress)
+	info, _, networkInfo := getNodeInfo(testIngress)
 	assert.Equal(t, 0, len(info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
