@@ -524,6 +524,12 @@ message ResourceNode {
   optional string resourceVersion = 5;
 }
 
+message ResourceOverride {
+  optional string healthLua = 1;
+
+  optional string ignoreDifferences = 2;
+}
+
 // ResourceRef includes fields which unique identify resource
 message ResourceRef {
   optional string group = 1;

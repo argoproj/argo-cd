@@ -8,6 +8,7 @@ package cluster;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
 
 // SettingsQuery is a query for Argo CD settings
 message SettingsQuery {
@@ -18,6 +19,7 @@ message Settings {
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
     string appLabelKey = 4;
+    map<string, github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
 }
 
 message DexConfig {

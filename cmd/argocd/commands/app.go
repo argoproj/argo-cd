@@ -43,7 +43,6 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
-	argosettings "github.com/argoproj/argo-cd/util/settings"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -676,11 +675,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				live   *unstructured.Unstructured
 				target *unstructured.Unstructured
 			}, 0)
+
+			conn, settingsIf := clientset.NewSettingsClientOrDie()
+			defer util.Close(conn)
+			argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
+			errors.CheckError(err)
+
 			if local != "" {
-				conn, settingsIf := clientset.NewSettingsClientOrDie()
-				defer util.Close(conn)
-				argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
-				errors.CheckError(err)
 				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
@@ -752,8 +753,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			foundDiffs := false
 			for i := range items {
 				item := items[i]
-				// TODO (amatyushentsev): use resource overrides exposed from API server
-				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, make(map[string]argosettings.ResourceOverride))
+				overrides := make(map[string]argoappv1.ResourceOverride)
+				for k := range argoSettings.ResourceOverrides {
+					val := argoSettings.ResourceOverrides[k]
+					overrides[k] = *val
+				}
+				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live, normalizer)

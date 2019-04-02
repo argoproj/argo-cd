@@ -8,7 +8,6 @@ import (
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
-	"github.com/argoproj/argo-cd/util/settings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -35,7 +34,7 @@ type overrideIgnoreDiff struct {
 }
 
 // NewDiffNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
-func NewDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]settings.ResourceOverride) (diff.Normalizer, error) {
+func NewDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
 	for key, override := range overrides {
 		parts := strings.Split(key, "/")
 		if len(parts) < 2 {
