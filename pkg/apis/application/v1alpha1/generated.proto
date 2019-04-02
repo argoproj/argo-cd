@@ -511,6 +511,13 @@ message ResourceNode {
   optional string resourceVersion = 8;
 }
 
+// ResourceOverride holds configuration to customize resource diffing and health assessment
+message ResourceOverride {
+  optional string healthLua = 1;
+
+  optional string ignoreDifferences = 2;
+}
+
 // ResourceResult holds the operation result details of a specific resource
 message ResourceResult {
   optional string group = 1;

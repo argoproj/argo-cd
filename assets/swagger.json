@@ -1529,6 +1529,12 @@
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
+        "resourceOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1alpha1ResourceOverride"
+          }
+        },
         "url": {
           "type": "string"
         }
@@ -1696,12 +1702,14 @@
       "title": "KustomizeAppSpec contains kustomize app name and path in source repo",
       "properties": {
         "imageTags": {
+          "description": "imageTags is a list of available image tags. This is only populated for Kustomize 1.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1KustomizeImageTag"
           }
         },
         "images": {
+          "description": "images is a list of available images. This is only populated for Kustomize 2.",
           "type": "array",
           "items": {
             "type": "string"
@@ -2979,6 +2987,18 @@
           "type": "string"
         },
         "version": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceOverride": {
+      "type": "object",
+      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
+      "properties": {
+        "healthLua": {
+          "type": "string"
+        },
+        "ignoreDifferences": {
           "type": "string"
         }
       }
