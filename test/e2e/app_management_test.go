@@ -248,6 +248,9 @@ func TestManipulateApplicationResources(t *testing.T) {
 	_, err = fixture.RunCli("app", "sync", app.Name)
 	assert.NoError(t, err)
 
+	_, err = fixture.RunCli("app", "wait", app.Name)
+	assert.NoError(t, err)
+
 	manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
 	assert.NoError(t, err)
 
@@ -299,6 +302,7 @@ func TestResourceDiffing(t *testing.T) {
 		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
 	})
 
+	// Patch deployment
 	_, err = fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace).Patch(
 		"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`))
 	assert.NoError(t, err)
@@ -311,10 +315,12 @@ func TestResourceDiffing(t *testing.T) {
 	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 	assert.NoError(t, err)
 
+	// Make sure application is out of sync due to deployment image difference
 	assert.Equal(t, string(v1alpha1.SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
 	diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 	assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace))
 
+	// Update settings to ignore image difference
 	settings, err := fixture.SettingsManager.GetSettings()
 	assert.NoError(t, err)
 	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{
@@ -325,6 +331,8 @@ func TestResourceDiffing(t *testing.T) {
 
 	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 	assert.NoError(t, err)
+
+	// Make sure application is in synced state and CLI show no difference
 	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
 
 	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
