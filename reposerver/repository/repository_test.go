@@ -252,5 +252,5 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Nil(t, res.Kustomize.Images)
-	assert.Equal(t, []*argoappv1.KustomizeImageTag{{"nginx", "1.15.4"}, {"k8s.gcr.io/nginx-slim", "0.8"}}, res.Kustomize.ImageTags)
+	assert.Equal(t, []*argoappv1.KustomizeImageTag{{Name: "nginx", Value: "1.15.4"}, {Name: "k8s.gcr.io/nginx-slim", Value: "0.8"}}, res.Kustomize.ImageTags)
 }
