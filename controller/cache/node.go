@@ -22,6 +22,7 @@ type node struct {
 	resource *unstructured.Unstructured
 	// networkingInfo are available only for known types involved into networking: Ingress, Service, Pod
 	networkingInfo *appv1.ResourceNetworkingInfo
+	images         []string
 }
 
 func (n *node) isRootAppNode() bool {
@@ -101,6 +102,7 @@ func (n *node) asResourceNode() appv1.ResourceNode {
 		Info:            n.info,
 		ResourceVersion: n.resourceVersion,
 		NetworkingInfo:  n.networkingInfo,
+		Images:          n.images,
 	}
 }
 

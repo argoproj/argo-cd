@@ -1109,6 +1109,11 @@ func (in *ResourceNode) DeepCopyInto(out *ResourceNode) {
 			(*in).DeepCopyInto(*out)
 		}
 	}
+	if in.Images != nil {
+		in, out := &in.Images, &out.Images
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

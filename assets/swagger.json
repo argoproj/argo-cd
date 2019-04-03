@@ -3010,6 +3010,12 @@
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
       "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "info": {
           "type": "array",
           "items": {
@@ -3035,6 +3041,7 @@
     },
     "v1alpha1ResourceOverride": {
       "type": "object",
+      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
       "properties": {
         "healthLua": {
           "type": "string"

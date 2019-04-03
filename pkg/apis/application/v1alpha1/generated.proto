@@ -522,8 +522,11 @@ message ResourceNode {
   optional ResourceNetworkingInfo networkingInfo = 4;
 
   optional string resourceVersion = 5;
+
+  repeated string images = 6;
 }
 
+// ResourceOverride holds configuration to customize resource diffing and health assessment
 message ResourceOverride {
   optional string healthLua = 1;
 

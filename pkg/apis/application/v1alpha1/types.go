@@ -573,6 +573,7 @@ type ResourceNode struct {
 	Info            []InfoItem              `json:"info,omitempty" protobuf:"bytes,3,opt,name=info"`
 	NetworkingInfo  *ResourceNetworkingInfo `json:"networkingInfo,omitempty" protobuf:"bytes,4,opt,name=networkingInfo"`
 	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
+	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 }
 
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
