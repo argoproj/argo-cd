@@ -1,0 +1,15 @@
+site_name: Argo CD
+repo_url: https://github.com/alexec/argo-cd
+theme:
+  name: material
+  palette:
+    primary: purple
+    accent: orange
+  font:
+    text: 'Work Sans'
+  logo: 'assets/logo.png'
+google_analytics:
+- UA-105170809-2
+- auto
+markdown_extensions:
+- codehilite

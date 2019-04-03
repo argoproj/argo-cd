@@ -1,5 +1,5 @@
 
-# Argo CD - Architectural Overview
+# Architectural Overview
 
 ![Argo CD Architecture](argocd_architecture.png)
 

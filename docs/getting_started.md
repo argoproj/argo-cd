@@ -1,4 +1,4 @@
-# Argo CD Getting Started
+# Getting Started
 
 ## Requirements
 * Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool
