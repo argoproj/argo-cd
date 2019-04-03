@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/server/session"
 	"github.com/argoproj/argo-cd/util"
 	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/settings"
 
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
@@ -47,6 +48,7 @@ type Fixture struct {
 	ArgoCDNamespace     string
 	DeploymentNamespace string
 	ArgoCDClientset     argocdclient.Client
+	SettingsManager     *settings.SettingsManager
 
 	repoDirectory    string
 	apiServerAddress string
@@ -113,6 +115,7 @@ func NewFixture() (*Fixture, error) {
 		KubeClientset:    kubeClient,
 		ArgoCDClientset:  argocdclientset,
 		ArgoCDNamespace:  "argocd-e2e",
+		SettingsManager:  settings.NewSettingsManager(context.Background(), kubeClient, "argocd-e2e"),
 		apiServerAddress: apiServerAddress,
 		token:            sessionResponse.Token,
 		repoDirectory:    testRepo,
@@ -153,6 +156,14 @@ func (f *Fixture) createDeploymentNamespace() string {
 }
 
 func (f *Fixture) EnsureCleanState() {
+	argoSettings, err := f.SettingsManager.GetSettings()
+	errors.CheckError(err)
+
+	if len(argoSettings.ResourceOverrides) > 0 {
+		argoSettings.ResourceOverrides = nil
+		errors.CheckError(f.SettingsManager.SaveSettings(argoSettings))
+	}
+
 	closer, client := f.ArgoCDClientset.NewApplicationClientOrDie()
 	defer util.Close(closer)
 	apps, err := client.List(context.Background(), &application.ApplicationQuery{})
@@ -220,7 +231,7 @@ func (f *Fixture) RunCli(args ...string) (string, error) {
 		if outBytes != nil {
 			errOutput = string(outBytes) + "\n" + errOutput
 		}
-		return "", fmt.Errorf(strings.TrimSpace(errOutput))
+		return errOutput, fmt.Errorf(strings.TrimSpace(errOutput))
 	}
 	return string(outBytes), nil
 }

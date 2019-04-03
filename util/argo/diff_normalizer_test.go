@@ -9,7 +9,6 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/test"
 	"github.com/argoproj/argo-cd/util/kube"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
@@ -17,7 +16,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 		Group:        "apps",
 		Kind:         "Deployment",
 		JSONPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
-	}}, make(map[string]settings.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride))
 
 	assert.Nil(t, err)
 
@@ -39,7 +38,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 		Group:        "",
 		Kind:         "Service",
 		JSONPointers: []string{"/spec"},
-	}}, make(map[string]settings.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride))
 
 	assert.Nil(t, err)
 
@@ -52,7 +51,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 }
 
 func TestNormalizeMatchedResourceOverrides(t *testing.T) {
-	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]settings.ResourceOverride{
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
 			IgnoreDifferences: `jsonPointers: ["/spec/template/spec/containers"]`,
 		},

@@ -1518,6 +1518,12 @@
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
         },
+        "resourceOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1alpha1ResourceOverride"
+          }
+        },
         "url": {
           "type": "string"
         }
@@ -3029,6 +3035,18 @@
           "$ref": "#/definitions/v1alpha1ResourceRef"
         },
         "resourceVersion": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceOverride": {
+      "type": "object",
+      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
+      "properties": {
+        "healthLua": {
+          "type": "string"
+        },
+        "ignoreDifferences": {
           "type": "string"
         }
       }
