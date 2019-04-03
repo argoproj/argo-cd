@@ -2,6 +2,7 @@
 
 Argo CD runs both a gRPC server (used by the CLI), as well as a HTTP/HTTPS server (used by the UI).
 Both protocols are exposed by the argocd-server service object on the following ports:
+
 * 443 - gRPC/HTTPS
 * 80 - HTTP (redirects to HTTPS)
 

@@ -1,13 +1,14 @@
 
 # Architectural Overview
 
-![Argo CD Architecture](argocd_architecture.png)
+![Argo CD Architecture](../assets/argocd_architecture.png)
 
 ## Components
 
 ### API Server
 The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD 
 systems. It has the following responsibilities:
+
 * application management and status reporting
 * invoking of application operations (e.g. sync, rollback, user-defined actions)
 * repository and cluster credential management (stored as K8s secrets)
@@ -19,6 +20,7 @@ systems. It has the following responsibilities:
 The repository server is an internal service which maintains a local cache of the git repository
 holding the application manifests. It is responsible for generating and returning the Kubernetes
 manifests when provided the following inputs:
+
 * repository URL
 * git revision (commit, tag, branch)
 * application path

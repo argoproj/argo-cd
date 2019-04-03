@@ -28,12 +28,12 @@ steps should be similar for other identity providers.
 In GitHub, register a new application. The callback address should be the `/api/dex/callback`
 endpoint of your Argo CD URL (e.g. https://argocd.example.com/api/dex/callback).
 
-![Register OAuth App](assets/register-app.png "Register OAuth App")
+![Register OAuth App](../assets/register-app.png "Register OAuth App")
 
 After registering the app, you will receive an OAuth2 client ID and secret. These values will be
 inputted into the Argo CD configmap.
 
-![OAuth2 Client Config](assets/oauth2-config.png "OAuth2 Client Config")
+![OAuth2 Client Config](../assets/oauth2-config.png "OAuth2 Client Config")
 
 ### 2. Configure Argo CD for SSO
 
@@ -82,6 +82,7 @@ data:
 After saving, the changes should take affect automatically.
 
 NOTES:
+
 * Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
   to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.

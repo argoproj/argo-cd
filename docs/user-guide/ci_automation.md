@@ -55,4 +55,4 @@ variations), might be used:
 
     If [automated synchronization](auto_sync.md) is configured for the application, this step is
     unnecessary. The controller will automatically detect the new config (fast tracked using a
-    [webhook](webhook.md), or polled every 3 minutes), and automatically sync the new manifests.
+    [webhook](../operator-manual/webhook.md), or polled every 3 minutes), and automatically sync the new manifests.

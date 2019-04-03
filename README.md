@@ -7,7 +7,7 @@
 
 Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
-![Argo CD UI](docs/argocd-ui.gif)
+![Argo CD UI](docs/assets/argocd-ui.gif)
 
 ## Why Argo CD?
 

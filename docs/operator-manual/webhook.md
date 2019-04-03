@@ -14,7 +14,7 @@ URL configured in the git provider should use the `/api/webhook` endpoint of you
 (e.g. https://argocd.example.com/api/webhook). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
-![Add Webhook](assets/webhook-config.png "Add Webhook")
+![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
 ### 2. Configure Argo CD with the webhook secret (optional)
 

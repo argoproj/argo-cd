@@ -1,5 +1,6 @@
 site_name: Argo CD
 repo_url: https://github.com/alexec/argo-cd
+remote_name: alexec
 theme:
   name: material
   palette:

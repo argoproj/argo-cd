@@ -1,21 +1,22 @@
 # Getting Started
 
 ## Requirements
+
 * Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool
 * Have a [kubeconfig](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file (default location is `~/.kube/config`).
 
 ## 1. Install Argo CD
+
 ```bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
 
-NOTE:
-* On GKE, you will need grant your account the ability to create new cluster roles:
-    ```bash
-    kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
-    ```
+> NOTE: On GKE, you will need grant your account the ability to create new cluster roles:
+> ```bash
+> kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
+> ```
 
 
 ## 2. Download Argo CD CLI
@@ -42,7 +43,7 @@ kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}
 ```
 
 ### Ingress
-Follow the [ingress documentation](ingress.md) on how to configure Argo CD with ingress.
+Follow the [ingress documentation](operator-manual/ingress.md) on how to configure Argo CD with ingress.
 
 ### Port Forwarding
 Kubectl port-forwarding can also be used to connect to the API server without exposing the service.
@@ -159,6 +160,7 @@ manifests. The guestbook app is now running and you can now view its resource co
 events, and assessed health status:
 
 ### From UI:
+
 ![guestbook app](assets/guestbook-app.png)
 ![view app](assets/guestbook-tree.png)
 

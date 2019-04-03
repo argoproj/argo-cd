@@ -15,6 +15,7 @@ Argo CD applications, projects and settings can be defined declaratively using K
 
 The Application CRD is the Kubernetes resource object representing a deployed application instance
 in an environment. It is defined by two key pieces of information:
+
 * `source` reference to the desired state in git (repository, revision, path, environment)
 * `destination` reference to the target cluster and namespace.
 
@@ -41,6 +42,7 @@ See [application.yaml](application.yaml) for additional fields
 ## Projects
 The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
 It is defined by the following key pieces of information:
+
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into.
 * `roles` list of entities with definitions of their access to resources within the project.
@@ -99,7 +101,6 @@ Repository credentials are stored in secret. Use following steps to configure a 
 
 1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
 definition as a Kubernetes manifest.
-
 2. Register repository in the `argocd-cm` config map. Each repository must have `url` field and, depending on whether you connect using HTTPS or SSH, `usernameSecret` and `passwordSecret` (for HTTPS) or `sshPrivateKeySecret` (for SSH).
 
 Example for HTTPS:
