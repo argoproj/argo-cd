@@ -410,7 +410,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 return { app: watchEvent.application, watchEvent: true };
             }).repeat().retryWhen((errors) => errors.delay(500))).flatMap((appInfo) => {
                 const app = appInfo.app;
-                const fallbackTree = {
+                const fallbackTree: appModels.ApplicationTree = {
                     nodes: app.status.resources.map((res) => ({...res, parentRefs: [], info: [], resourceVersion: ''})),
                 };
                 const treeSource = new Observable<{ application: appModels.Application, tree: appModels.ApplicationTree }>((observer) => {

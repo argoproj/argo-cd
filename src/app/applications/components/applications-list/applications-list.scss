@@ -186,12 +186,14 @@
     }
 
     &__table-row {
-        .argo-dropdown {
-            position: absolute;
-            right: 0;
-        }
         & > .columns:first-child {
             padding-left: 30px;
+        }
+        & > .columns:last-child {
+            .argo-dropdown {
+                position: absolute;
+                right: 0;
+            }
         }
         margin-left: -30px !important;
     }
@@ -215,5 +217,11 @@
             width: 100%;
             border-radius: $border-radius;
         }
+    }
+
+    &__external-link {
+        position: absolute;
+        top: 1em;
+        right: 1em;
     }
 }

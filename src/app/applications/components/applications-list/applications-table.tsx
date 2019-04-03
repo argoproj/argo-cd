@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
+import { ApplicationIngressLink } from '../application-ingress-link';
 import * as AppUtils from '../utils';
 
 export const ApplicationsTable = (props: {
@@ -28,7 +29,7 @@ export const ApplicationsTable = (props: {
             }>
                 <div className='row applications-list__table-row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
                     <div className='columns large-2 small-6'>
-                        <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name}
+                        <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name} <ApplicationIngressLink ingress={app.status.ingress}/>
                     </div>
                     <div className='columns large-4 show-for-large'>
                         {app.spec.source.repoURL}/{app.spec.source.path}

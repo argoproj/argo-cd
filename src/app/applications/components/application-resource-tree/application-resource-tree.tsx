@@ -2,7 +2,10 @@ import { DropDownMenu, MenuItem } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
+
 import * as models from '../../../shared/models';
+
+import { ApplicationIngressLink } from '../application-ingress-link';
 import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey } from '../utils';
 
 require('./application-resource-tree.scss');
@@ -250,6 +253,7 @@ export const ApplicationResourceTree = (props: {
                                 {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
                                 {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                                 {healthState != null && <HealthStatusIcon state={healthState}/>}
+                                <ApplicationIngressLink ingress={isAppNode(node) ? props.app.status.ingress : node.networkingInfo && node.networkingInfo.ingress}/>
                             </div>
                         </div>
                         <div className='application-resource-tree__node-labels'>

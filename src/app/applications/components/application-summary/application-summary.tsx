@@ -70,6 +70,14 @@ export const ApplicationSummary = (props: {
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
+    const ingress = Array.from(new Set((app.status.ingress || []).map((item) => item.hostname || item.ip)));
+    if (ingress.length > 0) {
+        attributes.push({title: 'INGRESS', view: (
+            <React.Fragment>
+                {ingress.map((item) => <a key={item} href={item} target='__blank'>{item}</a>)}
+            </React.Fragment>
+        )});
+    }
 
     async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);

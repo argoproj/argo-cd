@@ -238,6 +238,12 @@ export interface ResourceNetworkingInfo {
     targetLabels: {[name: string]: string};
     targetRefs: ResourceRef[];
     labels: {[name: string]: string};
+    ingress: LoadBalancerIngress[];
+}
+
+export interface LoadBalancerIngress {
+    hostname: string;
+    ip: string;
 }
 
 export interface ResourceNode extends ResourceRef {
@@ -280,6 +286,7 @@ export interface ApplicationStatus {
     history: RevisionHistory[];
     health: HealthStatus;
     operationState?: OperationState;
+    ingress: LoadBalancerIngress[];
 }
 
 export interface LogEntry {
