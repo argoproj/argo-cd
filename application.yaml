@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+spec:
+  # The project the application belongs to.
+  project: default
+
+  # Source of the application manifests
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+
+    # helm specific config
+    helm:
+      valueFiles:
+      - values-prod.yaml
+
+    # kustomize specific config
+    kustomize:
+      namePrefix: prod-
+
+    # directory
+    directory:
+      recurse: true
+      jsonnet:
+        # A list of Jsonnet External Variables
+        extVars:
+        - name: foo
+          value: bar
+          # You can use "code to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
+        - code: true
+          name: baz
+          value: "true"
+        # A list of Jsonnet Top-level Arguments
+        tlas:
+          - code: false
+            name: foo
+            value: bar
+
+    # plugin specific config
+    plugin:
+    - name: mypluginname
+
+  # Destination cluster and namespace to deploy the application
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+
+  # Ignore differences at the specified json pointers
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
