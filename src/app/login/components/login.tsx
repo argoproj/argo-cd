@@ -56,7 +56,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                     </div>
                     {authSettings && (authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0 || authSettings.oidcConfig) && (
                         <div className='login__box_saml width-control'>
-                            <a href={`/auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
+                            <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {authSettings.oidcConfig && (
                                         <span>Login via {authSettings.oidcConfig.name}</span>
