@@ -190,6 +190,29 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	if reason != "" {
 		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
+	node.health = createHealth(pod.Status, reason)
 	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+}
+
+func createHealth(status v1.PodStatus, reason string) *v1alpha1.HealthStatus {
+
+	healthStatus := &v1alpha1.HealthStatus{}
+	switch reason {
+	case "CrashLoopBackOff", "RunContainerError", "ErrImagePull", "ImagePullBackOff":
+		healthStatus.Status = v1alpha1.HealthStatusDegraded
+		healthStatus.Message = reason
+	default:
+		healthStatus.Status = map[v1.PodPhase]v1alpha1.HealthStatusCode{
+			v1.PodPending:             v1alpha1.HealthStatusProgressing,
+			v1.PodRunning:             v1alpha1.HealthStatusHealthy,
+			v1.PodSucceeded:           v1alpha1.HealthStatusHealthy,
+			v1.PodFailed:              v1alpha1.HealthStatusDegraded,
+			v1.PodUnknown:             v1alpha1.HealthStatusUnknown,
+			v1.PodReasonUnschedulable: v1alpha1.HealthStatusMissing,
+		}[status.Phase]
+		healthStatus.Message = status.Message
+	}
+
+	return healthStatus
 }

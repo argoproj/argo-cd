@@ -524,6 +524,8 @@ message ResourceNode {
   optional string resourceVersion = 5;
 
   repeated string images = 6;
+
+  optional HealthStatus health = 7;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment

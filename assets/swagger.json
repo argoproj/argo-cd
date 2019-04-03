@@ -3010,6 +3010,9 @@
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
       "properties": {
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
         "images": {
           "type": "array",
           "items": {

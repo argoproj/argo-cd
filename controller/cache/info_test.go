@@ -65,3 +65,81 @@ func TestGetIngressInfo(t *testing.T) {
 		}},
 	}, node.networkingInfo)
 }
+
+func TestCreateHealth(t *testing.T) {
+	tests := []struct {
+		name   string
+		status v1.PodStatus
+		health v1alpha1.HealthStatus
+		reason string
+	}{
+		{
+			name:   "PodPending",
+			status: v1.PodStatus{Phase: v1.PodPending, Message: "foo"},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusProgressing, Message: "foo"},
+		},
+		{
+			name:   "PodRunning",
+			status: v1.PodStatus{Phase: v1.PodRunning},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusHealthy},
+		},
+		{
+			name:   "PodSucceeded",
+			status: v1.PodStatus{Phase: v1.PodSucceeded},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusHealthy},
+		},
+		{
+			name:   "PodFailed",
+			status: v1.PodStatus{Phase: v1.PodFailed},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusDegraded},
+		},
+		{
+			name:   "PodUnknown",
+			status: v1.PodStatus{Phase: v1.PodUnknown},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusUnknown},
+		},
+		{
+			name:   "PodReasonUnschedulable",
+			status: v1.PodStatus{Phase: v1.PodReasonUnschedulable},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusMissing},
+		},
+		{
+			name:   "PodReasonUnschedulable",
+			status: v1.PodStatus{Phase: v1.PodReasonUnschedulable},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusMissing},
+		},
+		{
+			name:   "CrashLoopBackOff",
+			status: v1.PodStatus{},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusDegraded, Message: "CrashLookBackof"},
+			reason: "CrashLoopBackOff",
+		},
+		{
+			name:   "RunContainerError",
+			status: v1.PodStatus{},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusDegraded, Message: "RunContainerError"},
+			reason: "RunContainerError",
+		},
+		{
+			name:   "ErrImagePull",
+			status: v1.PodStatus{},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusDegraded, Message: "ErrImagePull"},
+			reason: "ErrImagePull",
+		},
+		{
+			name:   "ImagePullBackOff",
+			status: v1.PodStatus{},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusDegraded, Message: "ImagePullBackOff"},
+			reason: "ImagePullBackOff",
+		}, {
+			name:   "Message",
+			status: v1.PodStatus{Phase: v1.PodPending, Message: "foo"},
+			health: v1alpha1.HealthStatus{Status: v1alpha1.HealthStatusProgressing, Message: "foo"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.health, *createHealth(test.status, test.reason))
+		})
+	}
+}
