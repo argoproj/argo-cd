@@ -12,26 +12,27 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
-func getNodeInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, []string, *v1alpha1.ResourceNetworkingInfo) {
+func populateNodeInfo(un *unstructured.Unstructured, node *node) {
 	gvk := un.GroupVersionKind()
 
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
 		case kube.PodKind:
-			return getPodInfo(un)
+			populatePodInfo(un, node)
+			return
 		case kube.ServiceKind:
-			items, networkingInfo := getServiceInfo(un)
-			return items, nil, networkingInfo
+			populateServiceInfo(un, node)
+			return
 		}
 	case "extensions":
 		switch gvk.Kind {
 		case kube.IngressKind:
-			items, networkingInfo := getIngressInfo(un)
-			return items, nil, networkingInfo
+			populateIngressInfo(un, node)
+			return
 		}
 	}
-	return []v1alpha1.InfoItem{}, nil, nil
+	node.info = []v1alpha1.InfoItem{}
 }
 
 func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
@@ -52,16 +53,16 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 	return res
 }
 
-func getServiceInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.ResourceNetworkingInfo) {
+func populateServiceInfo(un *unstructured.Unstructured, node *node) {
 	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
 	ingress := make([]v1.LoadBalancerIngress, 0)
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
 	}
-	return nil, &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
-func getIngressInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alpha1.ResourceNetworkingInfo) {
+func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 	targets := make([]v1alpha1.ResourceRef, 0)
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
 		targets = append(targets, v1alpha1.ResourceRef{
@@ -97,14 +98,15 @@ func getIngressInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, *v1alph
 			}
 		}
 	}
-	return nil, &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un)}
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un)}
 }
 
-func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, []string, *v1alpha1.ResourceNetworkingInfo) {
+func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
-		return []v1alpha1.InfoItem{}, nil, nil
+		node.info = []v1alpha1.InfoItem{}
+		return
 	}
 	restarts := 0
 	totalContainers := len(pod.Spec.Containers)
@@ -116,11 +118,10 @@ func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, []string, *
 	}
 
 	initializing := false
-	var images []string
 
 	// note that I ignore initContainers
 	for _, container := range pod.Spec.Containers {
-		images = append(images, container.Image)
+		node.images = append(node.images, container.Image)
 	}
 
 	for i := range pod.Status.InitContainerStatuses {
@@ -185,10 +186,10 @@ func getPodInfo(un *unstructured.Unstructured) ([]v1alpha1.InfoItem, []string, *
 		reason = "Terminating"
 	}
 
-	info := make([]v1alpha1.InfoItem, 0)
+	node.info = make([]v1alpha1.InfoItem, 0)
 	if reason != "" {
-		info = append(info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
+		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	info = append(info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
-	return info, images, &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }

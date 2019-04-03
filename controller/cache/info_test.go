@@ -29,24 +29,27 @@ func TestGetPodInfo(t *testing.T) {
     containers:
     - image: bar`)
 
-	info, images, networkInfo := getNodeInfo(pod)
-	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Containers", Value: "0/1"}}, info)
-	assert.Equal(t, []string{"bar"}, images)
-	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, networkInfo)
+	node := &node{}
+	populateNodeInfo(pod, node)
+	assert.Equal(t, []v1alpha1.InfoItem{{Name: "Containers", Value: "0/1"}}, node.info)
+	assert.Equal(t, []string{"bar"}, node.images)
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, node.networkingInfo)
 }
 
 func TestGetServiceInfo(t *testing.T) {
-	info, _, networkInfo := getNodeInfo(testService)
-	assert.Equal(t, 0, len(info))
+	node := &node{}
+	populateNodeInfo(testService, node)
+	assert.Equal(t, 0, len(node.info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
-	}, networkInfo)
+	}, node.networkingInfo)
 }
 
 func TestGetIngressInfo(t *testing.T) {
-	info, _, networkInfo := getNodeInfo(testIngress)
-	assert.Equal(t, 0, len(info))
+	node := &node{}
+	populateNodeInfo(testIngress, node)
+	assert.Equal(t, 0, len(node.info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
@@ -60,5 +63,5 @@ func TestGetIngressInfo(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-	}, networkInfo)
+	}, node.networkingInfo)
 }
