@@ -1009,15 +1009,14 @@
 <li>Have a <a href="https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/">kubeconfig</a> file (default location is <code>~/.kube/config</code>).</li>
 </ul>
 <h2 id="1-install-argo-cd">1. Install Argo CD<a class="headerlink" href="#1-install-argo-cd" title="Permanent link">&para;</a></h2>
-<p>````bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml</p>
-<div class="codehilite"><pre><span></span>This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
+<div class="codehilite"><pre><span></span>kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+</pre></div>
 
-On GKE, you will need grant your account the ability to create new cluster roles:
 
-```bash
-kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole=cluster-admin --user=YOUREMAIL@gmail.com
+<p>This will create a new namespace, <code>argocd</code>, where Argo CD services and application resources will live.</p>
+<p>On GKE, you will need grant your account the ability to create new cluster roles:</p>
+<div class="codehilite"><pre><span></span>kubectl create clusterrolebinding YOURNAME-cluster-admin-binding --clusterrole<span class="o">=</span>cluster-admin --user<span class="o">=</span>YOUREMAIL@gmail.com
 </pre></div>
 
 
