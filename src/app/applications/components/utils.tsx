@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { Checkbox, NotificationsApi, NotificationType } from 'argo-ui';
-import { ARGO_FAILED_COLOR, ARGO_GRAY4_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR, ErrorNotification } from '../../shared/components';
+import { COLORS, ErrorNotification } from '../../shared/components';
 import { ContextApis } from '../../shared/context';
 import * as appModels from '../../shared/models';
 import { services } from '../../shared/services';
@@ -95,37 +95,39 @@ export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase })
     switch (phase) {
         case appModels.OperationPhases.Succeeded:
             className = 'fa fa-check-circle';
-            color = ARGO_SUCCESS_COLOR;
+            color = COLORS.operation.success;
             break;
         case appModels.OperationPhases.Error:
+            className = 'fa fa-times';
+            color = COLORS.operation.error;
+            break;
         case appModels.OperationPhases.Failed:
             className = 'fa fa-times';
-            color = ARGO_FAILED_COLOR;
+            color = COLORS.operation.failed;
             break;
         default:
-            className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
-            color = ARGO_RUNNING_COLOR;
+            className = 'fa fa-circle-o-notch fa-spin';
+            color = COLORS.operation.running;
             break;
     }
     return <i title={phase} className={className} style={{ color }} />;
 };
 
 export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCode }) => {
-    let className = '';
-    let color = '';
+    let className = 'fa fa-question-circle';
+    let color = COLORS.sync.unknown;
 
     switch (status) {
         case appModels.SyncStatuses.Synced:
             className = 'fa fa-check-circle';
-            color = ARGO_SUCCESS_COLOR;
+            color = COLORS.sync.synced;
             break;
         case appModels.SyncStatuses.OutOfSync:
             className = 'fa fa-times';
-            color = ARGO_FAILED_COLOR;
+            color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
-            color = ARGO_RUNNING_COLOR;
+            className = 'fa fa-circle-o-notch fa-spin';
             break;
     }
     return <i title={status} className={className} style={{ color }} />;
@@ -151,77 +153,84 @@ export function syncStatusMessage(app: appModels.Application) {
 }
 
 export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => {
-    let color = '';
+    let color = COLORS.health.unknown;
+    let icon = 'fa-question-circle';
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
-            color = ARGO_SUCCESS_COLOR;
+            color = COLORS.health.healthy;
+            icon = 'fa-heartbeat';
             break;
         case appModels.HealthStatuses.Suspended:
-            color = ARGO_GRAY4_COLOR;
+            color = COLORS.health.suspended;
+            icon = 'fa-heartbeat';
             break;
         case appModels.HealthStatuses.Degraded:
-            color = ARGO_FAILED_COLOR;
+            color = COLORS.health.degraded;
+            icon = 'fa-exclamation-triangle';
             break;
         case appModels.HealthStatuses.Progressing:
-            color = ARGO_RUNNING_COLOR;
-            break;
-        case appModels.HealthStatuses.Unknown:
-            color = ARGO_RUNNING_COLOR;
+            color = COLORS.health.progressing;
+            icon = 'fa-circle-o-notch fa-spin';
             break;
     }
     let title: string = state.status;
     if (state.message) {
         title = `${state.status}: ${state.message};`;
     }
-    return <i title={title} className='fa fa-heartbeat' style={{ color }} />;
+    return <i title={title} className={'fa ' + icon} style={{ color }} />;
 };
 
 export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceResult }) => {
-    let color = '';
+    let color = COLORS.sync_result.unknown;
+    let icon = 'fa-question-circle';
 
     if (resource.status) {
         switch (resource.status) {
             case appModels.ResultCodes.Synced:
-                color = ARGO_SUCCESS_COLOR;
+                color = COLORS.sync_result.synced;
+                icon = 'fa-heartbeat';
                 break;
             case appModels.ResultCodes.Pruned:
-                color = ARGO_SUCCESS_COLOR;
+                color = COLORS.sync_result.pruned;
+                icon = 'fa-heartbeat';
                 break;
             case appModels.ResultCodes.SyncFailed:
-                color = ARGO_FAILED_COLOR;
+                color = COLORS.sync_result.failed;
+                icon = 'fa-exclamation-triangle';
                 break;
             case appModels.ResultCodes.PruneSkipped:
+                icon = 'fa-heartbeat';
                 break;
         }
         let title: string = resource.message;
         if (resource.message) {
             title = `${resource.status}: ${resource.message};`;
         }
-        return <i title={title} className='fa fa-heartbeat' style={{ color }} />;
+        return <i title={title} className={'fa ' + icon} style={{ color }} />;
     }
     if (resource.hookPhase) {
         let className = '';
         switch (resource.hookPhase) {
             case appModels.OperationPhases.Running:
-                color = ARGO_RUNNING_COLOR;
-                className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
+                color = COLORS.operation.running;
+                className = 'fa fa-circle-o-notch fa-spin';
                 break;
             case appModels.OperationPhases.Failed:
-                color = ARGO_FAILED_COLOR;
-                className = 'fa fa-heartbeat';
+                color = COLORS.operation.failed;
+                className = 'fa fa-exclamation-triangle';
                 break;
             case appModels.OperationPhases.Error:
-                color = ARGO_FAILED_COLOR;
-                className = 'fa fa-heartbeat';
+                color = COLORS.operation.error;
+                className = 'fa fa-exclamation-triangle';
                 break;
             case appModels.OperationPhases.Succeeded:
-                color = ARGO_SUCCESS_COLOR;
+                color = COLORS.operation.success;
                 className = 'fa fa-heartbeat';
                 break;
             case appModels.OperationPhases.Terminating:
-                color = ARGO_RUNNING_COLOR;
-                className = 'fa fa-circle-o-notch status-icon--running status-icon--spin';
+                color = COLORS.operation.terminating;
+                className = 'fa fa-circle-o-notch fa-spin';
                 break;
         }
         let title: string = resource.message;

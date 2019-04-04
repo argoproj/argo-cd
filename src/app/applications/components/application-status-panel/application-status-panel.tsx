@@ -1,4 +1,4 @@
-import { DropDownMenu } from 'argo-ui';
+import { DropDownMenu, Tooltip } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 
@@ -18,9 +18,7 @@ interface Props {
 export const ApplicationStatusPanel = ({application, showOperation, showConditions, refresh}: Props) => {
     const refreshing = application.metadata.annotations && application.metadata.annotations[models.AnnotationRefreshKey];
     const today = new Date();
-    const creationDate = new Date(application.metadata.creationTimestamp);
 
-    const daysActive = Math.round(Math.abs((today.getTime() - creationDate.getTime()) / (24 * 60 * 60 * 1000)));
     let daysSinceLastSynchronized = 0;
     const history = application.status.history || [];
     if (history.length > 0) {
@@ -46,18 +44,29 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             } as models.Operation,
         } as models.OperationState;
     }
+
+    const tooltip = (title: string) => (
+        <Tooltip content={title}>
+            <span style={{fontSize: 'smaller'}}><i className='fa fa-question-circle help-tip'/></span>
+        </Tooltip>
+    );
+
     return (
         <div className='application-status-panel row'>
-            <div className='application-status-panel__item columns small-2'>
-                <div className='application-status-panel__item-value'>{daysActive}</div>
-                <div className='application-status-panel__item-name'>Days active</div>
+            <div className='application-status-panel__item columns small-3'>
+                <div className='application-status-panel__item-value'>
+                    <HealthStatusIcon state={application.status.health}/>
+                    {application.status.health.status}
+                    {tooltip('The health status of your app')}
+                </div>
+                <div className='application-status-panel__item-name'>{application.status.health.message}</div>
             </div>
-            <div className='application-status-panel__item columns small-2'>
-                <div className='application-status-panel__item-value'>{daysSinceLastSynchronized}</div>
-                <div className='application-status-panel__item-name'>Days since last synchronized</div>
-            </div>
-            <div className='application-status-panel__item columns small-2' style={{position: 'relative'}}>
-                <div className='application-status-panel__item-value'><ComparisonStatusIcon status={application.status.sync.status}/> {application.status.sync.status}</div>
+            <div className='application-status-panel__item columns small-3' style={{position: 'relative'}}>
+                <div className='application-status-panel__item-value'>
+                    <ComparisonStatusIcon status={application.status.sync.status}/>
+                    {application.status.sync.status}
+                    {tooltip('Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.')}
+                </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
                 <div className={classNames('application-status-panel__refresh', { 'application-status-panel__refresh--disabled': !!refreshing })}>
                     <i className={classNames('fa fa-refresh', { 'status-icon--spin': !!refreshing })}
@@ -66,19 +75,18 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     }]} anchor={() => <i className='fa fa-caret-down'/>} />
                 </div>
             </div>
-            <div className='application-status-panel__item columns small-2'>
-                <div className='application-status-panel__item-value'><HealthStatusIcon state={application.status.health}/> {application.status.health.status}</div>
-                <div className='application-status-panel__item-name'>{application.status.health.message}</div>
-            </div>
             {appOperationState && (
-            <div className='application-status-panel__item columns small-2'>
+            <div className='application-status-panel__item columns small-4'>
                 <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application)} <utils.OperationPhaseIcon
-                        phase={appOperationState.phase}/></a>
+                    <a onClick={() => showOperation && showOperation()}>{utils.getOperationType(application)}
+                        <utils.OperationPhaseIcon phase={appOperationState.phase}/>
+                    </a>
+                    {tooltip('Whether or not your last app sync was successful. It has been ' + daysSinceLastSynchronized +
+                        ' days since last sync. Click for the status of that sync.')}
                 </div>
                 <div className='application-status-panel__item-name'>
-                    {appOperationState.phase} at {appOperationState.finishedAt || appOperationState.startedAt}
-               </div>
+                    {appOperationState.phase} at {appOperationState.finishedAt || appOperationState.startedAt}.<br/>
+                </div>
             </div>
             )}
             {application.status.conditions && (

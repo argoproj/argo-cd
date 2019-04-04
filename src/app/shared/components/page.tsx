@@ -18,7 +18,7 @@ export class Page extends React.Component<{ title: string, toolbar?: Toolbar | O
                 toolbar = toolbar || {};
                 toolbar.tools = [
                     toolbar.tools,
-                    <a style={{position: 'absolute', top: 0, right: '1em'}} key='logout' onClick={() => this.logout()}>Logout</a>,
+                    <a key='logout' onClick={() => this.logout()}>Logout</a>,
                 ];
                 return toolbar;
             })}>

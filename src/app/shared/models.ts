@@ -250,6 +250,7 @@ export interface ResourceNode extends ResourceRef {
     parentRefs: ResourceRef[];
     info: { name: string, value: string }[];
     networkingInfo?: ResourceNetworkingInfo;
+    images?: string[];
     resourceVersion: string;
 }
 

@@ -8,7 +8,13 @@ export const ClustersList = () => (
     <Page title='Clusters' toolbar={{ breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Clusters'}] }}>
         <div className='repos-list'>
             <div className='argo-container'>
-                <DataLoader load={() => services.clusters.list()}>
+                <DataLoader load={() => services.clusters.list().then((clusters) => clusters
+                    .map((cluster) => {
+                        cluster.name = cluster.name || 'in-cluster';
+                        return cluster;
+                    })
+                    .sort((first, second) => first.name.localeCompare(second.name)),
+                )}>
                 {(clusters: models.Cluster[]) => (
                     clusters.length > 0 && (
                     <div className='argo-table-list'>

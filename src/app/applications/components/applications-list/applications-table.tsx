@@ -18,8 +18,8 @@ export const ApplicationsTable = (props: {
             <div className='row'>
                 <div className='columns large-2 small-6'>PROJECT/NAME</div>
                 <div className='columns large-4 show-for-large'>SOURCE</div>
-                <div className='columns large-4 show-for-large'>DESTINATION</div>
-                <div className='columns large-2 small-6'>STATUS</div>
+                <div className='columns large-3 show-for-large'>DESTINATION</div>
+                <div className='columns large-3 small-6'>STATUS</div>
             </div>
         </div>
         {props.applications.map((app) => (
@@ -34,15 +34,15 @@ export const ApplicationsTable = (props: {
                     <div className='columns large-4 show-for-large'>
                         {app.spec.source.repoURL}/{app.spec.source.path}
                     </div>
-                    <div className='columns large-4 show-for-large'>
+                    <div className='columns large-3 show-for-large'>
                         {app.spec.destination.server}/{app.spec.destination.namespace}
                     </div>
-                    <div className='columns large-2 small-6'>
-                        <div className='applications-list__table-icon'>
-                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status}/> <span>{app.status.sync.status}</span>
-                        </div>
+                    <div className='columns large-3 small-6'>
                         <div className='applications-list__table-icon'>
                             <AppUtils.HealthStatusIcon state={app.status.health}/> <span>{app.status.health.status}</span>
+                        </div>
+                        <div className='applications-list__table-icon'>
+                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status}/> <span>{app.status.sync.status}</span>
                         </div>
                         <DropDownMenu anchor={() => (
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

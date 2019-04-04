@@ -116,7 +116,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         breadcrumbs: [{ title: 'Applications', path: '/applications' }],
         tools: (
             <React.Fragment key='app-list-tools'>
-                <div className='applications-list__view-type'>
+                <span className='applications-list__view-type'>
                     <i className={classNames('fa fa-th', {selected: pref.appList.view === 'tiles'})} onClick={() => {
                         ctx.navigation.goto('.', { view: 'tiles'});
                         services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'tiles'} });
@@ -129,7 +129,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                         ctx.navigation.goto('.', { view: 'summary'});
                         services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'summary'} });
                     }} />
-                </div>
+                </span>
             </React.Fragment>
         ),
         actionMenu: {

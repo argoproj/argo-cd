@@ -370,20 +370,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private getApplicationActionMenu(application: appModels.Application) {
         return [{
-            iconClassName: 'icon fa fa-info-circle',
+            iconClassName: 'fa fa-info-circle',
             title: 'Details',
             action: () => this.selectNode(nodeKey({
                 group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace })),
         }, {
-            iconClassName: 'icon argo-icon-deploy',
+            iconClassName: 'argo-icon-deploy',
             title: 'Sync',
             action: () => this.showDeploy('all'),
         }, {
-            iconClassName: 'icon fa fa-history',
-            title: 'History',
+            iconClassName: 'fa fa-history',
+            title: 'History and rollback',
             action: () => this.setRollbackPanelVisible(0),
         }, {
-            iconClassName: 'icon fa fa-times-circle',
+            iconClassName: 'fa fa-times-circle',
             title: 'Delete',
             action: () => this.deleteApplication(),
         }];
@@ -532,9 +532,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         }
 
         return [{
-            title: 'Details',
-            action: () => this.selectNode(nodeKey(resource)),
-        }, {
             title: 'Sync',
             action: () => this.showDeploy(nodeKey(resource)),
         }, {

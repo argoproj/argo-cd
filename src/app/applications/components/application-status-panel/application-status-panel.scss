@@ -1,5 +1,9 @@
 @import 'node_modules/argo-ui/src/app/shared/styles/config';
 
+.help-tip {
+    color: $argo-color-gray-3;
+}
+
 .application-status-panel {
     font-size: .875em;
     color: $argo-color-gray-6;

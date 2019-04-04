@@ -1,20 +1,20 @@
 import * as React from 'react';
 const PieChart = require('react-svg-piechart').default;
 
-import { ARGO_FAILED_COLOR, ARGO_GRAY4_COLOR, ARGO_RUNNING_COLOR, ARGO_SUCCESS_COLOR } from '../../../shared/components';
+import { COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
-healthColors.set('Healthy', ARGO_SUCCESS_COLOR);
-healthColors.set('Progressing', ARGO_RUNNING_COLOR);
-healthColors.set('Degraded', ARGO_FAILED_COLOR);
-healthColors.set('Missing', ARGO_GRAY4_COLOR);
-healthColors.set('Unknown', 'black');
+healthColors.set('Healthy', COLORS.health.healthy);
+healthColors.set('Progressing', COLORS.health.progressing);
+healthColors.set('Degraded', COLORS.health.degraded);
+healthColors.set('Missing', COLORS.health.missing);
+healthColors.set('Unknown', COLORS.health.unknown);
 
 const syncColors = new Map<models.SyncStatusCode, string>();
-syncColors.set('Synced', ARGO_SUCCESS_COLOR);
-syncColors.set('OutOfSync', ARGO_FAILED_COLOR);
-syncColors.set('Unknown', ARGO_GRAY4_COLOR);
+syncColors.set('Synced', COLORS.sync.synced);
+syncColors.set('OutOfSync', COLORS.sync.out_of_sync);
+syncColors.set('Unknown', COLORS.sync.unknown);
 
 export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
 

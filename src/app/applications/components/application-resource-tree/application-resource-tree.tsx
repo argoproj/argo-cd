@@ -1,4 +1,4 @@
-import { DropDownMenu, MenuItem } from 'argo-ui';
+import { DropDownMenu, MenuItem, Tooltip } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -235,39 +235,42 @@ export const ApplicationResourceTree = (props: {
                     healthState = node.health;
                 }
                 const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-gears';
+                const tooltip = node.images && node.images.join(', ') || '';
                 return (
-                    <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resource-tree__node', {
-                        active: fullName === props.selectedNodeFullName,
-                    })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
-                        {!isAppNode(node) && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
-                        <div className={classNames('application-resource-tree__node-kind-icon', {
-                            'application-resource-tree__node-kind-icon--big': isAppNode(node),
-                        })}>
-                            <i title={node.kind} className={`icon ${kindIcon}`}/>
-                        </div>
-                        <div className='application-resource-tree__node-content'>
-                            <span className='application-resource-tree__node-title' title={node.name}>{node.name}</span>
-                            <div className={classNames('application-resource-tree__node-status-icon', {
-                                'application-resource-tree__node-status-icon--offset': isAppNode(node),
+                        <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resource-tree__node', {
+                            active: fullName === props.selectedNodeFullName,
+                        })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+                            {!isAppNode(node) && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
+                            <div className={classNames('application-resource-tree__node-kind-icon', {
+                                'application-resource-tree__node-kind-icon--big': isAppNode(node),
                             })}>
-                                {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
-                                {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
-                                {healthState != null && <HealthStatusIcon state={healthState}/>}
-                                <ApplicationIngressLink ingress={isAppNode(node) ? props.app.status.ingress : node.networkingInfo && node.networkingInfo.ingress}/>
+                                <i title={node.kind} className={`icon ${kindIcon}`} />
                             </div>
-                        </div>
-                        <div className='application-resource-tree__node-labels'>
-                            {(node.info || []).map((tag, i) => <span title={`${tag.name}:${tag.value}`} key={i}>{tag.value}</span>)}
-                            <span>{node.kind}</span>
-                        </div>
-                        {props.nodeMenuItems && (
-                            <div className='application-resource-tree__node-menu'>
-                                <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                    <i className='fa fa-ellipsis-v'/>
-                                </button>} items={props.nodeMenuItems(node)}/>
+                            <div className='application-resource-tree__node-content'>
+                                <Tooltip content={tooltip} key={fullName} isEnabled={tooltip !== ''}>
+                                    <span className='application-resource-tree__node-title'>{node.name}</span>
+                                </Tooltip>
+                                <div className={classNames('application-resource-tree__node-status-icon', {
+                                    'application-resource-tree__node-status-icon--offset': isAppNode(node),
+                                })}>
+                                    {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
+                                    {healthState != null && <HealthStatusIcon state={healthState}/>}
+                                    {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
+                                    <ApplicationIngressLink ingress={isAppNode(node) ? props.app.status.ingress : node.networkingInfo && node.networkingInfo.ingress}/>
+                                </div>
                             </div>
-                        )}
-                    </div>
+                            <div className='application-resource-tree__node-labels'>
+                                {(node.info || []).map((tag, i) => <span title={`${tag.name}:${tag.value}`} key={i}>{tag.value}</span>)}
+                                <span>{node.kind}</span>
+                            </div>
+                            {props.nodeMenuItems && (
+                                <div className='application-resource-tree__node-menu'>
+                                    <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                        <i className='fa fa-ellipsis-v'/>
+                                    </button>} items={props.nodeMenuItems(node)}/>
+                                </div>
+                            )}
+                        </div>
                 );
             })}
             {edges.map((edge) => (

@@ -38,6 +38,11 @@
             border-left-color: $argo-success-color;
         }
 
+        // having this higher up ensures that progressing takes precedence
+        &--comparison-OutOfSync {
+            border-left-color: $argo-status-warning-color;
+        }
+
         // intermediate statuses
 
         &--health-Progressing {
@@ -51,10 +56,6 @@
         }
 
         &--comparison-Error {
-            border-left-color: $argo-failed-color;
-        }
-
-        &--comparison-OutOfSync {
             border-left-color: $argo-failed-color;
         }
 

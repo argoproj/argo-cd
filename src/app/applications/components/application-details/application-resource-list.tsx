@@ -15,8 +15,7 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
                 <div className='columns small-3'>NAME</div>
                 <div className='columns small-3'>GROUP/KIND</div>
                 <div className='columns small-2'>NAMESPACE</div>
-                <div className='columns small-2'>SYNC</div>
-                <div className='columns small-2'>HEALTH</div>
+                <div className='columns small-4'>STATUS</div>
             </div>
         </div>
         {resources.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second))).map((res) => (
@@ -27,11 +26,10 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
                     </div>
                     <div className='columns small-3'>{[res.group, res.kind].filter((item) => !!item).join('/')}</div>
                     <div className='columns small-2'>{res.namespace}</div>
-                    <div className='columns small-2'>
-                        {res.status && <ComparisonStatusIcon status={res.status}/>} {res.status}
-                    </div>
-                    <div className='columns small-2'>
+                    <div className='columns small-4'>
                         {res.health && <HealthStatusIcon state={res.health}/>} {res.health.status}
+                        &nbsp;
+                        {res.status && <ComparisonStatusIcon status={res.status}/>} {res.status}
                         {res.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                         <div className='application-details__node-menu'>
                             <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>

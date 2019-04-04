@@ -1,6 +1,6 @@
 import { Layout, NavigationManager, NotificationInfo, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps } from 'argo-ui';
 import * as cookie from 'cookie';
-import createHistory from 'history/createBrowserHistory';
+import { createBrowserHistory } from 'history';
 import * as jwtDecode from 'jwt-decode';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -13,7 +13,7 @@ import requests from './shared/services/requests';
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
-export const history = createHistory({ basename: base });
+export const history = createBrowserHistory({ basename: base });
 requests.setApiRoot(`${base}api/v1`);
 
 import applications from './applications';
@@ -30,15 +30,15 @@ const routes: {[path: string]: { component: React.ComponentType<RouteComponentPr
 };
 
 const navItems = [{
-    title: 'Apps',
+    title: 'Manage your applications, and diagnose health problems.',
     path: '/applications',
     iconClassName: 'argo-icon-application',
 }, {
-    title: 'Settings',
+    title: 'Manage your repositories, projects, settings',
     path: '/settings',
     iconClassName: 'argo-icon-settings',
 }, {
-    title: 'Help',
+    title: 'Read the documentation, and get help and assistance.',
     path: '/help',
     iconClassName: 'argo-icon-docs',
 }];

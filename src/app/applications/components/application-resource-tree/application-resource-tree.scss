@@ -72,6 +72,10 @@
         border: 1px solid transparent;
         cursor: pointer;
 
+        .icon {
+            font-size: 2em;
+        }
+
         &.active {
             border-color: $argo-color-teal-6;
         }
@@ -115,10 +119,10 @@
         left: 10px;
         top: 8px;
         line-height: 1;
-        color: $argo-success-color;
+        color: $argo-color-gray-5;
 
         &--big {
-            background: $argo-success-color;
+            background: $argo-color-gray-5;
             position: absolute;
             width: 65px;
             height: 65px;
