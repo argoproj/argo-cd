@@ -521,9 +521,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				if len(app.Spec.Source.Ksonnet.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
-				}
 			}
 			if app.Spec.Source.Helm != nil {
 				for _, paramStr := range parameters {
@@ -535,9 +532,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 							break
 						}
 					}
-				}
-				if len(app.Spec.Source.Helm.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
 				}
 				specValueFiles := app.Spec.Source.Helm.ValueFiles
 				for _, valuesFile := range valuesFiles {
