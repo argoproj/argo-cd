@@ -41,7 +41,7 @@ spec:
             repo: "{{workflow.parameters.repo}}"
             revision: "{{workflow.parameters.revision}}"
     container:
-      image: argoproj/argo-cd-ci-builder:v0.13.0
+      image: argoproj/argo-cd-ci-builder:v0.13.1
       imagePullPolicy: Always
       command: [sh, -c]
       # Main contains build argocd image. The image is saved it into k3s agent images directory so it could be preloaded by the k3s cluster.
@@ -110,7 +110,7 @@ spec:
           repo: "{{workflow.parameters.repo}}"
           revision: "{{workflow.parameters.revision}}"
     container:
-      image: argoproj/argo-cd-ci-builder:v0.13.0
+      image: argoproj/argo-cd-ci-builder:v0.13.1
       imagePullPolicy: Always
       command: [bash, -c]
       args: ["{{inputs.parameters.cmd}}"]
@@ -139,7 +139,7 @@ spec:
           repo: "{{workflow.parameters.repo}}"
           revision: "{{workflow.parameters.revision}}"
     container:
-      image: argoproj/argo-cd-ci-builder:v0.13.0
+      image: argoproj/argo-cd-ci-builder:v0.13.1
       imagePullPolicy: Always
       command: [sh, -c]
       args: ["until docker ps; do sleep 3; done && {{inputs.parameters.cmd}}"]
