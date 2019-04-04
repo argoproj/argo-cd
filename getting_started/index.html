@@ -1009,7 +1009,7 @@
 <li>Have a <a href="https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/">kubeconfig</a> file (default location is <code>~/.kube/config</code>).</li>
 </ul>
 <h2 id="1-install-argo-cd">1. Install Argo CD<a class="headerlink" href="#1-install-argo-cd" title="Permanent link">&para;</a></h2>
-<p>``bash
+<p>````bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml</p>
 <div class="codehilite"><pre><span></span>This will create a new namespace, `argocd`, where Argo CD services and application resources will live.
