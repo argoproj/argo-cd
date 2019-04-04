@@ -85,6 +85,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
+	command.AddCommand(NewApplicationCustomActionsCommand(clientOpts))
 	return command
 }
 
@@ -1684,6 +1685,102 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 	command.Flags().StringVar(&patch, "patch", "", "Patch")
 	return &command
+}
+
+func NewApplicationCustomActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "custom-actions",
+		Short: "Manage custom actions",
+		Run: func(c *cobra.Command, args []string) {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		},
+	}
+	command.AddCommand(NewApplicationCustomActionsListCommand(clientOpts))
+	command.AddCommand(NewApplicationCustomActionsRunCommand(clientOpts))
+	return command
+}
+
+func NewApplicationCustomActionsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var namespace string
+	var kind string
+	var group string
+	var command = &cobra.Command{
+		Use:   "list APPNAME RESOURCE-NAME",
+		Short: "Lists available custom actions on a resource",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			resourceName := args[1]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			customActions, err := appIf.ListCustomActions(context.Background(), &application.ApplicationResourceRequest{
+				Name:         &appName,
+				Namespace:    namespace,
+				ResourceName: resourceName,
+				Group:        group,
+				Kind:         kind,
+			})
+			errors.CheckError(err)
+			fmt.Println("Available Actions")
+
+			for _, action := range customActions.Actions {
+				fmt.Println(action.Name)
+			}
+		},
+	}
+	command.Flags().StringVar(&kind, "kind", "", "Kind")
+	err := command.MarkFlagRequired("kind")
+	errors.CheckError(err)
+	command.Flags().StringVar(&group, "group", "", "Group")
+	errors.CheckError(err)
+	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
+	err = command.MarkFlagRequired("namespace")
+	errors.CheckError(err)
+	return command
+}
+
+/* argocd app custom-actions run guestbook-bluegreen unpause */
+func NewApplicationCustomActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var namespace string
+	var kind string
+	var group string
+	var command = &cobra.Command{
+		Use:   "run APP-NAME RESOURCE-NAME ACTION",
+		Short: "Runs an available custom actions on a resource",
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 3 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName := args[0]
+			resourceName := args[1]
+			actionName := args[2]
+			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+			defer util.Close(conn)
+			_, err := appIf.RunCustomActions(context.Background(), &application.CustomActionRunRequest{
+				Name:         &appName,
+				Namespace:    namespace,
+				ResourceName: resourceName,
+				Group:        group,
+				Kind:         kind,
+				Action:       actionName,
+			})
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().StringVar(&kind, "kind", "", "Kind")
+	err := command.MarkFlagRequired("kind")
+	errors.CheckError(err)
+	command.Flags().StringVar(&group, "group", "", "Group")
+	errors.CheckError(err)
+	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
+	err = command.MarkFlagRequired("namespace")
+	errors.CheckError(err)
+	return command
 }
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
