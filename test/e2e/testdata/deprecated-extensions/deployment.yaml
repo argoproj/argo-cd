@@ -5,7 +5,7 @@ metadata:
   labels:
     app: extensions-deployment
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: extensions-deployment

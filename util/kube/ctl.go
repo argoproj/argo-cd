@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +22,10 @@ import (
 
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/diff"
+)
+
+var (
+	ingressDeprecationVersion = semver.MustParse("v1.14.0")
 )
 
 type Kubectl interface {
@@ -47,10 +52,20 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 	if err != nil {
 		return nil, err
 	}
+
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, err
 	}
+	versionInfo, err := disco.ServerVersion()
+	if err != nil {
+		return nil, err
+	}
+	version, err := semver.NewVersion(versionInfo.String())
+	if err != nil {
+		return nil, err
+	}
+
 	serverResources, err := disco.ServerPreferredResources()
 	if err != nil {
 		if len(serverResources) == 0 {
@@ -68,7 +83,9 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 			if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
 				continue
 			}
-			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok {
+			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok &&
+				// Edge case for deprecated Ingress kind.
+				!(gv.Group == "extensions" && apiResource.Kind == IngressKind && version.LessThan(ingressDeprecationVersion)) {
 				continue
 			}
 			if filter(&apiResource) {
@@ -273,11 +290,24 @@ func runKubectl(kubeconfigPath string, namespace string, args []string, manifest
 }
 
 // ConvertToVersion converts an unstructured object into the specified group/version
-func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
+func (k KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	gvk := obj.GroupVersionKind()
 	if gvk.Group == group && gvk.Version == version {
 		return obj.DeepCopy(), nil
 	}
+	newGroup, isObsoleteKind := obsoleteExtensionsKinds[gvk.Kind]
+
+	// If converting from or to obsolete kind from 'extensions' group when just replace group, version, kind without real conversion.
+	if gvk.Group == "extensions" && isObsoleteKind || isObsoleteKind && group == "extensions" && newGroup == gvk.Group {
+		converted := obj.DeepCopy()
+		converted.SetGroupVersionKind(schema.GroupVersionKind{
+			Kind:    gvk.Kind,
+			Group:   group,
+			Version: version,
+		})
+		return converted, nil
+	}
+
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err

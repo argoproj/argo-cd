@@ -132,9 +132,9 @@ func (f *Fixture) RepoURL() string {
 
 // cleanup deletes test namespace resources.
 func (f *Fixture) cleanup() {
+	f.EnsureCleanState()
 	f.deleteDeploymentNamespace()
 	f.cleanupTestRepo()
-	f.EnsureCleanState()
 }
 
 func (f *Fixture) cleanupTestRepo() {
