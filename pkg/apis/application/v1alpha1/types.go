@@ -701,8 +701,19 @@ type HelmRepository struct {
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	IgnoreDifferences string `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	HealthLua         string        `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
+	CustomActions     CustomActions `json:"customActions" protobuf:"bytes,3,opt,name=customActions"`
+	IgnoreDifferences string        `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+}
+
+type CustomActions struct {
+	ActionDiscoveryLua string                   `yaml:"actionDiscovery.lua" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
+	Definitions        []CustomActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
+}
+
+type CustomActionDefinition struct {
+	Name      string `yaml:"name" protobuf:"bytes,1,opt,name=name"`
+	ActionLua string `yaml:"action.lua" protobuf:"bytes,2,opt,name=actionLua"`
 }
 
 // Repository is a Git repository holding application configurations
@@ -1039,4 +1050,16 @@ func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 
 func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
+}
+
+type CustomAction struct {
+	Name   string              `yaml:"name" protobuf:"bytes,1,opt,name=name"`
+	Params []CustomActionParam `yaml:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+}
+
+type CustomActionParam struct {
+	Name    string `yaml:"name" protobuf:"bytes,1,opt,name=name"`
+	Value   string `yaml:"value" protobuf:"bytes,2,opt,name=value"`
+	Type    string `yaml:"type" protobuf:"bytes,3,opt,name=type"`
+	Default string `yaml:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }

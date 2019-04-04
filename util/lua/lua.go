@@ -17,10 +17,12 @@ import (
 )
 
 const (
-	incorrectReturnType              = "expect table output from Lua script, not %s"
+	incorrectReturnType              = "expect %s output from Lua script, not %s"
 	invalidHealthStatus              = "Lua returned an invalid health status"
 	resourceCustomizationBuiltInPath = "../../resource_customizations"
-	healthScript                     = "health.lua"
+	healthScriptFile                 = "health.lua"
+	actionScriptFile                 = "action.lua"
+	actionDiscoveryScriptFile        = "actionDiscovery.lua"
 )
 
 var (
@@ -96,16 +98,93 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*a
 
 		return healthStatus, nil
 	}
-	return nil, fmt.Errorf(incorrectReturnType, returnValue.Type().String())
+	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
-// GetScript attempts to read lua script from config and then filesystem for that resource
+// GetHealthScript attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, error) {
 	key := getConfigMapKey(obj)
 	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
 		return script.HealthLua, nil
 	}
-	return vm.getPredefinedLuaScripts(key, healthScript)
+	return vm.getPredefinedLuaScripts(key, healthScriptFile)
+}
+
+func (vm VM) ExecuteCustomAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
+	l, err := vm.runLua(obj, script)
+	if err != nil {
+		return nil, err
+	}
+	returnValue := l.Get(-1)
+	if returnValue.Type() == lua.LTTable {
+		jsonBytes, err := luajson.Encode(returnValue)
+		if err != nil {
+			return nil, err
+		}
+		newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
+		if err != nil {
+			return nil, err
+		}
+		return newObj, nil
+	}
+	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+func (vm VM) ExecuteCustomActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.CustomAction, error) {
+	l, err := vm.runLua(obj, script)
+	if err != nil {
+		return nil, err
+	}
+	returnValue := l.Get(-1)
+	if returnValue.Type() == lua.LTTable {
+		jsonBytes, err := luajson.Encode(returnValue)
+		if err != nil {
+			return nil, err
+		}
+		availableActions := make([]appv1.CustomAction, 0)
+		err = json.Unmarshal(jsonBytes, &availableActions)
+		return availableActions, err
+	}
+
+	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+func (vm VM) GetCustomActionDiscovery(obj *unstructured.Unstructured) (string, error) {
+	key := getConfigMapKey(obj)
+	override, ok := vm.ResourceOverrides[key]
+	if ok {
+		return override.CustomActions.ActionDiscoveryLua, nil
+	}
+	discoveryKey := fmt.Sprintf("%s/actions/", key)
+	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
+	if err != nil {
+		return "", err
+	}
+	return discoveryScript, nil
+}
+
+// GetCustomAction attempts to read lua script from config and then filesystem for that resource
+func (vm VM) GetCustomAction(obj *unstructured.Unstructured, actionName string) (appv1.CustomActionDefinition, error) {
+	key := getConfigMapKey(obj)
+	override, ok := vm.ResourceOverrides[key]
+	if ok {
+		for _, action := range override.CustomActions.Definitions {
+			if action.Name == actionName {
+				return action, nil
+			}
+		}
+	}
+
+	actionKey := fmt.Sprintf("%s/actions/%s", key, actionName)
+	actionScript, err := vm.getPredefinedLuaScripts(actionKey, actionScriptFile)
+	if err != nil {
+		return appv1.CustomActionDefinition{}, err
+	}
+
+	return appv1.CustomActionDefinition{
+		Name:      actionName,
+		ActionLua: actionScript,
+	}, nil
 }
 
 func getConfigMapKey(obj *unstructured.Unstructured) string {
@@ -117,8 +196,8 @@ func getConfigMapKey(obj *unstructured.Unstructured) string {
 
 }
 
-func (vm VM) getPredefinedLuaScripts(objKey string, scriptType string) (string, error) {
-	data, err := box.MustBytes(filepath.Join(objKey, scriptType))
+func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
+	data, err := box.MustBytes(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil

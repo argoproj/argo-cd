@@ -79,7 +79,7 @@ func TestFailLuaReturnNonTable(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, returnInt)
-	assert.Equal(t, fmt.Errorf(incorrectReturnType, "number"), err)
+	assert.Equal(t, fmt.Errorf(incorrectReturnType, "table", "number"), err)
 }
 
 const invalidHealthStatusStatus = `local healthStatus = {}
@@ -108,7 +108,21 @@ func TestHandleInfiniteLoop(t *testing.T) {
 	assert.IsType(t, &lua.ApiError{}, err)
 }
 
-func TestGetPredefinedLuaScript(t *testing.T) {
+func TestGetHealthScriptWithOverride(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"argoproj.io/Rollout": {
+				HealthLua: newHealthStatusFunction,
+			},
+		},
+	}
+	script, err := vm.GetHealthScript(testObj)
+	assert.Nil(t, err)
+	assert.Equal(t, newHealthStatusFunction, script)
+}
+
+func TestGetHealthScriptPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	script, err := vm.GetHealthScript(testObj)
@@ -116,10 +130,183 @@ func TestGetPredefinedLuaScript(t *testing.T) {
 	assert.NotEmpty(t, script)
 }
 
-func TestGetNonExistentPredefinedLuaScript(t *testing.T) {
+func TestGetHealthScriptNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	script, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
 	assert.Equal(t, "", script)
+}
+
+func TestGetCustomActionPredefined(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+
+	customAction, err := vm.GetCustomAction(testObj, "resume")
+	assert.Nil(t, err)
+	assert.NotEmpty(t, customAction)
+}
+
+func TestGetCustomActionNoPredefined(t *testing.T) {
+	testObj := StrToUnstructured(objWithNoScriptJSON)
+	vm := VM{}
+	customAction, err := vm.GetCustomAction(testObj, "test")
+	assert.Nil(t, err)
+	assert.Empty(t, customAction.ActionLua)
+}
+
+func TestGetCustomActionWithOverride(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	test := appv1.CustomActionDefinition{
+		Name:      "test",
+		ActionLua: "return obj",
+	}
+
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"argoproj.io/Rollout": {
+				CustomActions: appv1.CustomActions{
+					Definitions: []appv1.CustomActionDefinition{
+						test,
+					},
+				},
+			},
+		},
+	}
+	customAction, err := vm.GetCustomAction(testObj, "test")
+	assert.Nil(t, err)
+	assert.Equal(t, test, customAction)
+}
+
+func TestGetCustomActionDiscoveryPredefined(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+
+	discoveryLua, err := vm.GetCustomActionDiscovery(testObj)
+	assert.Nil(t, err)
+	assert.NotEmpty(t, discoveryLua)
+}
+
+func TestGetCustomActionDiscoveryNoPredefined(t *testing.T) {
+	testObj := StrToUnstructured(objWithNoScriptJSON)
+	vm := VM{}
+	discoveryLua, err := vm.GetCustomActionDiscovery(testObj)
+	assert.Nil(t, err)
+	assert.Empty(t, discoveryLua)
+}
+
+func TestGetCustomActionDiscoveryWithOverride(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"argoproj.io/Rollout": {
+				CustomActions: appv1.CustomActions{
+					ActionDiscoveryLua: validDiscoveryLua,
+				},
+			},
+		},
+	}
+	discoveryLua, err := vm.GetCustomActionDiscovery(testObj)
+	assert.Nil(t, err)
+	assert.Equal(t, validDiscoveryLua, discoveryLua)
+}
+
+const validDiscoveryLua = `
+scaleParam = {}
+scaleParam['name'] = 'replicas'
+scaleParam['type'] = 'number'
+
+scaleParams = {}
+scaleParams[1] = scaleParam
+
+scale = {}
+scale['name'] = 'scale'
+scale['params'] = scaleParams
+
+resume = {}
+resume['name'] = 'resume'
+resume['ignoresIrrelevant'] = 'fields'
+
+a = {}
+a[1] = scale
+a[2] = resume
+return a
+`
+
+func TestExecuteCustomActionDiscovery(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	customActions, err := vm.ExecuteCustomActionDiscovery(testObj, validDiscoveryLua)
+	assert.Nil(t, err)
+	expectedActions := []appv1.CustomAction{
+		{
+			Name: "scale",
+			Params: []appv1.CustomActionParam{{
+				Name: "replicas",
+				Type: "number",
+			}},
+		}, {
+			Name: "resume",
+		},
+	}
+	assert.Equal(t, expectedActions, customActions)
+}
+
+const invalidDiscoveryLua = `
+a = 1
+return a
+`
+
+func TestExecuteCustomActionDiscoveryInvalidReturn(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	customActions, err := vm.ExecuteCustomActionDiscovery(testObj, invalidDiscoveryLua)
+	assert.Nil(t, customActions)
+	assert.Error(t, err)
+
+}
+
+const validActionLua = `
+obj.metadata.labels["test"] = "test"
+return obj
+`
+
+const expectedUpdatedObj = `
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  labels:
+    app.kubernetes.io/instance: helm-guestbook
+    test: test
+  name: helm-guestbook
+  namespace: default
+  resourceVersion: "123"
+`
+
+func TestExecuteCustomAction(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	expectedObj := StrToUnstructured(expectedUpdatedObj)
+	vm := VM{}
+	newObj, err := vm.ExecuteCustomAction(testObj, validActionLua)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObj, newObj)
+}
+
+func TestExecuteCustomActionNonTableReturn(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	_, err := vm.ExecuteCustomAction(testObj, returnInt)
+	assert.Errorf(t, err, incorrectReturnType, "table", "number")
+}
+
+const invalidTableReturn = `newObj = {}
+newObj["test"] = "test"
+return newObj
+`
+
+func TestExecuteCustomActionInvalidUnstructured(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	_, err := vm.ExecuteCustomAction(testObj, invalidTableReturn)
+	assert.Error(t, err)
 }

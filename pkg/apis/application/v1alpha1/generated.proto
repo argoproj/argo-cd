@@ -326,6 +326,34 @@ message ConnectionState {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
 }
 
+message CustomAction {
+  optional string name = 1;
+
+  repeated CustomActionParam params = 2;
+}
+
+message CustomActionDefinition {
+  optional string name = 1;
+
+  optional string actionLua = 2;
+}
+
+message CustomActionParam {
+  optional string name = 1;
+
+  optional string value = 2;
+
+  optional string type = 3;
+
+  optional string default = 4;
+}
+
+message CustomActions {
+  optional string actionDiscoveryLua = 1;
+
+  repeated CustomActionDefinition definitions = 2;
+}
+
 message HealthStatus {
   optional string status = 1;
 
@@ -527,6 +555,8 @@ message ResourceNode {
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 message ResourceOverride {
   optional string healthLua = 1;
+
+  optional CustomActions customActions = 3;
 
   optional string ignoreDifferences = 2;
 }

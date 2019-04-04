@@ -2708,6 +2708,31 @@
         }
       }
     },
+    "v1alpha1CustomActionDefinition": {
+      "type": "object",
+      "properties": {
+        "actionLua": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1CustomActions": {
+      "type": "object",
+      "properties": {
+        "actionDiscoveryLua": {
+          "type": "string"
+        },
+        "definitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1CustomActionDefinition"
+          }
+        }
+      }
+    },
     "v1alpha1HealthStatus": {
       "type": "object",
       "properties": {
@@ -3037,6 +3062,9 @@
       "type": "object",
       "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
       "properties": {
+        "customActions": {
+          "$ref": "#/definitions/v1alpha1CustomActions"
+        },
         "healthLua": {
           "type": "string"
         },
