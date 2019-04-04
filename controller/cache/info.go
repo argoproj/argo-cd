@@ -3,6 +3,8 @@ package cache
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-cd/util/health"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,11 +121,6 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 
 	initializing := false
 
-	// note that I ignore initContainers
-	for _, container := range pod.Spec.Containers {
-		node.images = append(node.images, container.Image)
-	}
-
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)
@@ -190,7 +187,13 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	if reason != "" {
 		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	node.health = createHealth(pod.Status, reason)
+	node.health, _ = health.GetPodHealth(un)
+
+	// note that I ignore initContainers
+	for _, container := range pod.Spec.Containers {
+		node.images = append(node.images, container.Image)
+	}
+
 	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }
