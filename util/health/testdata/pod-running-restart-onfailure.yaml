@@ -75,10 +75,6 @@ status:
     name: main
     ready: false
     restartCount: 4
-    state:
-      waiting:
-        message: Back-off 1m20s restarting failed container=main pod=my-pod_argocd(3cf9325e-f617-11e8-a057-fe5f49266390)
-        reason: CrashLoopBackOff
   hostIP: 192.168.64.41
   phase: Running
   podIP: 172.17.0.9

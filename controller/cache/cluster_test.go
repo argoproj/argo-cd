@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
-	"k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 
 	"github.com/argoproj/argo-cd/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -50,9 +49,7 @@ var (
     - apiVersion: extensions/v1beta1
       kind: ReplicaSet
       name: helm-guestbook-rs
-    resourceVersion: "123"
-  status:
-    phase: Running`)
+    resourceVersion: "123"`)
 
 	testRS = strToUnstructured(`
   apiVersion: apps/v1
@@ -186,10 +183,10 @@ func TestGetChildren(t *testing.T) {
 			Namespace: "default",
 			Name:      "helm-guestbook-rs",
 		}},
-		Health:          &appv1.HealthStatus{Status: v1beta1.Healthy},
+		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
 		NetworkingInfo:  &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		ResourceVersion: "123",
-		Info:            []appv1.InfoItem{{Name: "Status Reason", Value: "Running"}, {Name: "Containers", Value: "0/0"}},
+		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
 	}}, rsChildren)
 	deployChildren := getChildren(cluster, testDeploy)
 
@@ -279,7 +276,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 			Version:   "v1",
 		},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
-		Health:         &appv1.HealthStatus{},
+		Health:         &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
 		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		ParentRefs: []appv1.ResourceRef{{
 			Group:     "apps",
@@ -299,7 +296,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 		},
 		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
-		Health:         &appv1.HealthStatus{},
+		Health:         &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
 		ParentRefs: []appv1.ResourceRef{{
 			Group:     "apps",
 			Version:   "",

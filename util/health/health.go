@@ -2,6 +2,7 @@ package health
 
 import (
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -83,7 +84,7 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 		case kube.PersistentVolumeClaimKind:
 			health, err = getPVCHealth(obj)
 		case kube.PodKind:
-			health, err = getPodHealth(obj)
+			health, err = GetPodHealth(obj)
 		}
 	case "batch":
 		switch gvk.Kind {
@@ -411,12 +412,32 @@ func getJobHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	}
 }
 
-func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+func GetPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	pod := &coreV1.Pod{}
 	err := scheme.Scheme.Convert(obj, pod, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, pod, err)
 	}
+
+	var status appv1.HealthStatusCode
+	var messages []string
+
+	for _, containerStatus := range pod.Status.ContainerStatuses {
+		waiting := containerStatus.State.Waiting
+		// Article listing common container errors: https://medium.com/kokster/debugging-crashloopbackoffs-with-init-containers-26f79e9fb5bf
+		if waiting != nil && (strings.HasPrefix(waiting.Reason, "Err") || strings.HasSuffix(waiting.Reason, "Error") || strings.HasSuffix(waiting.Reason, "BackOff")) {
+			status = appv1.HealthStatusDegraded
+			messages = append(messages, waiting.Message)
+		}
+	}
+
+	if status != "" {
+		return &appv1.HealthStatus{
+			Status:  status,
+			Message: strings.Join(messages, ", "),
+		}, nil
+	}
+
 	switch pod.Status.Phase {
 	case coreV1.PodPending:
 		return &appv1.HealthStatus{

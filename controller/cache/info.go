@@ -3,14 +3,13 @@ package cache
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-cd/util/health"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -121,6 +120,11 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 
 	initializing := false
 
+	// note that I ignore initContainers
+	for _, container := range pod.Spec.Containers {
+		node.images = append(node.images, container.Image)
+	}
+
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)
@@ -188,34 +192,6 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
 	node.health, _ = health.GetPodHealth(un)
-
-	// note that I ignore initContainers
-	for _, container := range pod.Spec.Containers {
-		node.images = append(node.images, container.Image)
-	}
-
 	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
-}
-
-func createHealth(status v1.PodStatus, reason string) *v1alpha1.HealthStatus {
-
-	healthStatus := &v1alpha1.HealthStatus{}
-	switch reason {
-	case "CrashLoopBackOff", "RunContainerError", "ErrImagePull", "ImagePullBackOff":
-		healthStatus.Status = v1alpha1.HealthStatusDegraded
-		healthStatus.Message = reason
-	default:
-		healthStatus.Status = map[v1.PodPhase]v1alpha1.HealthStatusCode{
-			v1.PodPending:             v1alpha1.HealthStatusProgressing,
-			v1.PodRunning:             v1alpha1.HealthStatusHealthy,
-			v1.PodSucceeded:           v1alpha1.HealthStatusHealthy,
-			v1.PodFailed:              v1alpha1.HealthStatusDegraded,
-			v1.PodUnknown:             v1alpha1.HealthStatusUnknown,
-			v1.PodReasonUnschedulable: v1alpha1.HealthStatusMissing,
-		}[status.Phase]
-		healthStatus.Message = status.Message
-	}
-
-	return healthStatus
 }
