@@ -47,7 +47,7 @@
       
         
         
-        <meta name="theme-color" content="#ab47bc">
+        <meta name="theme-color" content="#7e57c2">
       
     
     
@@ -96,7 +96,7 @@
   
     
     
-    <body dir="ltr" data-md-color-primary="purple" data-md-color-accent="orange">
+    <body dir="ltr" data-md-color-primary="deep-purple" data-md-color-accent="orange">
   
     <svg class="md-svg">
       <defs>
@@ -290,11 +290,11 @@
       <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3" type="checkbox" id="nav-3">
     
     <label class="md-nav__link" for="nav-3">
-      Operator manual
+      Operation Manual
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
       <label class="md-nav__title" for="nav-3">
-        Operator manual
+        Operation Manual
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
         
@@ -395,6 +395,18 @@
   </li>
 
         
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/custom_tools/" title="Custom Tooling" class="md-nav__link">
+      Custom Tooling
+    </a>
+  </li>
+
+        
       </ul>
     </nav>
   </li>
@@ -412,11 +424,11 @@
       <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
     
     <label class="md-nav__link" for="nav-4">
-      User guide
+      User Guide
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
       <label class="md-nav__title" for="nav-4">
-        User guide
+        User Guide
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
         
@@ -471,22 +483,53 @@
       
     
     
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Automation from CI Pipelines
+      </label>
+    
     <a href="./" title="Automation from CI Pipelines" class="md-nav__link md-nav__link--active">
       Automation from CI Pipelines
     </a>
     
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../custom_tools/" title="Custom Tooling" class="md-nav__link">
-      Custom Tooling
-    </a>
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#build-and-publish-a-new-container-image" title="Build And Publish A New Container Image" class="md-nav__link">
+    Build And Publish A New Container Image
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git" title="Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git" class="md-nav__link">
+    Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synchronize-the-app-optional" title="Synchronize The App (Optional)" class="md-nav__link">
+    Synchronize The App (Optional)
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
         
@@ -498,18 +541,6 @@
   <li class="md-nav__item">
     <a href="../diffing/" title="Diffing Customization" class="md-nav__link">
       Diffing Customization
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../faq/" title="FAQ" class="md-nav__link">
-      FAQ
     </a>
   </li>
 
@@ -579,6 +610,150 @@
   </li>
 
     
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
+    
+    <label class="md-nav__link" for="nav-5">
+      Developer Guide
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-5">
+        Developer Guide
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md" title="Contributing ⧉" class="md-nav__link">
+      Contributing ⧉
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/releasing/" title="Releasing" class="md-nav__link">
+      Releasing
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/site/" title="Site" class="md-nav__link">
+      Site
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../faq/" title="FAQ" class="md-nav__link">
+      FAQ
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/milestones" title="Roadmap ⧉" class="md-nav__link">
+      Roadmap ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://twitter.com/argoproj" title="Twitter ⧉" class="md-nav__link">
+      Twitter ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://medium.com/@argoproject" title="Blog ⧉" class="md-nav__link">
+      Blog ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://argoproj.github.io/community/join-slack" title="Slack ⧉" class="md-nav__link">
+      Slack ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/issues" title="Report a Bug ⧉" class="md-nav__link">
+      Report a Bug ⧉
+    </a>
+  </li>
+
+    
   </ul>
 </nav>
                   </div>
@@ -596,6 +771,36 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#build-and-publish-a-new-container-image" title="Build And Publish A New Container Image" class="md-nav__link">
+    Build And Publish A New Container Image
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git" title="Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git" class="md-nav__link">
+    Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#synchronize-the-app-optional" title="Synchronize The App (Optional)" class="md-nav__link">
+    Synchronize The App (Optional)
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -609,52 +814,58 @@
                   <a href="https://github.com/alexec/argo-cd/edit/master/docs/user-guide/ci_automation.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="automation-from-ci-pipelines">Automation from CI Pipelines</h1>
+                <h1 id="automation-from-ci-pipelines">Automation from CI Pipelines<a class="headerlink" href="#automation-from-ci-pipelines" title="Permanent link">&para;</a></h1>
 <p>Argo CD follows the GitOps model of deployment, where desired configuration changes are first
 pushed to git, and the cluster state then syncs to the desired state in git. This is a departure
 from imperative pipelines which do not traditionally use git repositories to hold application
 config.</p>
 <p>To push new container images into to a cluster managed by Argo CD, the following workflow (or 
 variations), might be used:</p>
-<ol>
-<li>
-<p>Build and publish a new container image</p>
-<p><code>docker build -t mycompany/guestbook:v2.0 .
-docker push mycompany/guestbook:v2.0</code></p>
-</li>
-<li>
-<p>Update the local manifests using your preferred templating tool, and push the changes to git.</p>
-<p>NOTE: the use of a different git repository to hold your kubernetes manifests (separate from
+<h2 id="build-and-publish-a-new-container-image">Build And Publish A New Container Image<a class="headerlink" href="#build-and-publish-a-new-container-image" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span>docker build -t mycompany/guestbook:v2.0 .
+docker push mycompany/guestbook:v2.0
+</pre></div>
+
+
+<h2 id="update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git">Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git<a class="headerlink" href="#update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The use of a different git repository to hold your kubernetes manifests (separate from
 your application source code), is highly recommended. See <a href="../best_practices/">best practices</a>
 for further rationale.</p>
-<p>```
-git clone https://github.com/mycompany/guestbook-config.git
-cd guestbook-config</p>
-<h1 id="kustomize">kustomize</h1>
-<p>kustomize edit set imagetag mycompany/guestbook:v2.0</p>
-<h1 id="ksonnet">ksonnet</h1>
-<p>ks param set guestbook image mycompany/guestbook:v2.0</p>
-<h1 id="plain-yaml">plain yaml</h1>
-<p>kubectl patch --local -f config-deployment.yaml -p '{"spec":{"template":{"spec":{"containers":[{"name":"guestbook","image":"mycompany/guestbook:v2.0"}]}}}}' -o yaml</p>
-<p>git add . -m "Update guestbook to v2.0"
+</div>
+<div class="codehilite"><pre><span></span>git clone https://github.com/mycompany/guestbook-config.git
+<span class="nb">cd</span> guestbook-config
+
+<span class="c1"># kustomize</span>
+kustomize edit <span class="nb">set</span> imagetag mycompany/guestbook:v2.0
+
+<span class="c1"># ksonnet</span>
+ks param <span class="nb">set</span> guestbook image mycompany/guestbook:v2.0
+
+<span class="c1"># plain yaml</span>
+kubectl patch --local -f config-deployment.yaml -p <span class="s1">&#39;{&quot;spec&quot;:{&quot;template&quot;:{&quot;spec&quot;:{&quot;containers&quot;:[{&quot;name&quot;:&quot;guestbook&quot;,&quot;image&quot;:&quot;mycompany/guestbook:v2.0&quot;}]}}}}&#39;</span> -o yaml
+
+git add . -m <span class="s2">&quot;Update guestbook to v2.0&quot;</span>
 git push
-```</p>
-</li>
-<li>
-<p>Synchronize the app (Optional)</p>
+</pre></div>
+
+
+<h2 id="synchronize-the-app-optional">Synchronize The App (Optional)<a class="headerlink" href="#synchronize-the-app-optional" title="Permanent link">&para;</a></h2>
 <p>For convenience, the argocd CLI can be downloaded directly from the API server. This is
 useful so that the CLI used in the CI pipeline is always kept in-sync and uses argocd binary
 that is always compatible with the Argo CD API server.</p>
-<p><code>export ARGOCD_SERVER=argocd.mycompany.com
-export ARGOCD_AUTH_TOKEN=&lt;JWT token generated from project&gt;
-curl -sSL -o /usr/local/bin/argocd https://${ARGOCD_SERVER}/download/argocd-linux-amd64
+<div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span>argocd.mycompany.com
+<span class="nb">export</span> <span class="nv">ARGOCD_AUTH_TOKEN</span><span class="o">=</span>&lt;JWT token generated from project&gt;
+curl -sSL -o /usr/local/bin/argocd https://<span class="si">${</span><span class="nv">ARGOCD_SERVER</span><span class="si">}</span>/download/argocd-linux-amd64
 argocd app sync guestbook
-argocd app wait guestbook</code></p>
+argocd app <span class="nb">wait</span> guestbook
+</pre></div>
+
+
 <p>If <a href="../auto_sync/">automated synchronization</a> is configured for the application, this step is
 unnecessary. The controller will automatically detect the new config (fast tracked using a
 <a href="../../operator-manual/webhook/">webhook</a>, or polled every 3 minutes), and automatically sync the new manifests.</p>
-</li>
-</ol>
                 
                   
                 
@@ -690,13 +901,13 @@ unnecessary. The controller will automatically detect the new config (fast track
           </a>
         
         
-          <a href="../custom_tools/" title="Custom Tooling" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../diffing/" title="Diffing Customization" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Custom Tooling
+                Diffing Customization
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
@@ -718,6 +929,17 @@ unnecessary. The controller will automatically detect the new config (fast track
           Material for MkDocs</a>
       </div>
       
+  <div class="md-footer-social">
+    <link rel="stylesheet" href="../../assets/fonts/font-awesome.css">
+    
+      <a href="https://twitter.com/argoproj" class="md-footer-social__link fa fa-twitter"></a>
+    
+      <a href="https://medium.com/@argoproject" class="md-footer-social__link fa fa-medium"></a>
+    
+      <a href="https://argoproj.github.io/community/join-slack" class="md-footer-social__link fa fa-slack"></a>
+    
+  </div>
+
     </div>
   </div>
 </footer>
