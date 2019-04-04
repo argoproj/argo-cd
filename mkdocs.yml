@@ -4,8 +4,7 @@ remote_name: alexec
 theme:
   name: material
   palette:
-    primary: deep-purple
-    accent: orange
+    primary: light-blue
   font:
     text: 'Work Sans'
   logo: 'assets/logo.png'
