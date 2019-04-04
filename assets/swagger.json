@@ -550,6 +550,85 @@
         }
       }
     },
+    "/api/v1/applications/{name}/resource/custom-actions": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "ListCustomActions",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationCustomActionsListResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "RunCustomActions",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/rollback": {
       "post": {
         "tags": [
@@ -1368,6 +1447,12 @@
     "applicationApplicationResourceResponse": {
       "type": "object",
       "properties": {
+        "availableActions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifest": {
           "type": "string"
         }
@@ -1422,6 +1507,17 @@
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
+        }
+      }
+    },
+    "applicationCustomActionsListResponse": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1CustomAction"
+          }
         }
       }
     },
@@ -2708,6 +2804,20 @@
         }
       }
     },
+    "v1alpha1CustomAction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1CustomActionParam"
+          }
+        }
+      }
+    },
     "v1alpha1CustomActionDefinition": {
       "type": "object",
       "properties": {
@@ -2715,6 +2825,23 @@
           "type": "string"
         },
         "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1CustomActionParam": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "value": {
           "type": "string"
         }
       }

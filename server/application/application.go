@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -940,4 +941,97 @@ func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason stri
 	}
 	message := fmt.Sprintf("%s %s", user, action)
 	s.auditLogger.LogAppEvent(a, eventInfo, message)
+}
+
+func (s *Server) ListCustomActions(ctx context.Context, q *ApplicationResourceRequest) (*CustomActionsListResponse, error) {
+	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	if err != nil {
+		return nil, err
+	}
+	obj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := s.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+
+	availableActions, err := s.getAvailableCustomActions(settings, obj, "")
+	if err != nil {
+		return nil, err
+	}
+	return &CustomActionsListResponse{Actions: availableActions}, nil
+}
+
+func (s *Server) getAvailableCustomActions(settings *settings.ArgoCDSettings, obj *unstructured.Unstructured, filterAction string) ([]appv1.CustomAction, error) {
+	luaVM := lua.VM{
+		ResourceOverrides: settings.ResourceOverrides,
+	}
+	discoveryScript, err := luaVM.GetCustomActionDiscovery(obj)
+	if err != nil {
+		return nil, err
+	}
+	availableActions, err := luaVM.ExecuteCustomActionDiscovery(obj, discoveryScript)
+	if err != nil {
+		return nil, err
+	}
+	for i := range availableActions {
+		action := availableActions[i]
+		if action.Name == filterAction {
+			return []appv1.CustomAction{action}, nil
+		}
+	}
+	return availableActions, nil
+
+}
+
+func (s *Server) RunCustomActions(ctx context.Context, q *CustomActionRunRequest) (*ApplicationResponse, error) {
+	resourceRequest := &ApplicationResourceRequest{
+		Name:         q.Name,
+		Namespace:    q.Namespace,
+		ResourceName: q.ResourceName,
+		Kind:         q.Kind,
+		Version:      q.Version,
+		Group:        q.Group,
+	}
+	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, resourceRequest)
+	if err != nil {
+		return nil, err
+	}
+	obj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	settings, err := s.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	filteredAvailableActions, err := s.getAvailableCustomActions(settings, obj, q.Action)
+	if err != nil {
+		return nil, err
+	}
+	if len(filteredAvailableActions) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "custom action not available on resource")
+	}
+
+	luaVM := lua.VM{
+		ResourceOverrides: settings.ResourceOverrides,
+	}
+	customAction, err := luaVM.GetCustomAction(obj, q.Action)
+	if err != nil {
+		return nil, err
+	}
+
+	newObj, err := luaVM.ExecuteCustomAction(obj, customAction.ActionLua)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.kubectl.ApplyResource(config, newObj, res.Namespace, false, false)
+	if err != nil {
+		return nil, err
+	}
+	return &ApplicationResponse{}, nil
 }

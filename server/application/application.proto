@@ -110,10 +110,23 @@ message ApplicationResourceDeleteRequest {
 	optional bool force = 7 [(gogoproto.nullable) = true];
 }
 
+message CustomActionRunRequest {
+	required string name = 1;
+	required string namespace = 2 [(gogoproto.nullable) = false];
+	required string resourceName = 3 [(gogoproto.nullable) = false];
+	required string version = 4 [(gogoproto.nullable) = false];
+	required string group = 5 [(gogoproto.nullable) = false];
+	required string kind = 6 [(gogoproto.nullable) = false];
+	required string action = 7 [(gogoproto.nullable) = false];
+}
 
+message CustomActionsListResponse {
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.CustomAction actions = 1 [(gogoproto.nullable) = false];
+}
 
 message ApplicationResourceResponse {
 	required string manifest = 1 [(gogoproto.nullable) = false];
+	repeated string availableActions = 2 [(gogoproto.nullable) = false];
 }
 
 message ApplicationPodLogsQuery {
@@ -254,6 +267,17 @@ service ApplicationService {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource"
 			body: "patch"
+		};
+	}
+
+	rpc ListCustomActions(ApplicationResourceRequest) returns (CustomActionsListResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/resource/custom-actions";
+	}
+
+	rpc RunCustomActions(CustomActionRunRequest) returns (ApplicationResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/resource/custom-actions"
+		    body: "action"
 		};
 	}
 
