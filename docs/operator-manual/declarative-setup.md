@@ -142,6 +142,7 @@ Cluster credentials are stored in secrets same as repository credentials but doe
 `argocd.argoproj.io/secret-type: cluster`.
 
 The secret data must include following fields:
+
 * `name` - cluster name
 * `server` - cluster api server url
 * `config` - JSON representation of following data structure:
@@ -196,7 +197,7 @@ stringData:
     }
 ```
 
-## Helm Chart repositories
+## Helm Chart Repositories
 
 Non standard Helm Chart repositories have to be registered under the `helm.repositories` key in the
 `argocd-cm` ConfigMap. Each repository must have `url` and `name` fields. For private Helm repos you
@@ -281,10 +282,10 @@ Notes:
 * SSO configuration details: [SSO](sso.md)
 * RBAC configuration details: [RBAC](rbac.md)
 
-## Manage Argo CD using Argo CD
+## Manage Argo CD Using Argo CD
 
 Argo CD is able to manage itself since all settings are represented by Kubernetes manifests. The suggested way is to create [Kustomize](https://github.com/kubernetes-sigs/kustomize)
-based application which uses base Argo CD manifests from https://github.com/argoproj/argo-cd and apply required changes on top.
+based application which uses base Argo CD manifests from [https://github.com/argoproj/argo-cd] and apply required changes on top.
 
 Example of `kustomization.yaml`:
 
@@ -304,4 +305,6 @@ patchesStrategicMerge:
 
 The live example of self managed Argo CD config is available at https://cd.apps.argoproj.io and with configuration
 stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-deployments/tree/master/argocd).
-> NOTE: You will need to sign-in using your github account to get access to https://cd.apps.argoproj.io
+
+!!! note
+    You will need to sign-in using your github account to get access to https://cd.apps.argoproj.io

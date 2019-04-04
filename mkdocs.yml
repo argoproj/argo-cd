@@ -4,13 +4,59 @@ remote_name: alexec
 theme:
   name: material
   palette:
-    primary: purple
+    primary: deep-purple
     accent: orange
   font:
     text: 'Work Sans'
   logo: 'assets/logo.png'
 google_analytics:
-- UA-105170809-2
-- auto
+- 'UA-105170809-2'
+- 'auto'
 markdown_extensions:
 - codehilite
+- admonition
+- toc:
+    permalink: true
+nav:
+  - Overview: index.md
+  - getting_started.md
+  - Operation Manual:
+    - operator-manual/architecture.md
+    - operator-manual/declarative-setup.md
+    - operator-manual/ingress.md
+    - operator-manual/metrics.md
+    - operator-manual/rbac.md
+    - operator-manual/security.md
+    - operator-manual/sso.md
+    - operator-manual/webhook.md
+    - operator-manual/custom_tools.md
+  - User Guide:
+    - user-guide/application_sources.md
+    - user-guide/auto_sync.md
+    - user-guide/best_practices.md
+    - user-guide/ci_automation.md
+    - user-guide/diffing.md
+    - user-guide/health.md
+    - user-guide/parameters.md
+    - user-guide/projects.md
+    - user-guide/resource_hooks.md
+    - user-guide/tracking_strategies.md
+  - Developer Guide:
+      - developer-guide/index.md
+      - Contributing ⧉: https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md
+      - developer-guide/releasing.md
+      - developer-guide/site.md
+  - faq.md
+  - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
+  - Twitter ⧉: https://twitter.com/argoproj
+  - Blog ⧉: https://medium.com/@argoproject
+  - Slack ⧉: https://argoproj.github.io/community/join-slack
+  - Report a Bug ⧉: https://github.com/argoproj/argo-cd/issues
+extra:
+  social:
+    - type: twitter
+      link: https://twitter.com/argoproj
+    - type: medium
+      link: https://medium.com/@argoproject
+    - type: slack
+      link: https://argoproj.github.io/community/join-slack

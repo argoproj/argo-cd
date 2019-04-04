@@ -117,9 +117,8 @@ kubectl edit clusterrole argocd-server
 kubectl edit clusterrole argocd-application-controller
 ```
 
-Note:
-
-* If you to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion). 
+!!! note
+    If you to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion). 
 
 ## Auditing
 
@@ -161,6 +160,7 @@ at three minute intervals, just fast-tracked by the webhook event.
 ## Reporting Vulnerabilities
 
 Please report security vulnerabilities by e-mailing:
-* Jesse_Suen@intuit.com
-* Alexander_Matyushentsev@intuit.com
-* Edward_Lee@intuit.com
+
+* [Jesse_Suen@intuit.com](mailto:Jesse_Suen@intuit.com)
+* [Alexander_Matyushentsev@intuit.com](mailto:Alexander_Matyushentsev@intuit.com)
+* [Edward_Lee@intuit.com](mailto:Edward_Lee@intuit.com)

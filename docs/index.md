@@ -1,7 +1,6 @@
-
 # Overview
 
-## What is Argo CD?
+## What Is Argo CD?
 
 Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
@@ -14,14 +13,15 @@ Application deployment and lifecycle management should be automated, auditable, 
 
 ## Getting Started
 
-### Quickstart
+### Quick Start
 
 ```bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
-Follow our [getting started guide](getting_started.md). 
+Follow our [getting started guide](getting_started.md). Further [documentation](docs/)
+is provided for additional features.
 
 ## How it works
 
@@ -79,7 +79,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 * Prometheus metrics
 * Parameter overrides for overriding ksonnet/helm parameters in git
 
-## Community Blogs and Presentations
+## Community Blogs And Presentations
 
 * GitOps with Argo CD: [Simplify and Automate Deployments Using GitOps with IBM Multicloud Manager](https://www.ibm.com/blogs/bluemix/2019/02/simplify-and-automate-deployments-using-gitops-with-ibm-multicloud-manager-3-1-2/)
 * KubeCon talk: [CI/CD in Light Speed with K8s and Argo CD](https://www.youtube.com/watch?v=OdzH82VpMwI&feature=youtu.be)
@@ -87,13 +87,7 @@ For additional details, see [architecture overview](operator-manual/architecture
   * Among other things, desribes how Kubeflow uses Argo CD to implement GitOPs for ML
 * SIG Apps demo: [Argo CD - GitOps Continuous Delivery for Kubernetes](https://www.youtube.com/watch?v=aWDIQMbp1cc&feature=youtu.be&t=1m4s)
 
-## Project Resources
-
-* Argo GitHub:  https://github.com/argoproj
-* Argo Slack:   [click here to join](https://argoproj.github.io/community/join-slack)
-* Argo website: https://argoproj.github.io/
-
 ## Development Status
 
-* Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
+Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
 

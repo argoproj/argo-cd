@@ -63,9 +63,9 @@ The `obj` is a global variable which contains the resource. The script must retu
 
 NOTE: as a security measure you don't have access to most of the standard Lua libraries.
 
-### Way 2. Contribute a Custom Health Check to https://github.com/argoproj/argo-cd
+### Way 2. Contribute a Custom Health Check
 
-A health check can be bundled into Argo CD. Custom health check scripts are located in the `resource_customizations` directory. This must have the following directory structure:
+A health check can be bundled into Argo CD. Custom health check scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). This must have the following directory structure:
 
 ```
 argo-cd

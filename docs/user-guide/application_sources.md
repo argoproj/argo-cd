@@ -17,7 +17,7 @@ Ksonnet has a first class concept of an "environment." To create an application 
 app directory, an environment must be specified. For example, the following command creates the
 "guestbook-default" app, which points to the `default` environment:
 
-```
+```bash
 argocd app create guestbook-default --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --env default
 ```
 
@@ -25,7 +25,7 @@ argocd app create guestbook-default --repo https://github.com/argoproj/argocd-ex
 Ksonnet parameters all belong to a component. For example, the following are the parameters
 available in the guestbook app, all of which belong to the `guestbook-ui` component:
 
-```
+```bash
 $ ks param list
 COMPONENT    PARAM         VALUE
 =========    =====         =====
@@ -39,7 +39,8 @@ guestbook-ui type          "LoadBalancer"
 
 When overriding ksonnet parameters in Argo CD, the component name should also be specified in the
 `argocd app set` command, in the form of `-p COMPONENT=PARAM=VALUE`. For example:
-```
+
+```bash
 argocd app set guestbook-default -p guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1
 ```
 
@@ -51,7 +52,7 @@ Helm has the ability to use a different, or even multiple "values.yaml" files to
 parameters from. Alternate or multiple values file(s), can be specified using the `--values`
 flag. The flag can be repeated to support multiple values files:
 
-```
+```bash
 argocd app set helm-guestbook --values values-production.yaml
 ```
 
@@ -59,12 +60,15 @@ argocd app set helm-guestbook --values values-production.yaml
 
 Helm has the ability to set parameter values, which override any values in
 a `values.yaml`. For example, `service.type` is a common parameter which is exposed in a Helm chart:
-```
+
+```bash
 helm template . --set service.type=LoadBalancer
 ```
+
 Similarly Argo CD can override values in the `values.yaml` parameters using `argo app set` command,
 in the form of `-p PARAM=VALUE`. For example:
-```
+
+```bash
 argocd app set helm-guestbook -p service.type=LoadBalancer
 ```
 
@@ -84,7 +88,7 @@ Helm templating has the ability to generate random data during chart rendering v
 make use of this feature. For example, the following is the secret for the
 [redis helm chart](https://github.com/helm/charts/blob/master/stable/redis/templates/secrets.yaml):
 
-```
+```yaml
 data:
   {{- if .Values.password }}
   redis-password: {{ .Values.password | b64enc | quote }}
@@ -99,7 +103,7 @@ regenerated every time the comparison is made, any application which makes use o
 function will always be in an `OutOfSync` state. This can be mitigated by explicitly setting a
 value, in the values.yaml such that the value is stable between each comparison. For example:
 
-```
+```bash
 argocd app set redis -p password=abc123
 ```
 
@@ -107,7 +111,7 @@ argocd app set redis -p password=abc123
 
 Argo CD allows integrating more config management tools using config management plugins. Following changes are required to configure new plugin:
 
-* Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or using custom image (see [custom_tools](custom_tools.md)).
+* Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or using custom image (see [custom_tools](../operator-manual/custom_tools.md)).
 * Register a new plugin in `argocd-cm` ConfigMap:
 
 ```yaml
@@ -129,7 +133,7 @@ Commands have access to system environment variables and following additional va
 
  * Create an application and specify required config management plugin name.
 
-```
+```bash
 argocd app create <appName> --config-management-plugin <pluginName>
 ```
 

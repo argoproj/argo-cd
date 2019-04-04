@@ -17,7 +17,7 @@ which generates different data every time `helm template` is invoked.
 In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources.
 The diffing customization can be configured for single or multiple application resources or at a system level.
 
-## Application level configuration
+## Application Level Configuration
 
 Argo CD allows ignoring differences at a specific JSON path. The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
 
@@ -43,7 +43,7 @@ spec:
     - /spec/replicas
 ```
 
-## System-level configuration
+## System-Level Configuration
 
 The comparison of resources with well-known issues can be customized at a system level. Ignored differences can be configured for a specified group and kind
 in `resource.customizations` key of `argocd-cm` ConfigMap. Following is an example of a customization which ignores the `caBundle` field

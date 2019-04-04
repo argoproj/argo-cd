@@ -38,7 +38,8 @@ inputted into the Argo CD configmap.
 ### 2. Configure Argo CD for SSO
 
 Edit the argocd-cm configmap:
-```
+
+```bash
 kubectl edit configmap argocd-cm -n argocd
 ```
 
@@ -51,7 +52,7 @@ kubectl edit configmap argocd-cm -n argocd
   `connectors.config.orgs` list, add one or more GitHub organizations. Any member of the org will
   then be able to login to Argo CD to perform management tasks.
 
-```
+```yaml
 data:
   url: https://argocd.example.com
 
@@ -90,12 +91,12 @@ NOTES:
   correct external callback URL (e.g. https://argocd.example.com/api/dex/callback)
 
 
-## Existing OIDC provider 
+## Existing OIDC Provider 
 
 To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
 configuration to the `argocd-cm` ConfigMap under the `oidc.config` key:
 
-```
+```yaml
 data:
   url: https://argocd.example.com
 

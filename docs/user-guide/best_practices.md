@@ -1,6 +1,6 @@
 # Best Practices
 
-## Separating config vs. source code repositories
+## Separating Config Vs. Source Code Repositories
 
 Using a separate git repository to hold your kubernetes manifests, keeping the config separate
 from your application source code, is highly recommended for the following reasons:
@@ -29,7 +29,7 @@ from your application source code, is highly recommended for the following reaso
    config changes to, prevents this from happening.
 
 
-## Leaving room for imperativeness
+## Leaving Rroom For Imperativeness
 
 It may be desired to leave room for some imperativeness/automation, and not have everything defined
 in your git manifests. For example, if you want the number of your deployment's replicas to be
@@ -54,14 +54,14 @@ spec:
 ...
 ```
 
-
-## Ensuring manifests at git revisions are truly immutable
+## Ensuring Manifests At Git Revisions Are Truly Immutable
 
 When using templating tools like `helm` or `kustomize`, it is possible for manifests to change
 their meaning from one day to the next. This is typically caused by changes made to an upstream helm
 repository or kustomize base.
 
 For example, consider the following kustomization.yaml
+
 ```yaml
 bases:
 - github.com/argoproj/argo-cd//manifests/cluster-install
@@ -72,6 +72,7 @@ is not stable target, the manifests for this kustomize application can suddenly 
 any changes to your own git repository.
 
 A better version would be to use a git tag or commit SHA. For example:
+
 ```yaml
 bases:
 - github.com/argoproj/argo-cd//manifests/cluster-install?ref=v0.11.1

@@ -6,13 +6,15 @@ k8s manifests determined dynamically, or outside of git. It also serves as an al
 redeploying an application by changing application parameters via Argo CD, instead of making the 
 changes to the manifests in git.
 
-**NOTE:** many consider this mode of operation as an anti-pattern to GitOps, since the source of
-truth becomes a union of the git repository, and the application overrides. The Argo CD parameter
-overrides feature is provided mainly as a convenience to developers and is intended to be used in
-dev/test environments, vs. production environments.
+!!! note
+    Many consider this mode of operation as an anti-pattern to GitOps, since the source of
+    truth becomes a union of the git repository, and the application overrides. The Argo CD parameter
+    overrides feature is provided mainly as a convenience to developers and is intended to be used in
+    dev/test environments, vs. production environments.
 
 To use parameter overrides, run the `argocd app set -p (COMPONENT=)PARAM=VALUE` command:
-```
+
+```bash
 argocd app set guestbook -p guestbook=image=example/guestbook:abcd123
 argocd app sync guestbook
 ```
@@ -41,6 +43,6 @@ the public repository and customize the deployment with different parameters, wi
 forking the repository to make the changes. For example, to install Redis from the Helm chart
 repository and customize the the database password, you would run:
 
-```
+```bash
 argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p password=abc123
 ```

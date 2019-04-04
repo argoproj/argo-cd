@@ -1,4 +1,4 @@
-# Argo CD Release Instructions
+# Releasing
 
 1. Tag, build, and push argo-cd-ui
 ```bash
