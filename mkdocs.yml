@@ -41,17 +41,19 @@ nav:
     - user-guide/resource_hooks.md
     - user-guide/tracking_strategies.md
   - Developer Guide:
-      - developer-guide/index.md
-      - Contributing ⧉: https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md
-      - developer-guide/test-e2e.md
-      - developer-guide/releasing.md
-      - developer-guide/site.md
+    - developer-guide/index.md
+    - Contributing ⧉: https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md
+    - E2E Testing: developer-guide/test-e2e.md
+    - developer-guide/releasing.md
+    - developer-guide/site.md
   - faq.md
+  - Change Log ⧉: https://github.com/argoproj/argo-cd/blob/master/CHANGELOG.md
+  - Releases ⧉: https://github.com/argoproj/argo-cd/releases
   - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
-  - Twitter ⧉: https://twitter.com/argoproj
+  - Ask On Slack ⧉: https://argoproj.github.io/community/join-slack
+  - Report A Bug/Request A Feature ⧉: https://github.com/argoproj/argo-cd/issues
   - Blog ⧉: https://medium.com/@argoproject
-  - Slack ⧉: https://argoproj.github.io/community/join-slack
-  - Report a Bug ⧉: https://github.com/argoproj/argo-cd/issues
+  - Twitter ⧉: https://twitter.com/argoproj
 extra:
   social:
     - type: twitter
