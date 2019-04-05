@@ -6,6 +6,7 @@
 
     &__line {
         position: absolute;
+        z-index: -1;
         transition: all 0.2s linear;
         border-top: 1px dashed $argo-color-gray-5;
     }
@@ -61,7 +62,6 @@
 
     &__node {
         position: absolute;
-        z-index: 1;
         transition: all 0.2s linear;
         padding-left: 3.5em;
         padding-right: 1em;

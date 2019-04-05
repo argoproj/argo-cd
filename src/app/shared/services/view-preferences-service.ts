@@ -1,12 +1,10 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 
-export type AppsDetailsViewType = 'tree' | 'list';
-export type AppsDetailsTreeType = 'hierarchy' | 'network';
+export type AppsDetailsViewType = 'tree' | 'network' | 'list';
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
     view: AppsDetailsViewType;
-    treeType: AppsDetailsTreeType;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
@@ -36,7 +34,6 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     version: 1,
     appDetails: {
         view: 'tree',
-        treeType: 'hierarchy',
         resourceFilter: [
             'kind:Deployment',
             'kind:Service',

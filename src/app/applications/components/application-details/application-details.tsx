@@ -1,4 +1,4 @@
-import { DropDownMenu, FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
+import { FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -11,7 +11,7 @@ const jsonMergePatch = require('json-merge-patch');
 import { DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, YamlEditor } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import { AppDetailsPreferences, AppsDetailsTreeType, AppsDetailsViewType, services } from '../../../shared/services';
+import { AppDetailsPreferences, AppsDetailsViewType, services } from '../../../shared/services';
 
 import { ApplicationConditions } from '../application-conditions/application-conditions';
 import { ApplicationDeploymentHistory } from '../application-deployment-history/application-deployment-history';
@@ -87,9 +87,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     if (params.get('view') != null) {
                         pref.view = params.get('view') as AppsDetailsViewType;
                     }
-                    if (params.get('tree') != null) {
-                        pref.treeType = params.get('tree') as AppsDetailsTreeType;
-                    }
                     return {...items[0], pref};
                 })}>
 
@@ -158,6 +155,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 this.appContext.apis.navigation.goto('.', { view: 'tree' });
                                                 services.viewPreferences.updatePreferences({ appDetails: {...pref, view: 'tree'} });
                                             }} />
+                                            <i className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})} onClick={() => {
+                                                this.appContext.apis.navigation.goto('.', { view: 'network' });
+                                                services.viewPreferences.updatePreferences({ appDetails: {...pref, view: 'network'} });
+                                            }} />
                                             <i className={classNames('fa fa-th-list', {selected: pref.view === 'list'})} onClick={() => {
                                                 this.appContext.apis.navigation.goto('.', { view: 'list' });
                                                 services.viewPreferences.updatePreferences({ appDetails: {...pref, view: 'list'} });
@@ -176,40 +177,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             </div>
                             <div className='application-details__tree'>
                                 {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                {pref.view === 'tree' && (
-                                    <div>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <DropDownMenu anchor={() => (
-                                                <button className='argo-button argo-button--light'>
-                                                    {pref.treeType === 'network' ? 'Network' : 'Hierarchy'} <i className='fa fa-caret-down'/>
-                                                </button>)} items={[{
-                                                title: 'Hierarchy',
-                                                action: () => {
-                                                    this.appContext.apis.navigation.goto('.', { tree: 'hierarchy' } );
-                                                    services.viewPreferences.updatePreferences({ appDetails: { ...pref, treeType: 'hierarchy' } });
-                                                },
-                                            }, {
-                                                title: 'Network',
-                                                action: () => {
-                                                    this.appContext.apis.navigation.goto('.', { tree: 'network' } );
-                                                    services.viewPreferences.updatePreferences({ appDetails: { ...pref, treeType: 'network' } });
-                                                },
-                                            }]} />
-                                        </div>
-                                        <ApplicationResourceTree
-                                            nodeFilter={(node) => this.filterTreeNode(node, treeFilter)}
-                                            selectedNodeFullName={this.selectedNodeKey}
-                                            onNodeClick={(fullName) => this.selectNode(fullName)}
-                                            nodeMenuItems={(node) => this.getResourceMenuItems(node, application)}
-                                            tree={tree}
-                                            app={application}
-                                            useNetworkingHierarchy={pref.treeType === 'network'}
-                                            onClearFilter={() => {
-                                                this.appContext.apis.navigation.goto('.', { resource: '' } );
-                                                services.viewPreferences.updatePreferences({ appDetails: { ...pref, resourceFilter: [] } });
-                                            }}
-                                            />
-                                    </div>
+                                {(pref.view === 'tree' || pref.view === 'network') && (
+                                    <ApplicationResourceTree
+                                        nodeFilter={(node) => this.filterTreeNode(node, treeFilter)}
+                                        selectedNodeFullName={this.selectedNodeKey}
+                                        onNodeClick={(fullName) => this.selectNode(fullName)}
+                                        nodeMenuItems={(node) => this.getResourceMenuItems(node, application)}
+                                        tree={tree}
+                                        app={application}
+                                        useNetworkingHierarchy={pref.view === 'network'}
+                                        onClearFilter={() => {
+                                            this.appContext.apis.navigation.goto('.', { resource: '' } );
+                                            services.viewPreferences.updatePreferences({ appDetails: { ...pref, resourceFilter: [] } });
+                                        }}
+                                        />
                                 ) || (
                                     <div className='argo-container'>
                                         {filteredRes.length > 0 && (
@@ -218,7 +199,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 <ApplicationResourceList
                                                     onNodeClick={(fullName) => this.selectNode(fullName)}
                                                     resources={data}
-                                                    nodeMenuItems={(node) => this.getResourceMenuItems(node, application)}
+                                                    nodeMenuItems={(node) => this.getResourceMenuItems({...node, root: node}, application)}
                                                     />
                                                 )}
                                             </Paginate>
@@ -527,15 +508,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         return this.context as AppContext;
     }
 
-    private getResourceMenuItems(resource: appModels.ResourceNode, application: appModels.Application): MenuItem[] {
+    private getResourceMenuItems(resource: ResourceTreeNode, application: appModels.Application): MenuItem[] {
         if (AppUtils.isAppNode(resource) && resource.name === application.metadata.name) {
             return this.getApplicationActionMenu(application);
         }
 
-        return [{
+        const isRoot = resource.root && AppUtils.nodeKey(resource.root) === AppUtils.nodeKey(resource);
+        return [...(isRoot && [{
             title: 'Sync',
             action: () => this.showDeploy(nodeKey(resource)),
-        }, {
+        }] || []), {
             title: 'Delete',
             action: async () => {
                 this.appContext.apis.popup.prompt('Delete resource',
