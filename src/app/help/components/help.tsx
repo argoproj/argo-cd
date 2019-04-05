@@ -26,11 +26,11 @@ export const Help = () => (
                     <div className='help-box'>
                         <p>Want to download the CLI tool?</p>
                         <a href={`download/argocd-linux-amd64`} className='argo-button argo-button--base'>
-                            <i className='fa fa-linux '/> Linux
+                            <i className='fab fa-linux '/> Linux
                         </a>
                         &nbsp;
                         <a href={`download/argocd-darwin-amd64`} className='argo-button argo-button--base'>
-                            <i className='fa fa-apple'/> macOS
+                            <i className='fab fa-apple'/> macOS
                         </a>
                     </div>
                 </div>
