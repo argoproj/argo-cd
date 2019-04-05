@@ -43,6 +43,7 @@ nav:
   - Developer Guide:
       - developer-guide/index.md
       - Contributing ⧉: https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md
+      - developer-guide/test-e2e.md
       - developer-guide/releasing.md
       - developer-guide/site.md
   - faq.md
