@@ -50,7 +50,7 @@ nav:
     - developer-guide/releasing.md
     - developer-guide/site.md
   - faq.md
-  - Get Help On Slack: get_help.md
+  - Get Help On Slack: SUPPORT.md
   - Report A Bug/Request A Feature ⧉: https://github.com/argoproj/argo-cd/issues
   - Releases ⧉: https://github.com/argoproj/argo-cd/releases
   - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
