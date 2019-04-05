@@ -36,7 +36,7 @@
     
     
       
-        <title>Overview - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Understand The Basics - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#overview" tabindex="1" class="md-skip">
+      <a href="#understand-the-basics" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Overview
+              Understand The Basics
             </span>
           
         </div>
@@ -272,11 +272,49 @@
       
       
 
+  
 
-  <li class="md-nav__item">
-    <a href="../understand_the_basics/" title="Understand The Basics" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Understand The Basics
+      </label>
+    
+    <a href="./" title="Understand The Basics" class="md-nav__link md-nav__link--active">
       Understand The Basics
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#learn-the-fundamentals" title="Learn The Fundamentals" class="md-nav__link">
+    Learn The Fundamentals
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
     
@@ -596,12 +634,10 @@
       
       
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+  <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6" checked>
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6">
     
     <label class="md-nav__link" for="nav-6">
       Developer Guide
@@ -617,20 +653,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-    <a href="./" title="Overview" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../developer-guide/" title="Overview" class="md-nav__link">
       Overview
     </a>
-    
   </li>
 
         
@@ -652,7 +679,7 @@
 
 
   <li class="md-nav__item">
-    <a href="test-e2e/" title="E2E Testing" class="md-nav__link">
+    <a href="../developer-guide/test-e2e/" title="E2E Testing" class="md-nav__link">
       E2E Testing
     </a>
   </li>
@@ -664,7 +691,7 @@
 
 
   <li class="md-nav__item">
-    <a href="releasing/" title="Releasing" class="md-nav__link">
+    <a href="../developer-guide/releasing/" title="Releasing" class="md-nav__link">
       Releasing
     </a>
   </li>
@@ -676,7 +703,7 @@
 
 
   <li class="md-nav__item">
-    <a href="site/" title="Site" class="md-nav__link">
+    <a href="../developer-guide/site/" title="Site" class="md-nav__link">
       Site
     </a>
   </li>
@@ -776,6 +803,22 @@
     
   
   
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#learn-the-fundamentals" title="Learn The Fundamentals" class="md-nav__link">
+    Learn The Fundamentals
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -786,21 +829,32 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/developer-guide/index.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/understand_the_basics.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
-<p>!!! warning <strong>You probably don't want to be reading this section of the docs.</strong>
-    This part of the manual is aimed at people wanting to develop third-party applications that interact with Argo CD, e.g.</p>
-<div class="codehilite"><pre><span></span>* An chat bot
-* An Slack integration
-</pre></div>
-
-
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Please make sure you've completed the <a href="../getting_started/">getting started guide</a>.</p>
-</div>
+                <h1 id="understand-the-basics">Understand The Basics<a class="headerlink" href="#understand-the-basics" title="Permanent link">&para;</a></h1>
+<p>Before effectively using Argo CD, it is necessary to understand the underlying technology that the platform is built on. It is also necessary to understand the features being provided to you and how to use them. The section below provides some useful links to build up this understanding.
+ </p>
+<h2 id="learn-the-fundamentals">Learn The Fundamentals<a class="headerlink" href="#learn-the-fundamentals" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Go through the online Docker and Kubernetes tutorials<ul>
+<li><a href="https://medium.freecodecamp.org/a-beginner-friendly-introduction-to-containers-vms-and-docker-79a9e3e119b">A Beginner-Friendly Introduction to Containers, VMs and Docker</a></li>
+<li><a href="https://courses.edx.org/courses/course-v1:LinuxFoundationX+LFS158x+2T2017/course/">Introduction to Kubernetes</a></li>
+<li><a href="https://kubernetes.io/docs/tutorials/">Tutorials</a></li>
+<li><a href="https://katacoda.com/courses/kubernetes/">Hands on labs</a></li>
+</ul>
+</li>
+<li>Depending on how you plan to template your applications:<ul>
+<li><a href="https://kustomize.io">Kustomize</a> </li>
+<li><a href="https://helm.sh">Helm</a></li>
+<li><a href="https://ksonnet.io">Ksonnet</a> </li>
+</ul>
+</li>
+<li>If you're integrating with Jenkins:<ul>
+<li><a href="https://jenkins.io">Jenkins User Guide</a></li>
+</ul>
+</li>
+</ul>
                 
                   
                 
@@ -821,7 +875,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../user-guide/best_practices/" title="Best Practices" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href=".." title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -830,19 +884,19 @@
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Best Practices
+                Overview
               </span>
             </div>
           </a>
         
         
-          <a href="test-e2e/" title="E2E Testing" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../getting_started/" title="Getting Started" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                E2E Testing
+                Getting Started
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

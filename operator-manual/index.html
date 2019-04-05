@@ -296,10 +296,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
     
     <label class="md-nav__link" for="nav-4">
       Operator Manual
@@ -315,11 +317,20 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../operator-manual/" title="Overview" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="Overview" class="md-nav__link md-nav__link--active">
       Overview
     </a>
+    
   </li>
 
         
@@ -329,7 +340,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/architecture/" title="Architectural Overview" class="md-nav__link">
+    <a href="architecture/" title="Architectural Overview" class="md-nav__link">
       Architectural Overview
     </a>
   </li>
@@ -341,7 +352,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/declarative-setup/" title="Declarative Setup" class="md-nav__link">
+    <a href="declarative-setup/" title="Declarative Setup" class="md-nav__link">
       Declarative Setup
     </a>
   </li>
@@ -353,7 +364,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/ingress/" title="Ingress Configuration" class="md-nav__link">
+    <a href="ingress/" title="Ingress Configuration" class="md-nav__link">
       Ingress Configuration
     </a>
   </li>
@@ -365,7 +376,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/metrics/" title="Prometheus Metrics" class="md-nav__link">
+    <a href="metrics/" title="Prometheus Metrics" class="md-nav__link">
       Prometheus Metrics
     </a>
   </li>
@@ -377,7 +388,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/rbac/" title="RBAC" class="md-nav__link">
+    <a href="rbac/" title="RBAC" class="md-nav__link">
       RBAC
     </a>
   </li>
@@ -389,7 +400,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/security/" title="Security" class="md-nav__link">
+    <a href="security/" title="Security" class="md-nav__link">
       Security
     </a>
   </li>
@@ -401,7 +412,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
+    <a href="sso/" title="SSO Configuration" class="md-nav__link">
       SSO Configuration
     </a>
   </li>
@@ -413,7 +424,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
+    <a href="webhook/" title="Git Webhook Configuration" class="md-nav__link">
       Git Webhook Configuration
     </a>
   </li>
@@ -425,7 +436,7 @@
 
 
   <li class="md-nav__item">
-    <a href="../operator-manual/custom_tools/" title="Custom Tooling" class="md-nav__link">
+    <a href="custom_tools/" title="Custom Tooling" class="md-nav__link">
       Custom Tooling
     </a>
   </li>
@@ -596,12 +607,10 @@
       
       
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+  <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6" checked>
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-6" type="checkbox" id="nav-6">
     
     <label class="md-nav__link" for="nav-6">
       Developer Guide
@@ -617,20 +626,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-    <a href="./" title="Overview" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../developer-guide/" title="Overview" class="md-nav__link">
       Overview
     </a>
-    
   </li>
 
         
@@ -652,7 +652,7 @@
 
 
   <li class="md-nav__item">
-    <a href="test-e2e/" title="E2E Testing" class="md-nav__link">
+    <a href="../developer-guide/test-e2e/" title="E2E Testing" class="md-nav__link">
       E2E Testing
     </a>
   </li>
@@ -664,7 +664,7 @@
 
 
   <li class="md-nav__item">
-    <a href="releasing/" title="Releasing" class="md-nav__link">
+    <a href="../developer-guide/releasing/" title="Releasing" class="md-nav__link">
       Releasing
     </a>
   </li>
@@ -676,7 +676,7 @@
 
 
   <li class="md-nav__item">
-    <a href="site/" title="Site" class="md-nav__link">
+    <a href="../developer-guide/site/" title="Site" class="md-nav__link">
       Site
     </a>
   </li>
@@ -786,17 +786,11 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/developer-guide/index.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/operator-manual/index.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
                 <h1 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h1>
-<p>!!! warning <strong>You probably don't want to be reading this section of the docs.</strong>
-    This part of the manual is aimed at people wanting to develop third-party applications that interact with Argo CD, e.g.</p>
-<div class="codehilite"><pre><span></span>* An chat bot
-* An Slack integration
-</pre></div>
-
-
+<p>This guide is for administrator and operator wanting to install and configure Argo CD for other developers.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Please make sure you've completed the <a href="../getting_started/">getting started guide</a>.</p>
@@ -821,7 +815,7 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../user-guide/best_practices/" title="Best Practices" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../getting_started/" title="Getting Started" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -830,19 +824,19 @@
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Best Practices
+                Getting Started
               </span>
             </div>
           </a>
         
         
-          <a href="test-e2e/" title="E2E Testing" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="architecture/" title="Architectural Overview" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                E2E Testing
+                Architectural Overview
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
