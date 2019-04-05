@@ -137,6 +137,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     const deployResIndex = deployParam && tree.nodes.findIndex((item) => {
                         return nodeKey(item) === deployParam;
                     });
+                    const tab = new URLSearchParams(this.props.history.location.search).get('tab');
                     const filteredRes = application.status.resources.filter((res) => {
                         const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: ''};
                         resNode.root = resNode;
@@ -246,7 +247,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 {title: 'SUMMARY', key: 'summary', content: (
                                                     <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode}/>
                                                 ),
-                                            }])} />
+                                            }])} selectedTabKey={tab} onTabSelected={(selected) => this.appContext.apis.navigation.goto('.', {tab: selected})}/>
                                     }</DataLoader>
                                 )}
                                 {isAppSelected && (
@@ -275,7 +276,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         ),
                                     }, {
                                         title: 'EVENTS', key: 'event', content: <ApplicationResourceEvents applicationName={application.metadata.name}/>,
-                                    }]}/>
+                                    }]} selectedTabKey={tab} onTabSelected={(selected) => this.appContext.apis.navigation.goto('.', {tab: selected})}/>
                                 )}
                                 </div>
                             </SlidingPanel>
@@ -488,7 +489,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private selectNode(fullName: string, containerIndex = 0) {
         const node = fullName ? `${fullName}:${containerIndex}` : null;
-        this.appContext.apis.navigation.goto('.', { node });
+        this.appContext.apis.navigation.goto('.', { node, tab: null });
     }
 
     private async syncApplication(revision: string, prune: boolean, dryRun: boolean, selectedResources: boolean[], appResources: appModels.ResourceStatus[]) {
