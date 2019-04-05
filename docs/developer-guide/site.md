@@ -1,5 +1,7 @@
 # Site
 
+## Developing And Testing
+
 The web site is build using `mkdocs` and `mkdocs-material`. 
 
 To test:
@@ -8,8 +10,15 @@ To test:
 mkdocs serve
 ```
 
-To deploy
+## Deploying
 
 ```bash
 mkdocs gh-deploy
 ```
+
+## Analytics
+
+!!! tip
+    Don't forget to disable your ad-blocker when testing.
+
+We collect [Google Analytics](https://analytics.google.com/analytics/web/#/report-home/a105170809w198079555p192782995).

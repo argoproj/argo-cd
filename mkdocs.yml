@@ -1,4 +1,4 @@
-site_name: Argo CD
+site_name: Argo CD - Declarative GitOps CD for Kubernetes
 repo_url: https://github.com/alexec/argo-cd
 remote_name: alexec
 theme:
@@ -19,7 +19,8 @@ markdown_extensions:
 nav:
   - Overview: index.md
   - getting_started.md
-  - Operation Manual:
+  - Operator Manual:
+    - operator-manual/index.md
     - operator-manual/architecture.md
     - operator-manual/declarative-setup.md
     - operator-manual/ingress.md
@@ -30,16 +31,17 @@ nav:
     - operator-manual/webhook.md
     - operator-manual/custom_tools.md
   - User Guide:
+    - user-guide/index.md
     - user-guide/application_sources.md
     - user-guide/auto_sync.md
-    - user-guide/best_practices.md
-    - user-guide/ci_automation.md
     - user-guide/diffing.md
     - user-guide/health.md
     - user-guide/parameters.md
-    - user-guide/projects.md
-    - user-guide/resource_hooks.md
     - user-guide/tracking_strategies.md
+    - user-guide/projects.md
+    - user-guide/ci_automation.md
+    - user-guide/resource_hooks.md
+    - user-guide/best_practices.md
   - Developer Guide:
     - developer-guide/index.md
     - Contributing ⧉: https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md
@@ -47,13 +49,11 @@ nav:
     - developer-guide/releasing.md
     - developer-guide/site.md
   - faq.md
-  - Change Log ⧉: https://github.com/argoproj/argo-cd/blob/master/CHANGELOG.md
+  - Get Help On Slack: get_help.md
+  - Report A Bug/Request A Feature ⧉: https://github.com/argoproj/argo-cd/issues
   - Releases ⧉: https://github.com/argoproj/argo-cd/releases
   - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
-  - Ask On Slack ⧉: https://argoproj.github.io/community/join-slack
-  - Report A Bug/Request A Feature ⧉: https://github.com/argoproj/argo-cd/issues
   - Blog ⧉: https://medium.com/@argoproject
-  - Twitter ⧉: https://twitter.com/argoproj
 extra:
   social:
     - type: twitter

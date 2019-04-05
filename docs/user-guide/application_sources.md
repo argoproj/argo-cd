@@ -10,6 +10,10 @@ Argo CD supports several different ways in which kubernetes manifests can be def
 
 Some additional considerations should be made when deploying apps of a particular type:
 
+## Kustomize
+
+Ops. We haven't got around to writing this part yet.
+
 ## Ksonnet
 
 ### Environments
