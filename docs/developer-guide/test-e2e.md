@@ -1,5 +1,4 @@
-E2E tests
-=============
+# E2E Tests
 
 The directory contains E2E tests and test applications. Tests assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. One throw-away
 namespace `argocd-e2e***` is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.

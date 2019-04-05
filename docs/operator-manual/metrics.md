@@ -1,4 +1,4 @@
-# Prometheus Metrics
+# Metrics
 
 Argo CD exposes two sets of Prometheus metrics
 

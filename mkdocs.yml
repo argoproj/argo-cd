@@ -25,40 +25,33 @@ nav:
     - operator-manual/architecture.md
     - operator-manual/declarative-setup.md
     - operator-manual/ingress.md
-    - operator-manual/metrics.md
+    - operator-manual/sso.md
     - operator-manual/rbac.md
     - operator-manual/security.md
-    - operator-manual/sso.md
     - operator-manual/webhook.md
+    - operator-manual/health.md
     - operator-manual/custom_tools.md
+    - operator-manual/metrics.md
   - User Guide:
     - user-guide/index.md
     - user-guide/application_sources.md
+    - user-guide/projects.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
-    - user-guide/health.md
     - user-guide/parameters.md
     - user-guide/tracking_strategies.md
-    - user-guide/projects.md
-    - user-guide/ci_automation.md
     - user-guide/resource_hooks.md
+    - user-guide/ci_automation.md
     - user-guide/best_practices.md
   - Developer Guide:
     - developer-guide/index.md
-    - Contributing ⧉: https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md
-    - E2E Testing: developer-guide/test-e2e.md
+    - CONTRIBUTING.md
+    - developer-guide/api-docs.md
+    - developer-guide/test-e2e.md
     - developer-guide/releasing.md
     - developer-guide/site.md
   - faq.md
   - Support: SUPPORT.md
   - Releases ⧉: https://github.com/argoproj/argo-cd/releases
   - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
-  - Blog ⧉: https://medium.com/@argoproject
-extra:
-  social:
-    - type: twitter
-      link: https://twitter.com/argoproj
-    - type: medium
-      link: https://medium.com/@argoproject
-    - type: slack
-      link: https://argoproj.github.io/community/join-slack
+  - Blog ⧉: https://blog.argoproj.io/
