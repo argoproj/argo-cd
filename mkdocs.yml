@@ -18,6 +18,7 @@ markdown_extensions:
     permalink: true
 nav:
   - Overview: index.md
+  - understand_the_basics.md
   - getting_started.md
   - Operator Manual:
     - operator-manual/index.md

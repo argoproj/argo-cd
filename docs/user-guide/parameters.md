@@ -6,7 +6,7 @@ k8s manifests determined dynamically, or outside of Git. It also serves as an al
 redeploying an application by changing application parameters via Argo CD, instead of making the 
 changes to the manifests in Git.
 
-!!! note
+!!! tip
     Many consider this mode of operation as an anti-pattern to GitOps, since the source of
     truth becomes a union of the Git repository, and the application overrides. The Argo CD parameter
     overrides feature is provided mainly as a convenience to developers and is intended to be used in

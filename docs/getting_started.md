@@ -1,5 +1,8 @@
 # Getting Started
 
+!!! tip
+    This guide assumes you have a grounding in the tools that Argo CD is based on. Please read the [understanding the basics](understand_the_basics.md).
+
 ## Requirements
 
 * Installed [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) command-line tool

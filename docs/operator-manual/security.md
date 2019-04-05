@@ -118,7 +118,7 @@ kubectl edit clusterrole argocd-server
 kubectl edit clusterrole argocd-application-controller
 ```
 
-!!! note
+!!! tip
     If you to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion). 
 
 ## Auditing
