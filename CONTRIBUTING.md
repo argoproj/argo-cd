@@ -106,7 +106,7 @@ Then start the services:
 
 ```
 cd ~/go/src/github.com/argoproj/argo-cd
-goreman start
+make start
 ```
 
 You can now execute `argocd` command against your locally running ArgoCD by appending `--server localhost:8080 --plaintext --insecure`, e.g.:

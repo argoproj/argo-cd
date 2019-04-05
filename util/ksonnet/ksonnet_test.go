@@ -15,8 +15,8 @@ var (
 )
 
 const (
-	testAppName = "test-app"
-	testEnvName = "test-env"
+	testAppName = "guestbook"
+	testEnvName = "prod"
 )
 
 func init() {
@@ -29,7 +29,7 @@ func TestKsonnet(t *testing.T) {
 	assert.Nil(t, err)
 	defaultDest, err := ksApp.Destination(testEnvName)
 	assert.True(t, err == nil)
-	assert.Equal(t, "https://1.2.3.4", defaultDest.Server)
+	assert.Equal(t, "https://kubernetes.default.svc", defaultDest.Server)
 }
 
 func TestShow(t *testing.T) {

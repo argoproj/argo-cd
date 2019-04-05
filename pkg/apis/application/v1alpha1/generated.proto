@@ -119,10 +119,6 @@ message ApplicationSource {
   // If omitted, will sync to HEAD
   optional string targetRevision = 4;
 
-  // ComponentParameterOverrides are a list of parameter override values
-  // DEPRECATED: use app source specific config instead
-  repeated ComponentParameter componentParameterOverrides = 5;
-
   // Helm holds helm specific options
   optional ApplicationSourceHelm helm = 7;
 
@@ -522,8 +518,11 @@ message ResourceNode {
   optional ResourceNetworkingInfo networkingInfo = 4;
 
   optional string resourceVersion = 5;
+
+  repeated string images = 6;
 }
 
+// ResourceOverride holds configuration to customize resource diffing and health assessment
 message ResourceOverride {
   optional string healthLua = 1;
 

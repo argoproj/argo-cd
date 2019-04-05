@@ -59,6 +59,7 @@ var (
 		DaemonSetKind:         "apps",
 		ReplicaSetKind:        "apps",
 		DeploymentKind:        "apps",
+		IngressKind:           "networking.k8s.io",
 		NetworkPolicyKind:     "networking.k8s.io",
 		PodSecurityPolicyKind: "policy",
 	}
