@@ -101,6 +101,7 @@ export class ApplicationsFilter extends React.Component<ApplicationsFilterProps,
                         <DataLoader load={() => services.projects.list()}>
                         {(projects) => {
                             const projAppCount = new Map<string, number>();
+                            projects.forEach((proj) => projAppCount.set(proj.metadata.name, 0));
                             applications.forEach((app) => projAppCount.set(app.spec.project, (projAppCount.get(app.spec.project) || 0) + 1));
                             return <ItemsFilter
                                 selected={pref.projectsFilter}
