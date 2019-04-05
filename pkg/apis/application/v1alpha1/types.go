@@ -66,9 +66,6 @@ type ApplicationSource struct {
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
-	// ComponentParameterOverrides are a list of parameter override values
-	// DEPRECATED: use app source specific config instead
-	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
 	// Helm holds helm specific options
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
 	// Kustomize holds kustomize specific options
@@ -85,7 +82,6 @@ func (a ApplicationSource) IsZero() bool {
 	return a.RepoURL == "" &&
 		a.Path == "" &&
 		a.TargetRevision == "" &&
-		len(a.ComponentParameterOverrides) == 0 &&
 		a.Helm.IsZero() &&
 		a.Kustomize.IsZero() &&
 		a.Ksonnet.IsZero() &&

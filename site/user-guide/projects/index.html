@@ -1,0 +1,1163 @@
+
+
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      
+      
+      
+      
+        <meta name="lang:clipboard.copy" content="Copy to clipboard">
+      
+        <meta name="lang:clipboard.copied" content="Copied to clipboard">
+      
+        <meta name="lang:search.language" content="en">
+      
+        <meta name="lang:search.pipeline.stopwords" content="True">
+      
+        <meta name="lang:search.pipeline.trimmer" content="True">
+      
+        <meta name="lang:search.result.none" content="No matching documents">
+      
+        <meta name="lang:search.result.one" content="1 matching document">
+      
+        <meta name="lang:search.result.other" content="# matching documents">
+      
+        <meta name="lang:search.tokenizer" content="[\s\-]+">
+      
+      <link rel="shortcut icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.1.1">
+    
+    
+      
+        <title>Projects - Argo CD</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/application.3020aac5.css">
+      
+        <link rel="stylesheet" href="../../assets/stylesheets/application-palette.224b79ff.css">
+      
+      
+        
+        
+        <meta name="theme-color" content="#009688">
+      
+    
+    
+      <script src="../../assets/javascripts/modernizr.01ccdecf.js"></script>
+    
+    
+      
+        <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|">
+        <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
+      
+    
+    <link rel="stylesheet" href="../../assets/fonts/material-icons.css">
+    
+    
+    
+      
+        
+<script>
+  window.ga = window.ga || function() {
+    (ga.q = ga.q || []).push(arguments)
+  }
+  ga.l = +new Date
+  /* Setup integration and send page view */
+  ga("create", "UA-105170809-2", "auto")
+  ga("set", "anonymizeIp", true)
+  ga("send", "pageview")
+  /* Register handler to log search on blur */
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.forms.search) {
+      var query = document.forms.search.query
+      query.addEventListener("blur", function() {
+        if (this.value) {
+          var path = document.location.pathname;
+          ga("send", "pageview", path + "?q=" + this.value)
+        }
+      })
+    }
+  })
+</script>
+<script async src="https://www.google-analytics.com/analytics.js"></script>
+      
+    
+    
+  </head>
+  
+    
+    
+    <body dir="ltr" data-md-color-primary="teal" data-md-color-accent="">
+  
+    <svg class="md-svg">
+      <defs>
+        
+        
+          <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448"
+    viewBox="0 0 416 448" id="__github">
+  <path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19-18.125
+        8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19 18.125-8.5
+        18.125 8.5 10.75 19 3.125 20.5zM320 304q0 10-3.125 20.5t-10.75
+        19-18.125 8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19
+        18.125-8.5 18.125 8.5 10.75 19 3.125 20.5zM360
+        304q0-30-17.25-51t-46.75-21q-10.25 0-48.75 5.25-17.75 2.75-39.25
+        2.75t-39.25-2.75q-38-5.25-48.75-5.25-29.5 0-46.75 21t-17.25 51q0 22 8
+        38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0
+        37.25-1.75t35-7.375 30.5-15 20.25-25.75 8-38.375zM416 260q0 51.75-15.25
+        82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5-41.75
+        1.125q-19.5 0-35.5-0.75t-36.875-3.125-38.125-7.5-34.25-12.875-30.25-20.25-21.5-28.75q-15.5-30.75-15.5-82.75
+        0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25
+        30.875q36.75-8.75 77.25-8.75 37 0 70 8 26.25-20.5
+        46.75-30.25t47.25-9.75q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34
+        99.5z" />
+</svg>
+        
+      </defs>
+    </svg>
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+    
+      <a href="#projects" tabindex="1" class="md-skip">
+        Skip to content
+      </a>
+    
+    
+      <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../.." title="Argo CD" class="md-header-nav__button md-logo">
+          
+            <img src="../../assets/logo.png" width="24" height="24">
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          
+            <span class="md-header-nav__topic">
+              Argo CD
+            </span>
+            <span class="md-header-nav__topic">
+              Projects
+            </span>
+          
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        
+          <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+          
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+        
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            
+
+
+  
+
+<a href="https://github.com/alexec/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+          </div>
+        </div>
+      
+    </div>
+  </nav>
+</header>
+    
+    <div class="md-container">
+      
+        
+      
+      
+      <main class="md-main">
+        <div class="md-main__inner md-grid" data-md-component="container">
+          
+            
+              <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../.." title="Argo CD" class="md-nav__button md-logo">
+      
+        <img src="../../assets/logo.png" width="48" height="48">
+      
+    </a>
+    Argo CD
+  </label>
+  
+    <div class="md-nav__source">
+      
+
+
+  
+
+<a href="https://github.com/alexec/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../.." title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../getting_started/" title="Getting Started" class="md-nav__link">
+      Getting Started
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3" type="checkbox" id="nav-3">
+    
+    <label class="md-nav__link" for="nav-3">
+      Operation Manual
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-3">
+        Operation Manual
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/architecture/" title="Architectural Overview" class="md-nav__link">
+      Architectural Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/declarative-setup/" title="Declarative Setup" class="md-nav__link">
+      Declarative Setup
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/ingress/" title="Ingress Configuration" class="md-nav__link">
+      Ingress Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/metrics/" title="Prometheus Metrics" class="md-nav__link">
+      Prometheus Metrics
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/rbac/" title="RBAC" class="md-nav__link">
+      RBAC
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/security/" title="Security" class="md-nav__link">
+      Security
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
+      SSO Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
+      Git Webhook Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/custom_tools/" title="Custom Tooling" class="md-nav__link">
+      Custom Tooling
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
+    
+    <label class="md-nav__link" for="nav-4">
+      User Guide
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-4">
+        User Guide
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../application_sources/" title="Application Source Types" class="md-nav__link">
+      Application Source Types
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../auto_sync/" title="Automated Sync Policy" class="md-nav__link">
+      Automated Sync Policy
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../best_practices/" title="Best Practices" class="md-nav__link">
+      Best Practices
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../ci_automation/" title="Automation from CI Pipelines" class="md-nav__link">
+      Automation from CI Pipelines
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../diffing/" title="Diffing Customization" class="md-nav__link">
+      Diffing Customization
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../health/" title="Resource Health" class="md-nav__link">
+      Resource Health
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../parameters/" title="Parameter Overrides" class="md-nav__link">
+      Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Projects
+      </label>
+    
+    <a href="./" title="Projects" class="md-nav__link md-nav__link--active">
+      Projects
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#projects" title="Projects" class="md-nav__link">
+    Projects
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-default-project" title="The Default Project" class="md-nav__link">
+    The Default Project
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-projects" title="Creating Projects" class="md-nav__link">
+    Creating Projects
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-projects" title="Managing Projects" class="md-nav__link">
+    Managing Projects
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assign-application-to-a-project" title="Assign Application To A Project" class="md-nav__link">
+    Assign Application To A Project
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuring-rbac-with-projects" title="Configuring RBAC With Projects" class="md-nav__link">
+    Configuring RBAC With Projects
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-roles" title="Project Roles" class="md-nav__link">
+    Project Roles
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../resource_hooks/" title="Resource Hooks" class="md-nav__link">
+      Resource Hooks
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../tracking_strategies/" title="Tracking and Deployment Strategies" class="md-nav__link">
+      Tracking and Deployment Strategies
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
+    
+    <label class="md-nav__link" for="nav-5">
+      Developer Guide
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-5">
+        Developer Guide
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md" title="Contributing ⧉" class="md-nav__link">
+      Contributing ⧉
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/test-e2e/" title="E2E Testing" class="md-nav__link">
+      E2E Testing
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/releasing/" title="Releasing" class="md-nav__link">
+      Releasing
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/site/" title="Site" class="md-nav__link">
+      Site
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../faq/" title="FAQ" class="md-nav__link">
+      FAQ
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/blob/master/CHANGELOG.md" title="Change Log ⧉" class="md-nav__link">
+      Change Log ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/releases" title="Releases ⧉" class="md-nav__link">
+      Releases ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/milestones" title="Roadmap ⧉" class="md-nav__link">
+      Roadmap ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://argoproj.github.io/community/join-slack" title="Ask On Slack ⧉" class="md-nav__link">
+      Ask On Slack ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/issues" title="Report A Bug/Request A Feature ⧉" class="md-nav__link">
+      Report A Bug/Request A Feature ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://medium.com/@argoproject" title="Blog ⧉" class="md-nav__link">
+      Blog ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://twitter.com/argoproj" title="Twitter ⧉" class="md-nav__link">
+      Twitter ⧉
+    </a>
+  </li>
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary">
+  
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#projects" title="Projects" class="md-nav__link">
+    Projects
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-default-project" title="The Default Project" class="md-nav__link">
+    The Default Project
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-projects" title="Creating Projects" class="md-nav__link">
+    Creating Projects
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#managing-projects" title="Managing Projects" class="md-nav__link">
+    Managing Projects
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assign-application-to-a-project" title="Assign Application To A Project" class="md-nav__link">
+    Assign Application To A Project
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuring-rbac-with-projects" title="Configuring RBAC With Projects" class="md-nav__link">
+    Configuring RBAC With Projects
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-roles" title="Project Roles" class="md-nav__link">
+    Project Roles
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/user-guide/projects.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                
+                
+                  <h1>Projects</h1>
+                
+                <h2 id="projects">Projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h2>
+<p>Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
+teams. Projects provide the following features:</p>
+<ul>
+<li>restrict <em>what</em> may be deployed (trusted Git source repositories)</li>
+<li>restrict <em>where</em> apps may be deployed to (destination clusters and namespaces)</li>
+<li>restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)</li>
+<li>defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)</li>
+</ul>
+<h3 id="the-default-project">The Default Project<a class="headerlink" href="#the-default-project" title="Permanent link">&para;</a></h3>
+<p>Every application belongs to a single project. If unspecified, an application belongs to the
+<code>default</code> project, which is created automatically and by default, permits deployments from any
+source repo, to any cluster, and all resource Kinds. The default project can be modified, but not
+deleted. When initially created, it's specification is configured to be the most permissive:</p>
+<div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">sourceRepos</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="s">&#39;*&#39;</span>
+  <span class="nt">destinations</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">namespace</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+    <span class="nt">server</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+  <span class="nt">clusterResourceWhitelist</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">group</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+    <span class="nt">kind</span><span class="p">:</span> <span class="s">&#39;*&#39;</span>
+</pre></div>
+
+
+<h3 id="creating-projects">Creating Projects<a class="headerlink" href="#creating-projects" title="Permanent link">&para;</a></h3>
+<p>Additional projects can be created to give separate teams different levels of access to namespaces.
+The following command creates a new project <code>myproject</code> which can deploy applications to namespace
+<code>mynamespace</code> of cluster <code>https://kubernetes.default.svc</code>. The permitted Git source repository is
+set to <code>https://github.com/argoproj/argocd-example-apps.git</code> repository.</p>
+<div class="codehilite"><pre><span></span>argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s https://github.com/argoproj/argocd-example-apps.git
+</pre></div>
+
+
+<h3 id="managing-projects">Managing Projects<a class="headerlink" href="#managing-projects" title="Permanent link">&para;</a></h3>
+<p>Permitted source Git repositories are managed using commands:</p>
+<div class="codehilite"><pre><span></span>argocd proj add-source &lt;PROJECT&gt; &lt;REPO&gt;
+argocd proj remove-source &lt;PROJECT&gt; &lt;REPO&gt;
+</pre></div>
+
+
+<p>Permitted destination clusters and namespaces are managed with the commands:</p>
+<div class="codehilite"><pre><span></span>argocd proj add-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
+argocd proj remove-destination &lt;PROJECT&gt; &lt;CLUSTER&gt;,&lt;NAMESPACE&gt;
+</pre></div>
+
+
+<p>Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
+resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
+whitelist.</p>
+<div class="codehilite"><pre><span></span>argocd proj allow-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
+argocd proj allow-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
+argocd proj deny-cluster-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
+argocd proj deny-namespace-resource &lt;PROJECT&gt; &lt;GROUP&gt; &lt;KIND&gt;
+</pre></div>
+
+
+<h3 id="assign-application-to-a-project">Assign Application To A Project<a class="headerlink" href="#assign-application-to-a-project" title="Permanent link">&para;</a></h3>
+<p>The application project can be changed using <code>app set</code> command. In order to change the project of
+an app, the user must have permissions to access the new project.</p>
+<div class="codehilite"><pre><span></span>argocd app set guestbook-default --project myproject
+</pre></div>
+
+
+<h3 id="configuring-rbac-with-projects">Configuring RBAC With Projects<a class="headerlink" href="#configuring-rbac-with-projects" title="Permanent link">&para;</a></h3>
+<p>Once projects have been defined, RBAC rules can be written to restrict access to the applications
+in the project. The following example configures RBAC for two GitHub teams: <code>team1</code> and <code>team2</code>,
+both in the GitHub org, <code>some-github-org</code>. There are two projects, <code>project-a</code> and <code>project-b</code>.
+<code>team1</code> can only manage applications in <code>project-a</code>, while <code>team2</code> can only manage applications in
+<code>project-b</code>. Both <code>team1</code> and <code>team2</code> have the ability to manage repositories.</p>
+<p><em>ConfigMap <code>argocd-rbac-cm</code> example:</em></p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-rbac-cm</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">policy.default</span><span class="p">:</span> <span class="s">&quot;&quot;</span>
+  <span class="nt">policy.csv</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">p, some-github-org:team1, applications, *, project-a/*, allow</span>
+    <span class="no">p, some-github-org:team2, applications, *, project-a/*, allow</span>
+
+    <span class="no">p, role:org-admin, repositories, get, *, allow</span>
+    <span class="no">p, role:org-admin, repositories, create, *, allow</span>
+    <span class="no">p, role:org-admin, repositories, update, *, allow</span>
+    <span class="no">p, role:org-admin, repositories, delete, *, allow</span>
+
+    <span class="no">g, some-github-org:team1, org-admin</span>
+    <span class="no">g, some-github-org:team2, org-admin</span>
+</pre></div>
+
+
+<h2 id="project-roles">Project Roles<a class="headerlink" href="#project-roles" title="Permanent link">&para;</a></h2>
+<p>Projects include a feature called roles that enable automated access to a project's applications.
+These can be used to give a CI pipeline a restricted set of permissions. For example, a CI system
+may only be able to sync a single app (but not change its source or destination).</p>
+<p>Projects can have multiple roles, and those roles can have different access granted to them. These
+permissions are called policies, and they are stored within the role as a list of policy strings.
+A role's policy can only grant access to that role and are limited to applications within the role's
+project.  However, the policies have an option for granting wildcard access to any application
+within a project.</p>
+<p>In order to create roles in a project and add policies to a role, a user will need permission to
+update a project.  The following commands can be used to manage a role.</p>
+<div class="codehilite"><pre><span></span>argocd proj role list
+argocd proj role get
+argocd proj role create
+argocd proj role delete
+argocd proj role add-policy
+argocd proj role remove-policy
+</pre></div>
+
+
+<p>Project roles in itself are not useful without generating a token to associate to that role. Argo CD
+supports JWT tokens as the means to authenticate to a role. Since the JWT token is
+associated with a role's policies, any changes to the role's policies will immediately take effect
+for that JWT token.</p>
+<p>The following commands are used to manage the JWT tokens.</p>
+<div class="codehilite"><pre><span></span>argocd proj role create-token PROJECT ROLE-NAME
+argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT
+</pre></div>
+
+
+<p>Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A
+user can leverage them in the cli by either passing them in using the <code>--auth-token</code> flag or setting
+the ARGOCD_AUTH_TOKEN environment variable. The JWT tokens can be used until they expire or are
+revoked.  The JWT tokens can created with or without an expiration, but the default on the cli is
+creates them without an expirations date.  Even if a token has not expired, it cannot be used if
+the token has been revoked.</p>
+<p>Below is an example of leveraging a JWT token to access a guestbook application.  It makes the
+assumption that the user already has a project named myproject and an application called
+guestbook-default.</p>
+<div class="codehilite"><pre><span></span><span class="nv">PROJ</span><span class="o">=</span>myproject
+<span class="nv">APP</span><span class="o">=</span>guestbook-default
+<span class="nv">ROLE</span><span class="o">=</span>get-role
+argocd proj role create <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>
+argocd proj role create-token <span class="nv">$PROJ</span> <span class="nv">$ROLE</span> -e 10m
+<span class="nv">JWT</span><span class="o">=</span>&lt;value from <span class="nb">command</span> above&gt;
+argocd proj role list <span class="nv">$PROJ</span>
+argocd proj role get <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>
+
+<span class="c1"># This command will fail because the JWT Token associated with the project role does not have a policy to allow access to the application</span>
+argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</span>
+<span class="c1"># Adding a policy to grant access to the application for the new role</span>
+argocd proj role add-policy <span class="nv">$PROJ</span> <span class="nv">$ROLE</span> --action get --permission allow --object <span class="nv">$APP</span>
+argocd app get <span class="nv">$PROJ</span>-<span class="nv">$ROLE</span> --auth-token <span class="nv">$JWT</span>
+
+<span class="c1"># Removing the policy we added and adding one with a wildcard.</span>
+argocd proj role remove-policy <span class="nv">$PROJ</span> <span class="nv">$TOKEN</span> -a get -o <span class="nv">$PROJ</span>-<span class="nv">$TOKEN</span>
+argocd proj role remove-policy <span class="nv">$PROJ</span> <span class="nv">$TOKEN</span> -a get -o <span class="s1">&#39;*&#39;</span>
+<span class="c1"># The wildcard allows us to access the application due to the wildcard.</span>
+argocd app get <span class="nv">$PROJ</span>-<span class="nv">$TOKEN</span> --auth-token <span class="nv">$JWT</span>
+argocd proj role get <span class="nv">$PROJ</span>
+
+
+argocd proj role get <span class="nv">$PROJ</span> <span class="nv">$ROLE</span>
+<span class="c1"># Revoking the JWT token</span>
+argocd proj role delete-token <span class="nv">$PROJ</span> <span class="nv">$ROLE</span> &lt;id field from the last command&gt;
+<span class="c1"># This will fail since the JWT Token was deleted for the project role.</span>
+argocd app get <span class="nv">$APP</span> --auth-token <span class="nv">$JWT</span>
+</pre></div>
+                
+                  
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        
+<footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../parameters/" title="Parameter Overrides" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Parameter Overrides
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../resource_hooks/" title="Resource Hooks" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                Resource Hooks
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+        powered by
+        <a href="https://www.mkdocs.org">MkDocs</a>
+        and
+        <a href="https://squidfunk.github.io/mkdocs-material/">
+          Material for MkDocs</a>
+      </div>
+      
+  <div class="md-footer-social">
+    <link rel="stylesheet" href="../../assets/fonts/font-awesome.css">
+    
+      <a href="https://twitter.com/argoproj" class="md-footer-social__link fa fa-twitter"></a>
+    
+      <a href="https://medium.com/@argoproject" class="md-footer-social__link fa fa-medium"></a>
+    
+      <a href="https://argoproj.github.io/community/join-slack" class="md-footer-social__link fa fa-slack"></a>
+    
+  </div>
+
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    
+      <script src="../../assets/javascripts/application.dc02f8ce.js"></script>
+      
+      <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
+      
+    
+  </body>
+</html>

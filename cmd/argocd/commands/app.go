@@ -521,9 +521,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				if len(app.Spec.Source.Ksonnet.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
-				}
 			}
 			if app.Spec.Source.Helm != nil {
 				for _, paramStr := range parameters {
@@ -535,9 +532,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 							break
 						}
 					}
-				}
-				if len(app.Spec.Source.Helm.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
 				}
 				specValueFiles := app.Spec.Source.Helm.ValueFiles
 				for _, valuesFile := range valuesFiles {
@@ -1483,6 +1477,9 @@ const printOpFmtStr = "%-20s%s\n"
 const defaultCheckTimeoutSeconds = 0
 
 func printOperationResult(opState *argoappv1.OperationState) {
+	if opState == nil {
+		return
+	}
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
 		fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)

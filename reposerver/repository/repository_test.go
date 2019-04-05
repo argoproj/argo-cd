@@ -231,15 +231,15 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 
 	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		Path: "test-app",
+		Path: "guestbook",
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, "https://1.2.3.4", res.Ksonnet.Environments["test-env"].Destination.Server)
-	assert.Equal(t, "test-namespace", res.Ksonnet.Environments["test-env"].Destination.Namespace)
-	assert.Equal(t, "v1.8.0", res.Ksonnet.Environments["test-env"].K8SVersion)
-	assert.Equal(t, "test-env", res.Ksonnet.Environments["test-env"].Path)
-	assert.Equal(t, argoappv1.KsonnetParameter{Component: "demo", Name: "containerPort", Value: "80"}, *res.Ksonnet.Parameters[0])
-	assert.Equal(t, 6, len(res.Ksonnet.Parameters))
+	assert.Equal(t, "https://kubernetes.default.svc", res.Ksonnet.Environments["prod"].Destination.Server)
+	assert.Equal(t, "prod", res.Ksonnet.Environments["prod"].Destination.Namespace)
+	assert.Equal(t, "v1.10.0", res.Ksonnet.Environments["prod"].K8SVersion)
+	assert.Equal(t, "prod", res.Ksonnet.Environments["prod"].Path)
+	assert.Equal(t, argoappv1.KsonnetParameter{Component: "guestbook-ui", Name: "command", Value: "null"}, *res.Ksonnet.Parameters[0])
+	assert.Equal(t, 7, len(res.Ksonnet.Parameters))
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {

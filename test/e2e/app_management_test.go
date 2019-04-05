@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -338,4 +339,39 @@ func TestResourceDiffing(t *testing.T) {
 	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 	assert.Empty(t, diffOutput)
 	assert.NoError(t, err)
+}
+
+func TestEdgeCasesApplicationResources(t *testing.T) {
+
+	apps := map[string]string{
+		"DeprecatedExtensions": "deprecated-extensions",
+		"CRDs":                 "crd-creation",
+		"DuplicatedResources":  "duplicated-resources",
+	}
+
+	for name, appPath := range apps {
+		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
+			fixture.EnsureCleanState()
+			app := getTestApp()
+			app.Spec.Source.Path = appPath
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+			assert.NoError(t, err)
+
+			_, err = fixture.RunCli("app", "sync", app.Name)
+			assert.NoError(t, err)
+
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer util.Close(closer)
+
+			refresh := string(v1alpha1.RefreshTypeNormal)
+			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+			assert.NoError(t, err)
+
+			assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			assert.Empty(t, diffOutput)
+			assert.NoError(t, err)
+		})
+	}
 }

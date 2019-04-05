@@ -1,0 +1,1192 @@
+
+
+
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      
+      
+      
+      
+        <meta name="lang:clipboard.copy" content="Copy to clipboard">
+      
+        <meta name="lang:clipboard.copied" content="Copied to clipboard">
+      
+        <meta name="lang:search.language" content="en">
+      
+        <meta name="lang:search.pipeline.stopwords" content="True">
+      
+        <meta name="lang:search.pipeline.trimmer" content="True">
+      
+        <meta name="lang:search.result.none" content="No matching documents">
+      
+        <meta name="lang:search.result.one" content="1 matching document">
+      
+        <meta name="lang:search.result.other" content="# matching documents">
+      
+        <meta name="lang:search.tokenizer" content="[\s\-]+">
+      
+      <link rel="shortcut icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.0.4, mkdocs-material-4.1.1">
+    
+    
+      
+        <title>Security - Argo CD</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/application.3020aac5.css">
+      
+        <link rel="stylesheet" href="../../assets/stylesheets/application-palette.224b79ff.css">
+      
+      
+        
+        
+        <meta name="theme-color" content="#009688">
+      
+    
+    
+      <script src="../../assets/javascripts/modernizr.01ccdecf.js"></script>
+    
+    
+      
+        <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Work+Sans:300,400,400i,700|">
+        <style>body,input{font-family:"Work Sans","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"","Courier New",Courier,monospace}</style>
+      
+    
+    <link rel="stylesheet" href="../../assets/fonts/material-icons.css">
+    
+    
+    
+      
+        
+<script>
+  window.ga = window.ga || function() {
+    (ga.q = ga.q || []).push(arguments)
+  }
+  ga.l = +new Date
+  /* Setup integration and send page view */
+  ga("create", "UA-105170809-2", "auto")
+  ga("set", "anonymizeIp", true)
+  ga("send", "pageview")
+  /* Register handler to log search on blur */
+  document.addEventListener("DOMContentLoaded", () => {
+    if (document.forms.search) {
+      var query = document.forms.search.query
+      query.addEventListener("blur", function() {
+        if (this.value) {
+          var path = document.location.pathname;
+          ga("send", "pageview", path + "?q=" + this.value)
+        }
+      })
+    }
+  })
+</script>
+<script async src="https://www.google-analytics.com/analytics.js"></script>
+      
+    
+    
+  </head>
+  
+    
+    
+    <body dir="ltr" data-md-color-primary="teal" data-md-color-accent="">
+  
+    <svg class="md-svg">
+      <defs>
+        
+        
+          <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448"
+    viewBox="0 0 416 448" id="__github">
+  <path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19-18.125
+        8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19 18.125-8.5
+        18.125 8.5 10.75 19 3.125 20.5zM320 304q0 10-3.125 20.5t-10.75
+        19-18.125 8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19
+        18.125-8.5 18.125 8.5 10.75 19 3.125 20.5zM360
+        304q0-30-17.25-51t-46.75-21q-10.25 0-48.75 5.25-17.75 2.75-39.25
+        2.75t-39.25-2.75q-38-5.25-48.75-5.25-29.5 0-46.75 21t-17.25 51q0 22 8
+        38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0
+        37.25-1.75t35-7.375 30.5-15 20.25-25.75 8-38.375zM416 260q0 51.75-15.25
+        82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5-41.75
+        1.125q-19.5 0-35.5-0.75t-36.875-3.125-38.125-7.5-34.25-12.875-30.25-20.25-21.5-28.75q-15.5-30.75-15.5-82.75
+        0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25
+        30.875q36.75-8.75 77.25-8.75 37 0 70 8 26.25-20.5
+        46.75-30.25t47.25-9.75q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34
+        99.5z" />
+</svg>
+        
+      </defs>
+    </svg>
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+    
+      <a href="#security" tabindex="1" class="md-skip">
+        Skip to content
+      </a>
+    
+    
+      <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../.." title="Argo CD" class="md-header-nav__button md-logo">
+          
+            <img src="../../assets/logo.png" width="24" height="24">
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          
+            <span class="md-header-nav__topic">
+              Argo CD
+            </span>
+            <span class="md-header-nav__topic">
+              Security
+            </span>
+          
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        
+          <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+          
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+        
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            
+
+
+  
+
+<a href="https://github.com/alexec/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+          </div>
+        </div>
+      
+    </div>
+  </nav>
+</header>
+    
+    <div class="md-container">
+      
+        
+      
+      
+      <main class="md-main">
+        <div class="md-main__inner md-grid" data-md-component="container">
+          
+            
+              <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="../.." title="Argo CD" class="md-nav__button md-logo">
+      
+        <img src="../../assets/logo.png" width="48" height="48">
+      
+    </a>
+    Argo CD
+  </label>
+  
+    <div class="md-nav__source">
+      
+
+
+  
+
+<a href="https://github.com/alexec/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+  
+    <div class="md-source__icon">
+      <svg viewBox="0 0 24 24" width="24" height="24">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../.." title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../getting_started/" title="Getting Started" class="md-nav__link">
+      Getting Started
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3" type="checkbox" id="nav-3" checked>
+    
+    <label class="md-nav__link" for="nav-3">
+      Operation Manual
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-3">
+        Operation Manual
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../architecture/" title="Architectural Overview" class="md-nav__link">
+      Architectural Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../declarative-setup/" title="Declarative Setup" class="md-nav__link">
+      Declarative Setup
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../ingress/" title="Ingress Configuration" class="md-nav__link">
+      Ingress Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../metrics/" title="Prometheus Metrics" class="md-nav__link">
+      Prometheus Metrics
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../rbac/" title="RBAC" class="md-nav__link">
+      RBAC
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Security
+      </label>
+    
+    <a href="./" title="Security" class="md-nav__link md-nav__link--active">
+      Security
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" title="Authentication" class="md-nav__link">
+    Authentication
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" title="Authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tls" title="TLS" class="md-nav__link">
+    TLS
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensitive-information" title="Sensitive Information" class="md-nav__link">
+    Sensitive Information
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#secrets" title="Secrets" class="md-nav__link">
+    Secrets
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-cluster-credentials" title="External Cluster Credentials" class="md-nav__link">
+    External Cluster Credentials
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster-rbac" title="Cluster RBAC" class="md-nav__link">
+    Cluster RBAC
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing" title="Auditing" class="md-nav__link">
+    Auditing
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#webhook-payloads" title="WebHook Payloads" class="md-nav__link">
+    WebHook Payloads
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reporting-vulnerabilities" title="Reporting Vulnerabilities" class="md-nav__link">
+    Reporting Vulnerabilities
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../sso/" title="SSO Configuration" class="md-nav__link">
+      SSO Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../webhook/" title="Git Webhook Configuration" class="md-nav__link">
+      Git Webhook Configuration
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../custom_tools/" title="Custom Tooling" class="md-nav__link">
+      Custom Tooling
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+    
+    <label class="md-nav__link" for="nav-4">
+      User Guide
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-4">
+        User Guide
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/application_sources/" title="Application Source Types" class="md-nav__link">
+      Application Source Types
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/auto_sync/" title="Automated Sync Policy" class="md-nav__link">
+      Automated Sync Policy
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/best_practices/" title="Best Practices" class="md-nav__link">
+      Best Practices
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/ci_automation/" title="Automation from CI Pipelines" class="md-nav__link">
+      Automation from CI Pipelines
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/diffing/" title="Diffing Customization" class="md-nav__link">
+      Diffing Customization
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/health/" title="Resource Health" class="md-nav__link">
+      Resource Health
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/parameters/" title="Parameter Overrides" class="md-nav__link">
+      Parameter Overrides
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/projects/" title="Projects" class="md-nav__link">
+      Projects
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/resource_hooks/" title="Resource Hooks" class="md-nav__link">
+      Resource Hooks
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/tracking_strategies/" title="Tracking and Deployment Strategies" class="md-nav__link">
+      Tracking and Deployment Strategies
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
+    
+    <label class="md-nav__link" for="nav-5">
+      Developer Guide
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-5">
+        Developer Guide
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/" title="Overview" class="md-nav__link">
+      Overview
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md" title="Contributing ⧉" class="md-nav__link">
+      Contributing ⧉
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/test-e2e/" title="E2E Testing" class="md-nav__link">
+      E2E Testing
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/releasing/" title="Releasing" class="md-nav__link">
+      Releasing
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../developer-guide/site/" title="Site" class="md-nav__link">
+      Site
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../faq/" title="FAQ" class="md-nav__link">
+      FAQ
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/blob/master/CHANGELOG.md" title="Change Log ⧉" class="md-nav__link">
+      Change Log ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/releases" title="Releases ⧉" class="md-nav__link">
+      Releases ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/milestones" title="Roadmap ⧉" class="md-nav__link">
+      Roadmap ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://argoproj.github.io/community/join-slack" title="Ask On Slack ⧉" class="md-nav__link">
+      Ask On Slack ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://github.com/argoproj/argo-cd/issues" title="Report A Bug/Request A Feature ⧉" class="md-nav__link">
+      Report A Bug/Request A Feature ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://medium.com/@argoproject" title="Blog ⧉" class="md-nav__link">
+      Blog ⧉
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="https://twitter.com/argoproj" title="Twitter ⧉" class="md-nav__link">
+      Twitter ⧉
+    </a>
+  </li>
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" title="Authentication" class="md-nav__link">
+    Authentication
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" title="Authorization" class="md-nav__link">
+    Authorization
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tls" title="TLS" class="md-nav__link">
+    TLS
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensitive-information" title="Sensitive Information" class="md-nav__link">
+    Sensitive Information
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#secrets" title="Secrets" class="md-nav__link">
+    Secrets
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-cluster-credentials" title="External Cluster Credentials" class="md-nav__link">
+    External Cluster Credentials
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster-rbac" title="Cluster RBAC" class="md-nav__link">
+    Cluster RBAC
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing" title="Auditing" class="md-nav__link">
+    Auditing
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#webhook-payloads" title="WebHook Payloads" class="md-nav__link">
+    WebHook Payloads
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reporting-vulnerabilities" title="Reporting Vulnerabilities" class="md-nav__link">
+    Reporting Vulnerabilities
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/operator-manual/security.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                
+                
+                <h1 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h1>
+<p>Argo CD has undergone rigourous internal security reviews and penetration testing to satisfy <a href="https://www.pcisecuritystandards.org">PCI
+compliance</a> requirements. The following are some security
+topics and implementation details of Argo CD.</p>
+<h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
+<p>Authentication to Argo CD API server is performed exclusively using <a href="https://jwt.io">JSON Web Tokens</a>
+(JWTs). Username/password bearer tokens are not used for authentication. The JWT is obtained/managed
+in one of the following ways:</p>
+<ol>
+<li>
+<p>For the local <code>admin</code> user, a username/password is exchanged for a JWT using the <code>/api/v1/session</code>
+   endpoint. This token is signed &amp; issued by the Argo CD API server itself, and has no expiration.
+   When the admin password is updated, all existing admin JWT tokens are immediately revoked.
+   The password is stored as a bcrypt hash in the <a href="../../manifests/base/argocd-secret.yaml"><code>argocd-secret</code></a> Secret.</p>
+</li>
+<li>
+<p>For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
+   provider (either delegated through the bundled Dex provider, or directly to a self-managed OIDC
+   provider). This JWT is signed &amp; issued by the IDP, and expiration and revokation is handled by
+   the provider. Dex tokens expire after 24 hours.</p>
+</li>
+<li>
+<p>Automation tokens are generated for a project using the <code>/api/v1/projects/{project}/roles/{role}/token</code>
+   endpoint, and are signed &amp; issued by Argo CD. These tokens are limited in scope and privilege,
+   and can only be used to manage application resources in the project which it belongs to. Project
+   JWTs have a configurable expiration and can be immediately revoked by deleting the JWT reference
+   ID from the project role.</p>
+</li>
+</ol>
+<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
+<p>Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
+and comparing each group against the roles/rules in the <a href="../rbac/">RBAC</a> policy. Any matched rule
+permits access to the API request.</p>
+<h2 id="tls">TLS<a class="headerlink" href="#tls" title="Permanent link">&para;</a></h2>
+<p>All network communication is performed over TLS including service-to-service communication between
+the three components (argocd-server, argocd-repo-server, argocd-application-controller). The Argo CD
+API server can enforce the use of TLS 1.2 using the flag: <code>--tlsminversion 1.2</code>.</p>
+<h2 id="sensitive-information">Sensitive Information<a class="headerlink" href="#sensitive-information" title="Permanent link">&para;</a></h2>
+<h3 id="secrets">Secrets<a class="headerlink" href="#secrets" title="Permanent link">&para;</a></h3>
+<p>Argo CD never returns sensitive data from its API, and redacts all sensitive data in API payloads
+and logs. This includes:</p>
+<ul>
+<li>cluster credentials</li>
+<li>Git credentials</li>
+<li>OAuth2 client secrets</li>
+<li>Kubernetes Secret values</li>
+</ul>
+<h3 id="external-cluster-credentials">External Cluster Credentials<a class="headerlink" href="#external-cluster-credentials" title="Permanent link">&para;</a></h3>
+<p>To manage external clusters, Argo CD stores the credentials of the external cluster as a Kubernetes
+Secret in the argocd namespace. This secret contains the K8s API bearer token associated with the
+<code>argocd-manager</code> ServiceAccount created during <code>argocd cluster add</code>, along with connection options
+to that API server (TLS configuration/certs, aws-iam-authenticator RoleARN, etc...).
+The information is used to reconstruct a REST config and kubeconfig to the cluster used by Argo CD
+services.</p>
+<p>To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
+causes kuberentes to generate a new secret with a new bearer token. The new token can be re-inputted
+to Argo CD by re-running <code>argocd cluster add</code>. Run the following commands against the <em><em>managed</em></em>
+cluster:</p>
+<div class="codehilite"><pre><span></span><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
+kubectl delete secret argocd-manager-token-XXXXXX -n kube-system
+argocd cluster add CONTEXTNAME
+</pre></div>
+
+
+<p>To revoke Argo CD's access to a managed cluster, delete the RBAC artifacts against the <em><em>managed</em></em>
+cluster, and remove the cluster entry from Argo CD:</p>
+<div class="codehilite"><pre><span></span><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
+kubectl delete sa argocd-manager -n kube-system 
+kubectl delete clusterrole argocd-manager-role
+kubectl delete clusterrolebinding argocd-manager-role-binding
+argocd cluster rm https://your-kubernetes-cluster-addr
+</pre></div>
+
+
+<blockquote>
+<p>NOTE: for AWS EKS clusters, <a href="https://github.com/kubernetes-sigs/aws-iam-authenticator">aws-iam-authenticator</a>
+  is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
+  tokens, so token rotation is not needed, and revokation is handled through IAM.</p>
+</blockquote>
+<h2 id="cluster-rbac">Cluster RBAC<a class="headerlink" href="#cluster-rbac" title="Permanent link">&para;</a></h2>
+<p>By default, Argo CD uses a <a href="../../manifests/cluster-install/application-controller/argocd-application-controller-clusterrole.yaml">clusteradmin level role</a>
+in order to:
+1. watch &amp; operate on cluster state
+2. deploy resources to the cluster</p>
+<p>Although Argo CD requires cluster-wide <strong><em>read</em></strong> privileges to resources in the managed cluster to
+function properly, it does not necessarily need full <strong><em>write</em></strong> privileges to the cluster. The
+ClusterRole used by argocd-server and argocd-application-controller can be modified such
+that write privileges are limited to only the namespaces and resources that you wish Argo CD to
+manage.</p>
+<p>To fine-tune privileges of externally managed clusters, edit the ClusterRole of the <code>argocd-manager-role</code></p>
+<div class="codehilite"><pre><span></span><span class="c1"># run using a kubeconfig for the externally managed cluster</span>
+kubectl edit clusterrole argocd-manager-role
+</pre></div>
+
+
+<p>To fine-tune privileges which Argo CD has against its own cluster (i.e. https://kubernetes.default.svc),
+edit the following cluster roles where Argo CD is running in:</p>
+<div class="codehilite"><pre><span></span><span class="c1"># run using a kubeconfig to the cluster Argo CD is running in</span>
+kubectl edit clusterrole argocd-server
+kubectl edit clusterrole argocd-application-controller
+</pre></div>
+
+
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you to deny ArgoCD access to a kind of resource then add it as an <a href="../declarative-setup/#resource-exclusion">excluded resource</a>. </p>
+</div>
+<h2 id="auditing">Auditing<a class="headerlink" href="#auditing" title="Permanent link">&para;</a></h2>
+<p>As a GitOps deployment tool, the Git commit history provides a natural audit log of what changes
+were made to application configuration, when they were made, and by whom. However, this audit log
+only applies to what happened in Git and does not necessarily correlate one-to-one with events
+that happen in a cluster. For example, User A could have made multiple commits to application
+manifests, but User B could have just only synced those changes to the cluster sometime later.</p>
+<p>To complement the Git revision history, Argo CD emits Kubernetes Events of application activity,
+indicating the responsible actor when applicable. For example:</p>
+<div class="codehilite"><pre><span></span>$ kubectl get events
+LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBOBJECT   TYPE      REASON               SOURCE                          MESSAGE
+1m          1m           <span class="m">1</span>       guestbook.157f7c5edd33aeac   Application               Normal    ResourceCreated      argocd-server                   admin created application
+1m          1m           <span class="m">1</span>       guestbook.157f7c5f0f747acf   Application               Normal    ResourceUpdated      argocd-application-controller   Updated sync status:  -&gt; OutOfSync
+1m          1m           <span class="m">1</span>       guestbook.157f7c5f0fbebbff   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status:  -&gt; Missing
+1m          1m           <span class="m">1</span>       guestbook.157f7c6069e14f4d   Application               Normal    OperationStarted     argocd-server                   admin initiated sync to HEAD <span class="o">(</span>8a1cb4a02d3538e54907c827352f66f20c3d7b0d<span class="o">)</span>
+1m          1m           <span class="m">1</span>       guestbook.157f7c60a55a81a8   Application               Normal    OperationCompleted   argocd-application-controller   Sync operation to 8a1cb4a02d3538e54907c827352f66f20c3d7b0d succeeded
+1m          1m           <span class="m">1</span>       guestbook.157f7c60af1ccae2   Application               Normal    ResourceUpdated      argocd-application-controller   Updated sync status: OutOfSync -&gt; Synced
+1m          1m           <span class="m">1</span>       guestbook.157f7c60af5bc4f0   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Missing -&gt; Progressing
+1m          1m           <span class="m">1</span>       guestbook.157f7c651990e848   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Progressing -&gt; Healthy
+</pre></div>
+
+
+<p>These events can be then be persisted for longer periods of time using other tools as
+<a href="https://github.com/GoogleCloudPlatform/k8s-stackdriver/tree/master/event-exporter">Event Exporter</a> or
+<a href="https://github.com/heptiolabs/eventrouter">Event Router</a>.</p>
+<h2 id="webhook-payloads">WebHook Payloads<a class="headerlink" href="#webhook-payloads" title="Permanent link">&para;</a></h2>
+<p>Payloads from webhook events are considered untrusted. Argo CD only examines the payload to infer
+the involved applications of the webhook event (e.g. which repo was modified), then refreshes
+the related application for reconciliation. This refresh is the same refresh which occurs regularly
+at three minute intervals, just fast-tracked by the webhook event.</p>
+<h2 id="reporting-vulnerabilities">Reporting Vulnerabilities<a class="headerlink" href="#reporting-vulnerabilities" title="Permanent link">&para;</a></h2>
+<p>Please report security vulnerabilities by e-mailing:</p>
+<ul>
+<li><a href="mailto:Jesse_Suen@intuit.com">Jesse_Suen@intuit.com</a></li>
+<li><a href="mailto:Alexander_Matyushentsev@intuit.com">Alexander_Matyushentsev@intuit.com</a></li>
+<li><a href="mailto:Edward_Lee@intuit.com">Edward_Lee@intuit.com</a></li>
+</ul>
+                
+                  
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        
+<footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../rbac/" title="RBAC" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                RBAC
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../sso/" title="SSO Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                SSO Configuration
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+        powered by
+        <a href="https://www.mkdocs.org">MkDocs</a>
+        and
+        <a href="https://squidfunk.github.io/mkdocs-material/">
+          Material for MkDocs</a>
+      </div>
+      
+  <div class="md-footer-social">
+    <link rel="stylesheet" href="../../assets/fonts/font-awesome.css">
+    
+      <a href="https://twitter.com/argoproj" class="md-footer-social__link fa fa-twitter"></a>
+    
+      <a href="https://medium.com/@argoproject" class="md-footer-social__link fa fa-medium"></a>
+    
+      <a href="https://argoproj.github.io/community/join-slack" class="md-footer-social__link fa fa-slack"></a>
+    
+  </div>
+
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    
+      <script src="../../assets/javascripts/application.dc02f8ce.js"></script>
+      
+      <script>app.initialize({version:"1.0.4",url:{base:"../.."}})</script>
+      
+    
+  </body>
+</html>

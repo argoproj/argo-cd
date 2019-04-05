@@ -2381,13 +2381,6 @@
       "description": "ApplicationSource contains information about github repository, path within repository and target application environment.",
       "type": "object",
       "properties": {
-        "componentParameterOverrides": {
-          "type": "array",
-          "title": "ComponentParameterOverrides are a list of parameter override values\nDEPRECATED: use app source specific config instead",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
-          }
-        },
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
@@ -2684,21 +2677,6 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
-        }
-      }
-    },
-    "v1alpha1ComponentParameter": {
-      "type": "object",
-      "title": "ComponentParameter contains information about component parameter value",
-      "properties": {
-        "component": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
         }
       }
     },
