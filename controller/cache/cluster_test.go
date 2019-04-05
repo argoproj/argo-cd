@@ -299,6 +299,11 @@ func TestCircularReference(t *testing.T) {
 
 	children := cluster.getChildren(dep)
 	assert.Len(t, children, 1)
+
+	node := cluster.nodes[kube.GetResourceKey(dep)]
+	assert.NotNil(t, node)
+	app := node.getApp(cluster.nodes)
+	assert.Equal(t, "", app)
 }
 
 func TestWatchCacheUpdated(t *testing.T) {

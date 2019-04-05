@@ -49,13 +49,24 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 }
 
 func (n *node) getApp(ns map[kube.ResourceKey]*node) string {
+	return n.getAppRecursive(ns, map[kube.ResourceKey]bool{})
+}
+
+func (n *node) getAppRecursive(ns map[kube.ResourceKey]*node, visited map[kube.ResourceKey]bool) string {
+	if !visited[n.resourceKey()] {
+		visited[n.resourceKey()] = true
+	} else {
+		log.Warnf("Circular dependency detected: %v.", visited)
+		return n.appName
+	}
+
 	if n.appName != "" {
 		return n.appName
 	}
 	for _, ownerRef := range n.ownerRefs {
 		gv := ownerRefGV(ownerRef)
 		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, n.ref.Namespace, ownerRef.Name)]; ok {
-			app := parent.getApp(ns)
+			app := parent.getAppRecursive(ns, visited)
 			if app != "" {
 				return app
 			}
