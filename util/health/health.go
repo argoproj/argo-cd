@@ -419,23 +419,31 @@ func GetPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, pod, err)
 	}
 
-	var status appv1.HealthStatusCode
-	var messages []string
+	// This logic cannot be applied when the pod.Spec.RestartPolicy is: coreV1.RestartPolicyOnFailure,
+	// coreV1.RestartPolicyNever, otherwise it breaks the resource hook logic.
+	// The issue is, if we mark a pod with ImagePullBackOff as Degraded, and the pod is used as a resource hook,
+	// then we will prematurely fail the PreSync/PostSync hook. Meanwhile, when that error condition is resolved
+	// (e.g. the image is available), the resource hook pod will unexpectedly be executed even though the sync has
+	// completed.
+	if pod.Spec.RestartPolicy == coreV1.RestartPolicyAlways {
+		var status appv1.HealthStatusCode
+		var messages []string
 
-	for _, containerStatus := range pod.Status.ContainerStatuses {
-		waiting := containerStatus.State.Waiting
-		// Article listing common container errors: https://medium.com/kokster/debugging-crashloopbackoffs-with-init-containers-26f79e9fb5bf
-		if waiting != nil && (strings.HasPrefix(waiting.Reason, "Err") || strings.HasSuffix(waiting.Reason, "Error") || strings.HasSuffix(waiting.Reason, "BackOff")) {
-			status = appv1.HealthStatusDegraded
-			messages = append(messages, waiting.Message)
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			waiting := containerStatus.State.Waiting
+			// Article listing common container errors: https://medium.com/kokster/debugging-crashloopbackoffs-with-init-containers-26f79e9fb5bf
+			if waiting != nil && (strings.HasPrefix(waiting.Reason, "Err") || strings.HasSuffix(waiting.Reason, "Error") || strings.HasSuffix(waiting.Reason, "BackOff")) {
+				status = appv1.HealthStatusDegraded
+				messages = append(messages, waiting.Message)
+			}
 		}
-	}
 
-	if status != "" {
-		return &appv1.HealthStatus{
-			Status:  status,
-			Message: strings.Join(messages, ", "),
-		}, nil
+		if status != "" {
+			return &appv1.HealthStatus{
+				Status:  status,
+				Message: strings.Join(messages, ", "),
+			}, nil
+		}
 	}
 
 	switch pod.Status.Phase {

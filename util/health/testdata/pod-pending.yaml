@@ -64,6 +64,9 @@ status:
     name: main
     ready: false
     restartCount: 0
+    state:
+      waiting:
+        reason: PodInitializing
   hostIP: 192.168.64.41
   phase: Pending
   podIP: 172.17.0.9
