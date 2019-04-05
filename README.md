@@ -7,12 +7,20 @@
 
 Argo CD is a declarative, GitOps continuous delivery tool for Kubernetes.
 
-![Argo CD UI](docs/argocd-ui.gif)
+![Argo CD UI](docs/assets/argocd-ui.gif)
 
 ## Why Argo CD?
 
 Application definitions, configurations, and environments should be declarative and version controlled.
 Application deployment and lifecycle management should be automated, auditable, and easy to understand.
+
+
+## Who uses Argo CD?
+
+Organizations below are **officially** using Argo CD. Please send a PR with your organization name if you are using Argo CD.
+
+1. [Intuit](https://www.intuit.com/)
+2. [Yieldlab](https://www.yieldlab.de/)
 
 ## Getting Started
 
@@ -30,6 +38,7 @@ is provided for additional features.
 
 Argo CD follows the **GitOps** pattern of using git repositories as the source of truth for defining
 the desired application state. Kubernetes manifests can be specified in several ways:
+
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
 * [ksonnet](https://ksonnet.io) applications
@@ -39,7 +48,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of
-manifests at a git commit. See [tracking strategies](docs/tracking_strategies.md) for additional
+manifests at a git commit. See [tracking strategies](docs/user-guide/tracking_strategies.md) for additional
 details about the different tracking strategies available.
 
 For a quick 10 minute overview of Argo CD, check out the demo presented to the Sig Apps community
@@ -59,7 +68,7 @@ manually sync the live state back to the desired target state. Any modifications
 target state in the git repo can be automatically applied and reflected in the specified target
 environments.
 
-For additional details, see [architecture overview](docs/architecture.md).
+For additional details, see [architecture overview](docs/operator-manual/architecture.md).
 
 ## Features
 
@@ -82,6 +91,7 @@ For additional details, see [architecture overview](docs/architecture.md).
 * Parameter overrides for overriding ksonnet/helm parameters in git
 
 ## Community Blogs and Presentations
+
 * GitOps with Argo CD: [Simplify and Automate Deployments Using GitOps with IBM Multicloud Manager](https://www.ibm.com/blogs/bluemix/2019/02/simplify-and-automate-deployments-using-gitops-with-ibm-multicloud-manager-3-1-2/)
 * KubeCon talk: [CI/CD in Light Speed with K8s and Argo CD](https://www.youtube.com/watch?v=OdzH82VpMwI&feature=youtu.be)
 * KubeCon talk: [Machine Learning as Code](https://www.youtube.com/watch?v=VXrGp5er1ZE&t=0s&index=135&list=PLj6h78yzYM2PZf9eA7bhWnIh_mK1vyOfU)
@@ -89,14 +99,12 @@ For additional details, see [architecture overview](docs/architecture.md).
 * SIG Apps demo: [Argo CD - GitOps Continuous Delivery for Kubernetes](https://www.youtube.com/watch?v=aWDIQMbp1cc&feature=youtu.be&t=1m4s)
 
 ## Project Resources
+
 * Argo GitHub:  https://github.com/argoproj
 * Argo Slack:   [click here to join](https://argoproj.github.io/community/join-slack)
 * Argo website: https://argoproj.github.io/
 
 ## Development Status
-* Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
 
-## Roadmap
+Argo CD is actively developed and is being used in production to deploy SaaS services at Intuit
 
-### v0.13
-* See: https://github.com/argoproj/argo-cd/milestone/12

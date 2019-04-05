@@ -73,6 +73,45 @@ var (
     name: helm-guestbook
     namespace: default
     resourceVersion: "123"`)
+
+	testService = strToUnstructured(`
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    resourceVersion: "123"
+  spec:
+    selector:
+      app: guestbook
+    type: LoadBalancer
+  status:
+    loadBalancer:
+      ingress:
+      - hostname: localhost`)
+
+	testIngress = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
 )
 
 func newCluster(objs ...*unstructured.Unstructured) *clusterInfo {
@@ -116,34 +155,53 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	}
 }
 
+func getChildren(cluster *clusterInfo, un *unstructured.Unstructured) []appv1.ResourceNode {
+	hierarchy := make([]appv1.ResourceNode, 0)
+	cluster.iterateHierarchy(kube.GetResourceKey(un), func(child appv1.ResourceNode) {
+		hierarchy = append(hierarchy, child)
+	})
+	return hierarchy[1:]
+}
+
 func TestGetChildren(t *testing.T) {
 	cluster := newCluster(testPod, testRS, testDeploy)
 	err := cluster.ensureSynced()
 	assert.Nil(t, err)
 
-	rsChildren := cluster.getChildren(testRS)
+	rsChildren := getChildren(cluster, testRS)
 	assert.Equal(t, []appv1.ResourceNode{{
-		Kind:            "Pod",
-		Namespace:       "default",
-		Name:            "helm-guestbook-pod",
-		Group:           "",
-		Version:         "v1",
+		ResourceRef: appv1.ResourceRef{
+			Kind:      "Pod",
+			Namespace: "default",
+			Name:      "helm-guestbook-pod",
+			Group:     "",
+			Version:   "v1",
+		},
+		ParentRefs: []appv1.ResourceRef{{
+			Group:     "apps",
+			Version:   "",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "helm-guestbook-rs",
+		}},
+		NetworkingInfo:  &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
+		ResourceVersion: "123",
 		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
-		Children:        make([]appv1.ResourceNode, 0),
-		ResourceVersion: "123",
 	}}, rsChildren)
-	deployChildren := cluster.getChildren(testDeploy)
+	deployChildren := getChildren(cluster, testDeploy)
 
-	assert.Equal(t, []appv1.ResourceNode{{
-		Kind:            "ReplicaSet",
-		Namespace:       "default",
-		Name:            "helm-guestbook-rs",
-		Group:           "apps",
-		Version:         "v1",
+	assert.Equal(t, append([]appv1.ResourceNode{{
+		ResourceRef: appv1.ResourceRef{
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "helm-guestbook-rs",
+			Group:     "apps",
+			Version:   "v1",
+		},
 		ResourceVersion: "123",
-		Children:        rsChildren,
 		Info:            []appv1.InfoItem{},
-	}}, deployChildren)
+		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook"}},
+	}}, rsChildren...), deployChildren)
 }
 
 func TestGetManagedLiveObjs(t *testing.T) {
@@ -181,7 +239,7 @@ func TestChildDeletedEvent(t *testing.T) {
 	err = cluster.processEvent(watch.Deleted, testPod)
 	assert.Nil(t, err)
 
-	rsChildren := cluster.getChildren(testRS)
+	rsChildren := getChildren(cluster, testRS)
 	assert.Equal(t, []appv1.ResourceNode{}, rsChildren)
 }
 
@@ -205,27 +263,45 @@ func TestProcessNewChildEvent(t *testing.T) {
 	err = cluster.processEvent(watch.Added, newPod)
 	assert.Nil(t, err)
 
-	rsChildren := cluster.getChildren(testRS)
+	rsChildren := getChildren(cluster, testRS)
 	sort.Slice(rsChildren, func(i, j int) bool {
 		return strings.Compare(rsChildren[i].Name, rsChildren[j].Name) < 0
 	})
 	assert.Equal(t, []appv1.ResourceNode{{
-		Kind:            "Pod",
-		Namespace:       "default",
-		Name:            "helm-guestbook-pod",
-		Group:           "",
-		Version:         "v1",
-		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
-		Children:        make([]appv1.ResourceNode, 0),
+		ResourceRef: appv1.ResourceRef{
+			Kind:      "Pod",
+			Namespace: "default",
+			Name:      "helm-guestbook-pod",
+			Group:     "",
+			Version:   "v1",
+		},
+		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
+		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
+		ParentRefs: []appv1.ResourceRef{{
+			Group:     "apps",
+			Version:   "",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "helm-guestbook-rs",
+		}},
 		ResourceVersion: "123",
 	}, {
-		Kind:            "Pod",
-		Namespace:       "default",
-		Name:            "helm-guestbook-pod2",
-		Group:           "",
-		Version:         "v1",
-		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
-		Children:        make([]appv1.ResourceNode, 0),
+		ResourceRef: appv1.ResourceRef{
+			Kind:      "Pod",
+			Namespace: "default",
+			Name:      "helm-guestbook-pod2",
+			Group:     "",
+			Version:   "v1",
+		},
+		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
+		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
+		ParentRefs: []appv1.ResourceRef{{
+			Group:     "apps",
+			Version:   "",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "helm-guestbook-rs",
+		}},
 		ResourceVersion: "123",
 	}}, rsChildren)
 }
@@ -297,8 +373,13 @@ func TestCircularReference(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	children := cluster.getChildren(dep)
-	assert.Len(t, children, 1)
+	children := getChildren(cluster, dep)
+	assert.Len(t, children, 2)
+
+	node := cluster.nodes[kube.GetResourceKey(dep)]
+	assert.NotNil(t, node)
+	app := node.getApp(cluster.nodes)
+	assert.Equal(t, "", app)
 }
 
 func TestWatchCacheUpdated(t *testing.T) {

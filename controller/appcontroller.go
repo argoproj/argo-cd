@@ -11,8 +11,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -127,39 +125,25 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
-func (ctrl *ApplicationController) getApp(name string) (*appv1.Application, error) {
-	obj, exists, err := ctrl.appInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", ctrl.namespace, name))
+func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
+	managedResources, err := ctrl.managedResources(a, comparisonResult)
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("unable to find application with name %s", name))
-	}
-	a, ok := (obj).(*appv1.Application)
-	if !ok {
-		return nil, status.Errorf(codes.Internal, fmt.Sprintf("unexpected object type in app informer"))
-	}
-	return a, nil
-}
-
-func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) error {
-	managedResources, err := ctrl.managedResources(a, comparisonResult)
+	tree, err := ctrl.getResourceTree(a, managedResources)
 	if err != nil {
-		return err
-	}
-	tree, err := ctrl.resourceTree(a, managedResources)
-	if err != nil {
-		return err
+		return nil, err
 	}
 	err = ctrl.cache.SetAppResourcesTree(a.Name, tree)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ctrl.cache.SetAppManagedResources(a.Name, managedResources)
+	return tree, ctrl.cache.SetAppManagedResources(a.Name, managedResources)
 }
 
-func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) ([]*appv1.ResourceNode, error) {
-	items := make([]*appv1.ResourceNode, 0)
+func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
+	nodes := make([]appv1.ResourceNode, 0)
+
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		var live = &unstructured.Unstructured{}
@@ -172,34 +156,28 @@ func (ctrl *ApplicationController) resourceTree(a *appv1.Application, managedRes
 		if err != nil {
 			return nil, err
 		}
-		version := ""
-		resourceVersion := ""
-		if live != nil {
-			resourceVersion = live.GetResourceVersion()
-			version = live.GroupVersionKind().Version
-		} else if target != nil {
-			version = target.GroupVersionKind().Version
-		}
 
-		node := appv1.ResourceNode{
-			Version:         version,
-			ResourceVersion: resourceVersion,
-			Name:            managedResource.Name,
-			Kind:            managedResource.Kind,
-			Group:           managedResource.Group,
-			Namespace:       managedResource.Namespace,
-		}
-
-		if live != nil {
-			children, err := ctrl.stateCache.GetChildren(a.Spec.Destination.Server, live)
+		if live == nil {
+			nodes = append(nodes, appv1.ResourceNode{
+				ResourceRef: appv1.ResourceRef{
+					Version:   target.GroupVersionKind().Version,
+					Name:      managedResource.Name,
+					Kind:      managedResource.Kind,
+					Group:     managedResource.Group,
+					Namespace: managedResource.Namespace,
+				},
+			})
+		} else {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode) {
+				nodes = append(nodes, child)
+			})
 			if err != nil {
 				return nil, err
 			}
-			node.Children = children
+
 		}
-		items = append(items, &node)
 	}
-	return items, nil
+	return &appv1.ApplicationTree{Nodes: nodes}, nil
 }
 
 func (ctrl *ApplicationController) managedResources(a *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
@@ -594,7 +572,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	startTime := time.Now()
 	defer func() {
-		reconcileDuration := time.Now().Sub(startTime)
+		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
 		logCtx := log.WithFields(log.Fields{"application": origApp.Name, "time_ms": reconcileDuration.Seconds() * 1e3, "full": fullRefresh})
 		logCtx.Info("Reconciliation completed")
@@ -606,9 +584,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if managedResources, err := ctrl.cache.GetAppManagedResources(app.Name); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fallback to full reconciliation")
 		} else {
-			if tree, err := ctrl.resourceTree(app, managedResources); err != nil {
+			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
 				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
 			} else {
+				app.Status.Ingress = tree.GetIngress()
 				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
@@ -636,9 +615,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.normalizeApplication(origApp, app, compareResult.appSourceType)
 		conditions = append(conditions, compareResult.conditions...)
 	}
-	err = ctrl.setAppManagedResources(app, compareResult)
+	tree, err := ctrl.setAppManagedResources(app, compareResult)
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
+	} else {
+		app.Status.Ingress = tree.GetIngress()
 	}
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)
@@ -871,10 +852,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	specSource.TargetRevision = ""
 	syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
 	syncResSource.TargetRevision = ""
-	if !reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source) {
-		return false
-	}
-	return true
+	return reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source)
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {

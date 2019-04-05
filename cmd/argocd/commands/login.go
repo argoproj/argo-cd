@@ -233,7 +233,7 @@ func oauth2Login(ctx context.Context, port int, oauth2conf *oauth2.Config, provi
 		<p style="margin-top:20px; font-size:18; text-align:center">Authentication was successful, you can now return to CLI. This page will close automatically</p>
 		<script>window.onload=function(){setTimeout(this.close, 4000)}</script>
 		`
-		fmt.Fprintf(w, successPage)
+		fmt.Fprint(w, successPage)
 		completionChan <- ""
 	}
 	srv := &http.Server{Addr: "localhost:" + strconv.Itoa(port)}

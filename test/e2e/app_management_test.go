@@ -1,6 +1,10 @@
 package e2e
 
 import (
+	"context"
+	"fmt"
+	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,8 +18,11 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
+	"github.com/argoproj/argo-cd/util/kube"
 )
 
 const (
@@ -228,4 +235,143 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
 	})
+}
+
+func TestManipulateApplicationResources(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := getTestApp()
+
+	// deploy app and make sure it is healthy
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "wait", app.Name)
+	assert.NoError(t, err)
+
+	manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+	assert.NoError(t, err)
+
+	resources, err := kube.SplitYAML(manifests)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 2, len(resources))
+	index := sort.Search(len(resources), func(i int) bool {
+		return resources[i].GetKind() == kube.DeploymentKind
+	})
+	assert.True(t, index > -1)
+
+	deployment := resources[index]
+
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	_, err = client.DeleteResource(context.Background(), &application.ApplicationResourceDeleteRequest{
+		Name:         &app.Name,
+		Group:        deployment.GroupVersionKind().Group,
+		Kind:         deployment.GroupVersionKind().Kind,
+		Version:      deployment.GroupVersionKind().Version,
+		Namespace:    deployment.GetNamespace(),
+		ResourceName: deployment.GetName(),
+	})
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
+	})
+}
+
+func TestResourceDiffing(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := getTestApp()
+
+	// deploy app and make sure it is healthy
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
+	})
+
+	// Patch deployment
+	_, err = fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace).Patch(
+		"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`))
+	assert.NoError(t, err)
+
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	refresh := string(v1alpha1.RefreshTypeNormal)
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+
+	// Make sure application is out of sync due to deployment image difference
+	assert.Equal(t, string(v1alpha1.SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
+	diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+	assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace))
+
+	// Update settings to ignore image difference
+	settings, err := fixture.SettingsManager.GetSettings()
+	assert.NoError(t, err)
+	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{
+		"apps/Deployment": {IgnoreDifferences: ` jsonPointers: ["/spec/template/spec/containers/0/image"]`},
+	}
+	err = fixture.SettingsManager.SaveSettings(settings)
+	assert.NoError(t, err)
+
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+
+	// Make sure application is in synced state and CLI show no difference
+	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+	assert.Empty(t, diffOutput)
+	assert.NoError(t, err)
+}
+
+func TestEdgeCasesApplicationResources(t *testing.T) {
+
+	apps := map[string]string{
+		"DeprecatedExtensions": "deprecated-extensions",
+		"CRDs":                 "crd-creation",
+		"DuplicatedResources":  "duplicated-resources",
+	}
+
+	for name, appPath := range apps {
+		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
+			fixture.EnsureCleanState()
+			app := getTestApp()
+			app.Spec.Source.Path = appPath
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+			assert.NoError(t, err)
+
+			_, err = fixture.RunCli("app", "sync", app.Name)
+			assert.NoError(t, err)
+
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer util.Close(closer)
+
+			refresh := string(v1alpha1.RefreshTypeNormal)
+			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+			assert.NoError(t, err)
+
+			assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			assert.Empty(t, diffOutput)
+			assert.NoError(t, err)
+		})
+	}
 }

@@ -9,6 +9,7 @@ GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_TAG=$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE=$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 PACKR_CMD=$(shell if [ "`which packr`" ]; then echo "packr"; else echo "go run vendor/github.com/gobuffalo/packr/packr/main.go"; fi)
+TEST_CMD=$(shell [ "`which gotestsum`" != "" ] && echo gotestsum -- || echo go test)
 
 # docker image publishing options
 DOCKER_PUSH=false
@@ -55,7 +56,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen lint
+codegen: protogen clientgen
 
 .PHONY: cli
 cli: clean-debug
@@ -129,13 +130,17 @@ dep-ensure:
 lint:
 	golangci-lint run --fix
 
+.PHONY: build
+build:
+	go build `go list ./... | grep -v resource_customizations`
+
 .PHONY: test
 test:
-	go test -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
+	$(TEST_CMD) -covermode=count -coverprofile=coverage.out `go list ./... | grep -v "github.com/argoproj/argo-cd/test/e2e"`
 
 .PHONY: test-e2e
 test-e2e: cli
-	go test -v -failfast -timeout 20m ./test/e2e
+	$(TEST_CMD) -v -failfast -timeout 20m ./test/e2e
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
@@ -146,8 +151,12 @@ clean-debug:
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
 
+.PHONY: start
+start:
+	goreman start
+
 .PHONY: pre-commit
-pre-commit: dep-ensure codegen test lint
+pre-commit: dep-ensure codegen build lint test
 
 .PHONY: release-precheck
 release-precheck: manifests

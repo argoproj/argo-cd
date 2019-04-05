@@ -79,11 +79,9 @@ func (s *Server) List(ctx context.Context, q *RepoQuery) (*appsv1.RepositoryList
 		return nil, err
 	}
 	items := make([]appsv1.Repository, 0)
-	if urls != nil {
-		for _, url := range urls {
-			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
-				items = append(items, appsv1.Repository{Repo: url})
-			}
+	for _, url := range urls {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
+			items = append(items, appsv1.Repository{Repo: url})
 		}
 	}
 	err = util.RunAllAsync(len(items), func(i int) error {
@@ -152,8 +150,9 @@ func getKustomizationRes(ctx context.Context, repoClient repository.RepoServerSe
 		kustomizationRes, err := repoClient.ListDir(ctx, &request)
 		if err != nil {
 			return nil, err
+		} else {
+			return kustomizationRes, nil
 		}
-		return kustomizationRes, nil
 	}
 	return nil, errors.New("could not find kustomization")
 }

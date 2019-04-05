@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -65,9 +66,6 @@ type ApplicationSource struct {
 	// TargetRevision defines the commit, tag, or branch in which to sync the application to.
 	// If omitted, will sync to HEAD
 	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
-	// ComponentParameterOverrides are a list of parameter override values
-	// DEPRECATED: use app source specific config instead
-	ComponentParameterOverrides []ComponentParameter `json:"componentParameterOverrides,omitempty" protobuf:"bytes,5,opt,name=componentParameterOverrides"`
 	// Helm holds helm specific options
 	Helm *ApplicationSourceHelm `json:"helm,omitempty" protobuf:"bytes,7,opt,name=helm"`
 	// Kustomize holds kustomize specific options
@@ -84,7 +82,6 @@ func (a ApplicationSource) IsZero() bool {
 	return a.RepoURL == "" &&
 		a.Path == "" &&
 		a.TargetRevision == "" &&
-		len(a.ComponentParameterOverrides) == 0 &&
 		a.Helm.IsZero() &&
 		a.Kustomize.IsZero() &&
 		a.Ksonnet.IsZero() &&
@@ -217,15 +214,16 @@ type ApplicationDestination struct {
 
 // ApplicationStatus contains information about application sync, health status
 type ApplicationStatus struct {
-	Resources      []ResourceStatus       `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
-	Sync           SyncStatus             `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
-	Health         HealthStatus           `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
-	History        []RevisionHistory      `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
-	Conditions     []ApplicationCondition `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
-	ReconciledAt   metav1.Time            `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
-	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
-	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
-	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	Resources      []ResourceStatus         `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Sync           SyncStatus               `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	Health         HealthStatus             `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	History        []RevisionHistory        `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
+	Conditions     []ApplicationCondition   `json:"conditions,omitempty" protobuf:"bytes,5,opt,name=conditions"`
+	ReconciledAt   metav1.Time              `json:"reconciledAt,omitempty" protobuf:"bytes,6,opt,name=reconciledAt"`
+	OperationState *OperationState          `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
+	ObservedAt     metav1.Time              `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
+	SourceType     ApplicationSourceType    `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	Ingress        []v1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,10,opt,name=ingress"`
 }
 
 // Operation contains requested operation parameters.
@@ -521,29 +519,57 @@ type InfoItem struct {
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
-// ResourceNode contains information about live resource and its children
-type ResourceNode struct {
-	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind            string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Name            string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Info            []InfoItem     `json:"info,omitempty" protobuf:"bytes,6,opt,name=info"`
-	Children        []ResourceNode `json:"children,omitempty" protobuf:"bytes,7,opt,name=children"`
-	ResourceVersion string         `json:"resourceVersion,omitempty" protobuf:"bytes,8,opt,name=resourceVersion"`
+// ResourceNetworkingInfo holds networking resource related information
+type ResourceNetworkingInfo struct {
+	TargetLabels map[string]string        `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
+	TargetRefs   []ResourceRef            `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`
+	Labels       map[string]string        `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
+	Ingress      []v1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
 }
 
-func (n *ResourceNode) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
-	if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
-		return n
-	}
-	for i := range n.Children {
-		res := n.Children[i].FindNode(group, kind, namespace, name)
-		if res != nil {
-			return res
+// ApplicationTree holds nodes which belongs to the application
+type ApplicationTree struct {
+	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+}
+
+func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
+	for _, n := range t.Nodes {
+		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
+			return &n
 		}
 	}
 	return nil
+}
+
+func (t *ApplicationTree) GetIngress() []v1.LoadBalancerIngress {
+	ingress := make([]v1.LoadBalancerIngress, 0)
+	for _, node := range t.Nodes {
+		if node.NetworkingInfo != nil {
+			for i := range node.NetworkingInfo.Ingress {
+				ingress = append(ingress, node.NetworkingInfo.Ingress[i])
+			}
+		}
+	}
+	return ingress
+}
+
+// ResourceRef includes fields which unique identify resource
+type ResourceRef struct {
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version   string `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind      string `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name      string `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+}
+
+// ResourceNode contains information about live resource and its children
+type ResourceNode struct {
+	ResourceRef     `json:",inline" protobuf:"bytes,1,opt,name=resourceRef"`
+	ParentRefs      []ResourceRef           `json:"parentRefs,omitempty" protobuf:"bytes,2,opt,name=parentRefs"`
+	Info            []InfoItem              `json:"info,omitempty" protobuf:"bytes,3,opt,name=info"`
+	NetworkingInfo  *ResourceNetworkingInfo `json:"networkingInfo,omitempty" protobuf:"bytes,4,opt,name=networkingInfo"`
+	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
+	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 }
 
 func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
@@ -669,6 +695,12 @@ type HelmRepository struct {
 	KeyData  []byte `json:"keyData,omitempty" protobuf:"bytes,5,opt,name=keyData"`
 	Username string `json:"username,omitempty" protobuf:"bytes,6,opt,name=username"`
 	Password string `json:"password,omitempty" protobuf:"bytes,7,opt,name=password"`
+}
+
+// ResourceOverride holds configuration to customize resource diffing and health assessment
+type ResourceOverride struct {
+	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
+	IgnoreDifferences string `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
 }
 
 // Repository is a Git repository holding application configurations

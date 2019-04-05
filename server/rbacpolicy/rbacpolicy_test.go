@@ -46,13 +46,12 @@ func TestEnforceAllPolicies(t *testing.T) {
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
-	enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow`)
-	enf.SetUserPolicy(`p, bob, applications, create, my-proj/*, allow`)
+	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow`)
+	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj/*, allow`)
 	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 
-	var claims jwt.MapClaims
-	claims = jwt.MapClaims{"sub": "alice"}
+	claims := jwt.MapClaims{"sub": "alice"}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 	claims = jwt.MapClaims{"sub": "bob"}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))

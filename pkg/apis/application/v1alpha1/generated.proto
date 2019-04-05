@@ -5,6 +5,7 @@ syntax = 'proto2';
 
 package github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1;
 
+import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
@@ -118,10 +119,6 @@ message ApplicationSource {
   // If omitted, will sync to HEAD
   optional string targetRevision = 4;
 
-  // ComponentParameterOverrides are a list of parameter override values
-  // DEPRECATED: use app source specific config instead
-  repeated ComponentParameter componentParameterOverrides = 5;
-
   // Helm holds helm specific options
   optional ApplicationSourceHelm helm = 7;
 
@@ -225,6 +222,13 @@ message ApplicationStatus {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   optional string sourceType = 9;
+
+  repeated k8s.io.api.core.v1.LoadBalancerIngress ingress = 10;
+}
+
+// ApplicationTree holds nodes which belongs to the application
+message ApplicationTree {
+  repeated ResourceNode nodes = 1;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -492,8 +496,41 @@ message ResourceIgnoreDifferences {
   repeated string jsonPointers = 5;
 }
 
+// ResourceNetworkingInfo holds networking resource related information
+message ResourceNetworkingInfo {
+  map<string, string> targetLabels = 1;
+
+  repeated ResourceRef targetRef = 2;
+
+  map<string, string> labels = 3;
+
+  repeated k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
+}
+
 // ResourceNode contains information about live resource and its children
 message ResourceNode {
+  optional ResourceRef resourceRef = 1;
+
+  repeated ResourceRef parentRefs = 2;
+
+  repeated InfoItem info = 3;
+
+  optional ResourceNetworkingInfo networkingInfo = 4;
+
+  optional string resourceVersion = 5;
+
+  repeated string images = 6;
+}
+
+// ResourceOverride holds configuration to customize resource diffing and health assessment
+message ResourceOverride {
+  optional string healthLua = 1;
+
+  optional string ignoreDifferences = 2;
+}
+
+// ResourceRef includes fields which unique identify resource
+message ResourceRef {
   optional string group = 1;
 
   optional string version = 2;
@@ -503,12 +540,6 @@ message ResourceNode {
   optional string namespace = 4;
 
   optional string name = 5;
-
-  repeated InfoItem info = 6;
-
-  repeated ResourceNode children = 7;
-
-  optional string resourceVersion = 8;
 }
 
 // ResourceResult holds the operation result details of a specific resource

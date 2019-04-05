@@ -2,7 +2,7 @@
 
 ## Why is my application still `OutOfSync` immediately after a successful Sync?
 
-See [Diffing](diffing.md) documentation for reasons resources can be OutOfSync, and ways to configure
+See [Diffing](user-guide/diffing.md) documentation for reasons resources can be OutOfSync, and ways to configure
 Argo CD to ignore fields when differences are expected.
 
 
@@ -19,7 +19,7 @@ to return `Progressing` state instead of `Healthy`.
 [kubernetes/kubernetes#68573](https://github.com/kubernetes/kubernetes/issues/68573) the `status.updatedReplicas` is not populated. So unless you run Kubernetes version which
 include the fix [kubernetes/kubernetes#67570](https://github.com/kubernetes/kubernetes/pull/67570) `StatefulSet` might stay in `Progressing` state.
 
-As workaround Argo CD allows providing [health check](health.md) customization which overrides default behavior.
+As workaround Argo CD allows providing [health check](user-guide/health.md) customization which overrides default behavior.
 
 ## I forgot the admin password, how do I reset it?
 

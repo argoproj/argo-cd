@@ -43,7 +43,6 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
-	argosettings "github.com/argoproj/argo-cd/util/settings"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -522,9 +521,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				if len(app.Spec.Source.Ksonnet.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
-				}
 			}
 			if app.Spec.Source.Helm != nil {
 				for _, paramStr := range parameters {
@@ -536,9 +532,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 							break
 						}
 					}
-				}
-				if len(app.Spec.Source.Helm.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
 				}
 				specValueFiles := app.Spec.Source.Helm.ValueFiles
 				for _, valuesFile := range valuesFiles {
@@ -676,11 +669,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				live   *unstructured.Unstructured
 				target *unstructured.Unstructured
 			}, 0)
+
+			conn, settingsIf := clientset.NewSettingsClientOrDie()
+			defer util.Close(conn)
+			argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
+			errors.CheckError(err)
+
 			if local != "" {
-				conn, settingsIf := clientset.NewSettingsClientOrDie()
-				defer util.Close(conn)
-				argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
-				errors.CheckError(err)
 				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
@@ -752,8 +747,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			foundDiffs := false
 			for i := range items {
 				item := items[i]
-				// TODO (amatyushentsev): use resource overrides exposed from API server
-				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, make(map[string]argosettings.ResourceOverride))
+				overrides := make(map[string]argoappv1.ResourceOverride)
+				for k := range argoSettings.ResourceOverrides {
+					val := argoSettings.ResourceOverrides[k]
+					overrides[k] = *val
+				}
+				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live, normalizer)
@@ -790,7 +789,7 @@ func printDiff(name string, live *unstructured.Unstructured, target *unstructure
 	tempDir, err := ioutil.TempDir("", "argocd-diff")
 	errors.CheckError(err)
 
-	targetFile := path.Join(tempDir, fmt.Sprintf("%s", name))
+	targetFile := path.Join(tempDir, name)
 	targetData := []byte("")
 	if target != nil {
 		targetData, err = yaml.Marshal(target)
@@ -1288,6 +1287,10 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			var doPrint bool
 			stateKey := newState.Key()
 			if prevState, found := prevStates[stateKey]; found {
+				if watchHealth && prevState.Health != argoappv1.HealthStatusUnknown && prevState.Health != argoappv1.HealthStatusDegraded && newState.Health == argoappv1.HealthStatusDegraded {
+					printFinalStatus(app)
+					return nil, fmt.Errorf("Application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+				}
 				doPrint = prevState.Merge(newState)
 			} else {
 				prevStates[stateKey] = newState
@@ -1474,6 +1477,9 @@ const printOpFmtStr = "%-20s%s\n"
 const defaultCheckTimeoutSeconds = 0
 
 func printOperationResult(opState *argoappv1.OperationState) {
+	if opState == nil {
+		return
+	}
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
 		fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)

@@ -90,7 +90,7 @@ func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node
 			APIVersion: "",
 		})
 	}
-	info := &node{
+	nodeInfo := &node{
 		resourceVersion: un.GetResourceVersion(),
 		ref: v1.ObjectReference{
 			APIVersion: un.GetAPIVersion(),
@@ -99,14 +99,14 @@ func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node
 			Namespace:  un.GetNamespace(),
 		},
 		ownerRefs: ownerRefs,
-		info:      getNodeInfo(un),
 	}
+	populateNodeInfo(un, nodeInfo)
 	appName := kube.GetAppInstanceLabel(un, appInstanceLabel)
 	if len(ownerRefs) == 0 && appName != "" {
-		info.appName = appName
-		info.resource = un
+		nodeInfo.appName = appName
+		nodeInfo.resource = un
 	}
-	return info
+	return nodeInfo
 }
 
 func (c *clusterInfo) setNode(n *node) {
@@ -330,19 +330,19 @@ func (c *clusterInfo) ensureSynced() error {
 	return c.syncError
 }
 
-func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.ResourceNode {
+func (c *clusterInfo) iterateHierarchy(key kube.ResourceKey, action func(child appv1.ResourceNode)) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	children := make([]appv1.ResourceNode, 0)
-	if objInfo, ok := c.nodes[kube.GetResourceKey(obj)]; ok {
-		nsNodes := c.nsIndex[obj.GetNamespace()]
+	if objInfo, ok := c.nodes[key]; ok {
+		action(objInfo.asResourceNode())
+		nsNodes := c.nsIndex[key.Namespace]
 		for _, child := range nsNodes {
 			if objInfo.isParentOf(child) {
-				children = append(children, child.childResourceNodes(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}))
+				action(child.asResourceNode())
+				child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}, action)
 			}
 		}
 	}
-	return children
 }
 
 func (c *clusterInfo) isNamespaced(obj *unstructured.Unstructured) bool {

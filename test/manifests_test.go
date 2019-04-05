@@ -19,6 +19,9 @@ func TestBuildManifests(t *testing.T) {
 	assert.True(t, Contains(out, "KustomizeVersion:2") || Contains(out, "KustomizeVersion:v2"), "kustomize should be version 2")
 
 	err = filepath.Walk("../manifests", func(path string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		switch filepath.Base(path) {
 		case "kustomization.yaml":
 			// noop
