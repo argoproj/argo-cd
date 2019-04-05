@@ -20,6 +20,7 @@ Application deployment and lifecycle management should be automated, auditable, 
 Organizations below are **officially** using Argo CD. Please send a PR with your organization name if you are using Argo CD.
 
 1. [Intuit](https://www.intuit.com/)
+2. [Yieldlab](https://www.yieldlab.de/)
 
 ## Getting Started
 
