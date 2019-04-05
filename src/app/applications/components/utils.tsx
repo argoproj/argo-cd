@@ -122,7 +122,7 @@ export const OperationPhaseIcon = ({phase}: { phase: appModels.OperationPhase })
             color = COLORS.operation.failed;
             break;
         default:
-            className = 'fa fa-circle-o-notch fa-spin';
+            className = 'fa fa-circle-notch fa-spin';
             color = COLORS.operation.running;
             break;
     }
@@ -143,7 +143,7 @@ export const ComparisonStatusIcon = ({status}: { status: appModels.SyncStatusCod
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = 'fa fa-circle-o-notch fa-spin';
+            className = 'fa fa-circle-notch fa-spin';
             break;
     }
     return <i title={status} className={className} style={{ color }} />;
@@ -230,7 +230,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
         switch (resource.hookPhase) {
             case appModels.OperationPhases.Running:
                 color = COLORS.operation.running;
-                className = 'fa fa-circle-o-notch fa-spin';
+                className = 'fa fa-circle-notch fa-spin';
                 break;
             case appModels.OperationPhases.Failed:
                 color = COLORS.operation.failed;
@@ -246,7 +246,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
                 break;
             case appModels.OperationPhases.Terminating:
                 color = COLORS.operation.terminating;
-                className = 'fa fa-circle-o-notch fa-spin';
+                className = 'fa fa-circle-notch fa-spin';
                 break;
         }
         let title: string = resource.message;

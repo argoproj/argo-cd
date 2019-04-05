@@ -234,7 +234,7 @@ export const ApplicationResourceTree = (props: {
                     comparisonStatus = node.status;
                     healthState = node.health;
                 }
-                const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-gears';
+                const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-cogs';
                 const tooltip = node.images && node.images.join(', ') || '';
                 return (
                         <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resource-tree__node', {

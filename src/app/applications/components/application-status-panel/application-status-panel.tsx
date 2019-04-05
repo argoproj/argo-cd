@@ -47,7 +47,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
 
     const tooltip = (title: string) => (
         <Tooltip content={title}>
-            <span style={{fontSize: 'smaller'}}><i className='fa fa-question-circle help-tip'/></span>
+            <span style={{fontSize: 'smaller'}}> <i className='fa fa-question-circle help-tip'/></span>
         </Tooltip>
     );
 
@@ -55,7 +55,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
         <div className='application-status-panel row'>
             <div className='application-status-panel__item columns small-3'>
                 <div className='application-status-panel__item-value'>
-                    <HealthStatusIcon state={application.status.health}/>
+                    <HealthStatusIcon state={application.status.health}/>&nbsp;
                     {application.status.health.status}
                     {tooltip('The health status of your app')}
                 </div>
@@ -63,7 +63,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             </div>
             <div className='application-status-panel__item columns small-3' style={{position: 'relative'}}>
                 <div className='application-status-panel__item-value'>
-                    <ComparisonStatusIcon status={application.status.sync.status}/>
+                    <ComparisonStatusIcon status={application.status.sync.status}/>&nbsp;
                     {application.status.sync.status}
                     {tooltip('Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.')}
                 </div>

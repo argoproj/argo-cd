@@ -22,7 +22,7 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
             <div key={nodeKey(res)} className='argo-table-list__row' onClick={() => onNodeClick(nodeKey(res))}>
                 <div className='row'>
                     <div className='columns small-3'>
-                        <i className={ICON_CLASS_BY_KIND[res.kind.toLocaleLowerCase()] || 'fa fa-gears'}/> <span>{res.name}</span>
+                        <i className={ICON_CLASS_BY_KIND[res.kind.toLocaleLowerCase()] || 'fa fa-cogs'}/> <span>{res.name}</span>
                     </div>
                     <div className='columns small-3'>{[res.group, res.kind].filter((item) => !!item).join('/')}</div>
                     <div className='columns small-2'>{res.namespace}</div>
