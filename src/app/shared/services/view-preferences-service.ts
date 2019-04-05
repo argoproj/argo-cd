@@ -5,6 +5,8 @@ export type AppsDetailsViewType = 'tree' | 'network' | 'list';
 export interface AppDetailsPreferences {
     resourceFilter: string[];
     view: AppsDetailsViewType;
+    hideDefaultedFields: boolean;
+    inlineDiff: boolean;
 }
 
 export type AppsListViewType = 'tiles' | 'list' | 'summary';
@@ -45,6 +47,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             'kind:DaemonSet',
             'kind:Workflow',
         ],
+        hideDefaultedFields: false,
+        inlineDiff: false,
     },
     appList: {
         view: 'tiles' as AppsListViewType,

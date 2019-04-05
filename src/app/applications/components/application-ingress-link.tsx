@@ -11,7 +11,7 @@ export const ApplicationIngressLink = ({ingress}: { ingress: LoadBalancerIngress
                 e.stopPropagation();
                 window.open(`https://${items[0]}`);
             }}>
-                <i className='fa fa-external-link'/> {items.length > 1 && <DropDownMenu anchor={() => <i className='fa fa-caret-down'/>} items={items.map((item) => ({
+                <i className='fa fa-external-link-alt'/> {items.length > 1 && <DropDownMenu anchor={() => <i className='fa fa-caret-down'/>} items={items.map((item) => ({
                     title: item,
                     action: () => window.open(`https://${item}`),
                 }))} />}

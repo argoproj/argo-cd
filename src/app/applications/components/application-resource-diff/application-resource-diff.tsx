@@ -1,4 +1,4 @@
-import { Checkbox } from 'argo-ui';
+import { Checkbox, DataLoader } from 'argo-ui';
 import * as jsYaml from 'js-yaml';
 import * as React from 'react';
 
@@ -6,6 +6,7 @@ const jsonDiffPatch = require('jsondiffpatch');
 
 import { MonacoEditor } from '../../../shared/components';
 import * as models from '../../../shared/models';
+import { services } from '../../../shared/services';
 
 require('./application-resource-diff.scss');
 
@@ -13,43 +14,46 @@ export interface ApplicationComponentDiffProps {
     state: models.ResourceDiff;
 }
 
-export const ApplicationResourceDiff = (props: ApplicationComponentDiffProps) => {
-    const [hideDefaultedFields, setHideDefaultedFields] = React.useState(true);
-    const [inlineDiff, setInlineDiff] = React.useState(true);
+export const ApplicationResourceDiff = (props: ApplicationComponentDiffProps) => (
+    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+    {(pref) => {
+        let live = props.state.liveState;
+        if (pref.appDetails.hideDefaultedFields && live) {
+            live = removeDefaultedFields(props.state.targetState, live);
+        }
 
-    let live = props.state.liveState;
-    if (hideDefaultedFields && live) {
-        live = removeDefaultedFields(props.state.targetState, live);
-    }
+        const liveCopy = JSON.parse(JSON.stringify(live || {}));
+        let target: any = null;
+        if (props.state.targetState) {
+            target = props.state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(props.state.diff)) : liveCopy;
+        }
 
-    const liveCopy = JSON.parse(JSON.stringify(live || {}));
-    let target = null;
-    if (props.state.targetState) {
-        target = props.state.diff ? jsonDiffPatch.patch(liveCopy, JSON.parse(props.state.diff)) : liveCopy;
-    }
-
-    return (
-        <div className='application-component-diff'>
-            <div className='application-component-diff__checkboxs'>
-                <Checkbox id='inlineDiff' checked={inlineDiff}
-                        onChange={() => setInlineDiff(!inlineDiff)}/> <label htmlFor='inlineDiff'>
-                    Inline Diff
-                </label>  <Checkbox id='hideDefaultedFields' checked={hideDefaultedFields}
-                        onChange={() => setHideDefaultedFields(!hideDefaultedFields)}/> <label htmlFor='hideDefaultedFields'>
-                    Hide default fields
-                </label>
-            </div>
-            <MonacoEditor diffEditor={{
-                options: {
-                    renderSideBySide: !inlineDiff,
-                    readOnly: true,
-                },
-                modified: { text: target ? jsYaml.safeDump(target, {indent: 2 }) : '', language: 'yaml' },
-                original: { text: live ? jsYaml.safeDump(live, {indent: 2 }) : '', language: 'yaml' },
+        return (
+            <div className='application-component-diff'>
+                <div className='application-component-diff__checkboxs'>
+                    <Checkbox id='inlineDiff' checked={pref.appDetails.inlineDiff}
+                            onChange={() => services.viewPreferences.updatePreferences({appDetails: {
+                                ...pref.appDetails, inlineDiff: !pref.appDetails.inlineDiff } })}/> <label htmlFor='inlineDiff'>
+                        Inline Diff
+                    </label>  <Checkbox id='hideDefaultedFields' checked={pref.appDetails.hideDefaultedFields}
+                            onChange={() => services.viewPreferences.updatePreferences({appDetails: {
+                                ...pref.appDetails, hideDefaultedFields: !pref.appDetails.hideDefaultedFields } })}/> <label htmlFor='hideDefaultedFields'>
+                        Hide default fields
+                    </label>
+                </div>
+                <MonacoEditor diffEditor={{
+                    options: {
+                        renderSideBySide: !!pref.appDetails.inlineDiff,
+                        readOnly: true,
+                    },
+                    modified: { text: target ? jsYaml.safeDump(target, {indent: 2 }) : '', language: 'yaml' },
+                    original: { text: live ? jsYaml.safeDump(live, {indent: 2 }) : '', language: 'yaml' },
                 }}/>
-        </div>
-    );
-};
+            </div>
+        );
+    }}
+    </DataLoader>
+);
 
 function removeDefaultedFields(config: any, live: any): any {
     if (config instanceof Array) {

@@ -61,7 +61,7 @@ export const ApplicationNodeInfo = (props: {
         }/>),
     }];
     if (props.controlled && !props.controlled.summary.hook) {
-        tabs.unshift({
+        tabs.push({
             key: 'diff',
             title: 'Diff',
             content: <ApplicationResourceDiff state={props.controlled.state}/>,
