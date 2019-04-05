@@ -852,8 +852,8 @@
                 
                 <h1 id="automation-from-ci-pipelines">Automation from CI Pipelines<a class="headerlink" href="#automation-from-ci-pipelines" title="Permanent link">&para;</a></h1>
 <p>Argo CD follows the GitOps model of deployment, where desired configuration changes are first
-pushed to git, and the cluster state then syncs to the desired state in git. This is a departure
-from imperative pipelines which do not traditionally use git repositories to hold application
+pushed to Git, and the cluster state then syncs to the desired state in git. This is a departure
+from imperative pipelines which do not traditionally use Git repositories to hold application
 config.</p>
 <p>To push new container images into to a cluster managed by Argo CD, the following workflow (or 
 variations), might be used:</p>
@@ -866,7 +866,7 @@ docker push mycompany/guestbook:v2.0
 <h2 id="update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git">Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git<a class="headerlink" href="#update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The use of a different git repository to hold your kubernetes manifests (separate from
+<p>The use of a different Git repository to hold your kubernetes manifests (separate from
 your application source code), is highly recommended. See <a href="../best_practices/">best practices</a>
 for further rationale.</p>
 </div>

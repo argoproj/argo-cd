@@ -977,7 +977,7 @@
 <p>The Application CRD is the Kubernetes resource object representing a deployed application instance
 in an environment. It is defined by two key pieces of information:</p>
 <ul>
-<li><code>source</code> reference to the desired state in git (repository, revision, path, environment)</li>
+<li><code>source</code> reference to the desired state in Git (repository, revision, path, environment)</li>
 <li><code>destination</code> reference to the target cluster and namespace.</li>
 </ul>
 <p>A minimal Application spec is as follows:</p>
@@ -1013,7 +1013,7 @@ It is defined by the following key pieces of information:</p>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-project</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">description</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Example Project</span>
-  <span class="c1"># Allow manifests to deploy from any git repos</span>
+  <span class="c1"># Allow manifests to deploy from any Git repos</span>
   <span class="nt">sourceRepos</span><span class="p">:</span>
   <span class="p p-Indicator">-</span> <span class="s">&#39;*&#39;</span>
   <span class="c1"># Only permit applications to deploy to the guestbook namespace in the same cluster</span>

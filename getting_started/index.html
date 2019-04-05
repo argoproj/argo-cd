@@ -1123,7 +1123,7 @@ service account token to perform its management tasks (i.e. deploy/monitoring).<
 However <code>get</code>, <code>list</code>, <code>watch</code> privileges are required at the cluster-scope for Argo CD to function.</p>
 </div>
 <h2 id="6-create-an-application-from-a-git-repository">6. Create An Application From A Git Repository<a class="headerlink" href="#6-create-an-application-from-a-git-repository" title="Permanent link">&para;</a></h2>
-<p>An example git repository containing a guestbook application is available at
+<p>An example repository containing a guestbook application is available at
 https://github.com/argoproj/argocd-example-apps.git to demonstrate how Argo CD works.</p>
 <h3 id="creating-apps-via-cli">Creating Apps Via CLI<a class="headerlink" href="#creating-apps-via-cli" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span>argocd app create guestbook <span class="se">\</span>
@@ -1138,7 +1138,7 @@ https://github.com/argoproj/argocd-example-apps.git to demonstrate how Argo CD w
 <p>Open a browser to the Argo CD external UI, and login using the credentials, IP/hostname set in step 4.
 Connect the https://github.com/argoproj/argocd-example-apps.git repo to Argo CD:</p>
 <p><img alt="connect repo" src="../assets/connect_repo.png" /></p>
-<p>After connecting a git repository, select the guestbook application for creation:</p>
+<p>After connecting a repository, select the guestbook application for creation:</p>
 <p><img alt="select app" src="../assets/select_app.png" />
 <img alt="create app" src="../assets/create_app.png" /></p>
 <h2 id="7-sync-deploy-the-application">7. Sync (Deploy) The Application<a class="headerlink" href="#7-sync-deploy-the-application" title="Permanent link">&para;</a></h2>
@@ -1167,7 +1167,7 @@ deployed, and no Kubernetes resources have been created. To sync (deploy) the ap
 </pre></div>
 
 
-<p>This command retrieves the manifests from git repository and performs a <code>kubectl apply</code> of the
+<p>This command retrieves the manifests from the repository and performs a <code>kubectl apply</code> of the
 manifests. The guestbook app is now running and you can now view its resource components, logs,
 events, and assessed health status:</p>
 <h3 id="from-ui">From UI:<a class="headerlink" href="#from-ui" title="Permanent link">&para;</a></h3>

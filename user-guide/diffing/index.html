@@ -848,7 +848,7 @@ submitted to Kubernetes in a manner which contradicts Git.</li>
 which generates different data every time <code>helm template</code> is invoked.</li>
 <li>For Horizontal Pod Autoscaling (HPA) objects, the HPA controller is known to reorder <code>spec.metrics</code>
   in a specific order. See <a href="https://github.com/kubernetes/kubernetes/issues/74099">kubernetes issue #74099</a>.
-  To work around this, you can order <code>spec.replicas</code> in git in the same order that the controller
+  To work around this, you can order <code>spec.replicas</code> in Git in the same order that the controller
   prefers.</li>
 </ul>
 <p>In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources.

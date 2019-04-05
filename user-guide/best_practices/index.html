@@ -852,7 +852,7 @@
                 
                 <h1 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h1>
 <h2 id="separating-config-vs-source-code-repositories">Separating Config Vs. Source Code Repositories<a class="headerlink" href="#separating-config-vs-source-code-repositories" title="Permanent link">&para;</a></h2>
-<p>Using a separate git repository to hold your kubernetes manifests, keeping the config separate
+<p>Using a separate Git repository to hold your kubernetes manifests, keeping the config separate
 from your application source code, is highly recommended for the following reasons:</p>
 <ol>
 <li>
@@ -863,11 +863,11 @@ from your application source code, is highly recommended for the following reaso
 </li>
 <li>
 <p>Cleaner audit log. For auditing purposes, a repo which only holds configuration will have a much
-   cleaner git history of what changes were made, without the noise coming from check-ins due to
+   cleaner Git history of what changes were made, without the noise coming from check-ins due to
    normal development activity.</p>
 </li>
 <li>
-<p>Your application may be comprised of services built from multiple git repositories, but is
+<p>Your application may be comprised of services built from multiple Git repositories, but is
    deployed as a single unit. Oftentimes, microservices applications are comprised of services
    with different versioning schemes, and release cycles (e.g. ELK, Kafka + Zookeeper). It may not
    make sense to store the manifests in one of the source code repositories of a single component.</p>
@@ -879,16 +879,16 @@ from your application source code, is highly recommended for the following reaso
    and not the application config repo.</p>
 </li>
 <li>
-<p>If you are automating your CI pipeline, pushing manifest changes to the same git repository can
-   trigger an infinite loop of build jobs and git commit triggers. Having a separate repo to push
+<p>If you are automating your CI pipeline, pushing manifest changes to the same Cit repository can
+   trigger an infinite loop of build jobs and Git commit triggers. Having a separate repo to push
    config changes to, prevents this from happening.</p>
 </li>
 </ol>
 <h2 id="leaving-rroom-for-imperativeness">Leaving Rroom For Imperativeness<a class="headerlink" href="#leaving-rroom-for-imperativeness" title="Permanent link">&para;</a></h2>
 <p>It may be desired to leave room for some imperativeness/automation, and not have everything defined
-in your git manifests. For example, if you want the number of your deployment's replicas to be
+in your Git manifests. For example, if you want the number of your deployment's replicas to be
 managed by <a href="https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/">Horizontal Pod Autoscaler</a>,
-then you would not want to track <code>replicas</code> in git.</p>
+then you would not want to track <code>replicas</code> in Git.</p>
 <div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
 <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
 <span class="nt">metadata</span><span class="p">:</span>
@@ -919,8 +919,8 @@ repository or kustomize base.</p>
 
 <p>The above kustomization has a remote base to he HEAD revision of the argo-cd repo. Since this
 is not stable target, the manifests for this kustomize application can suddenly change meaning, even without
-any changes to your own git repository.</p>
-<p>A better version would be to use a git tag or commit SHA. For example:</p>
+any changes to your own Git repository.</p>
+<p>A better version would be to use a Git tag or commit SHA. For example:</p>
 <div class="codehilite"><pre><span></span><span class="nt">bases</span><span class="p">:</span>
 <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">github.com/argoproj/argo-cd//manifests/cluster-install?ref=v0.11.1</span>
 </pre></div>

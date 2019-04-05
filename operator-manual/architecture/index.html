@@ -888,22 +888,22 @@ systems. It has the following responsibilities:</p>
 <li>repository and cluster credential management (stored as K8s secrets)</li>
 <li>authentication and auth delegation to external identity providers</li>
 <li>RBAC enforcement</li>
-<li>listener/forwarder for git webhook events</li>
+<li>listener/forwarder for Git webhook events</li>
 </ul>
 <h3 id="repository-server">Repository Server<a class="headerlink" href="#repository-server" title="Permanent link">&para;</a></h3>
-<p>The repository server is an internal service which maintains a local cache of the git repository
+<p>The repository server is an internal service which maintains a local cache of the Git repository
 holding the application manifests. It is responsible for generating and returning the Kubernetes
 manifests when provided the following inputs:</p>
 <ul>
 <li>repository URL</li>
-<li>git revision (commit, tag, branch)</li>
+<li>revision (commit, tag, branch)</li>
 <li>application path</li>
 <li>template specific settings: parameters, ksonnet environments, helm values.yaml</li>
 </ul>
 <h3 id="application-controller">Application Controller<a class="headerlink" href="#application-controller" title="Permanent link">&para;</a></h3>
 <p>The application controller is a Kubernetes controller which continuously monitors running
 applications and compares the current, live state against the desired target state (as specified in
-the git repo). It detects <code>OutOfSync</code> application state and optionally takes corrective action. It
+the repo). It detects <code>OutOfSync</code> application state and optionally takes corrective action. It
 is responsible for invoking any user-defined hooks for lifcecycle events (PreSync, Sync, PostSync)</p>
                 
                   

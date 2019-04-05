@@ -6,7 +6,7 @@ spec:
   # Project description
   description: Example Project
 
-  # Allow manifests to deploy from any git repos
+  # Allow manifests to deploy from any Git repos
   sourceRepos:
   - '*'
 

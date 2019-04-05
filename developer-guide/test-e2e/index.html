@@ -781,7 +781,7 @@
 <p>The directory contains E2E tests and test applications. Tests assume that Argo CD services are installed into <code>argocd-e2e</code> namespace or cluster in current context. One throw-away
 namespace <code>argocd-e2e***</code> is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.</p>
 <p>The <code>test/e2e/testdata</code> directory contains various Argo CD applications. Before test execution directory is copies into <code>/tmp/argocd-e2e***</code> temp directory and used in tests as a
-git repository via file url: <code>file:///tmp/argocd-e2e***</code>.</p>
+Git repository via file url: <code>file:///tmp/argocd-e2e***</code>.</p>
 <p>Use the following steps to run tests locally:</p>
 <ol>
 <li>(Do it once) Create namespace <code>argocd-e2e</code> and apply base manifests: <code>kubectl create ns -n argocd-e2e &amp;&amp; kustomize build test/manifests/base | kubectl apply -n argocd-e2e -f -</code></li>

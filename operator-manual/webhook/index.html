@@ -864,23 +864,23 @@
                 
                 <h1 id="git-webhook-configuration">Git Webhook Configuration<a class="headerlink" href="#git-webhook-configuration" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Argo CD polls git repositories every three minutes to detect changes to the manifests. To eliminate
+<p>Argo CD polls Git repositories every three minutes to detect changes to the manifests. To eliminate
 this delay from polling, the API server can be configured to receive webhook events. Argo CD supports
-git webhook notifications from GitHub, GitLab, and BitBucket. The following explains how to configure
-a git webhook for GitHub, but the same process should be applicable to other providers.</p>
+Git webhook notifications from GitHub, GitLab, and BitBucket. The following explains how to configure
+a Git webhook for GitHub, but the same process should be applicable to other providers.</p>
 <h3 id="1-create-the-webhook-in-the-git-provider">1. Create The WebHook In The Git Provider<a class="headerlink" href="#1-create-the-webhook-in-the-git-provider" title="Permanent link">&para;</a></h3>
-<p>In your git provider, navigate to the settings page where webhooks can be configured. The payload
-URL configured in the git provider should use the <code>/api/webhook</code> endpoint of your Argo CD instance
+<p>In your Git provider, navigate to the settings page where webhooks can be configured. The payload
+URL configured in the Git provider should use the <code>/api/webhook</code> endpoint of your Argo CD instance
 (e.g. [https://argocd.example.com/api/webhook]). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.</p>
 <p><img alt="Add Webhook" src="../../assets/webhook-config.png" title="Add Webhook" /></p>
 <h3 id="2-configure-argo-cd-with-the-webhook-secret-optional">2. Configure Argo CD With The WebHook Secret Optional)<a class="headerlink" href="#2-configure-argo-cd-with-the-webhook-secret-optional" title="Permanent link">&para;</a></h3>
 <p>Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
-related to the git repository, even with unauthenticated webhook events. This is safe to do since
+related to the Git repository, even with unauthenticated webhook events. This is safe to do since
 the contents of webhook payloads are considered untrusted, and will only result in a refresh of the
 application (a process which already occurs at three-minute intervals). If Argo CD is publicly
 accessible, then configuring a webhook secret is recommended to prevent a DDoS attack.</p>
-<p>In the <code>argocd-secret</code> kubernetes secret, configure one of the following keys with the git
+<p>In the <code>argocd-secret</code> kubernetes secret, configure one of the following keys with the Git
 provider's webhook secret configured in step 1.</p>
 <table>
 <thead>

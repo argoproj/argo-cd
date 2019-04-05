@@ -1041,7 +1041,7 @@ make use of this feature. For example, the following is the secret for the
 </pre></div>
 
 
-<p>The Argo CD application controller periodically compares git state against the live state, running
+<p>The Argo CD application controller periodically compares Git state against the live state, running
 the <code>helm template &lt;CHART&gt;</code> command to generate the helm manifests. Because the random value is
 regenerated every time the comparison is made, any application which makes use of the <code>randAlphaNum</code>
 function will always be in an <code>OutOfSync</code> state. This can be mitigated by explicitly setting a

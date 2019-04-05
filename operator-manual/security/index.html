@@ -1000,11 +1000,13 @@ API server can enforce the use of TLS 1.2 using the flag: <code>--tlsminversion 
 <h2 id="sensitive-information">Sensitive Information<a class="headerlink" href="#sensitive-information" title="Permanent link">&para;</a></h2>
 <h3 id="secrets">Secrets<a class="headerlink" href="#secrets" title="Permanent link">&para;</a></h3>
 <p>Argo CD never returns sensitive data from its API, and redacts all sensitive data in API payloads
-and logs. This includes:
-* cluster credentials
-* git credentials
-* OAuth2 client secrets
-* Kubernetes Secret values</p>
+and logs. This includes:</p>
+<ul>
+<li>cluster credentials</li>
+<li>Git credentials</li>
+<li>OAuth2 client secrets</li>
+<li>Kubernetes Secret values</li>
+</ul>
 <h3 id="external-cluster-credentials">External Cluster Credentials<a class="headerlink" href="#external-cluster-credentials" title="Permanent link">&para;</a></h3>
 <p>To manage external clusters, Argo CD stores the credentials of the external cluster as a Kubernetes
 Secret in the argocd namespace. This secret contains the K8s API bearer token associated with the
@@ -1066,12 +1068,12 @@ kubectl edit clusterrole argocd-application-controller
 <p>If you to deny ArgoCD access to a kind of resource then add it as an <a href="../declarative-setup/#resource-exclusion">excluded resource</a>. </p>
 </div>
 <h2 id="auditing">Auditing<a class="headerlink" href="#auditing" title="Permanent link">&para;</a></h2>
-<p>As a GitOps deployment tool, the git commit history provides a natural audit log of what changes
+<p>As a GitOps deployment tool, the Git commit history provides a natural audit log of what changes
 were made to application configuration, when they were made, and by whom. However, this audit log
-only applies to what happened in git and does not necessarily correlate one-to-one with events
+only applies to what happened in Git and does not necessarily correlate one-to-one with events
 that happen in a cluster. For example, User A could have made multiple commits to application
 manifests, but User B could have just only synced those changes to the cluster sometime later.</p>
-<p>To complement the git revision history, Argo CD emits Kubernetes Events of application activity,
+<p>To complement the Git revision history, Argo CD emits Kubernetes Events of application activity,
 indicating the responsible actor when applicable. For example:</p>
 <div class="codehilite"><pre><span></span>$ kubectl get events
 LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBOBJECT   TYPE      REASON               SOURCE                          MESSAGE

@@ -961,7 +961,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 <p>Follow our <a href="getting_started/">getting started guide</a>. Further <a href="docs/">documentation</a>
 is provided for additional features.</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>Argo CD follows the <strong>GitOps</strong> pattern of using git repositories as the source of truth for defining
+<p>Argo CD follows the <strong>GitOps</strong> pattern of using Git repositories as the source of truth for defining
 the desired application state. Kubernetes manifests can be specified in several ways:</p>
 <ul>
 <li><a href="https://kustomize.io">kustomize</a> applications</li>
@@ -973,7 +973,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 </ul>
 <p>Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of
-manifests at a git commit. See <a href="user-guide/tracking_strategies/">tracking strategies</a> for additional
+manifests at a Git commit. See <a href="user-guide/tracking_strategies/">tracking strategies</a> for additional
 details about the different tracking strategies available.</p>
 <p>For a quick 10 minute overview of Argo CD, check out the demo presented to the Sig Apps community
 meeting:
@@ -981,11 +981,11 @@ meeting:
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <p><img alt="Argo CD Architecture" src="assets/argocd_architecture.png" /></p>
 <p>Argo CD is implemented as a kubernetes controller which continuously monitors running applications
-and compares the current, live state against the desired target state (as specified in the git repo).
+and compares the current, live state against the desired target state (as specified in the Git repo).
 A deployed application whose live state deviates from the target state is considered <code>OutOfSync</code>.
 Argo CD reports &amp; visualizes the differences, while providing facilities to automatically or
 manually sync the live state back to the desired target state. Any modifications made to the desired
-target state in the git repo can be automatically applied and reflected in the specified target
+target state in the Git repo can be automatically applied and reflected in the specified target
 environments.</p>
 <p>For additional details, see <a href="operator-manual/architecture/">architecture overview</a>.</p>
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
@@ -995,7 +995,7 @@ environments.</p>
 <li>Ability to manage and deploy to multiple clusters</li>
 <li>SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitHub, GitLab, Microsoft, LinkedIn)</li>
 <li>Multi-tenancy and RBAC policies for authorization</li>
-<li>Rollback/Roll-anywhere to any application configuration committed in git repository</li>
+<li>Rollback/Roll-anywhere to any application configuration committed in Git repository</li>
 <li>Health status analysis of application resources</li>
 <li>Automated configuration drift detection and visualization</li>
 <li>Automated or manual syncing of applications to its desired state</li>
@@ -1006,7 +1006,7 @@ environments.</p>
 <li>PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green &amp; canary upgrades)</li>
 <li>Audit trails for application events and API calls</li>
 <li>Prometheus metrics</li>
-<li>Parameter overrides for overriding ksonnet/helm parameters in git</li>
+<li>Parameter overrides for overriding ksonnet/helm parameters in Git</li>
 </ul>
 <h2 id="community-blogs-and-presentations">Community Blogs And Presentations<a class="headerlink" href="#community-blogs-and-presentations" title="Permanent link">&para;</a></h2>
 <ul>

@@ -880,7 +880,7 @@
                 
                 <h1 id="tracking-and-deployment-strategies">Tracking and Deployment Strategies<a class="headerlink" href="#tracking-and-deployment-strategies" title="Permanent link">&para;</a></h1>
 <p>An Argo CD application spec provides several different ways of track kubernetes resource manifests in
-git. This document describes the different techniques and the means of deploying those manifests to
+Git. This document describes the different techniques and the means of deploying those manifests to
 the target environment.</p>
 <h2 id="head-branch-tracking">HEAD / Branch Tracking<a class="headerlink" href="#head-branch-tracking" title="Permanent link">&para;</a></h2>
 <p>If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
@@ -889,14 +889,14 @@ dereferenced commit of the symbolic reference.</p>
 <p>To redeploy an application, a user makes changes to the manifests, and commit/pushes those the
 changes to the tracked branch/symbolic reference, which will then be detected by Argo CD controller.</p>
 <h2 id="tag-tracking">Tag Tracking<a class="headerlink" href="#tag-tracking" title="Permanent link">&para;</a></h2>
-<p>If a tag is specified, the manifests at the specified git tag will be used to perform the sync
+<p>If a tag is specified, the manifests at the specified Git tag will be used to perform the sync
 comparison. This provides some advantages over branch tracking in that a tag is generally considered
 more stable, and less frequently updated, with some manual judgement of what constitutes a tag.</p>
-<p>To redeploy an application, the user uses git to change the meaning of a tag by retagging it to a
+<p>To redeploy an application, the user uses Git to change the meaning of a tag by retagging it to a
 different commit SHA. Argo CD will detect the new meaning of the tag when performing the
 comparison/sync.</p>
 <h2 id="commit-pinning">Commit Pinning<a class="headerlink" href="#commit-pinning" title="Permanent link">&para;</a></h2>
-<p>If a git commit SHA is specified, the application is effectively pinned to the manifests defined at
+<p>If a Git commit SHA is specified, the application is effectively pinned to the manifests defined at
 the specified commit. This is the most restrictive of the techniques and is typically used to
 control production environments.</p>
 <p>Since commit SHAs cannot change meaning, the only way to change the live state of an application
@@ -906,11 +906,11 @@ on an application which is pinned to a revision.</p>
 <h2 id="automated-sync">Automated Sync<a class="headerlink" href="#automated-sync" title="Permanent link">&para;</a></h2>
 <p>In all tracking strategies, the application has the option to sync automatically. If <a href="../auto_sync/">auto-sync</a>
 is configured, the new resources manifests will be applied automatically -- as soon as a difference
-is detected between the target state (git) and live state. If auto-sync is disabled, a manual sync
+is detected between the target state (Git) and live state. If auto-sync is disabled, a manual sync
 will be needed using the Argo UI, CLI, or API.</p>
 <h2 id="parameter-overrides">Parameter Overrides<a class="headerlink" href="#parameter-overrides" title="Permanent link">&para;</a></h2>
 <p>Note that in all tracking strategies, any <a href="../parameters/">parameter overrides</a> set in the
-application instance take precedence over the git state.</p>
+application instance take precedence over the Git state.</p>
                 
                   
                 

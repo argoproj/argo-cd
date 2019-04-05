@@ -918,7 +918,7 @@
 <p>Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
 teams. Projects provide the following features:</p>
 <ul>
-<li>restrict <em>what</em> may be deployed (trusted git source repositories)</li>
+<li>restrict <em>what</em> may be deployed (trusted Git source repositories)</li>
 <li>restrict <em>where</em> apps may be deployed to (destination clusters and namespaces)</li>
 <li>restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)</li>
 <li>defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)</li>
@@ -943,14 +943,14 @@ deleted. When initially created, it's specification is configured to be the most
 <h3 id="creating-projects">Creating Projects<a class="headerlink" href="#creating-projects" title="Permanent link">&para;</a></h3>
 <p>Additional projects can be created to give separate teams different levels of access to namespaces.
 The following command creates a new project <code>myproject</code> which can deploy applications to namespace
-<code>mynamespace</code> of cluster <code>https://kubernetes.default.svc</code>. The permitted git source repository is
+<code>mynamespace</code> of cluster <code>https://kubernetes.default.svc</code>. The permitted Git source repository is
 set to <code>https://github.com/argoproj/argocd-example-apps.git</code> repository.</p>
 <div class="codehilite"><pre><span></span>argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s https://github.com/argoproj/argocd-example-apps.git
 </pre></div>
 
 
 <h3 id="managing-projects">Managing Projects<a class="headerlink" href="#managing-projects" title="Permanent link">&para;</a></h3>
-<p>Permitted source git repositories are managed using commands:</p>
+<p>Permitted source Git repositories are managed using commands:</p>
 <div class="codehilite"><pre><span></span>argocd proj add-source &lt;PROJECT&gt; &lt;REPO&gt;
 argocd proj remove-source &lt;PROJECT&gt; &lt;REPO&gt;
 </pre></div>
