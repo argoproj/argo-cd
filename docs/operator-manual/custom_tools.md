@@ -7,12 +7,12 @@ other than what Argo CD bundles. Some reasons to do this might be:
 * To upgrade/downgrade to a specific version of a tool due to bugs or bug fixes.
 * To install additional dependencies which to be used by kustomize's configmap/secret generators
   (e.g. curl, vault, gpg, AWS CLI)
-* To install a [config management plugin](application_sources.md#config-management-plugins)
+* To install a [config management plugin](../user-guide/application_sources.md#config-management-plugins)
 
 As the Argo CD repo-server is the single service responsible for generating Kubernetes manifests, it
 can be customized to use alternative toolchain required by your environment.
 
-## Adding tools via volume mounts
+## Adding Tools Via Volume Mounts
 
 The first technique is to use an `init` container and a `volumeMount` to copy a different verison of
 a tool into the repo-server container. In the following example, an init container is overwriting
@@ -44,7 +44,7 @@ the helm binary with a different version than what is bundled in Argo CD:
           subPath: helm
 ```
 
-## BYOI (build your own image)
+## BYOI (Build Your Own Image)
 
 Sometimes replacing a binary isn't sufficient and you need to install other dependencies. The
 following example builds an entirely customized repo-server from a Dockerfile, installing extra

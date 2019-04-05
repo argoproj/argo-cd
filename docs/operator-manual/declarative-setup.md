@@ -15,7 +15,8 @@ Argo CD applications, projects and settings can be defined declaratively using K
 
 The Application CRD is the Kubernetes resource object representing a deployed application instance
 in an environment. It is defined by two key pieces of information:
-* `source` reference to the desired state in git (repository, revision, path, environment)
+
+* `source` reference to the desired state in Git (repository, revision, path, environment)
 * `destination` reference to the target cluster and namespace.
 
 A minimal Application spec is as follows:
@@ -41,6 +42,7 @@ See [application.yaml](application.yaml) for additional fields
 ## Projects
 The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
 It is defined by the following key pieces of information:
+
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
 * `destinations` reference to clusters and namespaces that applications within the project can deploy into.
 * `roles` list of entities with definitions of their access to resources within the project.
@@ -54,7 +56,7 @@ metadata:
   name: my-project
 spec:
   description: Example Project
-  # Allow manifests to deploy from any git repos
+  # Allow manifests to deploy from any Git repos
   sourceRepos:
   - '*'
   # Only permit applications to deploy to the guestbook namespace in the same cluster
@@ -99,7 +101,6 @@ Repository credentials are stored in secret. Use following steps to configure a 
 
 1. Create secret which contains repository credentials. Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store encrypted secret
 definition as a Kubernetes manifest.
-
 2. Register repository in the `argocd-cm` config map. Each repository must have `url` field and, depending on whether you connect using HTTPS or SSH, `usernameSecret` and `passwordSecret` (for HTTPS) or `sshPrivateKeySecret` (for SSH).
 
 Example for HTTPS:
@@ -141,6 +142,7 @@ Cluster credentials are stored in secrets same as repository credentials but doe
 `argocd.argoproj.io/secret-type: cluster`.
 
 The secret data must include following fields:
+
 * `name` - cluster name
 * `server` - cluster api server url
 * `config` - JSON representation of following data structure:
@@ -195,7 +197,7 @@ stringData:
     }
 ```
 
-## Helm Chart repositories
+## Helm Chart Repositories
 
 Non standard Helm Chart repositories have to be registered under the `helm.repositories` key in the
 `argocd-cm` ConfigMap. Each repository must have `url` and `name` fields. For private Helm repos you
@@ -280,10 +282,10 @@ Notes:
 * SSO configuration details: [SSO](sso.md)
 * RBAC configuration details: [RBAC](rbac.md)
 
-## Manage Argo CD using Argo CD
+## Manage Argo CD Using Argo CD
 
 Argo CD is able to manage itself since all settings are represented by Kubernetes manifests. The suggested way is to create [Kustomize](https://github.com/kubernetes-sigs/kustomize)
-based application which uses base Argo CD manifests from https://github.com/argoproj/argo-cd and apply required changes on top.
+based application which uses base Argo CD manifests from [https://github.com/argoproj/argo-cd] and apply required changes on top.
 
 Example of `kustomization.yaml`:
 
@@ -303,4 +305,6 @@ patchesStrategicMerge:
 
 The live example of self managed Argo CD config is available at https://cd.apps.argoproj.io and with configuration
 stored at [argoproj/argoproj-deployments](https://github.com/argoproj/argoproj-deployments/tree/master/argocd).
-> NOTE: You will need to sign-in using your github account to get access to https://cd.apps.argoproj.io
+
+!!! note
+    You will need to sign-in using your github account to get access to https://cd.apps.argoproj.io

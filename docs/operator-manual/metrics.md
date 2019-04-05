@@ -1,6 +1,6 @@
-# Prometheus Metrics
+# Metrics
 
-Argo CD exposes two sets of prometheus metrics
+Argo CD exposes two sets of Prometheus metrics
 
 ## Application Metrics
 Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint. 
@@ -65,6 +65,6 @@ spec:
 
 ## Dashboards
 
-You can find an example Grafana dashboard [here](../examples/dashboard.json)
+You can find an example Grafana dashboard [here](../../examples/dashboard.json)
 
-![dashboard](assets/dashboard.jpg)
+![dashboard](../assets/dashboard.jpg)

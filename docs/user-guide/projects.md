@@ -3,12 +3,12 @@
 Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
 teams. Projects provide the following features:
 
-* restrict *what* may be deployed (trusted git source repositories)
+* restrict *what* may be deployed (trusted Git source repositories)
 * restrict *where* apps may be deployed to (destination clusters and namespaces)
 * restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
 * defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
 
-### The default project
+### The Default Project
 
 Every application belongs to a single project. If unspecified, an application belongs to the
 `default` project, which is created automatically and by default, permits deployments from any
@@ -31,16 +31,16 @@ spec:
 
 Additional projects can be created to give separate teams different levels of access to namespaces.
 The following command creates a new project `myproject` which can deploy applications to namespace
-`mynamespace` of cluster `https://kubernetes.default.svc`. The permitted git source repository is
+`mynamespace` of cluster `https://kubernetes.default.svc`. The permitted Git source repository is
 set to `https://github.com/argoproj/argocd-example-apps.git` repository.
 
-```
+```bash
 argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s https://github.com/argoproj/argocd-example-apps.git
 ```
 
 ### Managing Projects
 
-Permitted source git repositories are managed using commands:
+Permitted source Git repositories are managed using commands:
 
 ```bash
 argocd proj add-source <PROJECT> <REPO>
@@ -48,7 +48,8 @@ argocd proj remove-source <PROJECT> <REPO>
 ```
 
 Permitted destination clusters and namespaces are managed with the commands:
-```
+
+```bash
 argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
@@ -56,14 +57,15 @@ argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
 resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
 whitelist.
-```
+
+```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
 ```
 
-### Assign application to a project
+### Assign Application To A Project
 
 The application project can be changed using `app set` command. In order to change the project of
 an app, the user must have permissions to access the new project.
@@ -72,7 +74,7 @@ an app, the user must have permissions to access the new project.
 argocd app set guestbook-default --project myproject
 ```
 
-### Configuring RBAC with projects
+### Configuring RBAC With Projects
 
 Once projects have been defined, RBAC rules can be written to restrict access to the applications
 in the project. The following example configures RBAC for two GitHub teams: `team1` and `team2`,

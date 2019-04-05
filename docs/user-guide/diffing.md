@@ -11,13 +11,13 @@ submitted to Kubernetes in a manner which contradicts Git.
 which generates different data every time `helm template` is invoked.
 * For Horizontal Pod Autoscaling (HPA) objects, the HPA controller is known to reorder `spec.metrics`
   in a specific order. See [kubernetes issue #74099](https://github.com/kubernetes/kubernetes/issues/74099).
-  To work around this, you can order `spec.replicas` in git in the same order that the controller
+  To work around this, you can order `spec.replicas` in Git in the same order that the controller
   prefers.
 
 In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources.
 The diffing customization can be configured for single or multiple application resources or at a system level.
 
-## Application level configuration
+## Application Level Configuration
 
 Argo CD allows ignoring differences at a specific JSON path. The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
 
@@ -43,7 +43,7 @@ spec:
     - /spec/replicas
 ```
 
-## System-level configuration
+## System-Level Configuration
 
 The comparison of resources with well-known issues can be customized at a system level. Ignored differences can be configured for a specified group and kind
 in `resource.customizations` key of `argocd-cm` ConfigMap. Following is an example of a customization which ignores the `caBundle` field

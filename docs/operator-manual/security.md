@@ -14,7 +14,7 @@ in one of the following ways:
 1. For the local `admin` user, a username/password is exchanged for a JWT using the `/api/v1/session`
    endpoint. This token is signed & issued by the Argo CD API server itself, and has no expiration.
    When the admin password is updated, all existing admin JWT tokens are immediately revoked.
-   The password is stored as a bcrypt hash in the [`argocd-secret`](../manifests/base/argocd-secret.yaml) Secret.
+   The password is stored as a bcrypt hash in the [`argocd-secret`](../../manifests/base/argocd-secret.yaml) Secret.
 
 2. For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
    provider (either delegated through the bundled Dex provider, or directly to a self-managed OIDC
@@ -48,8 +48,9 @@ API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
 
 Argo CD never returns sensitive data from its API, and redacts all sensitive data in API payloads
 and logs. This includes:
+
 * cluster credentials
-* git credentials
+* Git credentials
 * OAuth2 client secrets
 * Kubernetes Secret values
 
@@ -90,7 +91,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 
 ## Cluster RBAC
 
-By default, Argo CD uses a [clusteradmin level role](../manifests/cluster-install/application-controller/argocd-application-controller-clusterrole.yaml)
+By default, Argo CD uses a [clusteradmin level role](../../manifests/cluster-install/application-controller/argocd-application-controller-clusterrole.yaml)
 in order to:
 1. watch & operate on cluster state
 2. deploy resources to the cluster
@@ -117,19 +118,18 @@ kubectl edit clusterrole argocd-server
 kubectl edit clusterrole argocd-application-controller
 ```
 
-Note:
-
-* If you to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion). 
+!!! tip
+    If you to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion). 
 
 ## Auditing
 
-As a GitOps deployment tool, the git commit history provides a natural audit log of what changes
+As a GitOps deployment tool, the Git commit history provides a natural audit log of what changes
 were made to application configuration, when they were made, and by whom. However, this audit log
-only applies to what happened in git and does not necessarily correlate one-to-one with events
+only applies to what happened in Git and does not necessarily correlate one-to-one with events
 that happen in a cluster. For example, User A could have made multiple commits to application
 manifests, but User B could have just only synced those changes to the cluster sometime later.
 
-To complement the git revision history, Argo CD emits Kubernetes Events of application activity,
+To complement the Git revision history, Argo CD emits Kubernetes Events of application activity,
 indicating the responsible actor when applicable. For example:
 
 ```bash
@@ -161,6 +161,7 @@ at three minute intervals, just fast-tracked by the webhook event.
 ## Reporting Vulnerabilities
 
 Please report security vulnerabilities by e-mailing:
-* Jesse_Suen@intuit.com
-* Alexander_Matyushentsev@intuit.com
-* Edward_Lee@intuit.com
+
+* [Jesse_Suen@intuit.com](mailto:Jesse_Suen@intuit.com)
+* [Alexander_Matyushentsev@intuit.com](mailto:Alexander_Matyushentsev@intuit.com)
+* [Edward_Lee@intuit.com](mailto:Edward_Lee@intuit.com)
