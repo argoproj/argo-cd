@@ -36,7 +36,7 @@
     
     
       
-        <title>SSO Configuration - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Resource Health - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#sso-configuration" tabindex="1" class="md-skip">
+      <a href="#resource-health" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              SSO Configuration
+              Resource Health
             </span>
           
         </div>
@@ -365,83 +365,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        SSO Configuration
-      </label>
-    
-    <a href="./" title="SSO Configuration" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../sso/" title="SSO Configuration" class="md-nav__link">
       SSO Configuration
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#overview" title="Overview" class="md-nav__link">
-    Overview
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dex" title="Dex" class="md-nav__link">
-    Dex
-  </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-register-the-application-in-the-identity-provider" title="1. Register the application in the identity provider" class="md-nav__link">
-    1. Register the application in the identity provider
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-configure-argo-cd-for-sso" title="2. Configure Argo CD for SSO" class="md-nav__link">
-    2. Configure Argo CD for SSO
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#existing-oidc-provider" title="Existing OIDC Provider" class="md-nav__link">
-    Existing OIDC Provider
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
         
@@ -485,11 +413,110 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../health/" title="Resource Health" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Resource Health
+      </label>
+    
+    <a href="./" title="Resource Health" class="md-nav__link md-nav__link--active">
       Resource Health
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" title="Overview" class="md-nav__link">
+    Overview
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deployment-replicaset-statefulset-daemonset" title="Deployment, ReplicaSet, StatefulSet DaemonSet" class="md-nav__link">
+    Deployment, ReplicaSet, StatefulSet DaemonSet
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#service" title="Service" class="md-nav__link">
+    Service
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingress" title="Ingress" class="md-nav__link">
+    Ingress
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#persistentvolumeclaim" title="PersistentVolumeClaim" class="md-nav__link">
+    PersistentVolumeClaim
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-health-checks" title="Custom Health Checks" class="md-nav__link">
+    Custom Health Checks
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#way-1-define-a-custom-health-check-in-argocd-cm-configmap" title="Way 1. Define a Custom Health Check in argocd-cm ConfigMap" class="md-nav__link">
+    Way 1. Define a Custom Health Check in argocd-cm ConfigMap
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#way-2-contribute-a-custom-health-check" title="Way 2. Contribute a Custom Health Check" class="md-nav__link">
+    Way 2. Contribute a Custom Health Check
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
         
@@ -847,26 +874,33 @@
     Overview
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dex" title="Dex" class="md-nav__link">
-    Dex
-  </a>
-  
     <nav class="md-nav">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-register-the-application-in-the-identity-provider" title="1. Register the application in the identity provider" class="md-nav__link">
-    1. Register the application in the identity provider
+  <a href="#deployment-replicaset-statefulset-daemonset" title="Deployment, ReplicaSet, StatefulSet DaemonSet" class="md-nav__link">
+    Deployment, ReplicaSet, StatefulSet DaemonSet
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-configure-argo-cd-for-sso" title="2. Configure Argo CD for SSO" class="md-nav__link">
-    2. Configure Argo CD for SSO
+  <a href="#service" title="Service" class="md-nav__link">
+    Service
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingress" title="Ingress" class="md-nav__link">
+    Ingress
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#persistentvolumeclaim" title="PersistentVolumeClaim" class="md-nav__link">
+    PersistentVolumeClaim
   </a>
   
 </li>
@@ -877,9 +911,29 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#existing-oidc-provider" title="Existing OIDC Provider" class="md-nav__link">
-    Existing OIDC Provider
+  <a href="#custom-health-checks" title="Custom Health Checks" class="md-nav__link">
+    Custom Health Checks
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#way-1-define-a-custom-health-check-in-argocd-cm-configmap" title="Way 1. Define a Custom Health Check in argocd-cm ConfigMap" class="md-nav__link">
+    Way 1. Define a Custom Health Check in argocd-cm ConfigMap
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#way-2-contribute-a-custom-health-check" title="Way 2. Contribute a Custom Health Check" class="md-nav__link">
+    Way 2. Contribute a Custom Health Check
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -899,110 +953,93 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/operator-manual/sso.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/operator-manual/health.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="sso-configuration">SSO Configuration<a class="headerlink" href="#sso-configuration" title="Permanent link">&para;</a></h1>
+                <h1 id="resource-health">Resource Health<a class="headerlink" href="#resource-health" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Argo CD does not have any local users other than the built-in <code>admin</code> user. All other users are
-expected to login via SSO. There are two ways that SSO can be configured:</p>
+<p>Argo CD provides built-in health assessment for several standard Kubernetes types, which is then
+surfaced to the overall Application health status as a whole. The following checks are made for
+specific types of kuberentes resources:</p>
+<h3 id="deployment-replicaset-statefulset-daemonset">Deployment, ReplicaSet, StatefulSet DaemonSet<a class="headerlink" href="#deployment-replicaset-statefulset-daemonset" title="Permanent link">&para;</a></h3>
 <ul>
-<li>
-<p>Bundled Dex OIDC provider - use this option your current provider does not support OIDC (e.g. SAML,
-  LDAP) or if you wish to leverage any of Dex's connector features (e.g. the ability to map GitHub
-  organizations and teams to OIDC groups claims).</p>
-</li>
-<li>
-<p>Existing OIDC provider - use this if you already have an OIDC provider which you are using (e.g.
-  Okta, OneLogin, Auth0, Microsoft), where you manage your users, groups, and memberships.</p>
-</li>
+<li>Observed generation is equal to desired generation.</li>
+<li>Number of <strong>updated</strong> replicas equals the number of desired replicas.</li>
 </ul>
-<h2 id="dex">Dex<a class="headerlink" href="#dex" title="Permanent link">&para;</a></h2>
-<p>Argo CD embeds and bundles <a href="https://github.com/coreos/dex">Dex</a> as part of its installation, for the
-purpose of delegating authentication to an external identity provider. Multiple types of identity
-providers are supported (OIDC, SAML, LDAP, GitHub, etc...). SSO configuration of Argo CD requires
-editing the <code>argocd-cm</code> ConfigMap with
-<a href="https://github.com/coreos/dex/tree/master/Documentation/connectors">Dex connector</a> settings.</p>
-<p>This document describes how to configure Argo CD SSO using GitHub (OAuth2) as an example, but the
-steps should be similar for other identity providers.</p>
-<h3 id="1-register-the-application-in-the-identity-provider">1. Register the application in the identity provider<a class="headerlink" href="#1-register-the-application-in-the-identity-provider" title="Permanent link">&para;</a></h3>
-<p>In GitHub, register a new application. The callback address should be the <code>/api/dex/callback</code>
-endpoint of your Argo CD URL (e.g. https://argocd.example.com/api/dex/callback).</p>
-<p><img alt="Register OAuth App" src="../../assets/register-app.png" title="Register OAuth App" /></p>
-<p>After registering the app, you will receive an OAuth2 client ID and secret. These values will be
-inputted into the Argo CD configmap.</p>
-<p><img alt="OAuth2 Client Config" src="../../assets/oauth2-config.png" title="OAuth2 Client Config" /></p>
-<h3 id="2-configure-argo-cd-for-sso">2. Configure Argo CD for SSO<a class="headerlink" href="#2-configure-argo-cd-for-sso" title="Permanent link">&para;</a></h3>
-<p>Edit the argocd-cm configmap:</p>
-<div class="codehilite"><pre><span></span>kubectl edit configmap argocd-cm -n argocd
-</pre></div>
-
-
+<h3 id="service">Service<a class="headerlink" href="#service" title="Permanent link">&para;</a></h3>
 <ul>
-<li>In the <code>url</code> key, input the base URL of Argo CD. In this example, it is https://argocd.example.com</li>
-<li>In the <code>dex.config</code> key, add the <code>github</code> connector to the <code>connectors</code> sub field. See Dex's
-  <a href="https://github.com/coreos/dex/blob/master/Documentation/connectors/github.md">GitHub connector</a>
-  documentation for explanation of the fields. A minimal config should populate the clientID,
-  clientSecret generated in Step 1.</li>
-<li>You will very likely want to restrict logins to one or more GitHub organization. In the
-  <code>connectors.config.orgs</code> list, add one or more GitHub organizations. Any member of the org will
-  then be able to login to Argo CD to perform management tasks.</li>
+<li>If service type is of type <code>LoadBalancer</code>, the <code>status.loadBalancer.ingress</code> list is non-empty,
+with at least one value for <code>hostname</code> or <code>IP</code>.</li>
 </ul>
+<h3 id="ingress">Ingress<a class="headerlink" href="#ingress" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The <code>status.loadBalancer.ingress</code> list is non-empty, with at least one value for <code>hostname</code> or <code>IP</code>.</li>
+</ul>
+<h3 id="persistentvolumeclaim">PersistentVolumeClaim<a class="headerlink" href="#persistentvolumeclaim" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The <code>status.phase</code> is <code>Bound</code></li>
+</ul>
+<h2 id="custom-health-checks">Custom Health Checks<a class="headerlink" href="#custom-health-checks" title="Permanent link">&para;</a></h2>
+<p>Argo CD supports custom health checks written in <a href="https://www.lua.org/">Lua</a>. This is useful if you:</p>
+<ul>
+<li>Are affected by known issues where your <code>Ingress</code> or <code>StatefulSet</code> resources are stuck in <code>Progressing</code> state because of bug in your resource controller.</li>
+<li>Have a custom resource for which Argo CD does not have a built-in health check.</li>
+</ul>
+<p>There are two ways to configure a custom health check. The next two sections describe those ways.</p>
+<h3 id="way-1-define-a-custom-health-check-in-argocd-cm-configmap">Way 1. Define a Custom Health Check in <code>argocd-cm</code> ConfigMap<a class="headerlink" href="#way-1-define-a-custom-health-check-in-argocd-cm-configmap" title="Permanent link">&para;</a></h3>
+<p>Custom health checks can be defined in <code>resource.customizations</code> field of <code>argocd-cm</code>. Following example demonstrates a health check for <code>certmanager.k8s.io/Certificate</code>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">data</span><span class="p">:</span>
-  <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argocd.example.com</span>
+  <span class="nt">resource.customizations</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">certmanager.k8s.io/Certificate:</span>
+      <span class="no">health.lua: |</span>
+        <span class="no">hs = {}</span>
+        <span class="no">if obj.status ~= nil then</span>
+          <span class="no">if obj.status.conditions ~= nil then</span>
+            <span class="no">for i, condition in ipairs(obj.status.conditions) do</span>
+              <span class="no">if condition.type == &quot;Ready&quot; and condition.status == &quot;False&quot; then</span>
+                <span class="no">hs.status = &quot;Degraded&quot;</span>
+                <span class="no">hs.message = condition.message</span>
+                <span class="no">return hs</span>
+              <span class="no">end</span>
+              <span class="no">if condition.type == &quot;Ready&quot; and condition.status == &quot;True&quot; then</span>
+                <span class="no">hs.status = &quot;Healthy&quot;</span>
+                <span class="no">hs.message = condition.message</span>
+                <span class="no">return hs</span>
+              <span class="no">end</span>
+            <span class="no">end</span>
+          <span class="no">end</span>
+        <span class="no">end</span>
 
-  <span class="nt">dex.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">connectors:</span>
-      <span class="no"># GitHub example</span>
-      <span class="no">- type: github</span>
-        <span class="no">id: github</span>
-        <span class="no">name: GitHub</span>
-        <span class="no">config:</span>
-          <span class="no">clientID: aabbccddeeff00112233</span>
-          <span class="no">clientSecret: $dex.github.clientSecret</span>
-          <span class="no">orgs:</span>
-          <span class="no">- name: your-github-org</span>
-
-      <span class="no"># GitHub enterprise example</span>
-      <span class="no">- type: github</span>
-        <span class="no">id: acme-github</span>
-        <span class="no">name: Acme GitHub</span>
-        <span class="no">config:</span>
-          <span class="no">hostName: github.acme.com</span>
-          <span class="no">clientID: abcdefghijklmnopqrst</span>
-          <span class="no">clientSecret: $dex.acme.clientSecret</span>
-          <span class="no">orgs:</span>
-          <span class="no">- name: your-github-org</span>
+        <span class="no">hs.status = &quot;Progressing&quot;</span>
+        <span class="no">hs.message = &quot;Waiting for certificate&quot;</span>
+        <span class="no">return hs</span>
 </pre></div>
 
 
-<p>After saving, the changes should take affect automatically.</p>
-<p>NOTES:</p>
-<ul>
-<li>Any values which start with '$' will look to a key in argocd-secret of the same name (minus the $),
-  to obtain the actual value. This allows you to store the <code>clientSecret</code> as a kubernetes secret.</li>
-<li>There is no need to set <code>redirectURI</code> in the <code>connectors.config</code> as shown in the dex documentation.
-  Argo CD will automatically use the correct <code>redirectURI</code> for any OAuth2 connectors, to match the
-  correct external callback URL (e.g. https://argocd.example.com/api/dex/callback)</li>
-</ul>
-<h2 id="existing-oidc-provider">Existing OIDC Provider<a class="headerlink" href="#existing-oidc-provider" title="Permanent link">&para;</a></h2>
-<p>To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
-configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.config</code> key:</p>
-<div class="codehilite"><pre><span></span><span class="nt">data</span><span class="p">:</span>
-  <span class="nt">url</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://argocd.example.com</span>
-
-  <span class="nt">oidc.config</span><span class="p">:</span> <span class="p p-Indicator">|</span>
-    <span class="no">name: Okta</span>
-    <span class="no">issuer: https://dev-123456.oktapreview.com</span>
-    <span class="no">clientID: aaaabbbbccccddddeee</span>
-    <span class="no">clientSecret: $oidc.okta.clientSecret</span>
-
-    <span class="no"># Some OIDC providers require a separate clientID for different callback URLs.</span>
-    <span class="no"># For example, if configuring Argo CD with self-hosted Dex, you will need a separate client ID</span>
-    <span class="no"># for the &#39;localhost&#39; (CLI) client to Dex. This field is optional. If omitted, the CLI will</span>
-    <span class="no"># use the same clientID as the Argo CD server</span>
-    <span class="no">cliClientID: vvvvwwwwxxxxyyyyzzzz</span>
+<p>The <code>obj</code> is a global variable which contains the resource. The script must return an object with status and optional message field.</p>
+<p>NOTE: as a security measure you don't have access to most of the standard Lua libraries.</p>
+<h3 id="way-2-contribute-a-custom-health-check">Way 2. Contribute a Custom Health Check<a class="headerlink" href="#way-2-contribute-a-custom-health-check" title="Permanent link">&para;</a></h3>
+<p>A health check can be bundled into Argo CD. Custom health check scripts are located in the <code>resource_customizations</code> directory of <a href="https://github.com/argoproj/argo-cd">https://github.com/argoproj/argo-cd</a>. This must have the following directory structure:</p>
+<div class="codehilite"><pre><span></span>argo-cd
+|-- resource_customizations
+|    |-- your.crd.group.io               # CRD group
+|    |    |-- MyKind                     # Resource kind
+|    |    |    |-- health.lua            # Health check
+|    |    |    |-- health_test.yaml      # Test inputs and expected results
+|    |    |    +-- testdata              # Directory with test resource YAML definitions
 </pre></div>
+
+
+<p>Each health check must have tests defined in <code>health_test.yaml</code> file. The <code>health_test.yaml</code> is a YAML file with the following structure:</p>
+<div class="codehilite"><pre><span></span><span class="nt">tests</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="nt">healthStatus</span><span class="p">:</span>
+    <span class="nt">status</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ExpectedStatus</span>
+    <span class="nt">message</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Expected message</span>
+  <span class="nt">inputPath</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">testdata/test-resource-definition.yaml</span>
+</pre></div>
+
+
+<p>The <a href="https://github.com/argoproj/argo-cd/pull/1139">PR#1139</a> is an example of Cert Manager CRDs custom health check.</p>
                 
                   
                 
@@ -1023,7 +1060,7 @@ configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.confi
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../ingress/" title="Ingress Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../webhook/" title="Git Webhook Configuration" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1032,19 +1069,19 @@ configuration to the <code>argocd-cm</code> ConfigMap under the <code>oidc.confi
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Ingress Configuration
+                Git Webhook Configuration
               </span>
             </div>
           </a>
         
         
-          <a href="../rbac/" title="RBAC" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../custom_tools/" title="Custom Tooling" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                RBAC
+                Custom Tooling
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">

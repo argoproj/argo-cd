@@ -36,7 +36,7 @@
     
     
       
-        <title>E2E Testing - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>E2E Tests - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              E2E Testing
+              E2E Tests
             </span>
           
         </div>
@@ -365,8 +365,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/metrics/" title="Prometheus Metrics" class="md-nav__link">
-      Prometheus Metrics
+    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
+      SSO Configuration
     </a>
   </li>
 
@@ -401,18 +401,6 @@
 
 
   <li class="md-nav__item">
-    <a href="../../operator-manual/sso/" title="SSO Configuration" class="md-nav__link">
-      SSO Configuration
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
     <a href="../../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
       Git Webhook Configuration
     </a>
@@ -425,8 +413,32 @@
 
 
   <li class="md-nav__item">
+    <a href="../../operator-manual/health/" title="Resource Health" class="md-nav__link">
+      Resource Health
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../operator-manual/custom_tools/" title="Custom Tooling" class="md-nav__link">
       Custom Tooling
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../operator-manual/metrics/" title="Metrics" class="md-nav__link">
+      Metrics
     </a>
   </li>
 
@@ -485,6 +497,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../../user-guide/projects/" title="Projects" class="md-nav__link">
+      Projects
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../../user-guide/auto_sync/" title="Automated Sync Policy" class="md-nav__link">
       Automated Sync Policy
     </a>
@@ -499,18 +523,6 @@
   <li class="md-nav__item">
     <a href="../../user-guide/diffing/" title="Diffing Customization" class="md-nav__link">
       Diffing Customization
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/health/" title="Resource Health" class="md-nav__link">
-      Resource Health
     </a>
   </li>
 
@@ -545,8 +557,8 @@
 
 
   <li class="md-nav__item">
-    <a href="../../user-guide/projects/" title="Projects" class="md-nav__link">
-      Projects
+    <a href="../../user-guide/resource_hooks/" title="Resource Hooks" class="md-nav__link">
+      Resource Hooks
     </a>
   </li>
 
@@ -559,18 +571,6 @@
   <li class="md-nav__item">
     <a href="../../user-guide/ci_automation/" title="Automation from CI Pipelines" class="md-nav__link">
       Automation from CI Pipelines
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/resource_hooks/" title="Resource Hooks" class="md-nav__link">
-      Resource Hooks
     </a>
   </li>
 
@@ -631,8 +631,20 @@
 
 
   <li class="md-nav__item">
-    <a href="https://github.com/argoproj/argo-cd/blob/master/CONTRIBUTING.md" title="Contributing ⧉" class="md-nav__link">
-      Contributing ⧉
+    <a href="../../CONTRIBUTING/" title="Contributing" class="md-nav__link">
+      Contributing
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../api-docs/" title="API Docs" class="md-nav__link">
+      API Docs
     </a>
   </li>
 
@@ -651,8 +663,8 @@
       
     
     
-    <a href="./" title="E2E Testing" class="md-nav__link md-nav__link--active">
-      E2E Testing
+    <a href="./" title="E2E Tests" class="md-nav__link md-nav__link--active">
+      E2E Tests
     </a>
     
   </li>
@@ -741,7 +753,7 @@
 
 
   <li class="md-nav__item">
-    <a href="https://medium.com/@argoproject" title="Blog ⧉" class="md-nav__link">
+    <a href="https://blog.argoproj.io/" title="Blog ⧉" class="md-nav__link">
       Blog ⧉
     </a>
   </li>
@@ -777,7 +789,7 @@
                   <a href="https://github.com/alexec/argo-cd/edit/master/docs/developer-guide/test-e2e.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="e2e-tests">E2E tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h1>
+                <h1 id="e2e-tests">E2E Tests<a class="headerlink" href="#e2e-tests" title="Permanent link">&para;</a></h1>
 <p>The directory contains E2E tests and test applications. Tests assume that Argo CD services are installed into <code>argocd-e2e</code> namespace or cluster in current context. One throw-away
 namespace <code>argocd-e2e***</code> is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.</p>
 <p>The <code>test/e2e/testdata</code> directory contains various Argo CD applications. Before test execution directory is copies into <code>/tmp/argocd-e2e***</code> temp directory and used in tests as a
@@ -810,7 +822,7 @@ using k3s and run e2e tests against it.</p>
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../" title="Overview" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../api-docs/" title="API Docs" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -819,7 +831,7 @@ using k3s and run e2e tests against it.</p>
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Overview
+                API Docs
               </span>
             </div>
           </a>
@@ -853,17 +865,6 @@ using k3s and run e2e tests against it.</p>
           Material for MkDocs</a>
       </div>
       
-  <div class="md-footer-social">
-    <link rel="stylesheet" href="../../assets/fonts/font-awesome.css">
-    
-      <a href="https://twitter.com/argoproj" class="md-footer-social__link fa fa-twitter"></a>
-    
-      <a href="https://medium.com/@argoproject" class="md-footer-social__link fa fa-medium"></a>
-    
-      <a href="https://argoproj.github.io/community/join-slack" class="md-footer-social__link fa fa-slack"></a>
-    
-  </div>
-
     </div>
   </div>
 </footer>
