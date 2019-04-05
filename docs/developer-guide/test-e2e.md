@@ -5,7 +5,7 @@ The directory contains E2E tests and test applications. Tests assume that Argo C
 namespace `argocd-e2e***` is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.
 
 The `test/e2e/testdata` directory contains various Argo CD applications. Before test execution directory is copies into `/tmp/argocd-e2e***` temp directory and used in tests as a
-git repository via file url: `file:///tmp/argocd-e2e***`.
+Git repository via file url: `file:///tmp/argocd-e2e***`.
 
 Use the following steps to run tests locally:
 

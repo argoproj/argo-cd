@@ -1,10 +1,10 @@
 # Automated Sync Policy
 
 Argo CD has the ability to automatically sync an application when it detects differences between
-the desired manifests in git, and the live state in the cluster. A benefit of automatic sync is that
+the desired manifests in Git, and the live state in the cluster. A benefit of automatic sync is that
 CI/CD pipelines no longer need direct access to the Argo CD API server to perform the deployment.
-Instead, the pipeline makes a commit and push to the git repository with the changes to the
-manifests in the tracking git repo.
+Instead, the pipeline makes a commit and push to the Git repository with the changes to the
+manifests in the tracking Git repo.
 
 To configure automated sync run:
 ```bash
@@ -22,7 +22,7 @@ spec:
 ## Automatic Pruning
 
 By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects
-the resource is no longer defined in git. To prune the resources, a manual sync can always be
+the resource is no longer defined in Git. To prune the resources, a manual sync can always be
 performed (with pruning checked). Pruning can also be enabled to happen automatically as part of the
 automated sync by running:
 

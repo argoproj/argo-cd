@@ -106,7 +106,7 @@ service account token to perform its management tasks (i.e. deploy/monitoring).
 
 ## 6. Create An Application From A Git Repository
 
-An example git repository containing a guestbook application is available at
+An example repository containing a guestbook application is available at
 https://github.com/argoproj/argocd-example-apps.git to demonstrate how Argo CD works.
 
 ### Creating Apps Via CLI
@@ -126,7 +126,7 @@ Connect the https://github.com/argoproj/argocd-example-apps.git repo to Argo CD:
 
 ![connect repo](assets/connect_repo.png)
 
-After connecting a git repository, select the guestbook application for creation:
+After connecting a repository, select the guestbook application for creation:
 
 ![select app](assets/select_app.png)
 ![create app](assets/create_app.png)
@@ -161,7 +161,7 @@ deployed, and no Kubernetes resources have been created. To sync (deploy) the ap
 argocd app sync guestbook
 ```
 
-This command retrieves the manifests from git repository and performs a `kubectl apply` of the
+This command retrieves the manifests from the repository and performs a `kubectl apply` of the
 manifests. The guestbook app is now running and you can now view its resource components, logs,
 events, and assessed health status:
 

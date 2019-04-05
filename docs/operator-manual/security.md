@@ -48,8 +48,9 @@ API server can enforce the use of TLS 1.2 using the flag: `--tlsminversion 1.2`.
 
 Argo CD never returns sensitive data from its API, and redacts all sensitive data in API payloads
 and logs. This includes:
+
 * cluster credentials
-* git credentials
+* Git credentials
 * OAuth2 client secrets
 * Kubernetes Secret values
 
@@ -122,13 +123,13 @@ kubectl edit clusterrole argocd-application-controller
 
 ## Auditing
 
-As a GitOps deployment tool, the git commit history provides a natural audit log of what changes
+As a GitOps deployment tool, the Git commit history provides a natural audit log of what changes
 were made to application configuration, when they were made, and by whom. However, this audit log
-only applies to what happened in git and does not necessarily correlate one-to-one with events
+only applies to what happened in Git and does not necessarily correlate one-to-one with events
 that happen in a cluster. For example, User A could have made multiple commits to application
 manifests, but User B could have just only synced those changes to the cluster sometime later.
 
-To complement the git revision history, Argo CD emits Kubernetes Events of application activity,
+To complement the Git revision history, Argo CD emits Kubernetes Events of application activity,
 indicating the responsible actor when applicable. For example:
 
 ```bash

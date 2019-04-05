@@ -3,7 +3,7 @@
 Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
 teams. Projects provide the following features:
 
-* restrict *what* may be deployed (trusted git source repositories)
+* restrict *what* may be deployed (trusted Git source repositories)
 * restrict *where* apps may be deployed to (destination clusters and namespaces)
 * restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
 * defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
@@ -31,7 +31,7 @@ spec:
 
 Additional projects can be created to give separate teams different levels of access to namespaces.
 The following command creates a new project `myproject` which can deploy applications to namespace
-`mynamespace` of cluster `https://kubernetes.default.svc`. The permitted git source repository is
+`mynamespace` of cluster `https://kubernetes.default.svc`. The permitted Git source repository is
 set to `https://github.com/argoproj/argocd-example-apps.git` repository.
 
 ```bash
@@ -40,7 +40,7 @@ argocd proj create myproject -d https://kubernetes.default.svc,mynamespace -s ht
 
 ### Managing Projects
 
-Permitted source git repositories are managed using commands:
+Permitted source Git repositories are managed using commands:
 
 ```bash
 argocd proj add-source <PROJECT> <REPO>

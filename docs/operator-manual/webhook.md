@@ -2,15 +2,15 @@
 
 ## Overview
 
-Argo CD polls git repositories every three minutes to detect changes to the manifests. To eliminate
+Argo CD polls Git repositories every three minutes to detect changes to the manifests. To eliminate
 this delay from polling, the API server can be configured to receive webhook events. Argo CD supports
-git webhook notifications from GitHub, GitLab, and BitBucket. The following explains how to configure
-a git webhook for GitHub, but the same process should be applicable to other providers.
+Git webhook notifications from GitHub, GitLab, and BitBucket. The following explains how to configure
+a Git webhook for GitHub, but the same process should be applicable to other providers.
 
 ### 1. Create The WebHook In The Git Provider
 
-In your git provider, navigate to the settings page where webhooks can be configured. The payload
-URL configured in the git provider should use the `/api/webhook` endpoint of your Argo CD instance
+In your Git provider, navigate to the settings page where webhooks can be configured. The payload
+URL configured in the Git provider should use the `/api/webhook` endpoint of your Argo CD instance
 (e.g. [https://argocd.example.com/api/webhook]). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
@@ -19,12 +19,12 @@ arbitrary value in the secret. This value will be used when configuring the webh
 ### 2. Configure Argo CD With The WebHook Secret Optional)
 
 Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
-related to the git repository, even with unauthenticated webhook events. This is safe to do since
+related to the Git repository, even with unauthenticated webhook events. This is safe to do since
 the contents of webhook payloads are considered untrusted, and will only result in a refresh of the
 application (a process which already occurs at three-minute intervals). If Argo CD is publicly
 accessible, then configuring a webhook secret is recommended to prevent a DDoS attack.
 
-In the `argocd-secret` kubernetes secret, configure one of the following keys with the git
+In the `argocd-secret` kubernetes secret, configure one of the following keys with the Git
 provider's webhook secret configured in step 1.
 
 | Provider  | K8s Secret Key           |

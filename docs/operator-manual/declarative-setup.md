@@ -16,7 +16,7 @@ Argo CD applications, projects and settings can be defined declaratively using K
 The Application CRD is the Kubernetes resource object representing a deployed application instance
 in an environment. It is defined by two key pieces of information:
 
-* `source` reference to the desired state in git (repository, revision, path, environment)
+* `source` reference to the desired state in Git (repository, revision, path, environment)
 * `destination` reference to the target cluster and namespace.
 
 A minimal Application spec is as follows:
@@ -56,7 +56,7 @@ metadata:
   name: my-project
 spec:
   description: Example Project
-  # Allow manifests to deploy from any git repos
+  # Allow manifests to deploy from any Git repos
   sourceRepos:
   - '*'
   # Only permit applications to deploy to the guestbook namespace in the same cluster

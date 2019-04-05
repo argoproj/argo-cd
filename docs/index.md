@@ -25,7 +25,7 @@ is provided for additional features.
 
 ## How it works
 
-Argo CD follows the **GitOps** pattern of using git repositories as the source of truth for defining
+Argo CD follows the **GitOps** pattern of using Git repositories as the source of truth for defining
 the desired application state. Kubernetes manifests can be specified in several ways:
 
 * [kustomize](https://kustomize.io) applications
@@ -37,7 +37,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
 Application deployments can track updates to branches, tags, or pinned to a specific version of
-manifests at a git commit. See [tracking strategies](user-guide/tracking_strategies.md) for additional
+manifests at a Git commit. See [tracking strategies](user-guide/tracking_strategies.md) for additional
 details about the different tracking strategies available.
 
 For a quick 10 minute overview of Argo CD, check out the demo presented to the Sig Apps community
@@ -50,11 +50,11 @@ meeting:
 ![Argo CD Architecture](assets/argocd_architecture.png)
 
 Argo CD is implemented as a kubernetes controller which continuously monitors running applications
-and compares the current, live state against the desired target state (as specified in the git repo).
+and compares the current, live state against the desired target state (as specified in the Git repo).
 A deployed application whose live state deviates from the target state is considered `OutOfSync`.
 Argo CD reports & visualizes the differences, while providing facilities to automatically or
 manually sync the live state back to the desired target state. Any modifications made to the desired
-target state in the git repo can be automatically applied and reflected in the specified target
+target state in the Git repo can be automatically applied and reflected in the specified target
 environments.
 
 For additional details, see [architecture overview](operator-manual/architecture.md).
@@ -66,7 +66,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 * Ability to manage and deploy to multiple clusters
 * SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitHub, GitLab, Microsoft, LinkedIn)
 * Multi-tenancy and RBAC policies for authorization
-* Rollback/Roll-anywhere to any application configuration committed in git repository
+* Rollback/Roll-anywhere to any application configuration committed in Git repository
 * Health status analysis of application resources
 * Automated configuration drift detection and visualization
 * Automated or manual syncing of applications to its desired state
@@ -77,7 +77,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 * PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
 * Audit trails for application events and API calls
 * Prometheus metrics
-* Parameter overrides for overriding ksonnet/helm parameters in git
+* Parameter overrides for overriding ksonnet/helm parameters in Git
 
 ## Community Blogs And Presentations
 
