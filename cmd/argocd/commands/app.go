@@ -1483,6 +1483,9 @@ const printOpFmtStr = "%-20s%s\n"
 const defaultCheckTimeoutSeconds = 0
 
 func printOperationResult(opState *argoappv1.OperationState) {
+	if opState == nil {
+		return
+	}
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
 		fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)
