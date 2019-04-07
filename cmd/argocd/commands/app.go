@@ -43,13 +43,27 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/templates"
+)
+
+var (
+	appExample = templates.Examples(`
+	# List all the applications.
+	argocd app list
+
+	# Get the details of a application
+	argocd app get my-app
+
+	# Set an override parameter
+	argocd app set my-app -p image.tag=v1.0.1`)
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "app",
-		Short: "Manage applications",
+		Use:     "app",
+		Short:   "Manage applications",
+		Example: appExample,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
