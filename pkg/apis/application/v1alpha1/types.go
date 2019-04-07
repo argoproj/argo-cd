@@ -299,7 +299,7 @@ type OperationState struct {
 	// StartedAt contains time of operation start
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
-	FinishedAt *metav1.Time `json:"finishedAt" protobuf:"bytes,7,opt,name=finishedAt"`
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -334,6 +334,7 @@ type SyncStrategyApply struct {
 // If no hook annotation is specified falls back to `kubectl apply`.
 type SyncStrategyHook struct {
 	// Embed SyncStrategyApply type to inherit any `apply` options
+	// +optional
 	SyncStrategyApply `protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
@@ -522,7 +523,7 @@ type InfoItem struct {
 // ResourceNetworkingInfo holds networking resource related information
 type ResourceNetworkingInfo struct {
 	TargetLabels map[string]string        `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
-	TargetRefs   []ResourceRef            `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`
+	TargetRefs   []ResourceRef            `json:"targetRefs,omitempty" protobuf:"bytes,2,opt,name=targetRefs"`
 	Labels       map[string]string        `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
 	Ingress      []v1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
 }
@@ -745,9 +746,9 @@ type AppProject struct {
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of git repository URLs which can be used for deployment
-	SourceRepos []string `json:"sourceRepos" protobuf:"bytes,1,name=sourceRepos"`
+	SourceRepos []string `json:"sourceRepos,omitempty" protobuf:"bytes,1,name=sourceRepos"`
 	// Destinations contains list of destinations available for deployment
-	Destinations []ApplicationDestination `json:"destinations" protobuf:"bytes,2,name=destination"`
+	Destinations []ApplicationDestination `json:"destinations,omitempty" protobuf:"bytes,2,name=destination"`
 	// Description contains optional project description
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 	// Roles are user defined RBAC roles associated with this project
@@ -763,9 +764,9 @@ type ProjectRole struct {
 	// Name is a name for this role
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Description is a description of the role
-	Description string `json:"description" protobuf:"bytes,2,opt,name=description"`
+	Description string `json:"description,omitempty" protobuf:"bytes,2,opt,name=description"`
 	// Policies Stores a list of casbin formated strings that define access policies for the role in the project
-	Policies []string `json:"policies" protobuf:"bytes,3,rep,name=policies"`
+	Policies []string `json:"policies,omitempty" protobuf:"bytes,3,rep,name=policies"`
 	// JWTTokens are a list of generated JWT tokens bound to this role
 	JWTTokens []JWTToken `json:"jwtTokens,omitempty" protobuf:"bytes,4,rep,name=jwtTokens"`
 	// Groups are a list of OIDC group claims bound to this role
@@ -774,21 +775,21 @@ type ProjectRole struct {
 
 // JWTToken holds the issuedAt and expiresAt values of a token
 type JWTToken struct {
-	IssuedAt  int64 `json:"iat,omitempty" protobuf:"int64,1,opt,name=iat"`
+	IssuedAt  int64 `json:"iat" protobuf:"int64,1,opt,name=iat"`
 	ExpiresAt int64 `json:"exp,omitempty" protobuf:"int64,2,opt,name=exp"`
 }
 
 // Command holds binary path and arguments list
 type Command struct {
-	Command []string `json:"command,omitempty" yaml:"command,omitempty" protobuf:"bytes,1,name=command"`
-	Args    []string `json:"args,omitempty" yaml:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
+	Command []string `json:"command,omitempty" protobuf:"bytes,1,name=command"`
+	Args    []string `json:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
 }
 
 // ConfigManagementPlugin contains config management plugin configuration
 type ConfigManagementPlugin struct {
-	Name     string   `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,1,name=name"`
-	Init     *Command `json:"init,omitempty" yaml:"init,omitempty" protobuf:"bytes,2,name=init"`
-	Generate Command  `json:"generate,omitempty" yaml:"generate,omitempty" protobuf:"bytes,3,name=generate"`
+	Name     string   `json:"name" protobuf:"bytes,1,name=name"`
+	Init     *Command `json:"init,omitempty" protobuf:"bytes,2,name=init"`
+	Generate Command  `json:"generate" protobuf:"bytes,3,name=generate"`
 }
 
 // ProjectPoliciesString returns Casbin formated string of a project's policies for each role

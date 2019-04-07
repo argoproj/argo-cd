@@ -7,6 +7,7 @@ required = [
   "github.com/gogo/protobuf/protoc-gen-gofast",
   "github.com/gogo/protobuf/protoc-gen-gogofast",
   "k8s.io/code-generator/cmd/go-to-protobuf",
+  "k8s.io/kube-openapi/cmd/openapi-gen",
   "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway",
   "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger",
   "golang.org/x/sync/errgroup",
@@ -61,3 +62,7 @@ required = [
 [[constraint]]
   branch = "master"
   name = "github.com/yudai/gojsondiff"
+
+[[override]]
+  revision = "master"
+  name = "k8s.io/kube-openapi"

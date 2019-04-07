@@ -2976,7 +2976,7 @@
             "type": "string"
           }
         },
-        "targetRef": {
+        "targetRefs": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceRef"

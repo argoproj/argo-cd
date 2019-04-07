@@ -51,12 +51,16 @@ all: cli image argocd-util
 protogen:
 	./hack/generate-proto.sh
 
+.PHONY: openapigen
+openapigen:
+	./hack/update-openapi.sh
+
 .PHONY: clientgen
 clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen
+codegen: protogen clientgen openapigen
 
 .PHONY: cli
 cli: clean-debug
