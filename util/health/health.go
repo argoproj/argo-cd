@@ -34,11 +34,13 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 				savedErr = err
 			}
 		}
-		resStatuses[i].Health = *resHealth
-		// Don't allow resource hooks to affect health status
-		isHook := liveObj != nil && hookutil.IsHook(liveObj)
-		if !isHook && IsWorse(appHealth.Status, resHealth.Status) {
-			appHealth.Status = resHealth.Status
+		if resHealth != nil {
+			resStatuses[i].Health = resHealth
+			// Don't allow resource hooks to affect health status
+			isHook := liveObj != nil && hookutil.IsHook(liveObj)
+			if !isHook && IsWorse(appHealth.Status, resHealth.Status) {
+				appHealth.Status = resHealth.Status
+			}
 		}
 	}
 	return &appHealth, savedErr
@@ -96,8 +98,6 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 			Status:  appv1.HealthStatusUnknown,
 			Message: err.Error(),
 		}
-	} else if health == nil {
-		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	}
 	return health, err
 }

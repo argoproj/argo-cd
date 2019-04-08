@@ -13,6 +13,12 @@ import (
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthStatusCode) {
+	health := getHealtStatus(yamlPath, t)
+	assert.NotNil(t, health)
+	assert.Equal(t, expectedStatus, health.Status)
+}
+
+func getHealtStatus(yamlPath string, t *testing.T) *appv1.HealthStatus {
 	yamlBytes, err := ioutil.ReadFile(yamlPath)
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
@@ -20,8 +26,7 @@ func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthS
 	assert.Nil(t, err)
 	health, err := GetResourceHealth(&obj, nil)
 	assert.Nil(t, err)
-	assert.NotNil(t, health)
-	assert.Equal(t, expectedStatus, health.Status)
+	return health
 }
 
 func TestDeploymentHealth(t *testing.T) {
@@ -54,8 +59,7 @@ func TestIngressHealth(t *testing.T) {
 }
 
 func TestCRD(t *testing.T) {
-	// This ensures we do not try to compare only based on "Kind"
-	assertAppHealth(t, "./testdata/knative-service.yaml", appv1.HealthStatusHealthy)
+	assert.Nil(t, getHealtStatus("./testdata/knative-service.yaml", t))
 }
 
 func TestJob(t *testing.T) {
