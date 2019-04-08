@@ -14,4 +14,104 @@ spec:
     - appproj
     - appprojs
   scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata: {}
+        spec:
+          description: AppProjectSpec is the specification of an AppProject
+          properties:
+            clusterResourceWhitelist:
+              description: ClusterResourceWhitelist contains list of whitelisted cluster
+                level resources
+              items: {}
+              type: array
+            description:
+              description: Description contains optional project description
+              type: string
+            destinations:
+              description: Destinations contains list of destinations available for
+                deployment
+              items:
+                description: ApplicationDestination contains deployment destination
+                  information
+                properties:
+                  namespace:
+                    description: Namespace overrides the environment namespace value
+                      in the ksonnet app.yaml
+                    type: string
+                  server:
+                    description: Server overrides the environment server value in
+                      the ksonnet app.yaml
+                    type: string
+                type: object
+              type: array
+            namespaceResourceBlacklist:
+              description: NamespaceResourceBlacklist contains list of blacklisted
+                namespace level resources
+              items: {}
+              type: array
+            roles:
+              description: Roles are user defined RBAC roles associated with this
+                project
+              items:
+                description: ProjectRole represents a role that has access to a project
+                properties:
+                  description:
+                    description: Description is a description of the role
+                    type: string
+                  groups:
+                    description: Groups are a list of OIDC group claims bound to this
+                      role
+                    items:
+                      type: string
+                    type: array
+                  jwtTokens:
+                    description: JWTTokens are a list of generated JWT tokens bound
+                      to this role
+                    items:
+                      description: JWTToken holds the issuedAt and expiresAt values
+                        of a token
+                      properties:
+                        exp:
+                          format: int64
+                          type: integer
+                        iat:
+                          format: int64
+                          type: integer
+                      required:
+                      - iat
+                      type: object
+                    type: array
+                  name:
+                    description: Name is a name for this role
+                    type: string
+                  policies:
+                    description: Policies Stores a list of casbin formated strings
+                      that define access policies for the role in the project
+                    items:
+                      type: string
+                    type: array
+                required:
+                - name
+                type: object
+              type: array
+            sourceRepos:
+              description: SourceRepos contains list of git repository URLs which
+                can be used for deployment
+              items:
+                type: string
+              type: array
+          type: object
+      type: object
   version: v1alpha1

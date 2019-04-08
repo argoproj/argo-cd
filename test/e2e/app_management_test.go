@@ -154,13 +154,15 @@ func TestAppRollbackSuccessful(t *testing.T) {
 
 	appWithHistory := app.DeepCopy()
 	appWithHistory.Status.History = []v1alpha1.RevisionHistory{{
-		ID:       1,
-		Revision: app.Status.Sync.Revision,
-		Source:   app.Spec.Source,
+		ID:         1,
+		Revision:   app.Status.Sync.Revision,
+		DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-1 * time.Minute)},
+		Source:     app.Spec.Source,
 	}, {
-		ID:       2,
-		Revision: "cdb",
-		Source:   app.Spec.Source,
+		ID:         2,
+		Revision:   "cdb",
+		DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-2 * time.Minute)},
+		Source:     app.Spec.Source,
 	}}
 	patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &v1alpha1.Application{})
 	assert.NoError(t, err)
