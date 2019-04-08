@@ -1,4 +1,4 @@
-import { FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
+import { DropDownMenu, FormField, MenuItem, NotificationType, SlidingPanel, Tab, Tabs, TopBarFilter } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -169,9 +169,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             }}>
                             <div className='application-details__status-panel'>
                                 <ApplicationStatusPanel application={application}
-                                    refresh={async (hard) => {
-                                        services.applications.get(this.props.match.params.name, hard ? 'hard' : 'normal');
-                                    }}
                                     showOperation={() => this.setOperationStatusVisible(true)}
                                     showConditions={() => this.setConditionsStatusVisible(true)}/>
                             </div>
@@ -351,23 +348,33 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
     }
 
     private getApplicationActionMenu(application: appModels.Application) {
+        const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
         return [{
             iconClassName: 'fa fa-info-circle',
-            title: 'Details',
+            title: <span className='show-for-medium'>Details</span>,
             action: () => this.selectNode(nodeKey({
                 group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace })),
         }, {
             iconClassName: 'argo-icon-deploy',
-            title: 'Sync',
+            title: <span className='show-for-medium'>Sync</span>,
             action: () => this.showDeploy('all'),
         }, {
             iconClassName: 'fa fa-history',
-            title: 'History and rollback',
+            title: <span className='show-for-medium'>History and rollback</span>,
             action: () => this.setRollbackPanelVisible(0),
         }, {
             iconClassName: 'fa fa-times-circle',
-            title: 'Delete',
+            title: <span className='show-for-medium'>Delete</span>,
             action: () => this.deleteApplication(),
+        }, {
+            iconClassName: classNames('fa fa-sync-alt', { 'status-icon--spin': !!refreshing }),
+            title: (
+                <React.Fragment><span className='show-for-medium'>Refresh</span> <DropDownMenu items={[{
+                    title: 'Hard Refresh', action: () => !refreshing && services.applications.get(application.metadata.name, 'hard'),
+                }]} anchor={() => <i className='fa fa-caret-down'/>} /></React.Fragment>
+            ),
+            disabled: !!refreshing,
+            action: () => !refreshing && services.applications.get(application.metadata.name, 'normal'),
         }];
     }
 

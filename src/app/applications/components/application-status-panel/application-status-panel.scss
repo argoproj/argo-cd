@@ -10,23 +10,6 @@
     background-color: white;
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
 
-    &__refresh {
-        font-size: 1.5em;
-        position: absolute;
-        right: 1em;
-        top: 0;
-        i {
-            cursor: pointer;
-        }
-
-        &--disabled {
-            i {
-                cursor: auto;
-                color: $argo-color-gray-3;
-            }
-        }
-    }
-
     &__item {
         margin: 20px 0;
         padding: 10px 30px;

@@ -1,5 +1,4 @@
-import { DropDownMenu, Tooltip } from 'argo-ui';
-import * as classNames from 'classnames';
+import { Tooltip } from 'argo-ui';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
@@ -10,13 +9,11 @@ require('./application-status-panel.scss');
 
 interface Props {
     application: models.Application;
-    refresh: (force: boolean) => any;
     showOperation?: () => any;
     showConditions?: () => any;
 }
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions, refresh}: Props) => {
-    const refreshing = application.metadata.annotations && application.metadata.annotations[models.AnnotationRefreshKey];
+export const ApplicationStatusPanel = ({application, showOperation, showConditions}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -68,12 +65,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     {tooltip('Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.')}
                 </div>
                 <div className='application-status-panel__item-name'>{syncStatusMessage(application)}</div>
-                <div className={classNames('application-status-panel__refresh', { 'application-status-panel__refresh--disabled': !!refreshing })}>
-                    <i className={classNames('fa fa-refresh', { 'status-icon--spin': !!refreshing })}
-                        onClick={() => !refreshing && refresh(false)}/> <DropDownMenu items={[{
-                        title: 'Hard Refresh', action: () => !refreshing && refresh(true),
-                    }]} anchor={() => <i className='fa fa-caret-down'/>} />
-                </div>
             </div>
             {appOperationState && (
             <div className='application-status-panel__item columns small-4'>

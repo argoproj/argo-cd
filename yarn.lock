@@ -420,7 +420,7 @@ are-we-there-yet@~1.1.2:
 
 "argo-ui@git://github.com/argoproj/argo-ui.git":
   version "1.0.0"
-  resolved "git://github.com/argoproj/argo-ui.git#b0ca258c0067f3ca83596051e633011eb787306d"
+  resolved "git://github.com/argoproj/argo-ui.git#0e4a587fd17051c253ab8824302f7dae43acc387"
   dependencies:
     "@fortawesome/fontawesome-free" "^5.8.1"
     "@tippy.js/react" "^2.1.2"
