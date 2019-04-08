@@ -952,10 +952,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if watchSuspended && watchHealth {
-				log.Fatal("Wait command can not have both the --health and --suspended flags set")
-
-			}
 			if !watchSync && !watchHealth && !watchOperations && !watchSuspended {
 				watchSync = true
 				watchHealth = true
@@ -1272,12 +1268,21 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if app.Operation != nil {
 			refresh = true
 		}
+
+		healthStatus := true
+		if watchSuspened && watchHealth {
+			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusHealthy ||
+				app.Status.Health.Status == argoappv1.HealthStatusSuspended
+		} else if watchSuspened {
+			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusSuspended
+		} else if watchHealth {
+			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusHealthy
+		}
+
 		// consider skipped checks successful
 		synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
-		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
 		operational := !watchOperation || appEvent.Application.Operation == nil
-		suspended := !watchSuspened || app.Status.Health.Status == argoappv1.HealthStatusSuspended
-		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational && suspended {
+		if len(app.Status.GetErrorConditions()) == 0 && synced && healthStatus && operational {
 			printFinalStatus(app)
 			return app, nil
 		}

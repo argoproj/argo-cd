@@ -500,7 +500,7 @@ message ResourceIgnoreDifferences {
 message ResourceNetworkingInfo {
   map<string, string> targetLabels = 1;
 
-  repeated ResourceRef targetRef = 2;
+  repeated ResourceRef targetRefs = 2;
 
   map<string, string> labels = 3;
 
@@ -679,6 +679,7 @@ message SyncStrategyApply {
 // If no hook annotation is specified falls back to `kubectl apply`.
 message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
+  // +optional
   optional SyncStrategyApply syncStrategyApply = 1;
 }
 

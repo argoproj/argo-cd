@@ -1,7 +1,6 @@
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
 repo_url: https://github.com/alexec/argo-cd
 strict: true
-remote_name: alexec
 theme:
   name: material
   palette:
