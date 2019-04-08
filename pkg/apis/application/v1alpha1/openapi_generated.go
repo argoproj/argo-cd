@@ -1948,11 +1948,16 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 							},
 						},
 					},
+					"health": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNetworkingInfo", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceRef"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.InfoItem", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNetworkingInfo", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceRef"},
 	}
 }
 

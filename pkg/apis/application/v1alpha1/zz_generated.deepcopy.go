@@ -1049,6 +1049,11 @@ func (in *ResourceNode) DeepCopyInto(out *ResourceNode) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Health != nil {
+		in, out := &in.Health, &out.Health
+		*out = new(HealthStatus)
+		**out = **in
+	}
 	return
 }
 

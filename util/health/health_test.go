@@ -72,6 +72,7 @@ func TestPod(t *testing.T) {
 	assertAppHealth(t, "./testdata/pod-pending.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-running-not-ready.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-crashloop.yaml", appv1.HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-imagepullbackoff.yaml", appv1.HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-error.yaml", appv1.HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-running-restart-always.yaml", appv1.HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/pod-running-restart-never.yaml", appv1.HealthStatusProgressing)

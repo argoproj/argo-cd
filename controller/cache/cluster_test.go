@@ -7,17 +7,16 @@ import (
 	"sync"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/dynamic/fake"
-
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-cd/errors"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -184,6 +183,7 @@ func TestGetChildren(t *testing.T) {
 			Namespace: "default",
 			Name:      "helm-guestbook-rs",
 		}},
+		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
 		NetworkingInfo:  &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		ResourceVersion: "123",
 		Info:            []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
@@ -276,6 +276,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 			Version:   "v1",
 		},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
+		Health:         &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
 		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		ParentRefs: []appv1.ResourceRef{{
 			Group:     "apps",
@@ -295,6 +296,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 		},
 		NetworkingInfo: &appv1.ResourceNetworkingInfo{Labels: testPod.GetLabels()},
 		Info:           []appv1.InfoItem{{Name: "Containers", Value: "0/0"}},
+		Health:         &appv1.HealthStatus{Status: appv1.HealthStatusUnknown},
 		ParentRefs: []appv1.ResourceRef{{
 			Group:     "apps",
 			Version:   "",
