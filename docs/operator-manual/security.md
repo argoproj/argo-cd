@@ -14,7 +14,7 @@ in one of the following ways:
 1. For the local `admin` user, a username/password is exchanged for a JWT using the `/api/v1/session`
    endpoint. This token is signed & issued by the Argo CD API server itself, and has no expiration.
    When the admin password is updated, all existing admin JWT tokens are immediately revoked.
-   The password is stored as a bcrypt hash in the [`argocd-secret`](../../manifests/base/argocd-secret.yaml) Secret.
+   The password is stored as a bcrypt hash in the [`argocd-secret`](https://github.com/argoproj/argo-cd/blob/master/manifests/base/config/argocd-secret.yaml) Secret.
 
 2. For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
    provider (either delegated through the bundled Dex provider, or directly to a self-managed OIDC
@@ -91,8 +91,9 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 
 ## Cluster RBAC
 
-By default, Argo CD uses a [clusteradmin level role](../../manifests/cluster-install/application-controller/argocd-application-controller-clusterrole.yaml)
+By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml)
 in order to:
+
 1. watch & operate on cluster state
 2. deploy resources to the cluster
 
