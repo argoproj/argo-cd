@@ -199,6 +199,7 @@ func TestGetChildren(t *testing.T) {
 			Version:   "v1",
 		},
 		ResourceVersion: "123",
+		Health:          &appv1.HealthStatus{Status: appv1.HealthStatusHealthy},
 		Info:            []appv1.InfoItem{},
 		ParentRefs:      []appv1.ResourceRef{{Group: "apps", Version: "", Kind: "Deployment", Namespace: "default", Name: "helm-guestbook"}},
 	}}, rsChildren...), deployChildren)

@@ -4,12 +4,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
+var c = &clusterInfo{settings: &settings.ArgoCDSettings{}}
+
 func TestIsParentOf(t *testing.T) {
-	child := createObjInfo(testPod, "")
-	parent := createObjInfo(testRS, "")
-	grandParent := createObjInfo(testDeploy, "")
+	child := c.createObjInfo(testPod, "")
+	parent := c.createObjInfo(testRS, "")
+	grandParent := c.createObjInfo(testDeploy, "")
 
 	assert.True(t, parent.isParentOf(child))
 	assert.False(t, grandParent.isParentOf(child))
@@ -18,8 +22,8 @@ func TestIsParentOf(t *testing.T) {
 func TestIsParentOfSameKindDifferentGroup(t *testing.T) {
 	rs := testRS.DeepCopy()
 	rs.SetAPIVersion("somecrd.io/v1")
-	child := createObjInfo(testPod, "")
-	invalidParent := createObjInfo(rs, "")
+	child := c.createObjInfo(testPod, "")
+	invalidParent := c.createObjInfo(rs, "")
 
 	assert.False(t, invalidParent.isParentOf(child))
 }
