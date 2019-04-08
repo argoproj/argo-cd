@@ -66,8 +66,7 @@ status:
     restartCount: 0
     state:
       waiting:
-        message: Back-off pulling image "doesnt-exist"
-        reason: ImagePullBackOff
+        reason: PodInitializing
   hostIP: 192.168.64.41
   phase: Pending
   podIP: 172.17.0.9
