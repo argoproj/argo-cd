@@ -24,4 +24,4 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 
 ## Documentation
 
-To learn more about Argo CD [go to the complete documentation](https://alexec.github.io/argo-cd/).
+To learn more about Argo CD [go to the complete documentation](https://argoproj.github.io/argo-cd/).
