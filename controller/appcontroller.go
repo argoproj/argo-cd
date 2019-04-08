@@ -367,7 +367,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		objs = append(objs, objsMap[k])
+		if objsMap[k].GetDeletionTimestamp() == nil {
+			objs = append(objs, objsMap[k])
+		}
 	}
 	err = util.RunAllAsync(len(objs), func(i int) error {
 		obj := objs[i]
