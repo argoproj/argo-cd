@@ -262,7 +262,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		gvk := obj.GroupVersionKind()
 
 		resState := v1alpha1.ResourceStatus{
-			Namespace: util.FirstNonEmpty(obj.GetNamespace(), app.Spec.Destination.Namespace),
+			Namespace: obj.GetNamespace(),
 			Name:      obj.GetName(),
 			Kind:      gvk.Kind,
 			Version:   gvk.Version,
