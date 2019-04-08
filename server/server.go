@@ -377,6 +377,7 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		"/account.AccountService/UpdatePassword": true,
 		"/repository.RepositoryService/Create":   true,
 		"/repository.RepositoryService/Update":   true,
+		"/application.ApplicationService/PatchResource":   true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
