@@ -29,7 +29,7 @@ from your application source code, is highly recommended for the following reaso
    config changes to, prevents this from happening.
 
 
-## Leaving Rroom For Imperativeness
+## Leaving Room For Imperativeness
 
 It may be desired to leave room for some imperativeness/automation, and not have everything defined
 in your Git manifests. For example, if you want the number of your deployment's replicas to be

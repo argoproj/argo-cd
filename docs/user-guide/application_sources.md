@@ -90,7 +90,7 @@ of Pre/Post/Sync hooks.
 Helm templating has the ability to generate random data during chart rendering via the
 `randAlphaNum` function. Many helm charts from the [charts repository](https://github.com/helm/charts)
 make use of this feature. For example, the following is the secret for the
-[redis helm chart](https://github.com/helm/charts/blob/master/stable/redis/templates/secrets.yaml):
+[redis helm chart](https://github.com/helm/charts/blob/master/stable/redis/templates/secret.yaml):
 
 ```yaml
 data:
