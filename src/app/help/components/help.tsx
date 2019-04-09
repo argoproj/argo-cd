@@ -13,13 +13,7 @@ export const Help = () => (
                 <div className='columns large-4 small-6'>
                     <div className='help-box'>
                         <p>New to Argo CD?</p>
-                        <a className='argo-button argo-button--base' href='https://github.com/argoproj/argo-cd/tree/master/docs'>Read the docs</a>
-                    </div>
-                </div>
-                <div className='columns large-4 small-6'>
-                    <div className='help-box'>
-                        <p>Already using Argo CD, but now need to ask for help?</p>
-                        <a className='argo-button argo-button--base' href='http://argoproj.io/community/join-slack'>Ask in our Slack channel</a>.
+                        <a className='argo-button argo-button--base' href='https://argoproj.github.io/argo-cd'>Read the docs</a>
                     </div>
                 </div>
                 <div className='columns large-4 small-6'>
@@ -32,12 +26,6 @@ export const Help = () => (
                         <a href={`download/argocd-darwin-amd64`} className='argo-button argo-button--base'>
                             <i className='fab fa-apple'/> macOS
                         </a>
-                    </div>
-                </div>
-                <div className='columns large-4 small-6'>
-                    <div className='help-box'>
-                        <p>Found a bug? Request an enhancement?</p>
-                        <a className='argo-button argo-button--base' href='https://github.com/argoproj/argo-cd/issues'>Create an issue</a>.
                     </div>
                 </div>
                 <div className='columns large-4 small-6'>
