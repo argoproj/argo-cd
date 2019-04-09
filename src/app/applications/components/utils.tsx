@@ -183,11 +183,11 @@ export const HealthStatusIcon = ({state}: { state: appModels.HealthStatus }) => 
             break;
         case appModels.HealthStatuses.Degraded:
             color = COLORS.health.degraded;
-            icon = 'fa-exclamation-triangle';
+            icon = 'fa-heart-broken';
             break;
         case appModels.HealthStatuses.Progressing:
             color = COLORS.health.progressing;
-            icon = 'fa-circle-o-notch fa-spin';
+            icon = 'fa fa-circle-notch fa-spin';
             break;
     }
     let title: string = state.status;
@@ -213,7 +213,7 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
                 break;
             case appModels.ResultCodes.SyncFailed:
                 color = COLORS.sync_result.failed;
-                icon = 'fa-exclamation-triangle';
+                icon = 'fa-heart-broken';
                 break;
             case appModels.ResultCodes.PruneSkipped:
                 icon = 'fa-heartbeat';
@@ -234,11 +234,11 @@ export const ResourceResultIcon = ({resource}: { resource: appModels.ResourceRes
                 break;
             case appModels.OperationPhases.Failed:
                 color = COLORS.operation.failed;
-                className = 'fa fa-exclamation-triangle';
+                className = 'fa fa-heart-broken';
                 break;
             case appModels.OperationPhases.Error:
                 color = COLORS.operation.error;
-                className = 'fa fa-exclamation-triangle';
+                className = 'fa fa-heart-broken';
                 break;
             case appModels.OperationPhases.Succeeded:
                 color = COLORS.operation.success;

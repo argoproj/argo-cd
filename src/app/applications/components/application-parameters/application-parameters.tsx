@@ -48,7 +48,7 @@ function getParamsEditableItems<T extends { name: string, value: string }>(
         title: param.metadata.name,
         view: (
             <span title={param.metadata.value}>
-                {param.metadata.value !== param.original && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`}/>} {param.metadata.value}
+                {param.metadata.value !== param.original && <span className='fa fa-heart-broken' title={`Original value: ${param.original}`}/>} {param.metadata.value}
             </span>
         ),
         edit: (formApi: FormApi) => {
