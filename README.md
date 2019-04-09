@@ -22,6 +22,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 1. [Intuit](https://www.intuit.com/)
 2. [KompiTech GmbH](https://www.kompitech.com/)
 3. [Yieldlab](https://www.yieldlab.de/)
+4. [Ticketmaster](https://ticketmaster.com)
 
 ## Documentation
 
