@@ -193,7 +193,7 @@
 
   
 
-<a href="https://github.com/argoproj/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+<a href="https://github.com/alexec/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
   
     <div class="md-source__icon">
       <svg viewBox="0 0 24 24" width="24" height="24">
@@ -240,7 +240,7 @@
 
   
 
-<a href="https://github.com/argoproj/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
+<a href="https://github.com/alexec/argo-cd/" title="Go to repository" class="md-source" data-md-source="github">
   
     <div class="md-source__icon">
       <svg viewBox="0 0 24 24" width="24" height="24">
@@ -969,7 +969,7 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/operator-manual/security.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/alexec/argo-cd/edit/master/docs/operator-manual/security.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
                 <h1 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h1>
@@ -985,7 +985,7 @@ in one of the following ways:</p>
 <p>For the local <code>admin</code> user, a username/password is exchanged for a JWT using the <code>/api/v1/session</code>
    endpoint. This token is signed &amp; issued by the Argo CD API server itself, and has no expiration.
    When the admin password is updated, all existing admin JWT tokens are immediately revoked.
-   The password is stored as a bcrypt hash in the <a href="../../manifests/base/argocd-secret.yaml"><code>argocd-secret</code></a> Secret.</p>
+   The password is stored as a bcrypt hash in the <a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/config/argocd-secret.yaml"><code>argocd-secret</code></a> Secret.</p>
 </li>
 <li>
 <p>For Single Sign-On users, the user completes an OAuth2 login flow to the configured OIDC identity
@@ -1052,10 +1052,12 @@ argocd cluster rm https://your-kubernetes-cluster-addr
   tokens, so token rotation is not needed, and revokation is handled through IAM.</p>
 </blockquote>
 <h2 id="cluster-rbac">Cluster RBAC<a class="headerlink" href="#cluster-rbac" title="Permanent link">&para;</a></h2>
-<p>By default, Argo CD uses a <a href="../../manifests/cluster-install/application-controller/argocd-application-controller-clusterrole.yaml">clusteradmin level role</a>
-in order to:
-1. watch &amp; operate on cluster state
-2. deploy resources to the cluster</p>
+<p>By default, Argo CD uses a <a href="https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml">clusteradmin level role</a>
+in order to:</p>
+<ol>
+<li>watch &amp; operate on cluster state</li>
+<li>deploy resources to the cluster</li>
+</ol>
 <p>Although Argo CD requires cluster-wide <strong><em>read</em></strong> privileges to resources in the managed cluster to
 function properly, it does not necessarily need full <strong><em>write</em></strong> privileges to the cluster. The
 ClusterRole used by argocd-server and argocd-application-controller can be modified such
