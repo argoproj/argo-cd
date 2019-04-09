@@ -14,7 +14,7 @@ RBAC configuration allows defining roles and groups. Argo CD has two pre-defined
 * `role:readonly` - read-only access to all resources
 * `role:admin` - unrestricted access to all resources
 
-These role definitions can be seen in [builtin-policy.csv](../../assets/builtin-policy.csv)
+These role definitions can be seen in [builtin-policy.csv](https://github.com/argoproj/argo-cd/blob/master/assets/builtin-policy.csv)
 
 Additional roles and groups can be configured in `argocd-rbac-cm` ConfigMap. The example below
 configures a custom role, named `org-admin`. The role is assigned to any user which belongs to

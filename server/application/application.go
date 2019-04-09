@@ -361,6 +361,8 @@ func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.
 		return nil, err
 	}
 
+	s.logEvent(app, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
+
 	err = json.Unmarshal(patchApp, &app)
 	if err != nil {
 		return nil, err
@@ -616,6 +618,7 @@ func (s *Server) PatchResource(ctx context.Context, q *ApplicationResourcePatchR
 	if err != nil {
 		return nil, err
 	}
+	s.logEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
 	return &ApplicationResourceResponse{
 		Manifest: string(data),
 	}, nil

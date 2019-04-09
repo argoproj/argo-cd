@@ -65,6 +65,6 @@ spec:
 
 ## Dashboards
 
-You can find an example Grafana dashboard [here](../../examples/dashboard.json)
+You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json)
 
 ![dashboard](../assets/dashboard.jpg)
