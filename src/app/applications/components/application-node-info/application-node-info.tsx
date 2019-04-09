@@ -44,11 +44,13 @@ export const ApplicationNodeInfo = (props: {
                 <span><ComparisonStatusIcon status={props.controlled.summary.status}/> {props.controlled.summary.status}</span>
             )} as any);
         }
-        attributes.push({title: 'HEALTH', value: (
-            <span><HealthStatusIcon state={props.controlled.summary.health}/> {props.controlled.summary.health.status}</span>
-        )} as any);
-        if (props.controlled.summary.health.message) {
-            attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.message});
+        if (props.controlled.summary.health !== undefined) {
+            attributes.push({title: 'HEALTH', value: (
+                <span><HealthStatusIcon state={props.controlled.summary.health}/> {props.controlled.summary.health.status}</span>
+            )} as any);
+            if (props.controlled.summary.health.message) {
+                attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.message});
+            }
         }
     }
 
