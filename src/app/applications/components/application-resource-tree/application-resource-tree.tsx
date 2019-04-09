@@ -7,6 +7,7 @@ import * as models from '../../../shared/models';
 
 import { ApplicationIngressLink } from '../application-ingress-link';
 import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey } from '../utils';
+import { EmptyState } from '../../../shared/components';
 
 require('./application-resource-tree.scss');
 
@@ -21,7 +22,9 @@ interface Line { x1: number; y1: number; x2: number; y2: number; }
 
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
-const FILTERED_INDICATOR = '__filtered_indicator__';
+const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
+const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
+const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
 
 function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     let width = 0;
@@ -51,8 +54,8 @@ function filterGraph(app: models.Application, graph: dagre.graphlib.Graph, predi
         }
     });
     if (filtered) {
-        graph.setNode(FILTERED_INDICATOR, { height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered });
-        graph.setEdge(appNodeKey(app), FILTERED_INDICATOR);
+        graph.setNode(FILTERED_INDICATOR_NODE, { height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered });
+        graph.setEdge(appNodeKey(app), FILTERED_INDICATOR_NODE);
     }
 }
 
@@ -101,6 +104,18 @@ function filteredNode(fullName: string, node: { count: number } & dagre.Node, on
                 <div key={i} className='application-resource-tree__node application-resource-tree__filtered-indicator'
                     style={{left: node.x + i * 2, top: node.y +  i * 2, width: node.width, height: node.height}}/>
             ))}
+        </React.Fragment>
+    );
+}
+
+function trafficNode(fullName: string, node: dagre.Node) {
+    return (
+        <React.Fragment key={fullName}>
+            <div style={{position: 'absolute', left: 0, top: node.y, width: node.width, height: node.height}}>
+                <div className='application-resource-tree__node-kind-icon' style={{fontSize: '2em'}}>
+                    <i className='icon fa fa-cloud'/>
+                </div>
+            </div>
         </React.Fragment>
     );
 }
@@ -199,8 +214,21 @@ export const ApplicationResourceTree = (props: {
 
     roots.sort(compareNodes).forEach((node) => processNode(node, node));
 
-    graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
-    roots.forEach((root) => graph.setEdge(appNodeKey(props.app), nodeKey(root)));
+    if (props.useNetworkingHierarchy) {
+        const externalRoots = roots.filter((root) => (root.networkingInfo.ingress || []).length > 0);
+        if (externalRoots.length > 0) {
+            graph.setNode(EXTERNAL_TRAFFIC_NODE, { height: NODE_HEIGHT, width: 30 });
+            externalRoots.forEach((root) => graph.setEdge(EXTERNAL_TRAFFIC_NODE, nodeKey(root)));
+        }
+        const internalRoots = roots.filter((root) => (root.networkingInfo.ingress || []).length === 0);
+        if (internalRoots.length > 0) {
+            graph.setNode(INTERNAL_TRAFFIC_NODE, { height: NODE_HEIGHT, width: 30 });
+            internalRoots.forEach((root) => graph.setEdge(INTERNAL_TRAFFIC_NODE, nodeKey(root)));
+        }
+    } else {
+        graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
+        roots.forEach((root) => graph.setEdge(appNodeKey(props.app), nodeKey(root)));
+    }
 
     if (props.nodeFilter) {
         filterGraph(props.app, graph, props.nodeFilter);
@@ -212,6 +240,10 @@ export const ApplicationResourceTree = (props: {
     graph.edges().forEach((edgeInfo) => {
         const edge = graph.edge(edgeInfo);
         const lines: Line[] = [];
+        // don't render connections from hidden node representing internal traffic
+        if (edgeInfo.v === INTERNAL_TRAFFIC_NODE || edgeInfo.w === INTERNAL_TRAFFIC_NODE) {
+            return;
+        }
         if (edge.points.length > 1) {
             for (let i = 1; i < edge.points.length; i++) {
                 lines.push({ x1: edge.points[i - 1].x, y1: edge.points[i - 1].y, x2: edge.points[i].x, y2: edge.points[i].y });
@@ -219,13 +251,23 @@ export const ApplicationResourceTree = (props: {
         }
         edges.push({ from: edgeInfo.v, to: edgeInfo.w, lines });
     });
-    const size = getGraphSize(graph.nodes().map((id) => graph.node(id)));
-    return (
+    const graphNodes = graph.nodes();
+    const size = getGraphSize(graphNodes.map((id) => graph.node(id)));
+    return graphNodes.length === 0 && (
+        <EmptyState icon=' fa fa-network-wired'>
+            <h4>Your application has no network resources</h4>
+            <h5>Try switching to tree or list view</h5>
+        </EmptyState>
+    ) || (
         <div className={classNames('application-resource-tree', { 'application-resource-tree--network': props.useNetworkingHierarchy })}
                 style={{width: size.width + 150, height: size.height + 250}}>
-            {graph.nodes().map((fullName) => {
-                if (fullName === FILTERED_INDICATOR) {
+            {graphNodes.map((fullName) => {
+                if (fullName === FILTERED_INDICATOR_NODE) {
                     return filteredNode(fullName, graph.node(fullName) as any, props.onClearFilter);
+                } else if (fullName === EXTERNAL_TRAFFIC_NODE) {
+                    return trafficNode(EXTERNAL_TRAFFIC_NODE, graph.node(fullName));
+                } else if (fullName === INTERNAL_TRAFFIC_NODE) {
+                    return null;
                 }
                 const node = graph.node(fullName) as (ResourceTreeNode) & dagre.Node;
                 let comparisonStatus: models.SyncStatusCode = null;

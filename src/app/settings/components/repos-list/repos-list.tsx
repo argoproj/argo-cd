@@ -75,7 +75,7 @@ export class ReposList extends React.Component<RouteComponentProps<any>> {
                                 </div>
                             ))}
                         </div> ) || (
-                            <EmptyState icon='git'>
+                            <EmptyState icon='argo-icon-git'>
                                 <h4>No repositories connected</h4>
                                 <h5>Connect your repo to deploy apps.</h5>
                                 <button className='argo-button argo-button--base' onClick={() => this.showConnectRepo = true}>Connect Repo</button>

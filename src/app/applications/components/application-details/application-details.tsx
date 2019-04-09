@@ -131,7 +131,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                     const conditions = application.status.conditions || [];
                     const deployParam = new URLSearchParams(this.props.history.location.search).get('deploy');
                     const showDeployPanel = !!deployParam;
-                    const deployResIndex = deployParam && tree.nodes.findIndex((item) => {
+                    const deployResIndex = deployParam && application.status.resources.findIndex((item) => {
                         return nodeKey(item) === deployParam;
                     });
                     const tab = new URLSearchParams(this.props.history.location.search).get('tab');
@@ -201,7 +201,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 )}
                                             </Paginate>
                                         ) || (
-                                            <EmptyState icon='search'>
+                                            <EmptyState icon='argo-icon-search'>
                                                 <h4>No resources found</h4>
                                                 <h5>Try to change filter criteria</h5>
                                             </EmptyState>

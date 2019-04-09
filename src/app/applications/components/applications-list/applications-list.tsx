@@ -146,7 +146,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                 loadingRenderer={() => (<div className='argo-container'><MockupList height={100} marginTop={30}/></div>)}>
                 {(applications: models.Application[]) => (
                     applications.length === 0 ? (
-                        <EmptyState icon='application'>
+                        <EmptyState icon='argo-icon-application'>
                             <h4>No applications yet</h4>
                             <h5>Create new application to start managing resources in your cluster</h5>
                             <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', { new: JSON.stringify({}) })}>Create application</button>
@@ -206,7 +206,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     preferencesKey='applications-list'
                                     page={pref.page}
                                     emptyState={() => (
-                                        <EmptyState icon='search'>
+                                        <EmptyState icon='argo-icon-search'>
                                             <h4>No applications found</h4>
                                             <h5>Try to change filter criteria</h5>
                                         </EmptyState>
