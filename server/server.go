@@ -371,13 +371,13 @@ func (a *ArgoCDServer) newGRPCServer() *grpc.Server {
 		grpc.ConnectionTimeout(300 * time.Second),
 	}
 	sensitiveMethods := map[string]bool{
-		"/cluster.ClusterService/Create":         true,
-		"/cluster.ClusterService/Update":         true,
-		"/session.SessionService/Create":         true,
-		"/account.AccountService/UpdatePassword": true,
-		"/repository.RepositoryService/Create":   true,
-		"/repository.RepositoryService/Update":   true,
-		"/application.ApplicationService/PatchResource":   true,
+		"/cluster.ClusterService/Create":                true,
+		"/cluster.ClusterService/Update":                true,
+		"/session.SessionService/Create":                true,
+		"/account.AccountService/UpdatePassword":        true,
+		"/repository.RepositoryService/Create":          true,
+		"/repository.RepositoryService/Update":          true,
+		"/application.ApplicationService/PatchResource": true,
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
