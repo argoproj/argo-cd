@@ -1014,11 +1014,15 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\n")
 	}
 	for _, res := range app.Status.Resources {
+		healthStatus := ""
+		if res.Health != nil {
+			healthStatus = res.Health.Status
+		}
 		if showOperation {
 			message := messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health.Status, "", message)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus, "", message)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health.Status)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus)
 		}
 		fmt.Fprint(w, "\n")
 	}
@@ -1137,13 +1141,17 @@ type resourceState struct {
 }
 
 func newResourceStateFromStatus(res *argoappv1.ResourceStatus) *resourceState {
+	healthStatus := ""
+	if res.Health != nil {
+		healthStatus = res.Health.Status
+	}
 	return &resourceState{
 		Group:     res.Group,
 		Kind:      res.Kind,
 		Namespace: res.Namespace,
 		Name:      res.Name,
 		Status:    string(res.Status),
-		Health:    res.Health.Status,
+		Health:    healthStatus,
 	}
 }
 

@@ -590,7 +590,7 @@ type ResourceStatus struct {
 	Namespace string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 	Name      string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
 	Status    SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Health    HealthStatus   `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Health    *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	Hook      bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 }
 

@@ -157,6 +157,7 @@ clean: clean-debug
 
 .PHONY: start
 start:
+	killall goreman || true
 	goreman start
 
 .PHONY: pre-commit
