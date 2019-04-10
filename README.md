@@ -23,6 +23,8 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 2. [KompiTech GmbH](https://www.kompitech.com/)
 3. [Yieldlab](https://www.yieldlab.de/)
 4. [Ticketmaster](https://ticketmaster.com)
+5. [CyberAgent](https://www.cyberagent.co.jp/en/)
+6. [OpenSaaS Studio](https://opensaas.studio)
 
 ## Documentation
 
