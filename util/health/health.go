@@ -79,6 +79,11 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 		case kube.DaemonSetKind:
 			health, err = getDaemonSetHealth(obj)
 		}
+	case "argoproj.io":
+		switch gvk.Kind {
+		case "Application":
+			health, err = getApplicationSetHealth(obj)
+		}
 	case "":
 		switch gvk.Kind {
 		case kube.ServiceKind:
@@ -242,6 +247,20 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, e
 	return &appv1.HealthStatus{
 		Status: appv1.HealthStatusHealthy,
 	}, nil
+}
+
+func init() {
+	_ = appv1.SchemeBuilder.AddToScheme(scheme.Scheme)
+
+}
+func getApplicationSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+	application := &appv1.Application{}
+	err := scheme.Scheme.Convert(obj, application, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, application, err)
+	}
+
+	return &application.Status.Health, nil
 }
 
 func getDaemonSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
