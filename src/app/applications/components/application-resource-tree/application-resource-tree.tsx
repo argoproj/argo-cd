@@ -5,9 +5,9 @@ import * as React from 'react';
 
 import * as models from '../../../shared/models';
 
+import { EmptyState } from '../../../shared/components';
 import { ApplicationIngressLink } from '../application-ingress-link';
 import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey } from '../utils';
-import { EmptyState } from '../../../shared/components';
 
 require('./application-resource-tree.scss');
 
