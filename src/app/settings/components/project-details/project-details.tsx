@@ -33,9 +33,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{ name: 
             <Page title='Projects' toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings' }, {title: 'Projects', path: '/settings/projects'}, {title: this.props.match.params.name}],
                 actionMenu: {items: [
-                    { title: 'Add Role', iconClassName: 'icon fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
-                    { title: 'Edit', iconClassName: 'icon fa fa-pencil', action: () => ctx.navigation.goto('.', {edit: true}) },
-                    { title: 'Delete', iconClassName: 'icon fa fa-times-circle', action: async () => {
+                    { title: 'Add Role', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {newRole: true})},
+                    { title: 'Edit', iconClassName: 'fa fa-pencil-alt', action: () => ctx.navigation.goto('.', {edit: true}) },
+                    { title: 'Delete', iconClassName: 'fa fa-times-circle', action: async () => {
                         const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
                         if (confirmed) {
                             try {
