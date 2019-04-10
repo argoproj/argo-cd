@@ -86,7 +86,7 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 		case kube.PersistentVolumeClaimKind:
 			health, err = getPVCHealth(obj)
 		case kube.PodKind:
-			health, err = GetPodHealth(obj)
+			health, err = getPodHealth(obj)
 		}
 	case "batch":
 		switch gvk.Kind {
@@ -412,7 +412,7 @@ func getJobHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	}
 }
 
-func GetPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	pod := &coreV1.Pod{}
 	err := scheme.Scheme.Convert(obj, pod, nil)
 	if err != nil {

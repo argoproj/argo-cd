@@ -9,13 +9,12 @@ import (
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
 func populateNodeInfo(un *unstructured.Unstructured, node *node) {
-	gvk := un.GroupVersionKind()
 
+	gvk := un.GroupVersionKind()
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
@@ -191,7 +190,6 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	if reason != "" {
 		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	node.health, _ = health.GetPodHealth(un)
 	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }
