@@ -110,23 +110,22 @@ message ApplicationResourceDeleteRequest {
 	optional bool force = 7 [(gogoproto.nullable) = true];
 }
 
-message CustomActionRunRequest {
+message ResourceActionRunRequest {
 	required string name = 1;
 	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string resourceName = 3 [(gogoproto.nullable) = false];
+	required string resourceName = 3;
 	required string version = 4 [(gogoproto.nullable) = false];
 	required string group = 5 [(gogoproto.nullable) = false];
 	required string kind = 6 [(gogoproto.nullable) = false];
 	required string action = 7 [(gogoproto.nullable) = false];
 }
 
-message CustomActionsListResponse {
-	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.CustomAction actions = 1 [(gogoproto.nullable) = false];
+message ResourceActionsListResponse {
+	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceAction actions = 1 [(gogoproto.nullable) = false];
 }
 
 message ApplicationResourceResponse {
 	required string manifest = 1 [(gogoproto.nullable) = false];
-	repeated string availableActions = 2 [(gogoproto.nullable) = false];
 }
 
 message ApplicationPodLogsQuery {
@@ -270,13 +269,13 @@ service ApplicationService {
 		};
 	}
 
-	rpc ListCustomActions(ApplicationResourceRequest) returns (CustomActionsListResponse) {
-		option (google.api.http).get = "/api/v1/applications/{name}/resource/custom-actions";
+	rpc ListResourceActions(ApplicationResourceRequest) returns (ResourceActionsListResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
 	}
 
-	rpc RunCustomActions(CustomActionRunRequest) returns (ApplicationResponse) {
+	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
-			post: "/api/v1/applications/{name}/resource/custom-actions"
+			post: "/api/v1/applications/{name}/resource/{resourceName}/actions"
 		    body: "action"
 		};
 	}

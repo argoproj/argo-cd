@@ -943,7 +943,7 @@ func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason stri
 	s.auditLogger.LogAppEvent(a, eventInfo, message)
 }
 
-func (s *Server) ListCustomActions(ctx context.Context, q *ApplicationResourceRequest) (*CustomActionsListResponse, error) {
+func (s *Server) ListResourceActions(ctx context.Context, q *ApplicationResourceRequest) (*ResourceActionsListResponse, error) {
 	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
 		return nil, err
@@ -957,16 +957,16 @@ func (s *Server) ListCustomActions(ctx context.Context, q *ApplicationResourceRe
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableCustomActions(config, settings, obj, "")
+	availableActions, err := s.getAvailableActions(config, settings, obj, "")
 	if err != nil {
 		return nil, err
 	}
-	return &CustomActionsListResponse{Actions: availableActions}, nil
+	return &ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableCustomActions(config *rest.Config, settings *settings.ArgoCDSettings, obj *unstructured.Unstructured, filterAction string) ([]appv1.CustomAction, error) {
+func (s *Server) getAvailableActions(config *rest.Config, settings *settings.ArgoCDSettings, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
 	gvk := obj.GroupVersionKind()
-	customActions, err := s.cache.GetAvailableCustomActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion())
+	customActions, err := s.cache.GetAvailableResourceActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion())
 	if err == nil {
 		return customActions, nil
 	}
@@ -981,25 +981,25 @@ func (s *Server) getAvailableCustomActions(config *rest.Config, settings *settin
 	if err != nil {
 		return nil, err
 	}
-	err = s.cache.SetAvailableCustomActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion(), availableActions)
+	err = s.cache.SetAvailableResourceActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion(), availableActions)
 	if err != nil {
-		log.Warnf("SetAvailableCustomActions cache set error: %v", err)
+		log.Warnf("SetAvailableResourceActions cache set error: %v", err)
 	}
 	for i := range availableActions {
 		action := availableActions[i]
 		if action.Name == filterAction {
-			return []appv1.CustomAction{action}, nil
+			return []appv1.ResourceAction{action}, nil
 		}
 	}
 	return availableActions, nil
 
 }
 
-func (s *Server) RunCustomActions(ctx context.Context, q *CustomActionRunRequest) (*ApplicationResponse, error) {
+func (s *Server) RunResourceAction(ctx context.Context, q *ResourceActionRunRequest) (*ApplicationResponse, error) {
 	resourceRequest := &ApplicationResourceRequest{
 		Name:         q.Name,
 		Namespace:    q.Namespace,
-		ResourceName: q.ResourceName,
+		ResourceName: *q.ResourceName,
 		Kind:         q.Kind,
 		Version:      q.Version,
 		Group:        q.Group,
@@ -1017,7 +1017,7 @@ func (s *Server) RunCustomActions(ctx context.Context, q *CustomActionRunRequest
 	if err != nil {
 		return nil, err
 	}
-	filteredAvailableActions, err := s.getAvailableCustomActions(config, settings, obj, q.Action)
+	filteredAvailableActions, err := s.getAvailableActions(config, settings, obj, q.Action)
 	if err != nil {
 		return nil, err
 	}

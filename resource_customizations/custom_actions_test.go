@@ -25,14 +25,14 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) (*unstructured.
 	return un, nil
 }
 
-type CustomActionTestStructure struct {
+type ActionTestStructure struct {
 	DiscoveryTests []IndividualDiscoveryTest `yaml:"discoveryTests"`
 	ActionTests    []IndividualActionTest    `yaml:"actionTests"`
 }
 
 type IndividualDiscoveryTest struct {
-	InputPath string                `yaml:"inputPath"`
-	Result    []appsv1.CustomAction `yaml:"result"`
+	InputPath string                  `yaml:"inputPath"`
+	Result    []appsv1.ResourceAction `yaml:"result"`
 }
 
 type IndividualActionTest struct {
@@ -52,7 +52,7 @@ func TestLuaCustomActionsScript(t *testing.T) {
 		//TODO: Change to path
 		yamlBytes, err := ioutil.ReadFile(dir + "/action_test.yaml")
 		errors.CheckError(err)
-		var resourceTest CustomActionTestStructure
+		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
 		errors.CheckError(err)
 		for i := range resourceTest.DiscoveryTests {

@@ -40,10 +40,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ComponentParameter":         schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConfigManagementPlugin":     schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ConnectionState":            schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomAction":               schema_pkg_apis_application_v1alpha1_CustomAction(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActionDefinition":     schema_pkg_apis_application_v1alpha1_CustomActionDefinition(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActionParam":          schema_pkg_apis_application_v1alpha1_CustomActionParam(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActions":              schema_pkg_apis_application_v1alpha1_CustomActions(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus":               schema_pkg_apis_application_v1alpha1_HealthStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmParameter":              schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HelmRepository":             schema_pkg_apis_application_v1alpha1_HelmRepository(ref),
@@ -57,6 +53,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ProjectRole":                schema_pkg_apis_application_v1alpha1_ProjectRole(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Repository":                 schema_pkg_apis_application_v1alpha1_Repository(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RepositoryList":             schema_pkg_apis_application_v1alpha1_RepositoryList(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceAction":             schema_pkg_apis_application_v1alpha1_ResourceAction(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionDefinition":   schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionParam":        schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActions":            schema_pkg_apis_application_v1alpha1_ResourceActions(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceDiff":               schema_pkg_apis_application_v1alpha1_ResourceDiff(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences":  schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceNetworkingInfo":     schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref),
@@ -1201,134 +1201,6 @@ func schema_pkg_apis_application_v1alpha1_ConnectionState(ref common.ReferenceCa
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_CustomAction(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"Name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"Params": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActionParam"),
-									},
-								},
-							},
-						},
-					},
-				},
-				Required: []string{"Name", "Params"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActionParam"},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_CustomActionDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"Name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"ActionLua": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-				Required: []string{"Name", "ActionLua"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_CustomActionParam(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"Name": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"Value": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"Type": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"Default": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-				Required: []string{"Name", "Value", "Type", "Default"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_CustomActions(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"ActionDiscoveryLua": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"definitions": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActionDefinition"),
-									},
-								},
-							},
-						},
-					},
-				},
-				Required: []string{"ActionDiscoveryLua", "definitions"},
-			},
-		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActionDefinition"},
-	}
-}
-
 func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1808,6 +1680,134 @@ func schema_pkg_apis_application_v1alpha1_RepositoryList(ref common.ReferenceCal
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"params": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionParam"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionParam"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceActionDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"action.lua": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name", "action.lua"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceActionParam(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"default": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name", "value", "type"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceActions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"actionDiscovery.lua": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"definitions": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionDefinition"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"actionDiscovery.lua", "definitions"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActionDefinition"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_ResourceDiff(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2092,9 +2092,9 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 							Format: "",
 						},
 					},
-					"customActions": {
+					"actions": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActions"),
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActions"),
 						},
 					},
 					"ignoreDifferences": {
@@ -2104,11 +2104,11 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"customActions"},
+				Required: []string{"actions"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.CustomActions"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceActions"},
 	}
 }
 

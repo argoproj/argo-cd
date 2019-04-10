@@ -85,7 +85,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
-	command.AddCommand(NewApplicationCustomActionsCommand(clientOpts))
+	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	return command
 }
 
@@ -1687,100 +1687,166 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return &command
 }
 
-func NewApplicationCustomActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "custom-actions",
-		Short: "Manage custom actions",
+		Use:   "actions",
+		Short: "Manage Resource actions",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
 	}
-	command.AddCommand(NewApplicationCustomActionsListCommand(clientOpts))
-	command.AddCommand(NewApplicationCustomActionsRunCommand(clientOpts))
+	command.AddCommand(NewApplicationResourceActionsListCommand(clientOpts))
+	command.AddCommand(NewApplicationResourceActionsRunCommand(clientOpts))
 	return command
 }
 
-func NewApplicationCustomActionsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
 	var kind string
 	var group string
+	var resourceName string
+	var all bool
 	var command = &cobra.Command{
-		Use:   "list APPNAME RESOURCE-NAME",
+		Use:   "list APPNAME",
 		Short: "Lists available custom actions on a resource",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 2 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			appName := args[0]
-			resourceName := args[1]
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
-			customActions, err := appIf.ListCustomActions(context.Background(), &application.ApplicationResourceRequest{
+	}
+	command.Run = func(c *cobra.Command, args []string) {
+		if len(args) != 1 {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		}
+		appName := args[0]
+		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		defer util.Close(conn)
+		ctx := context.Background()
+		resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
+		errors.CheckError(err)
+		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		availableActions := make(map[string][]argoappv1.ResourceAction)
+		for i := range filteredObjects {
+			obj := filteredObjects[i]
+			gvk := obj.GroupVersionKind()
+			availActionsForResource, err := appIf.ListResourceActions(ctx, &application.ApplicationResourceRequest{
 				Name:         &appName,
-				Namespace:    namespace,
-				ResourceName: resourceName,
-				Group:        group,
-				Kind:         kind,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: obj.GetName(),
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
 			})
 			errors.CheckError(err)
-			fmt.Println("Available Actions")
+			availableActions[obj.GetName()] = availActionsForResource.Actions
+		}
 
-			for _, action := range customActions.Actions {
-				fmt.Println(action.Name)
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintf(w, "Resource Name\tActions\n")
+		fmt.Println()
+		for key := range availableActions {
+			for i := range availableActions[key] {
+				action := availableActions[key][i]
+				fmt.Fprintf(w, "%s\t%s\n", key, action.Name)
+
 			}
-		},
+		}
+		_ = w.Flush()
 	}
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	err := command.MarkFlagRequired("kind")
 	errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
-	errors.CheckError(err)
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	err = command.MarkFlagRequired("namespace")
-	errors.CheckError(err)
+	command.Flags().BoolVar(&all, "all", false, "Indicates whether to actions on multiple matching resources")
+
 	return command
 }
 
 /* argocd app custom-actions run guestbook-bluegreen unpause */
-func NewApplicationCustomActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
 	var kind string
 	var group string
+	var resourceName string
+	var all bool
 	var command = &cobra.Command{
-		Use:   "run APP-NAME RESOURCE-NAME ACTION",
+		Use:   "run APPNAME ACTION",
 		Short: "Runs an available custom actions on a resource",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 3 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			appName := args[0]
-			resourceName := args[1]
-			actionName := args[2]
-			conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
-			defer util.Close(conn)
-			_, err := appIf.RunCustomActions(context.Background(), &application.CustomActionRunRequest{
-				Name:         &appName,
-				Namespace:    namespace,
-				ResourceName: resourceName,
-				Group:        group,
-				Kind:         kind,
-				Action:       actionName,
-			})
-			errors.CheckError(err)
-		},
 	}
+
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	err := command.MarkFlagRequired("kind")
 	errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
-	errors.CheckError(err)
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	err = command.MarkFlagRequired("namespace")
-	errors.CheckError(err)
+	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
+
+	command.Run = func(c *cobra.Command, args []string) {
+		if len(args) != 2 {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		}
+		appName := args[0]
+		actionName := args[1]
+		conn, appIf := argocdclient.NewClientOrDie(clientOpts).NewApplicationClientOrDie()
+		defer util.Close(conn)
+		ctx := context.Background()
+		resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
+		errors.CheckError(err)
+		filteredObjects := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
+		for i := range filteredObjects {
+			obj := filteredObjects[i]
+			gvk := obj.GroupVersionKind()
+			objResourceName := obj.GetName()
+			_, err := appIf.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+				Name:         &appName,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: &objResourceName,
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Action:       actionName,
+			})
+			errors.CheckError(err)
+		}
+	}
 	return command
+}
+
+func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
+	liveObjs, err := liveObjects(resources)
+	errors.CheckError(err)
+	filteredObjects := make([]*unstructured.Unstructured, 0)
+	for i := range liveObjs {
+		obj := liveObjs[i]
+		gvk := obj.GroupVersionKind()
+		if command.Flags().Changed("group") && group != gvk.Group {
+			continue
+		}
+		if namespace != "" && namespace != obj.GetNamespace() {
+			continue
+		}
+		if resourceName != "" && resourceName != obj.GetName() {
+			continue
+		}
+		if kind == gvk.Kind {
+			copy := obj.DeepCopy()
+			filteredObjects = append(filteredObjects, copy)
+		}
+	}
+	if len(filteredObjects) == 0 {
+		log.Fatal("No matching resource found")
+	}
+	if len(filteredObjects) > 1 && !all {
+		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+	}
+	firstGroup := filteredObjects[0].GroupVersionKind().Group
+	for i := range filteredObjects {
+		obj := filteredObjects[i]
+		if obj.GroupVersionKind().Group != firstGroup {
+			log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
+		}
+	}
+	return filteredObjects
 }
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -1791,7 +1857,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	var kind string
 	var group string
 	var all bool
-	command := cobra.Command{
+	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
 	}
@@ -1806,7 +1872,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().BoolVar(&all, "all", false, "Indicates where to patch multiple matching of resources")
+	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Run = func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
@@ -1819,39 +1885,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		liveObjs, err := liveObjects(resources.Items)
-		errors.CheckError(err)
-		objectsToPatch := make([]*unstructured.Unstructured, 0)
-		for i := range liveObjs {
-			obj := liveObjs[i]
-			gvk := obj.GroupVersionKind()
-			if command.Flags().Changed("group") && group != gvk.Group {
-				continue
-			}
-			if namespace != "" && namespace != obj.GetNamespace() {
-				continue
-			}
-			if resourceName != "" && resourceName != obj.GetName() {
-				continue
-			}
-			if kind == gvk.Kind {
-				copy := obj.DeepCopy()
-				objectsToPatch = append(objectsToPatch, copy)
-			}
-		}
-		if len(objectsToPatch) == 0 {
-			log.Fatal("No matching resource found to patch")
-		}
-		if len(objectsToPatch) > 1 && !all {
-			log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
-		}
-		group := objectsToPatch[0].GroupVersionKind().Group
-		for i := range objectsToPatch {
-			obj := objectsToPatch[i]
-			if obj.GroupVersionKind().Group != group {
-				log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
-			}
-		}
+		objectsToPatch := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		for i := range objectsToPatch {
 			obj := objectsToPatch[i]
 			gvk := obj.GroupVersionKind()
@@ -1870,5 +1904,5 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		}
 	}
 
-	return &command
+	return command
 }

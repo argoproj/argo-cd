@@ -157,7 +157,7 @@ func TestGetCustomActionNoPredefined(t *testing.T) {
 
 func TestGetCustomActionWithOverride(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
-	test := appv1.CustomActionDefinition{
+	test := appv1.ResourceActionDefinition{
 		Name:      "test",
 		ActionLua: "return obj",
 	}
@@ -165,20 +165,20 @@ func TestGetCustomActionWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				CustomActions: appv1.CustomActions{
-					Definitions: []appv1.CustomActionDefinition{
+				Actions: appv1.ResourceActions{
+					Definitions: []appv1.ResourceActionDefinition{
 						test,
 					},
 				},
 			},
 		},
 	}
-	customAction, err := vm.GetCustomAction(testObj, "test")
+	action, err := vm.GetCustomAction(testObj, "test")
 	assert.Nil(t, err)
-	assert.Equal(t, test, customAction)
+	assert.Equal(t, test, action)
 }
 
-func TestGetCustomActionDiscoveryPredefined(t *testing.T) {
+func TestGetResourceActionDiscoveryPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 
@@ -200,7 +200,7 @@ func TestGetCustomActionDiscoveryWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				CustomActions: appv1.CustomActions{
+				Actions: appv1.ResourceActions{
 					ActionDiscoveryLua: validDiscoveryLua,
 				},
 			},
@@ -238,10 +238,10 @@ func TestExecuteCustomActionDiscovery(t *testing.T) {
 	vm := VM{}
 	customActions, err := vm.ExecuteCustomActionDiscovery(testObj, validDiscoveryLua)
 	assert.Nil(t, err)
-	expectedActions := []appv1.CustomAction{
+	expectedActions := []appv1.ResourceAction{
 		{
 			Name: "scale",
-			Params: []appv1.CustomActionParam{{
+			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
 				Type: "number",
 			}},

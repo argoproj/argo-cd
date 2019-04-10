@@ -130,7 +130,7 @@ func (vm VM) ExecuteCustomAction(obj *unstructured.Unstructured, script string) 
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
-func (vm VM) ExecuteCustomActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.CustomAction, error) {
+func (vm VM) ExecuteCustomActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
 	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func (vm VM) ExecuteCustomActionDiscovery(obj *unstructured.Unstructured, script
 		if err != nil {
 			return nil, err
 		}
-		availableActions := make([]appv1.CustomAction, 0)
+		availableActions := make([]appv1.ResourceAction, 0)
 		err = json.Unmarshal(jsonBytes, &availableActions)
 		return availableActions, err
 	}
@@ -153,7 +153,7 @@ func (vm VM) GetCustomActionDiscovery(obj *unstructured.Unstructured) (string, e
 	key := getConfigMapKey(obj)
 	override, ok := vm.ResourceOverrides[key]
 	if ok {
-		return override.CustomActions.ActionDiscoveryLua, nil
+		return override.Actions.ActionDiscoveryLua, nil
 	}
 	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
@@ -164,11 +164,11 @@ func (vm VM) GetCustomActionDiscovery(obj *unstructured.Unstructured) (string, e
 }
 
 // GetCustomAction attempts to read lua script from config and then filesystem for that resource
-func (vm VM) GetCustomAction(obj *unstructured.Unstructured, actionName string) (appv1.CustomActionDefinition, error) {
+func (vm VM) GetCustomAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
 	key := getConfigMapKey(obj)
 	override, ok := vm.ResourceOverrides[key]
 	if ok {
-		for _, action := range override.CustomActions.Definitions {
+		for _, action := range override.Actions.Definitions {
 			if action.Name == actionName {
 				return action, nil
 			}
@@ -178,10 +178,10 @@ func (vm VM) GetCustomAction(obj *unstructured.Unstructured, actionName string) 
 	actionKey := fmt.Sprintf("%s/actions/%s", key, actionName)
 	actionScript, err := vm.getPredefinedLuaScripts(actionKey, actionScriptFile)
 	if err != nil {
-		return appv1.CustomActionDefinition{}, err
+		return appv1.ResourceActionDefinition{}, err
 	}
 
-	return appv1.CustomActionDefinition{
+	return appv1.ResourceActionDefinition{
 		Name:      actionName,
 		ActionLua: actionScript,
 	}, nil

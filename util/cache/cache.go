@@ -113,8 +113,8 @@ func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespa
 	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, commitSHA, namespace, fnva)
 }
 
-func availableCustomActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber string) string {
-	return fmt.Sprintf("customactions|%s|%s|%s|%s|%s|%s|%s", clusterName, namespace, group, namespace, kind, resourceName, resourceNumber)
+func availableResourceActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber string) string {
+	return fmt.Sprintf("resourceactions|%s|%s|%s|%s|%s|%s|%s", clusterName, namespace, group, namespace, kind, resourceName, resourceNumber)
 }
 
 func appDetailsCacheKey(commitSHA, path string, valueFiles []string) string {
@@ -212,14 +212,14 @@ func (c *Cache) SetAppDetails(commitSHA, path string, valueFiles []string, res i
 	return c.setItem(appDetailsCacheKey(commitSHA, path, valueFiles), res, repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) GetAvailableCustomActions(clusterName, namespace, group, kind, resourceName, resourceNumber string) ([]appv1.CustomAction, error) {
-	res := make([]appv1.CustomAction, 0)
-	err := c.getItem(availableCustomActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber), &res)
+func (c *Cache) GetAvailableResourceActions(clusterName, namespace, group, kind, resourceName, resourceNumber string) ([]appv1.ResourceAction, error) {
+	res := make([]appv1.ResourceAction, 0)
+	err := c.getItem(availableResourceActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber), &res)
 	return res, err
 }
 
-func (c *Cache) SetAvailableCustomActions(clusterName, namespace, group, kind, resourceName, resourceNumber string, customActions []appv1.CustomAction) error {
-	return c.setItem(availableCustomActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber), customActions, appStateCacheExpiration, customActions == nil)
+func (c *Cache) SetAvailableResourceActions(clusterName, namespace, group, kind, resourceName, resourceNumber string, actions []appv1.ResourceAction) error {
+	return c.setItem(availableResourceActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber), actions, appStateCacheExpiration, actions == nil)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {
