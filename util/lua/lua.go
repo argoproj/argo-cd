@@ -110,7 +110,7 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, error) {
 	return vm.getPredefinedLuaScripts(key, healthScriptFile)
 }
 
-func (vm VM) ExecuteCustomAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
 	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
@@ -130,26 +130,63 @@ func (vm VM) ExecuteCustomAction(obj *unstructured.Unstructured, script string) 
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
-func (vm VM) ExecuteCustomActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
+func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
 	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
+
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
 		}
 		availableActions := make([]appv1.ResourceAction, 0)
-		err = json.Unmarshal(jsonBytes, &availableActions)
+		if noAvailableActions(jsonBytes) {
+			return availableActions, nil
+		}
+		availableActionsMap := make(map[string]interface{})
+		err = json.Unmarshal(jsonBytes, &availableActionsMap)
+		if err != nil {
+			return nil, err
+		}
+		for key := range availableActionsMap {
+			value := availableActionsMap[key]
+
+			resourceAction := appv1.ResourceAction{Name: key}
+			if emptyResourceActionFromLua(value) {
+				availableActions = append(availableActions, resourceAction)
+				continue
+			}
+			resourceActionBytes, err := json.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+
+			err = json.Unmarshal(resourceActionBytes, &resourceAction)
+			if err != nil {
+				return nil, err
+			}
+			availableActions = append(availableActions, resourceAction)
+		}
 		return availableActions, err
 	}
 
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
-func (vm VM) GetCustomActionDiscovery(obj *unstructured.Unstructured) (string, error) {
+func emptyResourceActionFromLua(i interface{}) bool {
+	_, ok := i.([]interface{})
+	return ok
+}
+
+func noAvailableActions(jsonBytes []byte) bool {
+	// When the Lua script returns an empty table, it is decoded as a empty array.
+	return string(jsonBytes) == "[]"
+}
+
+func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string, error) {
 	key := getConfigMapKey(obj)
 	override, ok := vm.ResourceOverrides[key]
 	if ok {
@@ -163,8 +200,8 @@ func (vm VM) GetCustomActionDiscovery(obj *unstructured.Unstructured) (string, e
 	return discoveryScript, nil
 }
 
-// GetCustomAction attempts to read lua script from config and then filesystem for that resource
-func (vm VM) GetCustomAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
+// GetResourceAction attempts to read lua script from config and then filesystem for that resource
+func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
 	key := getConfigMapKey(obj)
 	override, ok := vm.ResourceOverrides[key]
 	if ok {

@@ -966,18 +966,18 @@ func (s *Server) ListResourceActions(ctx context.Context, q *ApplicationResource
 
 func (s *Server) getAvailableActions(config *rest.Config, settings *settings.ArgoCDSettings, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
 	gvk := obj.GroupVersionKind()
-	customActions, err := s.cache.GetAvailableResourceActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion())
+	actions, err := s.cache.GetAvailableResourceActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion())
 	if err == nil {
-		return customActions, nil
+		return actions, nil
 	}
 	luaVM := lua.VM{
 		ResourceOverrides: settings.ResourceOverrides,
 	}
-	discoveryScript, err := luaVM.GetCustomActionDiscovery(obj)
+	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
 	if err != nil {
 		return nil, err
 	}
-	availableActions, err := luaVM.ExecuteCustomActionDiscovery(obj, discoveryScript)
+	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
 	if err != nil {
 		return nil, err
 	}
@@ -1008,7 +1008,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *ResourceActionRunRequ
 	if err != nil {
 		return nil, err
 	}
-	obj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	liveObj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1017,28 +1017,46 @@ func (s *Server) RunResourceAction(ctx context.Context, q *ResourceActionRunRequ
 	if err != nil {
 		return nil, err
 	}
-	filteredAvailableActions, err := s.getAvailableActions(config, settings, obj, q.Action)
+	filteredAvailableActions, err := s.getAvailableActions(config, settings, liveObj, q.Action)
 	if err != nil {
 		return nil, err
 	}
 	if len(filteredAvailableActions) == 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "custom action not available on resource")
+		return nil, status.Errorf(codes.InvalidArgument, "action not available on resource")
 	}
 
 	luaVM := lua.VM{
 		ResourceOverrides: settings.ResourceOverrides,
 	}
-	customAction, err := luaVM.GetCustomAction(obj, q.Action)
+	action, err := luaVM.GetResourceAction(liveObj, q.Action)
 	if err != nil {
 		return nil, err
 	}
 
-	newObj, err := luaVM.ExecuteCustomAction(obj, customAction.ActionLua)
+	newObj, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = s.kubectl.ApplyResource(config, newObj, res.Namespace, false, false)
+	newObjBytes, err := json.Marshal(newObj)
+	if err != nil {
+		return nil, err
+	}
+
+	liveObjBytes, err := json.Marshal(liveObj)
+	if err != nil {
+		return nil, err
+	}
+
+	diffBytes, err := jsonpatch.CreateMergePatch(liveObjBytes, newObjBytes)
+	if err != nil {
+		return nil, err
+	}
+	if string(diffBytes) == "{}" {
+		return &ApplicationResponse{}, nil
+	}
+
+	_, err = s.kubectl.PatchResource(config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
 	if err != nil {
 		return nil, err
 	}

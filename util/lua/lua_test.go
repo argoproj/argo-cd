@@ -138,24 +138,24 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	assert.Equal(t, "", script)
 }
 
-func TestGetCustomActionPredefined(t *testing.T) {
+func TestGetResourceActionPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 
-	customAction, err := vm.GetCustomAction(testObj, "resume")
+	action, err := vm.GetResourceAction(testObj, "resume")
 	assert.Nil(t, err)
-	assert.NotEmpty(t, customAction)
+	assert.NotEmpty(t, action)
 }
 
-func TestGetCustomActionNoPredefined(t *testing.T) {
+func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
-	customAction, err := vm.GetCustomAction(testObj, "test")
+	action, err := vm.GetResourceAction(testObj, "test")
 	assert.Nil(t, err)
-	assert.Empty(t, customAction.ActionLua)
+	assert.Empty(t, action.ActionLua)
 }
 
-func TestGetCustomActionWithOverride(t *testing.T) {
+func TestGetResourceActionWithOverride(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	test := appv1.ResourceActionDefinition{
 		Name:      "test",
@@ -173,7 +173,7 @@ func TestGetCustomActionWithOverride(t *testing.T) {
 			},
 		},
 	}
-	action, err := vm.GetCustomAction(testObj, "test")
+	action, err := vm.GetResourceAction(testObj, "test")
 	assert.Nil(t, err)
 	assert.Equal(t, test, action)
 }
@@ -182,20 +182,20 @@ func TestGetResourceActionDiscoveryPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 
-	discoveryLua, err := vm.GetCustomActionDiscovery(testObj)
+	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, discoveryLua)
 }
 
-func TestGetCustomActionDiscoveryNoPredefined(t *testing.T) {
+func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
-	discoveryLua, err := vm.GetCustomActionDiscovery(testObj)
+	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	assert.Nil(t, err)
 	assert.Empty(t, discoveryLua)
 }
 
-func TestGetCustomActionDiscoveryWithOverride(t *testing.T) {
+func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -206,50 +206,57 @@ func TestGetCustomActionDiscoveryWithOverride(t *testing.T) {
 			},
 		},
 	}
-	discoveryLua, err := vm.GetCustomActionDiscovery(testObj)
+	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	assert.Nil(t, err)
 	assert.Equal(t, validDiscoveryLua, discoveryLua)
 }
 
 const validDiscoveryLua = `
-scaleParam = {}
-scaleParam['name'] = 'replicas'
-scaleParam['type'] = 'number'
+scaleParams = { {name = "replicas", type = "number"} }
+scale = {name = 'scale', params = scaleParams}
 
-scaleParams = {}
-scaleParams[1] = scaleParam
+resume = {name = 'resume'}
 
-scale = {}
-scale['name'] = 'scale'
-scale['params'] = scaleParams
+test = {}
+a = {scale = scale, resume = resume, test = test}
 
-resume = {}
-resume['name'] = 'resume'
-resume['ignoresIrrelevant'] = 'fields'
-
-a = {}
-a[1] = scale
-a[2] = resume
 return a
 `
 
-func TestExecuteCustomActionDiscovery(t *testing.T) {
+func TestExecuteResourceActionDiscovery(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	customActions, err := vm.ExecuteCustomActionDiscovery(testObj, validDiscoveryLua)
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, validDiscoveryLua)
 	assert.Nil(t, err)
 	expectedActions := []appv1.ResourceAction{
 		{
+			Name: "resume",
+		}, {
 			Name: "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
 				Type: "number",
 			}},
 		}, {
-			Name: "resume",
+			Name: "test",
 		},
 	}
-	assert.Equal(t, expectedActions, customActions)
+	for _, expectedAction := range expectedActions {
+		assert.Contains(t, actions, expectedAction)
+	}
+}
+
+const discoveryLuaWithInvalidResourceAction = `
+resume = {name = 'resume', invalidField: "test""}
+a = {resume = resume}
+return a`
+
+func TestExecuteResourceActionDiscoveryInvalidResourceAction(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, discoveryLuaWithInvalidResourceAction)
+	assert.Error(t, err)
+	assert.Nil(t, actions)
 }
 
 const invalidDiscoveryLua = `
@@ -257,11 +264,11 @@ a = 1
 return a
 `
 
-func TestExecuteCustomActionDiscoveryInvalidReturn(t *testing.T) {
+func TestExecuteResourceActionDiscoveryInvalidReturn(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	customActions, err := vm.ExecuteCustomActionDiscovery(testObj, invalidDiscoveryLua)
-	assert.Nil(t, customActions)
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, invalidDiscoveryLua)
+	assert.Nil(t, actions)
 	assert.Error(t, err)
 
 }
@@ -283,19 +290,19 @@ metadata:
   resourceVersion: "123"
 `
 
-func TestExecuteCustomAction(t *testing.T) {
+func TestExecuteResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	expectedObj := StrToUnstructured(expectedUpdatedObj)
 	vm := VM{}
-	newObj, err := vm.ExecuteCustomAction(testObj, validActionLua)
+	newObj, err := vm.ExecuteResourceAction(testObj, validActionLua)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedObj, newObj)
 }
 
-func TestExecuteCustomActionNonTableReturn(t *testing.T) {
+func TestExecuteResourceActionNonTableReturn(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteCustomAction(testObj, returnInt)
+	_, err := vm.ExecuteResourceAction(testObj, returnInt)
 	assert.Errorf(t, err, incorrectReturnType, "table", "number")
 }
 
@@ -304,9 +311,9 @@ newObj["test"] = "test"
 return newObj
 `
 
-func TestExecuteCustomActionInvalidUnstructured(t *testing.T) {
+func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteCustomAction(testObj, invalidTableReturn)
+	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn)
 	assert.Error(t, err)
 }

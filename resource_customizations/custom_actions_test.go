@@ -42,7 +42,7 @@ type IndividualActionTest struct {
 	InputStr           string `yaml:"input"`
 }
 
-func TestLuaCustomActionsScript(t *testing.T) {
+func TestLuaResourceActionsScript(t *testing.T) {
 	err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
@@ -63,9 +63,9 @@ func TestLuaCustomActionsScript(t *testing.T) {
 					UseOpenLibs: true,
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
-				discoveryLua, err := vm.GetCustomActionDiscovery(obj)
+				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
 				errors.CheckError(err)
-				result, err := vm.ExecuteCustomActionDiscovery(obj, discoveryLua)
+				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
 				errors.CheckError(err)
 				assert.Equal(t, test.Result, result)
 			})
@@ -78,9 +78,9 @@ func TestLuaCustomActionsScript(t *testing.T) {
 					UseOpenLibs: true,
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
-				customAction, err := vm.GetCustomAction(obj, test.Action)
+				action, err := vm.GetResourceAction(obj, test.Action)
 				errors.CheckError(err)
-				result, err := vm.ExecuteCustomAction(obj, customAction.ActionLua)
+				result, err := vm.ExecuteResourceAction(obj, action.ActionLua)
 				errors.CheckError(err)
 				expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
 				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the originial int32.  As a result, the assert.Equal is never true despite that the change has been applied.

@@ -1709,7 +1709,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var all bool
 	var command = &cobra.Command{
 		Use:   "list APPNAME",
-		Short: "Lists available custom actions on a resource",
+		Short: "Lists available actions on a resource",
 	}
 	command.Run = func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
@@ -1756,12 +1756,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().BoolVar(&all, "all", false, "Indicates whether to actions on multiple matching resources")
+	command.Flags().BoolVar(&all, "all", false, "Indicates whether to list actions on multiple matching resources")
 
 	return command
 }
 
-/* argocd app custom-actions run guestbook-bluegreen unpause */
 func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
 	var kind string
@@ -1770,7 +1769,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var all bool
 	var command = &cobra.Command{
 		Use:   "run APPNAME ACTION",
-		Short: "Runs an available custom actions on a resource",
+		Short: "Runs an available action on resource(s)",
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")

@@ -717,14 +717,14 @@ type ResourceActionDefinition struct {
 }
 
 type ResourceAction struct {
-	Name   string                `json:"name" protobuf:"bytes,1,opt,name=name"`
+	Name   string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	Params []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
 }
 
 type ResourceActionParam struct {
-	Name    string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	Value   string `json:"value" protobuf:"bytes,2,opt,name=value"`
-	Type    string `json:"type" protobuf:"bytes,3,opt,name=type"`
+	Name    string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Value   string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	Type    string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
