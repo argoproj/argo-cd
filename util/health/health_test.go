@@ -13,12 +13,12 @@ import (
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthStatusCode) {
-	health := getHealtStatus(yamlPath, t)
+	health := getHealthStatus(yamlPath, t)
 	assert.NotNil(t, health)
 	assert.Equal(t, expectedStatus, health.Status)
 }
 
-func getHealtStatus(yamlPath string, t *testing.T) *appv1.HealthStatus {
+func getHealthStatus(yamlPath string, t *testing.T) *appv1.HealthStatus {
 	yamlBytes, err := ioutil.ReadFile(yamlPath)
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
@@ -59,7 +59,7 @@ func TestIngressHealth(t *testing.T) {
 }
 
 func TestCRD(t *testing.T) {
-	assert.Nil(t, getHealtStatus("./testdata/knative-service.yaml", t))
+	assert.Nil(t, getHealthStatus("./testdata/knative-service.yaml", t))
 }
 
 func TestJob(t *testing.T) {
@@ -79,6 +79,7 @@ func TestPod(t *testing.T) {
 	assertAppHealth(t, "./testdata/pod-running-restart-onfailure.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-failed.yaml", appv1.HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-succeeded.yaml", appv1.HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pod-deletion.yaml", appv1.HealthStatusProgressing)
 }
 
 func TestSetApplicationHealth(t *testing.T) {
