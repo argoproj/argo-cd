@@ -49,10 +49,15 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 
 // GetResourceHealth returns the health of a k8s resource
 func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
-	var err error
-	var health *appv1.HealthStatus
 
-	health, err = getResourceHealthFromLuaScript(obj, resourceOverrides)
+	if obj.GetDeletionTimestamp() != nil {
+		return &appv1.HealthStatus{
+			Status:  appv1.HealthStatusProgressing,
+			Message: "Pending deletion",
+		}, nil
+	}
+
+	health, err := getResourceHealthFromLuaScript(obj, resourceOverrides)
 	if err != nil {
 		health = &appv1.HealthStatus{
 			Status:  appv1.HealthStatusUnknown,
