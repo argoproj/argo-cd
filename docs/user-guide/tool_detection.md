@@ -6,8 +6,8 @@ If a specific tool is explicitly configured, then that tool is selected to creat
 
 If not, then the tool is detected implicitly as follows:
 
-* **Ksonnet** if there are two files, one matching `*app.yaml` and one matching `*components/params.libsonnet`.
-* **Helm** if there's a file matching `*Chart.yaml`. 
+* **Ksonnet** if there are two files, one named `app.yaml` and one named `components/params.libsonnet`.
+* **Helm** if there's a file matching `Chart.yaml`. 
 * **Kustomize** if there's a `kustomization.yaml`, `kustomization.yml`, or `Kustomization`
 
 Otherwise it is assumed to be a plain **directory** application. 
