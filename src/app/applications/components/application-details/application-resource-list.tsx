@@ -27,8 +27,7 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
                     <div className='columns small-3'>{[res.group, res.kind].filter((item) => !!item).join('/')}</div>
                     <div className='columns small-2'>{res.namespace}</div>
                     <div className='columns small-4'>
-                        {res.health && <HealthStatusIcon state={res.health}/>} {res.health.status}
-                        &nbsp;
+                        {res.health && <React.Fragment><HealthStatusIcon state={res.health}/> {res.health.status} &nbsp;</React.Fragment>}
                         {res.status && <ComparisonStatusIcon status={res.status}/>} {res.status}
                         {res.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                         <div className='application-details__node-menu'>
