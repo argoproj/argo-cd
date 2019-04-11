@@ -37,6 +37,7 @@ nav:
     - user-guide/index.md
     - user-guide/application_sources.md
     - user-guide/projects.md
+    - user-guide/tool_detection.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
     - user-guide/parameters.md
