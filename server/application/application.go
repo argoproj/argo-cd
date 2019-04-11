@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
@@ -952,26 +953,26 @@ func (s *Server) ListResourceActions(ctx context.Context, q *ApplicationResource
 	if err != nil {
 		return nil, err
 	}
-	settings, err := s.settingsMgr.GetSettings()
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
 	}
 
-	availableActions, err := s.getAvailableActions(config, settings, obj, "")
+	availableActions, err := s.getAvailableActions(config, resourceOverrides, obj, "")
 	if err != nil {
 		return nil, err
 	}
 	return &ResourceActionsListResponse{Actions: availableActions}, nil
 }
 
-func (s *Server) getAvailableActions(config *rest.Config, settings *settings.ArgoCDSettings, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
+func (s *Server) getAvailableActions(config *rest.Config, resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
 	gvk := obj.GroupVersionKind()
 	actions, err := s.cache.GetAvailableResourceActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion())
 	if err == nil {
 		return actions, nil
 	}
 	luaVM := lua.VM{
-		ResourceOverrides: settings.ResourceOverrides,
+		ResourceOverrides: resourceOverrides,
 	}
 	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
 	if err != nil {
@@ -1013,11 +1014,11 @@ func (s *Server) RunResourceAction(ctx context.Context, q *ResourceActionRunRequ
 		return nil, err
 	}
 
-	settings, err := s.settingsMgr.GetSettings()
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
 	}
-	filteredAvailableActions, err := s.getAvailableActions(config, settings, liveObj, q.Action)
+	filteredAvailableActions, err := s.getAvailableActions(config, resourceOverrides, liveObj, q.Action)
 	if err != nil {
 		return nil, err
 	}
@@ -1026,7 +1027,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *ResourceActionRunRequ
 	}
 
 	luaVM := lua.VM{
-		ResourceOverrides: settings.ResourceOverrides,
+		ResourceOverrides: resourceOverrides,
 	}
 	action, err := luaVM.GetResourceAction(liveObj, q.Action)
 	if err != nil {

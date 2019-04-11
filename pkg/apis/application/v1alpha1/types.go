@@ -707,7 +707,7 @@ type ResourceOverride struct {
 }
 
 type ResourceActions struct {
-	ActionDiscoveryLua string                     `json:"actionDiscovery.lua" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
+	ActionDiscoveryLua string                     `json:"discovery.lua" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
 	Definitions        []ResourceActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
 }
 

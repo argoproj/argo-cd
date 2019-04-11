@@ -22,7 +22,7 @@ const (
 	resourceCustomizationBuiltInPath = "../../resource_customizations"
 	healthScriptFile                 = "health.lua"
 	actionScriptFile                 = "action.lua"
-	actionDiscoveryScriptFile        = "actionDiscovery.lua"
+	actionDiscoveryScriptFile        = "discovery.lua"
 )
 
 var (
