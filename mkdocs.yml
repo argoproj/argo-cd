@@ -1,0 +1,57 @@
+site_name: Argo CD - Declarative GitOps CD for Kubernetes
+repo_url: https://github.com/alexec/argo-cd
+strict: true
+theme:
+  name: material
+  palette:
+    primary: teal
+  font:
+    text: 'Work Sans'
+  logo: 'assets/logo.png'
+google_analytics:
+- 'UA-105170809-2'
+- 'auto'
+markdown_extensions:
+- codehilite
+- admonition
+- toc:
+    permalink: true
+nav:
+  - Overview: index.md
+  - understand_the_basics.md
+  - getting_started.md
+  - Operator Manual:
+    - operator-manual/index.md
+    - operator-manual/architecture.md
+    - operator-manual/declarative-setup.md
+    - operator-manual/ingress.md
+    - operator-manual/sso.md
+    - operator-manual/rbac.md
+    - operator-manual/security.md
+    - operator-manual/webhook.md
+    - operator-manual/health.md
+    - operator-manual/custom_tools.md
+    - operator-manual/metrics.md
+  - User Guide:
+    - user-guide/index.md
+    - user-guide/application_sources.md
+    - user-guide/projects.md
+    - user-guide/auto_sync.md
+    - user-guide/diffing.md
+    - user-guide/parameters.md
+    - user-guide/tracking_strategies.md
+    - user-guide/resource_hooks.md
+    - user-guide/ci_automation.md
+    - user-guide/best_practices.md
+  - Developer Guide:
+    - developer-guide/index.md
+    - CONTRIBUTING.md
+    - developer-guide/api-docs.md
+    - developer-guide/test-e2e.md
+    - developer-guide/releasing.md
+    - developer-guide/site.md
+  - faq.md
+  - Support: SUPPORT.md
+  - Releases ⧉: https://github.com/argoproj/argo-cd/releases
+  - Roadmap ⧉: https://github.com/argoproj/argo-cd/milestones
+  - Blog ⧉: https://blog.argoproj.io/

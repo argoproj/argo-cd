@@ -12,20 +12,101 @@ import (
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
-func getNodeInfo(un *unstructured.Unstructured) []v1alpha1.InfoItem {
-	gvk := un.GroupVersionKind()
+func populateNodeInfo(un *unstructured.Unstructured, node *node) {
 
-	if gvk.Kind == kube.PodKind && gvk.Group == "" {
-		return getPodInfo(un)
+	gvk := un.GroupVersionKind()
+	switch gvk.Group {
+	case "":
+		switch gvk.Kind {
+		case kube.PodKind:
+			populatePodInfo(un, node)
+			return
+		case kube.ServiceKind:
+			populateServiceInfo(un, node)
+			return
+		}
+	case "extensions":
+		switch gvk.Kind {
+		case kube.IngressKind:
+			populateIngressInfo(un, node)
+			return
+		}
 	}
-	return []v1alpha1.InfoItem{}
+	node.info = []v1alpha1.InfoItem{}
 }
 
-func getPodInfo(un *unstructured.Unstructured) []v1alpha1.InfoItem {
+func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
+	ingress, ok, err := unstructured.NestedSlice(un.Object, "status", "loadBalancer", "ingress")
+	if !ok || err != nil {
+		return nil
+	}
+	res := make([]v1.LoadBalancerIngress, 0)
+	for _, item := range ingress {
+		if lbIngress, ok := item.(map[string]interface{}); ok {
+			if hostname := lbIngress["hostname"]; hostname != nil {
+				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
+			} else if ip := lbIngress["ip"]; ip != nil {
+				res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+			}
+		}
+	}
+	return res
+}
+
+func populateServiceInfo(un *unstructured.Unstructured, node *node) {
+	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
+	ingress := make([]v1.LoadBalancerIngress, 0)
+	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
+		ingress = getIngress(un)
+	}
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+}
+
+func populateIngressInfo(un *unstructured.Unstructured, node *node) {
+	targets := make([]v1alpha1.ResourceRef, 0)
+	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
+		targets = append(targets, v1alpha1.ResourceRef{
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Namespace: un.GetNamespace(),
+			Name:      fmt.Sprintf("%s", backend["serviceName"]),
+		})
+	}
+	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
+		for i := range rules {
+			rule, ok := rules[i].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			paths, ok, err := unstructured.NestedSlice(rule, "http", "paths")
+			if !ok || err != nil {
+				continue
+			}
+			for i := range paths {
+				path, ok := paths[i].(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if serviceName, ok, err := unstructured.NestedString(path, "backend", "serviceName"); ok && err == nil {
+					targets = append(targets, v1alpha1.ResourceRef{
+						Group:     "",
+						Kind:      kube.ServiceKind,
+						Namespace: un.GetNamespace(),
+						Name:      serviceName,
+					})
+				}
+			}
+		}
+	}
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un)}
+}
+
+func populatePodInfo(un *unstructured.Unstructured, node *node) {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
-		return []v1alpha1.InfoItem{}
+		node.info = []v1alpha1.InfoItem{}
+		return
 	}
 	restarts := 0
 	totalContainers := len(pod.Spec.Containers)
@@ -37,6 +118,12 @@ func getPodInfo(un *unstructured.Unstructured) []v1alpha1.InfoItem {
 	}
 
 	initializing := false
+
+	// note that I ignore initContainers
+	for _, container := range pod.Spec.Containers {
+		node.images = append(node.images, container.Image)
+	}
+
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)
@@ -99,9 +186,10 @@ func getPodInfo(un *unstructured.Unstructured) []v1alpha1.InfoItem {
 		reason = "Terminating"
 	}
 
-	info := make([]v1alpha1.InfoItem, 0)
+	node.info = make([]v1alpha1.InfoItem, 0)
 	if reason != "" {
-		info = append(info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
+		node.info = append(node.info, v1alpha1.InfoItem{Name: "Status Reason", Value: reason})
 	}
-	return append(info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	node.info = append(node.info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }

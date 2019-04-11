@@ -2,6 +2,7 @@ package health
 
 import (
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
@@ -17,11 +18,10 @@ import (
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/lua"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
-func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]settings.ResourceOverride) (*appv1.HealthStatus, error) {
+func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	for i, liveObj := range liveObjs {
@@ -35,22 +35,29 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 				savedErr = err
 			}
 		}
-		resStatuses[i].Health = *resHealth
-		// Don't allow resource hooks to affect health status
-		isHook := liveObj != nil && hookutil.IsHook(liveObj)
-		if !isHook && IsWorse(appHealth.Status, resHealth.Status) {
-			appHealth.Status = resHealth.Status
+		if resHealth != nil {
+			resStatuses[i].Health = resHealth
+			// Don't allow resource hooks to affect health status
+			isHook := liveObj != nil && hookutil.IsHook(liveObj)
+			if !isHook && IsWorse(appHealth.Status, resHealth.Status) {
+				appHealth.Status = resHealth.Status
+			}
 		}
 	}
 	return &appHealth, savedErr
 }
 
 // GetResourceHealth returns the health of a k8s resource
-func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[string]settings.ResourceOverride) (*appv1.HealthStatus, error) {
-	var err error
-	var health *appv1.HealthStatus
+func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
 
-	health, err = getResourceHealthFromLuaScript(obj, resourceOverrides)
+	if obj.GetDeletionTimestamp() != nil {
+		return &appv1.HealthStatus{
+			Status:  appv1.HealthStatusProgressing,
+			Message: "Pending deletion",
+		}, nil
+	}
+
+	health, err := getResourceHealthFromLuaScript(obj, resourceOverrides)
 	if err != nil {
 		health = &appv1.HealthStatus{
 			Status:  appv1.HealthStatusUnknown,
@@ -97,8 +104,6 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 			Status:  appv1.HealthStatusUnknown,
 			Message: err.Error(),
 		}
-	} else if health == nil {
-		health = &appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	}
 	return health, err
 }
@@ -128,7 +133,7 @@ func IsWorse(current, new appv1.HealthStatusCode) bool {
 	return newIndex > currentIndex
 }
 
-func getResourceHealthFromLuaScript(obj *unstructured.Unstructured, resourceOverrides map[string]settings.ResourceOverride) (*appv1.HealthStatus, error) {
+func getResourceHealthFromLuaScript(obj *unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -418,6 +423,34 @@ func getPodHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert %T to %T: %v", obj, pod, err)
 	}
+
+	// This logic cannot be applied when the pod.Spec.RestartPolicy is: coreV1.RestartPolicyOnFailure,
+	// coreV1.RestartPolicyNever, otherwise it breaks the resource hook logic.
+	// The issue is, if we mark a pod with ImagePullBackOff as Degraded, and the pod is used as a resource hook,
+	// then we will prematurely fail the PreSync/PostSync hook. Meanwhile, when that error condition is resolved
+	// (e.g. the image is available), the resource hook pod will unexpectedly be executed even though the sync has
+	// completed.
+	if pod.Spec.RestartPolicy == coreV1.RestartPolicyAlways {
+		var status appv1.HealthStatusCode
+		var messages []string
+
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			waiting := containerStatus.State.Waiting
+			// Article listing common container errors: https://medium.com/kokster/debugging-crashloopbackoffs-with-init-containers-26f79e9fb5bf
+			if waiting != nil && (strings.HasPrefix(waiting.Reason, "Err") || strings.HasSuffix(waiting.Reason, "Error") || strings.HasSuffix(waiting.Reason, "BackOff")) {
+				status = appv1.HealthStatusDegraded
+				messages = append(messages, waiting.Message)
+			}
+		}
+
+		if status != "" {
+			return &appv1.HealthStatus{
+				Status:  status,
+				Message: strings.Join(messages, ", "),
+			}, nil
+		}
+	}
+
 	switch pod.Status.Phase {
 	case coreV1.PodPending:
 		return &appv1.HealthStatus{

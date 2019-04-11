@@ -142,13 +142,13 @@ func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1
 	return c.setItem(appManagedResourcesKey(appName), managedResources, appStateCacheExpiration, managedResources == nil)
 }
 
-func (c *Cache) GetAppResourcesTree(appName string) ([]*appv1.ResourceNode, error) {
-	res := make([]*appv1.ResourceNode, 0)
+func (c *Cache) GetAppResourcesTree(appName string) (*appv1.ApplicationTree, error) {
+	var res *appv1.ApplicationTree
 	err := c.getItem(appResourcesTreeKey(appName), &res)
 	return res, err
 }
 
-func (c *Cache) SetAppResourcesTree(appName string, resourcesTree []*appv1.ResourceNode) error {
+func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
 	return c.setItem(appResourcesTreeKey(appName), resourcesTree, appStateCacheExpiration, resourcesTree == nil)
 }
 

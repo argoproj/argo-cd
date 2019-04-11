@@ -4,6 +4,7 @@ import (
 	"github.com/ghodss/yaml"
 	"golang.org/x/net/context"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/settings"
 )
 
@@ -25,9 +26,16 @@ func (s *Server) Get(ctx context.Context, q *SettingsQuery) (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	overrides := make(map[string]*v1alpha1.ResourceOverride)
+	for k := range argoCDSettings.ResourceOverrides {
+		val := argoCDSettings.ResourceOverrides[k]
+		overrides[k] = &val
+	}
 	set := Settings{
-		URL:         argoCDSettings.URL,
-		AppLabelKey: argoCDSettings.GetAppInstanceLabelKey(),
+		URL:               argoCDSettings.URL,
+		AppLabelKey:       argoCDSettings.GetAppInstanceLabelKey(),
+		ResourceOverrides: overrides,
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg DexConfig

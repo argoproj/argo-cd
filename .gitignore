@@ -3,6 +3,7 @@
 .DS_Store
 vendor/
 dist/
+site/
 *.iml
 # delve debug binaries
 cmd/**/debug

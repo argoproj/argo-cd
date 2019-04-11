@@ -66,14 +66,9 @@ type ArgoCDSettings struct {
 	ConfigManagementPlugins []v1alpha1.ConfigManagementPlugin
 	// ResourceOverrides holds the overrides for specific resources. The keys are in the format of `group/kind`
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
-	ResourceOverrides map[string]ResourceOverride
+	ResourceOverrides map[string]v1alpha1.ResourceOverride
 	// ResourceExclusions holds the api groups, kinds per cluster to exclude from Argo CD's watch
 	ResourceExclusions []ExcludedResource
-}
-
-type ResourceOverride struct {
-	HealthLua         string `json:"health.lua,omitempty"`
-	IgnoreDifferences string `json:"ignoreDifferences,omitempty"`
 }
 
 type OIDCConfig struct {
@@ -330,7 +325,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 
 	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok {
-		resourceOverrides := map[string]ResourceOverride{}
+		resourceOverrides := map[string]v1alpha1.ResourceOverride{}
 		err := yaml.Unmarshal([]byte(value), &resourceOverrides)
 		if err != nil {
 			errors = append(errors, err)
@@ -477,6 +472,8 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 			return err
 		}
 		argoCDCM.Data[resourceCustomizationsKey] = string(yamlBytes)
+	} else {
+		delete(argoCDCM.Data, resourceCustomizationsKey)
 	}
 
 	if len(settings.ResourceExclusions) > 0 {
@@ -485,7 +482,8 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 			return err
 		}
 		argoCDCM.Data[resourceExclusionsKey] = string(yamlBytes)
-
+	} else {
+		delete(argoCDCM.Data, resourceExclusionsKey)
 	}
 
 	if createCM {

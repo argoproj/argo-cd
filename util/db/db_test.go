@@ -215,6 +215,9 @@ func TestGetClusterSuccessful(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster-443",
 			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
 		},
 		Data: map[string][]byte{
 			"server": []byte(clusterURL),
@@ -240,27 +243,6 @@ func TestGetNonExistingCluster(t *testing.T) {
 	assert.Equal(t, codes.NotFound, status.Code())
 }
 
-func TestGetClusterFallbackToLegacyName(t *testing.T) {
-	clusterURL := "https://mycluster"
-	legacyClusterName := "cluster-mycluster-3274446258"
-
-	clientset := getClientset(nil, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      legacyClusterName,
-			Namespace: testNamespace,
-		},
-		Data: map[string][]byte{
-			"server": []byte(clusterURL),
-			"config": []byte("{}"),
-		},
-	})
-
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	cluster, err := db.GetCluster(context.Background(), clusterURL)
-	assert.Nil(t, err)
-	assert.Equal(t, clusterURL, cluster.Server)
-}
-
 func TestCreateClusterSuccessful(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clientset := getClientset(nil)
@@ -271,21 +253,27 @@ func TestCreateClusterSuccessful(t *testing.T) {
 	})
 	assert.Nil(t, err)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get("mycluster-443", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get("cluster-mycluster-3274446258", metav1.GetOptions{})
 	assert.Nil(t, err)
 
 	assert.Equal(t, clusterURL, string(secret.Data["server"]))
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 }
 
-func TestDeleteClusterWithLegacyName(t *testing.T) {
+func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	clusterURL := "https://mycluster"
-	legacyClusterName := "cluster-mycluster-3274446258"
+	clusterName := "cluster-mycluster-3274446258"
 
 	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      legacyClusterName,
+			Name:      clusterName,
 			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
 		},
 		Data: map[string][]byte{
 			"server": []byte(clusterURL),
@@ -297,7 +285,7 @@ func TestDeleteClusterWithLegacyName(t *testing.T) {
 	err := db.DeleteCluster(context.Background(), clusterURL)
 	assert.Nil(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get(legacyClusterName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(clusterName, metav1.GetOptions{})
 	assert.NotNil(t, err)
 
 	assert.True(t, errors.IsNotFound(err))

@@ -105,12 +105,12 @@ data:
   # minikube
   name: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
   # https://localhost:6443
-  server: aHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3Zj
+  server: aHR0cHM6Ly9sb2NhbGhvc3Q6NjQ0Mw==
 kind: Secret
 metadata:
   labels:
     argocd.argoproj.io/secret-type: cluster
-  name: localhost-6443
+  name: some-secret
   namespace: ` + test.FakeArgoCDNamespace + `
 type: Opaque
 `

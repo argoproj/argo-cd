@@ -17,6 +17,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/health"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/settings"
 )
@@ -80,7 +81,7 @@ func (c *clusterInfo) replaceResourceCache(gk schema.GroupKind, resourceVersion 
 	}
 }
 
-func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node {
+func (c *clusterInfo) createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node {
 	ownerRefs := un.GetOwnerReferences()
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
 	if un.GroupVersionKind().Group == "" && un.GetKind() == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0 {
@@ -90,7 +91,7 @@ func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node
 			APIVersion: "",
 		})
 	}
-	info := &node{
+	nodeInfo := &node{
 		resourceVersion: un.GetResourceVersion(),
 		ref: v1.ObjectReference{
 			APIVersion: un.GetAPIVersion(),
@@ -99,14 +100,15 @@ func createObjInfo(un *unstructured.Unstructured, appInstanceLabel string) *node
 			Namespace:  un.GetNamespace(),
 		},
 		ownerRefs: ownerRefs,
-		info:      getNodeInfo(un),
 	}
+	populateNodeInfo(un, nodeInfo)
 	appName := kube.GetAppInstanceLabel(un, appInstanceLabel)
 	if len(ownerRefs) == 0 && appName != "" {
-		info.appName = appName
-		info.resource = un
+		nodeInfo.appName = appName
+		nodeInfo.resource = un
 	}
-	return info
+	nodeInfo.health, _ = health.GetResourceHealth(un, c.settings.ResourceOverrides)
+	return nodeInfo
 }
 
 func (c *clusterInfo) setNode(n *node) {
@@ -294,7 +296,7 @@ func (c *clusterInfo) sync() (err error) {
 
 		lock.Lock()
 		for i := range list.Items {
-			c.setNode(createObjInfo(&list.Items[i], c.settings.GetAppInstanceLabelKey()))
+			c.setNode(c.createObjInfo(&list.Items[i], c.settings.GetAppInstanceLabelKey()))
 		}
 		lock.Unlock()
 		return nil
@@ -330,19 +332,19 @@ func (c *clusterInfo) ensureSynced() error {
 	return c.syncError
 }
 
-func (c *clusterInfo) getChildren(obj *unstructured.Unstructured) []appv1.ResourceNode {
+func (c *clusterInfo) iterateHierarchy(key kube.ResourceKey, action func(child appv1.ResourceNode)) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	children := make([]appv1.ResourceNode, 0)
-	if objInfo, ok := c.nodes[kube.GetResourceKey(obj)]; ok {
-		nsNodes := c.nsIndex[obj.GetNamespace()]
+	if objInfo, ok := c.nodes[key]; ok {
+		action(objInfo.asResourceNode())
+		nsNodes := c.nsIndex[key.Namespace]
 		for _, child := range nsNodes {
 			if objInfo.isParentOf(child) {
-				children = append(children, child.childResourceNodes(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}))
+				action(child.asResourceNode())
+				child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{objInfo.resourceKey(): true}, action)
 			}
 		}
 	}
-	return children
 }
 
 func (c *clusterInfo) isNamespaced(obj *unstructured.Unstructured) bool {
@@ -454,7 +456,7 @@ func (c *clusterInfo) onNodeUpdated(exists bool, existingNode *node, un *unstruc
 	if exists {
 		nodes = append(nodes, existingNode)
 	}
-	newObj := createObjInfo(un, c.settings.GetAppInstanceLabelKey())
+	newObj := c.createObjInfo(un, c.settings.GetAppInstanceLabelKey())
 	c.setNode(newObj)
 	nodes = append(nodes, newObj)
 	toNotify := make(map[string]bool)

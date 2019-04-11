@@ -180,7 +180,7 @@
           "200": {
             "description": "(empty)",
             "schema": {
-              "$ref": "#/definitions/applicationResourceTreeResponse"
+              "$ref": "#/definitions/v1alpha1ApplicationTree"
             }
           }
         }
@@ -1445,17 +1445,6 @@
     "applicationOperationTerminateResponse": {
       "type": "object"
     },
-    "applicationResourceTreeResponse": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
-        }
-      }
-    },
     "clusterClusterCreateFromKubeConfigRequest": {
       "type": "object",
       "properties": {
@@ -1528,6 +1517,12 @@
         },
         "oidcConfig": {
           "$ref": "#/definitions/clusterOIDCConfig"
+        },
+        "resourceOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1alpha1ResourceOverride"
+          }
         },
         "url": {
           "type": "string"
@@ -1961,6 +1956,20 @@
         }
       }
     },
+    "v1LoadBalancerIngress": {
+      "description": "LoadBalancerIngress represents the status of a load-balancer ingress point:\ntraffic intended for the service should be sent to an ingress point.",
+      "type": "object",
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "title": "Hostname is set for load-balancer ingress points that are DNS based\n(typically AWS load-balancers)\n+optional"
+        },
+        "ip": {
+          "type": "string",
+          "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        }
+      }
+    },
     "v1MicroTime": {
       "description": "MicroTime is version of Time with microsecond level precision.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
       "type": "object",
@@ -2372,13 +2381,6 @@
       "description": "ApplicationSource contains information about github repository, path within repository and target application environment.",
       "type": "object",
       "properties": {
-        "componentParameterOverrides": {
-          "type": "array",
-          "title": "ComponentParameterOverrides are a list of parameter override values\nDEPRECATED: use app source specific config instead",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ComponentParameter"
-          }
-        },
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
@@ -2555,6 +2557,12 @@
             "$ref": "#/definitions/v1alpha1RevisionHistory"
           }
         },
+        "ingress": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1LoadBalancerIngress"
+          }
+        },
         "observedAt": {
           "$ref": "#/definitions/v1Time"
         },
@@ -2575,6 +2583,18 @@
         },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncStatus"
+        }
+      }
+    },
+    "v1alpha1ApplicationTree": {
+      "type": "object",
+      "title": "ApplicationTree holds nodes which belongs to the application",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
         }
       }
     },
@@ -2657,21 +2677,6 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
-        }
-      }
-    },
-    "v1alpha1ComponentParameter": {
-      "type": "object",
-      "title": "ComponentParameter contains information about component parameter value",
-      "properties": {
-        "component": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
         }
       }
     },
@@ -2860,7 +2865,7 @@
     },
     "v1alpha1Repository": {
       "type": "object",
-      "title": "Repository is a repository holding application configurations",
+      "title": "Repository is a Git repository holding application configurations",
       "properties": {
         "caData": {
           "type": "string",
@@ -2967,24 +2972,90 @@
         }
       }
     },
+    "v1alpha1ResourceNetworkingInfo": {
+      "type": "object",
+      "title": "ResourceNetworkingInfo holds networking resource related information",
+      "properties": {
+        "ingress": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1LoadBalancerIngress"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "targetLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "targetRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceRef"
+          }
+        }
+      }
+    },
     "v1alpha1ResourceNode": {
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children",
       "properties": {
-        "children": {
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "images": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
+            "type": "string"
           }
-        },
-        "group": {
-          "type": "string"
         },
         "info": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1InfoItem"
           }
+        },
+        "networkingInfo": {
+          "$ref": "#/definitions/v1alpha1ResourceNetworkingInfo"
+        },
+        "parentRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceRef"
+          }
+        },
+        "resourceRef": {
+          "$ref": "#/definitions/v1alpha1ResourceRef"
+        },
+        "resourceVersion": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceOverride": {
+      "type": "object",
+      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
+      "properties": {
+        "healthLua": {
+          "type": "string"
+        },
+        "ignoreDifferences": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceRef": {
+      "type": "object",
+      "title": "ResourceRef includes fields which unique identify resource",
+      "properties": {
+        "group": {
+          "type": "string"
         },
         "kind": {
           "type": "string"
@@ -2993,9 +3064,6 @@
           "type": "string"
         },
         "namespace": {
-          "type": "string"
-        },
-        "resourceVersion": {
           "type": "string"
         },
         "version": {

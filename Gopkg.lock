@@ -50,6 +50,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:0cac9c70f3308d54ed601878aa66423eb95c374616fdd7d2ea4e2d18b045ae62"
+  name = "github.com/ant31/crd-validation"
+  packages = ["pkg"]
+  pruneopts = ""
+  revision = "38f6a293f140402953f884b015014e0cd519bbb3"
+
+[[projects]]
+  branch = "master"
   digest = "1:0caf9208419fa5db5a0ca7112affaa9550c54291dda8e2abac0c0e76181c959e"
   name = "github.com/argoproj/argo"
   packages = [
@@ -1218,7 +1226,7 @@
 
 [[projects]]
   branch = "release-1.12"
-  digest = "1:ed04c5203ecbf6358fb6a774b0ecd40ea992d6dcc42adc1d3b7cf9eceb66b6c8"
+  digest = "1:3e3e9df293bd6f9fd64effc9fa1f0edcd97e6c74145cd9ab05d35719004dc41f"
   name = "k8s.io/api"
   packages = [
     "admission/v1beta1",
@@ -1256,15 +1264,19 @@
     "storage/v1beta1",
   ]
   pruneopts = ""
-  revision = "475331a8afff5587f47d0470a93f79c60c573c03"
+  revision = "6db15a15d2d3874a6c3ddb2140ac9f3bc7058428"
 
 [[projects]]
-  branch = "release-1.12"
-  digest = "1:39be82077450762b5e14b5268e679a14ac0e9c7d3286e2fcface437556a29e4c"
+  branch = "master"
+  digest = "1:49e0fcdcaeaf937c6c608d1da19eb80de74fe990021278d49d46e10288659be6"
   name = "k8s.io/apiextensions-apiserver"
-  packages = ["pkg/features"]
+  packages = [
+    "pkg/apis/apiextensions",
+    "pkg/apis/apiextensions/v1beta1",
+    "pkg/features",
+  ]
   pruneopts = ""
-  revision = "ca1024863b48cf0701229109df75ac5f0bb4907e"
+  revision = "7f7d2b94eca3a7a1c49840e119a8bc03c3afb1e3"
 
 [[projects]]
   branch = "release-1.12"
@@ -1323,15 +1335,15 @@
   revision = "f71dbbc36e126f5a371b85f6cca96bc8c57db2b6"
 
 [[projects]]
-  branch = "master"
-  digest = "1:cb3ac215bfac54696f64a6e5c46524a7fc0f7a8f9b7a22cccb2e1e83ac2d013f"
+  branch = "release-1.12"
+  digest = "1:b2c55ff9df6d053e40094b943f949c257c3f7dcdbb035c11487c93c96df9eade"
   name = "k8s.io/apiserver"
   packages = [
     "pkg/features",
     "pkg/util/feature",
   ]
   pruneopts = ""
-  revision = "19cf388d0a374e95329bf7d98e9bfd7da8853be0"
+  revision = "5e1c1f41ee34b3bb153f928f8c91c2a6dd9482a9"
 
 [[projects]]
   branch = "release-9.0"
@@ -1449,7 +1461,7 @@
 
 [[projects]]
   branch = "release-1.12"
-  digest = "1:e6fffdf0dfeb0d189a7c6d735e76e7564685d3b6513f8b19d3651191cb6b084b"
+  digest = "1:8108815d1aef9159daabdb3f0fcef04a88765536daf0c0cd29a31fdba135ee54"
   name = "k8s.io/code-generator"
   packages = [
     "cmd/go-to-protobuf",
@@ -1458,21 +1470,22 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = ""
-  revision = "3dcf91f64f638563e5106f21f50c31fa361c918d"
+  revision = "b1289fc74931d4b6b04bd1a259acfc88a2cb0a66"
 
 [[projects]]
   branch = "master"
-  digest = "1:15710582bd5ceff07eee4726884f75f97f90366fde9307b8dd09500c75722456"
+  digest = "1:6a2a63e09a59caff3fd2d36d69b7b92c2fe7cf783390f0b7349fb330820f9a8e"
   name = "k8s.io/gengo"
   packages = [
     "args",
+    "examples/set-gen/sets",
     "generator",
     "namer",
     "parser",
     "types",
   ]
   pruneopts = ""
-  revision = "8394c995ab8fbe52216f38d0e1a37de36d820528"
+  revision = "e17681d19d3ac4837a019ece36c2a0ec31ffe985"
 
 [[projects]]
   digest = "1:4f5eb833037cc0ba0bf8fe9cae6be9df62c19dd1c869415275c708daa8ccfda5"
@@ -1483,15 +1496,19 @@
   version = "v0.1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:9a648ff9eb89673d2870c22fc011ec5db0fcff6c4e5174a650298e51be71bbf1"
+  digest = "1:199c4a3508ac049896ac06f518c99113e8404723ecf1891dd0c81c3cc17ba410"
   name = "k8s.io/kube-openapi"
   packages = [
+    "cmd/openapi-gen",
+    "cmd/openapi-gen/args",
     "pkg/common",
+    "pkg/generators",
+    "pkg/generators/rules",
     "pkg/util/proto",
+    "pkg/util/sets",
   ]
   pruneopts = ""
-  revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
+  revision = "master"
 
 [[projects]]
   digest = "1:6061aa42761235df375f20fa4a1aa6d1845cba3687575f3adb2ef3f3bc540af5"
@@ -1530,6 +1547,7 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/TomOnTime/utfutil",
+    "github.com/ant31/crd-validation/pkg",
     "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1",
     "github.com/argoproj/argo/util",
     "github.com/argoproj/pkg/exec",
@@ -1545,6 +1563,7 @@
     "github.com/go-openapi/errors",
     "github.com/go-openapi/loads",
     "github.com/go-openapi/runtime/middleware",
+    "github.com/go-openapi/spec",
     "github.com/go-redis/cache",
     "github.com/go-redis/redis",
     "github.com/gobuffalo/packr",
@@ -1553,6 +1572,7 @@
     "github.com/gogo/protobuf/proto",
     "github.com/gogo/protobuf/protoc-gen-gofast",
     "github.com/gogo/protobuf/protoc-gen-gogofast",
+    "github.com/gogo/protobuf/sortkeys",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/protoc-gen-go",
     "github.com/golang/protobuf/ptypes/empty",
@@ -1618,6 +1638,7 @@
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apimachinery/pkg/api/equality",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
@@ -1651,6 +1672,8 @@
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/go-to-protobuf",
+    "k8s.io/kube-openapi/cmd/openapi-gen",
+    "k8s.io/kube-openapi/pkg/common",
     "k8s.io/kubernetes/pkg/api/v1/pod",
     "k8s.io/kubernetes/pkg/apis/apps",
     "k8s.io/kubernetes/pkg/apis/batch",

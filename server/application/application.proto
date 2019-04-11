@@ -144,10 +144,6 @@ message ResourcesQuery {
 	required string applicationName = 1 [(gogoproto.nullable) = true];
 }
 
-message ResourceTreeResponse {
-	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceNode items = 1;
-}
-
 message ManagedResourcesResponse {
 	repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
 }
@@ -229,7 +225,7 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
-	rpc ResourceTree(ResourcesQuery) returns (ResourceTreeResponse) {
+	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
 

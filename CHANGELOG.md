@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.12.1 (2019-04-09)
+
+## Changes since v0.12.0
+
+- [UI] applications view blows up when user does not have  permissions (#1368)
+- Add k8s objects circular dependency protection to getApp method (#1374)
+- App controller unnecessary set namespace to cluster level resources (#1404)
+- Changing SSO login URL to be a relative link so it's affected by basehref (#101) (@arnarg)
+- CLI diff should take into account resource customizations (#1294)
+- Don't try deleting application resource if it already has `deletionTimestamp` (#1406)
+- Fix invalid group filtering in 'patch-resource' command (#1319)
+- Fix null pointer dereference error in 'argocd app wait' (#1366)
+- kubectl v1.13 fails to convert extensions/NetworkPolicy (#1012)
+- Patch APIs are not audited (#1397)
+
++ 'argocd app wait' should fail sooner if app transitioned to Degraded state (#733)
++ Add mapping to new canonical Ingress API group - kubernetes 1.14 support (#1348) (@twz123)
++ Adds support for `kustomize edit set image`. (#1275)
++ Allow using any name for secrets which store cluster credentials (#1218)
++ Update argocd-util import/export to support proper backup and restore (#1048)
+
 ## v0.12.0 (2019-03-20)
 
 ### New Features

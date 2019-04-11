@@ -362,6 +362,8 @@ func (s *Server) Patch(ctx context.Context, q *ApplicationPatchRequest) (*appv1.
 		return nil, err
 	}
 
+	s.logEvent(app, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched application %s/%s", app.Namespace, app.Name))
+
 	err = json.Unmarshal(patchApp, &app)
 	if err != nil {
 		return nil, err
@@ -522,12 +524,8 @@ func (s *Server) getApplicationClusterConfig(applicationName string) (*rest.Conf
 	return config, namespace, err
 }
 
-func (s *Server) getAppResources(ctx context.Context, q *ResourcesQuery) (*ResourceTreeResponse, error) {
-	items, err := s.cache.GetAppResourcesTree(*q.ApplicationName)
-	if err != nil {
-		return nil, err
-	}
-	return &ResourceTreeResponse{Items: items}, nil
+func (s *Server) getAppResources(ctx context.Context, q *ResourcesQuery) (*appv1.ApplicationTree, error) {
+	return s.cache.GetAppResourcesTree(*q.ApplicationName)
 }
 
 func (s *Server) getAppResource(ctx context.Context, action string, q *ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
@@ -539,12 +537,12 @@ func (s *Server) getAppResource(ctx context.Context, action string, q *Applicati
 		return nil, nil, nil, err
 	}
 
-	resources, err := s.getAppResources(ctx, &ResourcesQuery{ApplicationName: &a.Name})
+	tree, err := s.getAppResources(ctx, &ResourcesQuery{ApplicationName: &a.Name})
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	found := findResource(resources.Items, q)
+	found := tree.FindNode(q.Group, q.Kind, q.Namespace, q.ResourceName)
 	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.Kind, q.Group, q.ResourceName, *q.Name)
 	}
@@ -621,6 +619,7 @@ func (s *Server) PatchResource(ctx context.Context, q *ApplicationResourcePatchR
 	if err != nil {
 		return nil, err
 	}
+	s.logEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.Group, q.Kind, q.ResourceName))
 	return &ApplicationResourceResponse{
 		Manifest: string(data),
 	}, nil
@@ -656,7 +655,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *ApplicationResourceDelet
 	return &ApplicationResponse{}, nil
 }
 
-func (s *Server) ResourceTree(ctx context.Context, q *ResourcesQuery) (*ResourceTreeResponse, error) {
+func (s *Server) ResourceTree(ctx context.Context, q *ResourcesQuery) (*appv1.ApplicationTree, error) {
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).Get(*q.ApplicationName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -680,16 +679,6 @@ func (s *Server) ManagedResources(ctx context.Context, q *ResourcesQuery) (*Mana
 		return nil, err
 	}
 	return &ManagedResourcesResponse{Items: items}, nil
-}
-
-func findResource(resources []*appv1.ResourceNode, q *ApplicationResourceRequest) *appv1.ResourceNode {
-	for i := range resources {
-		node := resources[i].FindNode(q.Group, q.Kind, q.Namespace, q.ResourceName)
-		if node != nil {
-			return node
-		}
-	}
-	return nil
 }
 
 func (s *Server) PodLogs(q *ApplicationPodLogsQuery, ws ApplicationService_PodLogsServer) error {

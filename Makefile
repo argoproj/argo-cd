@@ -51,12 +51,16 @@ all: cli image argocd-util
 protogen:
 	./hack/generate-proto.sh
 
+.PHONY: openapigen
+openapigen:
+	./hack/update-openapi.sh
+
 .PHONY: clientgen
 clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen
+codegen: protogen clientgen openapigen
 
 .PHONY: cli
 cli: clean-debug
@@ -150,6 +154,11 @@ clean-debug:
 .PHONY: clean
 clean: clean-debug
 	-rm -rf ${CURRENT_DIR}/dist
+
+.PHONY: start
+start:
+	killall goreman || true
+	goreman start
 
 .PHONY: pre-commit
 pre-commit: dep-ensure codegen build lint test

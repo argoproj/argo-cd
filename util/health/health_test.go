@@ -13,6 +13,12 @@ import (
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthStatusCode) {
+	health := getHealthStatus(yamlPath, t)
+	assert.NotNil(t, health)
+	assert.Equal(t, expectedStatus, health.Status)
+}
+
+func getHealthStatus(yamlPath string, t *testing.T) *appv1.HealthStatus {
 	yamlBytes, err := ioutil.ReadFile(yamlPath)
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
@@ -20,8 +26,7 @@ func assertAppHealth(t *testing.T, yamlPath string, expectedStatus appv1.HealthS
 	assert.Nil(t, err)
 	health, err := GetResourceHealth(&obj, nil)
 	assert.Nil(t, err)
-	assert.NotNil(t, health)
-	assert.Equal(t, expectedStatus, health.Status)
+	return health
 }
 
 func TestDeploymentHealth(t *testing.T) {
@@ -54,8 +59,7 @@ func TestIngressHealth(t *testing.T) {
 }
 
 func TestCRD(t *testing.T) {
-	// This ensures we do not try to compare only based on "Kind"
-	assertAppHealth(t, "./testdata/knative-service.yaml", appv1.HealthStatusHealthy)
+	assert.Nil(t, getHealthStatus("./testdata/knative-service.yaml", t))
 }
 
 func TestJob(t *testing.T) {
@@ -68,12 +72,14 @@ func TestPod(t *testing.T) {
 	assertAppHealth(t, "./testdata/pod-pending.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-running-not-ready.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-crashloop.yaml", appv1.HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-imagepullbackoff.yaml", appv1.HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-error.yaml", appv1.HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-running-restart-always.yaml", appv1.HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/pod-running-restart-never.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-running-restart-onfailure.yaml", appv1.HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-failed.yaml", appv1.HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-succeeded.yaml", appv1.HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pod-deletion.yaml", appv1.HealthStatusProgressing)
 }
 
 func TestSetApplicationHealth(t *testing.T) {

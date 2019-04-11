@@ -42,14 +42,27 @@ import (
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
-	argosettings "github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/util/templates"
+)
+
+var (
+	appExample = templates.Examples(`
+	# List all the applications.
+	argocd app list
+
+	# Get the details of a application
+	argocd app get my-app
+
+	# Set an override parameter
+	argocd app set my-app -p image.tag=v1.0.1`)
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "app",
-		Short: "Manage applications",
+		Use:     "app",
+		Short:   "Manage applications",
+		Example: appExample,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -521,9 +534,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 						}
 					}
 				}
-				if len(app.Spec.Source.Ksonnet.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
-				}
 			}
 			if app.Spec.Source.Helm != nil {
 				for _, paramStr := range parameters {
@@ -535,9 +545,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 							break
 						}
 					}
-				}
-				if len(app.Spec.Source.Helm.Parameters) == 0 {
-					app.Spec.Source.ComponentParameterOverrides = nil
 				}
 				specValueFiles := app.Spec.Source.Helm.ValueFiles
 				for _, valuesFile := range valuesFiles {
@@ -675,11 +682,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				live   *unstructured.Unstructured
 				target *unstructured.Unstructured
 			}, 0)
+
+			conn, settingsIf := clientset.NewSettingsClientOrDie()
+			defer util.Close(conn)
+			argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
+			errors.CheckError(err)
+
 			if local != "" {
-				conn, settingsIf := clientset.NewSettingsClientOrDie()
-				defer util.Close(conn)
-				argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
-				errors.CheckError(err)
 				localObjs := groupLocalObjs(getLocalObjects(app, local, argoSettings.AppLabelKey), liveObjs, app.Spec.Destination.Namespace)
 				for _, res := range resources.Items {
 					var live = &unstructured.Unstructured{}
@@ -751,8 +760,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			foundDiffs := false
 			for i := range items {
 				item := items[i]
-				// TODO (amatyushentsev): use resource overrides exposed from API server
-				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, make(map[string]argosettings.ResourceOverride))
+				overrides := make(map[string]argoappv1.ResourceOverride)
+				for k := range argoSettings.ResourceOverrides {
+					val := argoSettings.ResourceOverrides[k]
+					overrides[k] = *val
+				}
+				normalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, overrides)
 				errors.CheckError(err)
 				// Diff is already available in ResourceDiff Diff field but we have to recalculate diff again due to https://github.com/yudai/gojsondiff/issues/31
 				diffRes := diff.Diff(item.target, item.live, normalizer)
@@ -952,10 +965,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if watchSuspended && watchHealth {
-				log.Fatal("Wait command can not have both the --health and --suspended flags set")
-
-			}
 			if !watchSync && !watchHealth && !watchOperations && !watchSuspended {
 				watchSync = true
 				watchHealth = true
@@ -1004,11 +1013,15 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\n")
 	}
 	for _, res := range app.Status.Resources {
+		healthStatus := ""
+		if res.Health != nil {
+			healthStatus = res.Health.Status
+		}
 		if showOperation {
 			message := messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health.Status, "", message)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus, "", message)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health.Status)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus)
 		}
 		fmt.Fprint(w, "\n")
 	}
@@ -1127,13 +1140,17 @@ type resourceState struct {
 }
 
 func newResourceStateFromStatus(res *argoappv1.ResourceStatus) *resourceState {
+	healthStatus := ""
+	if res.Health != nil {
+		healthStatus = res.Health.Status
+	}
 	return &resourceState{
 		Group:     res.Group,
 		Kind:      res.Kind,
 		Namespace: res.Namespace,
 		Name:      res.Name,
 		Status:    string(res.Status),
-		Health:    res.Health.Status,
+		Health:    healthStatus,
 	}
 }
 
@@ -1272,12 +1289,21 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if app.Operation != nil {
 			refresh = true
 		}
+
+		healthStatus := true
+		if watchSuspened && watchHealth {
+			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusHealthy ||
+				app.Status.Health.Status == argoappv1.HealthStatusSuspended
+		} else if watchSuspened {
+			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusSuspended
+		} else if watchHealth {
+			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusHealthy
+		}
+
 		// consider skipped checks successful
 		synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
-		healthy := !watchHealth || app.Status.Health.Status == argoappv1.HealthStatusHealthy
 		operational := !watchOperation || appEvent.Application.Operation == nil
-		suspended := !watchSuspened || app.Status.Health.Status == argoappv1.HealthStatusSuspended
-		if len(app.Status.GetErrorConditions()) == 0 && synced && healthy && operational && suspended {
+		if len(app.Status.GetErrorConditions()) == 0 && synced && healthStatus && operational {
 			printFinalStatus(app)
 			return app, nil
 		}
@@ -1287,6 +1313,10 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			var doPrint bool
 			stateKey := newState.Key()
 			if prevState, found := prevStates[stateKey]; found {
+				if watchHealth && prevState.Health != argoappv1.HealthStatusUnknown && prevState.Health != argoappv1.HealthStatusDegraded && newState.Health == argoappv1.HealthStatusDegraded {
+					printFinalStatus(app)
+					return nil, fmt.Errorf("Application '%s' health state has transitioned from %s to %s", appName, prevState.Health, newState.Health)
+				}
 				doPrint = prevState.Merge(newState)
 			} else {
 				prevStates[stateKey] = newState
@@ -1473,6 +1503,9 @@ const printOpFmtStr = "%-20s%s\n"
 const defaultCheckTimeoutSeconds = 0
 
 func printOperationResult(opState *argoappv1.OperationState) {
+	if opState == nil {
+		return
+	}
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
 		fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)

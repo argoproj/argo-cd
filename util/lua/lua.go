@@ -14,7 +14,6 @@ import (
 	luajson "layeh.com/gopher-json"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -34,7 +33,7 @@ func init() {
 
 // VM Defines a struct that implements the luaVM
 type VM struct {
-	ResourceOverrides map[string]settings.ResourceOverride
+	ResourceOverrides map[string]appv1.ResourceOverride
 	// UseOpenLibs flag to enable open libraries. Libraries are always disabled while running, but enabled during testing to allow the use of print statements
 	UseOpenLibs bool
 }
