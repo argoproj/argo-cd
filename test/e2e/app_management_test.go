@@ -65,6 +65,28 @@ func getTestApp() *v1alpha1.Application {
 	}
 }
 
+func createAndSync(t *testing.T, appPath string) *v1alpha1.Application {
+	app := getTestApp()
+	app.Spec.Source.Path = appPath
+
+	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "sync", app.Name)
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "wait", app.Name, "--sync", "--timeout", "5")
+	assert.NoError(t, err)
+
+	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+	return app
+}
+
+func createAndSyncDefault(t *testing.T) *v1alpha1.Application {
+	return createAndSync(t, guestbookPath)
+}
+
 func TestAppCreation(t *testing.T) {
 	fixture.EnsureCleanState()
 
@@ -123,18 +145,9 @@ func TestAppDeletion(t *testing.T) {
 func TestTrackAppStateAndSyncApp(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(getTestApp())
-	assert.NoError(t, err)
+	app := createAndSyncDefault(t)
 
-	// sync app and make sure it reaches InSync state
-	_, err = fixture.RunCli("app", "sync", app.Name)
-	assert.NoError(t, err)
 	assertAppHasEvent(t, app, "sync", argo.EventReasonResourceUpdated)
-
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
-	})
 	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
 	assert.True(t, app.Status.OperationState.SyncResult != nil)
 	assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
@@ -213,21 +226,14 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app := getTestApp()
-
-	// deploy app and make sure it is healthy
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
-	assert.NoError(t, err)
-
-	_, err = fixture.RunCli("app", "sync", app.Name)
-	assert.NoError(t, err)
+	app := createAndSyncDefault(t)
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusHealthy, err
 	})
 
-	_, err = fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
+	_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
 	assert.NoError(t, err)
 
 	_, err = fixture.RunCli("app", "sync", app.Name)
@@ -242,17 +248,7 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 func TestManipulateApplicationResources(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app := getTestApp()
-
-	// deploy app and make sure it is healthy
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
-	assert.NoError(t, err)
-
-	_, err = fixture.RunCli("app", "sync", app.Name)
-	assert.NoError(t, err)
-
-	_, err = fixture.RunCli("app", "wait", app.Name)
-	assert.NoError(t, err)
+	app := createAndSyncDefault(t)
 
 	manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
 	assert.NoError(t, err)
@@ -286,6 +282,30 @@ func TestManipulateApplicationResources(t *testing.T) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
 	})
+}
+
+func TestAppWithSecrets(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := createAndSync(t, "secrets")
+
+	app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{{
+		Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
+	}}
+
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+	_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
+		Name: &app.Name,
+		Spec: app.Spec,
+	})
+
+	assert.NoError(t, err)
+
+	diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+	assert.NoError(t, err)
+	assert.Empty(t, diffOutput)
 }
 
 func TestResourceDiffing(t *testing.T) {
@@ -354,13 +374,8 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 	for name, appPath := range apps {
 		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
 			fixture.EnsureCleanState()
-			app := getTestApp()
-			app.Spec.Source.Path = appPath
-			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
-			assert.NoError(t, err)
 
-			_, err = fixture.RunCli("app", "sync", app.Name)
-			assert.NoError(t, err)
+			app := createAndSync(t, appPath)
 
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)

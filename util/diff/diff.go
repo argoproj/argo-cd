@@ -29,7 +29,7 @@ type DiffResultList struct {
 }
 
 type Normalizer interface {
-	Normalize(un *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	Normalize(un *unstructured.Unstructured) error
 }
 
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
@@ -249,15 +249,6 @@ func Normalize(un *unstructured.Unstructured, normalizer Normalizer) {
 		return
 	}
 
-	if normalizer != nil {
-		normalized, err := normalizer.Normalize(un)
-		if err == nil {
-			un = normalized
-		} else {
-			log.Warnf("Failed to normalize %s/%s/%s: %v", un.GroupVersionKind(), un.GetNamespace(), un.GetName(), err)
-		}
-	}
-
 	// creationTimestamp is sometimes set to null in the config when exported (e.g. SealedSecrets)
 	// Removing the field allows a cleaner diff.
 	unstructured.RemoveNestedField(un.Object, "metadata", "creationTimestamp")
@@ -266,6 +257,13 @@ func Normalize(un *unstructured.Unstructured, normalizer Normalizer) {
 		NormalizeSecret(un)
 	} else if gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role") {
 		normalizeRole(un)
+	}
+
+	if normalizer != nil {
+		err := normalizer.Normalize(un)
+		if err != nil {
+			log.Warnf("Failed to normalize %s/%s/%s: %v", un.GroupVersionKind(), un.GetNamespace(), un.GetName(), err)
+		}
 	}
 }
 
@@ -305,7 +303,7 @@ func NormalizeSecret(un *unstructured.Unstructured) {
 		return
 	}
 	if secret.Data != nil {
-		err = unstructured.SetNestedMap(un.Object, newObj["data"].(map[string]interface{}), "data")
+		err = unstructured.SetNestedField(un.Object, newObj["data"], "data")
 		if err != nil {
 			log.Warnf("failed to set secret.data: %v", err)
 			return

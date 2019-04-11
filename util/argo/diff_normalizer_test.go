@@ -26,7 +26,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, has)
 
-	deployment, err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment)
 	assert.Nil(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
@@ -44,10 +44,12 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 
 	deployment := kube.MustToUnstructured(test.DemoDeployment())
 
-	normalized, err := normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment)
 	assert.Nil(t, err)
 
-	assert.Equal(t, deployment.Object, normalized.Object)
+	_, hasSpec, err := unstructured.NestedMap(deployment.Object, "spec")
+	assert.Nil(t, err)
+	assert.True(t, hasSpec)
 }
 
 func TestNormalizeMatchedResourceOverrides(t *testing.T) {
@@ -65,7 +67,7 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, has)
 
-	deployment, err = normalizer.Normalize(deployment)
+	err = normalizer.Normalize(deployment)
 	assert.Nil(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
