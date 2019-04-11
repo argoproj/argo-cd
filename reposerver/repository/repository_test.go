@@ -48,6 +48,15 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, 3, len(res2.Manifests))
 }
 
+func TestDirectory(t *testing.T) {
+	q := ManifestRequest{
+		ApplicationSource: &argoappv1.ApplicationSource{},
+	}
+	res, err := GenerateManifests("./testdata/directory", &q)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(res.Manifests))
+}
+
 func TestRecurseManifestsInDir(t *testing.T) {
 	q := ManifestRequest{
 		ApplicationSource: &argoappv1.ApplicationSource{},

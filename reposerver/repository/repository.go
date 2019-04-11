@@ -277,7 +277,7 @@ func GetAppSourceType(source *v1alpha1.ApplicationSource, appDirPath string) (v1
 		return *appSourceType, nil
 	}
 
-	if pathExists(appDirPath, "app.yaml") {
+	if pathExists(appDirPath, "app.yaml") && pathExists(appDirPath, "components/params.libsonnet") {
 		return v1alpha1.ApplicationSourceTypeKsonnet, nil
 	}
 	if pathExists(appDirPath, "Chart.yaml") {

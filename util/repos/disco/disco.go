@@ -61,6 +61,8 @@ func GetAppType(dir string) (string, error) {
 				return "helm", nil
 			} else if kustomize.IsKustomization(info.Name()) {
 				return "kustomize", nil
+			} else if info.Name() == "argocd.yaml" {
+				return "directory", nil
 			}
 		}
 	}
