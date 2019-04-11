@@ -367,7 +367,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 	objs := make([]*unstructured.Unstructured, 0)
 	for k := range objsMap {
-		if objsMap[k].GetDeletionTimestamp() == nil {
+		if objsMap[k].GetDeletionTimestamp() == nil && !kube.IsCRD(objsMap[k]) {
 			objs = append(objs, objsMap[k])
 		}
 	}
