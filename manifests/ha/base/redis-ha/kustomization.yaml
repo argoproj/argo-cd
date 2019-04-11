@@ -84,3 +84,8 @@ patchesJson6902:
     kind: Service
     name: argocd-redis-ha-announce-2
   path: overlays/service-selector.yaml
+- target:
+    version: v1
+    kind: Service
+    name: argocd-redis-ha
+  path: overlays/service-selector.yaml
