@@ -962,6 +962,11 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		watchSuspended  bool
 		watchOperations bool
 		timeout         uint
+		resources *[]string
+	)
+	const (
+		resourceFieldDelimiter = ":"
+		resourceFieldCount     = 3
 	)
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
@@ -977,15 +982,34 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchOperations = true
 				watchSuspended = false
 			}
+
+			var syncResources []argoappv1.SyncOperationResource
+			if resources != nil {
+				syncResources = []argoappv1.SyncOperationResource{}
+				for _, r := range *resources {
+					fields := strings.Split(r, resourceFieldDelimiter)
+					if len(fields) != resourceFieldCount {
+						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
+					}
+					rsrc := argoappv1.SyncOperationResource{
+						Group: fields[0],
+						Kind:  fields[1],
+						Name:  fields[2],
+					}
+					syncResources = append(syncResources, rsrc)
+				}
+			}
+
 			appName := args[0]
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, nil)
+			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, syncResources)
 			errors.CheckError(err)
 		},
 	}
 	command.Flags().BoolVar(&watchSync, "sync", false, "Wait for sync")
 	command.Flags().BoolVar(&watchHealth, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watchSuspended, "suspended", false, "Wait for suspended")
+	resources = command.Flags().StringArray("resource", nil, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 
 	command.Flags().BoolVar(&watchOperations, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
@@ -1238,6 +1262,23 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 	return resStates
 }
 
+func getResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
+	resStates := make(map[string]*resourceState)
+	for _, res := range app.Status.Resources {
+		if len(syncResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), syncResources) {
+			continue
+		}
+		newState := newResourceStateFromStatus(&res)
+		key := newState.Key()
+		if prev, ok := resStates[key]; ok {
+			prev.Merge(newState)
+		} else {
+			resStates[key] = newState
+		}
+	}
+	return resStates
+}
+
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
 func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspened bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
@@ -1296,6 +1337,30 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			refresh = true
 		}
 
+		fmt.Println(syncResources)
+		selectedResourcesAreReady := len(syncResources) > 0
+		for _, state := range getResourceStates(app, syncResources) {
+			healthStatus := true
+			if watchSuspened && watchHealth {
+				healthStatus = state.Health == argoappv1.HealthStatusHealthy ||
+					state.Health == argoappv1.HealthStatusSuspended
+			} else if watchSuspened {
+				healthStatus = state.Health == argoappv1.HealthStatusSuspended
+			} else if watchHealth {
+				healthStatus = state.Health == argoappv1.HealthStatusHealthy
+			}
+			synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
+			if !(healthStatus && synced) {
+				selectedResourcesAreReady = false
+			}
+		}
+
+		if selectedResourcesAreReady {
+			fmt.Println("Selected done")
+			printFinalStatus(app)
+			return app, nil
+		}
+
 		healthStatus := true
 		if watchSuspened && watchHealth {
 			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusHealthy ||
@@ -1310,6 +1375,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
 		operational := !watchOperation || appEvent.Application.Operation == nil
 		if len(app.Status.GetErrorConditions()) == 0 && synced && healthStatus && operational {
+			fmt.Println("All done")
 			printFinalStatus(app)
 			return app, nil
 		}

@@ -443,7 +443,7 @@ type ComponentParameter struct {
 }
 
 // SyncStatusCode is a type which represents possible comparison results
-type SyncStatusCode string
+type SyncStatusCode = string
 
 // Possible comparison results
 const (
