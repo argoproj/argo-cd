@@ -80,7 +80,7 @@ func NewDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides ma
 }
 
 // Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
-func (n *normalizer) Normalize(un *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (n *normalizer) Normalize(un *unstructured.Unstructured) error {
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
 		groupKind := un.GroupVersionKind().GroupKind()
@@ -92,12 +92,12 @@ func (n *normalizer) Normalize(un *unstructured.Unstructured) (*unstructured.Uns
 		}
 	}
 	if len(matched) == 0 {
-		return un, nil
+		return nil
 	}
 
 	docData, err := json.Marshal(un)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, patch := range matched {
@@ -106,14 +106,14 @@ func (n *normalizer) Normalize(un *unstructured.Unstructured) (*unstructured.Uns
 			if err.Error() == noMatchingPathError {
 				continue
 			}
-			return nil, err
+			return err
 		}
 		docData = patchedData
 	}
 
 	err = json.Unmarshal(docData, un)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return un, nil
+	return nil
 }
