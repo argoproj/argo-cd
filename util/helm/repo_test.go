@@ -10,7 +10,8 @@ func TestRepo(t *testing.T) {
 	repo, err := RepoFactory{}.GetRepo("https://kubernetes-charts.storage.googleapis.com", "test", "", "", nil, nil, nil)
 	assert.NoError(t, err)
 
-	const latestWordpressVersion = "5.7.1"
+	// TODO - this changes regularly
+	const latestWordpressVersion = "5.8.0"
 
 	t.Run("FindApps", func(t *testing.T) {
 		apps, err := repo.FindApps("")
@@ -19,13 +20,14 @@ func TestRepo(t *testing.T) {
 	})
 
 	t.Run("ResolveLatestRevision", func(t *testing.T) {
-		resolvedRevision, err := repo.ResolveRevision("wordpress", "")
+		unresolvedRevision := ""
+		resolvedRevision, err := repo.ResolveRevision("wordpress", unresolvedRevision)
 		assert.NoError(t, err)
-		assert.Equal(t, latestWordpressVersion, resolvedRevision)
+		assert.NotEqual(t, unresolvedRevision, resolvedRevision)
 	})
 
 	t.Run("ResolveSpecificRevision", func(t *testing.T) {
-		resolvedRevision, err := repo.ResolveRevision("workpress", latestWordpressVersion)
+		resolvedRevision, err := repo.ResolveRevision("wordpress", latestWordpressVersion)
 		assert.NoError(t, err)
 		assert.Equal(t, latestWordpressVersion, resolvedRevision)
 	})

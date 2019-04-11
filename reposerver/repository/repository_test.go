@@ -163,7 +163,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
-func TODOTestGetAppDetailsHelm(t *testing.T) {
+func TestGetAppDetailsHelm(t *testing.T) {
 	serve := newMockRepoServerService()
 	ctx := context.Background()
 
@@ -210,7 +210,7 @@ func TestGetAppDetailsKsonnet(t *testing.T) {
 
 	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{Repo: repoUrl()},
-		Path: "util/ksonnet/testdata/test-app",
+		Path: "util/ksonnet/testdata/guestbook",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://kubernetes.default.svc", res.Ksonnet.Environments["prod"].Destination.Server)
