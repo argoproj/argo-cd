@@ -82,7 +82,7 @@ func GetResourceHealth(obj *unstructured.Unstructured, resourceOverrides map[str
 	case "argoproj.io":
 		switch gvk.Kind {
 		case "Application":
-			health, err = getApplicationSetHealth(obj)
+			health, err = getApplicationHealth(obj)
 		}
 	case "":
 		switch gvk.Kind {
@@ -253,7 +253,7 @@ func init() {
 	_ = appv1.SchemeBuilder.AddToScheme(scheme.Scheme)
 
 }
-func getApplicationSetHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
+func getApplicationHealth(obj *unstructured.Unstructured) (*appv1.HealthStatus, error) {
 	application := &appv1.Application{}
 	err := scheme.Scheme.Convert(obj, application, nil)
 	if err != nil {
