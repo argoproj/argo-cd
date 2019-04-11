@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -210,6 +210,22 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 	return removed
 }
 
+func uniqueGroupKinds(slice []metav1.GroupKind) []metav1.GroupKind {
+	encountered := map[metav1.GroupKind]int{}
+	var diff []metav1.GroupKind
+
+	for _, v := range slice {
+		encountered[v] = encountered[v] + 1
+	}
+
+	for _, v := range slice {
+		if encountered[v] == 1 {
+			diff = append(diff, v)
+		}
+	}
+	return diff
+}
+
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
@@ -226,6 +242,12 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 	oldProj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
+	}
+
+	for _, groupKind := range uniqueGroupKinds(append(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist...)) {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, groupKind); err != nil {
+			return nil, err
+		}
 	}
 
 	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
