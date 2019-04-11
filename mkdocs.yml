@@ -19,6 +19,7 @@ markdown_extensions:
 nav:
   - Overview: index.md
   - understand_the_basics.md
+  - core_concepts.md
   - getting_started.md
   - Operator Manual:
     - operator-manual/index.md
