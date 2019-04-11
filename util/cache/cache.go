@@ -113,10 +113,6 @@ func manifestCacheKey(commitSHA string, appSrc *appv1.ApplicationSource, namespa
 	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", appLabelKey, appLabelValue, commitSHA, namespace, fnva)
 }
 
-func availableResourceActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber string) string {
-	return fmt.Sprintf("resourceactions|%s|%s|%s|%s|%s|%s|%s", clusterName, namespace, group, namespace, kind, resourceName, resourceNumber)
-}
-
 func appDetailsCacheKey(commitSHA, path string, valueFiles []string) string {
 	valuesStr := strings.Join(valueFiles, ",")
 	return fmt.Sprintf("appdetails|%s|%s|%s", commitSHA, path, valuesStr)
@@ -210,16 +206,6 @@ func (c *Cache) GetAppDetails(commitSHA, path string, valueFiles []string, res i
 
 func (c *Cache) SetAppDetails(commitSHA, path string, valueFiles []string, res interface{}) error {
 	return c.setItem(appDetailsCacheKey(commitSHA, path, valueFiles), res, repoCacheExpiration, res == nil)
-}
-
-func (c *Cache) GetAvailableResourceActions(clusterName, namespace, group, kind, resourceName, resourceNumber string) ([]appv1.ResourceAction, error) {
-	res := make([]appv1.ResourceAction, 0)
-	err := c.getItem(availableResourceActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber), &res)
-	return res, err
-}
-
-func (c *Cache) SetAvailableResourceActions(clusterName, namespace, group, kind, resourceName, resourceNumber string, actions []appv1.ResourceAction) error {
-	return c.setItem(availableResourceActionsCacheKey(clusterName, namespace, group, kind, resourceName, resourceNumber), actions, appStateCacheExpiration, actions == nil)
 }
 
 func (c *Cache) GetOIDCState(key string) (*OIDCState, error) {

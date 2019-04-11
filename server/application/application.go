@@ -966,11 +966,6 @@ func (s *Server) ListResourceActions(ctx context.Context, q *ApplicationResource
 }
 
 func (s *Server) getAvailableActions(config *rest.Config, resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
-	gvk := obj.GroupVersionKind()
-	actions, err := s.cache.GetAvailableResourceActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion())
-	if err == nil {
-		return actions, nil
-	}
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -981,10 +976,6 @@ func (s *Server) getAvailableActions(config *rest.Config, resourceOverrides map[
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
 	if err != nil {
 		return nil, err
-	}
-	err = s.cache.SetAvailableResourceActions(config.Host, obj.GetNamespace(), gvk.Group, gvk.Kind, obj.GetName(), obj.GetResourceVersion(), availableActions)
-	if err != nil {
-		log.Warnf("SetAvailableResourceActions cache set error: %v", err)
 	}
 	for i := range availableActions {
 		action := availableActions[i]
