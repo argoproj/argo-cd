@@ -983,9 +983,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchSuspended = false
 			}
 
-			var syncResources []argoappv1.SyncWaitOperationResource
+			var selectedResources []argoappv1.SyncWaitOperationResource
 			if resources != nil {
-				syncResources = []argoappv1.SyncWaitOperationResource{}
+				selectedResources = []argoappv1.SyncWaitOperationResource{}
 				for _, r := range *resources {
 					fields := strings.Split(r, resourceFieldDelimiter)
 					if len(fields) != resourceFieldCount {
@@ -996,13 +996,13 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Kind:  fields[1],
 						Name:  fields[2],
 					}
-					syncResources = append(syncResources, rsrc)
+					selectedResources = append(selectedResources, rsrc)
 				}
 			}
 
 			appName := args[0]
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
-			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, syncResources)
+			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
 			errors.CheckError(err)
 		},
 	}
@@ -1092,9 +1092,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			var syncResources []argoappv1.SyncWaitOperationResource
+			var selectedResources []argoappv1.SyncWaitOperationResource
 			if resources != nil {
-				syncResources = []argoappv1.SyncWaitOperationResource{}
+				selectedResources = []argoappv1.SyncWaitOperationResource{}
 				for _, r := range *resources {
 					fields := strings.Split(r, resourceFieldDelimiter)
 					if len(fields) != resourceFieldCount {
@@ -1105,14 +1105,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Kind:  fields[1],
 						Name:  fields[2],
 					}
-					syncResources = append(syncResources, rsrc)
+					selectedResources = append(selectedResources, rsrc)
 				}
 			}
 			syncReq := application.ApplicationSyncRequest{
 				Name:      &appName,
 				DryRun:    dryRun,
 				Revision:  revision,
-				Resources: syncResources,
+				Resources: selectedResources,
 				Prune:     prune,
 			}
 			switch strategy {
@@ -1129,7 +1129,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			_, err := appIf.Sync(ctx, &syncReq)
 			errors.CheckError(err)
 
-			app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, syncResources)
+			app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
 			errors.CheckError(err)
 
 			pruningRequired := 0
@@ -1224,8 +1224,8 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 	return updated
 }
 
-func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncWaitOperationResource) map[string]*resourceState {
-	resStates := getResourceStates(app, syncResources)
+func calculateResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncWaitOperationResource) map[string]*resourceState {
+	resStates := getResourceStates(app, selectedResources)
 
 	var opResult *argoappv1.SyncOperationResult
 	if app.Status.OperationState != nil {
@@ -1341,8 +1341,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			refresh = true
 		}
 
-		// If selected resources are included, check only that those resources are ready, otherwise check that
-		// application as a whole is ready.
+		// If selected resources are included, wait only on those resources, otherwise wait on the application as a whole.
 		if len(selectedResources) > 0 {
 			selectedResourcesAreReady := true
 			for _, state := range getResourceStates(app, selectedResources) {
@@ -1356,6 +1355,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 				printFinalStatus(app)
 				return app, nil
 			}
+
 		} else {
 			applicationIsReady := checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, app.Status.Sync.Status, appEvent.Application.Operation)
 			if len(app.Status.GetErrorConditions()) == 0 && applicationIsReady {
