@@ -760,6 +760,16 @@ type AppProjectSpec struct {
 	NamespaceResourceBlacklist []metav1.GroupKind `json:"namespaceResourceBlacklist,omitempty" protobuf:"bytes,6,opt,name=namespaceResourceBlacklist"`
 }
 
+func (d AppProjectSpec) DestinationClusters() []string {
+	servers := make([]string, 0)
+
+	for _, d := range d.Destinations {
+		servers = append(servers, d.Server)
+	}
+
+	return servers
+}
+
 // ProjectRole represents a role that has access to a project
 type ProjectRole struct {
 	// Name is a name for this role
