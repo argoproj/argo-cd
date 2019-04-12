@@ -210,6 +210,10 @@ func getRemovedSources(oldProj, newProj *v1alpha1.AppProject) map[string]bool {
 	return removed
 }
 
+func differenceGroupKinds(a, b []metav1.GroupKind) []metav1.GroupKind {
+	return uniqueGroupKinds(append(a, b...))
+}
+
 func uniqueGroupKinds(slice []metav1.GroupKind) []metav1.GroupKind {
 	encountered := map[metav1.GroupKind]int{}
 	var diff []metav1.GroupKind
@@ -244,7 +248,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 		return nil, err
 	}
 
-	for _, groupKind := range uniqueGroupKinds(append(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist...)) {
+	for _, groupKind := range differenceGroupKinds(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist) {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, groupKind); err != nil {
 			return nil, err
 		}
