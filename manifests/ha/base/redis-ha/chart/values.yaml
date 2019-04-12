@@ -2,6 +2,6 @@ redis-ha:
   persistentVolume:
     enabled: false
   redis:
-    masterGroupName: argocd
+    masterGroupName: argocd-redis-ha
     config:
       save: "\"\""
