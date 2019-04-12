@@ -31,7 +31,7 @@ export const ApplicationDeploymentHistory = ({
             {recentDeployments.map((info, index) => (
                 <div className='row application-deployment-history__item' key={info.deployedAt} onClick={() => selectDeployment(index)}>
                     <div className='columns small-3'>
-                        <i className='icon argo-icon-clock'/>
+                        <i className='fa fa-clock'/>
                         <div>{info.deployedAt} - {info.nextDeployedAt || 'now'}</div>
                         <div><Duration durationMs={info.durationMs}/></div>
                     </div>

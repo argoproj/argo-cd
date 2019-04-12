@@ -206,7 +206,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     preferencesKey='applications-list'
                                     page={pref.page}
                                     emptyState={() => (
-                                        <EmptyState icon='argo-icon-search'>
+                                        <EmptyState icon='fa fa-search'>
                                             <h4>No applications found</h4>
                                             <h5>Try to change filter criteria</h5>
                                         </EmptyState>

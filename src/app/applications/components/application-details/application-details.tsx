@@ -201,7 +201,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                                 )}
                                             </Paginate>
                                         ) || (
-                                            <EmptyState icon='argo-icon-search'>
+                                            <EmptyState icon='fa fa-search'>
                                                 <h4>No resources found</h4>
                                                 <h5>Try to change filter criteria</h5>
                                             </EmptyState>
@@ -355,7 +355,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             action: () => this.selectNode(nodeKey({
                 group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace })),
         }, {
-            iconClassName: 'argo-icon-deploy',
+            iconClassName: 'fa fa-sync',
             title: <span className='show-for-medium'>Sync</span>,
             action: () => this.showDeploy('all'),
         }, {
@@ -367,7 +367,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             title: <span className='show-for-medium'>Delete</span>,
             action: () => this.deleteApplication(),
         }, {
-            iconClassName: classNames('fa fa-sync-alt', { 'status-icon--spin': !!refreshing }),
+            iconClassName: classNames('fa fa-redo', { 'status-icon--spin': !!refreshing }),
             title: (
                 <React.Fragment><span className='show-for-medium'>Refresh</span> <DropDownMenu items={[{
                     title: 'Hard Refresh', action: () => !refreshing && services.applications.get(application.metadata.name, 'hard'),
