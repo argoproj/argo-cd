@@ -600,8 +600,7 @@ spec:
     protocol: TCP
     targetPort: sentinel
   selector:
-    app: redis-ha
-    release: argocd
+    app.kubernetes.io/name: argocd-redis-ha
   type: ClusterIP
 ---
 apiVersion: v1
