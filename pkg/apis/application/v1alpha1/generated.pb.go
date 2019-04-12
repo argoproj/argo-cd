@@ -1542,15 +1542,15 @@ func (m *SyncOperation) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SyncOperation proto.InternalMessageInfo
 
-func (m *SyncOperationResource) Reset()      { *m = SyncOperationResource{} }
-func (*SyncOperationResource) ProtoMessage() {}
-func (*SyncOperationResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_generated_99647907024d12fc, []int{54}
+func (m *SyncWaitOperationResource) Reset()      { *m = SyncWaitOperationResource{} }
+func (*SyncWaitOperationResource) ProtoMessage() {}
+func (*SyncWaitOperationResource) Descriptor() ([]byte, []int) {
+	return fileDescriptor_generated_daa7de17ece9900c, []int{50}
 }
-func (m *SyncOperationResource) XXX_Unmarshal(b []byte) error {
+func (m *SyncWaitOperationResource) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SyncOperationResource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SyncWaitOperationResource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	b = b[:cap(b)]
 	n, err := m.MarshalTo(b)
 	if err != nil {
@@ -1558,13 +1558,13 @@ func (m *SyncOperationResource) XXX_Marshal(b []byte, deterministic bool) ([]byt
 	}
 	return b[:n], nil
 }
-func (dst *SyncOperationResource) XXX_Merge(src proto.Message) {
+func (dst *SyncWaitOperationResource) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_SyncOperationResource.Merge(dst, src)
 }
-func (m *SyncOperationResource) XXX_Size() int {
+func (m *SyncWaitOperationResource) XXX_Size() int {
 	return m.Size()
 }
-func (m *SyncOperationResource) XXX_DiscardUnknown() {
+func (m *SyncWaitOperationResource) XXX_DiscardUnknown() {
 	xxx_messageInfo_SyncOperationResource.DiscardUnknown(m)
 }
 
@@ -1851,7 +1851,7 @@ func init() {
 	proto.RegisterType((*ResourceStatus)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ResourceStatus")
 	proto.RegisterType((*RevisionHistory)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.RevisionHistory")
 	proto.RegisterType((*SyncOperation)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperation")
-	proto.RegisterType((*SyncOperationResource)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResource")
+	proto.RegisterType((*SyncWaitOperationResource)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncWaitOperationResource")
 	proto.RegisterType((*SyncOperationResult)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncOperationResult")
 	proto.RegisterType((*SyncPolicy)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncPolicy")
 	proto.RegisterType((*SyncPolicyAutomated)(nil), "github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.SyncPolicyAutomated")
@@ -4225,7 +4225,7 @@ func (m *SyncOperation) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *SyncOperationResource) Marshal() (dAtA []byte, err error) {
+func (m *SyncWaitOperationResource) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -4235,7 +4235,7 @@ func (m *SyncOperationResource) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SyncOperationResource) MarshalTo(dAtA []byte) (int, error) {
+func (m *SyncWaitOperationResource) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -5437,7 +5437,7 @@ func (m *SyncOperation) Size() (n int) {
 	return n
 }
 
-func (m *SyncOperationResource) Size() (n int) {
+func (m *SyncWaitOperationResource) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.Group)
@@ -6252,17 +6252,17 @@ func (this *SyncOperation) String() string {
 		`Prune:` + fmt.Sprintf("%v", this.Prune) + `,`,
 		`DryRun:` + fmt.Sprintf("%v", this.DryRun) + `,`,
 		`SyncStrategy:` + strings.Replace(fmt.Sprintf("%v", this.SyncStrategy), "SyncStrategy", "SyncStrategy", 1) + `,`,
-		`Resources:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Resources), "SyncOperationResource", "SyncOperationResource", 1), `&`, ``, 1) + `,`,
+		`Resources:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Resources), "SyncWaitOperationResource", "SyncWaitOperationResource", 1), `&`, ``, 1) + `,`,
 		`Source:` + strings.Replace(fmt.Sprintf("%v", this.Source), "ApplicationSource", "ApplicationSource", 1) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *SyncOperationResource) String() string {
+func (this *SyncWaitOperationResource) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&SyncOperationResource{`,
+	s := strings.Join([]string{`&SyncWaitOperationResource{`,
 		`Group:` + fmt.Sprintf("%v", this.Group) + `,`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
@@ -14923,7 +14923,7 @@ func (m *SyncOperation) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Resources = append(m.Resources, SyncOperationResource{})
+			m.Resources = append(m.Resources, SyncWaitOperationResource{})
 			if err := m.Resources[len(m.Resources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -14982,7 +14982,7 @@ func (m *SyncOperation) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SyncOperationResource) Unmarshal(dAtA []byte) error {
+func (m *SyncWaitOperationResource) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -15005,10 +15005,10 @@ func (m *SyncOperationResource) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SyncOperationResource: wiretype end group for non-group")
+			return fmt.Errorf("proto: SyncWaitOperationResource: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SyncOperationResource: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SyncWaitOperationResource: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

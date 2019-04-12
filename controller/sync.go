@@ -33,7 +33,7 @@ type syncContext struct {
 	server        string
 	syncOp        *appv1.SyncOperation
 	syncRes       *appv1.SyncOperationResult
-	syncResources []appv1.SyncOperationResource
+	syncResources []appv1.SyncWaitOperationResource
 	opState       *appv1.OperationState
 	log           *log.Entry
 	// lock to protect concurrent updates of the result list
@@ -49,7 +49,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	var revision string
 	var syncOp appv1.SyncOperation
 	var syncRes *appv1.SyncOperationResult
-	var syncResources []appv1.SyncOperationResource
+	var syncResources []appv1.SyncWaitOperationResource
 	var source appv1.ApplicationSource
 
 	if state.Operation.Sync == nil {

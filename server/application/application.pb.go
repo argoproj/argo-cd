@@ -427,15 +427,15 @@ func (m *ApplicationDeleteRequest) GetCascade() bool {
 
 // ApplicationSyncRequest is a request to apply the config state to live state
 type ApplicationSyncRequest struct {
-	Name                 *string                          `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Revision             string                           `protobuf:"bytes,2,opt,name=revision" json:"revision"`
-	DryRun               bool                             `protobuf:"varint,3,opt,name=dryRun" json:"dryRun"`
-	Prune                bool                             `protobuf:"varint,4,opt,name=prune" json:"prune"`
-	Strategy             *v1alpha1.SyncStrategy           `protobuf:"bytes,5,opt,name=strategy" json:"strategy,omitempty"`
-	Resources            []v1alpha1.SyncOperationResource `protobuf:"bytes,7,rep,name=resources" json:"resources"`
-	XXX_NoUnkeyedLiteral struct{}                         `json:"-"`
-	XXX_unrecognized     []byte                           `json:"-"`
-	XXX_sizecache        int32                            `json:"-"`
+	Name                 *string                              `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
+	Revision             string                               `protobuf:"bytes,2,opt,name=revision" json:"revision"`
+	DryRun               bool                                 `protobuf:"varint,3,opt,name=dryRun" json:"dryRun"`
+	Prune                bool                                 `protobuf:"varint,4,opt,name=prune" json:"prune"`
+	Strategy             *v1alpha1.SyncStrategy               `protobuf:"bytes,5,opt,name=strategy" json:"strategy,omitempty"`
+	Resources            []v1alpha1.SyncWaitOperationResource `protobuf:"bytes,7,rep,name=resources" json:"resources"`
+	XXX_NoUnkeyedLiteral struct{}                             `json:"-"`
+	XXX_unrecognized     []byte                               `json:"-"`
+	XXX_sizecache        int32                                `json:"-"`
 }
 
 func (m *ApplicationSyncRequest) Reset()         { *m = ApplicationSyncRequest{} }
@@ -506,7 +506,7 @@ func (m *ApplicationSyncRequest) GetStrategy() *v1alpha1.SyncStrategy {
 	return nil
 }
 
-func (m *ApplicationSyncRequest) GetResources() []v1alpha1.SyncOperationResource {
+func (m *ApplicationSyncRequest) GetResources() []v1alpha1.SyncWaitOperationResource {
 	if m != nil {
 		return m.Resources
 	}
@@ -4699,7 +4699,7 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Resources = append(m.Resources, v1alpha1.SyncOperationResource{})
+			m.Resources = append(m.Resources, v1alpha1.SyncWaitOperationResource{})
 			if err := m.Resources[len(m.Resources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}

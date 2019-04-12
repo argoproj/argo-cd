@@ -983,15 +983,15 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchSuspended = false
 			}
 
-			var syncResources []argoappv1.SyncOperationResource
+			var syncResources []argoappv1.SyncWaitOperationResource
 			if resources != nil {
-				syncResources = []argoappv1.SyncOperationResource{}
+				syncResources = []argoappv1.SyncWaitOperationResource{}
 				for _, r := range *resources {
 					fields := strings.Split(r, resourceFieldDelimiter)
 					if len(fields) != resourceFieldCount {
 						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
 					}
-					rsrc := argoappv1.SyncOperationResource{
+					rsrc := argoappv1.SyncWaitOperationResource{
 						Group: fields[0],
 						Kind:  fields[1],
 						Name:  fields[2],
@@ -1092,15 +1092,15 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 			appName := args[0]
-			var syncResources []argoappv1.SyncOperationResource
+			var syncResources []argoappv1.SyncWaitOperationResource
 			if resources != nil {
-				syncResources = []argoappv1.SyncOperationResource{}
+				syncResources = []argoappv1.SyncWaitOperationResource{}
 				for _, r := range *resources {
 					fields := strings.Split(r, resourceFieldDelimiter)
 					if len(fields) != resourceFieldCount {
 						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
 					}
-					rsrc := argoappv1.SyncOperationResource{
+					rsrc := argoappv1.SyncWaitOperationResource{
 						Group: fields[0],
 						Kind:  fields[1],
 						Name:  fields[2],
@@ -1224,20 +1224,8 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 	return updated
 }
 
-func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
-	resStates := make(map[string]*resourceState)
-	for _, res := range app.Status.Resources {
-		if len(syncResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), syncResources) {
-			continue
-		}
-		newState := newResourceStateFromStatus(&res)
-		key := newState.Key()
-		if prev, ok := resStates[key]; ok {
-			prev.Merge(newState)
-		} else {
-			resStates[key] = newState
-		}
-	}
+func calculateResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncWaitOperationResource) map[string]*resourceState {
+	resStates := getResourceStates(app, syncResources)
 
 	var opResult *argoappv1.SyncOperationResult
 	if app.Status.OperationState != nil {
@@ -1262,10 +1250,10 @@ func calculateResourceStates(app *argoappv1.Application, syncResources []argoapp
 	return resStates
 }
 
-func getResourceStates(app *argoappv1.Application, syncResources []argoappv1.SyncOperationResource) map[string]*resourceState {
+func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncWaitOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
 	for _, res := range app.Status.Resources {
-		if len(syncResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), syncResources) {
+		if len(selectedResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), selectedResources) {
 			continue
 		}
 		newState := newResourceStateFromStatus(&res)
@@ -1279,9 +1267,25 @@ func getResourceStates(app *argoappv1.Application, syncResources []argoappv1.Syn
 	return resStates
 }
 
+func checkResourceStatus(watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
+	healthCheckPassed := true
+	if watchSuspended && watchHealth {
+		healthCheckPassed = healthStatus == argoappv1.HealthStatusHealthy ||
+			healthStatus == argoappv1.HealthStatusSuspended
+	} else if watchSuspended {
+		healthCheckPassed = healthStatus == argoappv1.HealthStatusSuspended
+	} else if watchHealth {
+		healthCheckPassed = healthStatus == argoappv1.HealthStatusHealthy
+	}
+
+	synced := !watchSync || syncStatus == argoappv1.SyncStatusCodeSynced
+	operational := !watchOperation || operationStatus == nil
+	return synced && healthCheckPassed && operational
+}
+
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspened bool, syncResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncWaitOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1337,50 +1341,30 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			refresh = true
 		}
 
-		fmt.Println(syncResources)
-		selectedResourcesAreReady := len(syncResources) > 0
-		for _, state := range getResourceStates(app, syncResources) {
-			healthStatus := true
-			if watchSuspened && watchHealth {
-				healthStatus = state.Health == argoappv1.HealthStatusHealthy ||
-					state.Health == argoappv1.HealthStatusSuspended
-			} else if watchSuspened {
-				healthStatus = state.Health == argoappv1.HealthStatusSuspended
-			} else if watchHealth {
-				healthStatus = state.Health == argoappv1.HealthStatusHealthy
+		// If selected resources are included, check only that those resources are ready, otherwise check that
+		// application as a whole is ready.
+		if len(selectedResources) > 0 {
+			selectedResourcesAreReady := true
+			for _, state := range getResourceStates(app, selectedResources) {
+				resourceIsReady := checkResourceStatus(watchSync, watchHealth, false, watchSuspended, state.Health, state.Status, nil)
+				if !resourceIsReady {
+					selectedResourcesAreReady = false
+				}
 			}
-			synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
-			if !(healthStatus && synced) {
-				selectedResourcesAreReady = false
+
+			if selectedResourcesAreReady {
+				printFinalStatus(app)
+				return app, nil
+			}
+		} else {
+			applicationIsReady := checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, app.Status.Sync.Status, appEvent.Application.Operation)
+			if len(app.Status.GetErrorConditions()) == 0 && applicationIsReady {
+				printFinalStatus(app)
+				return app, nil
 			}
 		}
 
-		if selectedResourcesAreReady {
-			fmt.Println("Selected done")
-			printFinalStatus(app)
-			return app, nil
-		}
-
-		healthStatus := true
-		if watchSuspened && watchHealth {
-			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusHealthy ||
-				app.Status.Health.Status == argoappv1.HealthStatusSuspended
-		} else if watchSuspened {
-			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusSuspended
-		} else if watchHealth {
-			healthStatus = app.Status.Health.Status == argoappv1.HealthStatusHealthy
-		}
-
-		// consider skipped checks successful
-		synced := !watchSync || app.Status.Sync.Status == argoappv1.SyncStatusCodeSynced
-		operational := !watchOperation || appEvent.Application.Operation == nil
-		if len(app.Status.GetErrorConditions()) == 0 && synced && healthStatus && operational {
-			fmt.Println("All done")
-			printFinalStatus(app)
-			return app, nil
-		}
-
-		newStates := calculateResourceStates(app, syncResources)
+		newStates := calculateResourceStates(app, selectedResources)
 		for _, newState := range newStates {
 			var doPrint bool
 			stateKey := newState.Key()

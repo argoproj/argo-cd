@@ -85,17 +85,17 @@ func TestWaitForRefresh(t *testing.T) {
 func TestContainsSyncResource(t *testing.T) {
 	var (
 		blankUnstructured unstructured.Unstructured
-		blankResource     argoappv1.SyncOperationResource
-		helloResource     = argoappv1.SyncOperationResource{Name: "hello"}
+		blankResource     argoappv1.SyncWaitOperationResource
+		helloResource     = argoappv1.SyncWaitOperationResource{Name: "hello"}
 	)
 	tables := []struct {
 		u        *unstructured.Unstructured
-		rr       []argoappv1.SyncOperationResource
+		rr       []argoappv1.SyncWaitOperationResource
 		expected bool
 	}{
-		{&blankUnstructured, []argoappv1.SyncOperationResource{}, false},
-		{&blankUnstructured, []argoappv1.SyncOperationResource{blankResource}, true},
-		{&blankUnstructured, []argoappv1.SyncOperationResource{helloResource}, false},
+		{&blankUnstructured, []argoappv1.SyncWaitOperationResource{}, false},
+		{&blankUnstructured, []argoappv1.SyncWaitOperationResource{blankResource}, true},
+		{&blankUnstructured, []argoappv1.SyncWaitOperationResource{helloResource}, false},
 	}
 
 	for _, table := range tables {

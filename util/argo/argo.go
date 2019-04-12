@@ -437,7 +437,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 }
 
 // ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
-func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
+func ContainsSyncResource(name string, gvk schema.GroupVersionKind, rr []argoappv1.SyncWaitOperationResource) bool {
 	for _, r := range rr {
 		if r.HasIdentity(name, gvk) {
 			return true
