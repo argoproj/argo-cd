@@ -200,6 +200,7 @@ func GenerateManifests(appPath string, q *ManifestRequest) (*ManifestResponse, e
 		if err != nil {
 			return nil, err
 		}
+		defer h.Dispose()
 		targetObjs, err = h.Template(q.AppLabelValue, q.Namespace, q.ApplicationSource.Helm)
 		if err != nil {
 			if !helm.IsMissingDependencyErr(err) {
@@ -627,6 +628,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		if err != nil {
 			return nil, err
 		}
+		defer h.Dispose()
 		params, err := h.GetParameters(q.valueFiles())
 		if err != nil {
 			return nil, err

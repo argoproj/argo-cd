@@ -32,6 +32,8 @@ type Helm interface {
 	SetHome(path string)
 	// Init runs `helm init --client-only`
 	Init() error
+	// Dispose deletes temp resources
+	Dispose()
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
@@ -44,6 +46,7 @@ type helm struct {
 	home             string
 	helmRepos        []*argoappv1.HelmRepository
 	reposInitialized bool
+	tempDirs         []string
 }
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
@@ -136,9 +139,20 @@ func (h *helm) Init() error {
 			return err
 		}
 		h.home = home
+		h.tempDirs = append(h.tempDirs, home)
 	}
 	_, err := h.helmCmd("init", "--client-only", "--skip-refresh")
 	return err
+}
+
+func (h *helm) Dispose() {
+	for i := range h.tempDirs {
+		err := os.RemoveAll(h.tempDirs[i])
+		if err != nil {
+			log.Warnf("Failed to delete temp directory %s", h.tempDirs[i])
+		}
+	}
+	h.tempDirs = []string{}
 }
 
 func (h *helm) GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error) {
