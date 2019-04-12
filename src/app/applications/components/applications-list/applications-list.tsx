@@ -10,6 +10,7 @@ import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 import { AppsListPreferences, AppsListViewType, services } from '../../../shared/services';
 import { ApplicationCreatePanel } from '../application-create-panel/application-create-panel';
+import { ApplicationSyncPanel } from '../application-sync-panel/application-sync-panel';
 import * as AppUtils from '../utils';
 import { ApplicationsFilter } from './applications-filter';
 import { ApplicationsSummary } from './applications-summary';
@@ -216,12 +217,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     pref.view === 'tiles' && (
                                         <ApplicationTiles
                                             applications={data}
-                                            syncApplication={(appName, revision) => AppUtils.syncApplication(appName, revision, false, false, null, ctx)}
+                                            syncApplication={(appName) => ctx.navigation.goto('.', { syncApp: appName })}
                                             deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                         />
                                     ) || (
                                         <ApplicationsTable applications={data}
-                                            syncApplication={(appName, revision) => AppUtils.syncApplication(appName, revision, false, false, null, ctx)}
+                                            syncApplication={(appName) => ctx.navigation.goto('.', { syncApp: appName })}
                                             deleteApplication={(appName) => AppUtils.deleteApplication(appName, ctx)}
                                         />
                                     )
@@ -235,6 +236,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                 )}
             </DataLoader>
         </div>
+        <ObservableQuery>
+        {(q) => (
+            <DataLoader load={() => q.flatMap((params) => {
+                const syncApp = params.get('syncApp');
+                return syncApp && Observable.fromPromise(services.applications.get(syncApp)) || Observable.from([null]);
+             }) }>
+            {(app) => (
+                <ApplicationSyncPanel key='syncPanel' application={app} selectedResource={'all'} hide={() => ctx.navigation.goto('.', { syncApp: null })} />
+            )}
+            </DataLoader>
+        )}
+        </ObservableQuery>
         <SlidingPanel isMiddle={true} isShown={!!appInput} onClose={() => ctx.navigation.goto('.', { new: null })} header={
             <div>
                 <button className='argo-button argo-button--base'

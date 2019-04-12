@@ -44,19 +44,6 @@ export function isSameNode(first: NodeId, second: NodeId) {
     return nodeKey(first) === nodeKey(second);
 }
 
-export async function syncApplication(appName: string, revision: string, prune: boolean, dryRun: boolean, resources: appModels.SyncOperationResource[], apis: ContextApis) {
-    try {
-        await services.applications.sync(appName, revision, prune, dryRun, resources);
-        return true;
-    } catch (e) {
-        apis.notifications.show({
-            content: <ErrorNotification title='Unable to deploy revision' e={e}/>,
-            type: NotificationType.Error,
-        });
-    }
-    return false;
-}
-
 export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
     let cascade = false;
     const confirmationForm = class extends React.Component<{}, { cascade: boolean } > {

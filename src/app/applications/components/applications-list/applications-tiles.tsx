@@ -9,7 +9,7 @@ import * as AppUtils from '../utils';
 
 export interface ApplicationTilesProps {
     applications: models.Application[];
-    syncApplication: (appName: string, revision: string) => any;
+    syncApplication: (appName: string) => any;
     deleteApplication: (appName: string) => any;
 }
 
@@ -68,9 +68,15 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                             <div className='row'>
                                 <div className='columns applications-list__entry--actions'>
                                     <a className='argo-button argo-button--base'
-                                        onClick={() => ctx.navigation.goto(`/applications/${app.metadata.name}`, {deploy: 'all'})}><i className='fa fa-sync'/> Sync</a>
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            syncApplication(app.metadata.name);
+                                        }}><i className='fa fa-sync'/> Sync</a>
                                     &nbsp;
-                                    <a className='argo-button argo-button--base' onClick={() => deleteApplication(app.metadata.name)}><i className='fa fa-times-circle'/> Delete</a>
+                                    <a className='argo-button argo-button--base' onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteApplication(app.metadata.name);
+                                    }}><i className='fa fa-times-circle'/> Delete</a>
                                 </div>
                             </div>
                         </div>
