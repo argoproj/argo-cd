@@ -82,6 +82,11 @@ func TestPod(t *testing.T) {
 	assertAppHealth(t, "./testdata/pod-deletion.yaml", appv1.HealthStatusProgressing)
 }
 
+func TestApplication(t *testing.T) {
+	assertAppHealth(t, "./testdata/application-healthy.yaml", appv1.HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/application-degraded.yaml", appv1.HealthStatusDegraded)
+}
+
 func TestSetApplicationHealth(t *testing.T) {
 	yamlBytes, err := ioutil.ReadFile("./testdata/job-failed.yaml")
 	assert.Nil(t, err)
