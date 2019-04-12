@@ -61,7 +61,7 @@ data:
   resource.customizations: |
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       # List of json pointers in the object to ignore differences
-      ignoreDifferences:
+      ignoreDifferences: |
         jsonPointers:
         - webhooks/0/clientConfig/caBundle
     certmanager.k8s.io/Certificate:
