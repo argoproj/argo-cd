@@ -705,7 +705,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						errors.CheckError(err)
 						key = kube.GetResourceKey(target)
 					}
-
+					if key.Kind == "Secret" {
+						// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
+						delete(localObjs, key)
+						continue
+					}
 					if local, ok := localObjs[key]; ok || live != nil {
 						if local != nil && !kube.IsCRD(local) {
 							err = kube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
