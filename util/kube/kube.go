@@ -435,6 +435,7 @@ func WatchWithRetry(ctx context.Context, getWatch func() (watch.Interface, error
 		if err != nil {
 			return false, err
 		}
+		defer w.Stop()
 
 		for {
 			select {
