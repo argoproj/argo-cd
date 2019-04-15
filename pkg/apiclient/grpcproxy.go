@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -20,6 +19,7 @@ import (
 
 	argocderrors "github.com/argoproj/argo-cd/errors"
 	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/util/rand"
 )
 
 const (
@@ -103,7 +103,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 }
 
 func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
-	serverAddr := fmt.Sprintf("%s/argocd-%d.sock", os.TempDir(), time.Now().Unix())
+	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), rand.RandString(16))
 	ln, err := net.Listen("unix", serverAddr)
 
 	if err != nil {
@@ -191,10 +191,9 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 		c.proxyUsersCount = c.proxyUsersCount - 1
 		if c.proxyUsersCount == 0 {
 			c.proxyServer.Stop()
-			err := c.proxyListener.Close()
 			c.proxyListener = nil
 			c.proxyServer = nil
-			return err
+			return nil
 		}
 		return nil
 	}}, nil

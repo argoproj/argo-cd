@@ -26,3 +26,16 @@ As workaround Argo CD allows providing [health check](operator-manual/health.md)
 Edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash. You
 can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. Another option
 is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server.
+
+## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
+
+Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To solve the problem you need to make sure that `requirements.yaml`
+uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm might decide to refresh `stable` repo. As workaround override
+`stable` repo URL in `argocd-cm` config map:
+
+```yaml
+data:
+  helm.repositories: |
+    - url: http://<internal-helm-repo-host>:8080
+      name: stable
+```

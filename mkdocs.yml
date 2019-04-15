@@ -1,5 +1,5 @@
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
-repo_url: https://github.com/alexec/argo-cd
+repo_url: https://github.com/argoproj/argo-cd
 strict: true
 theme:
   name: material
@@ -19,6 +19,7 @@ markdown_extensions:
 nav:
   - Overview: index.md
   - understand_the_basics.md
+  - core_concepts.md
   - getting_started.md
   - Operator Manual:
     - operator-manual/index.md
@@ -36,6 +37,7 @@ nav:
     - user-guide/index.md
     - user-guide/application_sources.md
     - user-guide/projects.md
+    - user-guide/tool_detection.md
     - user-guide/auto_sync.md
     - user-guide/diffing.md
     - user-guide/parameters.md

@@ -39,6 +39,20 @@ spec:
 
 See [application.yaml](application.yaml) for additional fields
 
+!!! warning
+    By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.
+    
+```yaml
+metadata:
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+```
+
+### App of Apps of Apps
+
+You can create an application that creates other applications, which in turn can create other applications. 
+This allows you to declaratively manage a group of applications that can be deployed and configured in concert.   
+
 ## Projects
 The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
 It is defined by the following key pieces of information:
