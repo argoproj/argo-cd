@@ -125,9 +125,66 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		if err != nil {
 			return nil, err
 		}
+		cleanedNewObj := cleanReturnedObj(newObj.Object, obj.Object)
+		newObj.Object = cleanedNewObj
 		return newObj, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+// cleanReturnedObj Lua cannot distinguish an empty table as an array or map, and the library we are using choose to
+// decoded an empty table into an empty array. This function prevents the lua scripts from unintentionally changing an
+// empty struct into empty arrays
+func cleanReturnedObj(newObj, obj map[string]interface{}) map[string]interface{} {
+	mapToReturn := newObj
+	for key := range obj {
+		if newValueInterface, ok := newObj[key]; ok {
+			oldValueInterface, ok := obj[key]
+			if !ok {
+				continue
+			}
+			switch newValue := newValueInterface.(type) {
+			case map[string]interface{}:
+				if oldValue, ok := oldValueInterface.(map[string]interface{}); ok {
+					convertedMap := cleanReturnedObj(newValue, oldValue)
+					mapToReturn[key] = convertedMap
+				}
+
+			case []interface{}:
+				switch oldValue := oldValueInterface.(type) {
+				case map[string]interface{}:
+					if len(newValue) == 0 {
+						mapToReturn[key] = oldValue
+					}
+				case []interface{}:
+					newArray := cleanReturnedArray(newValue, oldValue)
+					mapToReturn[key] = newArray
+				}
+			}
+		}
+	}
+	return mapToReturn
+}
+
+// cleanReturnedArray allows Argo CD to recurse into nested arrays when checking for unintentional empty struct to
+// empty array conversions.
+func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
+	arrayToReturn := newObj
+	for i := range newObj {
+		switch newValue := newObj[i].(type) {
+		case map[string]interface{}:
+			if oldValue, ok := obj[i].(map[string]interface{}); ok {
+				convertedMap := cleanReturnedObj(newValue, oldValue)
+				arrayToReturn[i] = convertedMap
+			}
+		case []interface{}:
+			if oldValue, ok := obj[i].([]interface{}); ok {
+				convertedMap := cleanReturnedArray(newValue, oldValue)
+				arrayToReturn[i] = convertedMap
+			}
+		}
+	}
+	return arrayToReturn
 }
 
 func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {

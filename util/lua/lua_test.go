@@ -317,3 +317,60 @@ func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn)
 	assert.Error(t, err)
 }
+
+const objWithEmptyStruct = `
+apiVersion: argoproj.io/v1alpha1
+kind: Test
+metadata:
+  labels:
+    app.kubernetes.io/instance: helm-guestbook
+    test: test
+  name: helm-guestbook
+  namespace: default
+  resourceVersion: "123"
+spec:
+  resources: {}
+  paused: true
+  containers:
+   - name: name1
+     test: {}
+     anotherList:
+     - name: name2
+       test2: {}
+`
+
+const expectedUpdatedObjWithEmptyStruct = `
+apiVersion: argoproj.io/v1alpha1
+kind: Test
+metadata:
+  labels:
+    app.kubernetes.io/instance: helm-guestbook
+    test: test
+  name: helm-guestbook
+  namespace: default
+  resourceVersion: "123"
+spec:
+  resources: {}
+  paused: false
+  containers:
+   - name: name1
+     test: {}
+     anotherList:
+     - name: name2
+       test2: {}
+`
+
+const pausedToFalseLua = `
+obj.spec.paused = false
+return obj
+`
+
+func TestCleanPatch(t *testing.T) {
+	testObj := StrToUnstructured(objWithEmptyStruct)
+	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
+	vm := VM{}
+	newObj, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedObj, newObj)
+
+}
