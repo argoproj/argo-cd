@@ -190,3 +190,10 @@ func (h cmd) template(chart string, opts templateOpts) (string, error) {
 
 	return h.run(args...)
 }
+
+func (h cmd) Close() {
+	err := os.RemoveAll(h.helmHome)
+	if err != nil {
+		log.WithFields(log.Fields{"helmHome": h.helmHome}).Warn("failed to delete helm home")
+	}
+}

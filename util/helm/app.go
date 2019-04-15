@@ -24,6 +24,7 @@ type App interface {
 	GetParameters(valuesFiles []string) ([]*argoappv1.HelmParameter, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
+	Dispose()
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
@@ -41,6 +42,10 @@ type app struct {
 	cmd              cmd
 	repos            []*argoappv1.Repository
 	reposInitialized bool
+}
+
+func (h *app) Dispose() {
+	h.cmd.Close()
 }
 
 // IsMissingDependencyErr tests if the error is related to a missing chart dependency
