@@ -954,6 +954,31 @@ func formatConditionsSummary(app argoappv1.Application) string {
 	return summary
 }
 
+const (
+	resourceFieldDelimiter = ":"
+	resourceFieldCount     = 3
+)
+
+func parseSelectedResources(resources *[]string) []argoappv1.SyncWaitOperationResource {
+	var selectedResources []argoappv1.SyncWaitOperationResource
+	if resources != nil {
+		selectedResources = []argoappv1.SyncWaitOperationResource{}
+		for _, r := range *resources {
+			fields := strings.Split(r, resourceFieldDelimiter)
+			if len(fields) != resourceFieldCount {
+				log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
+			}
+			rsrc := argoappv1.SyncWaitOperationResource{
+				Group: fields[0],
+				Kind:  fields[1],
+				Name:  fields[2],
+			}
+			selectedResources = append(selectedResources, rsrc)
+		}
+	}
+	return selectedResources
+}
+
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -963,10 +988,6 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		watchOperations bool
 		timeout         uint
 		resources       *[]string
-	)
-	const (
-		resourceFieldDelimiter = ":"
-		resourceFieldCount     = 3
 	)
 	var command = &cobra.Command{
 		Use:   "wait APPNAME",
@@ -982,24 +1003,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				watchOperations = true
 				watchSuspended = false
 			}
-
-			var selectedResources []argoappv1.SyncWaitOperationResource
-			if resources != nil {
-				selectedResources = []argoappv1.SyncWaitOperationResource{}
-				for _, r := range *resources {
-					fields := strings.Split(r, resourceFieldDelimiter)
-					if len(fields) != resourceFieldCount {
-						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
-					}
-					rsrc := argoappv1.SyncWaitOperationResource{
-						Group: fields[0],
-						Kind:  fields[1],
-						Name:  fields[2],
-					}
-					selectedResources = append(selectedResources, rsrc)
-				}
-			}
-
+			selectedResources := parseSelectedResources(resources)
 			appName := args[0]
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			_, err := waitOnApplicationStatus(acdClient, appName, timeout, watchSync, watchHealth, watchOperations, watchSuspended, selectedResources)
@@ -1076,10 +1080,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		strategy  string
 		force     bool
 	)
-	const (
-		resourceFieldDelimiter = ":"
-		resourceFieldCount     = 3
-	)
 	var command = &cobra.Command{
 		Use:   "sync APPNAME",
 		Short: "Sync an application to its target state",
@@ -1091,23 +1091,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			acdClient := argocdclient.NewClientOrDie(clientOpts)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
+
+			selectedResources := parseSelectedResources(resources)
 			appName := args[0]
-			var selectedResources []argoappv1.SyncWaitOperationResource
-			if resources != nil {
-				selectedResources = []argoappv1.SyncWaitOperationResource{}
-				for _, r := range *resources {
-					fields := strings.Split(r, resourceFieldDelimiter)
-					if len(fields) != resourceFieldCount {
-						log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
-					}
-					rsrc := argoappv1.SyncWaitOperationResource{
-						Group: fields[0],
-						Kind:  fields[1],
-						Name:  fields[2],
-					}
-					selectedResources = append(selectedResources, rsrc)
-				}
-			}
 			syncReq := application.ApplicationSyncRequest{
 				Name:      &appName,
 				DryRun:    dryRun,
@@ -1341,27 +1327,26 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			refresh = true
 		}
 
+		var selectedResourcesAreReady bool
+
 		// If selected resources are included, wait only on those resources, otherwise wait on the application as a whole.
 		if len(selectedResources) > 0 {
-			selectedResourcesAreReady := true
+			selectedResourcesAreReady = true
 			for _, state := range getResourceStates(app, selectedResources) {
 				resourceIsReady := checkResourceStatus(watchSync, watchHealth, false, watchSuspended, state.Health, state.Status, nil)
 				if !resourceIsReady {
 					selectedResourcesAreReady = false
+					break
 				}
 			}
-
-			if selectedResourcesAreReady {
-				printFinalStatus(app)
-				return app, nil
-			}
-
 		} else {
-			applicationIsReady := checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, app.Status.Sync.Status, appEvent.Application.Operation)
-			if len(app.Status.GetErrorConditions()) == 0 && applicationIsReady {
-				printFinalStatus(app)
-				return app, nil
-			}
+			// Wait on the application as a whole
+			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, app.Status.Sync.Status, appEvent.Application.Operation)
+		}
+
+		if len(app.Status.GetErrorConditions()) == 0 && selectedResourcesAreReady {
+			printFinalStatus(app)
+			return app, nil
 		}
 
 		newStates := calculateResourceStates(app, selectedResources)
