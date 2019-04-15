@@ -381,7 +381,7 @@ func TestResourceDiffing(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Make sure application is out of sync due to deployment image difference
-	assert.Equal(t, string(v1alpha1.SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
+	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, app.Status.Sync.Status)
 	diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 	assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace))
 
@@ -398,7 +398,7 @@ func TestResourceDiffing(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Make sure application is in synced state and CLI show no difference
-	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
 
 	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 	assert.Empty(t, diffOutput)
@@ -429,7 +429,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 			assert.NoError(t, err)
 
-			assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+			assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)

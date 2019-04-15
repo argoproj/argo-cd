@@ -257,7 +257,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		syncPolicy = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
-	syncStatusStr := string(app.Status.Sync.Status)
+	syncStatusStr := app.Status.Sync.Status
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
 		syncStatusStr += fmt.Sprintf(" to %s", app.Spec.Source.TargetRevision)
@@ -962,7 +962,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		watchSuspended  bool
 		watchOperations bool
 		timeout         uint
-		resources *[]string
+		resources       *[]string
 	)
 	const (
 		resourceFieldDelimiter = ":"
@@ -1179,7 +1179,7 @@ func newResourceStateFromStatus(res *argoappv1.ResourceStatus) *resourceState {
 		Kind:      res.Kind,
 		Namespace: res.Namespace,
 		Name:      res.Name,
-		Status:    string(res.Status),
+		Status:    res.Status,
 		Health:    healthStatus,
 	}
 }
