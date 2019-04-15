@@ -9,7 +9,7 @@ Let's assume you're familiar with core Git, Docker, Kubernetes, Continuous Deliv
 * **Sync status** Whether or not the live state matches the target state. Is the deployed application the same as Git says it should be? 
 * **Sync** The process of making an application move to its target state. E.g. by applying changes to a Kubernetes cluster. 
 * **Sync operation status** Whether or not a sync succeeded.
-* **Refresh** Get the latest code from Git and see if the live live state matches it. 
+* **Refresh** Compare the latest code in Git with the live state. Figure out what is different.
 * **Health** The health the application, is it running correctly? Can it serve requests? 
 * **Tool** A tool to create manifests from a directory of files. E.g. Kustomize or Ksonnet. See **Application Source Type**.
 * **Configuration management tool** See **Tool**.
