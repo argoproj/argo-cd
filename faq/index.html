@@ -741,6 +741,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?" class="md-nav__link">
+    Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
+  </a>
+  
+</li>
+      
       
       
       
@@ -841,6 +848,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?" class="md-nav__link">
+    Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
+  </a>
+  
+</li>
+      
       
       
       
@@ -884,6 +898,15 @@ include the fix <a href="https://github.com/kubernetes/kubernetes/pull/67570">ku
 <p>Edit the <code>argocd-secret</code> secret and update the <code>admin.password</code> field with a new bcrypt hash. You
 can use a site like https://www.browserling.com/tools/bcrypt to generate a new hash. Another option
 is to delete both the <code>admin.password</code> and <code>admin.passwordMtime</code> keys and restart argocd-server.</p>
+<h2 id="argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it">Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?<a class="headerlink" href="#argo-cd-cannot-deploy-helm-chart-based-applications-without-internet-access-how-can-i-solve-it" title="Permanent link">&para;</a></h2>
+<p>Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To solve the problem you need to make sure that <code>requirements.yaml</code>
+uses only internally available Helm repositories. Even if the chart uses only dependencies from internal repos Helm might decide to refresh <code>stable</code> repo. As workaround override
+<code>stable</code> repo URL in <code>argocd-cm</code> config map:</p>
+<div class="codehilite"><pre><span></span><span class="nt">data</span><span class="p">:</span>
+  <span class="nt">helm.repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- url: http://&lt;internal-helm-repo-host&gt;:8080</span>
+      <span class="no">name: stable</span>
+</pre></div>
                 
                   
                 

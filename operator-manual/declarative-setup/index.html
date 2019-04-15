@@ -381,6 +381,19 @@
     Applications
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#app-of-apps-of-apps" title="App of Apps of Apps" class="md-nav__link">
+    App of Apps of Apps
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -876,6 +889,19 @@
     Applications
   </a>
   
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#app-of-apps-of-apps" title="App of Apps of Apps" class="md-nav__link">
+    App of Apps of Apps
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1010,6 +1036,19 @@ in an environment. It is defined by two key pieces of information:</p>
 
 
 <p>See <a href="../application.yaml">application.yaml</a> for additional fields</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>By default, deleting an application will not perform a cascade delete, thereby deleting its resources. You must add the finalizer if you want this behaviour - which you may well not want.</p>
+</div>
+<div class="codehilite"><pre><span></span><span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">finalizers</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">resources-finalizer.argocd.argoproj.io</span>
+</pre></div>
+
+
+<h3 id="app-of-apps-of-apps">App of Apps of Apps<a class="headerlink" href="#app-of-apps-of-apps" title="Permanent link">&para;</a></h3>
+<p>You can create an application that creates other applications, which in turn can create other applications. 
+This allows you to declaratively manage a group of applications that can be deployed and configured in concert.   </p>
 <h2 id="projects">Projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h2>
 <p>The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
 It is defined by the following key pieces of information:</p>
