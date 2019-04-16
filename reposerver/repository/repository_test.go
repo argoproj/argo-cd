@@ -187,15 +187,6 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	}
 }
 
-func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.HelmParameter {
-	for _, p := range params {
-		if name == p.Name {
-			return *p
-		}
-	}
-	panic(name + " not in params")
-}
-
 func TestGetAppDetailsKsonnet(t *testing.T) {
 	serve := newMockRepoServerService()
 	ctx := context.Background()
