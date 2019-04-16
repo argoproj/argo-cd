@@ -111,11 +111,14 @@ export const ApplicationParameters = (props: { application: models.Application, 
         (source.ksonnet && source.ksonnet.parameters || []).forEach((override, i) => overridesByComponentName.set(`${override.component}-${override.name}`, i));
         attributes = attributes.concat(getParamsEditableItems('PARAMETERS', 'spec.source.ksonnet.parameters', removedOverrides, setRemovedOverrides,
                 distinct(paramsByComponentName.keys(), overridesByComponentName.keys()).map((componentName) => {
-            const param = paramsByComponentName.get(componentName);
+            let param = paramsByComponentName.get(componentName);
             const original = param && param.value || '';
             let overrideIndex = overridesByComponentName.get(componentName);
             if (overrideIndex === undefined) {
                 overrideIndex = -1;
+            }
+            if (!param && overrideIndex > -1) {
+                param = {...source.ksonnet.parameters[overrideIndex]};
             }
             const value = overrideIndex > -1 && source.ksonnet.parameters[overrideIndex].value || original;
             return { key: componentName, overrideIndex, original, metadata: { name: param.name, component: param.component, value } };

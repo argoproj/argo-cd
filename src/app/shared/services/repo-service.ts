@@ -19,11 +19,17 @@ export class RepositoriesService {
             .then((res) => res.body.items as models.AppInfo[] || []);
     }
 
-    public appDetails(repo: string, path: string, revision: string, details?: {helm?: { valueFiles: string[] }}): Promise<models.RepoAppDetails> {
+    public appDetails(repo: string, path: string, revision: string, details?: {
+        helm?: { valueFiles: string[] },
+        ksonnet?: { environment: string },
+    }): Promise<models.RepoAppDetails> {
         const query: any = {revision};
         (details && details.helm && details.helm.valueFiles || []).forEach((file) => {
             query['helm.valueFiles'] = file;
         });
+        if (details && details.ksonnet) {
+            query['ksonnet.environment'] = details.ksonnet.environment;
+        }
         return requests.get(`/repositories/${encodeURIComponent(repo)}/apps/${encodeURIComponent(path)}`).query(query)
             .then((res) => res.body as models.RepoAppDetails);
     }
