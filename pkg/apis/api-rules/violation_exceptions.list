@@ -2,6 +2,9 @@ API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ConnectionState,ModifiedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,ExpiresAt
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,JWTToken,IssuedAt
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActionDefinition,ActionLua
+API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActions,ActionDiscoveryLua
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceOverride,HealthLua
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,SyncStrategyHook,SyncStrategyApply
 API rule violation: names_match,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,objectMeta,Name
+API rule violation: omitempty_match_case,github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1,ResourceActions,Definitions

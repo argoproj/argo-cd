@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
@@ -34,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/util/db"
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/kube"
+	"github.com/argoproj/argo-cd/util/lua"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/session"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -940,4 +942,115 @@ func (s *Server) logEvent(a *appv1.Application, ctx context.Context, reason stri
 	}
 	message := fmt.Sprintf("%s %s", user, action)
 	s.auditLogger.LogAppEvent(a, eventInfo, message)
+}
+
+func (s *Server) ListResourceActions(ctx context.Context, q *ApplicationResourceRequest) (*ResourceActionsListResponse, error) {
+	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, q)
+	if err != nil {
+		return nil, err
+	}
+	obj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	if err != nil {
+		return nil, err
+	}
+
+	availableActions, err := s.getAvailableActions(config, resourceOverrides, obj, "")
+	if err != nil {
+		return nil, err
+	}
+	return &ResourceActionsListResponse{Actions: availableActions}, nil
+}
+
+func (s *Server) getAvailableActions(config *rest.Config, resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured, filterAction string) ([]appv1.ResourceAction, error) {
+	luaVM := lua.VM{
+		ResourceOverrides: resourceOverrides,
+	}
+	discoveryScript, err := luaVM.GetResourceActionDiscovery(obj)
+	if err != nil {
+		return nil, err
+	}
+	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
+	if err != nil {
+		return nil, err
+	}
+	for i := range availableActions {
+		action := availableActions[i]
+		if action.Name == filterAction {
+			return []appv1.ResourceAction{action}, nil
+		}
+	}
+	return availableActions, nil
+
+}
+
+func (s *Server) RunResourceAction(ctx context.Context, q *ResourceActionRunRequest) (*ApplicationResponse, error) {
+	resourceRequest := &ApplicationResourceRequest{
+		Name:         q.Name,
+		Namespace:    q.Namespace,
+		ResourceName: *q.ResourceName,
+		Kind:         q.Kind,
+		Version:      q.Version,
+		Group:        q.Group,
+	}
+	res, config, _, err := s.getAppResource(ctx, rbacpolicy.ActionGet, resourceRequest)
+	if err != nil {
+		return nil, err
+	}
+	liveObj, err := s.kubectl.GetResource(config, res.GroupKindVersion(), res.Name, res.Namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	if err != nil {
+		return nil, err
+	}
+	filteredAvailableActions, err := s.getAvailableActions(config, resourceOverrides, liveObj, q.Action)
+	if err != nil {
+		return nil, err
+	}
+	if len(filteredAvailableActions) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "action not available on resource")
+	}
+
+	luaVM := lua.VM{
+		ResourceOverrides: resourceOverrides,
+	}
+	action, err := luaVM.GetResourceAction(liveObj, q.Action)
+	if err != nil {
+		return nil, err
+	}
+
+	newObj, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
+	if err != nil {
+		return nil, err
+	}
+
+	newObjBytes, err := json.Marshal(newObj)
+	if err != nil {
+		return nil, err
+	}
+
+	liveObjBytes, err := json.Marshal(liveObj)
+	if err != nil {
+		return nil, err
+	}
+
+	diffBytes, err := jsonpatch.CreateMergePatch(liveObjBytes, newObjBytes)
+	if err != nil {
+		return nil, err
+	}
+	if string(diffBytes) == "{}" {
+		return &ApplicationResponse{}, nil
+	}
+
+	_, err = s.kubectl.PatchResource(config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+	if err != nil {
+		return nil, err
+	}
+	return &ApplicationResponse{}, nil
 }

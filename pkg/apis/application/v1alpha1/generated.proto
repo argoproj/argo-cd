@@ -466,6 +466,34 @@ message RepositoryList {
   repeated Repository items = 2;
 }
 
+message ResourceAction {
+  optional string name = 1;
+
+  repeated ResourceActionParam params = 2;
+}
+
+message ResourceActionDefinition {
+  optional string name = 1;
+
+  optional string actionLua = 2;
+}
+
+message ResourceActionParam {
+  optional string name = 1;
+
+  optional string value = 2;
+
+  optional string type = 3;
+
+  optional string default = 4;
+}
+
+message ResourceActions {
+  optional string actionDiscoveryLua = 1;
+
+  repeated ResourceActionDefinition definitions = 2;
+}
+
 // ResourceDiff holds the diff of a live and target resource object
 message ResourceDiff {
   optional string group = 1;
@@ -527,6 +555,8 @@ message ResourceNode {
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 message ResourceOverride {
   optional string healthLua = 1;
+
+  optional ResourceActions actions = 3;
 
   optional string ignoreDifferences = 2;
 }

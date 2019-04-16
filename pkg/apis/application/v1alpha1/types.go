@@ -701,8 +701,31 @@ type HelmRepository struct {
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	IgnoreDifferences string `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	HealthLua         string          `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
+	Actions           ResourceActions `json:"actions" protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences string          `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+}
+
+type ResourceActions struct {
+	ActionDiscoveryLua string                     `json:"discovery.lua" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
+	Definitions        []ResourceActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
+}
+
+type ResourceActionDefinition struct {
+	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	ActionLua string `json:"action.lua" protobuf:"bytes,2,opt,name=actionLua"`
+}
+
+type ResourceAction struct {
+	Name   string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+}
+
+type ResourceActionParam struct {
+	Name    string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Value   string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	Type    string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
+	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
 // Repository is a Git repository holding application configurations

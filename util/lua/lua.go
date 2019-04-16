@@ -17,10 +17,12 @@ import (
 )
 
 const (
-	incorrectReturnType              = "expect table output from Lua script, not %s"
+	incorrectReturnType              = "expect %s output from Lua script, not %s"
 	invalidHealthStatus              = "Lua returned an invalid health status"
 	resourceCustomizationBuiltInPath = "../../resource_customizations"
-	healthScript                     = "health.lua"
+	healthScriptFile                 = "health.lua"
+	actionScriptFile                 = "action.lua"
+	actionDiscoveryScriptFile        = "discovery.lua"
 )
 
 var (
@@ -96,16 +98,187 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*a
 
 		return healthStatus, nil
 	}
-	return nil, fmt.Errorf(incorrectReturnType, returnValue.Type().String())
+	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
-// GetScript attempts to read lua script from config and then filesystem for that resource
+// GetHealthScript attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, error) {
 	key := getConfigMapKey(obj)
 	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
 		return script.HealthLua, nil
 	}
-	return vm.getPredefinedLuaScripts(key, healthScript)
+	return vm.getPredefinedLuaScripts(key, healthScriptFile)
+}
+
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
+	l, err := vm.runLua(obj, script)
+	if err != nil {
+		return nil, err
+	}
+	returnValue := l.Get(-1)
+	if returnValue.Type() == lua.LTTable {
+		jsonBytes, err := luajson.Encode(returnValue)
+		if err != nil {
+			return nil, err
+		}
+		newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
+		if err != nil {
+			return nil, err
+		}
+		cleanedNewObj := cleanReturnedObj(newObj.Object, obj.Object)
+		newObj.Object = cleanedNewObj
+		return newObj, nil
+	}
+	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+// cleanReturnedObj Lua cannot distinguish an empty table as an array or map, and the library we are using choose to
+// decoded an empty table into an empty array. This function prevents the lua scripts from unintentionally changing an
+// empty struct into empty arrays
+func cleanReturnedObj(newObj, obj map[string]interface{}) map[string]interface{} {
+	mapToReturn := newObj
+	for key := range obj {
+		if newValueInterface, ok := newObj[key]; ok {
+			oldValueInterface, ok := obj[key]
+			if !ok {
+				continue
+			}
+			switch newValue := newValueInterface.(type) {
+			case map[string]interface{}:
+				if oldValue, ok := oldValueInterface.(map[string]interface{}); ok {
+					convertedMap := cleanReturnedObj(newValue, oldValue)
+					mapToReturn[key] = convertedMap
+				}
+
+			case []interface{}:
+				switch oldValue := oldValueInterface.(type) {
+				case map[string]interface{}:
+					if len(newValue) == 0 {
+						mapToReturn[key] = oldValue
+					}
+				case []interface{}:
+					newArray := cleanReturnedArray(newValue, oldValue)
+					mapToReturn[key] = newArray
+				}
+			}
+		}
+	}
+	return mapToReturn
+}
+
+// cleanReturnedArray allows Argo CD to recurse into nested arrays when checking for unintentional empty struct to
+// empty array conversions.
+func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
+	arrayToReturn := newObj
+	for i := range newObj {
+		switch newValue := newObj[i].(type) {
+		case map[string]interface{}:
+			if oldValue, ok := obj[i].(map[string]interface{}); ok {
+				convertedMap := cleanReturnedObj(newValue, oldValue)
+				arrayToReturn[i] = convertedMap
+			}
+		case []interface{}:
+			if oldValue, ok := obj[i].([]interface{}); ok {
+				convertedMap := cleanReturnedArray(newValue, oldValue)
+				arrayToReturn[i] = convertedMap
+			}
+		}
+	}
+	return arrayToReturn
+}
+
+func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
+	l, err := vm.runLua(obj, script)
+	if err != nil {
+		return nil, err
+	}
+	returnValue := l.Get(-1)
+	if returnValue.Type() == lua.LTTable {
+
+		jsonBytes, err := luajson.Encode(returnValue)
+		if err != nil {
+			return nil, err
+		}
+		availableActions := make([]appv1.ResourceAction, 0)
+		if noAvailableActions(jsonBytes) {
+			return availableActions, nil
+		}
+		availableActionsMap := make(map[string]interface{})
+		err = json.Unmarshal(jsonBytes, &availableActionsMap)
+		if err != nil {
+			return nil, err
+		}
+		for key := range availableActionsMap {
+			value := availableActionsMap[key]
+
+			resourceAction := appv1.ResourceAction{Name: key}
+			if emptyResourceActionFromLua(value) {
+				availableActions = append(availableActions, resourceAction)
+				continue
+			}
+			resourceActionBytes, err := json.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+
+			err = json.Unmarshal(resourceActionBytes, &resourceAction)
+			if err != nil {
+				return nil, err
+			}
+			availableActions = append(availableActions, resourceAction)
+		}
+		return availableActions, err
+	}
+
+	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+func emptyResourceActionFromLua(i interface{}) bool {
+	_, ok := i.([]interface{})
+	return ok
+}
+
+func noAvailableActions(jsonBytes []byte) bool {
+	// When the Lua script returns an empty table, it is decoded as a empty array.
+	return string(jsonBytes) == "[]"
+}
+
+func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string, error) {
+	key := getConfigMapKey(obj)
+	override, ok := vm.ResourceOverrides[key]
+	if ok {
+		return override.Actions.ActionDiscoveryLua, nil
+	}
+	discoveryKey := fmt.Sprintf("%s/actions/", key)
+	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
+	if err != nil {
+		return "", err
+	}
+	return discoveryScript, nil
+}
+
+// GetResourceAction attempts to read lua script from config and then filesystem for that resource
+func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
+	key := getConfigMapKey(obj)
+	override, ok := vm.ResourceOverrides[key]
+	if ok {
+		for _, action := range override.Actions.Definitions {
+			if action.Name == actionName {
+				return action, nil
+			}
+		}
+	}
+
+	actionKey := fmt.Sprintf("%s/actions/%s", key, actionName)
+	actionScript, err := vm.getPredefinedLuaScripts(actionKey, actionScriptFile)
+	if err != nil {
+		return appv1.ResourceActionDefinition{}, err
+	}
+
+	return appv1.ResourceActionDefinition{
+		Name:      actionName,
+		ActionLua: actionScript,
+	}, nil
 }
 
 func getConfigMapKey(obj *unstructured.Unstructured) string {
@@ -117,8 +290,8 @@ func getConfigMapKey(obj *unstructured.Unstructured) string {
 
 }
 
-func (vm VM) getPredefinedLuaScripts(objKey string, scriptType string) (string, error) {
-	data, err := box.MustBytes(filepath.Join(objKey, scriptType))
+func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
+	data, err := box.MustBytes(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
