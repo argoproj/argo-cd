@@ -165,6 +165,7 @@ clean: clean-debug
 .PHONY: start
 start:
 	killall goreman || true
+	kubens argocd
 	goreman start
 
 .PHONY: pre-commit
