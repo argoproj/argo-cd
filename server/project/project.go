@@ -234,6 +234,12 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 		}
 	}
 
+	for _, repoUrl := range difference(q.Project.Spec.SourceRepos, oldProj.Spec.SourceRepos) {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, repoUrl); err != nil {
+			return nil, err
+		}
+	}
+
 	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
