@@ -1,4 +1,4 @@
-import { Layout, NavigationManager, NotificationInfo, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps } from 'argo-ui';
+import { Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps } from 'argo-ui';
 import * as cookie from 'cookie';
 import { createBrowserHistory } from 'history';
 import * as jwtDecode from 'jwt-decode';
@@ -74,7 +74,7 @@ requests.onError.subscribe(async (err) => {
     }
 });
 
-export class App extends React.Component<{}, { notifications: NotificationInfo[], popupProps: PopupProps }> {
+export class App extends React.Component<{}, { popupProps: PopupProps }> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object,
@@ -86,7 +86,7 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
 
     constructor(props: {}) {
         super(props);
-        this.state = { notifications: [], popupProps: null };
+        this.state = { popupProps: null };
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -94,7 +94,6 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
 
     public componentDidMount() {
         this.popupManager.popupProps.subscribe((popupProps) => this.setState({ popupProps }));
-        this.notificationsManager.notifications.subscribe((notifications) => this.setState({ notifications }));
     }
 
     public render() {
@@ -115,14 +114,12 @@ export class App extends React.Component<{}, { notifications: NotificationInfo[]
                                 return <Route key={path} path={path} render={(routeProps) => (
                                     route.noLayout ? (
                                         <div>
-                                            <Notifications leftOffset={60}
-                                                closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
+                                            <Notifications notifications={this.notificationsManager.notifications}/>
                                             <route.component {...routeProps}/>
                                         </div>
                                     ) : (
                                         <Layout navItems={navItems}>
-                                            <Notifications leftOffset={60}
-                                                closeNotification={(item) => this.notificationsManager.close(item)} notifications={this.state.notifications}/>
+                                            <Notifications notifications={this.notificationsManager.notifications}/>
                                             <route.component {...routeProps}/>
                                         </Layout>
                                     )
