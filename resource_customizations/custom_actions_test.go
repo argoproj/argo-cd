@@ -21,8 +21,8 @@ import (
 
 type testNormalizer struct{}
 
-func (t testNormalizer) Normalize(un *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	return un, nil
+func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
+	return nil
 }
 
 type ActionTestStructure struct {
