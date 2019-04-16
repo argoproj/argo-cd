@@ -146,6 +146,13 @@ test:
 test-e2e: cli
 	$(TEST_CMD) -v -failfast -timeout 20m ./test/e2e
 
+.PHONY: start-e2e
+start-e2e: cli
+	kubectl create ns argocd-e2e || true
+	kubens argocd-e2e
+	kustomize build test/manifests/base | kubectl apply -f -
+	make start
+
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
 clean-debug:

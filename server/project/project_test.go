@@ -41,12 +41,7 @@ func TestProjectServer(t *testing.T) {
 		},
 	})
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
-	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
-	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	enforcer.SetDefaultRole("role:admin")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
-		return true
-	})
+	enforcer := newEnforcer(kubeclientset)
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: testNamespace},
 		Spec: v1alpha1.AppProjectSpec{
@@ -57,8 +52,42 @@ func TestProjectServer(t *testing.T) {
 			SourceRepos: []string{"https://github.com/argoproj/argo-cd.git"},
 		},
 	}
+	existingApp := v1alpha1.Application{
+		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
+		Spec:       v1alpha1.ApplicationSpec{Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
+	}
 
 	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s, %s"
+
+	t.Run("TestClusterUpdateDenied", func(t *testing.T) {
+
+		enforcer.SetDefaultRole("role:projects")
+		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+
+		updatedProj := existingProj.DeepCopy()
+		updatedProj.Spec.Destinations = nil
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
+
+		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: clusters, update, https://server1"), err)
+	})
+
+	t.Run("TestReposUpdateDenied", func(t *testing.T) {
+
+		enforcer.SetDefaultRole("role:projects")
+		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+
+		updatedProj := existingProj.DeepCopy()
+		updatedProj.Spec.SourceRepos = nil
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
+
+		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: repositories, update, https://github.com/argoproj/argo-cd.git"), err)
+	})
+
+	enforcer = newEnforcer(kubeclientset)
 
 	t.Run("TestRemoveDestinationSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
@@ -365,4 +394,14 @@ func TestProjectServer(t *testing.T) {
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		assert.Equal(t, expectedPolicy, updateProj.Spec.Roles[0].Policies[0])
 	})
+}
+
+func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
+	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	enforcer.SetDefaultRole("role:admin")
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		return true
+	})
+	return enforcer
 }
