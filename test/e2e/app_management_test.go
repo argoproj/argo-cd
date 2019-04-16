@@ -302,21 +302,47 @@ func TestAppWithSecrets(t *testing.T) {
 		app.Spec.Source.Path = "secrets"
 	})
 
-	app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{{
-		Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
-	}}
+	diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+	assert.NoError(t, err)
+	assert.Empty(t, diffOutput)
+
+	// patch secret and make sure app is out of sync and diff detects the change
+	_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace).Patch(
+		"test-secret", types.JSONPatchType, []byte(`[{"op": "remove", "path": "/data/username"}]`))
+	assert.NoError(t, err)
 
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
-	_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
-		Name: &app.Name,
-		Spec: app.Spec,
-	})
+
+	refresh := string(v1alpha1.RefreshTypeNormal)
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+
+	assert.Equal(t, string(v1alpha1.SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
+
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name)
+	assert.Error(t, err)
+	assert.Contains(t, diffOutput, "username: '*********'")
+
+	// local diff should ignore secrets
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
+	assert.NoError(t, err)
+	assert.Empty(t, diffOutput)
+
+	// ignore missing field and make sure diff shows no difference
+	app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{{
+		Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
+	}}
+	_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
 
 	assert.NoError(t, err)
 
-	diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name)
 	assert.NoError(t, err)
 	assert.Empty(t, diffOutput)
 }

@@ -705,7 +705,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						errors.CheckError(err)
 						key = kube.GetResourceKey(target)
 					}
-					if key.Kind == "Secret" {
+					if key.Kind == kube.SecretKind && key.Group == "" {
 						// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
 						delete(localObjs, key)
 						continue
