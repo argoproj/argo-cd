@@ -29,7 +29,7 @@ spec:
         arguments:
           parameters:
           - name: cmd
-            value: "dep ensure && make lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out"
+            value: "git fetch --unshallow && dep ensure && make lint test && bash <(curl -s https://codecov.io/bash) -f coverage.out"
 
   # The step builds argo cd image, deploy argo cd components into throw-away kubernetes cluster provisioned using k3s and run e2e tests against it.
   - name: build-e2e
