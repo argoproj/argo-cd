@@ -177,8 +177,9 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
-		Repo: &argoappv1.Repository{Repo: repoUrl()},
-		Path: "util/helm/testdata/redis",
+		Repo:     &argoappv1.Repository{Repo: repoUrl()},
+		Path:     "util/helm/testdata/redis",
+		Revision: "master",
 	})
 	assert.NoError(t, err)
 }
