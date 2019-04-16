@@ -114,12 +114,10 @@ export class App extends React.Component<{}, { popupProps: PopupProps }> {
                                 return <Route key={path} path={path} render={(routeProps) => (
                                     route.noLayout ? (
                                         <div>
-                                            <Notifications notifications={this.notificationsManager.notifications}/>
                                             <route.component {...routeProps}/>
                                         </div>
                                     ) : (
                                         <Layout navItems={navItems}>
-                                            <Notifications notifications={this.notificationsManager.notifications}/>
                                             <route.component {...routeProps}/>
                                         </Layout>
                                     )
@@ -130,6 +128,7 @@ export class App extends React.Component<{}, { popupProps: PopupProps }> {
                     </Router>
                 </Provider>
                 </PageContext.Provider>
+                <Notifications notifications={this.notificationsManager.notifications}/>
             </React.Fragment>
         );
     }
