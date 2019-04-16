@@ -39,3 +39,20 @@ data:
     - url: http://<internal-helm-repo-host>:8080
       name: stable
 ```
+
+## I've configured [cluster secret](./operator-manual/declarative-setup.md#clusters) but it does not show up in CLI/UI, how do I fix it?
+
+Check if cluster secret has `argocd.argoproj.io/secret-type: cluster` label. If secret has the label but the cluster is still not visible then make sure it might be a
+permission issue. Try to list clusters using `admin` user (e.g. `argocd login --username admin && argocd cluster list`).
+
+## Argo CD is unable to connect to my cluster, how do I troubleshoot it?
+
+Use the following steps to reconstruct configured cluster config and connect to your cluster manually using kubectl:
+
+```bash
+kubectl exec -it <argocd-pod-name> bash # ssh into any argocd server pod
+argocd-util kubeconfig https://<cluster-url> /tmp/config --namespace argocd # generate your cluster config
+KUBECONFIG=/tmp/config kubectl get pods # test connection manually
+```
+
+Now you can manually verify that cluster is accessible from the Argo CD pod.
