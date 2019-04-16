@@ -225,6 +225,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 		Path:      q.Path,
 		HelmRepos: helmRepos,
 		Helm:      q.Helm,
+		Ksonnet:   q.Ksonnet,
 	})
 }
 

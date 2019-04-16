@@ -50,7 +50,7 @@ type KsonnetApp interface {
 	Destination(environment string) (*v1alpha1.ApplicationDestination, error)
 
 	// ListParams returns list of ksonnet parameters
-	ListParams() ([]*v1alpha1.KsonnetParameter, error)
+	ListParams(environment string) ([]*v1alpha1.KsonnetParameter, error)
 
 	// SetComponentParams updates component parameter in specified environment.
 	SetComponentParams(environment string, component string, param string, value string) error
@@ -142,8 +142,12 @@ func (k *ksonnetApp) Destination(environment string) (*v1alpha1.ApplicationDesti
 }
 
 // ListParams returns list of ksonnet parameters
-func (k *ksonnetApp) ListParams() ([]*v1alpha1.KsonnetParameter, error) {
-	out, err := k.ksCmd("param", "list", "--output", "json")
+func (k *ksonnetApp) ListParams(environment string) ([]*v1alpha1.KsonnetParameter, error) {
+	args := []string{"param", "list", "--output", "json"}
+	if environment != "" {
+		args = append(args, "--env", environment)
+	}
+	out, err := k.ksCmd(args...)
 	if err != nil {
 		return nil, err
 	}

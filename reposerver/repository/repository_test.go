@@ -226,12 +226,12 @@ func getHelmParameter(name string, params []*argoappv1.HelmParameter) argoappv1.
 }
 
 func TestGetAppDetailsKsonnet(t *testing.T) {
-	serve := newMockRepoServerService("../../util/ksonnet/testdata")
+	serve := newMockRepoServerService("../../test/e2e/testdata")
 	ctx := context.Background()
 
 	res, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{Repo: "https://github.com/fakeorg/fakerepo.git"},
-		Path: "guestbook",
+		Path: "ksonnet",
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "https://kubernetes.default.svc", res.Ksonnet.Environments["prod"].Destination.Server)

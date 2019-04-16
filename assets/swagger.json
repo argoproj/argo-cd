@@ -1207,6 +1207,11 @@
             },
             "name": "helm.valueFiles",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "ksonnet.environment",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1626,6 +1631,14 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "repositoryKsonnetAppDetailsQuery": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "type": "string"
         }
       }
     },
