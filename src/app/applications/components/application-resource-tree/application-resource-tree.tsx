@@ -8,6 +8,9 @@ import * as models from '../../../shared/models';
 import { EmptyState } from '../../../shared/components';
 import { ApplicationIngressLink } from '../application-ingress-link';
 import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey } from '../utils';
+import { NodeUpdateAnimation } from './node-update-animation';
+
+const color = require('color');
 
 require('./application-resource-tree.scss');
 
@@ -18,6 +21,17 @@ export interface ResourceTreeNode extends models.ResourceNode {
     root?: ResourceTreeNode;
 }
 
+export interface ApplicationResourceTreeProps {
+    app: models.Application;
+    tree: models.ApplicationTree;
+    useNetworkingHierarchy: boolean;
+    nodeFilter: (node: ResourceTreeNode) => boolean;
+    selectedNodeFullName?: string;
+    onNodeClick?: (fullName: string) => any;
+    nodeMenuItems?: (node: models.ResourceNode) => MenuItem[];
+    onClearFilter: () => any;
+}
+
 interface Line { x1: number; y1: number; x2: number; y2: number; }
 
 const NODE_WIDTH = 282;
@@ -25,6 +39,24 @@ const NODE_HEIGHT = 52;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
+const NODE_TYPES = {
+    filteredIndicator: 'filtered_indicator',
+    externalTraffic: 'external_traffic',
+    externalLoadBalancer: 'external_load_balancer',
+    internalTraffic: 'internal_traffic',
+};
+
+const BASE_COLORS = [
+    '#0DADEA', // blue
+    '#95D58F', // green
+    '#F4C030', // orange
+    '#FF6262', // red
+    '#4B0082', // purple
+    '#964B00', // brown
+];
+
+// generate lots of colors with different darkness
+const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6].map((darken) => BASE_COLORS.map((item) => color(item).darken(darken).hex())).reduce((first, second) => first.concat(second), []);
 
 function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     let width = 0;
@@ -54,7 +86,7 @@ function filterGraph(app: models.Application, graph: dagre.graphlib.Graph, predi
         }
     });
     if (filtered) {
-        graph.setNode(FILTERED_INDICATOR_NODE, { height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered });
+        graph.setNode(FILTERED_INDICATOR_NODE, { height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator });
         graph.setEdge(appNodeKey(app), FILTERED_INDICATOR_NODE);
     }
 }
@@ -67,31 +99,14 @@ function appNodeKey(app: models.Application) {
     return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace });
 }
 
-class NodeUpdateAnimation extends React.PureComponent<{ resourceVersion: string; }, {  ready: boolean }> {
-    constructor(props: { resourceVersion: string; }) {
-        super(props);
-        this.state = { ready: false };
-    }
-
-    public render() {
-        return this.state.ready && <div key={this.props.resourceVersion} className='application-resource-tree__node-animation'/>;
-    }
-
-    public componentDidUpdate(prevProps: { resourceVersion: string; }) {
-        if (prevProps.resourceVersion && this.props.resourceVersion !== prevProps.resourceVersion) {
-            this.setState({ ready: true });
-        }
-    }
-}
-
-function filteredNode(fullName: string, node: { count: number } & dagre.Node, onClearFilter: () => any) {
+function renderFilteredNode(node: { count: number } & dagre.Node, onClearFilter: () => any) {
     const indicators = new Array<number>();
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
         indicators.push(count--);
     }
     return (
-        <React.Fragment key={fullName}>
+        <React.Fragment>
             <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon '>
                     <i className='icon fa fa-filter'/>
@@ -108,15 +123,75 @@ function filteredNode(fullName: string, node: { count: number } & dagre.Node, on
     );
 }
 
-function trafficNode(fullName: string, node: dagre.Node) {
+function renderTrafficNode(node: dagre.Node) {
     return (
-        <React.Fragment key={fullName}>
-            <div style={{position: 'absolute', left: 0, top: node.y, width: node.width, height: node.height}}>
-                <div className='application-resource-tree__node-kind-icon' style={{fontSize: '2em'}}>
-                    <i className='icon fa fa-cloud'/>
+        <div style={{position: 'absolute', left: 0, top: node.y, width: node.width, height: node.height}}>
+            <div className='application-resource-tree__node-kind-icon' style={{fontSize: '2em'}}>
+                <i className='icon fa fa-cloud'/>
+            </div>
+        </div>
+    );
+}
+
+function renderLoadBalancerNode(node: dagre.Node & { label: string, color: string }) {
+    return (
+        <div className='application-resource-tree__node application-resource-tree__node--load-balancer' style={{
+                left: node.x, top: node.y, width: node.width, height: node.height,
+        }}>
+            <div className='application-resource-tree__node-kind-icon'>
+                <i title={node.kind} className={`icon fa fa-network-wired`} style={{color: node.color}} />
+            </div>
+            <div className='application-resource-tree__node-content'>
+                <span className='application-resource-tree__node-title'>{node.label}</span>
+            </div>
+        </div>
+    );
+}
+
+function renderResourceNode(props: ApplicationResourceTreeProps, fullName: string, node: (ResourceTreeNode) & dagre.Node) {
+    let comparisonStatus: models.SyncStatusCode = null;
+    let healthState: models.HealthStatus = null;
+    if (node.status || node.health) {
+        comparisonStatus = node.status;
+        healthState = node.health;
+    }
+    const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-cogs';
+    const tooltip = node.images && node.images.join(', ') || '';
+    return (
+        <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={classNames('application-resource-tree__node', {
+            active: fullName === props.selectedNodeFullName,
+        })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            {!isAppNode(node) && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
+            <div className={classNames('application-resource-tree__node-kind-icon', {
+                'application-resource-tree__node-kind-icon--big': isAppNode(node),
+            })}>
+                <i title={node.kind} className={`icon ${kindIcon}`} />
+            </div>
+            <div className='application-resource-tree__node-content'>
+                <Tooltip content={tooltip} key={fullName} isEnabled={tooltip !== ''}>
+                    <span className='application-resource-tree__node-title'>{node.name}</span>
+                </Tooltip>
+                <div className={classNames('application-resource-tree__node-status-icon', {
+                    'application-resource-tree__node-status-icon--offset': isAppNode(node),
+                })}>
+                    {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
+                    {healthState != null && <HealthStatusIcon state={healthState}/>}
+                    {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
+                    <ApplicationIngressLink ingress={isAppNode(node) ? props.app.status.ingress : node.networkingInfo && node.networkingInfo.ingress}/>
                 </div>
             </div>
-        </React.Fragment>
+            <div className='application-resource-tree__node-labels'>
+                {(node.info || []).map((tag, i) => <span title={`${tag.name}:${tag.value}`} key={i}>{tag.value}</span>)}
+                <span>{node.kind}</span>
+            </div>
+            {props.nodeMenuItems && (
+                <div className='application-resource-tree__node-menu'>
+                    <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                        <i className='fa fa-ellipsis-v'/>
+                    </button>} items={props.nodeMenuItems(node)}/>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -134,17 +209,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
     }
     return result;
 }
-
-export const ApplicationResourceTree = (props: {
-    app: models.Application;
-    tree: models.ApplicationTree;
-    useNetworkingHierarchy: boolean;
-    nodeFilter: (node: ResourceTreeNode) => boolean;
-    selectedNodeFullName?: string;
-    onNodeClick?: (fullName: string) => any;
-    nodeMenuItems?: (node: models.ResourceNode) => MenuItem[];
-    onClearFilter: () => any;
-}) => {
+export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({ rankdir: 'LR', marginx: -100 });
     graph.setDefaultEdgeLabel(() => ({}));
@@ -204,28 +269,49 @@ export const ApplicationResourceTree = (props: {
         roots = nodes.filter((node) => (node.parentRefs || []).length === 0).sort(compareNodes);
     }
 
-    function processNode(node: ResourceTreeNode, root: ResourceTreeNode) {
+    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
         graph.setNode(nodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
         (childrenByParentKey.get(nodeKey(node)) || []).sort(compareNodes).forEach((child) => {
-            graph.setEdge(nodeKey(node), nodeKey(child));
-            processNode(child, root);
+            graph.setEdge(nodeKey(node), nodeKey(child), {colors});
+            processNode(child, root, colors);
         });
     }
 
-    roots.sort(compareNodes).forEach((node) => processNode(node, node));
-
     if (props.useNetworkingHierarchy) {
-        const externalRoots = roots.filter((root) => (root.networkingInfo.ingress || []).length > 0);
+        const externalRoots = roots.filter((root) => (root.networkingInfo.ingress || []).length > 0).sort(compareNodes);
+        const internalRoots = roots.filter((root) => (root.networkingInfo.ingress || []).length === 0).sort(compareNodes);
+        const colorsBySource = new Map<string, string>();
+        // sources are root internal services and external ingress/service IPs
+        const sources = Array.from(new Set(internalRoots.map((root) => nodeKey(root)).concat(
+            externalRoots.map((root) => root.networkingInfo.ingress.map((ingress) => ingress.hostname || ingress.ip)).reduce((first, second) => first.concat(second), []),
+        )));
+        // assign unique color to each traffic source
+        sources.forEach((key, i) => colorsBySource.set(key, TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
+
         if (externalRoots.length > 0) {
-            graph.setNode(EXTERNAL_TRAFFIC_NODE, { height: NODE_HEIGHT, width: 30 });
-            externalRoots.forEach((root) => graph.setEdge(EXTERNAL_TRAFFIC_NODE, nodeKey(root)));
+            graph.setNode(EXTERNAL_TRAFFIC_NODE, { height: NODE_HEIGHT, width: 30, type: NODE_TYPES.externalTraffic });
+            externalRoots.sort(compareNodes).forEach((root) => {
+                const loadBalancers = root.networkingInfo.ingress.map((ingress) => ingress.hostname || ingress.ip);
+                processNode(root, root, loadBalancers.map((lb) => colorsBySource.get(lb)));
+                loadBalancers.forEach((key) => {
+                    const loadBalancerNodeKey = `${EXTERNAL_TRAFFIC_NODE}:${key}`;
+                    graph.setNode(loadBalancerNodeKey, {
+                        height: NODE_HEIGHT, width: NODE_WIDTH, type: NODE_TYPES.externalLoadBalancer, label: key, color: colorsBySource.get(key)});
+                    graph.setEdge(loadBalancerNodeKey, nodeKey(root), { colors: [colorsBySource.get(key)]});
+                    graph.setEdge(EXTERNAL_TRAFFIC_NODE, loadBalancerNodeKey, { colors: [colorsBySource.get(key)]});
+                });
+            });
         }
-        const internalRoots = roots.filter((root) => (root.networkingInfo.ingress || []).length === 0);
+
         if (internalRoots.length > 0) {
-            graph.setNode(INTERNAL_TRAFFIC_NODE, { height: NODE_HEIGHT, width: 30 });
-            internalRoots.forEach((root) => graph.setEdge(INTERNAL_TRAFFIC_NODE, nodeKey(root)));
+            graph.setNode(INTERNAL_TRAFFIC_NODE, { height: NODE_HEIGHT, width: 30, type: NODE_TYPES.internalTraffic });
+            internalRoots.forEach((root) => {
+                processNode(root, root, [colorsBySource.get(nodeKey(root))]);
+                graph.setEdge(INTERNAL_TRAFFIC_NODE, nodeKey(root));
+            });
         }
     } else {
+        roots.sort(compareNodes).forEach((node) => processNode(node, node));
         graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
         roots.forEach((root) => graph.setEdge(appNodeKey(props.app), nodeKey(root)));
     }
@@ -236,9 +322,19 @@ export const ApplicationResourceTree = (props: {
 
     dagre.layout(graph);
 
-    const edges: {from: string, to: string, lines: Line[]}[] = [];
+    const edges: {from: string, to: string, lines: Line[], backgroundImage?: string}[] = [];
     graph.edges().forEach((edgeInfo) => {
         const edge = graph.edge(edgeInfo);
+        const colors = edge.colors as string[] || [];
+        let backgroundImage: string;
+        if (colors.length > 0) {
+            const step = 100 / colors.length;
+            const gradient = colors.map((lineColor, i) => {
+                return `${lineColor} ${step * i}%, ${lineColor} ${step * i + step / 2}%, transparent ${step * i + step / 2}%, transparent ${step * (i + 1)}%`;
+            });
+            backgroundImage = `linear-gradient(90deg, ${gradient})`;
+        }
+
         const lines: Line[] = [];
         // don't render connections from hidden node representing internal traffic
         if (edgeInfo.v === INTERNAL_TRAFFIC_NODE || edgeInfo.w === INTERNAL_TRAFFIC_NODE) {
@@ -249,7 +345,7 @@ export const ApplicationResourceTree = (props: {
                 lines.push({ x1: edge.points[i - 1].x, y1: edge.points[i - 1].y, x2: edge.points[i].x, y2: edge.points[i].y });
             }
         }
-        edges.push({ from: edgeInfo.v, to: edgeInfo.w, lines });
+        edges.push({ from: edgeInfo.v, to: edgeInfo.w, lines, backgroundImage });
     });
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map((id) => graph.node(id)));
@@ -261,59 +357,21 @@ export const ApplicationResourceTree = (props: {
     ) || (
         <div className={classNames('application-resource-tree', { 'application-resource-tree--network': props.useNetworkingHierarchy })}
                 style={{width: size.width + 150, height: size.height + 250}}>
-            {graphNodes.map((fullName) => {
-                if (fullName === FILTERED_INDICATOR_NODE) {
-                    return filteredNode(fullName, graph.node(fullName) as any, props.onClearFilter);
-                } else if (fullName === EXTERNAL_TRAFFIC_NODE) {
-                    return trafficNode(EXTERNAL_TRAFFIC_NODE, graph.node(fullName));
-                } else if (fullName === INTERNAL_TRAFFIC_NODE) {
-                    return null;
+            {graphNodes.map((key) => {
+                const node = graph.node(key);
+                const nodeType = node.type;
+                switch (nodeType) {
+                    case NODE_TYPES.filteredIndicator:
+                        return <React.Fragment key={key}>{renderFilteredNode(node as any, props.onClearFilter)}</React.Fragment>;
+                    case NODE_TYPES.externalTraffic:
+                        return <React.Fragment key={key}>{renderTrafficNode(node)}</React.Fragment>;
+                    case NODE_TYPES.internalTraffic:
+                        return null;
+                    case NODE_TYPES.externalLoadBalancer:
+                        return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
+                    default:
+                        return <React.Fragment key={key}>{renderResourceNode(props, key, node as (ResourceTreeNode) & dagre.Node)}</React.Fragment>;
                 }
-                const node = graph.node(fullName) as (ResourceTreeNode) & dagre.Node;
-                let comparisonStatus: models.SyncStatusCode = null;
-                let healthState: models.HealthStatus = null;
-                if (node.status || node.health) {
-                    comparisonStatus = node.status;
-                    healthState = node.health;
-                }
-                const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-cogs';
-                const tooltip = node.images && node.images.join(', ') || '';
-                return (
-                        <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} key={fullName} className={classNames('application-resource-tree__node', {
-                            active: fullName === props.selectedNodeFullName,
-                        })} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
-                            {!isAppNode(node) && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
-                            <div className={classNames('application-resource-tree__node-kind-icon', {
-                                'application-resource-tree__node-kind-icon--big': isAppNode(node),
-                            })}>
-                                <i title={node.kind} className={`icon ${kindIcon}`} />
-                            </div>
-                            <div className='application-resource-tree__node-content'>
-                                <Tooltip content={tooltip} key={fullName} isEnabled={tooltip !== ''}>
-                                    <span className='application-resource-tree__node-title'>{node.name}</span>
-                                </Tooltip>
-                                <div className={classNames('application-resource-tree__node-status-icon', {
-                                    'application-resource-tree__node-status-icon--offset': isAppNode(node),
-                                })}>
-                                    {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
-                                    {healthState != null && <HealthStatusIcon state={healthState}/>}
-                                    {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
-                                    <ApplicationIngressLink ingress={isAppNode(node) ? props.app.status.ingress : node.networkingInfo && node.networkingInfo.ingress}/>
-                                </div>
-                            </div>
-                            <div className='application-resource-tree__node-labels'>
-                                {(node.info || []).map((tag, i) => <span title={`${tag.name}:${tag.value}`} key={i}>{tag.value}</span>)}
-                                <span>{node.kind}</span>
-                            </div>
-                            {props.nodeMenuItems && (
-                                <div className='application-resource-tree__node-menu'>
-                                    <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                        <i className='fa fa-ellipsis-v'/>
-                                    </button>} items={props.nodeMenuItems(node)}/>
-                                </div>
-                            )}
-                        </div>
-                );
             })}
             {edges.map((edge) => (
                 <div key={`${edge.from}-${edge.to}`} className='application-resource-tree__edge'>
@@ -324,7 +382,12 @@ export const ApplicationResourceTree = (props: {
                     const angle = Math.atan2(line.y1 - line.y2, line.x1 - line.x2) * 180 / Math.PI;
                     return (
                         <div className='application-resource-tree__line' key={i}
-                            style={{ width: distance, left: xMid - (distance / 2), top: yMid, transform: `translate(150px, 35px) rotate(${angle}deg)`}} />
+                            style={{
+                                width: distance, left: xMid - (distance / 2),
+                                top: yMid,
+                                backgroundImage: edge.backgroundImage,
+                                transform: `translate(150px, 35px) rotate(${angle}deg)`,
+                            }} />
                     );
                 })}</div>
             ))}

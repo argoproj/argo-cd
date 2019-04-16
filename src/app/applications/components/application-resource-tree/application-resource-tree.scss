@@ -28,15 +28,12 @@
 
     &--network {
         .application-resource-tree__line {
-            background-image: linear-gradient(90deg, $argo-color-teal-5 50%, transparent 50%),
-                linear-gradient(90deg, $argo-color-teal-5 50%, transparent 50%),
-                linear-gradient(0deg, $argo-color-teal-5 50%, transparent 50%),
-                linear-gradient(0deg, $argo-color-teal-5 50%, transparent 50%);
+            background-image: linear-gradient(90deg, $argo-color-teal-5 50%, transparent 50%);
             background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-            background-size: 20px 2px, 0px 0px, 0px 0px, 0px 0px;
+            background-size: 20px 3px, 0px 0px, 0px 0px, 0px 0px;
             background-position: left top, right bottom, left bottom, right top;
             animation: network-flow 1s infinite linear;
-            height: 2px;
+            height: 3px;
             border-top: none;
         }
         @keyframes network-flow {
@@ -53,7 +50,7 @@
                 &:last-child {
                     &:after {
                         color: $argo-color-teal-6;
-                        top: -9px;
+                        top: -8px;
                     }
                 }
             }
@@ -78,6 +75,11 @@
 
         &.active {
             border-color: $argo-color-teal-6;
+        }
+
+        &--load-balancer {
+            cursor: default;
+            background-color: $argo-color-teal-2;
         }
     }
 
