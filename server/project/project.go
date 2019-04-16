@@ -256,7 +256,7 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 	if len(removedDstUsed) > 0 {
 		formattedRemovedUsedList := make([]string, len(removedDstUsed))
 		for i := 0; i < len(removedDstUsed); i++ {
-			formattedRemovedUsedList[i] = fmt.Sprintf("cluster: %s, namespace: %s", removedDstUsed[i].Server, removedDstUsed[i].Namespace)
+			formattedRemovedUsedList[i] = fmt.Sprintf("server: %s, namespace: %s", removedDstUsed[i].Server, removedDstUsed[i].Namespace)
 		}
 		return nil, status.Errorf(
 			codes.InvalidArgument, "following destinations are used by one or more application and cannot be removed: %s", strings.Join(formattedRemovedUsedList, ";"))
