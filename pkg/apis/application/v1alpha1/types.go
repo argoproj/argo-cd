@@ -231,15 +231,15 @@ type Operation struct {
 	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
 }
 
-// SyncWaitOperationResource contains resources to sync or wait.
-type SyncWaitOperationResource struct {
+// SyncOperationResource contains resources to sync.
+type SyncOperationResource struct {
 	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	Kind  string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name  string `json:"name" protobuf:"bytes,3,opt,name=name"`
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest.
-func (r SyncWaitOperationResource) HasIdentity(name string, gvk schema.GroupVersionKind) bool {
+func (r SyncOperationResource) HasIdentity(name string, gvk schema.GroupVersionKind) bool {
 	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group {
 		return true
 	}
@@ -258,7 +258,7 @@ type SyncOperation struct {
 	// SyncStrategy describes how to perform the sync
 	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
 	// Resources describes which resources to sync
-	Resources []SyncWaitOperationResource `json:"resources,omitempty" protobuf:"bytes,6,opt,name=resources"`
+	Resources []SyncOperationResource `json:"resources,omitempty" protobuf:"bytes,6,opt,name=resources"`
 	// Source overrides the source definition set in the application.
 	// This is typically set in a Rollback operation and nil during a Sync operation
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
@@ -443,7 +443,7 @@ type ComponentParameter struct {
 }
 
 // SyncStatusCode is a type which represents possible comparison results
-type SyncStatusCode = string
+type SyncStatusCode string
 
 // Possible comparison results
 const (

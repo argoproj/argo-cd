@@ -67,7 +67,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus":             schema_pkg_apis_application_v1alpha1_ResourceStatus(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory":            schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperation":              schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
-		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWaitOperationResource":      schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource":      schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResult":        schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicy":                 schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncPolicyAutomated":        schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
@@ -2364,7 +2364,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWaitOperationResource"),
+										Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource"),
 									},
 								},
 							},
@@ -2380,7 +2380,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncWaitOperationResource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategy"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncOperationResource", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStrategy"},
 	}
 }
 
@@ -2388,7 +2388,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SyncWaitOperationResource contains resources to sync.",
+				Description: "SyncOperationResource contains resources to sync.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"group": {

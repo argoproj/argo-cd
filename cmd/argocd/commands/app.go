@@ -257,7 +257,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string) {
 		syncPolicy = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
-	syncStatusStr := app.Status.Sync.Status
+	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
 		syncStatusStr += fmt.Sprintf(" to %s", app.Spec.Source.TargetRevision)
@@ -959,16 +959,16 @@ const (
 	resourceFieldCount     = 3
 )
 
-func parseSelectedResources(resources *[]string) []argoappv1.SyncWaitOperationResource {
-	var selectedResources []argoappv1.SyncWaitOperationResource
+func parseSelectedResources(resources *[]string) []argoappv1.SyncOperationResource {
+	var selectedResources []argoappv1.SyncOperationResource
 	if resources != nil {
-		selectedResources = []argoappv1.SyncWaitOperationResource{}
+		selectedResources = []argoappv1.SyncOperationResource{}
 		for _, r := range *resources {
 			fields := strings.Split(r, resourceFieldDelimiter)
 			if len(fields) != resourceFieldCount {
 				log.Fatalf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, r)
 			}
-			rsrc := argoappv1.SyncWaitOperationResource{
+			rsrc := argoappv1.SyncOperationResource{
 				Group: fields[0],
 				Kind:  fields[1],
 				Name:  fields[2],
@@ -1165,7 +1165,7 @@ func newResourceStateFromStatus(res *argoappv1.ResourceStatus) *resourceState {
 		Kind:      res.Kind,
 		Namespace: res.Namespace,
 		Name:      res.Name,
-		Status:    res.Status,
+		Status:    string(res.Status),
 		Health:    healthStatus,
 	}
 }
@@ -1210,7 +1210,7 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 	return updated
 }
 
-func calculateResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncWaitOperationResource) map[string]*resourceState {
+func calculateResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := getResourceStates(app, selectedResources)
 
 	var opResult *argoappv1.SyncOperationResult
@@ -1236,7 +1236,7 @@ func calculateResourceStates(app *argoappv1.Application, selectedResources []arg
 	return resStates
 }
 
-func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncWaitOperationResource) map[string]*resourceState {
+func getResourceStates(app *argoappv1.Application, selectedResources []argoappv1.SyncOperationResource) map[string]*resourceState {
 	resStates := make(map[string]*resourceState)
 	for _, res := range app.Status.Resources {
 		if len(selectedResources) > 0 && !argo.ContainsSyncResource(res.Name, res.GroupVersionKind(), selectedResources) {
@@ -1264,14 +1264,14 @@ func checkResourceStatus(watchSync bool, watchHealth bool, watchOperation bool, 
 		healthCheckPassed = healthStatus == argoappv1.HealthStatusHealthy
 	}
 
-	synced := !watchSync || syncStatus == argoappv1.SyncStatusCodeSynced
+	synced := !watchSync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
 	operational := !watchOperation || operationStatus == nil
 	return synced && healthCheckPassed && operational
 }
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncWaitOperationResource) (*argoappv1.Application, error) {
+func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout uint, watchSync bool, watchHealth bool, watchOperation bool, watchSuspended bool, selectedResources []argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -1341,7 +1341,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 			}
 		} else {
 			// Wait on the application as a whole
-			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, app.Status.Sync.Status, appEvent.Application.Operation)
+			selectedResourcesAreReady = checkResourceStatus(watchSync, watchHealth, watchOperation, watchSuspended, app.Status.Health.Status, string(app.Status.Sync.Status), appEvent.Application.Operation)
 		}
 
 		if len(app.Status.GetErrorConditions()) == 0 && selectedResourcesAreReady {
