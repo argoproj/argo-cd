@@ -176,15 +176,11 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	serve := newMockRepoServerService()
 	ctx := context.Background()
 
-	// verify default parameters are returned when not supplying values
-	{
-		_, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
-			Repo: &argoappv1.Repository{Repo: repoUrl()},
-			Path: "util/helm/testdata/redis",
-		})
-		assert.NoError(t, err)
-		// TODO - undo
-	}
+	_, err := serve.GetAppDetails(ctx, &RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{Repo: repoUrl()},
+		Path: "util/helm/testdata/redis",
+	})
+	assert.NoError(t, err)
 }
 
 func TestGetAppDetailsKsonnet(t *testing.T) {
