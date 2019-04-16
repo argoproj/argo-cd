@@ -200,6 +200,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 	for _, ref := range refs {
+		log.WithFields(log.Fields{"ref": ref}).Infof("examining ref")
 		refName := ref.Name().String()
 		if refName != "HEAD" && !strings.HasPrefix(refName, "refs/heads/") && !strings.HasPrefix(refName, "refs/tags/") {
 			// ignore things like 'refs/pull/' 'refs/reviewable'
