@@ -31,6 +31,7 @@ message RepoAppDetailsQuery {
 	string revision = 2;
 	string path = 3;
 	repository.HelmAppDetailsQuery helm = 4;
+	repository.KsonnetAppDetailsQuery ksonnet = 5;
 }
 
 // RepoAppsResponse contains applications of specified repository

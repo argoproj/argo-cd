@@ -15,13 +15,13 @@ var (
 )
 
 const (
-	testAppName = "guestbook"
+	testAppName = "ksonnet"
 	testEnvName = "prod"
 )
 
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
-	testDataDir = filepath.Join(filepath.Dir(filename), "testdata")
+	testDataDir = filepath.Join(filepath.Dir(filename), "../../test/e2e/testdata")
 }
 
 func TestKsonnet(t *testing.T) {
