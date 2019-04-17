@@ -8,12 +8,8 @@ Git repository via file url: `file:///tmp/argocd-e2e***`.
 
 ## Running Tests Locally
 
-1. Create namespace: `kubectl create ns argocd-e2e` 
-1. Apply manifests: `kustomize build test/manifests/base | kubectl apply -n argocd-e2e -f -`
-1. Change namespace to `argocd-e2e`: `kubens argocd-e2e`
-1. Start services: `make start`
-1. Build CLI: `make cli`
-1. Run tests: `make test-e2e`
+1. Start the e2e version `make start-e2e` 
+1. Run the tests: `make test-e2e`
 
 You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications).
 
