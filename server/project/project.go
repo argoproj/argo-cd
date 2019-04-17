@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
@@ -237,6 +238,16 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 	for _, repoUrl := range difference(q.Project.Spec.SourceRepos, oldProj.Spec.SourceRepos) {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, repoUrl); err != nil {
 			return nil, err
+		}
+	}
+
+	clusterResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist)
+	namespacesResourceBlacklistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceBlacklist, oldProj.Spec.NamespaceResourceBlacklist)
+	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual {
+		for _, cluster := range q.Project.Spec.DestinationClusters() {
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, cluster); err != nil {
+				return nil, err
+			}
 		}
 	}
 

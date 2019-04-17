@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -85,6 +86,34 @@ func TestProjectServer(t *testing.T) {
 		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
 
 		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: repositories, update, https://github.com/argoproj/argo-cd.git"), err)
+	})
+
+	t.Run("TestClusterResourceWhitelistUpdateDenied", func(t *testing.T) {
+
+		enforcer.SetDefaultRole("role:projects")
+		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+
+		updatedProj := existingProj.DeepCopy()
+		updatedProj.Spec.ClusterResourceWhitelist = []metav1.GroupKind{{}}
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
+
+		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: clusters, update, https://server1"), err)
+	})
+
+	t.Run("TestNamespaceResourceBlacklistUpdateDenied", func(t *testing.T) {
+
+		enforcer.SetDefaultRole("role:projects")
+		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, util.NewKeyLock(), nil)
+
+		updatedProj := existingProj.DeepCopy()
+		updatedProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{}}
+
+		_, err := projectServer.Update(context.Background(), &ProjectUpdateRequest{Project: updatedProj})
+
+		assert.Equal(t, status.Error(codes.PermissionDenied, "permission denied: clusters, update, https://server1"), err)
 	})
 
 	enforcer = newEnforcer(kubeclientset)
