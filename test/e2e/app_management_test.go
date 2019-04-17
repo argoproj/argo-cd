@@ -319,7 +319,10 @@ func TestAppWithSecrets(t *testing.T) {
 	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 	assert.NoError(t, err)
 
-	assert.Equal(t, string(v1alpha1.SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
+	})
 
 	diffOutput, err = fixture.RunCli("app", "diff", app.Name)
 	assert.Error(t, err)
