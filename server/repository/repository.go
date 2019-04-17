@@ -203,6 +203,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 		Path:     q.Path,
 		Repos:    repositories,
 		Helm:     q.Helm,
+		Ksonnet:  q.Ksonnet,
 	})
 }
 

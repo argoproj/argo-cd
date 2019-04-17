@@ -157,6 +157,20 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 	return mgr.secrets, nil
 }
 
+// GetResouceOverrides loads Resource Overrides from argocd-cm ConfigMap
+func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
+	if err != nil {
+		return nil, err
+	}
+	resourceOverrides, err := getResourceOverridesFromConfigMap(argoCDCM)
+	if err != nil {
+		return nil, err
+	}
+
+	return resourceOverrides, nil
+}
+
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	err := mgr.ensureSynced(false)
@@ -324,14 +338,11 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		}
 	}
 
-	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok {
-		resourceOverrides := map[string]v1alpha1.ResourceOverride{}
-		err := yaml.Unmarshal([]byte(value), &resourceOverrides)
-		if err != nil {
-			errors = append(errors, err)
-		} else {
-			settings.ResourceOverrides = resourceOverrides
-		}
+	resourceOverrides, err := getResourceOverridesFromConfigMap(argoCDCM)
+	if err != nil {
+		errors = append(errors, err)
+	} else {
+		settings.ResourceOverrides = resourceOverrides
 	}
 
 	if value, ok := argoCDCM.Data[resourceExclusionsKey]; ok {
@@ -358,6 +369,17 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		return errors[0]
 	}
 	return nil
+}
+
+func getResourceOverridesFromConfigMap(argoCDCM *apiv1.ConfigMap) (map[string]v1alpha1.ResourceOverride, error) {
+	resourceOverrides := map[string]v1alpha1.ResourceOverride{}
+	if value, ok := argoCDCM.Data[resourceCustomizationsKey]; ok {
+		err := yaml.Unmarshal([]byte(value), &resourceOverrides)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return resourceOverrides, nil
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.

@@ -574,7 +574,11 @@ func (s *Service) GetAppDetails(ctx context.Context, q *RepoServerAppDetailsQuer
 		if err != nil {
 			return nil, status.Errorf(codes.FailedPrecondition, "unable to load application from %s: %v", appPath, err)
 		}
-		params, err := ksApp.ListParams()
+		env := ""
+		if q.Ksonnet != nil {
+			env = q.Ksonnet.Environment
+		}
+		params, err := ksApp.ListParams(env)
 		if err != nil {
 			return nil, err
 		}

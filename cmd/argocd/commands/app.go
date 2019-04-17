@@ -84,6 +84,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchResourceCommand(clientOpts))
+	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	return command
 }
 
@@ -704,7 +705,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						errors.CheckError(err)
 						key = kube.GetResourceKey(target)
 					}
-
+					if key.Kind == kube.SecretKind && key.Group == "" {
+						// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
+						delete(localObjs, key)
+						continue
+					}
 					if local, ok := localObjs[key]; ok || live != nil {
 						if local != nil && !kube.IsCRD(local) {
 							err = kube.SetAppInstanceLabel(local, argoSettings.AppLabelKey, appName)
@@ -1681,6 +1686,43 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return &command
 }
 
+func filterResources(command *cobra.Command, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
+	liveObjs, err := liveObjects(resources)
+	errors.CheckError(err)
+	filteredObjects := make([]*unstructured.Unstructured, 0)
+	for i := range liveObjs {
+		obj := liveObjs[i]
+		gvk := obj.GroupVersionKind()
+		if command.Flags().Changed("group") && group != gvk.Group {
+			continue
+		}
+		if namespace != "" && namespace != obj.GetNamespace() {
+			continue
+		}
+		if resourceName != "" && resourceName != obj.GetName() {
+			continue
+		}
+		if kind == gvk.Kind {
+			copy := obj.DeepCopy()
+			filteredObjects = append(filteredObjects, copy)
+		}
+	}
+	if len(filteredObjects) == 0 {
+		log.Fatal("No matching resource found")
+	}
+	if len(filteredObjects) > 1 && !all {
+		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+	}
+	firstGroup := filteredObjects[0].GroupVersionKind().Group
+	for i := range filteredObjects {
+		obj := filteredObjects[i]
+		if obj.GroupVersionKind().Group != firstGroup {
+			log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
+		}
+	}
+	return filteredObjects
+}
+
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var patch string
 	var patchType string
@@ -1689,7 +1731,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	var kind string
 	var group string
 	var all bool
-	command := cobra.Command{
+	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
 	}
@@ -1704,7 +1746,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().BoolVar(&all, "all", false, "Indicates where to patch multiple matching of resources")
+	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Run = func(c *cobra.Command, args []string) {
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
@@ -1717,39 +1759,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
-		liveObjs, err := liveObjects(resources.Items)
-		errors.CheckError(err)
-		objectsToPatch := make([]*unstructured.Unstructured, 0)
-		for i := range liveObjs {
-			obj := liveObjs[i]
-			gvk := obj.GroupVersionKind()
-			if command.Flags().Changed("group") && group != gvk.Group {
-				continue
-			}
-			if namespace != "" && namespace != obj.GetNamespace() {
-				continue
-			}
-			if resourceName != "" && resourceName != obj.GetName() {
-				continue
-			}
-			if kind == gvk.Kind {
-				copy := obj.DeepCopy()
-				objectsToPatch = append(objectsToPatch, copy)
-			}
-		}
-		if len(objectsToPatch) == 0 {
-			log.Fatal("No matching resource found to patch")
-		}
-		if len(objectsToPatch) > 1 && !all {
-			log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
-		}
-		group := objectsToPatch[0].GroupVersionKind().Group
-		for i := range objectsToPatch {
-			obj := objectsToPatch[i]
-			if obj.GroupVersionKind().Group != group {
-				log.Fatal("Multiple groups found in objects to patch. Specify which group to patch with --group flag")
-			}
-		}
+		objectsToPatch := filterResources(command, resources.Items, group, kind, namespace, resourceName, all)
 		for i := range objectsToPatch {
 			obj := objectsToPatch[i]
 			gvk := obj.GroupVersionKind()
@@ -1768,5 +1778,5 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		}
 	}
 
-	return &command
+	return command
 }

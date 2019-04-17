@@ -19,7 +19,9 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -66,9 +68,9 @@ func getTestApp() *v1alpha1.Application {
 	}
 }
 
-func createAndSync(t *testing.T, appPath string) *v1alpha1.Application {
+func createAndSync(t *testing.T, beforeCreate func(app *v1alpha1.Application)) *v1alpha1.Application {
 	app := getTestApp()
-	app.Spec.Source.Path = appPath
+	beforeCreate(app)
 
 	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
 	assert.NoError(t, err)
@@ -85,7 +87,9 @@ func createAndSync(t *testing.T, appPath string) *v1alpha1.Application {
 }
 
 func createAndSyncDefault(t *testing.T) *v1alpha1.Application {
-	return createAndSync(t, guestbookPath)
+	return createAndSync(t, func(app *v1alpha1.Application) {
+		app.Spec.Source.Path = guestbookPath
+	})
 }
 
 func TestAppCreation(t *testing.T) {
@@ -294,23 +298,54 @@ func TestManipulateApplicationResources(t *testing.T) {
 func TestAppWithSecrets(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app := createAndSync(t, "secrets")
+	app := createAndSync(t, func(app *v1alpha1.Application) {
+		app.Spec.Source.Path = "secrets"
+	})
 
-	app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{{
-		Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
-	}}
+	diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+	assert.NoError(t, err)
+	assert.Empty(t, diffOutput)
+
+	// patch secret and make sure app is out of sync and diff detects the change
+	_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace).Patch(
+		"test-secret", types.JSONPatchType, []byte(`[{"op": "remove", "path": "/data/username"}]`))
+	assert.NoError(t, err)
 
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer util.Close(closer)
-	_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
-		Name: &app.Name,
-		Spec: app.Spec,
+
+	refresh := string(v1alpha1.RefreshTypeNormal)
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+
+	WaitUntil(t, func() (done bool, err error) {
+		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
 	})
+
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name)
+	assert.Error(t, err)
+	assert.Contains(t, diffOutput, "username: '*********'")
+
+	// local diff should ignore secrets
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/secrets")
+	assert.NoError(t, err)
+	assert.Empty(t, diffOutput)
+
+	// ignore missing field and make sure diff shows no difference
+	app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{{
+		Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
+	}}
+	_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
 
 	assert.NoError(t, err)
 
-	diffOutput, err := fixture.RunCli("app", "diff", app.Name)
+	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+	assert.NoError(t, err)
+	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+
+	diffOutput, err = fixture.RunCli("app", "diff", app.Name)
 	assert.NoError(t, err)
 	assert.Empty(t, diffOutput)
 }
@@ -382,7 +417,9 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
 			fixture.EnsureCleanState()
 
-			app := createAndSync(t, appPath)
+			app := createAndSync(t, func(app *v1alpha1.Application) {
+				app.Spec.Source.Path = appPath
+			})
 
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
@@ -398,4 +435,39 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+func TestKsonnetApp(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := createAndSync(t, func(app *v1alpha1.Application) {
+		app.Spec.Source.Path = "ksonnet"
+		app.Spec.Source.Ksonnet = &v1alpha1.ApplicationSourceKsonnet{
+			Environment: "prod",
+			Parameters: []v1alpha1.KsonnetParameter{{
+				Component: "guestbook-ui",
+				Name:      "image",
+				Value:     "gcr.io/heptio-images/ks-guestbook-demo:0.1",
+			}},
+		}
+	})
+	closer, client, err := fixture.ArgoCDClientset.NewRepoClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	details, err := client.GetAppDetails(context.Background(), &repository.RepoAppDetailsQuery{
+		Path:     app.Spec.Source.Path,
+		Repo:     app.Spec.Source.RepoURL,
+		Revision: app.Spec.Source.TargetRevision,
+		Ksonnet:  &argorepo.KsonnetAppDetailsQuery{Environment: "prod"},
+	})
+	assert.NoError(t, err)
+
+	serviceType := ""
+	for _, param := range details.Ksonnet.Parameters {
+		if param.Name == "type" && param.Component == "guestbook-ui" {
+			serviceType = param.Value
+		}
+	}
+	assert.Equal(t, serviceType, "LoadBalancer")
 }

@@ -60,10 +60,15 @@ message RepoServerAppDetailsQuery {
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.Repository repos = 4;
     repeated github.com.argoproj.argo_cd.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 5;
     HelmAppDetailsQuery helm = 6;
+    KsonnetAppDetailsQuery ksonnet = 7;
 }
 
 message HelmAppDetailsQuery {
 	repeated string valueFiles = 1;
+}
+
+message KsonnetAppDetailsQuery {
+    string environment = 1;
 }
 
 // RepoAppDetailsResponse application details

@@ -550,6 +550,93 @@
         }
       }
     },
+    "/api/v1/applications/{name}/resource/actions": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "ListResourceActions",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationResourceActionsListResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/{resourceName}/actions": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "RunResourceAction",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "(empty)",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/rollback": {
       "post": {
         "tags": [
@@ -1207,6 +1294,11 @@
             },
             "name": "helm.valueFiles",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "ksonnet.environment",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1445,6 +1537,17 @@
     "applicationOperationTerminateResponse": {
       "type": "object"
     },
+    "applicationResourceActionsListResponse": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceAction"
+          }
+        }
+      }
+    },
     "clusterClusterCreateFromKubeConfigRequest": {
       "type": "object",
       "properties": {
@@ -1626,6 +1729,14 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "repositoryKsonnetAppDetailsQuery": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "type": "string"
         }
       }
     },
@@ -2921,6 +3032,62 @@
         }
       }
     },
+    "v1alpha1ResourceAction": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceActionParam"
+          }
+        }
+      }
+    },
+    "v1alpha1ResourceActionDefinition": {
+      "type": "object",
+      "properties": {
+        "actionLua": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceActionParam": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ResourceActions": {
+      "type": "object",
+      "properties": {
+        "actionDiscoveryLua": {
+          "type": "string"
+        },
+        "definitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceActionDefinition"
+          }
+        }
+      }
+    },
     "v1alpha1ResourceDiff": {
       "type": "object",
       "title": "ResourceDiff holds the diff of a live and target resource object",
@@ -3042,6 +3209,9 @@
       "type": "object",
       "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
       "properties": {
+        "actions": {
+          "$ref": "#/definitions/v1alpha1ResourceActions"
+        },
         "healthLua": {
           "type": "string"
         },

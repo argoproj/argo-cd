@@ -71,11 +71,7 @@ To run unit tests:
 make test
 ```
 
-To run e2e tests:
-
-```bash
-make test-e2e
-```
+Check out the following [documentation](https://github.com/argoproj/argo-cd/blob/master/docs/developer-guide/test-e2e.md) for instructions on running the e2e tests.
 
 ## Running Locally
 

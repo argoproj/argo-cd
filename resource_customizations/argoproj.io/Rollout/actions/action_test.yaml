@@ -1,0 +1,13 @@
+discoveryTests:
+- inputPath: testdata/paused_rollout.yaml
+  result:
+    - name: resume
+- inputPath: testdata/not_paused_rollout.yaml
+  result: []
+- inputPath: testdata/nil_paused_rollout.yaml
+  result: []
+actionTests:
+- action: resume
+  inputPath: testdata/paused_rollout.yaml
+  expectedOutputPath: testdata/not_paused_rollout.yaml
+
