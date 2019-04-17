@@ -879,12 +879,8 @@ namespace <code>argocd-e2e***</code> is created prior to tests execute. The thro
 Git repository via file url: <code>file:///tmp/argocd-e2e***</code>.</p>
 <h2 id="running-tests-locally">Running Tests Locally<a class="headerlink" href="#running-tests-locally" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Create namespace: <code>kubectl create ns argocd-e2e</code> </li>
-<li>Apply manifests: <code>kustomize build test/manifests/base | kubectl apply -n argocd-e2e -f -</code></li>
-<li>Change namespace to <code>argocd-e2e</code>: <code>kubens argocd-e2e</code></li>
-<li>Start services: <code>make start</code></li>
-<li>Build CLI: <code>make cli</code></li>
-<li>Run tests: <code>make test-e2e</code></li>
+<li>Start the e2e version <code>make start-e2e</code> </li>
+<li>Run the tests: <code>make test-e2e</code></li>
 </ol>
 <p>You can observe the tests by using the UI <a href="http://localhost:8080/applications">http://localhost:8080/applications</a>.</p>
 <h2 id="ci-set-up">CI Set-up<a class="headerlink" href="#ci-set-up" title="Permanent link">&para;</a></h2>

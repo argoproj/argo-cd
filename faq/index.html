@@ -772,6 +772,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it" title="I've configured cluster secret but it does not show up in CLI/UI, how do I fix it?" class="md-nav__link">
+    I've configured cluster secret but it does not show up in CLI/UI, how do I fix it?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it" title="Argo CD is unable to connect to my cluster, how do I troubleshoot it?" class="md-nav__link">
+    Argo CD is unable to connect to my cluster, how do I troubleshoot it?
+  </a>
+  
+</li>
+      
       
       
       
@@ -879,6 +893,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it" title="I've configured cluster secret but it does not show up in CLI/UI, how do I fix it?" class="md-nav__link">
+    I've configured cluster secret but it does not show up in CLI/UI, how do I fix it?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it" title="Argo CD is unable to connect to my cluster, how do I troubleshoot it?" class="md-nav__link">
+    Argo CD is unable to connect to my cluster, how do I troubleshoot it?
+  </a>
+  
+</li>
+      
       
       
       
@@ -931,6 +959,20 @@ uses only internally available Helm repositories. Even if the chart uses only de
     <span class="no">- url: http://&lt;internal-helm-repo-host&gt;:8080</span>
       <span class="no">name: stable</span>
 </pre></div>
+
+
+<h2 id="ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it">I've configured <a href="../operator-manual/declarative-setup/#clusters">cluster secret</a> but it does not show up in CLI/UI, how do I fix it?<a class="headerlink" href="#ive-configured-cluster-secret-but-it-does-not-show-up-in-cliui-how-do-i-fix-it" title="Permanent link">&para;</a></h2>
+<p>Check if cluster secret has <code>argocd.argoproj.io/secret-type: cluster</code> label. If secret has the label but the cluster is still not visible then make sure it might be a
+permission issue. Try to list clusters using <code>admin</code> user (e.g. <code>argocd login --username admin &amp;&amp; argocd cluster list</code>).</p>
+<h2 id="argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it">Argo CD is unable to connect to my cluster, how do I troubleshoot it?<a class="headerlink" href="#argo-cd-is-unable-to-connect-to-my-cluster-how-do-i-troubleshoot-it" title="Permanent link">&para;</a></h2>
+<p>Use the following steps to reconstruct configured cluster config and connect to your cluster manually using kubectl:</p>
+<div class="codehilite"><pre><span></span>kubectl <span class="nb">exec</span> -it &lt;argocd-pod-name&gt; bash <span class="c1"># ssh into any argocd server pod</span>
+argocd-util kubeconfig https://&lt;cluster-url&gt; /tmp/config --namespace argocd <span class="c1"># generate your cluster config</span>
+<span class="nv">KUBECONFIG</span><span class="o">=</span>/tmp/config kubectl get pods <span class="c1"># test connection manually</span>
+</pre></div>
+
+
+<p>Now you can manually verify that cluster is accessible from the Argo CD pod.</p>
                 
                   
                 

@@ -958,18 +958,20 @@
 <li><a href="https://github.com/kubernetes-sigs/kustomize/releases">kustomize</a></li>
 <li><a href="https://github.com/go-swagger/go-swagger/blob/master/docs/install.md">go-swagger</a></li>
 <li><a href="https://stedolan.github.io/jq/">jq</a></li>
-<li><a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a>.</li>
+<li><a href="https://kubernetes.io/docs/tasks/tools/install-kubectl/">kubectl</a></li>
+<li><a href="https://kubectx.dev">kubectx</a></li>
 <li><a href="https://kubernetes.io/docs/setup/minikube/">minikube</a> or Docker for Desktop</li>
 </ul>
+<p>Brew users can quickly install the lot:</p>
+<div class="codehilite"><pre><span></span>brew tap go-swagger/go-swagger
+brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger 
+</pre></div>
+
+
 <div class="admonition note">
 <p class="admonition-title">Kustomize</p>
 <p>Since Argo CD supports Kustomize v1.0 and v2.0, you will need to install both versions in order for the unit tests to run. The Kustomize 1 unit test expects to find a <code>kustomize1</code> binary in the path.  You can use this <a href="https://github.com/argoproj/argo-cd/blob/master/Dockerfile#L66-L69">link</a> to find the Kustomize 1 currently used by Argo CD and modify the curl command to download the correct OS.</p>
 </div>
-<div class="codehilite"><pre><span></span>brew tap go-swagger/go-swagger
-brew install go dep protobuf kubectl ksonnet/tap/ks kubernetes-helm jq go-swagger 
-</pre></div>
-
-
 <p>Set up environment variables (e.g. is <code>~/.bashrc</code>):</p>
 <div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">GOPATH</span><span class="o">=</span>~/go
 <span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="nv">$PATH</span>:<span class="nv">$GOPATH</span>/bin
@@ -1007,11 +1009,7 @@ make
 </pre></div>
 
 
-<p>To run e2e tests:</p>
-<div class="codehilite"><pre><span></span>make test-e2e
-</pre></div>
-
-
+<p>Check out the following <a href="https://github.com/argoproj/argo-cd/blob/master/docs/developer-guide/test-e2e.md">documentation</a> for instructions on running the e2e tests.</p>
 <h2 id="running-locally">Running Locally<a class="headerlink" href="#running-locally" title="Permanent link">&para;</a></h2>
 <p>It is much easier to run and debug if you run ArgoCD on your local machine than in the Kubernetes cluster.</p>
 <p>You should scale the deployments to zero:</p>
