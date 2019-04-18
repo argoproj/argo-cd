@@ -314,9 +314,6 @@ func (c *clusterInfo) sync() (err error) {
 }
 
 func (c *clusterInfo) ensureSynced() error {
-	if c.synced() {
-		return c.syncError
-	}
 	c.syncLock.Lock()
 	defer c.syncLock.Unlock()
 	if c.synced() {
@@ -382,7 +379,6 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 					managedObj, err = c.kubectl.GetResource(c.cluster.RESTConfig(), targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
 					if err != nil {
 						if errors.IsNotFound(err) {
-							c.checkAndInvalidateStaleCache(targetObj.GroupVersionKind(), existingObj.ref.Namespace, existingObj.ref.Name)
 							return nil
 						}
 						return err
@@ -410,27 +406,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 }
 
 func (c *clusterInfo) delete(obj *unstructured.Unstructured) error {
-	err := c.kubectl.DeleteResource(c.cluster.RESTConfig(), obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
-	if err != nil && errors.IsNotFound(err) {
-		// a delete request came in for an object which does not exist. it's possible that our cache
-		// is stale. Check and invalidate if it is
-		c.lock.Lock()
-		c.checkAndInvalidateStaleCache(obj.GroupVersionKind(), obj.GetNamespace(), obj.GetName())
-		c.lock.Unlock()
-		return nil
-	}
-	return err
-}
-
-// checkAndInvalidateStaleCache checks if our cache is stale and invalidate it based on error
-// should be called whenever we suspect our cache is stale
-func (c *clusterInfo) checkAndInvalidateStaleCache(gvk schema.GroupVersionKind, namespace string, name string) {
-	if _, ok := c.nodes[kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name)]; ok {
-		if c.syncTime != nil {
-			c.log.Warnf("invalidated stale cache due to mismatch of %s, %s/%s", gvk, namespace, name)
-			c.invalidate()
-		}
-	}
+	return c.kubectl.DeleteResource(c.cluster.RESTConfig(), obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 }
 
 func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) error {
