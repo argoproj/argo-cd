@@ -1545,7 +1545,7 @@ var xxx_messageInfo_SyncOperation proto.InternalMessageInfo
 func (m *SyncOperationResource) Reset()      { *m = SyncOperationResource{} }
 func (*SyncOperationResource) ProtoMessage() {}
 func (*SyncOperationResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_generated_daa7de17ece9900c, []int{50}
+	return fileDescriptor_generated_99647907024d12fc, []int{54}
 }
 func (m *SyncOperationResource) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
