@@ -95,17 +95,17 @@ func RetryUntilSucceed(action func() error, desc string, ctx context.Context, ti
 		}
 	}()
 	for {
-		log.Infof("Start %s", desc)
+		log.Debugf("Start %s", desc)
 		err := action()
 		if err == nil {
 			log.Infof("Completed %s", desc)
 			return
 		}
 		if ctxCompleted {
-			log.Infof("Stop retrying %s", desc)
+			log.Debugf("Stop retrying %s", desc)
 			return
 		}
-		log.Warnf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
+		log.Debugf("Failed to %s: %+v, retrying in %v", desc, err, timeout)
 		time.Sleep(timeout)
 
 	}
