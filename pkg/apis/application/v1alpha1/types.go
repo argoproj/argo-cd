@@ -749,6 +749,17 @@ type Repository struct {
 	InsecureIgnoreHostKey bool            `json:"insecureIgnoreHostKey,omitempty" protobuf:"bytes,6,opt,name=insecureIgnoreHostKey"`
 }
 
+func (m *Repository) HasCredentials() bool {
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != ""
+}
+
+func (m *Repository) CopyCredentialsFrom(other Repository) {
+	m.Username = other.Username
+	m.Password = other.Password
+	m.SSHPrivateKey = other.SSHPrivateKey
+	m.InsecureIgnoreHostKey = other.InsecureIgnoreHostKey
+}
+
 // RepositoryList is a collection of Repositories.
 type RepositoryList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`

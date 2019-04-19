@@ -29,7 +29,9 @@ type ArgoDB interface {
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
-	GetRepository(ctx context.Context, name string) (*appv1.Repository, error)
+	GetRepository(ctx context.Context, repoURL string) (*appv1.Repository, error)
+	// GetRepositoryCredential will retun the credential, or an error if not found
+	GetRepositoryCredential(ctx context.Context, repoURL string) (*appv1.Repository, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository updates a repository

@@ -159,6 +159,17 @@ func GetSpecErrors(
 	repoAccessable := false
 	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 
+	if err == nil && !repoRes.HasCredentials() {
+		credential, err := db.GetRepositoryCredential(ctx, repoRes.Repo)
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+		} else if err != nil {
+			return nil, "", err
+		} else {
+			log.WithFields(log.Fields{"repoURL": repoRes.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repoRes.CopyCredentialsFrom(*credential)
+		}
+	}
+
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			// The repo has not been added to Argo CD so we do not have credentials to access it.

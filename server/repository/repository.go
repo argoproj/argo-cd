@@ -58,6 +58,20 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		ModifiedAt: &now,
 	}
 	repo, err := s.db.GetRepository(ctx, url)
+
+	if err == nil && !repo.HasCredentials() {
+
+		credential, err := s.db.GetRepositoryCredential(ctx, repo.Repo)
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+		} else if err != nil {
+			connectionState.Status = appsv1.ConnectionStatusFailed
+			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
+		} else {
+			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repo.CopyCredentialsFrom(*credential)
+		}
+	}
+
 	if err == nil {
 		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	}

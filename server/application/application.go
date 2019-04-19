@@ -776,8 +776,20 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 	repo, err := s.db.GetRepository(ctx, repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
-		repo = &appv1.Repository{Repo: repoURL}
+		return &appv1.Repository{Repo: repoURL}
 	}
+
+	if !repo.HasCredentials() {
+		credential, err := s.db.GetRepositoryCredential(ctx, repo.Repo)
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+		} else if err != nil {
+			return nil
+		} else {
+			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repo.CopyCredentialsFrom(*credential)
+		}
+	}
+
 	return repo
 }
 
