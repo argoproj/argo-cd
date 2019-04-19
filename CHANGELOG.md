@@ -1,8 +1,69 @@
 # Changelog
 
+## v1.0.0
+
+### New Features
+
+#### Network View
+
+TODO
+
+#### Custom Actions
+
+Argo CD introduces Custom Resource Actions to allow users to provide their own Lua scripts to modify existing Kubernetes resources in their applications. These actions are exposed in the UI to allow easy, safe, and reliable changes to their resources.  This functionality can be used to introduce functionality such as suspending and enabling a Kubernetes cronjob, continue a BlueGreen deployment with Argo Rollouts, or scaling a deployment. 
+
+#### UI Enhancements
+
+* New color palette intended to highlight unhealthily and out-of-sync resources more clearly.
+* The health of more resources is displayed, so it easier to quickly zoom to unhealthy pods, replica-sets, etc.
+* Resources that do not have health no longer appear to be healthy. 
+
+#### Other Notable Changes
+
+### Breaking Changes
+
+* Remove deprecated componentParameterOverrides field #1372
+
+### Changes since v0.12.1
+
++ Issue #357 - Expose application nodes networking information (#1333)
++ Support for customizable resource actions as Lua scripts #86
++ Surface Service/Ingress external IPs, hostname to application #908
++ Update argocd-util import/export to support proper backup and restore (#1328)
+* Adds support for `kustomize edit set image`. Closes #1275 (#1324)
+* Allow wait to return on health or suspended (#1392)
+* Application warning when a manifest is defined twice #1070
+* Create new documentation website #1390
+* Default view should resource view instead of diff view #1354
+* Display number of errors on resource tab #1477
+* Displays resources that are being deleted as "Progressing". Closes #1410 (#1426)
+* Generate random name for grpc proxy unix socket file instead of time stamp (#1455)
+* Issue #1404 - App controller unnecessary set namespace to cluster level resources (#1405)
+* Nils health if the resource does not provide it. Closes #1383 (#1408)
+* Perform health assessments on all resource nodes in the tree. Closes #1382 (#1422)
+* Remove deprecated componentParameterOverrides field #1372
+* Shows the health of the application. Closes #1433 (#1434)
+* Surface pod status to tree view #1358
+* UI / API Errors Truncated, Time Out #1386
+* UI Enhancement Proposals Quick Wins #1274
+* Whitelisting repos/clusters in projects should consider repo/cluster permissions #1432
+- "bind: address already in use" after switching to gRPC-Web #1451
+- Annoying warning while using `--grpc-web` flag #1420
+- Don't compare secrets in the CLI, since argo-cd doesn't have access to their data (#1459)
+- Dropdown menu should not have sync item for unmanaged resources #1357
+- Fixes goroutine leak. Closes #1381 (#1457)
+- Improve input style #1217
+- Issue #1389 - Fix null pointer exception in secret normalization function (#1428)
+- Issue #1425 - Argo CD should not delete CRDs (#1428)
+- Issue #1446 - Delete helm temp directories (#1449)
+- Issue #908 - Surface Service/Ingress external IPs, hostname to application (#1347)
+- Rollback UI is not showing correct ksonnet parameters in preview #1326
+- See details of applications fails with "r.nodes is undefined" #1371
+- Unable to create app from private repo: x509: certificate signed by unknown authority #1171
+
 ## v0.12.1 (2019-04-09)
 
-## Changes since v0.12.0
+### Changes since v0.12.0
 
 - [UI] applications view blows up when user does not have  permissions (#1368)
 - Add k8s objects circular dependency protection to getApp method (#1374)
