@@ -750,14 +750,14 @@ type Repository struct {
 }
 
 func (m *Repository) HasCredentials() bool {
-	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != ""
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.InsecureIgnoreHostKey
 }
 
-func (m *Repository) CopyCredentialsFrom(other Repository) {
-	m.Username = other.Username
-	m.Password = other.Password
-	m.SSHPrivateKey = other.SSHPrivateKey
-	m.InsecureIgnoreHostKey = other.InsecureIgnoreHostKey
+func (m *Repository) CopyCredentialsFrom(source Repository) {
+	m.Username = source.Username
+	m.Password = source.Password
+	m.SSHPrivateKey = source.SSHPrivateKey
+	m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 }
 
 // RepositoryList is a collection of Repositories.
