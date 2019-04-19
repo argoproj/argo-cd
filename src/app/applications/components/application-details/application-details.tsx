@@ -8,7 +8,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 
 const jsonMergePatch = require('json-merge-patch');
 
-import { DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, YamlEditor } from '../../../shared/components';
+import { DataLoader, EmptyState, ErrorNotification, EventsList, ObservableQuery, Page, Paginate, YamlEditor } from '../../../shared/components';
 import { AppContext } from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import { AppDetailsPreferences, AppsDetailsViewType, services } from '../../../shared/services';
@@ -215,10 +215,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         const summary = application.status.resources.find((item) => isSameNode(selectedNode, item));
                                         const controlledState = controlled && summary && { summary, state: controlled } || null;
                                         const liveState = await services.applications.getResource(application.metadata.name, selectedNode).catch(() => null);
-                                        return { controlledState, liveState };
+                                        const events = await services.applications.resourceEvents(application.metadata.name, {
+                name: liveState.metadata.name,
+                namespace: liveState.metadata.namespace,
+                uid: liveState.metadata.uid,
+            });
+
+                                        return { controlledState, liveState, events };
 
                                     }}>{(data) =>
-                                        <Tabs navTransparent={true} tabs={this.getResourceTabs(application, selectedNode, data.liveState, [
+                                        <Tabs navTransparent={true} tabs={this.getResourceTabs(application, selectedNode, data.liveState, data.events, [
                                                 {title: 'SUMMARY', key: 'summary', content: (
                                                     <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode}/>
                                                 ),
@@ -519,15 +525,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
     }
 
-    private getResourceTabs(application: appModels.Application, node: ResourceTreeNode, state: appModels.State, tabs: Tab[]) {
+    private getResourceTabs(application: appModels.Application, node: ResourceTreeNode, state: appModels.State, events: appModels.Event[], tabs: Tab[]) {
         if (state) {
+            const numErrors = events.filter((event) => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({
-                title: 'EVENTS', key: 'events', content: (
-                <ApplicationResourceEvents applicationName={this.props.match.params.name} resource={{
-                    name: state.metadata.name,
-                    namespace: state.metadata.namespace,
-                    uid: state.metadata.uid,
-                }}/>),
+                title: 'EVENTS',
+                badge: numErrors,
+                key: 'events', content: (
+                    <div className='application-resource-events'>
+                        <EventsList events={events}/>
+                    </div>),
             });
         }
         if (node.kind === 'Pod' && state) {
