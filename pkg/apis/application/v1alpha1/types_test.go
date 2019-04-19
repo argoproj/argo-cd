@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -170,4 +171,31 @@ func TestAppDestinationEquality(t *testing.T) {
 	assert.True(t, left.Equals(*right))
 	right.Namespace = "kube-system"
 	assert.False(t, left.Equals(*right))
+}
+
+func TestAppProjectSpec_DestinationClusters(t *testing.T) {
+	tests := []struct {
+		name         string
+		destinations []ApplicationDestination
+		want         []string
+	}{
+		{
+			name:         "Empty",
+			destinations: []ApplicationDestination{},
+			want:         []string{},
+		},
+		{
+			name:         "SingleValue",
+			destinations: []ApplicationDestination{{Server: "foo"}},
+			want:         []string{"foo"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := AppProjectSpec{Destinations: tt.destinations}
+			if got := d.DestinationClusters(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AppProjectSpec.DestinationClusters() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

@@ -3,9 +3,10 @@ package project
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -226,6 +227,28 @@ func (s *Server) Update(ctx context.Context, q *ProjectUpdateRequest) (*v1alpha1
 	oldProj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(q.Project.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
+	}
+
+	for _, cluster := range difference(q.Project.Spec.DestinationClusters(), oldProj.Spec.DestinationClusters()) {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, cluster); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, repoUrl := range difference(q.Project.Spec.SourceRepos, oldProj.Spec.SourceRepos) {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, repoUrl); err != nil {
+			return nil, err
+		}
+	}
+
+	clusterResourceWhitelistsEqual := reflect.DeepEqual(q.Project.Spec.ClusterResourceWhitelist, oldProj.Spec.ClusterResourceWhitelist)
+	namespacesResourceBlacklistsEqual := reflect.DeepEqual(q.Project.Spec.NamespaceResourceBlacklist, oldProj.Spec.NamespaceResourceBlacklist)
+	if !clusterResourceWhitelistsEqual || !namespacesResourceBlacklistsEqual {
+		for _, cluster := range q.Project.Spec.DestinationClusters() {
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, cluster); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(metav1.ListOptions{})
