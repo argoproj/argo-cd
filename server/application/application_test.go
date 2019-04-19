@@ -2,10 +2,13 @@ package application
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/argoproj/argo-cd/util/db/mocks"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -20,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
@@ -399,4 +403,60 @@ func TestPatch(t *testing.T) {
 	app, err = appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
+}
+
+func TestServer_getRepo(t *testing.T) {
+	mockDB := mocks.ArgoDB{}
+
+	const knownRepoUrl = "http://known-host/repo"
+	const knownRepoCredsUrl = "http://secured-host/repo"
+	const unknownRepoUrl = "http://unknown-host/repo"
+	const unknownRepoCredsUrl = "http://unknown-secured-host/repo"
+
+	mockDB.On("GetRepository", mock.Anything, knownRepoUrl).Return(&appv1.Repository{Repo: knownRepoUrl}, nil)
+	mockDB.On("GetRepository", mock.Anything, knownRepoCredsUrl).Return(&appv1.Repository{Repo: knownRepoCredsUrl}, nil)
+
+	notFound := status.Errorf(codes.NotFound, "")
+
+	mockDB.On("GetRepository", mock.Anything, unknownRepoUrl).Return(nil, notFound)
+	mockDB.On("GetRepository", mock.Anything, unknownRepoCredsUrl).Return(nil, notFound)
+
+	mockDB.On("GetRepositoryCredential", mock.Anything, knownRepoUrl).Return(nil, notFound)
+	mockDB.On("GetRepositoryCredential", mock.Anything, knownRepoCredsUrl).Return(&appv1.Repository{Username: "bar"}, nil)
+	mockDB.On("GetRepositoryCredential", mock.Anything, unknownRepoCredsUrl).Return(&appv1.Repository{Username: "bar"}, nil)
+
+	s := &Server{db: &mockDB}
+	tests := []struct {
+		name    string
+		repoURL string
+		want    *appv1.Repository
+	}{
+		{
+			name:    "TestKnown",
+			repoURL: knownRepoUrl,
+			want:    &appv1.Repository{Repo: knownRepoUrl},
+		},
+		{
+			name:    "TestUnknown",
+			repoURL: knownRepoUrl,
+			want:    &appv1.Repository{Repo: knownRepoUrl},
+		},
+		{
+			name:    "TestKnownCreds",
+			repoURL: knownRepoCredsUrl,
+			want:    &appv1.Repository{Repo: knownRepoCredsUrl, Username: "bar"},
+		},
+		{
+			name:    "TestUnknownCreds",
+			repoURL: unknownRepoCredsUrl,
+			want:    &appv1.Repository{Repo: unknownRepoCredsUrl, Username: "bar"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := s.getRepo(context.TODO(), tt.repoURL); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Server.getRepo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
