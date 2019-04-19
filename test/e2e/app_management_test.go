@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -255,22 +253,19 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 	app := createAndSyncDefault(t)
 
-	var resources []*unstructured.Unstructured
-	WaitUntil(t, func() (bool, error) {
-		manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
-		if err != nil {
-			return false, err
-		}
-		resources, err = kube.SplitYAML(manifests)
-		if err != nil {
-			return false, err
-		}
-		return len(resources) == 2, nil
-	})
+	manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+	assert.NoError(t, err)
+	resources, err := kube.SplitYAML(manifests)
+	assert.NoError(t, err)
 
-	index := sort.Search(len(resources), func(i int) bool {
-		return resources[i].GetKind() == kube.DeploymentKind
-	})
+	index := -1
+	for i := range resources {
+		if resources[i].GetKind() == kube.DeploymentKind {
+			index = i
+			break
+		}
+	}
+
 	assert.True(t, index > -1)
 
 	deployment := resources[index]
