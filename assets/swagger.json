@@ -597,9 +597,7 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/applications/{name}/resource/{resourceName}/actions": {
+      },
       "post": {
         "tags": [
           "ApplicationService"
@@ -609,12 +607,6 @@
           {
             "type": "string",
             "name": "name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
             "in": "path",
             "required": true
           },
@@ -3028,17 +3020,6 @@
         }
       }
     },
-    "v1alpha1ResourceActionDefinition": {
-      "type": "object",
-      "properties": {
-        "actionLua": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1ResourceActionParam": {
       "type": "object",
       "properties": {
@@ -3053,20 +3034,6 @@
         },
         "value": {
           "type": "string"
-        }
-      }
-    },
-    "v1alpha1ResourceActions": {
-      "type": "object",
-      "properties": {
-        "actionDiscoveryLua": {
-          "type": "string"
-        },
-        "definitions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceActionDefinition"
-          }
         }
       }
     },
@@ -3192,7 +3159,7 @@
       "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
       "properties": {
         "actions": {
-          "$ref": "#/definitions/v1alpha1ResourceActions"
+          "type": "string"
         },
         "healthLua": {
           "type": "string"

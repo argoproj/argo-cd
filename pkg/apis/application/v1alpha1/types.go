@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"gopkg.in/yaml.v2"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -701,19 +703,28 @@ type HelmRepository struct {
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 type ResourceOverride struct {
-	HealthLua         string          `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
-	Actions           ResourceActions `json:"actions" protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences string          `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	HealthLua         string `json:"health.lua,omitempty" protobuf:"bytes,1,opt,name=healthLua"`
+	Actions           string `json:"actions,omitempty" protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences string `json:"ignoreDifferences,omitempty" protobuf:"bytes,2,opt,name=ignoreDifferences"`
+}
+
+func (o *ResourceOverride) GetActions() (ResourceActions, error) {
+	var actions ResourceActions
+	err := yaml.Unmarshal([]byte(o.Actions), &actions)
+	if err != nil {
+		return actions, err
+	}
+	return actions, nil
 }
 
 type ResourceActions struct {
-	ActionDiscoveryLua string                     `json:"discovery.lua" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
+	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
 	Definitions        []ResourceActionDefinition `json:"definitions,omitEmpty" protobuf:"bytes,2,rep,name=definitions"`
 }
 
 type ResourceActionDefinition struct {
 	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
-	ActionLua string `json:"action.lua" protobuf:"bytes,2,opt,name=actionLua"`
+	ActionLua string `json:"action.lua" yaml:"action.lua" protobuf:"bytes,2,opt,name=actionLua"`
 }
 
 type ResourceAction struct {

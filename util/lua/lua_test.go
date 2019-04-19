@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-cd/util/json"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"
@@ -165,11 +167,11 @@ func TestGetResourceActionWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				Actions: appv1.ResourceActions{
+				Actions: string(json.MustMarshal(appv1.ResourceActions{
 					Definitions: []appv1.ResourceActionDefinition{
 						test,
 					},
-				},
+				})),
 			},
 		},
 	}
@@ -200,9 +202,9 @@ func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				Actions: appv1.ResourceActions{
+				Actions: string(json.MustMarshal(appv1.ResourceActions{
 					ActionDiscoveryLua: validDiscoveryLua,
-				},
+				})),
 			},
 		},
 	}
