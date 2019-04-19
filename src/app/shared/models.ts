@@ -482,3 +482,15 @@ export interface ManifestResponse {
     server: string;
     revision: string;
 }
+
+export interface ResourceActionParam {
+    name: string;
+    value: string;
+    type: string;
+    default: string;
+}
+
+export interface ResourceAction {
+    name: string;
+    params: ResourceActionParam[];
+}

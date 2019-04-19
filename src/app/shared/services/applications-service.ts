@@ -102,6 +102,26 @@ export class ApplicationsService {
         }).then((res) => res.body as { manifest: string }).then((res) => JSON.parse(res.manifest) as models.State);
     }
 
+    public getResourceActions(name: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
+        return requests.get(`/applications/${name}/resource/actions`).query({
+            namespace: resource.namespace,
+            resourceName: resource.name,
+            version: resource.version,
+            kind: resource.kind,
+            group: resource.group,
+        }).then((res) => res.body.actions as models.ResourceAction[] || []);
+    }
+
+    public runResourceAction(name: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+        return requests.post(`/applications/${name}/resource/actions`).query({
+            namespace: resource.namespace,
+            resourceName: resource.name,
+            version: resource.version,
+            kind: resource.kind,
+            group: resource.group,
+        }).send(JSON.stringify(action)).then((res) => res.body.actions as models.ResourceAction[] || []);
+    }
+
     public patchResource(name: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
         return requests.post(`/applications/${name}/resource`).query({
             name: resource.name,

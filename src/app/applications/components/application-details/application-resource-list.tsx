@@ -1,13 +1,13 @@
-import { DropDownMenu, MenuItem } from 'argo-ui';
+import { DropDown } from 'argo-ui';
 import * as React from 'react';
 
 import * as models from '../../../shared/models';
 import { ComparisonStatusIcon, HealthStatusIcon, ICON_CLASS_BY_KIND, nodeKey } from '../utils';
 
-export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems }: {
+export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenu }: {
     resources: models.ResourceStatus[],
     onNodeClick?: (fullName: string) => any,
-    nodeMenuItems?: (node: models.ResourceNode) => MenuItem[],
+    nodeMenu?: (node: models.ResourceNode) => React.ReactNode,
 }) => (
     <div className='argo-table-list argo-table-list--clickable'>
         <div className='argo-table-list__head'>
@@ -31,9 +31,10 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
                         {res.status && <ComparisonStatusIcon status={res.status}/>} {res.status}
                         {res.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                         <div className='application-details__node-menu'>
-                            <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                            <DropDown isMenu={true} anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                 <i className='fa fa-ellipsis-v'/>
-                            </button>} items={nodeMenuItems({
+                            </button>}>
+                            {() => nodeMenu({
                                 name: res.name,
                                 version: res.version,
                                 kind: res.kind,
@@ -42,7 +43,8 @@ export const ApplicationResourceList = ({ resources, onNodeClick, nodeMenuItems 
                                 info: null,
                                 resourceVersion: null,
                                 parentRefs: [],
-                            })}/>
+                            })}
+                            </DropDown>
                         </div>
                     </div>
                 </div>

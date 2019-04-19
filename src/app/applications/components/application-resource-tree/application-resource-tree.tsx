@@ -1,4 +1,4 @@
-import { DropDownMenu, MenuItem, Tooltip } from 'argo-ui';
+import { DropDown, Tooltip } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -28,7 +28,7 @@ export interface ApplicationResourceTreeProps {
     nodeFilter: (node: ResourceTreeNode) => boolean;
     selectedNodeFullName?: string;
     onNodeClick?: (fullName: string) => any;
-    nodeMenuItems?: (node: models.ResourceNode) => MenuItem[];
+    nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     onClearFilter: () => any;
 }
 
@@ -184,11 +184,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, fullName: strin
                 {(node.info || []).map((tag, i) => <span title={`${tag.name}:${tag.value}`} key={i}>{tag.value}</span>)}
                 <span>{node.kind}</span>
             </div>
-            {props.nodeMenuItems && (
+            {props.nodeMenu && (
                 <div className='application-resource-tree__node-menu'>
-                    <DropDownMenu anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                    <DropDown isMenu={true} anchor={() => <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                         <i className='fa fa-ellipsis-v'/>
-                    </button>} items={props.nodeMenuItems(node)}/>
+                    </button>}>
+                    {() => props.nodeMenu(node)}
+                    </DropDown>
                 </div>
             )}
         </div>
