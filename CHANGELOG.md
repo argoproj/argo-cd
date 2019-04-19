@@ -35,6 +35,7 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 * Application warning when a manifest is defined twice #1070
 * Create new documentation website #1390
 * Default view should resource view instead of diff view #1354
+* Display number of errors on resource tab #1477
 * Displays resources that are being deleted as "Progressing". Closes #1410 (#1426)
 * Generate random name for grpc proxy unix socket file instead of time stamp (#1455)
 * Issue #1404 - App controller unnecessary set namespace to cluster level resources (#1405)
