@@ -138,7 +138,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			_, err := appIf.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
 				Name:         &appName,
 				Namespace:    obj.GetNamespace(),
-				ResourceName: &objResourceName,
+				ResourceName: objResourceName,
 				Group:        gvk.Group,
 				Kind:         gvk.Kind,
 				Action:       actionName,

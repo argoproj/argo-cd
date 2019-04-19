@@ -556,7 +556,7 @@ message ResourceNode {
 message ResourceOverride {
   optional string healthLua = 1;
 
-  optional ResourceActions actions = 3;
+  optional string actions = 3;
 
   optional string ignoreDifferences = 2;
 }

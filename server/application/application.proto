@@ -113,7 +113,7 @@ message ApplicationResourceDeleteRequest {
 message ResourceActionRunRequest {
 	required string name = 1;
 	required string namespace = 2 [(gogoproto.nullable) = false];
-	required string resourceName = 3;
+	required string resourceName = 3 [(gogoproto.nullable) = false];
 	required string version = 4 [(gogoproto.nullable) = false];
 	required string group = 5 [(gogoproto.nullable) = false];
 	required string kind = 6 [(gogoproto.nullable) = false];
@@ -275,7 +275,7 @@ service ApplicationService {
 
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
 		option (google.api.http) = {
-			post: "/api/v1/applications/{name}/resource/{resourceName}/actions"
+			post: "/api/v1/applications/{name}/resource/actions"
 		    body: "action"
 		};
 	}

@@ -246,8 +246,12 @@ func noAvailableActions(jsonBytes []byte) bool {
 func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string, error) {
 	key := getConfigMapKey(obj)
 	override, ok := vm.ResourceOverrides[key]
-	if ok {
-		return override.Actions.ActionDiscoveryLua, nil
+	if ok && override.Actions != "" {
+		actions, err := override.GetActions()
+		if err != nil {
+			return "", err
+		}
+		return actions.ActionDiscoveryLua, nil
 	}
 	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
@@ -261,8 +265,12 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string,
 func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
 	key := getConfigMapKey(obj)
 	override, ok := vm.ResourceOverrides[key]
-	if ok {
-		for _, action := range override.Actions.Definitions {
+	if ok && override.Actions != "" {
+		actions, err := override.GetActions()
+		if err != nil {
+			return appv1.ResourceActionDefinition{}, err
+		}
+		for _, action := range actions.Definitions {
 			if action.Name == actionName {
 				return action, nil
 			}

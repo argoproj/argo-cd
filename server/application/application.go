@@ -973,6 +973,9 @@ func (s *Server) getAvailableActions(config *rest.Config, resourceOverrides map[
 	if err != nil {
 		return nil, err
 	}
+	if discoveryScript == "" {
+		return []appv1.ResourceAction{}, nil
+	}
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScript)
 	if err != nil {
 		return nil, err
@@ -991,7 +994,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *ResourceActionRunRequ
 	resourceRequest := &ApplicationResourceRequest{
 		Name:         q.Name,
 		Namespace:    q.Namespace,
-		ResourceName: *q.ResourceName,
+		ResourceName: q.ResourceName,
 		Kind:         q.Kind,
 		Version:      q.Version,
 		Group:        q.Group,

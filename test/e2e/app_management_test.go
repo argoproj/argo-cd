@@ -466,3 +466,53 @@ func TestKsonnetApp(t *testing.T) {
 	}
 	assert.Equal(t, serviceType, "LoadBalancer")
 }
+
+const actionsConfig = `discovery.lua: return { sample = {} }
+definitions:
+- name: sample
+  action.lua: |
+    obj.metadata.labels.sample = 'test'
+    return obj`
+
+func TestResourceAction(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := createAndSyncDefault(t)
+
+	settings, err := fixture.SettingsManager.GetSettings()
+	assert.NoError(t, err)
+
+	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}
+	err = fixture.SettingsManager.SaveSettings(settings)
+	assert.NoError(t, err)
+
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	actions, err := client.ListResourceActions(context.Background(), &application.ApplicationResourceRequest{
+		Name:         &app.Name,
+		Group:        "apps",
+		Kind:         "Deployment",
+		Version:      "v1",
+		Namespace:    fixture.DeploymentNamespace,
+		ResourceName: "guestbook-ui",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, []v1alpha1.ResourceAction{{Name: "sample"}}, actions.Actions)
+
+	_, err = client.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{Name: &app.Name,
+		Group:        "apps",
+		Kind:         "Deployment",
+		Version:      "v1",
+		Namespace:    fixture.DeploymentNamespace,
+		ResourceName: "guestbook-ui",
+		Action:       "sample",
+	})
+	assert.NoError(t, err)
+
+	deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace).Get("guestbook-ui", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	assert.Equal(t, "test", deployment.Labels["sample"])
+}
