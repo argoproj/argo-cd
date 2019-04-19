@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/db/mocks"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/util/db/mocks"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
