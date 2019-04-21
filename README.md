@@ -25,6 +25,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 4. [Ticketmaster](https://ticketmaster.com)
 5. [CyberAgent](https://www.cyberagent.co.jp/en/)
 6. [OpenSaaS Studio](https://opensaas.studio)
+7. [Riskified](https://www.riskified.com/)
 
 ## Documentation
 
