@@ -67,6 +67,18 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 - See details of applications fails with "r.nodes is undefined" #1371
 - Unable to create app from private repo: x509: certificate signed by unknown authority #1171
 
+## v0.12.2 (2019-04-22)
+
+### Changes since v0.12.1
+
+- Fix racing condition in controller cache (#1498)
+- "bind: address already in use" after switching to gRPC-Web (#1451)
+- Annoying warning while using --grpc-web flag (#1420)
+- Delete helm temp directories (#1446)
+- Fix null pointer exception in secret normalization function (#1389)
+- Argo CD should not delete CRDs(#1425)
+- UI is unable to load cluster level resource manifest (#1429)
+
 ## v0.12.1 (2019-04-09)
 
 ### Changes since v0.12.0
