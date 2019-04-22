@@ -530,7 +530,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             const numErrors = events.filter((event) => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
             tabs.push({
                 title: 'EVENTS',
-                badge: numErrors,
+                badge: numErrors > 0 && numErrors || null,
                 key: 'events', content: (
                     <div className='application-resource-events'>
                         <EventsList events={events}/>
