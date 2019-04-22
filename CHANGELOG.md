@@ -51,7 +51,7 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 * UI Enhancement Proposals Quick Wins #1274
 * Whitelisting repos/clusters in projects should consider repo/cluster permissions #1432
 
-# Bug Fixes
+#### Bug Fixes
 
 - "bind: address already in use" after switching to gRPC-Web #1451
 - Annoying warning while using `--grpc-web` flag #1420
