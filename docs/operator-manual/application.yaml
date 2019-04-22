@@ -24,25 +24,34 @@ spec:
 
     # kustomize specific config
     kustomize:
+      # Optional image name prefix
       namePrefix: prod-
+      # Optional image tags passed to "kustomize edit set imagetag" is Kustomize 1 only.
+      imageTags:
+      - name: gcr.io/heptio-images/ks-guestbook-demo
+        value: "0.2"
+      # Optional images passed to "kustomize edit set image" is Kustomize 2 only.
+      images:
+      - gcr.io/heptio-images/ks-guestbook-demo:0.2
 
     # directory
     directory:
       recurse: true
-      jsonnet:
-        # A list of Jsonnet External Variables
-        extVars:
-        - name: foo
-          value: bar
-          # You can use "code to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
-        - code: true
-          name: baz
-          value: "true"
-        # A list of Jsonnet Top-level Arguments
-        tlas:
-          - code: false
-            name: foo
-            value: bar
+
+    jsonnet:
+      # A list of Jsonnet External Variables
+      extVars:
+      - name: foo
+        value: bar
+        # You can use "code to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
+      - code: true
+        name: baz
+        value: "true"
+      # A list of Jsonnet Top-level Arguments
+      tlas:
+      - code: false
+        name: foo
+        value: bar
 
     # plugin specific config
     plugin:

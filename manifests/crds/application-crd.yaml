@@ -184,10 +184,6 @@ spec:
                           description: NamePrefix is a prefix appended to resources
                             for kustomize apps
                           type: string
-                      required:
-                      - namePrefix
-                      - imageTags
-                      - images
                       type: object
                     path:
                       description: Path is a directory path within the repository
@@ -418,10 +414,6 @@ spec:
                       description: NamePrefix is a prefix appended to resources for
                         kustomize apps
                       type: string
-                  required:
-                  - namePrefix
-                  - imageTags
-                  - images
                   type: object
                 path:
                   description: Path is a directory path within the repository containing
@@ -632,10 +624,6 @@ spec:
                             description: NamePrefix is a prefix appended to resources
                               for kustomize apps
                             type: string
-                        required:
-                        - namePrefix
-                        - imageTags
-                        - images
                         type: object
                       path:
                         description: Path is a directory path within the repository
@@ -852,10 +840,6 @@ spec:
                                   description: NamePrefix is a prefix appended to
                                     resources for kustomize apps
                                   type: string
-                              required:
-                              - namePrefix
-                              - imageTags
-                              - images
                               type: object
                             path:
                               description: Path is a directory path within the repository
@@ -1091,10 +1075,6 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
-                          required:
-                          - namePrefix
-                          - imageTags
-                          - images
                           type: object
                         path:
                           description: Path is a directory path within the repository
@@ -1311,10 +1291,6 @@ spec:
                               description: NamePrefix is a prefix appended to resources
                                 for kustomize apps
                               type: string
-                          required:
-                          - namePrefix
-                          - imageTags
-                          - images
                           type: object
                         path:
                           description: Path is a directory path within the repository
