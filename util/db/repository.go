@@ -271,7 +271,7 @@ func getRepositoryCredentialIndex(s *settings.ArgoCDSettings, repoURL string) in
 	repoURL = git.NormalizeGitURL(repoURL)
 	for i, cred := range s.RepositoryCredentials {
 		credUrl := git.NormalizeGitURL(cred.URL)
-		if strings.HasPrefix(credUrl, repoURL) {
+		if strings.HasPrefix(repoURL, credUrl) {
 			return i
 		}
 	}
