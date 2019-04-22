@@ -15,9 +15,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
 
     const [form, setForm] = React.useState<FormApi>(null);
     const isVisible = !!(selectedResource && application);
-    const syncResIndex = application && selectedResource && application.status.resources.findIndex((item) => {
-        return nodeKey(item) === selectedResource;
-    });
+    const appResources = (application && selectedResource && application.status && application.status.resources || []).sort(
+        (first, second) => nodeKey(first).localeCompare(nodeKey(second)));
+    const syncResIndex = appResources.findIndex((item) => nodeKey(item) === selectedResource);
 
     return (
         <Consumer>
@@ -35,14 +35,14 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {
                 <Form
                     defaultValues={{
                         revision: application.spec.source.targetRevision || 'HEAD',
-                        resources: application.status.resources.filter((item) => !item.hook).map((_, i) => i === syncResIndex || syncResIndex === -1),
+                        resources: appResources.filter((item) => !item.hook).map((_, i) => i === syncResIndex || syncResIndex === -1),
                     }}
                     validateError={(values) => ({
                         resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',
                     })}
                     onSubmit={async (params: any) => {
-                        let resources = params.resources;
-                        if (params.resources.length === application.status.resources.length) {
+                        let resources = appResources.filter((_, i) => params.resources[i]);
+                        if (resources.length === appResources.length) {
                             resources = null;
                         }
                         try {
