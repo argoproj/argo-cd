@@ -60,7 +60,6 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 	repo, err := s.db.GetRepository(ctx, url)
 
 	if err == nil && !repo.HasCredentials() {
-
 		credential, err := s.db.GetRepositoryCredential(ctx, repo.Repo)
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 		} else if err != nil {
