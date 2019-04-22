@@ -338,6 +338,15 @@ func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &v1alpha1.Repository{Repo: repoURL}
 	}
+
+	if !repo.HasCredentials() {
+		credential, err := m.db.GetRepositoryCredential(context.Background(), repoURL)
+		if err == nil {
+			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repo.CopyCredentialsFrom(*credential)
+		}
+	}
+
 	return repo
 }
 

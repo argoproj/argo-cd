@@ -223,6 +223,17 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 			return nil, err
 		}
 	}
+	if !repo.HasCredentials() {
+		credential, err := s.db.GetRepositoryCredential(ctx, q.Repo)
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+		} else if err != nil {
+			return nil, err
+		} else {
+			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repo.CopyCredentialsFrom(*credential)
+		}
+	}
+
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
