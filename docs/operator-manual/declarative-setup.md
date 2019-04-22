@@ -150,6 +150,10 @@ data:
         key: sshPrivateKey
 ```
 
+!!! tip
+    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys). 
+
+
 If you want to use the same credentials for multiple repositories, you can use `repository.credentials`:
 
 ```yaml
