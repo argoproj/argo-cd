@@ -215,11 +215,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         const summary = application.status.resources.find((item) => isSameNode(selectedNode, item));
                                         const controlledState = controlled && summary && { summary, state: controlled } || null;
                                         const liveState = await services.applications.getResource(application.metadata.name, selectedNode).catch(() => null);
-                                        const events = await services.applications.resourceEvents(application.metadata.name, {
-                name: liveState.metadata.name,
-                namespace: liveState.metadata.namespace,
-                uid: liveState.metadata.uid,
-            });
+                                        const events = liveState && await services.applications.resourceEvents(application.metadata.name, {
+                                            name: liveState.metadata.name,
+                                            namespace: liveState.metadata.namespace,
+                                            uid: liveState.metadata.uid,
+                                        }) || [];
 
                                         return { controlledState, liveState, events };
 
