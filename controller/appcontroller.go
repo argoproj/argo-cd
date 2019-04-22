@@ -927,6 +927,7 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 	ctrl.settingsMgr.Subscribe(updateCh)
 	prevAppLabelKey := ctrl.settings.GetAppInstanceLabelKey()
 	prevResourceExclusions := ctrl.settings.ResourceExclusions
+	prevResourceInclusions := ctrl.settings.ResourceInclusions
 	done := false
 	for !done {
 		select {
@@ -942,6 +943,11 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 				log.Infof("resource exclusions modified")
 				ctrl.stateCache.Invalidate()
 				prevResourceExclusions = newSettings.ResourceExclusions
+			}
+			if !reflect.DeepEqual(prevResourceInclusions, newSettings.ResourceInclusions) {
+				log.Infof("resource inclusions modified")
+				ctrl.stateCache.Invalidate()
+				prevResourceInclusions = newSettings.ResourceInclusions
 			}
 		case <-ctx.Done():
 			done = true

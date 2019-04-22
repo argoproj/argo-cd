@@ -80,9 +80,17 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 			gv = schema.GroupVersion{}
 		}
 		for _, apiResource := range apiResourcesList.APIResources {
-			if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
-				continue
+
+			if resourceFilter.IsWhitelistAvailable() {
+				if !resourceFilter.IsIncludedResource(gv.Group, apiResource.Kind, config.Host) {
+					continue
+				}
+			} else {
+				if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
+					continue
+				}
 			}
+
 			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok &&
 				// Edge case for deprecated Ingress kind.
 				!(gv.Group == "extensions" && apiResource.Kind == IngressKind && version.LessThan(ingressDeprecationVersion)) {

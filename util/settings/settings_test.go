@@ -31,5 +31,24 @@ func TestUpdateSettingsFromConfigMapResourceExclusions(t *testing.T) {
 	err = updateSettingsFromConfigMap(&settings, &configMap)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []ExcludedResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}}, settings.ResourceExclusions)
+	assert.Equal(t, []FilteredResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}}, settings.ResourceExclusions)
+}
+
+func TestUpdateSettingsFromConfigMapResourceInclusionsAddInclusion(t *testing.T) {
+
+	settings := ArgoCDSettings{}
+	configMap := v1.ConfigMap{}
+	err := updateSettingsFromConfigMap(&settings, &configMap)
+
+	assert.NoError(t, err)
+	assert.Nil(t, settings.ResourceExclusions)
+
+	configMap.Data = map[string]string{
+		"resource.inclusions": "\n  - apiGroups: []\n    kinds: [managed_only]\n    clusters: []\n",
+	}
+
+	err = updateSettingsFromConfigMap(&settings, &configMap)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []FilteredResource{{APIGroups: []string{}, Kinds: []string{"managed_only"}, Clusters: []string{}}}, settings.ResourceInclusions)
 }
