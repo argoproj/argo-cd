@@ -340,7 +340,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 }
                 return { app: watchEvent.application, watchEvent: true };
             }).repeat().retryWhen((errors) => errors.delay(500)),
-            this.refreshRequested.filter((e) => e !== null).flatMap(() => services.applications.get(name).then((app) => ({ app, watchEvent: false }))),
+            this.refreshRequested.filter((e) => e !== null).flatMap(() => services.applications.get(name).then((app) => ({ app, watchEvent: true }))),
         ).flatMap((appInfo) => {
                 const app = appInfo.app;
                 const fallbackTree: appModels.ApplicationTree = {
@@ -451,7 +451,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
             menuItems = Observable.from([this.getApplicationActionMenu(application)]);
         } else {
             const isRoot = resource.root && AppUtils.nodeKey(resource.root) === AppUtils.nodeKey(resource);
-            const items = [...(isRoot && [{
+            const items: MenuItem[] = [...(isRoot && [{
                 title: 'Sync',
                 action: () => this.showDeploy(nodeKey(resource)),
             }] || []), {
@@ -499,7 +499,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                             });
                         }
                     },
-                }))));
+                })))).catch(() => items);
             menuItems = Observable.merge(
                 Observable.from([items]),
                 Observable.fromPromise(resourceActions));
