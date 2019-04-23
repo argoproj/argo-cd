@@ -239,6 +239,7 @@ export interface ResourceNetworkingInfo {
     targetRefs: ResourceRef[];
     labels: {[name: string]: string};
     ingress: LoadBalancerIngress[];
+    externalURLs: string[];
 }
 
 export interface LoadBalancerIngress {
@@ -287,7 +288,7 @@ export interface ApplicationStatus {
     history: RevisionHistory[];
     health: HealthStatus;
     operationState?: OperationState;
-    ingress: LoadBalancerIngress[];
+    externalURLs: string[];
 }
 
 export interface LogEntry {

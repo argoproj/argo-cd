@@ -70,11 +70,11 @@ export const ApplicationSummary = (props: {
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
-    const ingress = Array.from(new Set((app.status.ingress || []).map((item) => item.hostname || item.ip)));
-    if (ingress.length > 0) {
-        attributes.push({title: 'INGRESS', view: (
+    const urls = app.status.externalURLs || [];
+    if (urls.length > 0) {
+        attributes.push({title: 'URLs', view: (
             <React.Fragment>
-                {ingress.map((item) => <a key={item} href={item} target='__blank'>{item}</a>)}
+                {urls.map((item) => <a key={item} href={item} target='__blank'>{item} &nbsp;</a>)}
             </React.Fragment>
         )});
     }

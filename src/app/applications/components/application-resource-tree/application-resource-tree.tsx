@@ -6,7 +6,7 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 
 import { EmptyState } from '../../../shared/components';
-import { ApplicationIngressLink } from '../application-ingress-link';
+import { ApplicationURLs } from '../application-urls';
 import { ComparisonStatusIcon, getAppOverridesCount, HealthStatusIcon, ICON_CLASS_BY_KIND, isAppNode, nodeKey } from '../utils';
 import { NodeUpdateAnimation } from './node-update-animation';
 
@@ -177,7 +177,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, fullName: strin
                     {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                     {healthState != null && <HealthStatusIcon state={healthState}/>}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
-                    <ApplicationIngressLink ingress={isAppNode(node) ? props.app.status.ingress : node.networkingInfo && node.networkingInfo.ingress}/>
+                    <ApplicationURLs urls={isAppNode(node) ? props.app.status.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs}/>
                 </div>
             </div>
             <div className='application-resource-tree__node-labels'>

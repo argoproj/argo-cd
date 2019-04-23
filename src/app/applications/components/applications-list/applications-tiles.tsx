@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
 
-import { ApplicationIngressLink } from '../application-ingress-link';
+import { ApplicationURLs } from '../application-urls';
 import * as AppUtils from '../utils';
 
 export interface ApplicationTilesProps {
@@ -26,7 +26,7 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                     <div className='row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
                         <div className='columns small-12 applications-list__info'>
                             <div className='applications-list__external-link'>
-                                <ApplicationIngressLink ingress={app.status.ingress}/>
+                                <ApplicationURLs urls={app.status.externalURLs}/>
                             </div>
                             <div className='row'>
                                 <div className='columns applications-list__title'>{app.metadata.name}</div>
