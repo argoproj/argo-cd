@@ -420,9 +420,15 @@ func TestServer_getRepo(t *testing.T) {
 	mockDB.On("GetRepository", mock.Anything, unknownRepoUrl).Return(nil, notFound)
 	mockDB.On("GetRepository", mock.Anything, unknownRepoCredsUrl).Return(nil, notFound)
 
-	mockDB.On("GetRepositoryCredential", mock.Anything, knownRepoUrl).Return(nil, notFound)
-	mockDB.On("GetRepositoryCredential", mock.Anything, knownRepoCredsUrl).Return(&appv1.Repository{Username: "bar"}, nil)
-	mockDB.On("GetRepositoryCredential", mock.Anything, unknownRepoCredsUrl).Return(&appv1.Repository{Username: "bar"}, nil)
+	mockDB.On("HydrateRepositoryCredentials", mock.Anything, &appv1.Repository{Repo: knownRepoUrl}).Return(notFound)
+	mockDB.On("HydrateRepositoryCredentials", mock.Anything, &appv1.Repository{Repo: knownRepoCredsUrl}).Return(func(ctx context.Context, repo *appv1.Repository) error {
+		repo.Username = "foo"
+		return nil
+	})
+	mockDB.On("HydrateRepositoryCredentials", mock.Anything, &appv1.Repository{Repo: unknownRepoCredsUrl}).Return(func(ctx context.Context, repo *appv1.Repository) error {
+		repo.Username = "bar"
+		return nil
+	})
 
 	s := &Server{db: &mockDB}
 	tests := []struct {
@@ -443,7 +449,7 @@ func TestServer_getRepo(t *testing.T) {
 		{
 			name:    "TestKnownCreds",
 			repoURL: knownRepoCredsUrl,
-			want:    &appv1.Repository{Repo: knownRepoCredsUrl, Username: "bar"},
+			want:    &appv1.Repository{Repo: knownRepoCredsUrl, Username: "foo"},
 		},
 		{
 			name:    "TestUnknownCreds",

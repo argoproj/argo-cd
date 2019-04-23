@@ -155,6 +155,20 @@ func (_m *ArgoDB) GetRepositoryCredential(ctx context.Context, repoURL string) (
 	return r0, r1
 }
 
+// HydrateRepositoryCredentials provides a mock function with given fields: ctx, repo
+func (_m *ArgoDB) HydrateRepositoryCredentials(ctx context.Context, repo *v1alpha1.Repository) error {
+	ret := _m.Called(ctx, repo)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Repository) error); ok {
+		r0 = rf(ctx, repo)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // ListClusters provides a mock function with given fields: ctx
 func (_m *ArgoDB) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error) {
 	ret := _m.Called(ctx)

@@ -3,6 +3,9 @@ package db
 import (
 	"context"
 
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -33,6 +36,8 @@ type ArgoDB interface {
 	// GetRepositoryCredential will return a credential for use with the repository, or an error if not found.
 	// The returned credential generally won't have the same URL.
 	GetRepositoryCredential(ctx context.Context, repoURL string) (*appv1.Repository, error)
+	// HydrateRepositoryCredentials
+	HydrateRepositoryCredentials(ctx context.Context, repo *appv1.Repository) error
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository updates a repository
@@ -55,6 +60,20 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
+}
+
+func (db db) HydrateRepositoryCredentials(ctx context.Context, repo *appv1.Repository) error {
+	if !repo.HasCredentials() {
+		credential, err := db.GetRepositoryCredential(ctx, repo.Repo)
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+		} else if err != nil {
+			return err
+		} else {
+			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repo.CopyCredentialsFrom(*credential)
+		}
+	}
+	return nil
 }
 
 func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
