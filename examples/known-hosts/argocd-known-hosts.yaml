@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-known-hosts
+data:
+  known_hosts: |-
+    <known_hosts file content>
