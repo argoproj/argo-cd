@@ -72,12 +72,14 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 			Name:      fmt.Sprintf("%s", backend["serviceName"]),
 		})
 	}
+	urlsSet := make(map[string]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
 		for i := range rules {
 			rule, ok := rules[i].(map[string]interface{})
 			if !ok {
 				continue
 			}
+			host := rule["host"]
 			paths, ok, err := unstructured.NestedSlice(rule, "http", "paths")
 			if !ok || err != nil {
 				continue
@@ -87,6 +89,7 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 				if !ok {
 					continue
 				}
+
 				if serviceName, ok, err := unstructured.NestedString(path, "backend", "serviceName"); ok && err == nil {
 					targets = append(targets, v1alpha1.ResourceRef{
 						Group:     "",
@@ -95,10 +98,25 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 						Name:      serviceName,
 					})
 				}
+
+				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" {
+					switch fmt.Sprintf("%v", port) {
+					case "80":
+						urlsSet[fmt.Sprintf("http://%s", host)] = true
+					case "443":
+						urlsSet[fmt.Sprintf("https://%s", host)] = true
+					default:
+						urlsSet[fmt.Sprintf("http://%s:%s", host, port)] = true
+					}
+				}
 			}
 		}
 	}
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un)}
+	urls := make([]string, 0)
+	for url := range urlsSet {
+		urls = append(urls, url)
+	}
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un), ExternalURLs: urls}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, node *node) {

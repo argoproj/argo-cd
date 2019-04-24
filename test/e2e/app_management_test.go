@@ -477,14 +477,14 @@ definitions:
 func TestResourceAction(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app := createAndSyncDefault(t)
-
 	settings, err := fixture.SettingsManager.GetSettings()
 	assert.NoError(t, err)
 
 	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}
 	err = fixture.SettingsManager.SaveSettings(settings)
 	assert.NoError(t, err)
+
+	app := createAndSyncDefault(t)
 
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
@@ -515,4 +515,17 @@ func TestResourceAction(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "test", deployment.Labels["sample"])
+}
+
+func TestSyncResourceByLabel(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := createAndSyncDefault(t)
+
+	res, _ := fixture.RunCli("app", "sync", app.Name, "--label",
+		fmt.Sprintf("app.kubernetes.io/instance=test-%s", strings.Split(app.Name, "-")[1]))
+	assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
+
+	res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+	assert.Contains(t, res, "level=fatal")
 }

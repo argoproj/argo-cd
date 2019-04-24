@@ -63,5 +63,6 @@ func TestGetIngressInfo(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
+		ExternalURLs: []string{"https://helm-guestbook.com"},
 	}, node.networkingInfo)
 }

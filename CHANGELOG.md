@@ -6,7 +6,8 @@
 
 #### Network View
 
-TODO
+A new way to visual application resources had been introduced to the Application Details page. The Network View visualizes connections between Ingresses, Services and Pods
+based on ingress reference service, service's label selectors and labels. The new view is useful to understand the application traffic flow and troubleshot connectivity issues.
 
 #### Custom Actions
 
@@ -66,6 +67,18 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 - Rollback UI is not showing correct ksonnet parameters in preview #1326
 - See details of applications fails with "r.nodes is undefined" #1371
 - Unable to create app from private repo: x509: certificate signed by unknown authority #1171
+
+## v0.12.2 (2019-04-22)
+
+### Changes since v0.12.1
+
+- Fix racing condition in controller cache (#1498)
+- "bind: address already in use" after switching to gRPC-Web (#1451)
+- Annoying warning while using --grpc-web flag (#1420)
+- Delete helm temp directories (#1446)
+- Fix null pointer exception in secret normalization function (#1389)
+- Argo CD should not delete CRDs(#1425)
+- UI is unable to load cluster level resource manifest (#1429)
 
 ## v0.12.1 (2019-04-09)
 
