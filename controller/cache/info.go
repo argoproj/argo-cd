@@ -63,14 +63,14 @@ func populateServiceInfo(un *unstructured.Unstructured, node *node) {
 }
 
 func populateIngressInfo(un *unstructured.Unstructured, node *node) {
-	targets := make([]v1alpha1.ResourceRef, 0)
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
-		targets = append(targets, v1alpha1.ResourceRef{
+		targetsMap[v1alpha1.ResourceRef{
 			Group:     "",
 			Kind:      kube.ServiceKind,
 			Namespace: un.GetNamespace(),
 			Name:      fmt.Sprintf("%s", backend["serviceName"]),
-		})
+		}] = true
 	}
 	urlsSet := make(map[string]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
@@ -91,19 +91,19 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 				}
 
 				if serviceName, ok, err := unstructured.NestedString(path, "backend", "serviceName"); ok && err == nil {
-					targets = append(targets, v1alpha1.ResourceRef{
+					targetsMap[v1alpha1.ResourceRef{
 						Group:     "",
 						Kind:      kube.ServiceKind,
 						Namespace: un.GetNamespace(),
 						Name:      serviceName,
-					})
+					}] = true
 				}
 
 				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" {
 					switch fmt.Sprintf("%v", port) {
-					case "80":
+					case "80", "http":
 						urlsSet[fmt.Sprintf("http://%s", host)] = true
-					case "443":
+					case "443", "https":
 						urlsSet[fmt.Sprintf("https://%s", host)] = true
 					default:
 						urlsSet[fmt.Sprintf("http://%s:%s", host, port)] = true
@@ -111,6 +111,10 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 				}
 			}
 		}
+	}
+	targets := make([]v1alpha1.ResourceRef, 0)
+	for target := range targetsMap {
+		targets = append(targets, target)
 	}
 	urls := make([]string, 0)
 	for url := range urlsSet {
