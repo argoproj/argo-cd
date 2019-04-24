@@ -81,14 +81,8 @@ func filterAPIResources(config *rest.Config, resourceFilter ResourceFilter, filt
 		}
 		for _, apiResource := range apiResourcesList.APIResources {
 
-			if resourceFilter.IsWhitelistAvailable() {
-				if !resourceFilter.IsIncludedResource(gv.Group, apiResource.Kind, config.Host) {
-					continue
-				}
-			} else {
-				if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
-					continue
-				}
+			if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
+				continue
 			}
 
 			if _, ok := isObsoleteExtensionsGroupKind(gv.Group, apiResource.Kind); ok &&

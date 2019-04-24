@@ -880,14 +880,45 @@ func (a *ArgoCDSettings) checkResourcePresence(apiGroup, kind, cluster string, f
 	return false
 }
 
-func (a *ArgoCDSettings) IsIncludedResource(apiGroup, kind, cluster string) bool {
+func (a *ArgoCDSettings) isIncludedResource(apiGroup, kind, cluster string) bool {
 	return a.checkResourcePresence(apiGroup, kind, cluster, a.ResourceInclusions)
 }
 
-func (a *ArgoCDSettings) IsExcludedResource(apiGroup, kind, cluster string) bool {
+func (a *ArgoCDSettings) isExcludedResource(apiGroup, kind, cluster string) bool {
 	return a.checkResourcePresence(apiGroup, kind, cluster, a.getExcludedResources())
 }
 
-func (a *ArgoCDSettings) IsWhitelistAvailable() bool {
-	return len(a.ResourceInclusions) > 0
+// Behavior of this function is as follows:
+// +-------------+-------------+-------------+
+// |  Inclusions |  Exclusions |    Result   |
+// +-------------+-------------+-------------+
+// |    Empty    |    Empty    |   Allowed   |
+// +-------------+-------------+-------------+
+// |   Present   |    Empty    |   Allowed   |
+// +-------------+-------------+-------------+
+// | Not Present |    Empty    | Not Allowed |
+// +-------------+-------------+-------------+
+// |    Empty    |   Present   | Not Allowed |
+// +-------------+-------------+-------------+
+// |    Empty    | Not Present |   Allowed   |
+// +-------------+-------------+-------------+
+// |   Present   | Not Present |   Allowed   |
+// +-------------+-------------+-------------+
+// | Not Present |   Present   | Not Allowed |
+// +-------------+-------------+-------------+
+// | Not Present | Not Present | Not Allowed |
+// +-------------+-------------+-------------+
+// |   Present   |   Present   | Not Allowed |
+// +-------------+-------------+-------------+
+//
+func (a *ArgoCDSettings) IsExcludedResource(apiGroup, kind, cluster string) bool {
+	if len(a.ResourceInclusions) > 0 {
+		if a.isIncludedResource(apiGroup, kind, cluster) {
+			return a.isExcludedResource(apiGroup, kind, cluster)
+		} else {
+			return true
+		}
+	} else {
+		return a.isExcludedResource(apiGroup, kind, cluster)
+	}
 }
