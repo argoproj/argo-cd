@@ -6,7 +6,8 @@
 
 #### Network View
 
-TODO
+The new way to visual application resources had been introduced to the Application Details page. The Network View visualize connections between Ingresses, Services and Pods
+based on ingress reference service, service's label selectors and labels. The new view is useful to understand the application traffic flow and troubleshot connectivity issues.
 
 #### Custom Actions
 
