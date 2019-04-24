@@ -1,12 +1,12 @@
 # Private Repositories
 
-If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH git credentials.
+If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.
 
 ## HTTP Credentials
 
 The HTTP credentials might be configured using Argo CD CLI:
 
-```
+```bash
 argocd repo add https://github.com/argoproj/argocd-example-apps --username <username> --password <password>
 ```
 
@@ -33,10 +33,10 @@ Argo CD UI don't support configuring SSH credentials. The SSH credentials might 
 argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
 ```
 
-## Declarative configuration
+## Declarative Configuration
 See [declarative setup](../operator-manual/declarative-setup#Repositories)
 
-## Self-singed certificates
+## Self-Signed Certificates
 
 If you are using self-hosted Git hosting service with the self-signed certificate then you need to disable certificate validation for that Git host.
 Following options are available:
