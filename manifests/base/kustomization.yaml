@@ -12,7 +12,7 @@ bases:
 images:
 - name: argoproj/argocd
   newName: argoproj/argocd
-  newTag: latest
+  newTag: v1.0.0-rc1
 - name: argoproj/argocd-ui
   newName: argoproj/argocd-ui
-  newTag: latest
+  newTag: v1.0.0-rc1
