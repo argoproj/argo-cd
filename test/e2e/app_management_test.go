@@ -516,3 +516,16 @@ func TestResourceAction(t *testing.T) {
 
 	assert.Equal(t, "test", deployment.Labels["sample"])
 }
+
+func TestSyncResourceByLabel(t *testing.T) {
+	fixture.EnsureCleanState()
+
+	app := createAndSyncDefault(t)
+
+	res, _ := fixture.RunCli("app", "sync", app.Name, "--label",
+		fmt.Sprintf("app.kubernetes.io/instance=test-%s", strings.Split(app.Name, "-")[1]))
+	assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
+
+	res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+	assert.Contains(t, res, "level=fatal")
+}
