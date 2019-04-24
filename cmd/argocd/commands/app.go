@@ -980,21 +980,20 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 	return selectedResources
 }
 
-func parseLabels(labels []string) map[string]string {
+func parseLabels(labels []string) (map[string]string, error) {
 	var selectedLabels map[string]string
 	if labels != nil {
 		selectedLabels = map[string]string{}
 		for _, r := range labels {
 			fields := strings.Split(r, labelFieldDelimiter)
 			if len(fields) != 2 {
-				log.Fatalf("Labels should have key%svalue, but instead got: %s", labelFieldDelimiter, r)
+				return nil, fmt.Errorf("labels should have key%svalue, but instead got: %s", labelFieldDelimiter, r)
 			}
 			selectedLabels[fields[0]] = fields[1]
 		}
 	}
-	return selectedLabels
+	return selectedLabels, nil
 }
-
 
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -1111,7 +1110,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			appName := args[0]
 
-			selectedLabels := parseLabels(labels)
+			selectedLabels, parseErr := parseLabels(labels)
+			if parseErr != nil {
+				log.Fatal(parseErr)
+			}
+
 			if len(selectedLabels) > 0 {
 				ctx := context.Background()
 
@@ -1123,7 +1126,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Name:     &appName,
 					Revision: revision,
 				}
-				res, _ := appIf.GetManifests(ctx, &q)
+
+				res, err := appIf.GetManifests(ctx, &q)
+				if err != nil {
+					log.Fatal(err)
+				}
+
 				for _, mfst := range res.Manifests {
 					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 					errors.CheckError(err)
@@ -1169,18 +1177,21 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
 			errors.CheckError(err)
 
-			pruningRequired := 0
-			for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
-				if resDetails.Status == argoappv1.ResultCodePruneSkipped {
-					pruningRequired++
+			// Only get resources to be pruned if sync was application-wide
+			if len(selectedResources) == 0 {
+				pruningRequired := 0
+				for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
+					if resDetails.Status == argoappv1.ResultCodePruneSkipped {
+						pruningRequired++
+					}
 				}
-			}
-			if pruningRequired > 0 {
-				log.Fatalf("%d resources require pruning", pruningRequired)
-			}
+				if pruningRequired > 0 {
+					log.Fatalf("%d resources require pruning", pruningRequired)
+				}
 
-			if !app.Status.OperationState.Phase.Successful() && !dryRun {
-				os.Exit(1)
+				if !app.Status.OperationState.Phase.Successful() && !dryRun {
+					os.Exit(1)
+				}
 			}
 		},
 	}
