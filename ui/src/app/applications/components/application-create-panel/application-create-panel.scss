@@ -1,0 +1,16 @@
+@import 'node_modules/argo-ui/src/app/shared/styles/config';
+
+.application-create-panel {
+    .argo-form-row i {
+        position: absolute;
+        right: 0;
+        bottom: 1em;
+        cursor: pointer;
+    }
+
+    &__yaml-button {
+        position: absolute;
+        right: 1em;
+        top: 1em;
+    }
+}

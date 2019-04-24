@@ -9,3 +9,5 @@ site/
 cmd/**/debug
 debug.test
 coverage.out
+node_modules
+.vscode

@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "outDir": "./../../dist/app",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "module": "esnext",
+        "moduleResolution": "node",
+        "target": "es5",
+        "jsx": "react",
+        "experimentalDecorators": true,
+        "noUnusedLocals": true,
+        "declaration": false,
+        "lib": [
+            "es2017",
+            "dom"
+        ]
+    },
+    "include": [
+        "./**/*"
+    ]
+}

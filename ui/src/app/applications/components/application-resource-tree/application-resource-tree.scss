@@ -1,0 +1,178 @@
+@import 'node_modules/argo-ui/src/app/shared/styles/config';
+
+.application-resource-tree {
+    position: relative;
+    overflow: hidden;
+
+    &__line {
+        position: absolute;
+        z-index: -1;
+        transition: all 0.2s linear;
+        border-top: 1px dashed $argo-color-gray-5;
+    }
+
+    &__edge {
+        .application-resource-tree__line {
+            &:last-child {
+                &:after {
+                    content: '\25BA';
+                    position: absolute;
+                    color: #A3A3A3;
+                    font-size: 10px;
+                    top: -10px;
+                    transform: rotate(180deg);
+                }
+            }
+        }
+    }
+
+    &--network {
+        .application-resource-tree__line {
+            background-image: linear-gradient(90deg, $argo-color-teal-5 50%, transparent 50%);
+            background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+            background-size: 20px 3px, 0px 0px, 0px 0px, 0px 0px;
+            background-position: left top, right bottom, left bottom, right top;
+            animation: network-flow 1s infinite linear;
+            height: 3px;
+            border-top: none;
+        }
+        @keyframes network-flow {
+            0% {
+                background-position: left 20px top, right 20px bottom , left bottom 20px , right top 20px;
+            }
+            100% {
+                background-position: left top, right bottom, left bottom, right top;
+            }
+        }
+
+        .application-resource-tree__edge {
+            .application-resource-tree__line {
+                &:last-child {
+                    &:after {
+                        color: $argo-color-teal-6;
+                        top: -8px;
+                    }
+                }
+            }
+        }
+    }
+
+    &__node {
+        position: absolute;
+        transition: all 0.2s linear;
+        padding-left: 3.5em;
+        padding-right: 1em;
+        margin: 10px;
+        box-shadow: 1px 1px 1px $argo-color-gray-4;
+        background-color: white;
+        border-radius: 4px;
+        border: 1px solid transparent;
+        cursor: pointer;
+
+        .icon {
+            font-size: 2em;
+        }
+
+        &.active {
+            border-color: $argo-color-teal-6;
+        }
+
+        &--load-balancer {
+            cursor: default;
+            background-color: $argo-color-teal-2;
+        }
+    }
+
+    &__filtered-indicator {
+        z-index: -1;
+    }
+
+    &__node-animation {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        animation: shadow-pulse 1s 1;
+    }
+
+    @keyframes shadow-pulse {
+        0% {
+            box-shadow: 0 0 0 0px rgba(0, 0, 0, 0.2);
+        }
+        100% {
+            box-shadow: 0 0 0 15px rgba(0, 0, 0, 0);
+        }
+    }
+    &__node-menu {
+        position: absolute;
+        right: 0px;
+        top: 7px;
+    }
+
+    &__node-content {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__node-kind-icon {
+        position: absolute;
+        left: 10px;
+        top: 8px;
+        line-height: 1;
+        color: $argo-color-gray-5;
+
+        &--big {
+            background: $argo-color-gray-5;
+            position: absolute;
+            width: 65px;
+            height: 65px;
+            border-radius: 33px;
+            left: -20px;
+            top: -8px;
+            border: 4px solid white;
+            text-align: center;
+            i {
+                color: $white-color;
+                line-height: 56px;
+                font-size: 28px;
+            }
+        }
+    }
+
+    &__node-labels {
+        position: absolute;
+        bottom: -14px;
+        right: 0;
+
+        span {
+            background-color: $argo-color-gray-4;
+            border: 1px solid $argo-color-gray-5;
+            border-radius: 5px;
+            padding: 0 5px;
+            font-size: 0.6em;
+            text-transform: lowercase;
+            margin-right: 1px;
+        }
+    }
+
+    &__node-title {
+        line-height: 52px;
+        font-size: 0.8em;
+    }
+
+    &__node-status-icon {
+        font-size: 0.8em;
+        position: absolute;
+        left: 0;
+        bottom: -5px;
+        i {
+            margin-right: 2px;
+        }
+
+        &--offset {
+            left: 40px;
+        }
+    }
+}

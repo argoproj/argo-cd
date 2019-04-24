@@ -1,0 +1,11 @@
+.application-component-diff {
+    line-height: 1em;
+    position: relative;
+    padding-top: 2em;
+
+    &__checkboxs {
+        position: absolute;
+        right: 1em;
+        top: 0;
+    }
+}
