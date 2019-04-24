@@ -223,7 +223,8 @@ message ApplicationStatus {
 
   optional string sourceType = 9;
 
-  repeated k8s.io.api.core.v1.LoadBalancerIngress ingress = 10;
+  // ExternalURLs holds all external URLs of application child resources.
+  repeated string externalURLs = 10;
 }
 
 // ApplicationTree holds nodes which belongs to the application
@@ -533,6 +534,9 @@ message ResourceNetworkingInfo {
   map<string, string> labels = 3;
 
   repeated k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
+
+  // ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.
+  repeated string externalURLs = 5;
 }
 
 // ResourceNode contains information about live resource and its children

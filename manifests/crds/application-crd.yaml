@@ -479,6 +479,12 @@ spec:
                 - message
                 type: object
               type: array
+            externalURLs:
+              description: ExternalURLs holds all external URLs of application child
+                resources.
+              items:
+                type: string
+              type: array
             health:
               properties:
                 message:
@@ -656,9 +662,6 @@ spec:
                 - id
                 - source
                 type: object
-              type: array
-            ingress:
-              items: {}
               type: array
             observedAt: {}
             operationState:
