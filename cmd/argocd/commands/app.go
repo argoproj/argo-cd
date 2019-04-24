@@ -957,6 +957,7 @@ func formatConditionsSummary(app argoappv1.Application) string {
 const (
 	resourceFieldDelimiter = ":"
 	resourceFieldCount     = 3
+	labelFieldDelimiter    = "="
 )
 
 func parseSelectedResources(resources []string) []argoappv1.SyncOperationResource {
@@ -977,6 +978,21 @@ func parseSelectedResources(resources []string) []argoappv1.SyncOperationResourc
 		}
 	}
 	return selectedResources
+}
+
+func parseLabels(labels []string) (map[string]string, error) {
+	var selectedLabels map[string]string
+	if labels != nil {
+		selectedLabels = map[string]string{}
+		for _, r := range labels {
+			fields := strings.Split(r, labelFieldDelimiter)
+			if len(fields) != 2 {
+				return nil, fmt.Errorf("labels should have key%svalue, but instead got: %s", labelFieldDelimiter, r)
+			}
+			selectedLabels[fields[0]] = fields[1]
+		}
+	}
+	return selectedLabels, nil
 }
 
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
@@ -1073,6 +1089,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var (
 		revision  string
 		resources []string
+		labels    []string
 		prune     bool
 		dryRun    bool
 		timeout   uint
@@ -1091,8 +1108,51 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer util.Close(conn)
 
-			selectedResources := parseSelectedResources(resources)
 			appName := args[0]
+
+			selectedLabels, parseErr := parseLabels(labels)
+			if parseErr != nil {
+				log.Fatal(parseErr)
+			}
+
+			if len(selectedLabels) > 0 {
+				ctx := context.Background()
+
+				if revision == "" {
+					revision = "HEAD"
+				}
+
+				q := application.ApplicationManifestQuery{
+					Name:     &appName,
+					Revision: revision,
+				}
+
+				res, err := appIf.GetManifests(ctx, &q)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				for _, mfst := range res.Manifests {
+					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+					errors.CheckError(err)
+					for key, selectedValue := range selectedLabels {
+						if objectValue, ok := obj.GetLabels()[key]; ok && selectedValue == objectValue {
+							gvk := obj.GroupVersionKind()
+							resources = append(resources, fmt.Sprintf("%s:%s:%s", gvk.Group, gvk.Kind, obj.GetName()))
+						}
+					}
+				}
+
+				// If labels are provided and none are found return error only if specific resources were also not
+				// specified.
+				if len(resources) == 0 {
+					log.Fatalf("No matching resources found for labels: %v", labels)
+					return
+				}
+			}
+
+			selectedResources := parseSelectedResources(resources)
+
 			syncReq := application.ApplicationSyncRequest{
 				Name:      &appName,
 				DryRun:    dryRun,
@@ -1117,18 +1177,21 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			app, err := waitOnApplicationStatus(acdClient, appName, timeout, false, false, true, false, selectedResources)
 			errors.CheckError(err)
 
-			pruningRequired := 0
-			for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
-				if resDetails.Status == argoappv1.ResultCodePruneSkipped {
-					pruningRequired++
+			// Only get resources to be pruned if sync was application-wide
+			if len(selectedResources) == 0 {
+				pruningRequired := 0
+				for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
+					if resDetails.Status == argoappv1.ResultCodePruneSkipped {
+						pruningRequired++
+					}
 				}
-			}
-			if pruningRequired > 0 {
-				log.Fatalf("%d resources require pruning", pruningRequired)
-			}
+				if pruningRequired > 0 {
+					log.Fatalf("%d resources require pruning", pruningRequired)
+				}
 
-			if !app.Status.OperationState.Phase.Successful() && !dryRun {
-				os.Exit(1)
+				if !app.Status.OperationState.Phase.Successful() && !dryRun {
+					os.Exit(1)
+				}
 			}
 		},
 	}
@@ -1136,6 +1199,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
+	command.Flags().StringArrayVar(&labels, "label", []string{}, fmt.Sprintf("Sync only specific resources with a label. This option may be specified repeatedly."))
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
