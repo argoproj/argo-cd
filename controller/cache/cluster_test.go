@@ -107,6 +107,10 @@ var (
             serviceName: helm-guestbook
             servicePort: 443
           path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
   status:
     loadBalancer:
       ingress:
