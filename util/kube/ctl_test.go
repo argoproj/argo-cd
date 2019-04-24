@@ -1,7 +1,6 @@
-package kubetest
+package kube
 
 import (
-	"github.com/argoproj/argo-cd/util/kube"
 	"io/ioutil"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func TestConvertToVersion(t *testing.T) {
-	kubectl := kube.KubectlCmd{}
+	kubectl := KubectlCmd{}
 	yamlBytes, err := ioutil.ReadFile("testdata/nginx.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
