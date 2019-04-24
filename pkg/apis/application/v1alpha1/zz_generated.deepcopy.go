@@ -461,9 +461,9 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.ObservedAt.DeepCopyInto(&out.ObservedAt)
-	if in.Ingress != nil {
-		in, out := &in.Ingress, &out.Ingress
-		*out = make([]corev1.LoadBalancerIngress, len(*in))
+	if in.ExternalURLs != nil {
+		in, out := &in.ExternalURLs, &out.ExternalURLs
+		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
 	return
@@ -1084,6 +1084,11 @@ func (in *ResourceNetworkingInfo) DeepCopyInto(out *ResourceNetworkingInfo) {
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
 		*out = make([]corev1.LoadBalancerIngress, len(*in))
+		copy(*out, *in)
+	}
+	if in.ExternalURLs != nil {
+		in, out := &in.ExternalURLs, &out.ExternalURLs
+		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
 	return

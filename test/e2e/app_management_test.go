@@ -477,14 +477,14 @@ definitions:
 func TestResourceAction(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app := createAndSyncDefault(t)
-
 	settings, err := fixture.SettingsManager.GetSettings()
 	assert.NoError(t, err)
 
 	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}
 	err = fixture.SettingsManager.SaveSettings(settings)
 	assert.NoError(t, err)
+
+	app := createAndSyncDefault(t)
 
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)

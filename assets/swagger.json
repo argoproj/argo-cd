@@ -2651,6 +2651,13 @@
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
         },
+        "externalURLs": {
+          "description": "ExternalURLs holds all external URLs of application child resources.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
@@ -2658,12 +2665,6 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1RevisionHistory"
-          }
-        },
-        "ingress": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1LoadBalancerIngress"
           }
         },
         "observedAt": {
@@ -3092,6 +3093,13 @@
       "type": "object",
       "title": "ResourceNetworkingInfo holds networking resource related information",
       "properties": {
+        "externalURLs": {
+          "description": "ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "ingress": {
           "type": "array",
           "items": {

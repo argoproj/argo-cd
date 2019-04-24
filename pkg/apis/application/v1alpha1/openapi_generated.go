@@ -686,7 +686,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 						},
 					},
 				},
-				Required: []string{"namePrefix", "imageTags", "images"},
 			},
 		},
 		Dependencies: []string{
@@ -841,13 +840,15 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Format: "",
 						},
 					},
-					"ingress": {
+					"externalURLs": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "ExternalURLs holds all external URLs of application child resources.",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.LoadBalancerIngress"),
+										Type:   []string{"string"},
+										Format: "",
 									},
 								},
 							},
@@ -857,7 +858,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/api/core/v1.LoadBalancerIngress", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -1966,6 +1967,20 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Ref: ref("k8s.io/api/core/v1.LoadBalancerIngress"),
+									},
+								},
+							},
+						},
+					},
+					"externalURLs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
 									},
 								},
 							},

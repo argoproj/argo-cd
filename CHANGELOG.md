@@ -18,18 +18,21 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 * The health of more resources is displayed, so it easier to quickly zoom to unhealthy pods, replica-sets, etc.
 * Resources that do not have health no longer appear to be healthy. 
 
-#### Other Notable Changes
-
 ### Breaking Changes
 
 * Remove deprecated componentParameterOverrides field #1372
 
 ### Changes since v0.12.1
 
+#### New Features
+
 + Issue #357 - Expose application nodes networking information (#1333)
 + Support for customizable resource actions as Lua scripts #86
 + Surface Service/Ingress external IPs, hostname to application #908
 + Update argocd-util import/export to support proper backup and restore (#1328)
+
+#### Enhancements
+
 * Adds support for `kustomize edit set image`. Closes #1275 (#1324)
 * Allow wait to return on health or suspended (#1392)
 * Application warning when a manifest is defined twice #1070
@@ -47,6 +50,9 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 * UI / API Errors Truncated, Time Out #1386
 * UI Enhancement Proposals Quick Wins #1274
 * Whitelisting repos/clusters in projects should consider repo/cluster permissions #1432
+
+#### Bug Fixes
+
 - "bind: address already in use" after switching to gRPC-Web #1451
 - Annoying warning while using `--grpc-web` flag #1420
 - Don't compare secrets in the CLI, since argo-cd doesn't have access to their data (#1459)
@@ -60,6 +66,18 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 - Rollback UI is not showing correct ksonnet parameters in preview #1326
 - See details of applications fails with "r.nodes is undefined" #1371
 - Unable to create app from private repo: x509: certificate signed by unknown authority #1171
+
+## v0.12.2 (2019-04-22)
+
+### Changes since v0.12.1
+
+- Fix racing condition in controller cache (#1498)
+- "bind: address already in use" after switching to gRPC-Web (#1451)
+- Annoying warning while using --grpc-web flag (#1420)
+- Delete helm temp directories (#1446)
+- Fix null pointer exception in secret normalization function (#1389)
+- Argo CD should not delete CRDs(#1425)
+- UI is unable to load cluster level resource manifest (#1429)
 
 ## v0.12.1 (2019-04-09)
 

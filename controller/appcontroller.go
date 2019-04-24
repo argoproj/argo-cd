@@ -589,7 +589,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			if tree, err := ctrl.getResourceTree(app, managedResources); err != nil {
 				app.Status.Conditions = []appv1.ApplicationCondition{{Type: appv1.ApplicationConditionComparisonError, Message: err.Error()}}
 			} else {
-				app.Status.Ingress = tree.GetIngress()
+				app.Status.ExternalURLs = tree.GetBrowableURLs()
 				if err = ctrl.cache.SetAppResourcesTree(app.Name, tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
@@ -621,7 +621,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
 	} else {
-		app.Status.Ingress = tree.GetIngress()
+		app.Status.ExternalURLs = tree.GetBrowableURLs()
 	}
 
 	syncErrCond := ctrl.autoSync(app, compareResult.syncStatus)
