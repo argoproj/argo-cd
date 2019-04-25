@@ -5,13 +5,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type ExcludedResource struct {
+type FilteredResource struct {
 	APIGroups []string `json:"apiGroups,omitempty"`
 	Kinds     []string `json:"kinds,omitempty"`
 	Clusters  []string `json:"clusters,omitempty"`
 }
 
-func (r ExcludedResource) matchGroup(apiGroup string) bool {
+func (r FilteredResource) matchGroup(apiGroup string) bool {
 	for _, excludedApiGroup := range r.APIGroups {
 		if match(excludedApiGroup, apiGroup) {
 			return true
@@ -29,7 +29,7 @@ func match(pattern, text string) bool {
 	return compiledGlob.Match(text)
 }
 
-func (r ExcludedResource) matchKind(kind string) bool {
+func (r FilteredResource) matchKind(kind string) bool {
 	for _, excludedKind := range r.Kinds {
 		if excludedKind == "*" || excludedKind == kind {
 			return true
@@ -38,7 +38,7 @@ func (r ExcludedResource) matchKind(kind string) bool {
 	return len(r.Kinds) == 0
 }
 
-func (r ExcludedResource) matchCluster(cluster string) bool {
+func (r FilteredResource) matchCluster(cluster string) bool {
 	for _, excludedCluster := range r.Clusters {
 		if match(excludedCluster, cluster) {
 			return true
@@ -47,6 +47,6 @@ func (r ExcludedResource) matchCluster(cluster string) bool {
 	return len(r.Clusters) == 0
 }
 
-func (r ExcludedResource) Match(apiGroup, kind, cluster string) bool {
+func (r FilteredResource) Match(apiGroup, kind, cluster string) bool {
 	return r.matchGroup(apiGroup) && r.matchKind(kind) && r.matchCluster(cluster)
 }
