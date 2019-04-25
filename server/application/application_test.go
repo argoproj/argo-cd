@@ -408,27 +408,13 @@ func TestServer_getRepo(t *testing.T) {
 	mockDB := mocks.ArgoDB{}
 
 	const knownRepoUrl = "http://known-host/repo"
-	const knownRepoCredsUrl = "http://secured-host/repo"
 	const unknownRepoUrl = "http://unknown-host/repo"
-	const unknownRepoCredsUrl = "http://unknown-secured-host/repo"
 
-	mockDB.On("GetRepository", mock.Anything, knownRepoUrl).Return(&appv1.Repository{Repo: knownRepoUrl}, nil)
-	mockDB.On("GetRepository", mock.Anything, knownRepoCredsUrl).Return(&appv1.Repository{Repo: knownRepoCredsUrl}, nil)
+	mockDB.On("GetHydratedRepository", mock.Anything, knownRepoUrl).Return(&appv1.Repository{Repo: knownRepoUrl}, nil)
 
 	notFound := status.Errorf(codes.NotFound, "")
 
-	mockDB.On("GetRepository", mock.Anything, unknownRepoUrl).Return(nil, notFound)
-	mockDB.On("GetRepository", mock.Anything, unknownRepoCredsUrl).Return(nil, notFound)
-
-	mockDB.On("HydrateRepositoryCredentials", mock.Anything, &appv1.Repository{Repo: knownRepoUrl}).Return(notFound)
-	mockDB.On("HydrateRepositoryCredentials", mock.Anything, &appv1.Repository{Repo: knownRepoCredsUrl}).Return(func(ctx context.Context, repo *appv1.Repository) error {
-		repo.Username = "foo"
-		return nil
-	})
-	mockDB.On("HydrateRepositoryCredentials", mock.Anything, &appv1.Repository{Repo: unknownRepoCredsUrl}).Return(func(ctx context.Context, repo *appv1.Repository) error {
-		repo.Username = "bar"
-		return nil
-	})
+	mockDB.On("GetHydratedRepository", mock.Anything, unknownRepoUrl).Return(nil, notFound)
 
 	s := &Server{db: &mockDB}
 	tests := []struct {
@@ -445,16 +431,6 @@ func TestServer_getRepo(t *testing.T) {
 			name:    "TestUnknown",
 			repoURL: knownRepoUrl,
 			want:    &appv1.Repository{Repo: knownRepoUrl},
-		},
-		{
-			name:    "TestKnownCreds",
-			repoURL: knownRepoCredsUrl,
-			want:    &appv1.Repository{Repo: knownRepoCredsUrl, Username: "foo"},
-		},
-		{
-			name:    "TestUnknownCreds",
-			repoURL: unknownRepoCredsUrl,
-			want:    &appv1.Repository{Repo: unknownRepoCredsUrl, Username: "bar"},
 		},
 	}
 	for _, tt := range tests {

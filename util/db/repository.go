@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/settings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -91,6 +92,27 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	}
 
 	return db.hydrateRepository(s.Repositories[index])
+}
+
+// GetRepository returns a repository by URL
+func (db *db) GetHydratedRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+	repo, err := db.GetRepository(ctx, repoURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if !repo.HasCredentials() {
+		credential, err := db.GetRepositoryCredential(ctx, repo.Repo)
+		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+		} else if err != nil {
+			return nil, err
+		} else {
+			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+			repo.CopyCredentialsFrom(*credential)
+		}
+	}
+
+	return repo, nil
 }
 
 func (db *db) GetRepositoryCredential(ctx context.Context, repoURL string) (*appsv1.Repository, error) {

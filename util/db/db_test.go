@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -80,6 +81,60 @@ func TestCreateExistingRepository(t *testing.T) {
 	assert.Equal(t, codes.AlreadyExists, status.Convert(err).Code())
 }
 
+func TestGetHydratedRepository(t *testing.T) {
+	config := map[string]string{
+		"repositories": `
+- url: https://known/repo
+- url: https://secured/repo
+`,
+		"repository.credentials": `
+- url: https://secured
+  usernameSecret:
+    name: managed-secret
+    key: username
+  passwordSecret:
+    name: managed-secret
+    key: password
+`}
+	clientset := getClientset(config, newManagedSecret())
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+
+	tests := []struct {
+		name    string
+		repoURL string
+		want    *v1alpha1.Repository
+		wantErr bool
+	}{
+		{
+			name:    "TestUnknownRepo",
+			repoURL: "http://unknown/repo",
+			wantErr: true,
+		},
+		{
+			name:    "TestKnownRepo",
+			repoURL: "https://known/repo",
+			want:    &v1alpha1.Repository{Repo: "https://known/repo"},
+		},
+		{
+			name:    "TestSecuredRepo",
+			repoURL: "https://secured/repo",
+			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := db.GetHydratedRepository(context.TODO(), tt.repoURL)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("db.GetHydratedRepository() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("db.GetHydratedRepository() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 	config := map[string]string{
 		"repositories": `
@@ -91,19 +146,7 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
     name: managed-secret
     key: password
 `}
-	clientset := getClientset(config, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "managed-secret",
-			Namespace: testNamespace,
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-		},
-		Data: map[string][]byte{
-			username: []byte("test-username"),
-			password: []byte("test-password"),
-		},
-	})
+	clientset := getClientset(config, newManagedSecret())
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	err := db.DeleteRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps")
@@ -116,6 +159,22 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get("argocd-cm", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "", cm.Data["repositories"])
+}
+
+func newManagedSecret() *v1.Secret {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managed-secret",
+			Namespace: testNamespace,
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			username: []byte("test-username"),
+			password: []byte("test-password"),
+		},
+	}
 }
 
 func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
