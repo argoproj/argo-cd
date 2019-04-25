@@ -151,7 +151,7 @@ start-e2e: cli
 	kubectl create ns argocd-e2e || true
 	kubens argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
-	make start
+	goreman start
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in packr boxes
 .PHONY: clean-debug
