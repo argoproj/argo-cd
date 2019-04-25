@@ -940,12 +940,12 @@ func (ctrl *ApplicationController) watchSettings(ctx context.Context) {
 				prevAppLabelKey = newAppLabelKey
 			}
 			if !reflect.DeepEqual(prevResourceExclusions, newSettings.ResourceExclusions) {
-				log.Infof("resource exclusions modified")
+				log.WithFields(log.Fields{"prevResourceExclusions": prevResourceExclusions, "newResourceExclusions": newSettings.ResourceExclusions}).Info("resource exclusions modified")
 				ctrl.stateCache.Invalidate()
 				prevResourceExclusions = newSettings.ResourceExclusions
 			}
 			if !reflect.DeepEqual(prevResourceInclusions, newSettings.ResourceInclusions) {
-				log.Infof("resource inclusions modified")
+				log.WithFields(log.Fields{"prevResourceInclusions": prevResourceInclusions, "newResourceInclusions": newSettings.ResourceInclusions}).Info("resource inclusions modified")
 				ctrl.stateCache.Invalidate()
 				prevResourceInclusions = newSettings.ResourceInclusions
 			}
