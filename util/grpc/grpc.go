@@ -149,3 +149,12 @@ func TestTLS(address string) (*TLSTestResult, error) {
 	}
 	return nil, err
 }
+
+func WithTimeout(duration time.Duration) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		clientDeadline := time.Now().Add(duration)
+		ctx, cancel := context.WithDeadline(ctx, clientDeadline)
+		defer cancel()
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
