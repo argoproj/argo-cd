@@ -57,7 +57,7 @@ func NewCommand() *cobra.Command {
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 			appclientset := appclientset.NewForConfigOrDie(config)
-			repoclientset := reposerver.NewRepoServerClientset(repoServerAddress)
+			repoclientset := reposerver.NewRepoServerClientset(repoServerAddress, 0)
 
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:            insecure,
