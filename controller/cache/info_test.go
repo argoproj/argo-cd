@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"sort"
+	"strings"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -50,6 +52,9 @@ func TestGetIngressInfo(t *testing.T) {
 	node := &node{}
 	populateNodeInfo(testIngress, node)
 	assert.Equal(t, 0, len(node.info))
+	sort.Slice(node.networkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(node.networkingInfo.TargetRefs[j].Name, node.networkingInfo.TargetRefs[i].Name) < 0
+	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
