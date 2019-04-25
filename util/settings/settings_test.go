@@ -33,6 +33,15 @@ func Test_updateSettingsFromConfigMap(t *testing.T) {
 			want: []FilteredResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}},
 		},
 		{
+			name:  "TestResourceInclusion",
+			key:   "resource.inclusions",
+			value: "\n  - apiGroups: []\n    kinds: [managed_only]\n    clusters: []\n",
+			get: func(settings ArgoCDSettings) interface{} {
+				return settings.ResourceInclusions
+			},
+			want: []FilteredResource{{APIGroups: []string{}, Kinds: []string{"managed_only"}, Clusters: []string{}}},
+		},
+		{
 			name:  "TestRepositories",
 			key:   "repositories",
 			value: "\n  - url: http://foo\n",
@@ -65,25 +74,6 @@ func Test_updateSettingsFromConfigMap(t *testing.T) {
 			assert.Equal(t, tt.want, tt.get(settings))
 		})
 	}
-}
-
-func TestUpdateSettingsFromConfigMapResourceInclusionsAddInclusion(t *testing.T) {
-
-	settings := ArgoCDSettings{}
-	configMap := v1.ConfigMap{}
-	err := updateSettingsFromConfigMap(&settings, &configMap)
-
-	assert.NoError(t, err)
-	assert.Nil(t, settings.ResourceExclusions)
-
-	configMap.Data = map[string]string{
-		"resource.inclusions": "\n  - apiGroups: []\n    kinds: [managed_only]\n    clusters: []\n",
-	}
-
-	err = updateSettingsFromConfigMap(&settings, &configMap)
-
-	assert.NoError(t, err)
-	assert.Equal(t, []FilteredResource{{APIGroups: []string{}, Kinds: []string{"managed_only"}, Clusters: []string{}}}, settings.ResourceInclusions)
 }
 
 func TestResourceInclusions(t *testing.T) {
