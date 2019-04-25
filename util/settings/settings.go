@@ -70,7 +70,9 @@ type ArgoCDSettings struct {
 	// (e.g. argoproj.io/rollout) for the resource that is being overridden
 	ResourceOverrides map[string]v1alpha1.ResourceOverride
 	// ResourceExclusions holds the api groups, kinds per cluster to exclude from Argo CD's watch
-	ResourceExclusions []ExcludedResource
+	ResourceExclusions []FilteredResource
+	// ResourceInclusions holds the only api groups, kinds per cluster that Argo CD will watch
+	ResourceInclusions []FilteredResource
 }
 
 type OIDCConfig struct {
@@ -132,6 +134,8 @@ const (
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
 	resourceExclusionsKey = "resource.exclusions"
+	// resourceInclusions is the key to the list of explicitly watched resources
+	resourceInclusionsKey = "resource.inclusions"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
 )
@@ -364,8 +368,18 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		settings.ResourceOverrides = resourceOverrides
 	}
 
+	if value, ok := argoCDCM.Data[resourceInclusionsKey]; ok {
+		includedResources := make([]FilteredResource, 0)
+		err := yaml.Unmarshal([]byte(value), &includedResources)
+		if err != nil {
+			errors = append(errors, err)
+		} else {
+			settings.ResourceInclusions = includedResources
+		}
+	}
+
 	if value, ok := argoCDCM.Data[resourceExclusionsKey]; ok {
-		excludedResources := make([]ExcludedResource, 0)
+		excludedResources := make([]FilteredResource, 0)
 		err := yaml.Unmarshal([]byte(value), &excludedResources)
 		if err != nil {
 			errors = append(errors, err)
@@ -515,6 +529,16 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		argoCDCM.Data[resourceCustomizationsKey] = string(yamlBytes)
 	} else {
 		delete(argoCDCM.Data, resourceCustomizationsKey)
+	}
+
+	if len(settings.ResourceInclusions) > 0 {
+		yamlBytes, err := yaml.Marshal(settings.ResourceInclusions)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[resourceInclusionsKey] = string(yamlBytes)
+	} else {
+		delete(argoCDCM.Data, resourceInclusionsKey)
 	}
 
 	if len(settings.ResourceExclusions) > 0 {
@@ -837,21 +861,64 @@ func (a *ArgoCDSettings) GetAppInstanceLabelKey() string {
 	return a.AppInstanceLabelKey
 }
 
-func (a *ArgoCDSettings) getExcludedResources() []ExcludedResource {
-	coreExcludedResources := []ExcludedResource{
+func (a *ArgoCDSettings) getExcludedResources() []FilteredResource {
+	coreExcludedResources := []FilteredResource{
 		{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
 		{APIGroups: []string{""}, Kinds: []string{"Event"}},
 	}
 	return append(coreExcludedResources, a.ResourceExclusions...)
 }
 
-func (a *ArgoCDSettings) IsExcludedResource(apiGroup, kind, cluster string) bool {
+func (a *ArgoCDSettings) checkResourcePresence(apiGroup, kind, cluster string, filteredResources []FilteredResource) bool {
 
-	for _, excludedResource := range a.getExcludedResources() {
-		if excludedResource.Match(apiGroup, kind, cluster) {
+	for _, includedResource := range filteredResources {
+		if includedResource.Match(apiGroup, kind, cluster) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func (a *ArgoCDSettings) isIncludedResource(apiGroup, kind, cluster string) bool {
+	return a.checkResourcePresence(apiGroup, kind, cluster, a.ResourceInclusions)
+}
+
+func (a *ArgoCDSettings) isExcludedResource(apiGroup, kind, cluster string) bool {
+	return a.checkResourcePresence(apiGroup, kind, cluster, a.getExcludedResources())
+}
+
+// Behavior of this function is as follows:
+// +-------------+-------------+-------------+
+// |  Inclusions |  Exclusions |    Result   |
+// +-------------+-------------+-------------+
+// |    Empty    |    Empty    |   Allowed   |
+// +-------------+-------------+-------------+
+// |   Present   |    Empty    |   Allowed   |
+// +-------------+-------------+-------------+
+// | Not Present |    Empty    | Not Allowed |
+// +-------------+-------------+-------------+
+// |    Empty    |   Present   | Not Allowed |
+// +-------------+-------------+-------------+
+// |    Empty    | Not Present |   Allowed   |
+// +-------------+-------------+-------------+
+// |   Present   | Not Present |   Allowed   |
+// +-------------+-------------+-------------+
+// | Not Present |   Present   | Not Allowed |
+// +-------------+-------------+-------------+
+// | Not Present | Not Present | Not Allowed |
+// +-------------+-------------+-------------+
+// |   Present   |   Present   | Not Allowed |
+// +-------------+-------------+-------------+
+//
+func (a *ArgoCDSettings) IsExcludedResource(apiGroup, kind, cluster string) bool {
+	if len(a.ResourceInclusions) > 0 {
+		if a.isIncludedResource(apiGroup, kind, cluster) {
+			return a.isExcludedResource(apiGroup, kind, cluster)
+		} else {
+			return true
+		}
+	} else {
+		return a.isExcludedResource(apiGroup, kind, cluster)
+	}
 }
