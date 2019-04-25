@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/common"
 	statecache "github.com/argoproj/argo-cd/controller/cache"
+	"github.com/argoproj/argo-cd/controller/metrics"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -73,6 +74,7 @@ type comparisonResult struct {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
+	metricsServer  *metrics.MetricsServer
 	db             db.ArgoDB
 	settings       *settings.ArgoCDSettings
 	appclientset   appclientset.Interface
@@ -379,6 +381,7 @@ func NewAppStateManager(
 	settings *settings.ArgoCDSettings,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
+	metricsServer *metrics.MetricsServer,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache: liveStateCache,
@@ -389,5 +392,6 @@ func NewAppStateManager(
 		namespace:      namespace,
 		settings:       settings,
 		projInformer:   projInformer,
+		metricsServer:  metricsServer,
 	}
 }

@@ -110,18 +110,19 @@ func NewApplicationController(
 	}
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, func(appName string, fullRefresh bool) {
+	metricsAddr := fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDMetrics)
+	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, ctrl.metricsServer, func(appName string, fullRefresh bool) {
 		ctrl.requestAppRefresh(appName, fullRefresh)
 		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
 	})
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
 	ctrl.appStateManager = appStateManager
 	ctrl.stateCache = stateCache
-	metricsAddr := fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDMetrics)
-	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, ctrl.appLister)
+
 	return &ctrl, nil
 }
 
@@ -349,9 +350,16 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			objs = append(objs, objsMap[k])
 		}
 	}
+
+	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	if err != nil {
+		return err
+	}
+	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
+
 	err = util.RunAllAsync(len(objs), func(i int) error {
 		obj := objs[i]
-		return ctrl.stateCache.Delete(app.Spec.Destination.Server, obj)
+		return ctrl.kubectl.DeleteResource(config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 	})
 	if err != nil {
 		return err

@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/db"
@@ -25,8 +26,6 @@ type LiveStateCache interface {
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context)
-	// Deletes specified resource from cluster.
-	Delete(server string, obj *unstructured.Unstructured) error
 	// Invalidate invalidates the entire cluster state cache
 	Invalidate()
 }
@@ -42,26 +41,35 @@ func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isName
 	return key
 }
 
-func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settings *settings.ArgoCDSettings, kubectl kube.Kubectl, onAppUpdated func(appName string, fullRefresh bool)) LiveStateCache {
+func NewLiveStateCache(
+	db db.ArgoDB,
+	appInformer cache.SharedIndexInformer,
+	settings *settings.ArgoCDSettings,
+	kubectl kube.Kubectl,
+	metricsServer *metrics.MetricsServer,
+	onAppUpdated func(appName string, fullRefresh bool)) LiveStateCache {
+
 	return &liveStateCache{
-		appInformer:  appInformer,
-		db:           db,
-		clusters:     make(map[string]*clusterInfo),
-		lock:         &sync.Mutex{},
-		onAppUpdated: onAppUpdated,
-		kubectl:      kubectl,
-		settings:     settings,
+		appInformer:   appInformer,
+		db:            db,
+		clusters:      make(map[string]*clusterInfo),
+		lock:          &sync.Mutex{},
+		onAppUpdated:  onAppUpdated,
+		kubectl:       kubectl,
+		settings:      settings,
+		metricsServer: metricsServer,
 	}
 }
 
 type liveStateCache struct {
-	db           db.ArgoDB
-	clusters     map[string]*clusterInfo
-	lock         *sync.Mutex
-	appInformer  cache.SharedIndexInformer
-	onAppUpdated func(appName string, fullRefresh bool)
-	kubectl      kube.Kubectl
-	settings     *settings.ArgoCDSettings
+	db            db.ArgoDB
+	clusters      map[string]*clusterInfo
+	lock          *sync.Mutex
+	appInformer   cache.SharedIndexInformer
+	onAppUpdated  func(appName string, fullRefresh bool)
+	kubectl       kube.Kubectl
+	settings      *settings.ArgoCDSettings
+	metricsServer *metrics.MetricsServer
 }
 
 func (c *liveStateCache) getCluster(server string) (*clusterInfo, error) {
@@ -116,14 +124,6 @@ func (c *liveStateCache) Invalidate() {
 	log.Info("live state cache invalidated")
 }
 
-func (c *liveStateCache) Delete(server string, obj *unstructured.Unstructured) error {
-	clusterInfo, err := c.getSyncedCluster(server)
-	if err != nil {
-		return err
-	}
-	return clusterInfo.delete(obj)
-}
-
 func (c *liveStateCache) IsNamespaced(server string, obj *unstructured.Unstructured) (bool, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
@@ -146,7 +146,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 	if err != nil {
 		return nil, err
 	}
-	return clusterInfo.getManagedLiveObjs(a, targetObjs)
+	return clusterInfo.getManagedLiveObjs(a, targetObjs, c.metricsServer)
 }
 
 func isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
