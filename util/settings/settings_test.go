@@ -30,7 +30,7 @@ func Test_updateSettingsFromConfigMap(t *testing.T) {
 			get: func(settings ArgoCDSettings) interface{} {
 				return settings.ResourceExclusions
 			},
-			want: []ExcludedResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}},
+			want: []FilteredResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}},
 		},
 		{
 			name:  "TestRepositories",
@@ -65,11 +65,6 @@ func Test_updateSettingsFromConfigMap(t *testing.T) {
 			assert.Equal(t, tt.want, tt.get(settings))
 		})
 	}
-
-	err = updateSettingsFromConfigMap(&settings, &configMap)
-
-	assert.NoError(t, err)
-	assert.Equal(t, []FilteredResource{{APIGroups: []string{}, Kinds: []string{}, Clusters: []string{}}}, settings.ResourceExclusions)
 }
 
 func TestUpdateSettingsFromConfigMapResourceInclusionsAddInclusion(t *testing.T) {
