@@ -148,6 +148,7 @@ test-e2e: cli
 
 .PHONY: start-e2e
 start-e2e: cli
+	killall goreman || true
 	kubectl create ns argocd-e2e || true
 	kubens argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
