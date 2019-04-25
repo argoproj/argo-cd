@@ -37,14 +37,15 @@ const (
 
 func newCommand() *cobra.Command {
 	var (
-		clientConfig        clientcmd.ClientConfig
-		appResyncPeriod     int64
-		repoServerAddress   string
-		statusProcessors    int
-		operationProcessors int
-		logLevel            string
-		glogLevel           int
-		cacheSrc            func() (*cache.Cache, error)
+		clientConfig             clientcmd.ClientConfig
+		appResyncPeriod          int64
+		repoServerAddress        string
+		repoServerTimeoutSeconds int
+		statusProcessors         int
+		operationProcessors      int
+		logLevel                 string
+		glogLevel                int
+		cacheSrc                 func() (*cache.Cache, error)
 	)
 	var command = cobra.Command{
 		Use:   cliName,
@@ -65,7 +66,7 @@ func newCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
-			repoClientset := reposerver.NewRepoServerClientset(repoServerAddress)
+			repoClientset := reposerver.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
@@ -98,6 +99,7 @@ func newCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", defaultAppResyncPeriod, "Time period in seconds for application resync.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", common.DefaultRepoServerAddr, "Repo server address.")
+	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", 60, "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", 1, "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", 1, "Number of application operation processors")
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
