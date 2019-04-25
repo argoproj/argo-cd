@@ -1,48 +1,85 @@
 # Releasing
 
-1. Tag, build, and push argo-cd-ui
+Ensure the changelog is up to date. 
+
+Export the branch name, e.g.:
+
+```bash
+BRANCH=release-1.0
+```
+
+Set the `VERSION` environment variable:
+
+```bash 
+# release candidate
+VERSION=v1.0.0-rc1
+# GA release
+VERSION=v1.0.0
+```
+
+If not already created, create UI release branch:
+
 ```bash
 cd argo-cd-ui
-git checkout -b release-X.Y
-git tag vX.Y.Z
-git push upstream release-X.Y --tags
-IMAGE_NAMESPACE=argoproj IMAGE_TAG=vX.Y.Z DOCKER_PUSH=true yarn docker
+git checkout -b $BRANCH
 ```
 
-2. Create release-X.Y branch (if creating initial X.Y release)
+Tag UI:
+
 ```bash
-git checkout -b release-X.Y
-git push upstream release-X.Y
+git tag $VERSION
+git push upstream $BRANCH --tags
+IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true yarn docker
 ```
 
-3. Update VERSION and manifests with new version
+If not already created, create release branch:
+
 ```bash
-vi VERSION # ensure value is desired X.Y.Z semantic version
-make manifests IMAGE_TAG=vX.Y.Z
-git commit -a -m "Update manifests to vX.Y.Z"
-git push upstream release-X.Y
+cd argo-cd
+git checkout -b $BRANCH
+git push origin $BRANCH
 ```
 
-4. Tag, build, and push release to docker hub
+Update `VERSION` and manifests with new version:
+
 ```bash
-git tag vX.Y.Z
-make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=vX.Y.Z DOCKER_PUSH=true
-git push upstream vX.Y.Z
+echo $VERSION > VERSION
+make manifests IMAGE_TAG=$VERSION
+git commit -am "Update manifests to $VERSION"
+git push origin $BRANCH
 ```
 
-5. Update argocd brew formula
+Tag, build, and push release to Docker Hub
+
+```bash
+git tag $VERSION
+make release IMAGE_NAMESPACE=argoproj IMAGE_TAG=$VERSION DOCKER_PUSH=true
+git push origin $VERSION
+```
+
+Update Github releases with:
+
+* Getting started (copy from previous release)
+* Changelog
+
+## Stable Release
+
+Update Brew formula:
+
 ```bash
 git clone https://github.com/argoproj/homebrew-tap
 cd homebrew-tap
 ./update.sh ~/go/src/github.com/argoproj/argo-cd/dist/argocd-darwin-amd64
-git commit -a -m "Update argocd to vX.Y.Z"
+git commit -a -m "Update argocd to $VERSION"
 git push
 ```
 
-6. Update documentation:
-* Edit CHANGELOG.md with release notes
-* Update `stable` tag
+Deploy the [site](site.md).
+
+Update `stable` tag:
+
 ```
-git tag stable --force && git push upstream stable --force
+git tag stable --force && git push origin stable --force
 ```
-* Create GitHub release from new tag and upload binaries (e.g. dist/argocd-darwin-amd64)
+
+Create GitHub release from new tag and upload binaries (e.g. dist/argocd-darwin-amd64).
