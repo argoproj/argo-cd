@@ -150,6 +150,88 @@ data:
         key: sshPrivateKey
 ```
 
+!!! tip
+    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys). 
+
+
+### Repository Credentials (v1.1+)
+
+If you want to use the same credentials for multiple repositories, you can use `repository.credentials`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  repositories: |
+    - url: https://github.com/argoproj/private-repo
+    - url: https://github.com/argoproj/other-private-repo
+  repository.credentials: |
+    - url: https://github.com/argoproj
+      passwordSecret:
+        name: my-secret
+        key: password
+      usernameSecret:
+        name: my-secret
+        key: username
+```
+
+Argo CD will only use the credentials if you omit `usernameSecret`, `passwordSecret`, and `sshPrivateKeySecret` fields (`insecureIgnoreHostKey` is ignored).
+
+A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both [https://github.com/argoproj](https://github.com/argoproj) and [https://github.com](https://github.com) would match. Argo CD selects the first one that matches.
+
+!!! tip
+    Order your credentials with the most specific at the top and the least specific at the bottom. 
+
+A complete example.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  repositories: |
+    # this has it's own credentials
+    - url: https://github.com/argoproj/private-repo
+      passwordSecret:
+        name: private-repo-secret
+        key: password
+      usernameSecret:
+        name: private-repo-secret
+        key: username
+      sshPrivateKeySecret:
+        name: private-repo-secret
+        key: sshPrivateKey
+    - url: https://github.com/argoproj/other-private-repo
+    - url: https://github.com/otherproj/another-private-repo
+  repository.credentials: |
+    # this will be used for the second repo
+    - url: https://github.com/argoproj
+      passwordSecret:
+        name: other-private-repo-secret
+        key: password
+      usernameSecret:
+        name: other-private-repo-secret
+        key: username
+      sshPrivateKeySecret:
+        name: other-private-repo-secret
+        key: sshPrivateKey
+    # this will be used for the third repo
+    - url: https://github.com
+      passwordSecret:
+        name: another-private-repo-secret
+        key: password
+      usernameSecret:
+        name: another-private-repo-secret
+        key: username
+      sshPrivateKeySecret:
+        name: another-private-repo-secret
+        key: sshPrivateKey
+```
+
+
 ## Clusters
 
 Cluster credentials are stored in secrets same as repository credentials but does not require entry in `argocd-cm` config map. Each secret must have label
