@@ -338,7 +338,6 @@ func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &v1alpha1.Repository{Repo: repoURL}
 	}
-
 	return repo
 }
 

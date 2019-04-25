@@ -22,8 +22,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/reposerver"
 	"github.com/argoproj/argo-cd/reposerver/repository"
@@ -778,7 +778,6 @@ func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository 
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &appv1.Repository{Repo: repoURL}
 	}
-
 	return repo
 }
 
@@ -891,7 +890,6 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL}
 	}
-
 	gitClient, err := s.gitFactory.NewClient(repo.Repo, "", repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	if err != nil {
 		return "", "", err

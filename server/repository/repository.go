@@ -58,7 +58,6 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		ModifiedAt: &now,
 	}
 	repo, err := s.db.GetRepository(ctx, url)
-
 	if err == nil {
 		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 	}
@@ -211,7 +210,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 			return nil, err
 		}
 	}
-
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, err
