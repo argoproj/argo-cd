@@ -29,6 +29,7 @@ nav:
     - operator-manual/sso.md
     - operator-manual/rbac.md
     - operator-manual/security.md
+    - operator-manual/cluster-bootstrapping.md
     - operator-manual/webhook.md
     - operator-manual/health.md
     - operator-manual/custom_tools.md
