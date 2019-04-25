@@ -6,7 +6,8 @@
 
 #### Network View
 
-TODO
+A new way to visual application resources had been introduced to the Application Details page. The Network View visualizes connections between Ingresses, Services and Pods
+based on ingress reference service, service's label selectors and labels. The new view is useful to understand the application traffic flow and troubleshot connectivity issues.
 
 #### Custom Actions
 
@@ -22,17 +23,11 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 
 * Remove deprecated componentParameterOverrides field #1372
 
-### Changes since v0.12.1
-
-#### New Features
-
-+ Issue #357 - Expose application nodes networking information (#1333)
-+ Support for customizable resource actions as Lua scripts #86
-+ Surface Service/Ingress external IPs, hostname to application #908
-+ Update argocd-util import/export to support proper backup and restore (#1328)
+### Changes since v0.12.2
 
 #### Enhancements
 
+* `argocd app wait` should have `--resource` flag like sync #1206
 * Adds support for `kustomize edit set image`. Closes #1275 (#1324)
 * Allow wait to return on health or suspended (#1392)
 * Application warning when a manifest is defined twice #1070
@@ -41,30 +36,32 @@ Argo CD introduces Custom Resource Actions to allow users to provide their own L
 * Display number of errors on resource tab #1477
 * Displays resources that are being deleted as "Progressing". Closes #1410 (#1426)
 * Generate random name for grpc proxy unix socket file instead of time stamp (#1455)
+* Issue #357 - Expose application nodes networking information (#1333)
 * Issue #1404 - App controller unnecessary set namespace to cluster level resources (#1405)
 * Nils health if the resource does not provide it. Closes #1383 (#1408)
 * Perform health assessments on all resource nodes in the tree. Closes #1382 (#1422)
 * Remove deprecated componentParameterOverrides field #1372
 * Shows the health of the application. Closes #1433 (#1434)
+* Surface Service/Ingress external IPs, hostname to application #908
 * Surface pod status to tree view #1358
+* Support for customizable resource actions as Lua scripts #86
 * UI / API Errors Truncated, Time Out #1386
 * UI Enhancement Proposals Quick Wins #1274
+* Update argocd-util import/export to support proper backup and restore (#1328)
 * Whitelisting repos/clusters in projects should consider repo/cluster permissions #1432
 
 #### Bug Fixes
 
-- "bind: address already in use" after switching to gRPC-Web #1451
-- Annoying warning while using `--grpc-web` flag #1420
 - Don't compare secrets in the CLI, since argo-cd doesn't have access to their data (#1459)
 - Dropdown menu should not have sync item for unmanaged resources #1357
 - Fixes goroutine leak. Closes #1381 (#1457)
 - Improve input style #1217
-- Issue #1389 - Fix null pointer exception in secret normalization function (#1428)
-- Issue #1425 - Argo CD should not delete CRDs (#1428)
-- Issue #1446 - Delete helm temp directories (#1449)
 - Issue #908 - Surface Service/Ingress external IPs, hostname to application (#1347)
+- kustomization fields are all mandatory #1504
+- Resource node details is crashing if live resource is missing $1505
 - Rollback UI is not showing correct ksonnet parameters in preview #1326
 - See details of applications fails with "r.nodes is undefined" #1371
+- UI fails to load custom actions is resource is not deployed #1502
 - Unable to create app from private repo: x509: certificate signed by unknown authority #1171
 
 ## v0.12.2 (2019-04-22)
