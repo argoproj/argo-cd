@@ -773,7 +773,7 @@ func (s *Server) getApplicationDestination(ctx context.Context, name string) (st
 }
 
 func (s *Server) getRepo(ctx context.Context, repoURL string) *appv1.Repository {
-	repo, err := s.db.GetHydratedRepository(ctx, repoURL)
+	repo, err := s.db.GetRepository(ctx, repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &appv1.Repository{Repo: repoURL}
@@ -886,7 +886,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		// If it's already a commit SHA, then no need to look it up
 		return ambiguousRevision, ambiguousRevision, nil
 	}
-	repo, err := s.db.GetHydratedRepository(ctx, app.Spec.Source.RepoURL)
+	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &appv1.Repository{Repo: app.Spec.Source.RepoURL}

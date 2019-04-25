@@ -91,44 +91,31 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 
-	return db.hydrateRepository(s.Repositories[index])
-}
+	repo, err := db.credentialsToRepository(s.Repositories[index])
 
-func (db *db) GetHydratedRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	repo, err := db.GetRepository(ctx, repoURL)
 	if err != nil {
 		return nil, err
 	}
 
 	if !repo.HasCredentials() {
-		credential, err := db.GetRepositoryCredential(ctx, repo.Repo)
-		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-		} else if err != nil {
-			return nil, err
-		} else {
-			log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
-			repo.CopyCredentialsFrom(*credential)
+		index := getRepositoryCredentialIndex(s, repoURL)
+		if index >= 0 {
+
+			credential, err := db.credentialsToRepository(s.RepositoryCredentials[index])
+
+			if err != nil {
+				return nil, err
+			} else {
+				log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+				repo.CopyCredentialsFrom(*credential)
+			}
 		}
 	}
 
-	return repo, nil
+	return repo, err
 }
 
-func (db *db) GetRepositoryCredential(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	s, err := db.settingsMgr.GetSettings()
-	if err != nil {
-		return nil, err
-	}
-
-	index := getRepositoryCredentialIndex(s, repoURL)
-	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repository credential '%s' not found", repoURL)
-	}
-
-	return db.hydrateRepository(s.RepositoryCredentials[index])
-}
-
-func (db *db) hydrateRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
+func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
 	repo := &appsv1.Repository{
 		Repo:                  repoInfo.URL,
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,

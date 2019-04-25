@@ -57,7 +57,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string) appsv1.Conn
 		Status:     appsv1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
-	repo, err := s.db.GetHydratedRepository(ctx, url)
+	repo, err := s.db.GetRepository(ctx, url)
 
 	if err == nil {
 		err = git.TestRepo(repo.Repo, repo.Username, repo.Password, repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
@@ -201,7 +201,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *RepoAppDetailsQuery) (*re
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, q.Repo); err != nil {
 		return nil, err
 	}
-	repo, err := s.db.GetHydratedRepository(ctx, q.Repo)
+	repo, err := s.db.GetRepository(ctx, q.Repo)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			repo = &appsv1.Repository{

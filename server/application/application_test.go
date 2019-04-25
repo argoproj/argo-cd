@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/errors"
 	appsv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/pkg/client/informers/externalversions"
 	mockrepo "github.com/argoproj/argo-cd/reposerver/mocks"
@@ -32,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/assets"
 	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/db/mocks"
 	"github.com/argoproj/argo-cd/util/kube"
 	"github.com/argoproj/argo-cd/util/rbac"
 	"github.com/argoproj/argo-cd/util/settings"
@@ -402,39 +399,4 @@ func TestPatch(t *testing.T) {
 	app, err = appServer.Patch(ctx, &ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
-}
-
-func TestServer_getRepo(t *testing.T) {
-	mockDB := mocks.ArgoDB{}
-
-	const knownRepoUrl = "http://known-host/repo"
-	const unknownRepoUrl = "http://unknown-host/repo"
-
-	mockDB.On("GetHydratedRepository", mock.Anything, knownRepoUrl).Return(&appv1.Repository{Repo: knownRepoUrl}, nil)
-	mockDB.On("GetHydratedRepository", mock.Anything, unknownRepoUrl).Return(nil, status.Errorf(codes.NotFound, ""))
-
-	s := &Server{db: &mockDB}
-	tests := []struct {
-		name    string
-		repoURL string
-		want    *appv1.Repository
-	}{
-		{
-			name:    "TestKnown",
-			repoURL: knownRepoUrl,
-			want:    &appv1.Repository{Repo: knownRepoUrl},
-		},
-		{
-			name:    "TestUnknown",
-			repoURL: knownRepoUrl,
-			want:    &appv1.Repository{Repo: knownRepoUrl},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := s.getRepo(context.TODO(), tt.repoURL); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Server.getRepo() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }

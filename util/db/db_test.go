@@ -81,7 +81,7 @@ func TestCreateExistingRepository(t *testing.T) {
 	assert.Equal(t, codes.AlreadyExists, status.Convert(err).Code())
 }
 
-func TestGetHydratedRepository(t *testing.T) {
+func TestGetRepository(t *testing.T) {
 	config := map[string]string{
 		"repositories": `
 - url: https://known/repo
@@ -123,7 +123,7 @@ func TestGetHydratedRepository(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := db.GetHydratedRepository(context.TODO(), tt.repoURL)
+			got, err := db.GetRepository(context.TODO(), tt.repoURL)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("db.GetHydratedRepository() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -333,7 +333,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 }
 
 func (m *appStateManager) getRepo(repoURL string) *v1alpha1.Repository {
-	repo, err := m.db.GetHydratedRepository(context.Background(), repoURL)
+	repo, err := m.db.GetRepository(context.Background(), repoURL)
 	if err != nil {
 		// If we couldn't retrieve from the repo service, assume public repositories
 		repo = &v1alpha1.Repository{Repo: repoURL}

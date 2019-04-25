@@ -157,7 +157,7 @@ func GetSpecErrors(
 	}
 	defer util.Close(conn)
 	repoAccessable := false
-	repoRes, err := db.GetHydratedRepository(ctx, spec.Source.RepoURL)
+	repoRes, err := db.GetRepository(ctx, spec.Source.RepoURL)
 
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
