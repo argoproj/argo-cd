@@ -218,7 +218,7 @@ data:
       sshPrivateKeySecret:
         name: other-private-repo-secret
         key: sshPrivateKey
-    # this will be used for the third-repo
+    # this will be used for the third repo
     - url: https://github.com
       passwordSecret:
         name: another-private-repo-secret

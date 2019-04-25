@@ -411,10 +411,7 @@ func TestServer_getRepo(t *testing.T) {
 	const unknownRepoUrl = "http://unknown-host/repo"
 
 	mockDB.On("GetHydratedRepository", mock.Anything, knownRepoUrl).Return(&appv1.Repository{Repo: knownRepoUrl}, nil)
-
-	notFound := status.Errorf(codes.NotFound, "")
-
-	mockDB.On("GetHydratedRepository", mock.Anything, unknownRepoUrl).Return(nil, notFound)
+	mockDB.On("GetHydratedRepository", mock.Anything, unknownRepoUrl).Return(nil, status.Errorf(codes.NotFound, ""))
 
 	s := &Server{db: &mockDB}
 	tests := []struct {

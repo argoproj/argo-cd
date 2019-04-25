@@ -94,7 +94,6 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	return db.hydrateRepository(s.Repositories[index])
 }
 
-// GetRepository returns a repository by URL
 func (db *db) GetHydratedRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	repo, err := db.GetRepository(ctx, repoURL)
 	if err != nil {

@@ -135,6 +135,22 @@ func TestGetHydratedRepository(t *testing.T) {
 	}
 }
 
+func newManagedSecret() *v1.Secret {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managed-secret",
+			Namespace: testNamespace,
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			username: []byte("test-username"),
+			password: []byte("test-password"),
+		},
+	}
+}
+
 func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 	config := map[string]string{
 		"repositories": `
@@ -159,22 +175,6 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get("argocd-cm", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "", cm.Data["repositories"])
-}
-
-func newManagedSecret() *v1.Secret {
-	return &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "managed-secret",
-			Namespace: testNamespace,
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-		},
-		Data: map[string][]byte{
-			username: []byte("test-username"),
-			password: []byte("test-password"),
-		},
-	}
 }
 
 func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
