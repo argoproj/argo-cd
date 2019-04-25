@@ -1,6 +1,10 @@
 package db
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/argoproj/argo-cd/util/settings"
+)
 
 func TestRepoURLToSecretName(t *testing.T) {
 	tables := map[string]string{
@@ -16,5 +20,26 @@ func TestRepoURLToSecretName(t *testing.T) {
 		if sn := repoURLToSecretName(k); sn != v {
 			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 		}
+	}
+}
+
+func Test_getRepositoryCredentialIndex(t *testing.T) {
+	argoCDSettings := settings.ArgoCDSettings{
+		RepositoryCredentials: []settings.RepoCredentials{{URL: "http://known"}},
+	}
+	tests := []struct {
+		name    string
+		repoURL string
+		want    int
+	}{
+		{"TestNotFound", "", -1},
+		{"TestFoundFound", "http://known/repo", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getRepositoryCredentialIndex(&argoCDSettings, tt.repoURL); got != tt.want {
+				t.Errorf("getRepositoryCredentialIndex() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

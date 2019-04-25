@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/util/git"
 	"github.com/argoproj/argo-cd/util/settings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,7 +46,7 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		return nil, err
 	}
 
-	index := getRepoCredIndex(s, r.Repo)
+	index := getRepositoryIndex(s, r.Repo)
 	if index > -1 {
 		return nil, status.Errorf(codes.AlreadyExists, "repository '%s' already exists", r.Repo)
 	}
@@ -85,25 +86,47 @@ func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 		return nil, err
 	}
 
-	index := getRepoCredIndex(s, repoURL)
+	index := getRepositoryIndex(s, repoURL)
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
-	repoInfo := s.Repositories[index]
+
+	repo, err := db.credentialsToRepository(s.Repositories[index])
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !repo.HasCredentials() {
+		index := getRepositoryCredentialIndex(s, repoURL)
+		if index >= 0 {
+
+			credential, err := db.credentialsToRepository(s.RepositoryCredentials[index])
+
+			if err != nil {
+				return nil, err
+			} else {
+				log.WithFields(log.Fields{"repoURL": repo.Repo, "credUrl": credential.Repo}).Info("copying credentials")
+				repo.CopyCredentialsFrom(*credential)
+			}
+		}
+	}
+
+	return repo, err
+}
+
+func (db *db) credentialsToRepository(repoInfo settings.RepoCredentials) (*appsv1.Repository, error) {
 	repo := &appsv1.Repository{
 		Repo:                  repoInfo.URL,
 		InsecureIgnoreHostKey: repoInfo.InsecureIgnoreHostKey,
 	}
-
-	err = db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
+	err := db.unmarshalFromSecretsStr(map[*string]*apiv1.SecretKeySelector{
 		&repo.Username:      repoInfo.UsernameSecret,
 		&repo.Password:      repoInfo.PasswordSecret,
 		&repo.SSHPrivateKey: repoInfo.SSHPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
-	if err != nil {
-		return nil, err
-	}
-	return repo, nil
+
+	return repo, err
 }
 
 // UpdateRepository updates a repository
@@ -113,7 +136,7 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 		return nil, err
 	}
 
-	index := getRepoCredIndex(s, r.Repo)
+	index := getRepositoryIndex(s, r.Repo)
 	if index < 0 {
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
 	}
@@ -138,7 +161,7 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
 		return err
 	}
 
-	index := getRepoCredIndex(s, repoURL)
+	index := getRepositoryIndex(s, repoURL)
 	if index < 0 {
 		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
@@ -243,9 +266,20 @@ func (db *db) upsertSecret(name string, data map[string][]byte) error {
 	return nil
 }
 
-func getRepoCredIndex(s *settings.ArgoCDSettings, repoURL string) int {
-	for i, cred := range s.Repositories {
-		if git.SameURL(cred.URL, repoURL) {
+func getRepositoryIndex(s *settings.ArgoCDSettings, repoURL string) int {
+	for i, repo := range s.Repositories {
+		if git.SameURL(repo.URL, repoURL) {
+			return i
+		}
+	}
+	return -1
+}
+
+func getRepositoryCredentialIndex(s *settings.ArgoCDSettings, repoURL string) int {
+	repoURL = git.NormalizeGitURL(repoURL)
+	for i, cred := range s.RepositoryCredentials {
+		credUrl := git.NormalizeGitURL(cred.URL)
+		if strings.HasPrefix(repoURL, credUrl) {
 			return i
 		}
 	}

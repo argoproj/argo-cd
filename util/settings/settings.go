@@ -60,6 +60,8 @@ type ArgoCDSettings struct {
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// Repositories holds list of configured git repositories
 	Repositories []RepoCredentials
+	// Repositories holds list of repo credentials
+	RepositoryCredentials []RepoCredentials
 	// Repositories holds list of configured helm repositories
 	HelmRepositories []HelmRepoCredentials
 	// AppInstanceLabelKey is the configured application instance label key used to label apps. May be empty
@@ -116,6 +118,8 @@ const (
 	settingURLKey = "url"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
+	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
+	repositoryCredentialsKey = "repository.credentials"
 	// helmRepositoriesKey designates the key where list of helm repositories is set
 	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
@@ -340,6 +344,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.URL = argoCDCM.Data[settingURLKey]
 	settings.AppInstanceLabelKey = argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	repositoriesStr := argoCDCM.Data[repositoriesKey]
+	repositoryCredentialsStr := argoCDCM.Data[repositoryCredentialsKey]
 	var errors []error
 	if repositoriesStr != "" {
 		repositories := make([]RepoCredentials, 0)
@@ -348,6 +353,15 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 			errors = append(errors, err)
 		} else {
 			settings.Repositories = repositories
+		}
+	}
+	if repositoryCredentialsStr != "" {
+		repositoryCredentials := make([]RepoCredentials, 0)
+		err := yaml.Unmarshal([]byte(repositoryCredentialsStr), &repositoryCredentials)
+		if err != nil {
+			errors = append(errors, err)
+		} else {
+			settings.RepositoryCredentials = repositoryCredentials
 		}
 	}
 	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
@@ -514,6 +528,15 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		argoCDCM.Data[repositoriesKey] = string(yamlStr)
 	} else {
 		delete(argoCDCM.Data, repositoriesKey)
+	}
+	if len(settings.RepositoryCredentials) > 0 {
+		yamlStr, err := yaml.Marshal(settings.RepositoryCredentials)
+		if err != nil {
+			return err
+		}
+		argoCDCM.Data[repositoryCredentialsKey] = string(yamlStr)
+	} else {
+		delete(argoCDCM.Data, repositoryCredentialsKey)
 	}
 	if settings.AppInstanceLabelKey != "" {
 		argoCDCM.Data[settingsApplicationInstanceLabelKey] = settings.AppInstanceLabelKey
