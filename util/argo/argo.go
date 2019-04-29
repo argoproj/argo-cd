@@ -127,28 +127,13 @@ func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, na
 	return nil, fmt.Errorf("application refresh deadline exceeded")
 }
 
-// GetSpecErrors returns list of conditions which indicates that app spec is invalid. Following is checked:
+// ValidateRepo validates the repository specified in application spec. Following is checked:
 // * the git repository is accessible
 // * the git path contains valid manifests
-// * the referenced cluster has been added to Argo CD
-// * the app source repo and destination namespace/cluster are permitted in app project
 // * there are parameters of only one app source type
 // * ksonnet: the specified environment exists
-func GetSpecErrors(
-	ctx context.Context,
-	spec *argoappv1.ApplicationSpec,
-	proj *argoappv1.AppProject,
-	repoClientset reposerver.Clientset,
-	db db.ArgoDB,
-) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
+func ValidateRepo(ctx context.Context, spec *argoappv1.ApplicationSpec, repoClientset reposerver.Clientset, db db.ArgoDB) ([]argoappv1.ApplicationCondition, argoappv1.ApplicationSourceType, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
-	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.source.repoURL and spec.source.path are required",
-		})
-		return conditions, "", nil
-	}
 
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
@@ -218,18 +203,31 @@ func GetSpecErrors(
 					conditions = append(conditions, helmConditions...)
 				}
 			case argoappv1.ApplicationSourceTypeDirectory, argoappv1.ApplicationSourceTypeKustomize:
-				maniDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.HelmRepository{}, spec, repoClient)
-				if len(maniDirConditions) > 0 {
-					conditions = append(conditions, maniDirConditions...)
+				mainDirConditions := verifyGenerateManifests(ctx, repoRes, []*argoappv1.HelmRepository{}, spec, repoClient)
+				if len(mainDirConditions) > 0 {
+					conditions = append(conditions, mainDirConditions...)
 				}
 			}
 		}
+	}
+	return conditions, appSourceType, nil
+}
+
+// ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
+func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
+	conditions := make([]argoappv1.ApplicationCondition, 0)
+	if spec.Source.RepoURL == "" || spec.Source.Path == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "spec.source.repoURL and spec.source.path are required",
+		})
+		return conditions, nil
 	}
 
 	if !proj.IsSourcePermitted(spec.Source) {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("application source %v is not permitted in project '%s'", spec.Source, spec.Project),
+			Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.Source.RepoURL, spec.Project),
 		})
 	}
 
@@ -241,7 +239,7 @@ func GetSpecErrors(
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err = db.GetCluster(ctx, spec.Destination.Server)
+		_, err := db.GetCluster(ctx, spec.Destination.Server)
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -249,11 +247,11 @@ func GetSpecErrors(
 					Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
 				})
 			} else {
-				return nil, "", err
+				return nil, err
 			}
 		}
 	}
-	return conditions, appSourceType, nil
+	return conditions, nil
 }
 
 // GetAppProject returns a project from an application
@@ -340,6 +338,7 @@ func verifyAppYAML(ctx context.Context, repoRes *argoappv1.Repository, spec *arg
 	return nil
 }
 
+// verifyHelmChart verifies a helm chart is functional
 // verifyHelmChart verifies a helm chart is functional
 func verifyHelmChart(ctx context.Context, repoRes *argoappv1.Repository, spec *argoappv1.ApplicationSpec, repoClient repository.RepoServerServiceClient) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
