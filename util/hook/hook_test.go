@@ -38,10 +38,10 @@ func TestWeight(t *testing.T) {
 		obj  *unstructured.Unstructured
 		want int
 	}{
-		{"TestDefaultWeight", test.NewHook(), 0},
-		{"TestPositiveWeight", test.NewHookWithWeight("1"), 1},
-		{"TestNegativeWeight", test.NewHookWithWeight("-1"), -1},
-		{"TestGarbageWeight", test.NewHookWithWeight("foo"), 0},
+		{"TestDefaultWeight", test.NewSyncHook(), 0},
+		{"TestPositiveWeight", test.NewSyncHookWithWeight("1"), 1},
+		{"TestNegativeWeight", test.NewSyncHookWithWeight("-1"), -1},
+		{"TestGarbageWeight", test.NewSyncHookWithWeight("foo"), 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

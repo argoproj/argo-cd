@@ -208,14 +208,14 @@ func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceL
 	defer cancel()
 	return factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(FakeArgoCDNamespace)
 }
-func NewHook() *unstructured.Unstructured {
+func NewSyncHook() *unstructured.Unstructured {
 	return un([]byte(`{
   "apiVersion": "v1",
   "kind": "Pod",
   "metadata": {
     "name": "my-hook",
     "annotations": {
-      "argocd.argoproj.io/hook": "PostSync",
+      "argocd.argoproj.io/hook": "Sync",
       "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
 	}
   },
@@ -236,14 +236,14 @@ func NewHook() *unstructured.Unstructured {
 }`))
 }
 
-func NewHookWithWeight(hookWeight string) *unstructured.Unstructured {
+func NewSyncHookWithWeight(hookWeight string) *unstructured.Unstructured {
 	return un([]byte(fmt.Sprintf(`{
   "apiVersion": "v1",
   "kind": "Pod",
   "metadata": {
     "name": "my-hook",
 	"annotations": {
-	  "argocd.argoproj.io/hook": "PostSync",
+	  "argocd.argoproj.io/hook": "Sync",
 	  "argocd.argoproj.io/hook-weight": "%s",
 	  "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
     }

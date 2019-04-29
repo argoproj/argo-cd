@@ -69,6 +69,9 @@ func TestSyncHookProjectPermissions(t *testing.T) {
 
 func Test_syncContext_getHooks(t *testing.T) {
 
+	unweightedHook := test.NewSyncHook()
+	negativelyWeightedHook := test.NewSyncHookWithWeight("-1")
+
 	tests := []struct {
 		name          string
 		hookTypes     []appv1.HookType
@@ -76,7 +79,27 @@ func Test_syncContext_getHooks(t *testing.T) {
 		want          []*unstructured.Unstructured
 		wantErr       bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:          "TestNoop",
+			hookTypes:     []appv1.HookType{},
+			compareResult: &comparisonResult{},
+		},
+		{
+			name:      "TestOneHook",
+			hookTypes: []appv1.HookType{appv1.HookTypeSync},
+			compareResult: &comparisonResult{
+				hooks: []*unstructured.Unstructured{unweightedHook},
+			},
+			want: []*unstructured.Unstructured{unweightedHook},
+		},
+		{
+			name:      "TestTwoWeightedHook",
+			hookTypes: []appv1.HookType{appv1.HookTypeSync},
+			compareResult: &comparisonResult{
+				hooks: []*unstructured.Unstructured{unweightedHook, negativelyWeightedHook},
+			},
+			want: []*unstructured.Unstructured{negativelyWeightedHook, unweightedHook},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
