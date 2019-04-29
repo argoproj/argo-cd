@@ -530,3 +530,62 @@ func TestSyncResourceByLabel(t *testing.T) {
 	res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
 	assert.Contains(t, res, "level=fatal")
 }
+
+func TestPermissions(t *testing.T) {
+	fixture.EnsureCleanState()
+	appName := "test-app"
+	_, err := fixture.RunCli("proj", "create", "test")
+	assert.NoError(t, err)
+
+	// make sure app cannot be created without permissions in project
+	output, err := fixture.RunCli("app", "create", appName, "--repo", fixture.RepoURL(),
+		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace)
+	assert.Error(t, err)
+	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'test'", fixture.RepoURL())
+	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'test'", common.KubernetesInternalAPIServerAddr, fixture.DeploymentNamespace)
+
+	assert.Contains(t, output, sourceError)
+	assert.Contains(t, output, destinationError)
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get("test", metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	proj.Spec.Destinations = []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}}
+	proj.Spec.SourceRepos = []string{"*"}
+	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(proj)
+	assert.NoError(t, err)
+
+	// make sure controller report permissions issues in conditions
+	_, err = fixture.RunCli("app", "create", "test-app", "--repo", fixture.RepoURL(),
+		"--path", guestbookPath, "--project", "test", "--dest-server", common.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace)
+	assert.NoError(t, err)
+	defer func() {
+		err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Delete(appName, &metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	}()
+
+	proj.Spec.Destinations = []v1alpha1.ApplicationDestination{}
+	proj.Spec.SourceRepos = []string{}
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(proj)
+	assert.NoError(t, err)
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer util.Close(closer)
+
+	refresh := string(v1alpha1.RefreshTypeNormal)
+	app, err := client.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: &refresh})
+	assert.NoError(t, err)
+
+	destinationErrorExist := false
+	sourceErrorExist := false
+	for i := range app.Status.Conditions {
+		if strings.Contains(app.Status.Conditions[i].Message, destinationError) {
+			destinationErrorExist = true
+		}
+		if strings.Contains(app.Status.Conditions[i].Message, sourceError) {
+			sourceErrorExist = true
+		}
+	}
+	assert.True(t, destinationErrorExist)
+	assert.True(t, sourceErrorExist)
+}
