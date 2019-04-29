@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/controller/metrics"
+
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -351,7 +353,7 @@ func (c *clusterInfo) isNamespaced(obj *unstructured.Unstructured) bool {
 	return true
 }
 
-func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured, metricsServer *metrics.MetricsServer) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -362,6 +364,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 			managedObjs[key] = o.resource
 		}
 	}
+	config := metrics.AddMetricsTransportWrapper(metricsServer, a, c.cluster.RESTConfig())
 	// iterate target objects and identify ones that already exist in the cluster,\
 	// but are simply missing our label
 	lock := &sync.Mutex{}
@@ -378,7 +381,7 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 					managedObj = existingObj.resource
 				} else {
 					var err error
-					managedObj, err = c.kubectl.GetResource(c.cluster.RESTConfig(), targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
+					managedObj, err = c.kubectl.GetResource(config, targetObj.GroupVersionKind(), existingObj.ref.Name, existingObj.ref.Namespace)
 					if err != nil {
 						if errors.IsNotFound(err) {
 							return nil
@@ -390,9 +393,19 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 		}
 
 		if managedObj != nil {
-			managedObj, err := c.kubectl.ConvertToVersion(managedObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
+			converted, err := c.kubectl.ConvertToVersion(managedObj, targetObj.GroupVersionKind().Group, targetObj.GroupVersionKind().Version)
 			if err != nil {
-				return err
+				// fallback to loading resource from kubernetes if conversion fails
+				log.Warnf("Failed to convert resource: %v", err)
+				managedObj, err = c.kubectl.GetResource(config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
+				if err != nil {
+					if errors.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+			} else {
+				managedObj = converted
 			}
 			lock.Lock()
 			managedObjs[key] = managedObj
@@ -405,10 +418,6 @@ func (c *clusterInfo) getManagedLiveObjs(a *appv1.Application, targetObjs []*uns
 	}
 
 	return managedObjs, nil
-}
-
-func (c *clusterInfo) delete(obj *unstructured.Unstructured) error {
-	return c.kubectl.DeleteResource(c.cluster.RESTConfig(), obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), false)
 }
 
 func (c *clusterInfo) processEvent(event watch.EventType, un *unstructured.Unstructured) error {

@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
+	"github.com/argoproj/argo-cd/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
@@ -116,7 +117,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		return
 	}
 
-	restConfig := clst.RESTConfig()
+	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 	dynamicIf, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		state.Phase = appv1.OperationError
