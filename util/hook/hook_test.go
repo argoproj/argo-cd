@@ -24,6 +24,10 @@ func TestIsHook(t *testing.T) {
 	assert.True(t, IsHook(pod))
 
 	pod = test.NewPod()
+	pod.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": "Sync"})
+	assert.True(t, IsHook(pod))
+
+	pod = test.NewPod()
 	pod.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": "Skip"})
 	assert.False(t, IsHook(pod))
 
