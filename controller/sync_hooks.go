@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
@@ -131,6 +132,10 @@ func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Un
 
 		hook.GetAnnotations()
 	}
+
+	sort.Slice(hooks, func(i, j int) bool {
+		return hookutil.Weight(hooks[j]) > hookutil.Weight(hooks[i])
+	})
 
 	return hooks, nil
 }
