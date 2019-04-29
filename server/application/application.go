@@ -499,7 +499,14 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	conditions, appSourceType, err := argo.GetSpecErrors(ctx, &app.Spec, proj, s.repoClientset, s.db)
+	conditions, err := argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
+	if err != nil {
+		return err
+	}
+	if len(conditions) > 0 {
+		return status.Errorf(codes.InvalidArgument, "application spec is invalid: %s", argo.FormatAppConditions(conditions))
+	}
+	conditions, appSourceType, err := argo.ValidateRepo(ctx, &app.Spec, s.repoClientset, s.db)
 	if err != nil {
 		return err
 	}
