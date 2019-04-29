@@ -60,7 +60,7 @@ func IsArgoHook(obj *unstructured.Unstructured) bool {
 // (vs. a normal, synced application resource)
 func Weight(obj *unstructured.Unstructured) int {
 
-	text := obj.GetAnnotations()["argocd.argoproj.io/hook-weight"]
+	text := obj.GetAnnotations()[common.AnnotationKeyHookWeight]
 
 	if text == "" {
 		return 0

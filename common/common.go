@@ -77,6 +77,8 @@ const (
 
 	// AnnotationKeyHook contains the hook type of a resource
 	AnnotationKeyHook = "argocd.argoproj.io/hook"
+	// AnnotationKeyHookWeight is the hook weight
+	AnnotationKeyHookWeight = "argocd.argoproj.io/hook-weight"
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
 	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
 	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
