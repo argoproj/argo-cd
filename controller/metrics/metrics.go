@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,6 +18,7 @@ import (
 type MetricsServer struct {
 	*http.Server
 	syncCounter        *prometheus.CounterVec
+	k8sRequestCounter  *prometheus.CounterVec
 	reconcileHistogram *prometheus.HistogramVec
 }
 
@@ -72,6 +74,14 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister) *Metri
 		append(descAppDefaultLabels, "phase"),
 	)
 	appRegistry.MustRegister(syncCounter)
+	k8sRequestCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_app_k8s_request_total",
+			Help: "Number of kubernetes requests executed during application reconciliation.",
+		},
+		append(descAppDefaultLabels, "response_code"),
+	)
+	appRegistry.MustRegister(k8sRequestCounter)
 
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -91,6 +101,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister) *Metri
 			Handler: mux,
 		},
 		syncCounter:        syncCounter,
+		k8sRequestCounter:  k8sRequestCounter,
 		reconcileHistogram: reconcileHistogram,
 	}
 }
@@ -101,6 +112,11 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 		return
 	}
 	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), string(state.Phase)).Inc()
+}
+
+// IncKubernetesRequest increments the kubernetes requests counter for an application
+func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, statusCode int) {
+	m.k8sRequestCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), strconv.Itoa(statusCode)).Inc()
 }
 
 // IncReconcile increments the reconcile counter for an application

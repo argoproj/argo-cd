@@ -406,6 +406,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 		"DeprecatedExtensions": "deprecated-extensions",
 		"CRDs":                 "crd-creation",
 		"DuplicatedResources":  "duplicated-resources",
+		"FailedConversion":     "failed-conversion",
 	}
 
 	for name, appPath := range apps {
