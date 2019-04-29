@@ -2,6 +2,7 @@ package test
 
 import (
 	"encoding/json"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
@@ -45,12 +46,7 @@ var PodManifest = []byte(`
 `)
 
 func NewPod() *unstructured.Unstructured {
-	var un unstructured.Unstructured
-	err := json.Unmarshal(PodManifest, &un)
-	if err != nil {
-		panic(err)
-	}
-	return &un
+	return un(PodManifest)
 }
 
 var ServiceManifest = []byte(`
@@ -77,8 +73,12 @@ var ServiceManifest = []byte(`
 `)
 
 func NewService() *unstructured.Unstructured {
+	return un(ServiceManifest)
+}
+
+func un(bytes []byte) *unstructured.Unstructured {
 	var un unstructured.Unstructured
-	err := json.Unmarshal(ServiceManifest, &un)
+	err := json.Unmarshal(bytes, &un)
 	if err != nil {
 		panic(err)
 	}
@@ -127,12 +127,7 @@ var DeploymentManifest = []byte(`
 `)
 
 func NewDeployment() *unstructured.Unstructured {
-	var un unstructured.Unstructured
-	err := json.Unmarshal(DeploymentManifest, &un)
-	if err != nil {
-		panic(err)
-	}
-	return &un
+	return un(DeploymentManifest)
 }
 
 func DemoDeployment() *appsv1.Deployment {
@@ -212,4 +207,60 @@ func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceL
 	cancel := StartInformer(projInformer)
 	defer cancel()
 	return factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(FakeArgoCDNamespace)
+}
+func NewHook() *unstructured.Unstructured {
+	return un([]byte(`{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "my-hook",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PostSync",
+      "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
+	}
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "containers": [
+      {
+        "name": "main"
+      }
+    ],
+    "image": "alpine:latest",
+    "command": [
+      "sh",
+      "-c",
+      "sleep 10"
+    ]
+  }
+}`))
+}
+
+func NewHookWithWeight(hookWeight string) *unstructured.Unstructured {
+	return un([]byte(fmt.Sprintf(`{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "my-hook",
+	"annotations": {
+	  "argocd.argoproj.io/hook": "PostSync",
+	  "argocd.argoproj.io/hook-weight": "%s",
+	  "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
+    }
+  },
+  "spec": {
+    "restartPolicy": "Never",
+    "containers": [
+      {
+        "name": "main"
+      }
+    ],
+    "image": "alpine:latest",
+    "command": [
+      "sh",
+      "-c",
+      "sleep 10"
+    ]
+  }
+}`, hookWeight)))
 }

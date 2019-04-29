@@ -1,8 +1,10 @@
 package hook
 
 import (
+	"strconv"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/common"
@@ -52,4 +54,22 @@ func IsArgoHook(obj *unstructured.Unstructured) bool {
 		}
 	}
 	return false
+}
+
+// IsArgoHook indicates if the supplied object is an Argo CD application lifecycle hook
+// (vs. a normal, synced application resource)
+func Weight(obj *unstructured.Unstructured) int {
+
+	text := obj.GetAnnotations()["argocd.argoproj.io/hook-weight"]
+
+	if text == "" {
+		return 0
+	}
+
+	hookWeight, err := strconv.Atoi(text)
+	if err != nil {
+		log.WithFields(log.Fields{"text": text, "err": err}).Warn("failed to convert hook weight, ignoring")
+	}
+
+	return hookWeight
 }
