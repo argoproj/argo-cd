@@ -129,8 +129,6 @@ func (sc *syncContext) getHooks(hookTypes ...appv1.HookType) ([]*unstructured.Un
 			}
 		}
 		hooks = append(hooks, hook)
-
-		hook.GetAnnotations()
 	}
 
 	sort.Slice(hooks, func(i, j int) bool {
