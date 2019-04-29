@@ -55,6 +55,7 @@ go get -u gotest.tools/gotestsum
 
 ```bash
 go get -u github.com/argoproj/argo-cd
+cd ~/go/src/github.com/argoproj/argo-cd
 dep ensure
 make
 ```
