@@ -36,6 +36,8 @@ kind: Application
 metadata:
   name: guestbook
   namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
 spec:
   destination:
     namespace: argocd
@@ -50,7 +52,7 @@ spec:
       prune: true
 ``` 
 
-In this example, I've set the sync policy to automated + prune, so that applications are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this.
+In this example, I've set the sync policy to automated + prune, so that applications are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you applications are deleted correctly.
 
 As you probably want to override the cluster server and maybe the revision, these are templated values.
 
