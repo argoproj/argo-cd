@@ -612,7 +612,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:v0.12.2
+        image: argoproj/argocd:v0.12.3
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -659,7 +659,7 @@ spec:
         - cp
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:v0.12.2
+        image: argoproj/argocd:v0.12.3
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -714,7 +714,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:v0.12.2
+        image: argoproj/argocd:v0.12.3
         imagePullPolicy: Always
         name: argocd-repo-server
         ports:
@@ -771,7 +771,7 @@ spec:
         - argocd-redis-ha-announce-2:26379
         - --sentinelmaster
         - argocd
-        image: argoproj/argocd:v0.12.2
+        image: argoproj/argocd:v0.12.3
         imagePullPolicy: Always
         name: argocd-server
         ports:
@@ -792,7 +792,7 @@ spec:
         - -r
         - /app
         - /shared
-        image: argoproj/argocd-ui:v0.12.2
+        image: argoproj/argocd-ui:v0.12.3
         imagePullPolicy: Always
         name: ui
         volumeMounts:
