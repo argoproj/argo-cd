@@ -24,7 +24,7 @@ from your application source code, is highly recommended for the following reaso
    unintentionally. By having separate repos, commit access can be given to the source code repo,
    and not the application config repo.
 
-5. If you are automating your CI pipeline, pushing manifest changes to the same Cit repository can
+5. If you are automating your CI pipeline, pushing manifest changes to the same Git repository can
    trigger an infinite loop of build jobs and Git commit triggers. Having a separate repo to push
    config changes to, prevents this from happening.
 
