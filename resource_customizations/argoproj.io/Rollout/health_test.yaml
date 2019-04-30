@@ -8,6 +8,10 @@ tests:
     message: The preview Service is serving traffic to the current pod spec
   inputPath: testdata/suspended_servingPreviewService.yaml
 - healthStatus:
+    status: Suspended
+    message: The preview Service is serving traffic to the current pod spec
+  inputPath: testdata/v0.2_suspended_servingPreviewService.yaml
+- healthStatus:
     status: Progressing
     message: "Waiting for roll out to finish: More replicas need to be updated"
   inputPath: testdata/progressing_addingMoreReplicas.yaml

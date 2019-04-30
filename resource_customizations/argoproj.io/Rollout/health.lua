@@ -16,7 +16,14 @@ if obj.status ~= nil then
       return hs
     end
 
-    if obj.spec.paused then
+    local paused = false
+    if obj.status.verifyingPreview ~= nil then
+      paused = obj.status.verifyingPreview
+    elseif obj.spec.paused ~= nil then
+      paused = obj.spec.paused
+    end
+
+    if paused then
       hs.status = "Suspended"
       if obj.status.blueGreen.previewSelector ~= nil and obj.status.blueGreen.previewSelector == obj.status.currentPodHash then
         hs.message = "The preview Service is serving traffic to the current pod spec"
