@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -12,10 +12,6 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-)
-
-const (
-	noMatchingPathError = "Unable to remove nonexistent key: not-matching-path"
 )
 
 type normalizerPatch struct {
@@ -103,7 +99,8 @@ func (n *normalizer) Normalize(un *unstructured.Unstructured) error {
 	for _, patch := range matched {
 		patchedData, err := patch.patch.Apply(docData)
 		if err != nil {
-			if err.Error() == noMatchingPathError {
+			// bug?
+			if strings.HasPrefix(err.Error(), "Unable to remove nonexistent key") {
 				continue
 			}
 			return err
