@@ -31,10 +31,10 @@ func GetField(claims jwtgo.MapClaims, fieldName string) string {
 	return ""
 }
 
-// GetGroups extracts the groups from a claims
-func GetGroups(claims jwtgo.MapClaims) []string {
+// GetGroups extracts the groups from a named claim
+func GetGroupsFromClaim(claims jwtgo.MapClaims, claimName string) []string {
 	groups := make([]string, 0)
-	groupsIf, ok := claims["groups"]
+	groupsIf, ok := claims[claimName]
 	if !ok {
 		return groups
 	}
@@ -49,6 +49,20 @@ func GetGroups(claims jwtgo.MapClaims) []string {
 		}
 	}
 	return groups
+}
+
+// GetGroups extracts the groups from the claims
+func GetGroups(claims jwtgo.MapClaims) []string {
+	groups := GetGroupsFromClaim(claims, "groups")
+	if len(groups) > 0 {
+		return groups
+	} else {
+		cognitoGroups := GetGroupsFromClaim(claims, "cognito:groups")
+		if len(cognitoGroups) > 0 {
+			return cognitoGroups
+		}
+	}
+	return make([]string, 0)
 }
 
 // GetIssuedAt returns the issued at as an int64
