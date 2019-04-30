@@ -39,6 +39,25 @@ The following hooks are defined:
 | `Skip` | Indicates to Argo CD to skip the apply of the manifest. This is typically used in conjunction with a `Sync` hook which is presumably handling the deployment in an alternate way (e.g. blue-green deployment) |
 | `PostSync` | Executes after all `Sync` hooks completed and were successful, a succcessful apply, and all resources in a `Healthy` state. |
 
+## Hook Weight
+
+You can enforce ordering by selecting a weight for the Hook.
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: schema-migrate-
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-weight: "-1"
+```
+
+Hook weights can be positive or negative numbers. When Argo CD executes hooks of a particular kind (ex. the pre-sync hooks or post-sync hooks, etc.) it will sort those hooks in ascending order.
+Lower weights are executed first. As hooks of the same type are executed concurrently, Argo CD  oes not wait until one finishes before another starts.   
+
+!!! warning
+    Weight but must be as strings. So `argocd.argoproj.io/hook-weight: "-1"` will work, but `argocd.argoproj.io/hook-weight: -1` will not.  
 
 ## Hook Deletion Policies
 
