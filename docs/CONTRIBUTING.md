@@ -26,7 +26,7 @@ Brew users can quickly install the lot:
     
 ```bash
 brew tap go-swagger/go-swagger
-brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger 
+brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
 ```
 
 !!! note "Kustomize"
