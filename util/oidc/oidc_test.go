@@ -46,3 +46,16 @@ func TestInferGrantType(t *testing.T) {
 		assert.Equal(t, GrantTypeAuthorizationCode, grantType)
 	}
 }
+
+func TestGetScopes(t *testing.T) {
+	var oidcConfig OIDCConfiguration
+	oidcConfig.ScopesSupported = []string{"openid", "profile", "email", "groups"}
+	var scopes []string
+	scopes = GetScopes(&oidcConfig)
+	assert.Equal(t, []string{"openid", "profile", "email", "groups"}, scopes)
+	// AWS cognito does not support the groups scope test this case
+	oidcConfig.ScopesSupported = []string{"openid", "profile", "email"}
+	scopes = GetScopes(&oidcConfig)
+	assert.Equal(t, []string{"openid", "profile", "email"}, scopes)
+
+}

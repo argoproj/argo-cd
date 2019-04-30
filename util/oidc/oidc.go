@@ -157,7 +157,8 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	scopes := []string{"openid", "profile", "email", "groups"}
+	scopes := GetScopes(oidcConf)
+
 	oauth2Config, err := a.oauth2Config(scopes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -343,6 +344,19 @@ func OfflineAccess(scopes []string) bool {
 		}
 	}
 	return false
+}
+
+func GetScopes(oidcConf *OIDCConfiguration) []string {
+	groupsScopeSupported := false
+	for _, scope := range oidcConf.ScopesSupported {
+		if scope == "groups" {
+			groupsScopeSupported = true
+		}
+	}
+	if groupsScopeSupported {
+		return []string{"openid", "profile", "email", "groups"}
+	}
+	return []string{"openid", "profile", "email"}
 }
 
 // InferGrantType infers the proper grant flow depending on the OAuth2 client config and OIDC configuration.
