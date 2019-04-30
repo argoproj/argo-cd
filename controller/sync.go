@@ -170,15 +170,6 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 	}
 }
 
-// syncTask holds the live and target object. At least one should be non-nil. A targetObj of nil
-// indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
-// be deployed
-type syncTask struct {
-	liveObj    *unstructured.Unstructured
-	targetObj  *unstructured.Unstructured
-	skipDryRun bool
-}
-
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
 	syncTasks, successful := sc.generateSyncTasks()
@@ -244,7 +235,7 @@ func (sc *syncContext) sync() {
 
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
-	syncTasks := make([]syncTask, 0)
+	var syncTasks syncTasks
 	successful := true
 	for _, resourceState := range sc.compareResult.managedResources {
 		if resourceState.Hook {
@@ -323,7 +314,8 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 		}
 	}
 
-	sort.Sort(newKindSorter(syncTasks, resourceOrder))
+	sort.Sort(syncTasks)
+
 	return syncTasks, successful
 }
 

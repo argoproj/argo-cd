@@ -2,12 +2,10 @@ package controller
 
 import (
 	"fmt"
-	"sort"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -265,153 +263,6 @@ func TestSyncPruneFailure(t *testing.T) {
 	syncCtx.sync()
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].Status)
-}
-
-func unsortedManifest() []syncTask {
-	return []syncTask{
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "Pod",
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "Service",
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "PersistentVolume",
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "ConfigMap",
-				},
-			},
-		},
-	}
-}
-
-func sortedManifest() []syncTask {
-	return []syncTask{
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "ConfigMap",
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "PersistentVolume",
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "Service",
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-					"kind":         "Pod",
-				},
-			},
-		},
-		{
-			targetObj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				},
-			},
-		},
-	}
-}
-
-func TestSortKubernetesResourcesSuccessfully(t *testing.T) {
-	unsorted := unsortedManifest()
-	ks := newKindSorter(unsorted, resourceOrder)
-	sort.Sort(ks)
-
-	expectedOrder := sortedManifest()
-	assert.Equal(t, len(unsorted), len(expectedOrder))
-	for i, sorted := range unsorted {
-		assert.Equal(t, expectedOrder[i], sorted)
-	}
-
-}
-
-func TestSortManifestHandleNil(t *testing.T) {
-	task := syncTask{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				"kind":         "Service",
-			},
-		},
-	}
-	manifest := []syncTask{
-		{},
-		task,
-	}
-	ks := newKindSorter(manifest, resourceOrder)
-	sort.Sort(ks)
-	assert.Equal(t, task, manifest[0])
-	assert.Nil(t, manifest[1].targetObj)
-}
-
-func TestSyncNamespaceAgainstCRD(t *testing.T) {
-	crd := syncTask{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": "argoproj.io/alpha1",
-				"kind":         "Workflow",
-			},
-		}}
-	namespace := syncTask{
-		targetObj: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
-				"kind":         "Namespace",
-			},
-		},
-	}
-	unsorted := []syncTask{crd, namespace}
-	ks := newKindSorter(unsorted, resourceOrder)
-	sort.Sort(ks)
-
-	expectedOrder := []syncTask{namespace, crd}
-	assert.Equal(t, len(unsorted), len(expectedOrder))
-	for i, sorted := range unsorted {
-		assert.Equal(t, expectedOrder[i], sorted)
-	}
 }
 
 func TestDontSyncOrPruneHooks(t *testing.T) {
