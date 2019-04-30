@@ -49,6 +49,7 @@ func TestWeight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert.True(t, IsArgoHook(tt.obj))
 			if got := Weight(tt.obj); got != tt.want {
 				t.Errorf("Weight() = %v, want %v", got, tt.want)
 			}

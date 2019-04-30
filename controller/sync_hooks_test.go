@@ -100,6 +100,14 @@ func Test_syncContext_getHooks(t *testing.T) {
 			},
 			want: []*unstructured.Unstructured{negativelyWeightedHook, unweightedHook},
 		},
+		{
+			name:      "TestDupWeightedHook",
+			hookTypes: []appv1.HookType{appv1.HookTypeSync},
+			compareResult: &comparisonResult{
+				hooks: []*unstructured.Unstructured{negativelyWeightedHook, negativelyWeightedHook},
+			},
+			want: []*unstructured.Unstructured{negativelyWeightedHook, negativelyWeightedHook},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
