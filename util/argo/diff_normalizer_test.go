@@ -73,3 +73,17 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, has)
 }
+
+func TestNormalizeMissingJsonPointer(t *testing.T) {
+	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
+		"apps/Deployment": {
+			IgnoreDifferences: `jsonPointers: ["/garbage"]`,
+		},
+	})
+	assert.NoError(t, err)
+
+	deployment := kube.MustToUnstructured(test.DemoDeployment())
+
+	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+}
