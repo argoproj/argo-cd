@@ -397,8 +397,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#app-of-apps-of-apps" title="App of Apps of Apps" class="md-nav__link">
-    App of Apps of Apps
+  <a href="#application-of-applications" title="Application of Applications" class="md-nav__link">
+    Application of Applications
   </a>
   
 </li>
@@ -419,6 +419,19 @@
   <a href="#repositories" title="Repositories" class="md-nav__link">
     Repositories
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository-credentials-v11" title="Repository Credentials (v1.1+)" class="md-nav__link">
+    Repository Credentials (v1.1+)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -512,6 +525,18 @@
   <li class="md-nav__item">
     <a href="../security/" title="Security" class="md-nav__link">
       Security
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
+      Cluster Bootstrapping
     </a>
   </li>
 
@@ -929,8 +954,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#app-of-apps-of-apps" title="App of Apps of Apps" class="md-nav__link">
-    App of Apps of Apps
+  <a href="#application-of-applications" title="Application of Applications" class="md-nav__link">
+    Application of Applications
   </a>
   
 </li>
@@ -951,6 +976,19 @@
   <a href="#repositories" title="Repositories" class="md-nav__link">
     Repositories
   </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository-credentials-v11" title="Repository Credentials (v1.1+)" class="md-nav__link">
+    Repository Credentials (v1.1+)
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1082,9 +1120,10 @@ in an environment. It is defined by two key pieces of information:</p>
 </pre></div>
 
 
-<h3 id="app-of-apps-of-apps">App of Apps of Apps<a class="headerlink" href="#app-of-apps-of-apps" title="Permanent link">&para;</a></h3>
+<h3 id="application-of-applications">Application of Applications<a class="headerlink" href="#application-of-applications" title="Permanent link">&para;</a></h3>
 <p>You can create an application that creates other applications, which in turn can create other applications. 
-This allows you to declaratively manage a group of applications that can be deployed and configured in concert.   </p>
+This allows you to declaratively manage a group of applications that can be deployed and configured in concert.</p>
+<p>See <a href="../cluster-bootstrapping/">cluster bootstrapping</a>.</p>
 <h2 id="projects">Projects<a class="headerlink" href="#projects" title="Permanent link">&para;</a></h2>
 <p>The AppProject CRD is the Kubernetes resource object representing a logical grouping of applications.
 It is defined by the following key pieces of information:</p>
@@ -1174,6 +1213,83 @@ definition as a Kubernetes manifest.</li>
     <span class="no">- url: git@github.com:argoproj/my-private-repository</span>
       <span class="no">sshPrivateKeySecret:</span>
         <span class="no">name: my-secret</span>
+        <span class="no">key: sshPrivateKey</span>
+</pre></div>
+
+
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>The Kubernetes documentation has <a href="https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys">instructions for creating a secret containing a private key</a>. </p>
+</div>
+<h3 id="repository-credentials-v11">Repository Credentials (v1.1+)<a class="headerlink" href="#repository-credentials-v11" title="Permanent link">&para;</a></h3>
+<p>If you want to use the same credentials for multiple repositories, you can use <code>repository.credentials</code>:</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- url: https://github.com/argoproj/private-repo</span>
+    <span class="no">- url: https://github.com/argoproj/other-private-repo</span>
+  <span class="nt">repository.credentials</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- url: https://github.com/argoproj</span>
+      <span class="no">passwordSecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: password</span>
+      <span class="no">usernameSecret:</span>
+        <span class="no">name: my-secret</span>
+        <span class="no">key: username</span>
+</pre></div>
+
+
+<p>Argo CD will only use the credentials if you omit <code>usernameSecret</code>, <code>passwordSecret</code>, and <code>sshPrivateKeySecret</code> fields (<code>insecureIgnoreHostKey</code> is ignored).</p>
+<p>A credential may be match if it's URL is the prefix of the repository's URL. The means that credentials may match, e.g in the above example both <a href="https://github.com/argoproj">https://github.com/argoproj</a> and <a href="https://github.com">https://github.com</a> would match. Argo CD selects the first one that matches.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Order your credentials with the most specific at the top and the least specific at the bottom. </p>
+</div>
+<p>A complete example.</p>
+<div class="codehilite"><pre><span></span><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ConfigMap</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd-cm</span>
+<span class="nt">data</span><span class="p">:</span>
+  <span class="nt">repositories</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no"># this has it&#39;s own credentials</span>
+    <span class="no">- url: https://github.com/argoproj/private-repo</span>
+      <span class="no">passwordSecret:</span>
+        <span class="no">name: private-repo-secret</span>
+        <span class="no">key: password</span>
+      <span class="no">usernameSecret:</span>
+        <span class="no">name: private-repo-secret</span>
+        <span class="no">key: username</span>
+      <span class="no">sshPrivateKeySecret:</span>
+        <span class="no">name: private-repo-secret</span>
+        <span class="no">key: sshPrivateKey</span>
+    <span class="no">- url: https://github.com/argoproj/other-private-repo</span>
+    <span class="no">- url: https://github.com/otherproj/another-private-repo</span>
+  <span class="nt">repository.credentials</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no"># this will be used for the second repo</span>
+    <span class="no">- url: https://github.com/argoproj</span>
+      <span class="no">passwordSecret:</span>
+        <span class="no">name: other-private-repo-secret</span>
+        <span class="no">key: password</span>
+      <span class="no">usernameSecret:</span>
+        <span class="no">name: other-private-repo-secret</span>
+        <span class="no">key: username</span>
+      <span class="no">sshPrivateKeySecret:</span>
+        <span class="no">name: other-private-repo-secret</span>
+        <span class="no">key: sshPrivateKey</span>
+    <span class="no"># this will be used for the third repo</span>
+    <span class="no">- url: https://github.com</span>
+      <span class="no">passwordSecret:</span>
+        <span class="no">name: another-private-repo-secret</span>
+        <span class="no">key: password</span>
+      <span class="no">usernameSecret:</span>
+        <span class="no">name: another-private-repo-secret</span>
+        <span class="no">key: username</span>
+      <span class="no">sshPrivateKeySecret:</span>
+        <span class="no">name: another-private-repo-secret</span>
         <span class="no">key: sshPrivateKey</span>
 </pre></div>
 

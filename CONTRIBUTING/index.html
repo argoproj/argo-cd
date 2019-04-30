@@ -413,6 +413,18 @@
 
 
   <li class="md-nav__item">
+    <a href="../operator-manual/cluster-bootstrapping/" title="Cluster Bootstrapping" class="md-nav__link">
+      Cluster Bootstrapping
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
     <a href="../operator-manual/webhook/" title="Git Webhook Configuration" class="md-nav__link">
       Git Webhook Configuration
     </a>
@@ -976,7 +988,7 @@
 </ul>
 <p>Brew users can quickly install the lot:</p>
 <div class="codehilite"><pre><span></span>brew tap go-swagger/go-swagger
-brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger 
+brew install go dep protobuf kubectl kubectx ksonnet/tap/ks kubernetes-helm jq go-swagger kustomize 
 </pre></div>
 
 
@@ -1003,6 +1015,7 @@ go get -u gotest.tools/gotestsum
 
 <h2 id="building">Building<a class="headerlink" href="#building" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span>go get -u github.com/argoproj/argo-cd
+<span class="nb">cd</span> ~/go/src/github.com/argoproj/argo-cd
 dep ensure
 make
 </pre></div>
