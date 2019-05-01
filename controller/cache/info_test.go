@@ -71,3 +71,38 @@ func TestGetIngressInfo(t *testing.T) {
 		ExternalURLs: []string{"https://helm-guestbook.com"},
 	}, node.networkingInfo)
 }
+
+func TestGetIngressInfoNoHost(t *testing.T) {
+	ingress := strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    rules:
+    - http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	node := &node{}
+	populateNodeInfo(ingress, node)
+
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: []string{"https://107.178.210.11"},
+	}, node.networkingInfo)
+}
