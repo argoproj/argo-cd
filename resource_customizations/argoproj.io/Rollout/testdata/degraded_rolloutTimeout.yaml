@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '4'
+  clusterName: ''
+  creationTimestamp: '2019-04-29T21:37:38Z'
+  generation: 1
+  labels:
+    app: helm-guestbook
+    app.kubernetes.io/instance: guestbook-bluegreen
+    chart: helm-guestbook-0.1.0
+    heritage: Tiller
+    release: guestbook-bluegreen
+  name: guestbook-bluegreen-helm-guestbook
+  namespace: default
+  selfLink: >-
+    /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/guestbook-bluegreen-helm-guestbook
+spec:
+  minReadySeconds: 0
+  progressDeadlineSeconds: 32
+  replicas: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: helm-guestbook
+      release: guestbook-bluegreen
+  strategy:
+    blueGreen:
+      activeService: guestbook-bluegreen-helm-guestbook
+      previewReplicaCount: 1
+      previewService: guestbook-bluegreen-helm-guestbook-preview
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: helm-guestbook
+        release: guestbook-bluegreen
+    spec:
+      containers:
+        - image: 'gcr.io/heptio-images/ks-guestbook-demo:0.3'
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          name: helm-guestbook
+          ports:
+            - containerPort: 80
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources: {}
+status:
+  HPAReplicas: 3
+  availableReplicas: 3
+  blueGreen:
+    activeSelector: 8464d8564d
+  canary: {}
+  conditions:
+    - lastTransitionTime: '2019-05-01T17:52:59Z'
+      lastUpdateTime: '2019-05-01T17:52:59Z'
+      message: Rollout has minimum availability
+      reason: AvailableReason
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2019-05-01T21:36:03Z'
+      lastUpdateTime: '2019-05-01T21:36:03Z'
+      message: >-
+        ReplicaSet "guestbook-bluegreen-helm-guestbook-6b8cf6f7db" has timed out
+        progressing.
+      reason: ProgressDeadlineExceeded
+      status: 'False'
+      type: Progressing
+  currentPodHash: 6b8cf6f7db
+  observedGeneration: 7bcdbf7bd9
+  readyReplicas: 3
+  replicas: 4
+  selector: >-
+    app=helm-guestbook,release=guestbook-bluegreen,rollouts-pod-template-hash=8464d8564d
+  updatedReplicas: 1
