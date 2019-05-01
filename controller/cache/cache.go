@@ -47,7 +47,7 @@ func NewLiveStateCache(
 	settings *settings.ArgoCDSettings,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
-	onAppUpdated func(appName string, fullRefresh bool)) LiveStateCache {
+	onAppUpdated func(appName string, fullRefresh bool, key kube.ResourceKey)) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:   appInformer,
@@ -66,7 +66,7 @@ type liveStateCache struct {
 	clusters      map[string]*clusterInfo
 	lock          *sync.Mutex
 	appInformer   cache.SharedIndexInformer
-	onAppUpdated  func(appName string, fullRefresh bool)
+	onAppUpdated  func(appName string, fullRefresh bool, key kube.ResourceKey)
 	kubectl       kube.Kubectl
 	settings      *settings.ArgoCDSettings
 	metricsServer *metrics.MetricsServer
