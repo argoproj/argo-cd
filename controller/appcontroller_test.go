@@ -442,3 +442,16 @@ func TestNormalizeApplication(t *testing.T) {
 		assert.False(t, normalized)
 	}
 }
+
+func TestHandleAppUpdated(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+
+	ctrl.handleAppUpdated(app.Name, true, kube.GetResourceKey(kube.MustToUnstructured(app)))
+	isRequested, _ := ctrl.isRefreshRequested(app.Name)
+	assert.False(t, isRequested)
+
+	ctrl.handleAppUpdated(app.Name, true, kube.NewResourceKey("", kube.DeploymentKind, "default", "test"))
+	isRequested, _ = ctrl.isRefreshRequested(app.Name)
+	assert.True(t, isRequested)
+}
