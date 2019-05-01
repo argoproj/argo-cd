@@ -234,7 +234,7 @@ func (sc *syncContext) sync() {
 }
 
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
-func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
+func (sc *syncContext) generateSyncTasks() (syncTasks, bool) {
 	var syncTasks syncTasks
 	successful := true
 	for _, resourceState := range sc.compareResult.managedResources {
@@ -309,6 +309,7 @@ func (sc *syncContext) generateSyncTasks() ([]syncTask, bool) {
 				liveObj:    resourceState.Live,
 				targetObj:  targetObj,
 				skipDryRun: skipDryRun,
+				modified:   resourceState.Diff.Modified,
 			}
 			syncTasks = append(syncTasks, syncTask)
 		}
@@ -436,16 +437,22 @@ func hasCRDOfGroupKind(resources []managedResource, group string, kind string) b
 // performs a apply based sync of the given sync tasks (possibly pruning the objects).
 // If update is true, will updates the resource details with the result.
 // Or if the prune/apply failed, will also update the result.
-func (sc *syncContext) doApplySync(syncTasks []syncTask, dryRun, force, update bool) bool {
+func (sc *syncContext) doApplySync(syncTasks syncTasks, dryRun, force, update bool) bool {
 	syncSuccessful := true
 
 	var createTasks []syncTask
 	var pruneTasks []syncTask
-	for _, syncTask := range syncTasks {
-		if syncTask.targetObj == nil {
-			pruneTasks = append(pruneTasks, syncTask)
+	sort.Sort(syncTasks)
+	var nextWave = syncTasks.getNextWave()
+	for _, task := range syncTasks {
+		if task.getWave() > nextWave {
+			log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": task.getWave()}).Info("apply sync - wave check")
+			continue
+		}
+		if task.targetObj == nil {
+			pruneTasks = append(pruneTasks, task)
 		} else {
-			createTasks = append(createTasks, syncTask)
+			createTasks = append(createTasks, task)
 		}
 	}
 

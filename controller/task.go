@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"fmt"
+	"math"
 	"strconv"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -13,6 +16,32 @@ type syncTask struct {
 	liveObj    *unstructured.Unstructured
 	targetObj  *unstructured.Unstructured
 	skipDryRun bool
+	// indicates if this sync task will  change the resource,
+	// applying it may change the resource if this is false, which sounds completely mad, but you do need to bear
+	// that in mind
+	modified bool
+}
+
+func (t syncTask) String() string {
+	return fmt.Sprintf("(kind=%v,name=%s,wave=%d)", t.targetObj.GetKind(), t.targetObj.GetName(), t.getWave())
+}
+
+func (t syncTask) getWave() int {
+	if t.targetObj == nil {
+		return 0
+	}
+
+	text := t.targetObj.GetAnnotations()["argocd.argoproj.io/sync-wave"]
+	if text == "" {
+		return 0
+	}
+
+	val, err := strconv.Atoi(text)
+	if err != nil {
+		return 0
+	}
+
+	return val
 }
 
 // resourceOrder represents the correct order of Kubernetes resources within a manifest
@@ -55,21 +84,6 @@ func (s syncTasks) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func getWave(un *unstructured.Unstructured) int {
-
-	text := un.GetAnnotations()["argocd.argoproj.io/sync-wave"]
-	if text == "" {
-		return 0
-	}
-
-	val, err := strconv.Atoi(text)
-	if err != nil {
-		return 0
-	}
-
-	return val
-}
-
 func (s syncTasks) Less(i, j int) bool {
 
 	a := s[i].targetObj
@@ -81,8 +95,8 @@ func (s syncTasks) Less(i, j int) bool {
 		return true
 	}
 
-	syncWaveA := getWave(a)
-	syncWaveB := getWave(b)
+	syncWaveA := s[i].getWave()
+	syncWaveB := s[j].getWave()
 
 	if syncWaveA < syncWaveB {
 		return true
@@ -110,4 +124,31 @@ func (s syncTasks) Less(i, j int) bool {
 	}
 	// sort different kinds
 	return first < second
+}
+
+func (s syncTasks) getNextWave() int {
+
+	maxWave := math.MinInt32
+	for _, task := range s {
+		wave := task.getWave()
+		if task.modified {
+			return wave
+		}
+		if wave > maxWave {
+			maxWave = wave
+		}
+	}
+
+	return maxWave
+
+}
+
+func (s syncTasks) String() string {
+	var text []string
+
+	for _, task := range s {
+		text = append(text, task.String())
+	}
+
+	return strings.Join(text, ", ")
 }

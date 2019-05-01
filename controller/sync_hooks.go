@@ -3,9 +3,11 @@ package controller
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +25,7 @@ import (
 
 // doHookSync initiates (or continues) a hook-based sync. This method will be invoked when there may
 // already be in-flight (potentially incomplete) jobs/workflows, and should be idempotent.
-func (sc *syncContext) doHookSync(syncTasks []syncTask, hooks []*unstructured.Unstructured) {
+func (sc *syncContext) doHookSync(syncTasks syncTasks, hooks []*unstructured.Unstructured) {
 	if !sc.startedPreSyncPhase() {
 		if !sc.verifyPermittedHooks(hooks) {
 			return
@@ -189,9 +191,14 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 
 // syncNonHookTasks syncs or prunes the objects that are not handled by hooks using an apply sync.
 // returns true if the sync was successful
-func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) bool {
-	var nonHookTasks []syncTask
-	for _, task := range syncTasks {
+func (sc *syncContext) syncNonHookTasks(tasks syncTasks) bool {
+	var nonHookTasks syncTasks
+	var nextWave = tasks.getNextWave()
+	for _, task := range tasks {
+		log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": task.getWave()}).Info("hook sync - wave check")
+		if task.getWave() > nextWave {
+			continue
+		}
 		if task.targetObj == nil {
 			nonHookTasks = append(nonHookTasks, task)
 		} else {
@@ -205,6 +212,9 @@ func (sc *syncContext) syncNonHookTasks(syncTasks []syncTask) bool {
 			nonHookTasks = append(nonHookTasks, task)
 		}
 	}
+
+	sort.Sort(nonHookTasks)
+
 	return sc.doApplySync(nonHookTasks, false, sc.syncOp.SyncStrategy.Hook.Force, true)
 }
 
