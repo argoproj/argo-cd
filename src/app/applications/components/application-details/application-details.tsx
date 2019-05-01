@@ -59,8 +59,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         const nodeContainer = { key: '', container: 0 };
         const node = new URLSearchParams(this.props.location.search).get('node');
         if (node) {
-            const parts = node.split(':');
-            nodeContainer.key = parts.slice(0, 4).join(':');
+            const parts = node.split('/');
+            nodeContainer.key = parts.slice(0, 4).join('/');
             nodeContainer.container = parseInt(parts[4] || '0', 10);
         }
         return nodeContainer;
@@ -92,7 +92,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 })}>
 
                 {({application, tree, pref}: {application: appModels.Application, tree: appModels.ApplicationTree, pref: AppDetailsPreferences}) => {
-                    const kindsSet = new Set<string>(tree.nodes.map((item) => item.kind));
+                    const kindsSet = new Set<string>((tree.nodes || []).map((item) => item.kind));
                     const treeFilter = this.getTreeFilter(pref.resourceFilter);
                     treeFilter.kind.forEach((kind) => { kindsSet.add(kind); });
                     const kinds = Array.from(kindsSet);
@@ -420,9 +420,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
         this.appContext.apis.navigation.goto('.', { rollback: selectedDeploymentIndex });
     }
 
-    private selectNode(fullName: string, containerIndex = 0) {
-        const node = fullName ? `${fullName}:${containerIndex}` : null;
-        this.appContext.apis.navigation.goto('.', { node, tab: null });
+    private selectNode(fullName: string, containerIndex = 0, tab: string = null) {
+        const node = fullName ? `${fullName}/${containerIndex}` : null;
+        this.appContext.apis.navigation.goto('.', { node, tab });
     }
 
     private async rollbackApplication(revisionHistory: appModels.RevisionHistory) {
@@ -559,7 +559,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                                         {group.containers.length > 0 && <p>{group.title}:</p>}
                                         {group.containers.map((container: any, i: number) => (
                                             <div className='application-details__container' key={container.name} onClick={() => this.selectNode(
-                                                    this.selectedNodeKey, group.offset + i)}>
+                                                    this.selectedNodeKey, group.offset + i, 'logs')}>
                                                 {(group.offset + i) === this.selectedNodeInfo.container && <i className='fa fa-angle-right'/>}
                                                 <span title={container.name}>{container.name}</span>
                                             </div>

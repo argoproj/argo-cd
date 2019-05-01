@@ -37,7 +37,7 @@ export function nodeKey(node: NodeId) {
             group = newGroup;
         }
     }
-    return [group, node.kind, node.namespace, node.name].join(':');
+    return [group, node.kind, node.namespace, node.name].join('/');
 }
 
 export function isSameNode(first: NodeId, second: NodeId) {
