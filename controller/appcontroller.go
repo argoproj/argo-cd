@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -437,7 +438,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
-			state.Attempts = app.Status.OperationState.Attempts + 1
 			ctrl.setOperationState(app, state)
 		}
 	}()
@@ -460,7 +460,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
-		state.Attempts = app.Status.OperationState.Attempts + 1
 		ctrl.setOperationState(app, state)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
@@ -480,7 +479,10 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 		}
 	}
-	state.Attempts = app.Status.OperationState.Attempts + 1
+
+	if app.Status.OperationState != nil && state.Phase == appv1.OperationRunning {
+		state.Invocations = app.Status.OperationState.Invocations + 1
+	}
 	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
@@ -898,8 +900,19 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						ctrl.requestAppRefresh(newApp.Name, true)
 					}
 				}
-				ctrl.appRefreshQueue.Add(key)
-				ctrl.appOperationQueue.Add(key)
+				var invocations int64
+				if newApp.Status.OperationState != nil && newApp.Status.OperationState.Phase == appv1.OperationRunning {
+					invocations = newApp.Status.OperationState.Invocations
+				}
+
+				// this is an exponential back-off, work times are always postponed by a minimum 1 second,
+				// but if the operation has been tried before, it goes up to avoid swamping the controller.
+				after := time.Duration(int64(math.Pow(2, float64(invocations)))) * time.Second
+
+				log.WithFields(log.Fields{"invocations": invocations, "after": after, "key": key}).Info("queueing application refresh and operation")
+
+				ctrl.appRefreshQueue.AddAfter(key, after)
+				ctrl.appOperationQueue.AddAfter(key, after)
 			},
 			DeleteFunc: func(obj interface{}) {
 				// IndexerInformer uses a delta queue, therefore for deletes we have to use this

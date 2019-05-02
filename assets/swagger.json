@@ -2910,12 +2910,12 @@
       "description": "OperationState contains information about state of currently performing operation on application.",
       "type": "object",
       "properties": {
-        "attempts": {
-          "type": "string",
-          "format": "int64"
-        },
         "finishedAt": {
           "$ref": "#/definitions/v1Time"
+        },
+        "invocations": {
+          "type": "string",
+          "format": "int64"
         },
         "message": {
           "description": "Message hold any pertinent messages when attempting to perform operation (typically errors).",

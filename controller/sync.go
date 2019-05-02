@@ -461,10 +461,9 @@ func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) 
 	for _, task := range tasks {
 		wave := task.getWave()
 		if !dryRun && wave > nextWave {
-			log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": wave}).Debug("skipping, not in next wave")
-
+			log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": wave}).Debug("deferring object, not in next wave")
 			liveObj := task.liveObj
-			gvk := task.liveObj.GroupVersionKind()
+			gvk := liveObj.GroupVersionKind()
 			sc.setResourceDetails(
 				&appv1.ResourceResult{
 					Name:      liveObj.GetName(),
