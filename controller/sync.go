@@ -472,7 +472,7 @@ func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) 
 					Version:   gvk.Version,
 					Kind:      liveObj.GetKind(),
 					Namespace: liveObj.GetNamespace(),
-					Status:    appv1.ResultCodeDefered,
+					Status:    appv1.ResultCodeDeferred,
 				})
 			continue
 		}
