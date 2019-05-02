@@ -472,7 +472,7 @@ func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) 
 					Version:   gvk.Version,
 					Kind:      liveObj.GetKind(),
 					Namespace: liveObj.GetNamespace(),
-					Status:    appv1.ResultCodePostponed,
+					Status:    appv1.ResultCodePending,
 				})
 			continue
 		}
@@ -560,9 +560,9 @@ func (sc *syncContext) setResourceDetails(details *appv1.ResourceResult) {
 	sc.syncRes.Resources = append(sc.syncRes.Resources, details)
 }
 
-func (sc *syncContext) postponed() bool {
+func (sc *syncContext) pendingSyncTasks() bool {
 	for _, resource := range sc.syncRes.Resources {
-		if resource.Status == appv1.ResultCodePostponed {
+		if resource.Status == appv1.ResultCodePending {
 			return true
 		}
 	}
