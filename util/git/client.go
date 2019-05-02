@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -47,9 +48,17 @@ func NewFactory() ClientFactory {
 	return &factory{}
 }
 
-func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
+func (f *factory) NewClient(rawRepoURL, path, username, password, sshPrivateKey string, insecureIgnoreHostKey bool) (Client, error) {
+	var repoUser string
+
+	if repoURL, err := url.Parse(rawRepoURL); err != nil {
+		return nil, err
+	} else {
+		repoUser = repoURL.User.Username()
+	}
+
 	clnt := nativeGitClient{
-		repoURL: repoURL,
+		repoURL: rawRepoURL,
 		root:    path,
 	}
 	if sshPrivateKey != "" {
@@ -57,7 +66,7 @@ func (f *factory) NewClient(repoURL, path, username, password, sshPrivateKey str
 		if err != nil {
 			return nil, err
 		}
-		auth := &ssh2.PublicKeys{User: "git", Signer: signer}
+		auth := &ssh2.PublicKeys{User: repoUser, Signer: signer}
 		if insecureIgnoreHostKey {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		}
