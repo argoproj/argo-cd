@@ -377,14 +377,14 @@ type ResultCode string
 
 const (
 	ResultCodeSynced       ResultCode = "Synced"
-	ResultCodePending      ResultCode = "Pending"
+	ResultCodeDeferred     ResultCode = "Deferred"
 	ResultCodeSyncFailed   ResultCode = "SyncFailed"
 	ResultCodePruned       ResultCode = "Pruned"
 	ResultCodePruneSkipped ResultCode = "PruneSkipped"
 )
 
 func (s ResultCode) Successful() bool {
-	return s != ResultCodeSyncFailed && s != ResultCodePending
+	return s != ResultCodeSyncFailed && s != ResultCodeDeferred
 }
 
 // ResourceResult holds the operation result details of a specific resource
