@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -177,4 +180,84 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 		Type:    argoappv1.ApplicationConditionRepeatedResourceWarning,
 	})
 	assert.Equal(t, 2, len(compRes.resources))
+}
+
+var defaultProj = argoappv1.AppProject{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
+	},
+	Spec: argoappv1.AppProjectSpec{
+		SourceRepos: []string{"*"},
+		Destinations: []argoappv1.ApplicationDestination{
+			{
+				Server:    "*",
+				Namespace: "*",
+			},
+		},
+	},
+}
+
+func TestSetHealth(t *testing.T) {
+	app := newFakeApp()
+	deployment := kube.MustToUnstructured(&v1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1beta1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+	})
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(deployment): deployment,
+		},
+	})
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false)
+	assert.NoError(t, err)
+
+	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
+}
+
+func TestSetHealthSelfReferencedApp(t *testing.T) {
+	app := newFakeApp()
+	unstructuredApp := kube.MustToUnstructured(app)
+	deployment := kube.MustToUnstructured(&v1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1beta1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+	})
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &repository.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(deployment):      deployment,
+			kube.GetResourceKey(unstructuredApp): unstructuredApp,
+		},
+	})
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, "", app.Spec.Source, false)
+	assert.NoError(t, err)
+
+	assert.Equal(t, compRes.healthStatus.Status, argoappv1.HealthStatusHealthy)
 }

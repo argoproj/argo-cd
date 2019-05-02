@@ -21,7 +21,7 @@ import (
 )
 
 // SetApplicationHealth updates the health statuses of all resources performed in the comparison
-func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride) (*appv1.HealthStatus, error) {
+func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstructured.Unstructured, resourceOverrides map[string]appv1.ResourceOverride, filter func(obj *unstructured.Unstructured) bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: appv1.HealthStatusHealthy}
 	for i, liveObj := range liveObjs {
@@ -30,9 +30,11 @@ func SetApplicationHealth(resStatuses []appv1.ResourceStatus, liveObjs []*unstru
 		if liveObj == nil {
 			resHealth = &appv1.HealthStatus{Status: appv1.HealthStatusMissing}
 		} else {
-			resHealth, err = GetResourceHealth(liveObj, resourceOverrides)
-			if err != nil && savedErr == nil {
-				savedErr = err
+			if filter(liveObj) {
+				resHealth, err = GetResourceHealth(liveObj, resourceOverrides)
+				if err != nil && savedErr == nil {
+					savedErr = err
+				}
 			}
 		}
 		if resHealth != nil {

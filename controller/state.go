@@ -313,7 +313,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		syncStatus.Revision = manifestInfo.Revision
 	}
 
-	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), m.settings.ResourceOverrides)
+	healthStatus, err := health.SetApplicationHealth(resourceSummaries, GetLiveObjs(managedResources), m.settings.ResourceOverrides, func(obj *unstructured.Unstructured) bool {
+		return !isSelfReferencedApp(app.Name, app.Namespace, kubeutil.GetResourceKey(obj))
+	})
+
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
 	}
