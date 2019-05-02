@@ -2910,6 +2910,10 @@
       "description": "OperationState contains information about state of currently performing operation on application.",
       "type": "object",
       "properties": {
+        "attempts": {
+          "type": "string",
+          "format": "int64"
+        },
         "finishedAt": {
           "$ref": "#/definitions/v1Time"
         },

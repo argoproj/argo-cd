@@ -303,6 +303,7 @@ type OperationState struct {
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	Attempts   int64        `json:"attempts,omitempty" protobuf:"bytes,8,opt,name=attempts"`
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -383,7 +384,7 @@ const (
 )
 
 func (s ResultCode) Successful() bool {
-	return s != ResultCodeSyncFailed
+	return s != ResultCodeSyncFailed && s != ResultCodePostponed
 }
 
 // ResourceResult holds the operation result details of a specific resource

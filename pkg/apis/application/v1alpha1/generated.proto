@@ -425,6 +425,8 @@ message OperationState {
 
   // FinishedAt contains time of operation completion
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+
+  optional int64 attempts = 8;
 }
 
 // ProjectRole represents a role that has access to a project

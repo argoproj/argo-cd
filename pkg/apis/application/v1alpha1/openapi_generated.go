@@ -1531,6 +1531,12 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"attempts": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
 				},
 				Required: []string{"operation", "phase", "startedAt"},
 			},

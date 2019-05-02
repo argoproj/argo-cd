@@ -668,6 +668,9 @@ spec:
               description: OperationState contains information about state of currently
                 performing operation on application.
               properties:
+                attempts:
+                  format: int64
+                  type: integer
                 finishedAt: {}
                 message:
                   description: Message hold any pertinent messages when attempting

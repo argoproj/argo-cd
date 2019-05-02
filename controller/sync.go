@@ -465,7 +465,7 @@ func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) 
 
 			liveObj := task.liveObj
 			gvk := task.liveObj.GroupVersionKind()
-			sc.syncRes.Resources = append(sc.syncRes.Resources,
+			sc.setResourceDetails(
 				&appv1.ResourceResult{
 					Name:      liveObj.GetName(),
 					Group:     gvk.Group,

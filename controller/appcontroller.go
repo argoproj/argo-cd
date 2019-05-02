@@ -437,6 +437,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
+			state.Attempts = app.Status.OperationState.Attempts + 1
 			ctrl.setOperationState(app, state)
 		}
 	}()
@@ -459,6 +460,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
+		state.Attempts = app.Status.OperationState.Attempts + 1
 		ctrl.setOperationState(app, state)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
@@ -478,7 +480,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 		}
 	}
-
+	state.Attempts = app.Status.OperationState.Attempts + 1
 	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
