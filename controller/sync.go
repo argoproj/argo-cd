@@ -329,9 +329,8 @@ func (sc *syncContext) startedPreSyncPhase() bool {
 // startedSyncPhase detects if we have already started the Sync stage of a sync operation.
 // This is equal to if the resource list is non-empty, or we we see Sync/PostSync hooks
 func (sc *syncContext) startedSyncPhase() bool {
-	postponed := sc.postponed()
 	for _, res := range sc.syncRes.Resources {
-		if !res.IsHook() && !postponed {
+		if !res.IsHook() {
 			return true
 		}
 		if res.HookType == appv1.HookTypeSync || res.HookType == appv1.HookTypePostSync {

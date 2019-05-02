@@ -38,7 +38,7 @@ func (sc *syncContext) doHookSync(syncTasks syncTasks, hooks []*unstructured.Uns
 	// Before performing Sync hooks, apply any normal manifests which aren't annotated with a hook.
 	// We only want to do this once per operation.
 	shouldContinue := true
-	if !sc.startedSyncPhase() {
+	if !sc.startedSyncPhase() || sc.postponed() {
 		syncSuccessful := sc.syncNonHookTasks(syncTasks)
 		if !syncSuccessful {
 			sc.setOperationPhase(appv1.OperationFailed, "one or more objects failed to apply")
