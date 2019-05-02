@@ -118,13 +118,17 @@ func TestSetApplicationHealth(t *testing.T) {
 		&runningPod,
 		&failedJob,
 	}
-	healthStatus, err := SetApplicationHealth(resources, liveObjs, nil)
+	healthStatus, err := SetApplicationHealth(resources, liveObjs, nil, func(obj *unstructured.Unstructured) bool {
+		return true
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusDegraded, healthStatus.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil)
+	healthStatus, err = SetApplicationHealth(resources, liveObjs, nil, func(obj *unstructured.Unstructured) bool {
+		return true
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, appv1.HealthStatusHealthy, healthStatus.Status)
 
