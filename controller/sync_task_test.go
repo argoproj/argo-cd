@@ -11,28 +11,30 @@ import (
 )
 
 func TestSortSyncTask(t *testing.T) {
+	task2 := syncTaskWithSyncWave("2", false)
+	task1 := syncTaskWithSyncWave("1", false)
 	tests := []struct {
-		name      string
-		syncTasks syncTasks
-		want      syncTasks
+		name  string
+		tasks syncTasks
+		want  syncTasks
 	}{
 		{"TestNoop", []syncTask{}, []syncTask{}},
+		{"TestOneTask", []syncTask{task1}, []syncTask{task1}},
 		{"TestUnsorted", unsortedManifest, sortedManifest},
-		{"TestWave", []syncTask{syncTaskWithSyncWave("2", false), syncTaskWithSyncWave("1", false)}, []syncTask{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", false)}},
-		{"TestModified", []syncTask{syncTaskWithSyncWave("2", false), syncTaskWithSyncWave("1", false)}, []syncTask{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", false)}},
+		{"TestWave", []syncTask{task1, task2}, []syncTask{task1, task2}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sort.Sort(tt.syncTasks)
-			assert.Equal(t, tt.want, tt.syncTasks)
+			sort.Sort(tt.tasks)
+			assert.Equal(t, tt.want, tt.tasks)
 		})
 	}
 }
 
-func syncTaskWithSyncWave(syncWave string, modified bool) syncTask {
+func syncTaskWithSyncWave(syncWave string, isGood bool) syncTask {
 	return syncTask{
 		targetObj: objWithSyncWave(syncWave),
-		modified:  modified,
+		isGood:    isGood,
 	}
 }
 
@@ -147,11 +149,11 @@ func Test_syncTask_getWave(t *testing.T) {
 		want      int
 	}{
 		{"TestEmpty", syncTasks{}, noTasksWave},
-		{"TestOneTask", syncTasks{syncTask{modified: true}}, 0},
-		{"TestOneTaskWithWave", syncTasks{syncTaskWithSyncWave("1", true)}, 1},
-		{"TestTwoTasksWithWave", syncTasks{syncTaskWithSyncWave("1", true), syncTaskWithSyncWave("2", true)}, 1},
-		{"TestTwoTasksWithWaveOneUnmodified", syncTasks{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", true)}, 2},
-		{"TestTwoTasksWithWaveAllUnmodified", syncTasks{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", false)}, noTasksWave},
+		{"TestOneTask", syncTasks{syncTask{isGood: false}}, 0},
+		{"TestOneTaskWithWave", syncTasks{syncTaskWithSyncWave("1", false)}, 1},
+		{"TestTwoTasksWithWave", syncTasks{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", false)}, 1},
+		{"TestTwoTasksWithWaveOneGood", syncTasks{syncTaskWithSyncWave("1", true), syncTaskWithSyncWave("2", false)}, 2},
+		{"TestTwoTasksWithWaveAllGood", syncTasks{syncTaskWithSyncWave("1", true), syncTaskWithSyncWave("2", true)}, noTasksWave},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -16,14 +16,11 @@ type syncTask struct {
 	liveObj    *unstructured.Unstructured
 	targetObj  *unstructured.Unstructured
 	skipDryRun bool
-	// indicates if this sync task will  change the resource,
-	// applying it may change the resource if this is false, which sounds completely mad, but you do need to bear
-	// that in mind
-	modified bool
+	isGood     bool
 }
 
 func (t syncTask) String() string {
-	return fmt.Sprintf("(kind=%v,name=%s,modified=%t,wave=%d)", t.targetObj.GetKind(), t.targetObj.GetName(), t.modified, t.getWave())
+	return fmt.Sprintf("(kind=%v,name=%s,wave=%d)", t.targetObj.GetKind(), t.targetObj.GetName(), t.getWave())
 }
 
 func (t syncTask) getWave() int {
@@ -130,7 +127,7 @@ func (s syncTasks) getNextWave() int {
 
 	maxWave := math.MaxInt32
 	for _, task := range s {
-		if task.modified {
+		if !task.isGood {
 			wave := task.getWave()
 			if maxWave > wave {
 				maxWave = wave
