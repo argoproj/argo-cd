@@ -140,17 +140,18 @@ var sortedManifest syncTasks = []syncTask{
 
 func Test_syncTask_getWave(t *testing.T) {
 
+	const noTasksWave = math.MaxInt32
 	tests := []struct {
 		name      string
 		syncTasks syncTasks
 		want      int
 	}{
-		{"TestEmpty", syncTasks{}, math.MinInt32},
-		{"TestOneTask", syncTasks{syncTask{}}, 0},
+		{"TestEmpty", syncTasks{}, noTasksWave},
+		{"TestOneTask", syncTasks{syncTask{modified: true}}, 0},
 		{"TestOneTaskWithWave", syncTasks{syncTaskWithSyncWave("1", true)}, 1},
 		{"TestTwoTasksWithWave", syncTasks{syncTaskWithSyncWave("1", true), syncTaskWithSyncWave("2", true)}, 1},
 		{"TestTwoTasksWithWaveOneUnmodified", syncTasks{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", true)}, 2},
-		{"TestTwoTasksWithWaveAllUnmodified", syncTasks{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", false)}, 2},
+		{"TestTwoTasksWithWaveAllUnmodified", syncTasks{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", false)}, noTasksWave},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

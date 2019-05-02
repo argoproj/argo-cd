@@ -3,11 +3,9 @@ package controller
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 
 	wfv1 "github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
-	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,8 +39,13 @@ func (sc *syncContext) doHookSync(syncTasks syncTasks, hooks []*unstructured.Uns
 	// We only want to do this once per operation.
 	shouldContinue := true
 	if !sc.startedSyncPhase() {
-		if !sc.syncNonHookTasks(syncTasks) {
+		syncSuccessful := sc.syncNonHookTasks(syncTasks)
+		if !syncSuccessful {
 			sc.setOperationPhase(appv1.OperationFailed, "one or more objects failed to apply")
+			return
+		}
+		if sc.postponed() {
+			sc.setOperationPhase(appv1.OperationRunning, "more objects to apply")
 			return
 		}
 		shouldContinue = false
@@ -193,12 +196,7 @@ func (sc *syncContext) runHooks(hooks []*unstructured.Unstructured, hookType app
 // returns true if the sync was successful
 func (sc *syncContext) syncNonHookTasks(tasks syncTasks) bool {
 	var nonHookTasks syncTasks
-	var nextWave = tasks.getNextWave()
 	for _, task := range tasks {
-		log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": task.getWave()}).Info("hook sync - wave check")
-		if task.getWave() > nextWave {
-			continue
-		}
 		if task.targetObj == nil {
 			nonHookTasks = append(nonHookTasks, task)
 		} else {
@@ -212,8 +210,6 @@ func (sc *syncContext) syncNonHookTasks(tasks syncTasks) bool {
 			nonHookTasks = append(nonHookTasks, task)
 		}
 	}
-
-	sort.Sort(nonHookTasks)
 
 	return sc.doApplySync(nonHookTasks, false, sc.syncOp.SyncStrategy.Hook.Force, true)
 }

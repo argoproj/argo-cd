@@ -23,7 +23,7 @@ type syncTask struct {
 }
 
 func (t syncTask) String() string {
-	return fmt.Sprintf("(kind=%v,name=%s,wave=%d)", t.targetObj.GetKind(), t.targetObj.GetName(), t.getWave())
+	return fmt.Sprintf("(kind=%v,name=%s,modified=%t,wave=%d)", t.targetObj.GetKind(), t.targetObj.GetName(), t.modified, t.getWave())
 }
 
 func (t syncTask) getWave() int {
@@ -128,14 +128,13 @@ func (s syncTasks) Less(i, j int) bool {
 
 func (s syncTasks) getNextWave() int {
 
-	maxWave := math.MinInt32
+	maxWave := math.MaxInt32
 	for _, task := range s {
-		wave := task.getWave()
 		if task.modified {
-			return wave
-		}
-		if wave > maxWave {
-			maxWave = wave
+			wave := task.getWave()
+			if maxWave > wave {
+				maxWave = wave
+			}
 		}
 	}
 
@@ -150,5 +149,5 @@ func (s syncTasks) String() string {
 		text = append(text, task.String())
 	}
 
-	return strings.Join(text, ", ")
+	return "[" + strings.Join(text, ", ") + "]"
 }

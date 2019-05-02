@@ -329,8 +329,9 @@ func (sc *syncContext) startedPreSyncPhase() bool {
 // startedSyncPhase detects if we have already started the Sync stage of a sync operation.
 // This is equal to if the resource list is non-empty, or we we see Sync/PostSync hooks
 func (sc *syncContext) startedSyncPhase() bool {
+	postponed := sc.postponed()
 	for _, res := range sc.syncRes.Resources {
-		if !res.IsHook() {
+		if !res.IsHook() && !postponed {
 			return true
 		}
 		if res.HookType == appv1.HookTypeSync || res.HookType == appv1.HookTypePostSync {
@@ -437,16 +438,32 @@ func hasCRDOfGroupKind(resources []managedResource, group string, kind string) b
 // performs a apply based sync of the given sync tasks (possibly pruning the objects).
 // If update is true, will updates the resource details with the result.
 // Or if the prune/apply failed, will also update the result.
-func (sc *syncContext) doApplySync(syncTasks syncTasks, dryRun, force, update bool) bool {
+func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) bool {
+
 	syncSuccessful := true
 
-	var createTasks []syncTask
-	var pruneTasks []syncTask
-	sort.Sort(syncTasks)
-	var nextWave = syncTasks.getNextWave()
-	for _, task := range syncTasks {
-		if task.getWave() > nextWave {
-			log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": task.getWave()}).Info("apply sync - wave check")
+	var createTasks syncTasks
+	var pruneTasks syncTasks
+	sort.Sort(tasks)
+
+	var nextWave = tasks.getNextWave()
+	log.WithFields(log.Fields{"nextWave": nextWave, "dryRun": dryRun, "tasks": tasks}).Debug("apply sync")
+	for _, task := range tasks {
+		wave := task.getWave()
+		if !dryRun && wave > nextWave {
+			log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": wave}).Debug("skipping, not in next wave")
+
+			liveObj := task.liveObj
+			gvk := task.liveObj.GroupVersionKind()
+			sc.syncRes.Resources = append(sc.syncRes.Resources,
+				&appv1.ResourceResult{
+					Name:      liveObj.GetName(),
+					Group:     gvk.Group,
+					Version:   gvk.Version,
+					Kind:      liveObj.GetKind(),
+					Namespace: liveObj.GetNamespace(),
+					Status:    appv1.ResultCodePostponed,
+				})
 			continue
 		}
 		if task.targetObj == nil {
@@ -474,8 +491,8 @@ func (sc *syncContext) doApplySync(syncTasks syncTasks, dryRun, force, update bo
 
 	processCreateTasks := func(tasks []syncTask) {
 		var createWg sync.WaitGroup
-		for i := range tasks {
-			if dryRun && tasks[i].skipDryRun {
+		for _, task := range tasks {
+			if dryRun && task.skipDryRun {
 				continue
 			}
 			createWg.Add(1)
@@ -491,7 +508,7 @@ func (sc *syncContext) doApplySync(syncTasks syncTasks, dryRun, force, update bo
 				if update || !resDetails.Status.Successful() {
 					sc.setResourceDetails(&resDetails)
 				}
-			}(tasks[i])
+			}(task)
 		}
 		createWg.Wait()
 	}
@@ -531,4 +548,13 @@ func (sc *syncContext) setResourceDetails(details *appv1.ResourceResult) {
 	}
 	sc.log.Infof("added resource %s/%s status: %s, message: %s", details.Kind, details.Name, details.Status, details.Message)
 	sc.syncRes.Resources = append(sc.syncRes.Resources, details)
+}
+
+func (sc *syncContext) postponed() bool {
+	for _, resource := range sc.syncRes.Resources {
+		if resource.Status == appv1.ResultCodePostponed {
+			return true
+		}
+	}
+	return false
 }

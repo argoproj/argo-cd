@@ -376,6 +376,7 @@ type ResultCode string
 
 const (
 	ResultCodeSynced       ResultCode = "Synced"
+	ResultCodePostponed    ResultCode = "Postponed"
 	ResultCodeSyncFailed   ResultCode = "SyncFailed"
 	ResultCodePruned       ResultCode = "Pruned"
 	ResultCodePruneSkipped ResultCode = "PruneSkipped"
