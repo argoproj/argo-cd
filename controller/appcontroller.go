@@ -125,10 +125,13 @@ func NewApplicationController(
 	return &ctrl, nil
 }
 
+func isSelfReferencedApp(appName string, namespace string, key kube.ResourceKey) bool {
+	return key.Name == appName && key.Namespace == namespace && key.Group == application.Group && key.Kind == application.ApplicationKind
+}
+
 func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, key kube.ResourceKey) {
-	isSelfReferencedApp := key.Name == appName && key.Group == application.Group && key.Kind == application.ApplicationKind
 	// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
-	if !isSelfReferencedApp {
+	if !isSelfReferencedApp(appName, ctrl.namespace, key) {
 		ctrl.requestAppRefresh(appName, fullRefresh)
 	}
 	ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
