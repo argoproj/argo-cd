@@ -134,3 +134,13 @@ func TestPrivateRemoteBase(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, objs, 2)
 }
+
+func TestNewImageTag(t *testing.T) {
+	tag := newImageTag(Image("busybox"))
+	assert.Equal(t, tag.Name, "busybox")
+	assert.Equal(t, tag.Value, "latest")
+
+	tag = newImageTag(Image("k8s.gcr.io/nginx-slim:0.8"))
+	assert.Equal(t, tag.Name, "k8s.gcr.io/nginx-slim")
+	assert.Equal(t, tag.Value, "0.8")
+}
