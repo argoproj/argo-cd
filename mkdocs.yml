@@ -45,6 +45,7 @@ nav:
     - user-guide/parameters.md
     - user-guide/tracking_strategies.md
     - user-guide/resource_hooks.md
+    - user-guide/sync-waves.md
     - user-guide/ci_automation.md
     - user-guide/best_practices.md
   - Developer Guide:
