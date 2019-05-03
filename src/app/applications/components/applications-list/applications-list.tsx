@@ -126,7 +126,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                         ctx.navigation.goto('.', { view: 'list'});
                         services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'list'} });
                     }} />
-                    <i className={classNames('fa fa-pie-chart', {selected: pref.appList.view === 'summary'})} onClick={() => {
+                    <i className={classNames('fa fa-chart-pie', {selected: pref.appList.view === 'summary'})} onClick={() => {
                         ctx.navigation.goto('.', { view: 'summary'});
                         services.viewPreferences.updatePreferences({ appList: {...pref.appList, view: 'summary'} });
                     }} />
