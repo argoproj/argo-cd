@@ -17,13 +17,21 @@ type syncTask struct {
 	successful bool
 }
 
-func (t syncTask) getWave() int {
-	var obj = t.targetObj
-	if obj == nil {
-		obj = t.liveObj
-	}
+func (t syncTask) isDelete() bool {
+	return t.targetObj == nil
+}
 
-	text := obj.GetAnnotations()["argocd.argoproj.io/sync-wave"]
+func (t syncTask) getObj() *unstructured.Unstructured {
+	if t.isDelete() {
+		return t.liveObj
+	} else {
+		return t.targetObj
+	}
+}
+
+func (t syncTask) getWave() int {
+
+	text := t.getObj().GetAnnotations()["argocd.argoproj.io/sync-wave"]
 	if text == "" {
 		return 0
 	}

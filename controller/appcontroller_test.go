@@ -444,7 +444,7 @@ func TestNormalizeApplication(t *testing.T) {
 	}
 }
 
-func Test_getDelay(t *testing.T) {
+func Test_getBackOff(t *testing.T) {
 	tests := []struct {
 		name   string
 		status appv1.ApplicationStatus
@@ -455,12 +455,12 @@ func Test_getDelay(t *testing.T) {
 		{"TestRunningZeroInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning}}, 1 * time.Second},
 		{"TestRunningOneInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, Invocations: 1}}, 2 * time.Second},
 		{"TestRunningTwoInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, Invocations: 2}}, 4 * time.Second},
-		{"TestRunningMaxedInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, Invocations: 9999}}, 3 * time.Minute},
+		{"TestRunningMaxedInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, Invocations: 9999}}, 30 * time.Second},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getDelay(tt.status); got != tt.want {
-				t.Errorf("getDelay() = %v, want %v", got, tt.want)
+			if got := getBackOff(tt.status); got != tt.want {
+				t.Errorf("getBackOff() = %v, want %v", got, tt.want)
 			}
 		})
 	}

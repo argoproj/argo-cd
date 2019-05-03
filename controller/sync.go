@@ -88,6 +88,11 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
+	if app.DeletionTimestamp != nil {
+		log.WithFields(log.Fields{"application": app.Name}).Warn("cannot sync app in deletion state")
+		return
+	}
+
 	compareResult, err := m.CompareAppState(app, revision, source, false)
 	if err != nil {
 		state.Phase = appv1.OperationError
@@ -462,16 +467,16 @@ func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) 
 	for _, task := range tasks {
 		wave := task.getWave()
 		if !dryRun && wave > nextWave {
-			log.WithFields(log.Fields{"kind": task.targetObj.GetKind(), "name": task.targetObj.GetName(), "nextWave": nextWave, "wave": wave}).Debug("deferring object, not in next wave")
-			liveObj := task.liveObj
-			gvk := liveObj.GroupVersionKind()
+			obj := task.getObj()
+			log.WithFields(log.Fields{"kind": obj.GetKind(), "name": obj.GetName(), "nextWave": nextWave, "wave": wave}).Debug("deferring object, not in next wave")
+			gvk := obj.GroupVersionKind()
 			sc.setResourceDetails(
 				&appv1.ResourceResult{
-					Name:      liveObj.GetName(),
+					Name:      obj.GetName(),
 					Group:     gvk.Group,
 					Version:   gvk.Version,
-					Kind:      liveObj.GetKind(),
-					Namespace: liveObj.GetNamespace(),
+					Kind:      obj.GetKind(),
+					Namespace: obj.GetNamespace(),
 					Status:    appv1.ResultCodeDeferred,
 				})
 			continue
@@ -482,6 +487,8 @@ func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) 
 			createTasks = append(createTasks, task)
 		}
 	}
+
+	log.WithFields(log.Fields{"createTasks": createTasks, "pruneTasks": pruneTasks}).Debug("starting tasks")
 
 	var wg sync.WaitGroup
 	for _, task := range pruneTasks {

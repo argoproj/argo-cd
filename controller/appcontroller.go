@@ -313,9 +313,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.Warnf("Key '%s' in index is not an application", appKey)
 		return
 	}
-	if app.Operation != nil {
-		ctrl.processRequestedAppOperation(app)
-	} else if app.DeletionTimestamp != nil && app.CascadedDeletion() {
+	if app.DeletionTimestamp != nil && app.CascadedDeletion() {
 		err = ctrl.finalizeApplicationDeletion(app)
 		if err != nil {
 			ctrl.setAppCondition(app, appv1.ApplicationCondition{
@@ -325,6 +323,8 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
 			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message)
 		}
+	} else if app.Operation != nil {
+		ctrl.processRequestedAppOperation(app)
 	}
 	return
 }
@@ -900,7 +900,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						ctrl.requestAppRefresh(newApp.Name, true)
 					}
 				}
-				after := getDelay(newApp.Status)
+				after := getBackOff(newApp.Status)
 				ctrl.appRefreshQueue.AddAfter(key, after)
 				ctrl.appOperationQueue.AddAfter(key, after)
 			},
@@ -917,8 +917,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	return informer, lister
 }
 
-// getDelay returns the amount of time we should delay the refresh/operation
-func getDelay(status appv1.ApplicationStatus) time.Duration {
+// getBackOff returns the amount of time we should delay the refresh/operation
+func getBackOff(status appv1.ApplicationStatus) time.Duration {
 
 	// if we don't have state there cannot be any invocations could,
 	// if we are not running, then we should not be delaying
@@ -927,12 +927,12 @@ func getDelay(status appv1.ApplicationStatus) time.Duration {
 	}
 	// this is an exponential back-off, work times are always postponed by a minimum 1 second,
 	// but if the operation has been tried before, it goes up to avoid swamping the controller.
-	const maxDelaySeconds = 3 * 60
-	delay := time.Duration(int64(math.Min(math.Pow(2, float64(status.OperationState.Invocations)), maxDelaySeconds))) * time.Second
+	const maxDelaySeconds = 30
+	backOff := time.Duration(int64(math.Min(math.Pow(2, float64(status.OperationState.Invocations)), maxDelaySeconds))) * time.Second
 
-	log.WithFields(log.Fields{"invocations": status.OperationState.Invocations, "delay": delay}).Info("delay for queueing application refresh and operation")
+	log.WithFields(log.Fields{"invocations": status.OperationState.Invocations, "backOff": backOff}).Info("back-off for queueing application refresh and operation")
 
-	return delay
+	return backOff
 }
 
 func isOperationInProgress(app *appv1.Application) bool {
