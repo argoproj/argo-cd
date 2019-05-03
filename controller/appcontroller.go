@@ -480,9 +480,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	if app.Status.OperationState != nil && state.Phase == appv1.OperationRunning {
-		state.Invocations = app.Status.OperationState.Invocations + 1
-	}
+	state.Invocations++
 	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
@@ -920,15 +918,16 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 // getBackOff returns the amount of time we should delay the refresh/operation
 func getBackOff(status appv1.ApplicationStatus) time.Duration {
 
-	// if we don't have state there cannot be any invocations could,
-	// if we are not running, then we should not be delaying
-	if status.OperationState == nil || status.OperationState.Phase != appv1.OperationRunning {
+	// if we don't have state there cannot be any invocations count, so we cannot compute back-off
+	// if we are not running, then we should not back-off,
+	// if nothing has been deferred, we should not back-off
+	if status.OperationState == nil || status.OperationState.Phase != appv1.OperationRunning || !status.OperationState.Deferred() {
 		return 0
 	}
 	// this is an exponential back-off, work times are always postponed by a minimum 1 second,
 	// but if the operation has been tried before, it goes up to avoid swamping the controller.
-	const maxDelaySeconds = 30
-	backOff := time.Duration(int64(math.Min(math.Pow(2, float64(status.OperationState.Invocations)), maxDelaySeconds))) * time.Second
+	const maxBackOffSeconds = 30
+	backOff := time.Duration(int64(math.Min(math.Pow(2, float64(status.OperationState.Invocations)), maxBackOffSeconds))) * time.Second
 
 	log.WithFields(log.Fields{"invocations": status.OperationState.Invocations, "backOff": backOff}).Info("back-off for queueing application refresh and operation")
 

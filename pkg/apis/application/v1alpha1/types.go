@@ -306,6 +306,10 @@ type OperationState struct {
 	Invocations int64        `json:"invocations,omitempty" protobuf:"bytes,8,opt,name=invocations"`
 }
 
+func (s OperationState) Deferred() bool {
+	return s.SyncResult != nil && s.SyncResult.Deferred()
+}
+
 // SyncPolicy controls when a sync will be performed in response to updates in git
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
@@ -371,6 +375,15 @@ type SyncOperationResult struct {
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source" protobuf:"bytes,3,opt,name=source"`
+}
+
+func (r SyncOperationResult) Deferred() bool {
+	for _, resource := range r.Resources {
+		if resource.Status == ResultCodeDeferred {
+			return true
+		}
+	}
+	return false
 }
 
 type ResultCode string

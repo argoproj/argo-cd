@@ -478,6 +478,7 @@ func (sc *syncContext) doApplySync(tasks syncTasks, dryRun, force, update bool) 
 					Kind:      obj.GetKind(),
 					Namespace: obj.GetNamespace(),
 					Status:    appv1.ResultCodeDeferred,
+					Message:   fmt.Sprintf("object deferred because it is in wave %d and we are on wave %d", wave, nextWave),
 				})
 			continue
 		}
