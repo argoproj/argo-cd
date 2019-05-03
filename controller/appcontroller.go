@@ -900,17 +900,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						ctrl.requestAppRefresh(newApp.Name, true)
 					}
 				}
-				var invocations int64
-				if newApp.Status.OperationState != nil && newApp.Status.OperationState.Phase == appv1.OperationRunning {
-					invocations = newApp.Status.OperationState.Invocations
-				}
-
-				// this is an exponential back-off, work times are always postponed by a minimum 1 second,
-				// but if the operation has been tried before, it goes up to avoid swamping the controller.
-				after := time.Duration(int64(math.Pow(2, float64(invocations)))) * time.Second
-
-				log.WithFields(log.Fields{"invocations": invocations, "after": after, "key": key}).Info("queueing application refresh and operation")
-
+				after := getAfter(newApp, key)
 				ctrl.appRefreshQueue.AddAfter(key, after)
 				ctrl.appOperationQueue.AddAfter(key, after)
 			},
@@ -925,6 +915,20 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	return informer, lister
+}
+
+func getAfter(app *appv1.Application, key string) time.Duration {
+
+	if app.Status.OperationState == nil || app.Status.OperationState.Phase != appv1.OperationRunning {
+		return 0
+	}
+	invocations := app.Status.OperationState.Invocations
+	// this is an exponential back-off, work times are always postponed by a minimum 1 second,
+	// but if the operation has been tried before, it goes up to avoid swamping the controller.
+	after := time.Duration(int64(math.Pow(2, float64(invocations)))) * time.Second
+	log.WithFields(log.Fields{"invocations": invocations, "after": after, "key": key}).Info("queueing application refresh and operation")
+
+	return after
 }
 
 func isOperationInProgress(app *appv1.Application) bool {

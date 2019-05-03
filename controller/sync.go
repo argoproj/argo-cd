@@ -162,7 +162,7 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 				log.WithFields(log.Fields{"err": err}).Warn("cannot determine goodness, assuming not good")
 				return false
 			}
-			return resourceHealth.Status == appv1.HealthStatusHealthy
+			return resourceHealth != nil && resourceHealth.Status == appv1.HealthStatusHealthy
 		},
 	}
 
