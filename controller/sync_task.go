@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"fmt"
 	"math"
 	"strconv"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -19,16 +17,13 @@ type syncTask struct {
 	successful bool
 }
 
-func (t syncTask) String() string {
-	return fmt.Sprintf("(kind=%v,name=%s,wave=%d)", t.targetObj.GetKind(), t.targetObj.GetName(), t.getWave())
-}
-
 func (t syncTask) getWave() int {
-	if t.targetObj == nil {
-		return 0
+	var obj = t.targetObj
+	if obj == nil {
+		obj = t.liveObj
 	}
 
-	text := t.targetObj.GetAnnotations()["argocd.argoproj.io/sync-wave"]
+	text := obj.GetAnnotations()["argocd.argoproj.io/sync-wave"]
 	if text == "" {
 		return 0
 	}
@@ -136,15 +131,4 @@ func (s syncTasks) getNextWave() int {
 	}
 
 	return maxWave
-
-}
-
-func (s syncTasks) String() string {
-	var text []string
-
-	for _, task := range s {
-		text = append(text, task.String())
-	}
-
-	return "[" + strings.Join(text, ", ") + "]"
 }
