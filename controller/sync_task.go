@@ -16,7 +16,7 @@ type syncTask struct {
 	liveObj    *unstructured.Unstructured
 	targetObj  *unstructured.Unstructured
 	skipDryRun bool
-	isGood     bool
+	successful bool
 }
 
 func (t syncTask) String() string {
@@ -127,7 +127,7 @@ func (s syncTasks) getNextWave() int {
 
 	maxWave := math.MaxInt32
 	for _, task := range s {
-		if !task.isGood {
+		if !task.successful {
 			wave := task.getWave()
 			if maxWave > wave {
 				maxWave = wave

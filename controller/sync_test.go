@@ -67,7 +67,7 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 		opState: &v1alpha1.OperationState{},
 		disco:   fakeDisco,
 		log:     log.WithFields(log.Fields{"application": "fake-app"}),
-		isGood: func(obj unstructured.Unstructured) bool {
+		isHealthy: func(obj unstructured.Unstructured) bool {
 			return true
 		},
 	}

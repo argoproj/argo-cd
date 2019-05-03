@@ -6,8 +6,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/argoproj/argo-cd/util/health"
-
 	log "github.com/sirupsen/logrus"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +18,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
+	"github.com/argoproj/argo-cd/util/health"
 	hookutil "github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -39,7 +38,7 @@ type syncContext struct {
 	syncResources []appv1.SyncOperationResource
 	opState       *appv1.OperationState
 	log           *log.Entry
-	isGood        func(obj unstructured.Unstructured) bool
+	isHealthy     func(obj unstructured.Unstructured) bool
 	// lock to protect concurrent updates of the result list
 	lock sync.Mutex
 }
@@ -156,10 +155,10 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		syncResources: syncResources,
 		opState:       state,
 		log:           log.WithFields(log.Fields{"application": app.Name}),
-		isGood: func(obj unstructured.Unstructured) bool {
+		isHealthy: func(obj unstructured.Unstructured) bool {
 			resourceHealth, err := health.GetResourceHealth(&obj, m.settings.ResourceOverrides)
 			if err != nil {
-				log.WithFields(log.Fields{"err": err}).Warn("cannot determine goodness, assuming not good")
+				log.WithFields(log.Fields{"err": err}).Warn("error determining health, assuming un-healthy")
 				return false
 			}
 			return resourceHealth != nil && resourceHealth.Status == appv1.HealthStatusHealthy
@@ -320,7 +319,9 @@ func (sc *syncContext) generateSyncTasks() (syncTasks, bool) {
 				liveObj:    resourceState.Live,
 				targetObj:  targetObj,
 				skipDryRun: skipDryRun,
-				isGood:     !resourceState.Diff.Modified && resourceState.Live != nil && sc.isGood(*resourceState.Live),
+				// it's only successful if is in sync and is healthy, i.e.
+				// (un-modified && (deleting || created and healthy))
+				successful: !resourceState.Diff.Modified && (resourceState.Target == nil || resourceState.Live != nil && sc.isHealthy(*resourceState.Live)),
 			}
 			syncTasks = append(syncTasks, syncTask)
 		}

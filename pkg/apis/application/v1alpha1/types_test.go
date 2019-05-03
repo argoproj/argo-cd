@@ -283,3 +283,24 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		})
 	}
 }
+
+func TestResultCode_Successful(t *testing.T) {
+	tests := []struct {
+		name string
+		s    ResultCode
+		want bool
+	}{
+		{"TestSynced", ResultCodeSynced, true},
+		{"TestDeferred", ResultCodeDeferred, false},
+		{"TestSyncFailed", ResultCodeSyncFailed, false},
+		{"TestPruned", ResultCodePruned, true},
+		{"TestPruneSkipped", ResultCodePruneSkipped, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.s.Successful(); got != tt.want {
+				t.Errorf("ResultCode.Successful() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

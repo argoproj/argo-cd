@@ -33,8 +33,8 @@ func TestSortSyncTask(t *testing.T) {
 
 func syncTaskWithSyncWave(syncWave string, isGood bool) syncTask {
 	return syncTask{
-		targetObj: objWithSyncWave(syncWave),
-		isGood:    isGood,
+		targetObj:  objWithSyncWave(syncWave),
+		successful: isGood,
 	}
 }
 
@@ -149,7 +149,7 @@ func Test_syncTask_getWave(t *testing.T) {
 		want      int
 	}{
 		{"TestEmpty", syncTasks{}, noTasksWave},
-		{"TestOneTask", syncTasks{syncTask{isGood: false}}, 0},
+		{"TestOneTask", syncTasks{syncTask{successful: false}}, 0},
 		{"TestOneTaskWithWave", syncTasks{syncTaskWithSyncWave("1", false)}, 1},
 		{"TestTwoTasksWithWave", syncTasks{syncTaskWithSyncWave("1", false), syncTaskWithSyncWave("2", false)}, 1},
 		{"TestTwoTasksWithWaveOneGood", syncTasks{syncTaskWithSyncWave("1", true), syncTaskWithSyncWave("2", false)}, 2},

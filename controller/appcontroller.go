@@ -900,7 +900,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						ctrl.requestAppRefresh(newApp.Name, true)
 					}
 				}
-				after := getAfter(newApp, key)
+				after := getDelay(newApp.Status)
 				ctrl.appRefreshQueue.AddAfter(key, after)
 				ctrl.appOperationQueue.AddAfter(key, after)
 			},
@@ -917,18 +917,22 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	return informer, lister
 }
 
-func getAfter(app *appv1.Application, key string) time.Duration {
+// getDelay returns the amount of time we should delay the refresh/operation
+func getDelay(status appv1.ApplicationStatus) time.Duration {
 
-	if app.Status.OperationState == nil || app.Status.OperationState.Phase != appv1.OperationRunning {
+	// if we don't have state there cannot be any invocations could,
+	// if we are not running, then we should not be delaying
+	if status.OperationState == nil || status.OperationState.Phase != appv1.OperationRunning {
 		return 0
 	}
-	invocations := app.Status.OperationState.Invocations
 	// this is an exponential back-off, work times are always postponed by a minimum 1 second,
 	// but if the operation has been tried before, it goes up to avoid swamping the controller.
-	after := time.Duration(int64(math.Pow(2, float64(invocations)))) * time.Second
-	log.WithFields(log.Fields{"invocations": invocations, "after": after, "key": key}).Info("queueing application refresh and operation")
+	const maxDelaySeconds = 3 * 60
+	delay := time.Duration(int64(math.Min(math.Pow(2, float64(status.OperationState.Invocations)), maxDelaySeconds))) * time.Second
 
-	return after
+	log.WithFields(log.Fields{"invocations": status.OperationState.Invocations, "delay": delay}).Info("delay for queueing application refresh and operation")
+
+	return delay
 }
 
 func isOperationInProgress(app *appv1.Application) bool {
