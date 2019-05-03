@@ -68,7 +68,7 @@ function getGraphSize(nodes: dagre.Node[]): { width: number, height: number} {
     return {width, height};
 }
 
-function filterGraph(app: models.Application, graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+function filterGraph(app: models.Application, filteredIndicatorParent: string, graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
     const appKey = appNodeKey(app);
     let filtered = 0;
     graph.nodes().forEach((nodeId) => {
@@ -87,7 +87,7 @@ function filterGraph(app: models.Application, graph: dagre.graphlib.Graph, predi
     });
     if (filtered) {
         graph.setNode(FILTERED_INDICATOR_NODE, { height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator });
-        graph.setEdge(appNodeKey(app), FILTERED_INDICATOR_NODE);
+        graph.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
     }
 }
 
@@ -312,14 +312,17 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 graph.setEdge(INTERNAL_TRAFFIC_NODE, nodeKey(root));
             });
         }
+        if (props.nodeFilter) {
+            // show filtered indicator next to external traffic node is app has it otherwise next to internal traffic node
+            filterGraph(props.app, externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, graph, props.nodeFilter);
+        }
     } else {
         roots.sort(compareNodes).forEach((node) => processNode(node, node));
         graph.setNode(appNodeKey(props.app), { ...appNode, width: NODE_WIDTH, height: NODE_HEIGHT });
         roots.forEach((root) => graph.setEdge(appNodeKey(props.app), nodeKey(root)));
-    }
-
-    if (props.nodeFilter) {
-        filterGraph(props.app, graph, props.nodeFilter);
+        if (props.nodeFilter) {
+            filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
+        }
     }
 
     dagre.layout(graph);
