@@ -26,6 +26,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 5. [CyberAgent](https://www.cyberagent.co.jp/en/)
 6. [OpenSaaS Studio](https://opensaas.studio)
 7. [Riskified](https://www.riskified.com/)
+8. [GMETRI](https://gmetri.com/)
 
 ## Documentation
 
