@@ -88,11 +88,6 @@ func (m *appStateManager) SyncAppState(app *appv1.Application, state *appv1.Oper
 		revision = syncOp.Revision
 	}
 
-	if app.DeletionTimestamp != nil {
-		log.WithFields(log.Fields{"application": app.Name}).Warn("cannot sync app in deletion state")
-		return
-	}
-
 	compareResult, err := m.CompareAppState(app, revision, source, false)
 	if err != nil {
 		state.Phase = appv1.OperationError
