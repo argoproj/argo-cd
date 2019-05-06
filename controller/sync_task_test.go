@@ -161,3 +161,32 @@ func Test_syncTask_getWave(t *testing.T) {
 		})
 	}
 }
+
+func Test_syncTask_isHook(t *testing.T) {
+	tests := []struct {
+		name    string
+		liveObj *unstructured.Unstructured
+		want    bool
+	}{
+		{"TestNonHook", &unstructured.Unstructured{}, false},
+		{"TestHook", &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						"argocd.argoproj.io/hook": "foo",
+					},
+				},
+			},
+		}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := syncTask{
+				liveObj: tt.liveObj,
+			}
+			if got := task.isHook(); got != tt.want {
+				t.Errorf("syncTask.isHook() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

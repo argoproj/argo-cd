@@ -4,6 +4,8 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/argoproj/argo-cd/common"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -27,6 +29,11 @@ func (t syncTask) getObj() *unstructured.Unstructured {
 	} else {
 		return t.targetObj
 	}
+}
+
+func (t syncTask) isHook() bool {
+	_, ok := t.getObj().GetAnnotations()[common.AnnotationKeyHook]
+	return ok
 }
 
 func (t syncTask) getWave() int {
