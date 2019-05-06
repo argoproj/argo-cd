@@ -474,7 +474,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
-	fmt.Println("SIMON", state.Operation.Sync.LocalManifests, app.Spec.SyncPolicy)
 	if state.Operation.Sync.LocalManifests != nil && app.Spec.SyncPolicy != nil {
 		logCtx.Errorf("Cannot use local sync when Automatic Sync Policy is enabled")
 		return

@@ -208,6 +208,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 		}
 	} else {
 		targetObjs, hooks, err = unmarshalManifests(localManifests)
+		if err != nil {
+			targetObjs = make([]*unstructured.Unstructured, 0)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+			failedToLoadObjs = true
+		}
 		manifestInfo = nil
 	}
 
