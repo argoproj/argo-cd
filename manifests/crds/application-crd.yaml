@@ -34,6 +34,10 @@ spec:
             sync:
               description: SyncOperation contains sync operation details.
               properties:
+                Manifests:
+                  items:
+                    type: string
+                  type: array
                 dryRun:
                   description: DryRun will perform a `kubectl apply --dry-run` without
                     actually performing the sync
@@ -243,6 +247,8 @@ spec:
                           type: object
                       type: object
                   type: object
+              required:
+              - Manifests
               type: object
           type: object
         spec:
@@ -679,6 +685,10 @@ spec:
                     sync:
                       description: SyncOperation contains sync operation details.
                       properties:
+                        Manifests:
+                          items:
+                            type: string
+                          type: array
                         dryRun:
                           description: DryRun will perform a `kubectl apply --dry-run`
                             without actually performing the sync
@@ -904,6 +914,8 @@ spec:
                                   type: object
                               type: object
                           type: object
+                      required:
+                      - Manifests
                       type: object
                   type: object
                 phase:

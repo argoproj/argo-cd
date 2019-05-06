@@ -1483,6 +1483,12 @@
           "type": "boolean",
           "format": "boolean"
         },
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "name": {
           "type": "string"
         },
@@ -3289,6 +3295,12 @@
           "type": "boolean",
           "format": "boolean",
           "title": "DryRun will perform a `kubectl apply --dry-run` without actually performing the sync"
+        },
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "prune": {
           "type": "boolean",

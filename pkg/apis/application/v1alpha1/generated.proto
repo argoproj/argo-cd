@@ -650,6 +650,8 @@ message SyncOperation {
   // Source overrides the source definition set in the application.
   // This is typically set in a Rollback operation and nil during a Sync operation
   optional ApplicationSource source = 7;
+
+  repeated string manifests = 8;
 }
 
 // SyncOperationResource contains resources to sync.

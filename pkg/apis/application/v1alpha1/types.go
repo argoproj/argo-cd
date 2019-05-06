@@ -265,6 +265,8 @@ type SyncOperation struct {
 	// Source overrides the source definition set in the application.
 	// This is typically set in a Rollback operation and nil during a Sync operation
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
+
+	Manifests []string `protobuf:"bytes,8,rep,name=manifests"`
 }
 
 type OperationPhase string
