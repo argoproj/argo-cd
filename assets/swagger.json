@@ -1483,7 +1483,7 @@
           "type": "boolean",
           "format": "boolean"
         },
-        "manifests": {
+        "localManifests": {
           "type": "array",
           "items": {
             "type": "string"
@@ -3298,6 +3298,7 @@
         },
         "manifests": {
           "type": "array",
+          "title": "Overrides",
           "items": {
             "type": "string"
           }

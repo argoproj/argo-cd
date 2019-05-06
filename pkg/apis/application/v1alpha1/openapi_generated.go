@@ -2387,9 +2387,10 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							Ref:         ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSource"),
 						},
 					},
-					"Manifests": {
+					"LocalManifests": {
 						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
+							Description: "Overrides",
+							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
@@ -2401,7 +2402,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"Manifests"},
+				Required: []string{"LocalManifests"},
 			},
 		},
 		Dependencies: []string{

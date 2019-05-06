@@ -651,6 +651,7 @@ message SyncOperation {
   // This is typically set in a Rollback operation and nil during a Sync operation
   optional ApplicationSource source = 7;
 
+  // Overrides
   repeated string manifests = 8;
 }
 

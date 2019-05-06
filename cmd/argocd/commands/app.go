@@ -1164,11 +1164,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if local != "" {
 				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 				errors.CheckError(err)
-				//resources, err := appIf.ManagedResources(context.Background(), &application.ResourcesQuery{ApplicationName: &appName})
-				//errors.CheckError(err)
-				//liveObjs, err := liveObjects(resources.Items)
-				//errors.CheckError(err)
-
 				conn, settingsIf := acdClient.NewSettingsClientOrDie()
 				argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
 				errors.CheckError(err)

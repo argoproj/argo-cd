@@ -183,7 +183,7 @@ func DeduplicateTargetObjects(
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localManifests []string) (*comparisonResult, error) {
 	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, m.settings.ResourceOverrides)
 	if err != nil {
 		return nil, err
@@ -199,7 +199,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	var hooks []*unstructured.Unstructured
 	var manifestInfo *repository.ManifestResponse
 
-	if len(localObjects) == 0 {
+	if len(localManifests) == 0 {
 		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
@@ -207,7 +207,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 			failedToLoadObjs = true
 		}
 	} else {
-		targetObjs, hooks, err = unmarshalManifests(localObjects)
+		targetObjs, hooks, err = unmarshalManifests(localManifests)
 		manifestInfo = nil
 	}
 

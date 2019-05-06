@@ -34,7 +34,8 @@ spec:
             sync:
               description: SyncOperation contains sync operation details.
               properties:
-                Manifests:
+                LocalManifests:
+                  description: Overrides
                   items:
                     type: string
                   type: array
@@ -248,7 +249,7 @@ spec:
                       type: object
                   type: object
               required:
-              - Manifests
+              - LocalManifests
               type: object
           type: object
         spec:
@@ -685,7 +686,8 @@ spec:
                     sync:
                       description: SyncOperation contains sync operation details.
                       properties:
-                        Manifests:
+                        LocalManifests:
+                          description: Overrides
                           items:
                             type: string
                           type: array
@@ -915,7 +917,7 @@ spec:
                               type: object
                           type: object
                       required:
-                      - Manifests
+                      - LocalManifests
                       type: object
                   type: object
                 phase:

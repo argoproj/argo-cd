@@ -1251,8 +1251,8 @@ func (in *SyncOperation) DeepCopyInto(out *SyncOperation) {
 		*out = new(ApplicationSource)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Manifests != nil {
-		in, out := &in.Manifests, &out.Manifests
+	if in.LocalManifests != nil {
+		in, out := &in.LocalManifests, &out.LocalManifests
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
