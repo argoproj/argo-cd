@@ -1160,7 +1160,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			selectedResources := parseSelectedResources(resources)
 
-			var localObjs []string
+			var localObjsStrings []string
 			if local != "" {
 				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
 				errors.CheckError(err)
@@ -1174,9 +1174,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				util.Close(conn)
 
-				localObjs = getLocalObjectsString(app, local, argoSettings.AppLabelKey)
-
-				fmt.Println("SIMON string", localObjs[0])
+				localObjsStrings = getLocalObjectsString(app, local, argoSettings.AppLabelKey)
 
 			}
 
@@ -1186,7 +1184,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Revision:  revision,
 				Resources: selectedResources,
 				Prune:     prune,
-				Manifests: localObjs,
+				Manifests: localObjsStrings,
 			}
 			switch strategy {
 			case "apply":
