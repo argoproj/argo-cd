@@ -814,12 +814,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *ApplicationSyncRequest) (*ap
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
-			Revision:     commitSHA,
-			Prune:        syncReq.Prune,
-			DryRun:       syncReq.DryRun,
-			SyncStrategy: syncReq.Strategy,
-			Resources:    syncReq.Resources,
-			Manifests:	  syncReq.Manifests,
+			Revision:     	commitSHA,
+			Prune:        	syncReq.Prune,
+			DryRun:       	syncReq.DryRun,
+			SyncStrategy:	syncReq.Strategy,
+			Resources:    	syncReq.Resources,
+			LocalManifests:	syncReq.LocalManifests,
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
