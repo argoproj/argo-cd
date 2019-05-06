@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/common"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -67,6 +69,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	ctrl, err := NewApplicationController(
+		common.KubernetesInternalAPIServerAddr,
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
@@ -353,20 +356,26 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
 	app := newFakeApp()
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	appObj := kube.MustToUnstructured(&app)
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.GetResourceKey(appObj): appObj,
+	}})
 
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	patched := false
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
 	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
 		return true, nil, nil
 	})
 	err := ctrl.finalizeApplicationDeletion(app)
-	// TODO: use an interface to fake out the calls to GetResourcesWithLabel and DeleteResourceWithLabel
-	// For now just ensure we have an expected error condition
-	assert.Error(t, err)     // Change this to assert.Nil when we stub out GetResourcesWithLabel/DeleteResourceWithLabel
-	assert.False(t, patched) // Change this to assert.True when we stub out GetResourcesWithLabel/DeleteResourceWithLabel
+	assert.NoError(t, err)
+	assert.True(t, patched)
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
@@ -445,13 +454,15 @@ func TestNormalizeApplication(t *testing.T) {
 
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
+	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 
-	ctrl.handleAppUpdated(app.Name, true, kube.GetResourceKey(kube.MustToUnstructured(app)))
+	ctrl.handleAppUpdated(app.Name, true, kube.GetResourceKey(kube.MustToUnstructured(app)), common.KubernetesInternalAPIServerAddr)
 	isRequested, _ := ctrl.isRefreshRequested(app.Name)
 	assert.False(t, isRequested)
 
-	ctrl.handleAppUpdated(app.Name, true, kube.NewResourceKey("", kube.DeploymentKind, "default", "test"))
+	ctrl.handleAppUpdated(app.Name, true, kube.NewResourceKey("", kube.DeploymentKind, "default", "test"), common.KubernetesInternalAPIServerAddr)
 	isRequested, _ = ctrl.isRefreshRequested(app.Name)
 	assert.True(t, isRequested)
 }
