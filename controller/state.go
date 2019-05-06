@@ -56,7 +56,7 @@ type ResourceInfoProvider interface {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool) (*comparisonResult, error)
+	CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -121,12 +121,18 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		return nil, nil, nil, err
 	}
 
+	targetObjs, hooks, nil := unmarshalManifests(manifestInfo.Manifests)
+	return targetObjs, hooks, manifestInfo, nil
+
+}
+
+func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, []*unstructured.Unstructured, error) {
 	targetObjs := make([]*unstructured.Unstructured, 0)
 	hooks := make([]*unstructured.Unstructured, 0)
-	for _, manifest := range manifestInfo.Manifests {
+	for _, manifest := range manifests {
 		obj, err := v1alpha1.UnmarshalToUnstructured(manifest)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		if hookutil.IsHook(obj) {
 			hooks = append(hooks, obj)
@@ -134,7 +140,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 			targetObjs = append(targetObjs, obj)
 		}
 	}
-	return targetObjs, hooks, manifestInfo, nil
+	return targetObjs, hooks, nil
 }
 
 func DeduplicateTargetObjects(
@@ -177,7 +183,7 @@ func DeduplicateTargetObjects(
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, noCache bool, localObjects []string) (*comparisonResult, error) {
 	diffNormalizer, err := argo.NewDiffNormalizer(app.Spec.IgnoreDifferences, m.settings.ResourceOverrides)
 	if err != nil {
 		return nil, err
@@ -188,12 +194,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, revision st
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	appLabelKey := m.settings.GetAppInstanceLabelKey()
-	targetObjs, hooks, manifestInfo, err := m.getRepoObjs(app, source, appLabelKey, revision, noCache)
-	if err != nil {
-		targetObjs = make([]*unstructured.Unstructured, 0)
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
-		failedToLoadObjs = true
+
+	var targetObjs []*unstructured.Unstructured
+	var hooks []*unstructured.Unstructured
+	var manifestInfo *repository.ManifestResponse
+
+	if len(localObjects) == 0 {
+		targetObjs, hooks, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache)
+		if err != nil {
+			targetObjs = make([]*unstructured.Unstructured, 0)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
+			failedToLoadObjs = true
+		}
+	} else {
+		targetObjs, hooks, err = unmarshalManifests(localObjects)
+		manifestInfo = nil
 	}
+
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Server, app.Spec.Destination.Namespace, targetObjs, m.liveStateCache)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error()})
