@@ -55,14 +55,17 @@ func newCommand() *cobra.Command {
 			cli.SetGLogLevel(glogLevel)
 
 			config, err := clientConfig.ClientConfig()
+			errors.CheckError(err)
 			config.QPS = common.K8sClientConfigQPS
 			config.Burst = common.K8sClientConfigBurst
-			errors.CheckError(err)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
 
 			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+
+			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
 			resyncDuration := time.Duration(appResyncPeriod) * time.Second
@@ -75,6 +78,7 @@ func newCommand() *cobra.Command {
 
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 			appController, err := controller.NewApplicationController(
+				conf.Host,
 				namespace,
 				settingsMgr,
 				kubeClient,
