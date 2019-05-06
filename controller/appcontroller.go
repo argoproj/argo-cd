@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/pkg/apis/application"
+
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -113,10 +115,7 @@ func NewApplicationController(
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, cache.Indexers{})
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", common.PortArgoCDMetrics)
 	ctrl.metricsServer = metrics.NewMetricsServer(metricsAddr, appLister)
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, ctrl.metricsServer, func(appName string, fullRefresh bool) {
-		ctrl.requestAppRefresh(appName, fullRefresh)
-		ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
-	})
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settings, kubectlCmd, ctrl.metricsServer, ctrl.handleAppUpdated)
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectlCmd, ctrl.settings, stateCache, projInformer, ctrl.metricsServer)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
@@ -125,6 +124,18 @@ func NewApplicationController(
 	ctrl.stateCache = stateCache
 
 	return &ctrl, nil
+}
+
+func isSelfReferencedApp(appName string, namespace string, key kube.ResourceKey) bool {
+	return key.Name == appName && key.Namespace == namespace && key.Group == application.Group && key.Kind == application.ApplicationKind
+}
+
+func (ctrl *ApplicationController) handleAppUpdated(appName string, fullRefresh bool, key kube.ResourceKey) {
+	// Don't force refresh app if related resource is application itself. This prevents infinite reconciliation loop.
+	if !isSelfReferencedApp(appName, ctrl.namespace, key) {
+		ctrl.requestAppRefresh(appName, fullRefresh)
+	}
+	ctrl.appRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, appName))
 }
 
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {

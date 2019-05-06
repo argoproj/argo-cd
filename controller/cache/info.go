@@ -9,6 +9,7 @@ import (
 	k8snode "k8s.io/kubernetes/pkg/util/node"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -63,6 +64,7 @@ func populateServiceInfo(un *unstructured.Unstructured, node *node) {
 }
 
 func populateIngressInfo(un *unstructured.Unstructured, node *node) {
+	ingress := getIngress(un)
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
 	if backend, ok, err := unstructured.NestedMap(un.Object, "spec", "backend"); ok && err == nil {
 		targetsMap[v1alpha1.ResourceRef{
@@ -80,6 +82,14 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 				continue
 			}
 			host := rule["host"]
+			if host == nil || host == "" {
+				for i := range ingress {
+					host = util.FirstNonEmpty(ingress[i].Hostname, ingress[i].IP)
+					if host != "" {
+						break
+					}
+				}
+			}
 			paths, ok, err := unstructured.NestedSlice(rule, "http", "paths")
 			if !ok || err != nil {
 				continue
@@ -99,7 +109,7 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 					}] = true
 				}
 
-				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" {
+				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" && host != nil {
 					switch fmt.Sprintf("%v", port) {
 					case "80", "http":
 						urlsSet[fmt.Sprintf("http://%s", host)] = true
@@ -120,7 +130,7 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
-	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: getIngress(un), ExternalURLs: urls}
+	node.networkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, node *node) {

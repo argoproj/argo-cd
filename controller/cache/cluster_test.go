@@ -146,7 +146,7 @@ func newClusterExt(kubectl kube.Kubectl) *clusterInfo {
 	return &clusterInfo{
 		lock:         &sync.Mutex{},
 		nodes:        make(map[kube.ResourceKey]*node),
-		onAppUpdated: func(appName string, fullRefresh bool) {},
+		onAppUpdated: func(appName string, fullRefresh bool, key kube.ResourceKey) {},
 		kubectl:      kubectl,
 		nsIndex:      make(map[string]map[kube.ResourceKey]*node),
 		cluster:      &appv1.Cluster{},
@@ -355,7 +355,7 @@ func TestUpdateResourceTags(t *testing.T) {
 func TestUpdateAppResource(t *testing.T) {
 	updatesReceived := make([]string, 0)
 	cluster := newCluster(testPod, testRS, testDeploy)
-	cluster.onAppUpdated = func(appName string, fullRefresh bool) {
+	cluster.onAppUpdated = func(appName string, fullRefresh bool, _ kube.ResourceKey) {
 		updatesReceived = append(updatesReceived, fmt.Sprintf("%s: %v", appName, fullRefresh))
 	}
 
