@@ -302,8 +302,7 @@ type OperationState struct {
 	// StartedAt contains time of operation start
 	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
 	// FinishedAt contains time of operation completion
-	FinishedAt  *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
-	Invocations int64        `json:"invocations,omitempty" protobuf:"bytes,8,opt,name=invocations"`
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
 }
 
 func (s OperationState) Deferred() bool {
