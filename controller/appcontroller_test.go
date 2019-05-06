@@ -445,17 +445,23 @@ func TestNormalizeApplication(t *testing.T) {
 }
 
 func Test_getBackOff(t *testing.T) {
+	result := &appv1.SyncOperationResult{
+		Resources: []*appv1.ResourceResult{
+			{Status: appv1.ResultCodeDeferred},
+		},
+	}
 	tests := []struct {
 		name   string
 		status appv1.ApplicationStatus
 		want   time.Duration
 	}{
 		{"TestNoState", appv1.ApplicationStatus{}, 0},
-		{"TestNotRunning", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationFailed}}, 0},
-		{"TestRunningZeroInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning}}, 1 * time.Second},
-		{"TestRunningOneInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, Invocations: 1}}, 2 * time.Second},
-		{"TestRunningTwoInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, Invocations: 2}}, 4 * time.Second},
-		{"TestRunningMaxedInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, Invocations: 9999}}, 30 * time.Second},
+		{"TestNotRunning", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationFailed, SyncResult: result}}, 0},
+		{"TestNoDefferals", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning}}, 0},
+		{"TestRunningZeroInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result}}, 1 * time.Second},
+		{"TestRunningOneInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result, Invocations: 1}}, 2 * time.Second},
+		{"TestRunningTwoInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result, Invocations: 2}}, 4 * time.Second},
+		{"TestRunningMaxedInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result, Invocations: 9999}}, 30 * time.Second},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
