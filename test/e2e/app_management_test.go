@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	guestbookPath = "guestbook"
+	guestbookPath      = "guestbook"
+	guestbookPathLocal = "./testdata/guestbook_local"
 )
 
 func assertAppHasEvent(t *testing.T, a *v1alpha1.Application, message string, reason string) {
@@ -529,6 +530,35 @@ func TestSyncResourceByLabel(t *testing.T) {
 
 	res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
 	assert.Contains(t, res, "level=fatal")
+}
+
+func TestLocalManifestSync(t *testing.T) {
+	fixture.EnsureCleanState()
+	app := createAndSyncDefault(t)
+
+	res, _ := fixture.RunCli("app", "manifests", app.Name)
+	assert.Contains(t, res, "containerPort: 80")
+	assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
+
+	res, _ = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
+	assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
+
+	res, _ = fixture.RunCli("app", "manifests", app.Name)
+	assert.Contains(t, res, "containerPort: 81")
+	assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.3")
+
+}
+
+func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
+	fixture.EnsureCleanState()
+	app := createAndSyncDefault(t)
+
+	_, err := fixture.RunCli("app", "set", app.Name, "--sync-policy", "automated")
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
+	assert.Error(t, err)
+
 }
 
 func TestPermissions(t *testing.T) {

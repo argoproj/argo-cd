@@ -34,15 +34,15 @@ spec:
             sync:
               description: SyncOperation contains sync operation details.
               properties:
-                LocalManifests:
-                  description: Overrides
-                  items:
-                    type: string
-                  type: array
                 dryRun:
                   description: DryRun will perform a `kubectl apply --dry-run` without
                     actually performing the sync
                   type: boolean
+                localManifests:
+                  description: Overrides sync source with a local directory for development
+                  items:
+                    type: string
+                  type: array
                 prune:
                   description: Prune deletes resources that are no longer tracked
                     in git
@@ -248,8 +248,6 @@ spec:
                           type: object
                       type: object
                   type: object
-              required:
-              - LocalManifests
               type: object
           type: object
         spec:
@@ -686,15 +684,16 @@ spec:
                     sync:
                       description: SyncOperation contains sync operation details.
                       properties:
-                        LocalManifests:
-                          description: Overrides
-                          items:
-                            type: string
-                          type: array
                         dryRun:
                           description: DryRun will perform a `kubectl apply --dry-run`
                             without actually performing the sync
                           type: boolean
+                        localManifests:
+                          description: Overrides sync source with a local directory
+                            for development
+                          items:
+                            type: string
+                          type: array
                         prune:
                           description: Prune deletes resources that are no longer
                             tracked in git
@@ -916,8 +915,6 @@ spec:
                                   type: object
                               type: object
                           type: object
-                      required:
-                      - LocalManifests
                       type: object
                   type: object
                 phase:
