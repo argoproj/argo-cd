@@ -110,13 +110,25 @@ func populateIngressInfo(un *unstructured.Unstructured, node *node) {
 				}
 
 				if port, ok, err := unstructured.NestedFieldNoCopy(path, "backend", "servicePort"); ok && err == nil && host != "" && host != nil {
-					switch fmt.Sprintf("%v", port) {
+					stringPort := ""
+					switch typedPod := port.(type) {
+					case int64:
+						stringPort = fmt.Sprintf("%d", typedPod)
+					case float64:
+						stringPort = fmt.Sprintf("%d", int64(typedPod))
+					case string:
+						stringPort = typedPod
+					default:
+						stringPort = fmt.Sprintf("%v", port)
+					}
+
+					switch stringPort {
 					case "80", "http":
 						urlsSet[fmt.Sprintf("http://%s", host)] = true
 					case "443", "https":
 						urlsSet[fmt.Sprintf("https://%s", host)] = true
 					default:
-						urlsSet[fmt.Sprintf("http://%s:%s", host, port)] = true
+						urlsSet[fmt.Sprintf("http://%s:%s", host, stringPort)] = true
 					}
 				}
 			}
