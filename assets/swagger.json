@@ -3205,11 +3205,9 @@
         "group": {
           "type": "string"
         },
-        "hookPhase": {
-          "type": "string"
-        },
-        "hookType": {
-          "type": "string"
+        "isHook": {
+          "type": "boolean",
+          "format": "boolean"
         },
         "kind": {
           "type": "string"
@@ -3223,7 +3221,15 @@
         "namespace": {
           "type": "string"
         },
+        "operationPhase": {
+          "type": "string",
+          "title": "have we starte"
+        },
         "status": {
+          "type": "string"
+        },
+        "syncPhase": {
+          "description": "SyncPhase indicates the particular stage of the sync that this result is for.",
           "type": "string"
         },
         "version": {

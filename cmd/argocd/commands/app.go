@@ -1039,28 +1039,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // Optionally prints the message from the operation state
 func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bool) {
 	messages := make(map[string]string)
-	opState := app.Status.OperationState
-	var syncRes *argoappv1.SyncOperationResult
 
-	if showOperation {
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
-		if opState != nil {
-			if opState.SyncResult != nil {
-				syncRes = opState.SyncResult
-			}
-		}
-		if syncRes != nil {
-			for _, res := range syncRes.Resources {
-				if !res.IsHook() {
-					messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)] = res.Message
-				} else if res.HookType == argoappv1.HookTypePreSync {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.HookPhase, "", res.HookType, res.Message)
-				}
-			}
-		}
-	} else {
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\n")
-	}
 	for _, res := range app.Status.Resources {
 		healthStatus := ""
 		if res.Health != nil {
@@ -1073,14 +1052,6 @@ func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bo
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus)
 		}
 		fmt.Fprint(w, "\n")
-	}
-	if showOperation && syncRes != nil {
-		for _, res := range syncRes.Resources {
-			if res.HookType == argoappv1.HookTypeSync || res.HookType == argoappv1.HookTypePostSync {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.HookPhase, "", res.HookType, res.Message)
-			}
-		}
-
 	}
 }
 
@@ -1214,7 +1185,6 @@ type resourceState struct {
 	Name      string
 	Status    string
 	Health    string
-	Hook      string
 	Message   string
 }
 
@@ -1239,8 +1209,7 @@ func newResourceStateFromResult(res *argoappv1.ResourceResult) *resourceState {
 		Kind:      res.Kind,
 		Namespace: res.Namespace,
 		Name:      res.Name,
-		Status:    string(res.HookPhase),
-		Hook:      string(res.HookType),
+		Status:    string(res.Status),
 		Message:   res.Message,
 	}
 }
@@ -1252,7 +1221,7 @@ func (rs *resourceState) Key() string {
 
 func (rs *resourceState) FormatItems() []interface{} {
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
-	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.Hook, rs.Message}
+	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.Message}
 }
 
 // Merge merges the new state with any different contents from another resourceState.
@@ -1287,7 +1256,7 @@ func calculateResourceStates(app *argoappv1.Application, selectedResources []arg
 	}
 
 	for _, result := range opResult.Resources {
-		newState := newResourceStateFromResult(result)
+		newState := newResourceStateFromResult(&result)
 		key := newState.Key()
 		if prev, ok := resStates[key]; ok {
 			prev.Merge(newState)

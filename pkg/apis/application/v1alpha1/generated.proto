@@ -594,9 +594,13 @@ message ResourceResult {
 
   optional string message = 7;
 
-  optional string hookType = 8;
+  // have we starte
+  optional string operationPhase = 9;
 
-  optional string hookPhase = 9;
+  optional bool isHook = 10;
+
+  // SyncPhase indicates the particular stage of the sync that this result is for.
+  optional string syncPhase = 11;
 }
 
 // ResourceStatus holds the current sync and health status of a resource

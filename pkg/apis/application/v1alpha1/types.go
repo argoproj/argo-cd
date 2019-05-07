@@ -267,6 +267,10 @@ type SyncOperation struct {
 	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
 }
 
+func (o *SyncOperation) IsSelectiveSync() bool {
+	return len(o.Resources) > 0
+}
+
 type OperationPhase string
 
 const (
@@ -305,10 +309,6 @@ type OperationState struct {
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
 }
 
-func (s OperationState) Deferred() bool {
-	return s.SyncResult != nil && s.SyncResult.Deferred()
-}
-
 // SyncPolicy controls when a sync will be performed in response to updates in git
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
@@ -327,6 +327,18 @@ type SyncStrategy struct {
 	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
 	// Hook will submit any referenced resources to perform the sync. This is the default strategy
 	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
+}
+
+func (m *SyncStrategy) Force() bool {
+	if m == nil {
+		return false
+	} else if m.Apply != nil {
+		return m.Apply.Force
+	} else if m.Hook != nil {
+		return m.Hook.Force
+	} else {
+		return false
+	}
 }
 
 // SyncStrategyApply uses `kubectl apply` to perform the apply
@@ -369,51 +381,56 @@ const (
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources holds the sync result of each individual resource
-	Resources []*ResourceResult `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	Resources ResourceResults `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 	// Revision holds the git commit SHA of the sync
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source" protobuf:"bytes,3,opt,name=source"`
 }
 
-func (r SyncOperationResult) Deferred() bool {
-	for _, resource := range r.Resources {
-		if resource.Status == ResultCodeDeferred {
-			return true
-		}
-	}
-	return false
-}
-
 type ResultCode string
 
 const (
 	ResultCodeSynced       ResultCode = "Synced"
-	ResultCodeDeferred     ResultCode = "Deferred"
 	ResultCodeSyncFailed   ResultCode = "SyncFailed"
 	ResultCodePruned       ResultCode = "Pruned"
 	ResultCodePruneSkipped ResultCode = "PruneSkipped"
 )
 
 func (s ResultCode) Successful() bool {
-	return s != ResultCodeSyncFailed && s != ResultCodeDeferred
+	return s != ResultCodeSyncFailed
 }
+
+type SyncPhase = string
+
+const (
+	SyncPhasePreSync  = "PreSync"
+	SyncPhaseSync     = "Sync"
+	SyncPhasePostSync = "PostSync"
+)
 
 // ResourceResult holds the operation result details of a specific resource
 type ResourceResult struct {
-	Group     string         `json:"group" protobuf:"bytes,1,opt,name=group"`
-	Version   string         `json:"version" protobuf:"bytes,2,opt,name=version"`
-	Kind      string         `json:"kind" protobuf:"bytes,3,opt,name=kind"`
-	Namespace string         `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
-	Name      string         `json:"name" protobuf:"bytes,5,opt,name=name"`
-	Status    ResultCode     `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Message   string         `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
-	HookType  HookType       `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
-	HookPhase OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
+	Group     string     `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Version   string     `json:"version" protobuf:"bytes,2,opt,name=version"`
+	Kind      string     `json:"kind" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string     `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	Name      string     `json:"name" protobuf:"bytes,5,opt,name=name"`
+	Status    ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Message   string     `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
+	// have we started the operation?
+	OperationPhase OperationPhase `json:"operationPhase,omitempty" protobuf:"bytes,9,opt,name=operationPhase"`
+	IsHook         bool           `json:"isHook,omitempty" protobuf:"bytes,10,opt,name=isHook"`
+	// SyncPhase indicates the particular stage of the sync that this result is for.
+	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,11,opt,name=syncPhase"`
 }
 
-func (r *ResourceResult) IsHook() bool {
-	return r.HookType != ""
+func (r *ResourceResult) Running() bool {
+	return r.OperationPhase == "" || r.OperationPhase == OperationRunning
+}
+
+func (r *ResourceResult) Completed() bool {
+	return !r.Running()
 }
 
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
@@ -422,6 +439,17 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 		Version: r.Version,
 		Kind:    r.Kind,
 	}
+}
+
+type ResourceResults []ResourceResult
+
+func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase SyncPhase) (int, *ResourceResult) {
+	for i, res := range r {
+		if res.Group == group && res.Kind == kind && res.Namespace == namespace && res.Name == name && res.SyncPhase == phase {
+			return i, &res
+		}
+	}
+	return 0, nil
 }
 
 // RevisionHistory contains information relevant to an application deployment

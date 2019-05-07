@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
 	mockreposerver "github.com/argoproj/argo-cd/reposerver/mocks"
@@ -441,34 +440,6 @@ func TestNormalizeApplication(t *testing.T) {
 		})
 		ctrl.processAppRefreshQueueItem()
 		assert.False(t, normalized)
-	}
-}
-
-func Test_getBackOff(t *testing.T) {
-	result := &appv1.SyncOperationResult{
-		Resources: []*appv1.ResourceResult{
-			{Status: appv1.ResultCodeDeferred},
-		},
-	}
-	tests := []struct {
-		name   string
-		status appv1.ApplicationStatus
-		want   time.Duration
-	}{
-		{"TestNoState", appv1.ApplicationStatus{}, 0},
-		{"TestNotRunning", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationFailed, SyncResult: result}}, 0},
-		{"TestNoDefferals", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning}}, 0},
-		{"TestRunningZeroInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result}}, 1 * time.Second},
-		{"TestRunningOneInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result, Invocations: 1}}, 2 * time.Second},
-		{"TestRunningTwoInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result, Invocations: 2}}, 4 * time.Second},
-		{"TestRunningMaxedInvocations", appv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: appv1.OperationRunning, SyncResult: result, Invocations: 9999}}, 30 * time.Second},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getBackOff(tt.status); got != tt.want {
-				t.Errorf("getBackOff() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }
 

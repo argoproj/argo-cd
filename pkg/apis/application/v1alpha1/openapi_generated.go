@@ -2233,16 +2233,24 @@ func schema_pkg_apis_application_v1alpha1_ResourceResult(ref common.ReferenceCal
 							Format: "",
 						},
 					},
-					"hookType": {
+					"operationPhase": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
+							Description: "have we starte",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"isHook": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
 							Format: "",
 						},
 					},
-					"hookPhase": {
+					"syncPhase": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "SyncPhase indicates the particular stage of the sync that this result is for.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

@@ -1,42 +1,43 @@
 package controller
 
 import (
-	"math"
 	"strconv"
 
-	"github.com/argoproj/argo-cd/common"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
 // syncTask holds the live and target object. At least one should be non-nil. A targetObj of nil
 // indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
 // be deployed
 type syncTask struct {
+	syncPhase  SyncPhase
 	liveObj    *unstructured.Unstructured
 	targetObj  *unstructured.Unstructured
 	skipDryRun bool
-	successful bool
 }
 
-func (t syncTask) isDelete() bool {
+func newSyncTask(phase SyncPhase, liveObj *unstructured.Unstructured, targetObj *unstructured.Unstructured, skipDryRun bool) syncTask {
+	if liveObj == nil && targetObj == nil {
+		panic("either liveObj or targetObj must not be nil")
+	}
+	return syncTask{phase, liveObj, targetObj, skipDryRun}
+}
+
+func (t *syncTask) isPrune() bool {
 	return t.targetObj == nil
 }
 
-func (t syncTask) getObj() *unstructured.Unstructured {
-	if t.isDelete() {
-		return t.liveObj
-	} else {
+func (t *syncTask) getObj() *unstructured.Unstructured {
+	if t.targetObj != nil {
 		return t.targetObj
+	} else {
+		return t.liveObj
 	}
 }
 
-func (t syncTask) isHook() bool {
-	_, ok := t.getObj().GetAnnotations()[common.AnnotationKeyHook]
-	return ok
-}
-
-func (t syncTask) getWave() int {
+func (t *syncTask) getWave() int {
 
 	text := t.getObj().GetAnnotations()["argocd.argoproj.io/sync-wave"]
 	if text == "" {
@@ -51,34 +52,41 @@ func (t syncTask) getWave() int {
 	return val
 }
 
-// resourceOrder represents the correct order of Kubernetes resources within a manifest
-var resourceOrder = map[string]int{
-	"Namespace":                0,
-	"ResourceQuota":            1,
-	"LimitRange":               2,
-	"PodSecurityPolicy":        3,
-	"Secret":                   4,
-	"ConfigMap":                5,
-	"StorageClass":             6,
-	"PersistentVolume":         7,
-	"PersistentVolumeClaim":    8,
-	"ServiceAccount":           9,
-	"CustomResourceDefinition": 10,
-	"ClusterRole":              11,
-	"ClusterRoleBinding":       12,
-	"Role":                     13,
-	"RoleBinding":              14,
-	"Service":                  15,
-	"DaemonSet":                16,
-	"Pod":                      17,
-	"ReplicationController":    18,
-	"ReplicaSet":               19,
-	"Deployment":               20,
-	"StatefulSet":              21,
-	"Job":                      22,
-	"CronJob":                  23,
-	"Ingress":                  24,
-	"APIService":               25,
+// kindOrder represents the correct order of Kubernetes resources within a manifest
+var syncPhaseOrder = map[SyncPhase]int{
+	SyncPhasePreSync:  -1,
+	SyncPhaseSync:     0,
+	SyncPhasePostSync: 1,
+}
+
+// kindOrder represents the correct order of Kubernetes resources within a manifest
+var kindOrder = map[string]int{
+	"Namespace":                -26,
+	"ResourceQuota":            -24,
+	"LimitRange":               -24,
+	"PodSecurityPolicy":        -23,
+	"Secret":                   -22,
+	"ConfigMap":                -21,
+	"StorageClass":             -20,
+	"PersistentVolume":         -19,
+	"PersistentVolumeClaim":    -18,
+	"ServiceAccount":           -17,
+	"CustomResourceDefinition": -16,
+	"ClusterRole":              -15,
+	"ClusterRoleBinding":       -14,
+	"Role":                     -13,
+	"RoleBinding":              -12,
+	"Service":                  -11,
+	"DaemonSet":                -10,
+	"Pod":                      -9,
+	"ReplicationController":    -8,
+	"ReplicaSet":               -7,
+	"Deployment":               -6,
+	"StatefulSet":              -5,
+	"Job":                      -4,
+	"CronJob":                  -3,
+	"Ingress":                  -2,
+	"APIService":               -1,
 }
 
 type syncTasks []syncTask
@@ -91,59 +99,43 @@ func (s syncTasks) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+// order is
+// 1. syncPhase
+// 2. syncWave
+// 3. prune
+// 4. kind
+// 5. name
 func (s syncTasks) Less(i, j int) bool {
 
-	a := s[i].targetObj
-	if a == nil {
-		return false
-	}
-	b := s[j].targetObj
-	if b == nil {
-		return true
+	tA := s[i]
+	tB := s[j]
+
+	d := syncPhaseOrder[tA.syncPhase] - syncPhaseOrder[tB.syncPhase]
+	if d != 0 {
+		return d < 0
 	}
 
-	syncWaveA := s[i].getWave()
-	syncWaveB := s[j].getWave()
-
-	if syncWaveA < syncWaveB {
-		return true
+	d = tA.getWave() - tB.getWave()
+	if d != 0 {
+		return d < 0
 	}
 
-	first, aok := resourceOrder[a.GetKind()]
-	second, bok := resourceOrder[b.GetKind()]
+	a := tA.getObj()
+	b := tB.getObj()
 
-	// if both are unknown and of different kind sort by kind alphabetically
-	if !aok && !bok && a.GetKind() != b.GetKind() {
-		return a.GetKind() < b.GetKind()
-	}
-
-	// unknown kind is last
-	if !aok {
-		return false
-	}
-	if !bok {
-		return true
+	d = kindOrder[a.GetKind()] - kindOrder[b.GetKind()]
+	if d != 0 {
+		return d < 0
 	}
 
-	// if same kind (including unknown) sub sort alphanumeric
-	if first == second {
-		return a.GetName() < b.GetName()
-	}
-	// sort different kinds
-	return first < second
+	return a.GetName() < b.GetName()
 }
 
-func (s syncTasks) getNextWave() int {
-
-	maxWave := math.MaxInt32
+func (s syncTasks) Filter(predicate func(t syncTask) bool) (tasks syncTasks) {
 	for _, task := range s {
-		if !task.successful {
-			wave := task.getWave()
-			if maxWave > wave {
-				maxWave = wave
-			}
+		if predicate(task) {
+			tasks = append(tasks, task)
 		}
 	}
-
-	return maxWave
+	return tasks
 }

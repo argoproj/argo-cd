@@ -922,10 +922,8 @@ spec:
                         properties:
                           group:
                             type: string
-                          hookPhase:
-                            type: string
-                          hookType:
-                            type: string
+                          isHook:
+                            type: boolean
                           kind:
                             type: string
                           message:
@@ -934,7 +932,14 @@ spec:
                             type: string
                           namespace:
                             type: string
+                          operationPhase:
+                            description: have we starte
+                            type: string
                           status:
+                            type: string
+                          syncPhase:
+                            description: SyncPhase indicates the particular stage
+                              of the sync that this result is for.
                             type: string
                           version:
                             type: string
