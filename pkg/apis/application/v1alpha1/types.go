@@ -584,6 +584,7 @@ type ResourceRef struct {
 	Kind      string `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
 	Name      string `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	UID       string `json:"uid,omitempty" protobuf:"bytes,6,opt,name=uid"`
 }
 
 // ResourceNode contains information about live resource and its children

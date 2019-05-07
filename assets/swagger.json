@@ -3223,6 +3223,9 @@
         "namespace": {
           "type": "string"
         },
+        "uid": {
+          "type": "string"
+        },
         "version": {
           "type": "string"
         }
