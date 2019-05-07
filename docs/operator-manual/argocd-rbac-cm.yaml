@@ -19,3 +19,9 @@ data:
   # authorizing API requests (optional). If omitted or empty, users may be still be able to login,
   # but will see no apps, projects, etc...
   policy.default: role:readonly
+  # AWS Cognito example, default value is [groups]
+  scopes: "[congnito:groups]"
+
+#   AWS Cognito:
+#    request.scopes: ["openid", "profile", "email"]
+#    rbac.scopes: ["congnito:groups"]

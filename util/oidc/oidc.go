@@ -157,8 +157,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	scopes := []string{"openid", "profile", "email", "groups"}
-	oauth2Config, err := a.oauth2Config(scopes)
+	oauth2Config, err := a.oauth2Config(a.settings.OIDCScopes())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

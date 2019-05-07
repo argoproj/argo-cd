@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/argoproj/argo-cd/util/assets"
 
 	"github.com/casbin/casbin"
@@ -28,8 +30,13 @@ import (
 const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
+	ConfigMapScopesKey        = "scopes"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
+)
+
+var (
+	defaultScopes = []string{"groups"}
 )
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -47,10 +54,11 @@ type Enforcer struct {
 	claimsEnforcerFunc ClaimsEnforcerFunc
 	model              model.Model
 	defaultRole        string
+	scopes             []string
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
-type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
+type ClaimsEnforcerFunc func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
 	adapter := newAdapter("", "", "")
@@ -65,6 +73,7 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 		configmap:          configmap,
 		model:              builtInModel,
 		claimsEnforcerFunc: claimsEnforcer,
+		scopes:             defaultScopes,
 	}
 }
 
@@ -72,6 +81,16 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 // normal enforcement fails
 func (e *Enforcer) SetDefaultRole(roleName string) {
 	e.defaultRole = roleName
+}
+
+// SetDefaultRole sets a default role to use during enforcement. Will fall back to this role if
+// normal enforcement fails
+func (e *Enforcer) SetScopes(scopes []string) {
+	if len(scopes) == 0 {
+		e.scopes = defaultScopes
+	} else {
+		e.scopes = scopes
+	}
 }
 
 // SetClaimsEnforcerFunc sets a claims enforce function during enforcement. The claims enforce function
@@ -84,7 +103,7 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *Enforcer) Enforce(rvals ...interface{}) bool {
-	return enforce(e.Enforcer, e.defaultRole, e.claimsEnforcerFunc, rvals...)
+	return enforce(e.Enforcer, e.defaultRole, e.scopes, e.claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -118,11 +137,11 @@ func (e *Enforcer) EnforceRuntimePolicy(policy string, rvals ...interface{}) boo
 			enf = e.Enforcer
 		}
 	}
-	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
+	return enforce(enf, e.defaultRole, e.scopes, e.claimsEnforcerFunc, rvals...)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
+func enforce(enf *casbin.Enforcer, defaultRole string, scopes []string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
 		if enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...) {
@@ -139,7 +158,7 @@ func enforce(enf *casbin.Enforcer, defaultRole string, claimsEnforcerFunc Claims
 	case string:
 		// noop
 	case jwt.Claims:
-		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, rvals...) {
+		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, scopes, rvals...) {
 			return true
 		}
 		rvals = append([]interface{}{""}, rvals[1:]...)
@@ -224,6 +243,15 @@ func (e *Enforcer) runInformer(ctx context.Context) {
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
+	scopes := make([]string, 0)
+	if scopesStr, ok := cm.Data[ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
+		err := yaml.Unmarshal([]byte(scopesStr), &scopes)
+		if err != nil {
+			return err
+		}
+	}
+
+	e.SetScopes(scopes)
 	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
 	if !ok {
 		policyCSV = ""

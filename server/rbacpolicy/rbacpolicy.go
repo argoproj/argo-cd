@@ -43,7 +43,7 @@ func NewRBACPolicyEnforcer(enf *rbac.Enforcer, projLister applister.AppProjectNa
 }
 
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
-func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface{}) bool {
+func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return false
@@ -69,7 +69,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	}
 
 	// Finally check if any of the user's groups grant them permissions
-	groups := jwtutil.GetGroups(mapClaims)
+	groups := jwtutil.GetGroups(mapClaims, scopes)
 	for _, group := range groups {
 		vals := append([]interface{}{group}, rvals[1:]...)
 		if p.enf.EnforceRuntimePolicy(runtimePolicy, vals...) {

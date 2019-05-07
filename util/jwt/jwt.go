@@ -32,22 +32,29 @@ func GetField(claims jwtgo.MapClaims, fieldName string) string {
 }
 
 // GetGroups extracts the groups from a claims
-func GetGroups(claims jwtgo.MapClaims) []string {
+func GetGroups(claims jwtgo.MapClaims, scopes []string) []string {
 	groups := make([]string, 0)
-	groupsIf, ok := claims["groups"]
-	if !ok {
-		return groups
-	}
-	groupIfList, ok := groupsIf.([]interface{})
-	if !ok {
-		return groups
-	}
-	for _, groupIf := range groupIfList {
-		group, ok := groupIf.(string)
-		if ok {
-			groups = append(groups, group)
+	for i := range scopes {
+		scopeIf, ok := claims[scopes[i]]
+		if !ok {
+			continue
+		}
+
+		switch val := scopeIf.(type) {
+		case []interface{}:
+			for _, groupIf := range val {
+				group, ok := groupIf.(string)
+				if ok {
+					groups = append(groups, group)
+				}
+			}
+		case []string:
+			groups = append(groups, val...)
+		case string:
+			groups = append(groups, val)
 		}
 	}
+
 	return groups
 }
 

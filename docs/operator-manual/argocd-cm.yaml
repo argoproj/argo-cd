@@ -29,6 +29,8 @@ data:
     issuer: https://dev-123456.oktapreview.com
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
+    # AWS Cognito example, default value is ["openid", "profile", "email", "groups"]
+    requestedScopes: ["openid", "profile", "email"]
 
   # Git repositories configure Argo CD with (optional).
   # This list is updated when configuring/removing repos from the UI/CLI

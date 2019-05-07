@@ -78,11 +78,12 @@ type ArgoCDSettings struct {
 }
 
 type OIDCConfig struct {
-	Name         string `json:"name,omitempty"`
-	Issuer       string `json:"issuer,omitempty"`
-	ClientID     string `json:"clientID,omitempty"`
-	ClientSecret string `json:"clientSecret,omitempty"`
-	CLIClientID  string `json:"cliClientID,omitempty"`
+	Name            string   `json:"name,omitempty"`
+	Issuer          string   `json:"issuer,omitempty"`
+	ClientID        string   `json:"clientID,omitempty"`
+	ClientSecret    string   `json:"clientSecret,omitempty"`
+	CLIClientID     string   `json:"cliClientID,omitempty"`
+	RequestedScopes []string `json:"requestedScopes,omitempty"`
 }
 
 type RepoCredentials struct {
@@ -702,6 +703,18 @@ func (a *ArgoCDSettings) TLSConfig() *tls.Config {
 	return &tls.Config{
 		RootCAs: certPool,
 	}
+}
+
+func (a *ArgoCDSettings) OIDCScopes() []string {
+	scopes := make([]string, 0)
+	oidcConfig := a.OIDCConfig()
+	if oidcConfig != nil {
+		scopes = oidcConfig.RequestedScopes
+	}
+	if len(scopes) == 0 {
+		scopes = []string{"openid", "profile", "email", "groups"}
+	}
+	return scopes
 }
 
 func (a *ArgoCDSettings) IssuerURL() string {

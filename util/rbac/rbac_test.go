@@ -246,7 +246,7 @@ p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
 `
 	_ = enf.SetUserPolicy(policy)
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
 		return false
 	})
 
@@ -310,7 +310,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
 		return true
 	})
 	assert.True(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -341,7 +341,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, scopes []string, rvals ...interface{}) bool {
 		return true
 	})
 	assert.True(t, enf.EnforceRuntimePolicy(runtimePolicy, claims, "applications", "get", "foo/bar"))
