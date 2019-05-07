@@ -27,6 +27,7 @@ Organizations below are **officially** using Argo CD. Please send a PR with your
 6. [OpenSaaS Studio](https://opensaas.studio)
 7. [Riskified](https://www.riskified.com/)
 8. [GMETRI](https://gmetri.com/)
+9. [Commonbond](https://commonbond.co/)
 
 ## Documentation
 
