@@ -221,7 +221,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-					printAppResources(w, app, showOperation)
+					printAppResources(w, app)
 					_ = w.Flush()
 				}
 			default:
@@ -1037,21 +1037,15 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // printAppResources prints the resources of an application in a tabwriter table
 // Optionally prints the message from the operation state
-func printAppResources(w io.Writer, app *argoappv1.Application, showOperation bool) {
-	messages := make(map[string]string)
+func printAppResources(w io.Writer, app *argoappv1.Application) {
 
+	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\nOPERATION\tMESSAGE\n")
 	for _, res := range app.Status.Resources {
 		healthStatus := ""
 		if res.Health != nil {
 			healthStatus = res.Health.Status
 		}
-		if showOperation {
-			message := messages[fmt.Sprintf("%s/%s/%s/%s", res.Group, res.Kind, res.Namespace, res.Name)]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus, "", message)
-		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus)
-		}
-		fmt.Fprint(w, "\n")
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, healthStatus, app.Status.OperationState.Operation, app.Status.OperationState.Message)
 	}
 }
 
@@ -1174,13 +1168,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // ResourceDiff tracks the state of a resource when waiting on an application status.
 type resourceState struct {
-	Group     string
-	Kind      string
-	Namespace string
-	Name      string
-	Status    string
-	Health    string
-	Message   string
+	Group          string
+	Kind           string
+	Namespace      string
+	Name           string
+	Status         string
+	Health         string
+	OperationState string
+	Message        string
 }
 
 func newResourceStateFromStatus(res *argoappv1.ResourceStatus) *resourceState {
@@ -1216,7 +1211,7 @@ func (rs *resourceState) Key() string {
 
 func (rs *resourceState) FormatItems() []interface{} {
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
-	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.Message}
+	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.OperationState, rs.Message}
 }
 
 // Merge merges the new state with any different contents from another resourceState.
@@ -1327,7 +1322,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 		if len(app.Status.Resources) > 0 {
 			fmt.Println()
 			w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-			printAppResources(w, app, watchOperation)
+			printAppResources(w, app)
 			_ = w.Flush()
 		}
 	}
@@ -1339,7 +1334,7 @@ func waitOnApplicationStatus(acdClient apiclient.Client, appName string, timeout
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "OPERATION STATE", "MESSAGE")
 
 	prevStates := make(map[string]*resourceState)
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName)

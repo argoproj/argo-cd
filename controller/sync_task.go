@@ -49,7 +49,7 @@ func (t *syncTask) obj() *unstructured.Unstructured {
 
 func (t *syncTask) wave() int {
 
-	text := t.obj().GetAnnotations()["argocd.argoproj.io/syncStatus-wave"]
+	text := t.obj().GetAnnotations()["argocd.argoproj.io/sync-wave"]
 	if text == "" {
 		return 0
 	}

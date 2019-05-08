@@ -138,8 +138,8 @@ status:
   operationState:
     finishedAt: 2018-09-21T23:50:29Z
     message: successfully synced
-    operationState:
-      syncStatus:
+    operation:
+      sync:
         revision: HEAD
     phase: Succeeded
     startedAt: 2018-09-21T23:50:25Z
@@ -215,7 +215,7 @@ func TestSkipAutoSync(t *testing.T) {
 		assert.Nil(t, app.Operation)
 	}
 
-	// Verify we skip when auto-syncStatus is disabled
+	// Verify we skip when auto-sync is disabled
 	{
 		app := newFakeApp()
 		app.Spec.SyncPolicy = nil
@@ -248,7 +248,7 @@ func TestSkipAutoSync(t *testing.T) {
 		assert.Nil(t, app.Operation)
 	}
 
-	// Verify we skip when previous syncStatus attempt failed and return error condition
+	// Verify we skip when previous sync attempt failed and return error condition
 	// Set current to 'aaaaa', desired to 'bbbbb' and add 'bbbbb' to failure history
 	{
 		app := newFakeApp()
@@ -275,7 +275,7 @@ func TestSkipAutoSync(t *testing.T) {
 	}
 }
 
-// TestAutoSyncIndicateError verifies we skip auto-syncStatus and return error condition if previous syncStatus failed
+// TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed
 func TestAutoSyncIndicateError(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{
@@ -310,7 +310,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 	assert.Nil(t, app.Operation)
 }
 
-// TestAutoSyncParameterOverrides verifies we auto-syncStatus if revision is same but parameter overrides are different
+// TestAutoSyncParameterOverrides verifies we auto-sync if revision is same but parameter overrides are different
 func TestAutoSyncParameterOverrides(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{

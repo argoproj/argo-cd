@@ -46,7 +46,7 @@ var unsortedTasks = syncTasks{
 			Object: map[string]interface{}{
 				"metadata": map[string]interface{}{
 					"annotations": map[string]interface{}{
-						"argocd.argoproj.io/syncStatus-wave": "1",
+						"argocd.argoproj.io/sync-wave": "1",
 					},
 				},
 			},
@@ -57,7 +57,7 @@ var unsortedTasks = syncTasks{
 			Object: map[string]interface{}{
 				"metadata": map[string]interface{}{
 					"annotations": map[string]interface{}{
-						"argocd.argoproj.io/syncStatus-wave": "-1",
+						"argocd.argoproj.io/sync-wave": "-1",
 					},
 				},
 			},
@@ -97,7 +97,7 @@ var sortedTasks = syncTasks{
 			Object: map[string]interface{}{
 				"metadata": map[string]interface{}{
 					"annotations": map[string]interface{}{
-						"argocd.argoproj.io/syncStatus-wave": "-1",
+						"argocd.argoproj.io/sync-wave": "-1",
 					},
 				},
 			},
@@ -147,7 +147,7 @@ var sortedTasks = syncTasks{
 			Object: map[string]interface{}{
 				"metadata": map[string]interface{}{
 					"annotations": map[string]interface{}{
-						"argocd.argoproj.io/syncStatus-wave": "1",
+						"argocd.argoproj.io/sync-wave": "1",
 					},
 				},
 			},

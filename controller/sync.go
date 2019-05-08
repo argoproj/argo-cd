@@ -48,9 +48,9 @@ type syncContext struct {
 
 func (m *appStateManager) SyncAppState(app *Application, state *OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
-	// This can change meaning when resuming operations (e.g a hook syncStatus). After calculating a
-	// concrete git commit SHA, the SHA is remembered in the status.operationState.result field.
-	// This ensures that when resuming an operationState, we syncStatus to the same revision that we initially
+	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
+	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
+	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
 	var revision string
 	var syncOp SyncOperation
@@ -60,12 +60,12 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 
 	if state.Operation.Sync == nil {
 		state.Phase = OperationFailed
-		state.Message = "Invalid operationState request: no operationState specified"
+		state.Message = "Invalid operation request: no operationState specified"
 		return
 	}
 	syncOp = *state.Operation.Sync
 	if syncOp.Source == nil {
-		// normal syncStatus case (where source is taken from app.spec.source)
+		// normal sync case (where source is taken from app.spec.source)
 		source = app.Spec.Source
 	} else {
 		// rollback case
@@ -77,17 +77,17 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		revision = state.SyncResult.Revision
 	} else {
 		syncRes = &SyncOperationResult{}
-		// status.operationState.result.source. must be set properly since auto-syncStatus relies
-		// on this information to decide if it should syncStatus (if source is different than the last
-		// syncStatus attempt)
+		// status.operation.result.source. must be set properly since auto-sync relies
+		// on this information to decide if it should sync (if source is different than the last
+		// sync attempt)
 		syncRes.Source = source
 		state.SyncResult = syncRes
 	}
 
 	if revision == "" {
 		// if we get here, it means we did not remember a commit SHA which we should be syncing to.
-		// This typically indicates we are just about to begin a brand new syncStatus/rollback operationState.
-		// Take the value in the requested operationState. We will resolve this to a SHA later.
+		// This typically indicates we are just about to begin a brand new sync/rollback operation.
+		// Take the value in the requested operation. We will resolve this to a SHA later.
 		revision = syncOp.Revision
 	}
 
@@ -98,7 +98,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		return
 	}
 
-	// If there are any error conditions, do not perform the operationState
+	// If there are any error conditions, do not perform the operation
 	errConditions := make([]ApplicationCondition, 0)
 	for i := range compareResult.conditions {
 		if compareResult.conditions[i].IsError() {
@@ -111,7 +111,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		return
 	}
 
-	// We now have a concrete commit SHA. Save this in the syncStatus result revision so that we remember
+	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
 
@@ -170,7 +170,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 	if !syncOp.DryRun && !syncOp.IsSelectiveSync() && syncCtx.opState.Phase.Successful() {
 		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source)
 		if err != nil {
-			syncCtx.setOperationPhase(OperationError, fmt.Sprintf("failed to record syncStatus to history: %v", err))
+			syncCtx.setOperationPhase(OperationError, fmt.Sprintf("failed to record sync to history: %v", err))
 		}
 	}
 }
@@ -185,7 +185,7 @@ func (sc *syncContext) getHealthStatus(obj *unstructured.Unstructured) (healthSt
 	return resourceHealth.Status, resourceHealth.Message
 }
 
-// syncStatus has performs the actual apply or hook based syncStatus
+// sync has performs the actual apply or hook based syncStatus
 func (sc *syncContext) sync() {
 	sc.log.Info("syncing")
 	tasks, successful := sc.getSyncTasks()
@@ -197,12 +197,12 @@ func (sc *syncContext) sync() {
 	// Perform a `kubectl apply --dry-run` against all the manifests. This will detect most (but
 	// not all) validation issues with the user's manifests (e.g. will detect syntax issues, but
 	// will not not detect if they are mutating immutable fields). If anything fails, we will refuse
-	// to perform the syncStatus.
+	// to perform the sync.
 	if sc.notStarted() {
 		sc.log.Info("dry-run")
-		// Optimization: we only wish to do this once per operationState, performing additional dry-runs
+		// Optimization: we only wish to do this once per operation, performing additional dry-runs
 		// is harmless, but redundant. The indicator we use to detect if we have already performed
-		// the dry-run for this operationState, is if the resource or hook list is empty.
+		// the dry-run for this operation, is if the resource or hook list is empty.
 		if !sc.runTasks(tasks, true) {
 			sc.setOperationPhase(OperationFailed, "one or more objects failed to apply (dry run)")
 			return
@@ -260,8 +260,8 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks post-filtering")
 
-	// If no syncStatus tasks were generated (e.g., in case all application manifests have been removed),
-	// set the syncStatus operationState as successful.
+	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
+	// set the sync operation as successful.
 	if len(tasks) == 0 {
 		sc.setOperationPhase(OperationSucceeded, "successfully synced")
 		return
@@ -281,8 +281,8 @@ func (sc *syncContext) notStarted() bool {
 }
 
 func (sc *syncContext) skipHooks() bool {
-	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the syncStatus.
-	// default syncStatus strategy to hook if no strategy
+	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
+	// default sync strategy to hook if no strategy
 	return sc.syncOp.SyncStrategy != nil && sc.syncOp.SyncStrategy.Apply != nil
 }
 
@@ -292,7 +292,7 @@ func (sc *syncContext) isSelectiveSyncResourceOrAll(resourceState managedResourc
 		(resourceState.Target != nil && argo.ContainsSyncResource(resourceState.Target.GetName(), resourceState.Target.GroupVersionKind(), sc.syncResources))
 }
 
-// generateSyncTasks() generates the list of syncStatus tasks we will be performing during this syncStatus.
+// generateSyncTasks() generates the list of sync tasks we will be performing during this syncStatus.
 func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	successful = true
 	for _, resourceState := range sc.compareResult.managedResources {
@@ -319,7 +319,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 					}
 
 					// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
-					// or formulated at the time of the operationState (metadata.generateName). If user specifies
+					// or formulated at the time of the operation (metadata.generateName). If user specifies
 					// metadata.generateName, then we will generate a formulated metadata.name before submission.
 					if hook.IsHook(targetObj) && targetObj.GetName() == "" {
 						postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], syncPhase, sc.opState.StartedAt.UTC().Unix()))
@@ -348,9 +348,9 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 					continue
 				}
 
-				// skip in-syncStatus tasks
+				// skip in-sync tasks
 				if !task.isHook() && !resourceState.Diff.Modified {
-					sc.log.WithFields(log.Fields{"task": task.String()}).Info("skipping in-syncStatus resource")
+					sc.log.WithFields(log.Fields{"task": task.String()}).Info("skipping in-sync resource")
 					continue
 				}
 
@@ -389,6 +389,14 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	return tasks, successful
 }
 
+func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
+	if sc.opState.Phase != phase || sc.opState.Message != message {
+		sc.log.Infof("Updating operation state. phase: %s -> %s, message: '%s' -> '%s'", sc.opState.Phase, phase, sc.opState.Message, message)
+	}
+	sc.opState.Phase = phase
+	sc.opState.Message = message
+}
+
 // applyObject performs a `kubectl apply` of a single resource
 func (sc *syncContext) applyObject(targetObj *unstructured.Unstructured, dryRun bool, force bool) (resultCode ResultCode, message string) {
 	message, err := sc.kubectl.ApplyResource(sc.config, targetObj, targetObj.GetNamespace(), dryRun, force)
@@ -417,6 +425,25 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	} else {
 		return ResultCodePruneSkipped, "ignored (requires pruning)"
 	}
+}
+
+func hasCRDOfGroupKind(resources []managedResource, group string, kind string) bool {
+	for _, res := range resources {
+		if res.Target != nil && kube.IsCRD(res.Target) {
+			crdGroup, ok, err := unstructured.NestedString(res.Target.Object, "spec", "group")
+			if err != nil || !ok {
+				continue
+			}
+			crdKind, ok, err := unstructured.NestedString(res.Target.Object, "spec", "names", "kind")
+			if err != nil || !ok {
+				continue
+			}
+			if group == crdGroup && crdKind == kind {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // terminate looks for any running jobs/workflow hooks and deletes the resource
@@ -567,12 +594,4 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 		logCtx.Infof("added resource resultCode: %s, operationPhase: %s, message: %s", res.SyncStatus, res.OperationState, res.Message)
 		sc.syncRes.Resources = append(sc.syncRes.Resources, res)
 	}
-}
-
-func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
-	if sc.opState.Phase != phase || sc.opState.Message != message {
-		sc.log.Infof("Updating operationState state. phase: %s -> %s, message: '%s' -> '%s'", sc.opState.Phase, phase, sc.opState.Message, message)
-	}
-	sc.opState.Phase = phase
-	sc.opState.Message = message
 }

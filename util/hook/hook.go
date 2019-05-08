@@ -9,7 +9,7 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-// Hook indicates if the object is either a Argo CD or Helm hook
+// IsHook indicates if the object is either a Argo CD or Helm hook
 func IsHook(obj *unstructured.Unstructured) bool {
 	return IsArgoHook(obj) || IsHelmHook(obj)
 }

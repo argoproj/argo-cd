@@ -319,7 +319,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 		Sync: &v1alpha1.SyncOperation{},
 	}}
 	ctrl.appStateManager.SyncAppState(app, opState)
-	// Ensure we record spec.source into syncStatus result
+	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.Source, opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, v1.GetOptions{})
@@ -368,7 +368,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 		},
 	}}
 	ctrl.appStateManager.SyncAppState(app, opState)
-	// Ensure we record opState's source into syncStatus result
+	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(app.Name, v1.GetOptions{})
