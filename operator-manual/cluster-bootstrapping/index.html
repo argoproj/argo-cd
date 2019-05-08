@@ -562,8 +562,68 @@
 
 
   <li class="md-nav__item">
-    <a href="../../user-guide/application_sources/" title="Application Source Types" class="md-nav__link">
-      Application Source Types
+    <a href="../../user-guide/application_sources/" title="Tools" class="md-nav__link">
+      Tools
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/kustomize/" title="Kustomize" class="md-nav__link">
+      Kustomize
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/helm/" title="Helm" class="md-nav__link">
+      Helm
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/ksonnet/" title="Ksonnet" class="md-nav__link">
+      Ksonnet
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/config-management-plugins/" title="Plugins" class="md-nav__link">
+      Plugins
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
+      Tool Detection
     </a>
   </li>
 
@@ -588,18 +648,6 @@
   <li class="md-nav__item">
     <a href="../../user-guide/private-repositories/" title="Private Repositories" class="md-nav__link">
       Private Repositories
-    </a>
-  </li>
-
-        
-          
-          
-          
-
-
-  <li class="md-nav__item">
-    <a href="../../user-guide/tool_detection/" title="Tool Detection" class="md-nav__link">
-      Tool Detection
     </a>
   </li>
 
@@ -934,6 +982,8 @@
 <span class="nt">metadata</span><span class="p">:</span>
   <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">guestbook</span>
   <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
+  <span class="nt">finalizers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">resources-finalizer.argocd.argoproj.io</span>
 <span class="nt">spec</span><span class="p">:</span>
   <span class="nt">destination</span><span class="p">:</span>
     <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argocd</span>
@@ -949,7 +999,7 @@
 </pre></div>
 
 
-<p>In this example, I've set the sync policy to automated + prune, so that applications are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this.</p>
+<p>In this example, I've set the sync policy to automated + prune, so that applications are automatically created, synced, and deleted when the manifest is changed, but you may wish to disable this. I've also added the finalizer, which will ensure that you applications are deleted correctly.</p>
 <p>As you probably want to override the cluster server and maybe the revision, these are templated values.</p>
 <p><code>values.yaml</code> contains the default values:</p>
 <div class="codehilite"><pre><span></span><span class="nt">spec</span><span class="p">:</span>

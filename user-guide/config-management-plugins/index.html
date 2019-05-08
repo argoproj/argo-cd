@@ -36,7 +36,7 @@
     
     
       
-        <title>Automation from CI Pipelines - Argo CD - Declarative GitOps CD for Kubernetes</title>
+        <title>Plugins - Argo CD - Declarative GitOps CD for Kubernetes</title>
       
     
     
@@ -127,7 +127,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
     
-      <a href="#automation-from-ci-pipelines" tabindex="1" class="md-skip">
+      <a href="#plugins" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -152,7 +152,7 @@
               Argo CD - Declarative GitOps CD for Kubernetes
             </span>
             <span class="md-header-nav__topic">
-              Automation from CI Pipelines
+              Plugins
             </span>
           
         </div>
@@ -557,11 +557,20 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="../config-management-plugins/" title="Plugins" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+    <a href="./" title="Plugins" class="md-nav__link md-nav__link--active">
       Plugins
     </a>
+    
   </li>
 
         
@@ -665,63 +674,11 @@
           
           
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="__toc">
-        Automation from CI Pipelines
-      </label>
-    
-    <a href="./" title="Automation from CI Pipelines" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../ci_automation/" title="Automation from CI Pipelines" class="md-nav__link">
       Automation from CI Pipelines
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#build-and-publish-a-new-container-image" title="Build And Publish A New Container Image" class="md-nav__link">
-    Build And Publish A New Container Image
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git" title="Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git" class="md-nav__link">
-    Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#synchronize-the-app-optional" title="Synchronize The App (Optional)" class="md-nav__link">
-    Synchronize The App (Optional)
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
         
@@ -915,36 +872,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#build-and-publish-a-new-container-image" title="Build And Publish A New Container Image" class="md-nav__link">
-    Build And Publish A New Container Image
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git" title="Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git" class="md-nav__link">
-    Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#synchronize-the-app-optional" title="Synchronize The App (Optional)" class="md-nav__link">
-    Synchronize The App (Optional)
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -955,61 +882,38 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/ci_automation.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/argoproj/argo-cd/edit/master/docs/user-guide/config-management-plugins.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <h1 id="automation-from-ci-pipelines">Automation from CI Pipelines<a class="headerlink" href="#automation-from-ci-pipelines" title="Permanent link">&para;</a></h1>
-<p>Argo CD follows the GitOps model of deployment, where desired configuration changes are first
-pushed to Git, and the cluster state then syncs to the desired state in git. This is a departure
-from imperative pipelines which do not traditionally use Git repositories to hold application
-config.</p>
-<p>To push new container images into to a cluster managed by Argo CD, the following workflow (or 
-variations), might be used:</p>
-<h2 id="build-and-publish-a-new-container-image">Build And Publish A New Container Image<a class="headerlink" href="#build-and-publish-a-new-container-image" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span>docker build -t mycompany/guestbook:v2.0 .
-docker push mycompany/guestbook:v2.0
+                <h1 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h1>
+<p>Argo CD allows integrating more config management tools using config management plugins. Following changes are required to configure new plugin:</p>
+<ul>
+<li>Make sure required binaries are available in <code>argocd-repo-server</code> pod. The binaries can be added via volume mounts or using custom image (see <a href="../../operator-manual/custom_tools/">custom_tools</a>).</li>
+<li>Register a new plugin in <code>argocd-cm</code> ConfigMap:</li>
+</ul>
+<div class="codehilite"><pre><span></span><span class="nt">data</span><span class="p">:</span>
+  <span class="nt">configManagementPlugins</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">- name: pluginName</span>
+      <span class="no">init:                          # Optional command to initialize application source directory</span>
+        <span class="no">command: [&quot;sample command&quot;]</span>
+        <span class="no">args: [&quot;sample args&quot;]</span>
+      <span class="no">generate:                      # Command to generate manifests YAML</span>
+        <span class="no">command: [&quot;sample command&quot;]</span>
+        <span class="no">args: [&quot;sample args&quot;]</span>
 </pre></div>
 
 
-<h2 id="update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git">Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git<a class="headerlink" href="#update-the-local-manifests-using-your-preferred-templating-tool-and-push-the-changes-to-git" title="Permanent link">&para;</a></h2>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>The use of a different Git repository to hold your kubernetes manifests (separate from
-your application source code), is highly recommended. See <a href="../best_practices/">best practices</a>
-for further rationale.</p>
-</div>
-<div class="codehilite"><pre><span></span>git clone https://github.com/mycompany/guestbook-config.git
-<span class="nb">cd</span> guestbook-config
-
-<span class="c1"># kustomize</span>
-kustomize edit <span class="nb">set</span> imagetag mycompany/guestbook:v2.0
-
-<span class="c1"># ksonnet</span>
-ks param <span class="nb">set</span> guestbook image mycompany/guestbook:v2.0
-
-<span class="c1"># plain yaml</span>
-kubectl patch --local -f config-deployment.yaml -p <span class="s1">&#39;{&quot;spec&quot;:{&quot;template&quot;:{&quot;spec&quot;:{&quot;containers&quot;:[{&quot;name&quot;:&quot;guestbook&quot;,&quot;image&quot;:&quot;mycompany/guestbook:v2.0&quot;}]}}}}&#39;</span> -o yaml
-
-git add . -m <span class="s2">&quot;Update guestbook to v2.0&quot;</span>
-git push
+<p>The <code>generate</code> command must print a valid YAML stream to stdout. Both <code>init</code> and <code>generate</code> commands are executed inside the application source directory.
+Commands have access to system environment variables and following additional variables:</p>
+<p><code>ARGOCD_APP_NAME</code> - name of application; <code>ARGOCD_APP_NAMESPACE</code> - destination application namespace</p>
+<ul>
+<li>Create an application and specify required config management plugin name.</li>
+</ul>
+<div class="codehilite"><pre><span></span>argocd app create &lt;appName&gt; --config-management-plugin &lt;pluginName&gt;
 </pre></div>
 
 
-<h2 id="synchronize-the-app-optional">Synchronize The App (Optional)<a class="headerlink" href="#synchronize-the-app-optional" title="Permanent link">&para;</a></h2>
-<p>For convenience, the argocd CLI can be downloaded directly from the API server. This is
-useful so that the CLI used in the CI pipeline is always kept in-sync and uses argocd binary
-that is always compatible with the Argo CD API server.</p>
-<div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">ARGOCD_SERVER</span><span class="o">=</span>argocd.mycompany.com
-<span class="nb">export</span> <span class="nv">ARGOCD_AUTH_TOKEN</span><span class="o">=</span>&lt;JWT token generated from project&gt;
-curl -sSL -o /usr/local/bin/argocd https://<span class="si">${</span><span class="nv">ARGOCD_SERVER</span><span class="si">}</span>/download/argocd-linux-amd64
-argocd app sync guestbook
-argocd app <span class="nb">wait</span> guestbook
-</pre></div>
-
-
-<p>If <a href="../auto_sync/">automated synchronization</a> is configured for the application, this step is
-unnecessary. The controller will automatically detect the new config (fast tracked using a
-<a href="../../operator-manual/webhook/">webhook</a>, or polled every 3 minutes), and automatically sync the new manifests.</p>
+<p>More config management plugin examples are available in <a href="https://github.com/argoproj/argocd-example-apps/tree/master/plugins">argocd-example-apps</a>.</p>
                 
                   
                 
@@ -1030,7 +934,7 @@ unnecessary. The controller will automatically detect the new config (fast track
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
-          <a href="../resource_hooks/" title="Resource Hooks" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+          <a href="../ksonnet/" title="Ksonnet" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
             <div class="md-flex__cell md-flex__cell--shrink">
               <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
             </div>
@@ -1039,19 +943,19 @@ unnecessary. The controller will automatically detect the new config (fast track
                 <span class="md-footer-nav__direction">
                   Previous
                 </span>
-                Resource Hooks
+                Ksonnet
               </span>
             </div>
           </a>
         
         
-          <a href="../best_practices/" title="Best Practices" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../tool_detection/" title="Tool Detection" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Best Practices
+                Tool Detection
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
