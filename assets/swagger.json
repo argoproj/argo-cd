@@ -2651,13 +2651,6 @@
             "$ref": "#/definitions/v1alpha1ApplicationCondition"
           }
         },
-        "externalURLs": {
-          "description": "ExternalURLs holds all external URLs of application child resources.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
@@ -2685,8 +2678,30 @@
         "sourceType": {
           "type": "string"
         },
+        "summary": {
+          "$ref": "#/definitions/v1alpha1ApplicationSummary"
+        },
         "sync": {
           "$ref": "#/definitions/v1alpha1SyncStatus"
+        }
+      }
+    },
+    "v1alpha1ApplicationSummary": {
+      "type": "object",
+      "properties": {
+        "externalURLs": {
+          "description": "ExternalURLs holds all external URLs of application child resources.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "images": {
+          "description": "Images holds all images of application child resources.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
