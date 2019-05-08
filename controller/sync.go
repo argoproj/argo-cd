@@ -238,9 +238,9 @@ func (sc *syncContext) sync() {
 
 	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks pre-filtering")
 
-	// remove complete operations, note
+	// remove tasks that are completed
 	tasks = tasks.Filter(func(task syncTask) bool {
-		return task.operationState == ""
+		return !task.completed()
 	})
 
 	// remove any tasks not in this wave
@@ -324,12 +324,6 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 					continue
 				}
 
-				// skip in-sync tasks
-				if !task.isHook() && !resourceState.Diff.Modified {
-					sc.log.WithFields(log.Fields{"task": task.String()}).Info("skipping in-sync resource")
-					continue
-				}
-
 				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 
 				if err != nil {
@@ -337,7 +331,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 					// skip verification during `kubectl apply --dry-run` since we expect the CRD
 					// to be created during app synchronization.
 					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, task.group(), task.kind()) {
-						sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for custome resource")
+						sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for customq resource")
 						task.skipDryRun = true
 					} else {
 						sc.setResourceResult(&task, ResultCodeSyncFailed, "", err.Error())

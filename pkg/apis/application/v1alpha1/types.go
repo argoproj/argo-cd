@@ -292,10 +292,6 @@ func (os OperationPhase) Successful() bool {
 	return os == OperationSucceeded
 }
 
-func (os OperationPhase) Running() bool {
-	return os == "" || os == OperationRunning
-}
-
 // OperationState contains information about state of currently performing operation on application.
 type OperationState struct {
 	// Operation is the original requested operation

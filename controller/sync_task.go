@@ -85,3 +85,7 @@ func (t *syncTask) namespace() string {
 func (t *syncTask) running() bool {
 	return t.operationState == "" || t.operationState == OperationRunning
 }
+
+func (t *syncTask) completed() bool {
+	return t.operationState.Completed()
+}
