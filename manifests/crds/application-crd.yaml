@@ -922,24 +922,30 @@ spec:
                         properties:
                           group:
                             type: string
-                          isHook:
+                          hook:
+                            description: whether or not this resource is a hook
                             type: boolean
                           kind:
                             type: string
                           message:
+                            description: message for the last sync OR operation
                             type: string
                           name:
                             type: string
                           namespace:
                             type: string
-                          operationPhase:
-                            description: have we starte
-                            type: string
-                          status:
+                          operationState:
+                            description: the state of any operation associated with
+                              this resource
                             type: string
                           syncPhase:
-                            description: SyncPhase indicates the particular stage
-                              of the sync that this result is for.
+                            description: indicates the particular phase of the sync
+                              that this is for
+                            type: string
+                          syncStatus:
+                            description: the final result of the sync, this is be
+                              empty if the resources is yet to be applied/pruned and
+                              is always nil for hooks
                             type: string
                           version:
                             type: string

@@ -9,7 +9,7 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-// IsHook indicates if the object is either a Argo CD or Helm hook
+// Hook indicates if the object is either a Argo CD or Helm hook
 func IsHook(obj *unstructured.Unstructured) bool {
 	return IsArgoHook(obj) || IsHelmHook(obj)
 }
@@ -39,11 +39,15 @@ func hasHook(hooks string, hook string) bool {
 // IsArgoHook indicates if the supplied object is an Argo CD application lifecycle hook
 // (vs. a normal, synced application resource)
 func IsArgoHook(obj *unstructured.Unstructured) bool {
-	return len(GetHooks(obj)) > 0
+	return getHookAnnotationValue(obj) != ""
 }
 
-func GetHooks(obj *unstructured.Unstructured) (hookTypes []HookType) {
-	for _, hookType := range strings.Split(obj.GetAnnotations()[common.AnnotationKeyHook], ",") {
+func getHookAnnotationValue(obj *unstructured.Unstructured) string {
+	return obj.GetAnnotations()[common.AnnotationKeyHook]
+}
+
+func Hooks(obj *unstructured.Unstructured) (hookTypes []HookType) {
+	for _, hookType := range strings.Split(getHookAnnotationValue(obj), ",") {
 		hookType = strings.TrimSpace(hookType)
 		switch HookType(hookType) {
 		case HookTypePreSync, HookTypeSync, HookTypePostSync:
@@ -54,7 +58,7 @@ func GetHooks(obj *unstructured.Unstructured) (hookTypes []HookType) {
 }
 
 func HasHook(obj *unstructured.Unstructured, hookType HookType) bool {
-	for _, candidate := range GetHooks(obj) {
+	for _, candidate := range Hooks(obj) {
 		if hookType == candidate {
 			return true
 		}

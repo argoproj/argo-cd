@@ -1,26 +1,25 @@
 package controller
 
 import (
-	"github.com/argoproj/argo-cd/util/hook"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/hook"
 )
 
-func getSyncPhases(obj *unstructured.Unstructured) (syncPhases []SyncPhase) {
-	hookTypes := hook.GetHooks(obj)
+func syncPhases(obj *unstructured.Unstructured) (phases []SyncPhase) {
+	hookTypes := hook.Hooks(obj)
 	if len(hookTypes) > 0 {
 		for _, hookType := range hookTypes {
 			switch hookType {
 			case HookTypePreSync, HookTypePostSync:
-				syncPhases = append(syncPhases, SyncPhase(hookType))
+				phases = append(phases, SyncPhase(hookType))
 			default:
-				syncPhases = append(syncPhases, SyncPhaseSync)
+				phases = append(phases, SyncPhaseSync)
 			}
 		}
 	} else {
-		syncPhases = []SyncPhase{SyncPhaseSync}
+		phases = []SyncPhase{SyncPhaseSync}
 	}
-	return syncPhases
+	return phases
 }

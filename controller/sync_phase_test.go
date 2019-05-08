@@ -1,8 +1,9 @@
 package controller
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -10,24 +11,19 @@ import (
 )
 
 func Test_getSyncPhases(t *testing.T) {
-	type args struct {
-		obj *unstructured.Unstructured
-	}
 	tests := []struct {
 		name           string
-		args           args
+		obj            *unstructured.Unstructured
 		wantSyncPhases []SyncPhase
 	}{
-		{"TestPreSync", args{example("PreSync")}, []SyncPhase{SyncPhasePreSync}},
-		{"TestSync", args{example("Sync")}, []SyncPhase{SyncPhaseSync}},
-		{"TestSkip", args{example("Skip")}, []SyncPhase{SyncPhaseSync}},
-		{"TestPostSync", args{example("PostSync")}, []SyncPhase{SyncPhasePostSync}},
+		{"TestPreSync", example("PreSync"), []SyncPhase{SyncPhasePreSync}},
+		{"TestSync", example("Sync"), []SyncPhase{SyncPhaseSync}},
+		{"TestSkip", example("Skip"), []SyncPhase{SyncPhaseSync}},
+		{"TestPostSync", example("PostSync"), []SyncPhase{SyncPhasePostSync}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if gotSyncPhases := getSyncPhases(tt.args.obj); !reflect.DeepEqual(gotSyncPhases, tt.wantSyncPhases) {
-				t.Errorf("getSyncPhases() = %v, want %v", gotSyncPhases, tt.wantSyncPhases)
-			}
+			assert.Equal(t, tt.wantSyncPhases, syncPhases(tt.obj))
 		})
 	}
 }

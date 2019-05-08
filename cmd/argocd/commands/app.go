@@ -1152,7 +1152,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if len(selectedResources) == 0 {
 				pruningRequired := 0
 				for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
-					if resDetails.Status == argoappv1.ResultCodePruneSkipped {
+					if resDetails.SyncStatus == argoappv1.ResultCodePruneSkipped {
 						pruningRequired++
 					}
 				}
@@ -1209,7 +1209,7 @@ func newResourceStateFromResult(res *argoappv1.ResourceResult) *resourceState {
 		Kind:      res.Kind,
 		Namespace: res.Namespace,
 		Name:      res.Name,
-		Status:    string(res.Status),
+		Status:    string(res.SyncStatus),
 		Message:   res.Message,
 	}
 }

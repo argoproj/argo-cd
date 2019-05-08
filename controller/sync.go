@@ -220,7 +220,7 @@ func (sc *syncContext) sync() {
 
 			// maybe delete the hook
 			if enforceHookDeletePolicy(task.getObj(), task.result.operation) {
-				err := sc.deleteHook(task.getName(), task.getNamespace(), task.groupVersionKind())
+				err := sc.deleteHook(task.name(), task.namespace(), task.groupVersionKind())
 				if err != nil {
 					sc.setResourceResult(&task, result{operation: OperationError, message: fmt.Sprintf("failed to delete hook: %v", err)})
 				}
@@ -248,10 +248,10 @@ func (sc *syncContext) sync() {
 	// remove any tasks not in this wave
 	if len(tasks) > 0 {
 		phase := tasks[0].syncPhase
-		wave := tasks[0].getWave()
+		wave := tasks[0].wave()
 		sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "numTasks": len(tasks)}).Info("filtering tasks in correct phase and wave")
 		tasks = tasks.Filter(func(task syncTask) bool {
-			return task.syncPhase == phase && task.getWave() == wave
+			return task.syncPhase == phase && task.wave() == wave
 		})
 		if len(tasks) == 0 {
 			panic("this can never happen")
@@ -303,7 +303,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 			}
 
 			// typically we'll have a single phase, but for some hooks, we may have more than one
-			for _, syncPhase := range getSyncPhases(obj) {
+			for _, syncPhase := range syncPhases(obj) {
 
 				var targetObj *unstructured.Unstructured
 				if resourceState.Target != nil {
@@ -334,8 +334,8 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 				r := result{}
 
 				if res != nil {
-					r.sync = res.Status
-					r.operation = res.OperationPhase
+					r.sync = res.SyncStatus
+					r.operation = res.OperationState
 					r.message = res.Message
 				}
 
@@ -373,7 +373,7 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 					}
 
 					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: obj.GetNamespace(), Server: sc.server}) {
-						sc.setResourceResult(&task, result{sync: ResultCodeSyncFailed, message: fmt.Sprintf("namespace %v is not permitted in project '%s'", targetObj.GetNamespace(), sc.proj.Name)})
+						sc.setResourceResult(&task, result{sync: ResultCodeSyncFailed, message: fmt.Sprintf("namespace %v is not permitted in project '%s'", obj.GetNamespace(), sc.proj.Name)})
 						successful = false
 					}
 				}
@@ -429,7 +429,7 @@ func (sc *syncContext) terminate() {
 		}
 		if isRunnable(task.groupVersionKind()) {
 			sc.log.WithFields(log.Fields{"task": task.String()}).Info("deleting task")
-			err := sc.deleteHook(task.getName(), task.getNamespace(), task.groupVersionKind())
+			err := sc.deleteHook(task.name(), task.namespace(), task.groupVersionKind())
 			if err != nil {
 				sc.setResourceResult(&task, result{operation: OperationFailed, message: fmt.Sprintf("Failed to delete: %v", err)})
 				terminateSuccessful = false
@@ -526,7 +526,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) 
 	var tasksGroup []syncTask
 	for _, task := range createTasks {
 		//Only wait if the type of the next task is different than the previous type
-		if len(tasksGroup) > 0 && tasksGroup[0].targetObj.GetKind() != task.targetObj.GetKind() {
+		if len(tasksGroup) > 0 && tasksGroup[0].targetObj.GetKind() != task.kind() {
 			processCreateTasks(tasksGroup)
 			tasksGroup = []syncTask{task}
 		} else {
@@ -546,33 +546,33 @@ func (sc *syncContext) setResourceResult(task *syncTask, result result) {
 
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
-	i, existing := sc.syncRes.Resources.Find(task.getGroup(), task.getKind(), task.getNamespace(), task.getName(), task.syncPhase)
+	i, existing := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.syncPhase)
 
 	res := ResourceResult{
-		Group:          task.getGroup(),
-		Version:        task.getVersion(),
-		Kind:           task.getKind(),
-		Namespace:      task.getNamespace(),
-		Name:           task.getName(),
-		Status:         task.result.sync,
+		Group:          task.group(),
+		Version:        task.version(),
+		Kind:           task.kind(),
+		Namespace:      task.namespace(),
+		Name:           task.name(),
+		SyncStatus:     task.result.sync,
 		Message:        task.result.message,
-		OperationPhase: task.result.operation,
+		OperationState: task.result.operation,
 		SyncPhase:      task.syncPhase,
 	}
 
-	logCtx := sc.log.WithFields(log.Fields{"namespace": task.getNamespace(), "kind": task.getKind(), "name": task.getName()})
+	logCtx := sc.log.WithFields(log.Fields{"namespace": task.namespace(), "kind": task.kind(), "name": task.name()})
 
 	if existing != nil {
 		// update existing value
-		if res.Status != existing.Status || res.OperationPhase != existing.OperationPhase {
-			logCtx.Infof("updated resource operationPhase: %s -> %s", existing.OperationPhase, res.OperationPhase)
+		if res.SyncStatus != existing.SyncStatus || res.OperationState != existing.OperationState {
+			logCtx.Infof("updated resource operationPhase: %s -> %s", existing.OperationState, res.OperationState)
 		}
 		if res.Message != existing.Message {
 			logCtx.Infof("updated resource message: %s -> %s", existing.Message, res.Message)
 		}
 		sc.syncRes.Resources[i] = res
 	} else {
-		logCtx.Infof("added resource resultCode: %s, operationPhase: %s, message: %s", res.Status, res.OperationPhase, res.Message)
+		logCtx.Infof("added resource resultCode: %s, operationPhase: %s, message: %s", res.SyncStatus, res.OperationState, res.Message)
 		sc.syncRes.Resources = append(sc.syncRes.Resources, res)
 	}
 }

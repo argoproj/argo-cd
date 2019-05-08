@@ -590,17 +590,20 @@ message ResourceResult {
 
   optional string name = 5;
 
-  optional string status = 6;
+  // indicates the particular phase of the sync that this is for
+  optional string syncPhase = 6;
 
-  optional string message = 7;
+  // the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always nil for hooks
+  optional string syncStatus = 7;
 
-  // have we starte
-  optional string operationPhase = 9;
+  // message for the last sync OR operation
+  optional string message = 8;
 
-  optional bool isHook = 10;
+  // whether or not this resource is a hook
+  optional bool hook = 9;
 
-  // SyncPhase indicates the particular stage of the sync that this result is for.
-  optional string syncPhase = 11;
+  // the state of any operation associated with this resource
+  optional string operationState = 10;
 }
 
 // ResourceStatus holds the current sync and health status of a resource

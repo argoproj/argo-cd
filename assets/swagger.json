@@ -3205,15 +3205,17 @@
         "group": {
           "type": "string"
         },
-        "isHook": {
+        "hook": {
           "type": "boolean",
-          "format": "boolean"
+          "format": "boolean",
+          "title": "whether or not this resource is a hook"
         },
         "kind": {
           "type": "string"
         },
         "message": {
-          "type": "string"
+          "type": "string",
+          "title": "message for the last sync OR operation"
         },
         "name": {
           "type": "string"
@@ -3221,16 +3223,17 @@
         "namespace": {
           "type": "string"
         },
-        "operationPhase": {
+        "operationState": {
           "type": "string",
-          "title": "have we starte"
-        },
-        "status": {
-          "type": "string"
+          "title": "the state of any operation associated with this resource"
         },
         "syncPhase": {
-          "description": "SyncPhase indicates the particular stage of the sync that this result is for.",
-          "type": "string"
+          "type": "string",
+          "title": "indicates the particular phase of the sync that this is for"
+        },
+        "syncStatus": {
+          "type": "string",
+          "title": "the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always nil for hooks"
         },
         "version": {
           "type": "string"

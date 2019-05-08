@@ -54,8 +54,8 @@ func (s syncTasks) Swap(i, j int) {
 }
 
 // order is
-// 1. syncPhase
-// 2. syncWave
+// 1. phase
+// 2. wave
 // 3. prune
 // 4. kind
 // 5. name
@@ -69,7 +69,7 @@ func (s syncTasks) Less(i, j int) bool {
 		return d < 0
 	}
 
-	d = tA.getWave() - tB.getWave()
+	d = tA.wave() - tB.wave()
 	if d != 0 {
 		return d < 0
 	}
@@ -77,6 +77,8 @@ func (s syncTasks) Less(i, j int) bool {
 	a := tA.getObj()
 	b := tB.getObj()
 
+	// we take advantage of the fact that if the kind is not in the kindOrder map,
+	// then it will return the default int value of zero, which is the highest value
 	d = kindOrder[a.GetKind()] - kindOrder[b.GetKind()]
 	if d != 0 {
 		return d < 0

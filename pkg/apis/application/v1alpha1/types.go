@@ -416,17 +416,16 @@ type ResourceResult struct {
 	Kind      string `json:"kind" protobuf:"bytes,3,opt,name=kind"`
 	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
 	Name      string `json:"name" protobuf:"bytes,5,opt,name=name"`
-	// specifically the result of the sync, this can be empty if the resources has not been applied/pruned
-	// resources typically have ResultCode or OperationPhase, but not both
-	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	// success/failure message for any sync or operation
-	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
-	// the state of operation, this can imply that the resources is synced,
-	// resources typically have ResultCode or OperationPhase, but not both
-	OperationPhase OperationPhase `json:"operationPhase,omitempty" protobuf:"bytes,9,opt,name=operationPhase"`
-	IsHook         bool           `json:"isHook,omitempty" protobuf:"bytes,10,opt,name=isHook"`
-	// SyncPhase indicates the particular stage of the sync that this result is for.
-	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,11,opt,name=syncPhase"`
+	// indicates the particular phase of the sync that this is for
+	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,6,opt,name=syncPhase"`
+	// the final result of the sync, this is be empty if the resources is yet to be applied/pruned and is always nil for hooks
+	SyncStatus ResultCode `json:"syncStatus,omitempty" protobuf:"bytes,7,opt,name=syncStatus"`
+	// message for the last sync OR operation
+	Message string `json:"message,omitempty" protobuf:"bytes,8,opt,name=message"`
+	// whether or not this resource is a hook
+	Hook bool `json:"hook,omitempty" protobuf:"bytes,9,opt,name=hook"`
+	// the state of any operation associated with this resource
+	OperationState OperationPhase `json:"operationState,omitempty" protobuf:"bytes,10,opt,name=operationState"`
 }
 
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {

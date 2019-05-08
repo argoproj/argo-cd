@@ -140,7 +140,7 @@ status:
         revision: HEAD
     phase: Succeeded
     startedAt: 2018-09-21T23:50:25Z
-    result:
+    syncResult:
       resources:
       - kind: RoleBinding
         message: |-
@@ -454,5 +454,4 @@ func TestHandleAppUpdated(t *testing.T) {
 	ctrl.handleAppUpdated(app.Name, true, kube.NewResourceKey("", kube.DeploymentKind, "default", "test"))
 	isRequested, _ = ctrl.isRefreshRequested(app.Name)
 	assert.True(t, isRequested)
-
 }
