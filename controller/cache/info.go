@@ -161,13 +161,20 @@ func populatePodInfo(un *unstructured.Unstructured, node *node) {
 		reason = pod.Status.Reason
 	}
 
-	initializing := false
-
-	// note that I ignore initContainers
+	imagesSet := make(map[string]bool)
+	for _, container := range pod.Spec.InitContainers {
+		imagesSet[container.Image] = true
+	}
 	for _, container := range pod.Spec.Containers {
-		node.images = append(node.images, container.Image)
+		imagesSet[container.Image] = true
 	}
 
+	node.images = nil
+	for image := range imagesSet {
+		node.images = append(node.images, image)
+	}
+
+	initializing := false
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)
