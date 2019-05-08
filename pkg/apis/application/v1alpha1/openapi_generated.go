@@ -30,6 +30,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSourcePlugin":    schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSpec":            schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationStatus":          schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref),
+		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary":         schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationTree":            schema_pkg_apis_application_v1alpha1_ApplicationTree(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationWatchEvent":      schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.Cluster":                    schema_pkg_apis_application_v1alpha1_Cluster(ref),
@@ -844,6 +845,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Format: "",
 						},
 					},
+					"summary": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationSummary", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
 					"externalURLs": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ExternalURLs holds all external URLs of application child resources.",
@@ -858,11 +878,24 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							},
 						},
 					},
+					"images": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Images holds all images of application child resources.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+		Dependencies: []string{},
 	}
 }
 

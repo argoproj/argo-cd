@@ -479,12 +479,6 @@ spec:
                 - message
                 type: object
               type: array
-            externalURLs:
-              description: ExternalURLs holds all external URLs of application child
-                resources.
-              items:
-                type: string
-              type: array
             health:
               properties:
                 message:
@@ -1155,6 +1149,20 @@ spec:
               type: array
             sourceType:
               type: string
+            summary:
+              properties:
+                externalURLs:
+                  description: ExternalURLs holds all external URLs of application
+                    child resources.
+                  items:
+                    type: string
+                  type: array
+                images:
+                  description: Images holds all images of application child resources.
+                  items:
+                    type: string
+                  type: array
+              type: object
             sync:
               description: SyncStatus is a comparison result of application spec and
                 deployed application.

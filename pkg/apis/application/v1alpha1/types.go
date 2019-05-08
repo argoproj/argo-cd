@@ -225,8 +225,7 @@ type ApplicationStatus struct {
 	OperationState *OperationState        `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	ObservedAt     metav1.Time            `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	SourceType     ApplicationSourceType  `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
-	// ExternalURLs holds all external URLs of application child resources.
-	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,10,opt,name=externalURLs"`
+	Summary        ApplicationSummary     `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 }
 
 // Operation contains requested operation parameters.
@@ -575,6 +574,13 @@ type ApplicationTree struct {
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
 }
 
+type ApplicationSummary struct {
+	// ExternalURLs holds all external URLs of application child resources.
+	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
+	// Images holds all images of application child resources.
+	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
+}
+
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
 	for _, n := range t.Nodes {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
@@ -584,20 +590,28 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 	return nil
 }
 
-func (t *ApplicationTree) GetBrowableURLs() []string {
+func (t *ApplicationTree) GetSummary() ApplicationSummary {
 	urlsSet := make(map[string]bool)
+	imagesSet := make(map[string]bool)
 	for _, node := range t.Nodes {
 		if node.NetworkingInfo != nil {
 			for _, url := range node.NetworkingInfo.ExternalURLs {
 				urlsSet[url] = true
 			}
 		}
+		for _, image := range node.Images {
+			imagesSet[image] = true
+		}
 	}
 	urls := make([]string, 0)
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
-	return urls
+	images := make([]string, 0)
+	for image := range imagesSet {
+		images = append(images, image)
+	}
+	return ApplicationSummary{ExternalURLs: urls, Images: images}
 }
 
 // ResourceRef includes fields which unique identify resource

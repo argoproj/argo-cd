@@ -30,6 +30,8 @@ type LiveStateCache interface {
 	Invalidate()
 }
 
+type AppUpdatedHandler = func(appName string, fullRefresh bool, key kube.ResourceKey, serverURL string)
+
 func GetTargetObjKey(a *appv1.Application, un *unstructured.Unstructured, isNamespaced bool) kube.ResourceKey {
 	key := kube.GetResourceKey(un)
 	if !isNamespaced {
@@ -47,7 +49,7 @@ func NewLiveStateCache(
 	settings *settings.ArgoCDSettings,
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
-	onAppUpdated func(appName string, fullRefresh bool, key kube.ResourceKey)) LiveStateCache {
+	onAppUpdated AppUpdatedHandler) LiveStateCache {
 
 	return &liveStateCache{
 		appInformer:   appInformer,
@@ -66,7 +68,7 @@ type liveStateCache struct {
 	clusters      map[string]*clusterInfo
 	lock          *sync.Mutex
 	appInformer   cache.SharedIndexInformer
-	onAppUpdated  func(appName string, fullRefresh bool, key kube.ResourceKey)
+	onAppUpdated  AppUpdatedHandler
 	kubectl       kube.Kubectl
 	settings      *settings.ArgoCDSettings
 	metricsServer *metrics.MetricsServer
