@@ -480,12 +480,6 @@ spec:
                 - message
                 type: object
               type: array
-            externalURLs:
-              description: ExternalURLs holds all external URLs of application child
-                resources.
-              items:
-                type: string
-              type: array
             health:
               properties:
                 message:
@@ -923,19 +917,30 @@ spec:
                         properties:
                           group:
                             type: string
-                          hookPhase:
-                            type: string
-                          hookType:
-                            type: string
+                          hook:
+                            description: whether or not this resource is a hook
+                            type: boolean
                           kind:
                             type: string
                           message:
+                            description: message for the last sync OR operation
                             type: string
                           name:
                             type: string
                           namespace:
                             type: string
-                          status:
+                          operationState:
+                            description: the state of any operation associated with
+                              this resource
+                            type: string
+                          syncPhase:
+                            description: indicates the particular phase of the sync
+                              that this is for
+                            type: string
+                          syncStatus:
+                            description: the final result of the sync, this is be
+                              empty if the resources is yet to be applied/pruned and
+                              is always nil for hooks
                             type: string
                           version:
                             type: string
@@ -1145,6 +1150,20 @@ spec:
               type: array
             sourceType:
               type: string
+            summary:
+              properties:
+                externalURLs:
+                  description: ExternalURLs holds all external URLs of application
+                    child resources.
+                  items:
+                    type: string
+                  type: array
+                images:
+                  description: Images holds all images of application child resources.
+                  items:
+                    type: string
+                  type: array
+              type: object
             sync:
               description: SyncStatus is a comparison result of application spec and
                 deployed application.
