@@ -64,7 +64,7 @@ func (s syncTasks) Less(i, j int) bool {
 	tA := s[i]
 	tB := s[j]
 
-	d := syncPhaseOrder[tA.syncPhase] - syncPhaseOrder[tB.syncPhase]
+	d := syncPhaseOrder[tA.phase] - syncPhaseOrder[tB.phase]
 	if d != 0 {
 		return d < 0
 	}

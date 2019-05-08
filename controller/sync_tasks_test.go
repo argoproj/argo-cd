@@ -71,11 +71,11 @@ var unsortedTasks = syncTasks{
 		},
 	},
 	{
-		syncPhase: SyncPhasePreSync,
+		phase:     SyncPhasePreSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
-		syncPhase: SyncPhasePostSync, targetObj: &unstructured.Unstructured{},
+		phase: SyncPhasePostSync, targetObj: &unstructured.Unstructured{},
 	},
 	{
 		targetObj: &unstructured.Unstructured{
@@ -89,7 +89,7 @@ var unsortedTasks = syncTasks{
 
 var sortedTasks = syncTasks{
 	{
-		syncPhase: SyncPhasePreSync,
+		phase:     SyncPhasePreSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 	{
@@ -154,7 +154,7 @@ var sortedTasks = syncTasks{
 		},
 	},
 	{
-		syncPhase: SyncPhasePostSync,
+		phase:     SyncPhasePostSync,
 		targetObj: &unstructured.Unstructured{},
 	},
 }

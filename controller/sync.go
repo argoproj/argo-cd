@@ -13,7 +13,6 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -220,13 +219,14 @@ func (sc *syncContext) sync() {
 
 			// maybe delete the hook
 			if enforceHookDeletePolicy(task.obj(), task.operationState) {
-				err := sc.deleteHook(task.name(), task.namespace(), task.groupVersionKind())
+				err := sc.deleteResource(task)
 				if err != nil {
-					sc.setResourceResult(&task, "", OperationError, fmt.Sprintf("failed to delete hook: %v", err))
+					sc.setResourceResult(&task, "", OperationError, fmt.Sprintf("failed to delete resource: %v", err))
 				}
 			}
 		} else if !task.isPrune() {
 			healthStatus, message := sc.getHealthStatus(task.obj())
+			sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus}).Info("updating health status")
 			switch healthStatus {
 			case HealthStatusHealthy:
 				sc.setResourceResult(&task, task.syncStatus, OperationSucceeded, message)
@@ -243,15 +243,13 @@ func (sc *syncContext) sync() {
 		return task.operationState == ""
 	})
 
-	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks mid-filtering")
-
 	// remove any tasks not in this wave
 	if len(tasks) > 0 {
-		phase := tasks[0].syncPhase
+		phase := tasks[0].phase
 		wave := tasks[0].wave()
 		sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "numTasks": len(tasks)}).Info("filtering tasks in correct phase and wave")
 		tasks = tasks.Filter(func(task syncTask) bool {
-			return task.syncPhase == phase && task.wave() == wave
+			return task.phase == phase && task.wave() == wave
 		})
 		if len(tasks) == 0 {
 			panic("this can never happen")
@@ -302,45 +300,23 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 				obj = resourceState.Live
 			}
 
-			// typically we'll have a single phase, but for some hooks, we may have more than one
+			// typically we'll have a single phase, but for some hooks, we may have more than one,
+			// for skipped resources - none
 			for _, syncPhase := range syncPhases(obj) {
 
-				var targetObj *unstructured.Unstructured
-				if resourceState.Target != nil {
-
-					targetObj = resourceState.Target.DeepCopy()
-
-					if targetObj.GetNamespace() == "" {
-						// If target object's namespace is empty, we set namespace in the object. We do
-						// this even though it might be a cluster-scoped resource. This prevents any
-						// possibility of the resource from unintentionally becoming created in the
-						// namespace during the `kubectl apply`
-						targetObj.SetNamespace(sc.namespace)
-					}
-
-					// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
-					// or formulated at the time of the operation (metadata.generateName). If user specifies
-					// metadata.generateName, then we will generate a formulated metadata.name before submission.
-					if hook.IsHook(targetObj) && targetObj.GetName() == "" {
-						postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], syncPhase, sc.opState.StartedAt.UTC().Unix()))
-						generateName := targetObj.GetGenerateName()
-						targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
-					}
+				task := syncTask{
+					phase:     syncPhase,
+					liveObj:   resourceState.Live,
+					targetObj: sc.targetObject(resourceState, syncPhase),
 				}
 
-				gvk := obj.GroupVersionKind()
-				_, res := sc.syncRes.Resources.Find(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName(), syncPhase)
-
-				var syncStatus ResultCode
-				var operationState OperationPhase
-				var message string
+				ns := task.namespace()
+				_, res := sc.syncRes.Resources.Find(task.group(), task.kind(), ns, task.name(), task.phase)
 				if res != nil {
-					syncStatus = res.SyncStatus
-					operationState = res.OperationState
-					message = res.Message
+					task.syncStatus = res.SyncStatus
+					task.operationState = res.OperationState
+					task.message = res.Message
 				}
-
-				task := newSyncTask(syncPhase, resourceState.Live, targetObj, false, syncStatus, operationState, message)
 
 				// this essentially enforces the old "apply" behaviour
 				if task.isHook() && sc.skipHooks() {
@@ -354,27 +330,26 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 					continue
 				}
 
-				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 
 				if err != nil {
 					// Special case for custom resources: if CRD is not yet known by the K8s API server,
 					// skip verification during `kubectl apply --dry-run` since we expect the CRD
 					// to be created during app synchronization.
-					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, gvk.Group, gvk.Kind) {
-						sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip drip run for CRD")
+					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, task.group(), task.kind()) {
+						sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for custome resource")
 						task.skipDryRun = true
 					} else {
 						sc.setResourceResult(&task, ResultCodeSyncFailed, "", err.Error())
 						successful = false
 					}
 				} else {
-					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
-						sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name))
+					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
+						sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
 						successful = false
 					}
-
-					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: obj.GetNamespace(), Server: sc.server}) {
-						sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", obj.GetNamespace(), sc.proj.Name))
+					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: task.namespace(), Server: sc.server}) {
+						sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
 						successful = false
 					}
 				}
@@ -387,6 +362,31 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	sort.Sort(tasks)
 
 	return tasks, successful
+}
+
+func (sc *syncContext) targetObject(resourceState managedResource, syncPhase SyncPhase) (targetObj *unstructured.Unstructured) {
+	if resourceState.Target != nil {
+
+		targetObj = resourceState.Target.DeepCopy()
+
+		if targetObj.GetNamespace() == "" {
+			// If target object's namespace is empty, we set namespace in the object. We do
+			// this even though it might be a cluster-scoped resource. This prevents any
+			// possibility of the resource from unintentionally becoming created in the
+			// namespace during the `kubectl apply`
+			targetObj.SetNamespace(sc.namespace)
+		}
+
+		// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
+		// or formulated at the time of the operation (metadata.generateName). If user specifies
+		// metadata.generateName, then we will generate a formulated metadata.name before submission.
+		if hook.IsHook(targetObj) && targetObj.GetName() == "" {
+			postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], syncPhase, sc.opState.StartedAt.UTC().Unix()))
+			generateName := targetObj.GetGenerateName()
+			targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
+		}
+	}
+	return targetObj
 }
 
 func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
@@ -456,8 +456,7 @@ func (sc *syncContext) terminate() {
 			continue
 		}
 		if isRunnable(task.groupVersionKind()) {
-			sc.log.WithFields(log.Fields{"task": task.String()}).Info("deleting task")
-			err := sc.deleteHook(task.name(), task.namespace(), task.groupVersionKind())
+			err := sc.deleteResource(task)
 			if err != nil {
 				sc.setResourceResult(&task, "", OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
 				terminateSuccessful = false
@@ -473,15 +472,16 @@ func (sc *syncContext) terminate() {
 	}
 }
 
-func (sc *syncContext) deleteHook(name, namespace string, gvk schema.GroupVersionKind) error {
-	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+func (sc *syncContext) deleteResource(task syncTask) error {
+	sc.log.WithFields(log.Fields{"task": task.String()}).Info("deleting task")
+	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 	if err != nil {
 		return err
 	}
-	resource := kube.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
-	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, namespace)
+	resource := kube.ToGroupVersionResource(task.groupVersionKind().GroupVersion().String(), apiResource)
+	resIf := kube.ToResourceInterface(sc.dynamicIf, apiResource, resource, task.namespace())
 	propagationPolicy := metav1.DeletePropagationForeground
-	return resIf.Delete(name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	return resIf.Delete(task.name(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }
 
 func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) {
@@ -565,7 +565,7 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
-	i, existing := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.syncPhase)
+	i, existing := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
 
 	res := ResourceResult{
 		Group:          task.group(),
@@ -576,22 +576,25 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus ResultCode, 
 		SyncStatus:     task.syncStatus,
 		Message:        task.message,
 		OperationState: task.operationState,
-		SyncPhase:      task.syncPhase,
+		SyncPhase:      task.phase,
 	}
 
-	logCtx := sc.log.WithFields(log.Fields{"namespace": task.namespace(), "kind": task.kind(), "name": task.name()})
+	logCtx := sc.log.WithFields(log.Fields{"namespace": task.namespace(), "kind": task.kind(), "name": task.name(), "phase": task.phase})
 
 	if existing != nil {
 		// update existing value
-		if res.SyncStatus != existing.SyncStatus || res.OperationState != existing.OperationState {
-			logCtx.Infof("updated resource operationPhase: %s -> %s", existing.OperationState, res.OperationState)
+		if res.SyncStatus != existing.SyncStatus {
+			logCtx.Infof("updated resource syncStatus: %s -> %s", existing.SyncStatus, res.SyncStatus)
+		}
+		if res.OperationState != existing.OperationState {
+			logCtx.Infof("updated resource operationState: %s -> %s", existing.OperationState, res.OperationState)
 		}
 		if res.Message != existing.Message {
 			logCtx.Infof("updated resource message: %s -> %s", existing.Message, res.Message)
 		}
 		sc.syncRes.Resources[i] = res
 	} else {
-		logCtx.Infof("added resource resultCode: %s, operationPhase: %s, message: %s", res.SyncStatus, res.OperationState, res.Message)
+		logCtx.Infof("added resource resultCode: %s, operationState: %s, message: %s", res.SyncStatus, res.OperationState, res.Message)
 		sc.syncRes.Resources = append(sc.syncRes.Resources, res)
 	}
 }

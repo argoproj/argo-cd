@@ -15,7 +15,7 @@ import (
 // indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
 // be deployed
 type syncTask struct {
-	syncPhase      SyncPhase
+	phase          SyncPhase
 	liveObj        *unstructured.Unstructured
 	targetObj      *unstructured.Unstructured
 	skipDryRun     bool
@@ -24,15 +24,8 @@ type syncTask struct {
 	message        string
 }
 
-func newSyncTask(phase SyncPhase, liveObj *unstructured.Unstructured, targetObj *unstructured.Unstructured, skipDryRun bool, syncStatus ResultCode, operationState OperationPhase, message string) syncTask {
-	if liveObj == nil && targetObj == nil {
-		panic("either liveObj or targetObj must not be nil")
-	}
-	return syncTask{phase, liveObj, targetObj, skipDryRun, syncStatus, operationState, message}
-}
-
 func (t *syncTask) String() string {
-	return fmt.Sprintf("{syncPhase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s}", t.syncPhase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message)
+	return fmt.Sprintf("{phase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s}", t.phase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message)
 }
 
 func (t *syncTask) isPrune() bool {

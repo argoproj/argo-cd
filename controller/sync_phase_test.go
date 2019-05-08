@@ -15,10 +15,11 @@ func Test_getSyncPhases(t *testing.T) {
 		obj            *unstructured.Unstructured
 		wantSyncPhases []SyncPhase
 	}{
-		{"TestPreSync", example("PreSync"), []SyncPhase{SyncPhasePreSync}},
-		{"TestSync", example("Sync"), []SyncPhase{SyncPhaseSync}},
-		{"TestSkip", example("Skip"), nil},
-		{"TestPostSync", example("PostSync"), []SyncPhase{SyncPhasePostSync}},
+		{"TestDefault", &unstructured.Unstructured{}, []SyncPhase{SyncPhaseSync}},
+		{"TestPreSyncHook", exampleHook("PreSync"), []SyncPhase{SyncPhasePreSync}},
+		{"TestSyncHook", exampleHook("Sync"), []SyncPhase{SyncPhaseSync}},
+		{"TestSkipHook", exampleHook("Skip"), nil},
+		{"TestPostSyncHook", exampleHook("PostSync"), []SyncPhase{SyncPhasePostSync}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -27,7 +28,7 @@ func Test_getSyncPhases(t *testing.T) {
 	}
 }
 
-func example(hookType string) *unstructured.Unstructured {
+func exampleHook(hookType string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"metadata": map[string]interface{}{

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	diff2 "github.com/argoproj/argo-cd/util/diff"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -72,6 +74,8 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 	return &sc
 }
 
+var modified = diff2.DiffResult{Modified: true}
+
 func TestSyncNotPermittedNamespace(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	targetPod := test.NewPod()
@@ -80,9 +84,11 @@ func TestSyncNotPermittedNamespace(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: targetPod,
+			Diff:   modified,
 		}, {
 			Live:   nil,
 			Target: test.NewService(),
+			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -96,12 +102,15 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewPod(),
+			Diff:   modified,
 		}, {
 			Live:   nil,
 			Target: test.NewService(),
+			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
 		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
@@ -112,8 +121,6 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 			t.Error("Resource isn't a pod or a service")
 		}
 	}
-	syncCtx.sync()
-	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
 
 func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
@@ -141,6 +148,7 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 			Target: kube.MustToUnstructured(&rbacv1.ClusterRole{
 				TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "argo-ui-cluster-role"}}),
+			Diff: modified,
 		}},
 	}
 	syncCtx.sync()
@@ -160,6 +168,7 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewDeployment(),
+			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -170,16 +179,21 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
+	pod := test.NewPod()
+	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewService(),
+			Diff:   modified,
 		}, {
-			Live:   test.NewPod(),
+			Live:   pod,
 			Target: nil,
+			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	for i := range syncCtx.syncRes.Resources {
 		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
@@ -190,22 +204,27 @@ func TestSyncSuccessfully(t *testing.T) {
 			t.Error("Resource isn't a pod or a service")
 		}
 	}
-	syncCtx.sync()
-	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
 
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
+	service := test.NewService()
+	service.SetNamespace(test.FakeArgoCDNamespace)
+	pod := test.NewPod()
+	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
-			Live:   test.NewService(),
+			Live:   service,
 			Target: nil,
+			Diff:   modified,
 		}, {
-			Live:   test.NewPod(),
+			Live:   pod,
 			Target: nil,
+			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
+	assert.Equal(t, v1alpha1.OperationRunning, syncCtx.opState.Phase)
 	for i := range syncCtx.syncRes.Resources {
 		if syncCtx.syncRes.Resources[i].Kind == "Pod" {
 			assert.Equal(t, v1alpha1.ResultCodePruned, syncCtx.syncRes.Resources[i].SyncStatus)
@@ -215,8 +234,6 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 			t.Error("Resource isn't a pod or a service")
 		}
 	}
-	syncCtx.sync()
-	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
 }
 
 func TestSyncCreateFailure(t *testing.T) {
@@ -235,6 +252,7 @@ func TestSyncCreateFailure(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: testSvc,
+			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -253,14 +271,17 @@ func TestSyncPruneFailure(t *testing.T) {
 		},
 	}
 	testSvc := test.NewService()
+	testSvc.SetNamespace(test.FakeArgoCDNamespace)
 	testSvc.SetName("test-service")
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   testSvc,
 			Target: nil,
+			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
+	assert.Equal(t, v1alpha1.OperationFailed, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 1)
 	assert.Equal(t, v1alpha1.ResultCodeSyncFailed, syncCtx.syncRes.Resources[0].SyncStatus)
 }
@@ -278,17 +299,20 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: targetPod,
+			Diff:   modified,
 			Hook:   true,
 		}, {
 			Live:   liveSvc,
 			Target: nil,
+			Diff:   modified,
 			Hook:   true,
 		}},
 	}
 	syncCtx.sync()
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 	assert.Len(t, syncCtx.syncRes.Resources, 0)
 	syncCtx.sync()
-	assert.Equal(t, syncCtx.opState.Phase, v1alpha1.OperationSucceeded)
+	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }
 
 func TestPersistRevisionHistory(t *testing.T) {
