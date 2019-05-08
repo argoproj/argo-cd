@@ -1,12 +1,28 @@
 package controller
 
 import (
+	"fmt"
 	"strconv"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/hook"
 )
+
+type result struct {
+	// whether or not the task is synced
+	sync ResultCode
+	// if the task ran correctly (maybe have synced ok)
+	operation OperationPhase
+	message   string
+}
+
+func (r result) running() bool {
+	return r.operation.Running()
+}
 
 // syncTask holds the live and target object. At least one should be non-nil. A targetObj of nil
 // indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
@@ -16,13 +32,18 @@ type syncTask struct {
 	liveObj    *unstructured.Unstructured
 	targetObj  *unstructured.Unstructured
 	skipDryRun bool
+	result     result
 }
 
-func newSyncTask(phase SyncPhase, liveObj *unstructured.Unstructured, targetObj *unstructured.Unstructured, skipDryRun bool) syncTask {
+func newSyncTask(phase SyncPhase, liveObj *unstructured.Unstructured, targetObj *unstructured.Unstructured, skipDryRun bool, result result) syncTask {
 	if liveObj == nil && targetObj == nil {
 		panic("either liveObj or targetObj must not be nil")
 	}
-	return syncTask{phase, liveObj, targetObj, skipDryRun}
+	return syncTask{phase, liveObj, targetObj, skipDryRun, result}
+}
+
+func (t *syncTask) String() string {
+	return fmt.Sprintf("{syncPhase=%s,wave=%d,kind=%s,name=%s,result=%s}", t.syncPhase, t.getWave(), t.getKind(), t.getName(), t.result)
 }
 
 func (t *syncTask) isPrune() bool {
@@ -52,90 +73,29 @@ func (t *syncTask) getWave() int {
 	return val
 }
 
-// kindOrder represents the correct order of Kubernetes resources within a manifest
-var syncPhaseOrder = map[SyncPhase]int{
-	SyncPhasePreSync:  -1,
-	SyncPhaseSync:     0,
-	SyncPhasePostSync: 1,
+func (t *syncTask) isHook() bool {
+	return hook.IsArgoHook(t.getObj())
 }
 
-// kindOrder represents the correct order of Kubernetes resources within a manifest
-var kindOrder = map[string]int{
-	"Namespace":                -26,
-	"ResourceQuota":            -24,
-	"LimitRange":               -24,
-	"PodSecurityPolicy":        -23,
-	"Secret":                   -22,
-	"ConfigMap":                -21,
-	"StorageClass":             -20,
-	"PersistentVolume":         -19,
-	"PersistentVolumeClaim":    -18,
-	"ServiceAccount":           -17,
-	"CustomResourceDefinition": -16,
-	"ClusterRole":              -15,
-	"ClusterRoleBinding":       -14,
-	"Role":                     -13,
-	"RoleBinding":              -12,
-	"Service":                  -11,
-	"DaemonSet":                -10,
-	"Pod":                      -9,
-	"ReplicationController":    -8,
-	"ReplicaSet":               -7,
-	"Deployment":               -6,
-	"StatefulSet":              -5,
-	"Job":                      -4,
-	"CronJob":                  -3,
-	"Ingress":                  -2,
-	"APIService":               -1,
+func (t *syncTask) getGroup() string {
+	return t.groupVersionKind().Group
+}
+func (t *syncTask) getKind() string {
+	return t.groupVersionKind().Kind
 }
 
-type syncTasks []syncTask
-
-func (s syncTasks) Len() int {
-	return len(s)
+func (t *syncTask) getVersion() string {
+	return t.groupVersionKind().Version
 }
 
-func (s syncTasks) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+func (t *syncTask) groupVersionKind() schema.GroupVersionKind {
+	return t.getObj().GroupVersionKind()
 }
 
-// order is
-// 1. syncPhase
-// 2. syncWave
-// 3. prune
-// 4. kind
-// 5. name
-func (s syncTasks) Less(i, j int) bool {
-
-	tA := s[i]
-	tB := s[j]
-
-	d := syncPhaseOrder[tA.syncPhase] - syncPhaseOrder[tB.syncPhase]
-	if d != 0 {
-		return d < 0
-	}
-
-	d = tA.getWave() - tB.getWave()
-	if d != 0 {
-		return d < 0
-	}
-
-	a := tA.getObj()
-	b := tB.getObj()
-
-	d = kindOrder[a.GetKind()] - kindOrder[b.GetKind()]
-	if d != 0 {
-		return d < 0
-	}
-
-	return a.GetName() < b.GetName()
+func (t *syncTask) getName() string {
+	return t.getObj().GetName()
 }
 
-func (s syncTasks) Filter(predicate func(t syncTask) bool) (tasks syncTasks) {
-	for _, task := range s {
-		if predicate(task) {
-			tasks = append(tasks, task)
-		}
-	}
-	return tasks
+func (t *syncTask) getNamespace() string {
+	return t.getObj().GetNamespace()
 }

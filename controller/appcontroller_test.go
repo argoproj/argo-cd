@@ -140,7 +140,7 @@ status:
         revision: HEAD
     phase: Succeeded
     startedAt: 2018-09-21T23:50:25Z
-    syncResult:
+    result:
       resources:
       - kind: RoleBinding
         message: |-

@@ -293,6 +293,10 @@ func (os OperationPhase) Successful() bool {
 	return os == OperationSucceeded
 }
 
+func (os OperationPhase) Running() bool {
+	return os == "" || os == OperationRunning
+}
+
 // OperationState contains information about state of currently performing operation on application.
 type OperationState struct {
 	// Operation is the original requested operation
@@ -397,10 +401,6 @@ const (
 	ResultCodePruneSkipped ResultCode = "PruneSkipped"
 )
 
-func (s ResultCode) Successful() bool {
-	return s != ResultCodeSyncFailed
-}
-
 type SyncPhase = string
 
 const (
@@ -411,26 +411,22 @@ const (
 
 // ResourceResult holds the operation result details of a specific resource
 type ResourceResult struct {
-	Group     string     `json:"group" protobuf:"bytes,1,opt,name=group"`
-	Version   string     `json:"version" protobuf:"bytes,2,opt,name=version"`
-	Kind      string     `json:"kind" protobuf:"bytes,3,opt,name=kind"`
-	Namespace string     `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
-	Name      string     `json:"name" protobuf:"bytes,5,opt,name=name"`
-	Status    ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Message   string     `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
-	// have we started the operation?
+	Group     string `json:"group" protobuf:"bytes,1,opt,name=group"`
+	Version   string `json:"version" protobuf:"bytes,2,opt,name=version"`
+	Kind      string `json:"kind" protobuf:"bytes,3,opt,name=kind"`
+	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	Name      string `json:"name" protobuf:"bytes,5,opt,name=name"`
+	// specifically the result of the sync, this can be empty if the resources has not been applied/pruned
+	// resources typically have ResultCode or OperationPhase, but not both
+	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	// success/failure message for any sync or operation
+	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
+	// the state of operation, this can imply that the resources is synced,
+	// resources typically have ResultCode or OperationPhase, but not both
 	OperationPhase OperationPhase `json:"operationPhase,omitempty" protobuf:"bytes,9,opt,name=operationPhase"`
 	IsHook         bool           `json:"isHook,omitempty" protobuf:"bytes,10,opt,name=isHook"`
 	// SyncPhase indicates the particular stage of the sync that this result is for.
 	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,11,opt,name=syncPhase"`
-}
-
-func (r *ResourceResult) Running() bool {
-	return r.OperationPhase == "" || r.OperationPhase == OperationRunning
-}
-
-func (r *ResourceResult) Completed() bool {
-	return !r.Running()
 }
 
 func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {

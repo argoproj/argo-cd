@@ -16,7 +16,7 @@ import (
 )
 
 // enforceHookDeletePolicy examines the hook deletion policy of a object and deletes it based on the status
-func enforceHookDeletePolicy(hook *unstructured.Unstructured, result ResultCode) bool {
+func enforceHookDeletePolicy(hook *unstructured.Unstructured, operation OperationPhase) bool {
 
 	annotations := hook.GetAnnotations()
 	if annotations == nil {
@@ -25,33 +25,32 @@ func enforceHookDeletePolicy(hook *unstructured.Unstructured, result ResultCode)
 	deletePolicies := strings.Split(annotations[common.AnnotationKeyHookDeletePolicy], ",")
 	for _, dp := range deletePolicies {
 		policy := HookDeletePolicy(strings.TrimSpace(dp))
-		if policy == HookDeletePolicyHookSucceeded && result.Successful() {
+		if policy == HookDeletePolicyHookSucceeded && operation == OperationSucceeded {
 			return true
 		}
-		if policy == HookDeletePolicyHookFailed && result == ResultCodeSyncFailed {
+		if policy == HookDeletePolicyHookFailed && operation == OperationFailed {
 			return true
 		}
 	}
 	return false
 }
 
-// getStatus returns a hook status from an _live_ unstructured object
-func getStatus(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
+// getOperationPhase returns a hook status from an _live_ unstructured object
+func getOperationPhase(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
 	gvk := hook.GroupVersionKind()
 	if isBatchJob(gvk) {
-		return updateStatusFromBatchJob(hook)
+		return getStatusFromBatchJob(hook)
 	} else if isArgoWorkflow(gvk) {
-		return updateStatusFromArgoWorkflow(hook)
+		return getStatusFromArgoWorkflow(hook)
 	} else if isPod(gvk) {
-		return updateStatusFromPod(hook)
+		return getStatusFromPod(hook)
 	} else {
 		return OperationSucceeded, fmt.Sprintf("%s created", hook.GetName())
 	}
 }
 
 // isRunnable returns if the resource object is a runnable type which needs to be terminated
-func isRunnable(res *ResourceResult) bool {
-	gvk := res.GroupVersionKind()
+func isRunnable(gvk schema.GroupVersionKind) bool {
 	return isBatchJob(gvk) || isArgoWorkflow(gvk) || isPod(gvk)
 }
 
@@ -59,7 +58,7 @@ func isBatchJob(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "batch" && gvk.Kind == "Job"
 }
 
-func updateStatusFromBatchJob(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
+func getStatusFromBatchJob(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
 	var job batch.Job
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &job)
 	if err != nil {
@@ -92,7 +91,7 @@ func isArgoWorkflow(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "argoproj.io" && gvk.Kind == "Workflow"
 }
 
-func updateStatusFromArgoWorkflow(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
+func getStatusFromArgoWorkflow(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
 	var wf wfv1.Workflow
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &wf)
 	if err != nil {
@@ -115,7 +114,7 @@ func isPod(gvk schema.GroupVersionKind) bool {
 	return gvk.Group == "" && gvk.Kind == "Pod"
 }
 
-func updateStatusFromPod(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
+func getStatusFromPod(hook *unstructured.Unstructured) (operation OperationPhase, message string) {
 	var pod apiv1.Pod
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(hook.Object, &pod)
 	if err != nil {

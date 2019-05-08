@@ -27,21 +27,21 @@ import (
 )
 
 type syncContext struct {
-	appName       string
-	proj          *AppProject
-	compareResult *comparisonResult
-	config        *rest.Config
-	dynamicIf     dynamic.Interface
-	disco         discovery.DiscoveryInterface
-	kubectl       kube.Kubectl
-	namespace     string
-	server        string
-	syncOp        *SyncOperation
-	syncRes       *SyncOperationResult
-	syncResources []SyncOperationResource
-	opState       *OperationState
-	log           *log.Entry
-	isHealthy     func(obj unstructured.Unstructured) bool
+	resourceOverrides map[string]ResourceOverride
+	appName           string
+	proj              *AppProject
+	compareResult     *comparisonResult
+	config            *rest.Config
+	dynamicIf         dynamic.Interface
+	disco             discovery.DiscoveryInterface
+	kubectl           kube.Kubectl
+	namespace         string
+	server            string
+	syncOp            *SyncOperation
+	syncRes           *SyncOperationResult
+	syncResources     []SyncOperationResource
+	opState           *OperationState
+	log               *log.Entry
 	// lock to protect concurrent updates of the result list
 	lock sync.Mutex
 }
@@ -49,7 +49,7 @@ type syncContext struct {
 func (m *appStateManager) SyncAppState(app *Application, state *OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
-	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
+	// concrete git commit SHA, the SHA is remembered in the status.operationState.result field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
 	var revision string
@@ -77,7 +77,7 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		revision = state.SyncResult.Revision
 	} else {
 		syncRes = &SyncOperationResult{}
-		// status.operationState.syncResult.source. must be set properly since auto-sync relies
+		// status.operationState.result.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
 		syncRes.Source = source
@@ -144,28 +144,21 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 	}
 
 	syncCtx := syncContext{
-		appName:       app.Name,
-		proj:          proj,
-		compareResult: compareResult,
-		config:        restConfig,
-		dynamicIf:     dynamicIf,
-		disco:         disco,
-		kubectl:       m.kubectl,
-		namespace:     app.Spec.Destination.Namespace,
-		server:        app.Spec.Destination.Server,
-		syncOp:        &syncOp,
-		syncRes:       syncRes,
-		syncResources: syncResources,
-		opState:       state,
-		log:           log.WithFields(log.Fields{"application": app.Name}),
-		isHealthy: func(obj unstructured.Unstructured) bool {
-			resourceHealth, err := health.GetResourceHealth(&obj, m.settings.ResourceOverrides)
-			if err != nil {
-				log.WithFields(log.Fields{"err": err}).Warn("error determining health, assuming un-healthy")
-				return false
-			}
-			return resourceHealth != nil && resourceHealth.Status == HealthStatusHealthy
-		},
+		resourceOverrides: m.settings.ResourceOverrides,
+		appName:           app.Name,
+		proj:              proj,
+		compareResult:     compareResult,
+		config:            restConfig,
+		dynamicIf:         dynamicIf,
+		disco:             disco,
+		kubectl:           m.kubectl,
+		namespace:         app.Spec.Destination.Namespace,
+		server:            app.Spec.Destination.Server,
+		syncOp:            &syncOp,
+		syncRes:           syncRes,
+		syncResources:     syncResources,
+		opState:           state,
+		log:               log.WithFields(log.Fields{"application": app.Name}),
 	}
 
 	if state.Phase == OperationTerminating {
@@ -181,9 +174,20 @@ func (m *appStateManager) SyncAppState(app *Application, state *OperationState) 
 		}
 	}
 }
+func (sc *syncContext) getHealthStatus(obj *unstructured.Unstructured) (healthStatus HealthStatusCode, message string) {
+	resourceHealth, err := health.GetResourceHealth(obj, sc.resourceOverrides)
+	if err != nil {
+		return HealthStatusUnknown, err.Error()
+	}
+	if resourceHealth == nil {
+		return HealthStatusMissing, ""
+	}
+	return resourceHealth.Status, resourceHealth.Message
+}
 
 // sync has performs the actual apply or hook based sync
 func (sc *syncContext) sync() {
+	sc.log.Info("syncing")
 	tasks, successful := sc.getSyncTasks()
 	if !successful {
 		sc.setOperationPhase(OperationFailed, "one or more synchronization tasks are not valid")
@@ -195,35 +199,66 @@ func (sc *syncContext) sync() {
 	// will not not detect if they are mutating immutable fields). If anything fails, we will refuse
 	// to perform the sync.
 	if sc.notStarted() {
+		sc.log.Info("dry-run")
 		// Optimization: we only wish to do this once per operation, performing additional dry-runs
 		// is harmless, but redundant. The indicator we use to detect if we have already performed
 		// the dry-run for this operation, is if the resource or hook list is empty.
-		if !sc.executeTasks(tasks, true) {
+		if !sc.runTasks(tasks, true) {
 			sc.setOperationPhase(OperationFailed, "one or more objects failed to apply (dry run)")
 			return
 		}
 	}
 
-	// remove started tasks
+	// update status of any tasks that have already run, then clean-up
+	for _, task := range tasks.Filter(func(t syncTask) bool {
+		return t.result.running()
+	}) {
+		if task.isHook() {
+			// update the hook's result
+			operation, message := getOperationPhase(task.getObj())
+			sc.setResourceResult(&task, result{operation: operation, message: message})
+
+			// maybe delete the hook
+			if enforceHookDeletePolicy(task.getObj(), task.result.operation) {
+				err := sc.deleteHook(task.getName(), task.getNamespace(), task.groupVersionKind())
+				if err != nil {
+					sc.setResourceResult(&task, result{operation: OperationError, message: fmt.Sprintf("failed to delete hook: %v", err)})
+				}
+			}
+		} else if !task.isPrune() {
+			healthStatus, message := sc.getHealthStatus(task.getObj())
+			switch healthStatus {
+			case HealthStatusHealthy:
+				sc.setResourceResult(&task, result{sync: task.result.sync, operation: OperationSucceeded, message: message})
+			case HealthStatusDegraded:
+				sc.setResourceResult(&task, result{sync: task.result.sync, operation: OperationFailed, message: message})
+			}
+		}
+	}
+
+	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks pre-filtering")
+
+	// remove complete operations, note
 	tasks = tasks.Filter(func(task syncTask) bool {
-		obj := task.getObj()
-		gvk := obj.GroupVersionKind()
-		_, result := sc.syncRes.Resources.Find(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName(), task.syncPhase)
-		return result == nil
+		return task.result.operation == ""
 	})
+
+	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks mid-filtering")
 
 	// remove any tasks not in this wave
 	if len(tasks) > 0 {
-		syncPhase := tasks[0].syncPhase
+		phase := tasks[0].syncPhase
 		wave := tasks[0].getWave()
-		sc.log.WithFields(log.Fields{"syncPhase": syncPhase, "wave": wave}).Info("syncing phase/wave")
+		sc.log.WithFields(log.Fields{"phase": phase, "wave": wave, "numTasks": len(tasks)}).Info("filtering tasks in correct phase and wave")
 		tasks = tasks.Filter(func(task syncTask) bool {
-			return task.syncPhase == syncPhase && task.getWave() == wave
+			return task.syncPhase == phase && task.getWave() == wave
 		})
 		if len(tasks) == 0 {
 			panic("this can never happen")
 		}
 	}
+
+	sc.log.WithFields(log.Fields{"numTasks": tasks.Len()}).Info("tasks post-filtering")
 
 	// If no sync tasks were generated (e.g., in case all application manifests have been removed),
 	// set the sync operation as successful.
@@ -232,7 +267,9 @@ func (sc *syncContext) sync() {
 		return
 	}
 
-	if !sc.executeTasks(tasks, false) {
+	sc.log.WithFields(log.Fields{"numTasks": len(tasks)}).Info("wet run")
+
+	if !sc.runTasks(tasks, false) {
 		sc.setOperationPhase(OperationFailed, "one or more objects failed to apply")
 	} else {
 		sc.setOperationPhase(OperationRunning, "running")
@@ -256,7 +293,7 @@ func (sc *syncContext) isSelectiveSyncResourceOrAll(resourceState managedResourc
 }
 
 // generateSyncTasks() generates the list of sync tasks we will be performing during this sync.
-func (sc *syncContext) getSyncTasks() (syncTasks syncTasks, successful bool) {
+func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	successful = true
 	for _, resourceState := range sc.compareResult.managedResources {
 		if sc.isSelectiveSyncResourceOrAll(resourceState) {
@@ -265,16 +302,10 @@ func (sc *syncContext) getSyncTasks() (syncTasks syncTasks, successful bool) {
 				obj = resourceState.Live
 			}
 
-			// this essentially enforces the old "apply" behaviour
-			if hook.IsArgoHook(obj) && sc.skipHooks() {
-				continue
-			}
-
 			// typically we'll have a single phase, but for some hooks, we may have more than one
 			for _, syncPhase := range getSyncPhases(obj) {
 
 				var targetObj *unstructured.Unstructured
-				skipDryRun := false
 				if resourceState.Target != nil {
 
 					targetObj = resourceState.Target.DeepCopy()
@@ -295,41 +326,66 @@ func (sc *syncContext) getSyncTasks() (syncTasks syncTasks, successful bool) {
 						generateName := targetObj.GetGenerateName()
 						targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 					}
+				}
 
-					gvk := targetObj.GroupVersionKind()
-					serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+				gvk := obj.GroupVersionKind()
+				_, res := sc.syncRes.Resources.Find(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName(), syncPhase)
 
-					if err != nil {
-						// Special case for custom resources: if CRD is not yet known by the K8s API server,
-						// skip verification during `kubectl apply --dry-run` since we expect the CRD
-						// to be created during app synchronization.
-						if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, gvk.Group, gvk.Kind) {
-							skipDryRun = true
-						} else {
-							sc.setResourceResultByObj(targetObj, syncPhase, ResultCodeSyncFailed, err.Error())
-							successful = false
-						}
+				r := result{}
+
+				if res != nil {
+					r.sync = res.Status
+					r.operation = res.OperationPhase
+					r.message = res.Message
+				}
+
+				task := newSyncTask(syncPhase, resourceState.Live, targetObj, false, r)
+
+				// this essentially enforces the old "apply" behaviour
+				if task.isHook() && sc.skipHooks() {
+					sc.log.WithFields(log.Fields{"task": task.String()}).Info("skipping hook")
+					continue
+				}
+
+				// skip in-sync tasks
+				if !task.isHook() && !resourceState.Diff.Modified {
+					sc.log.WithFields(log.Fields{"task": task.String()}).Info("skipping in-sync resource")
+					continue
+				}
+
+				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, gvk)
+
+				if err != nil {
+					// Special case for custom resources: if CRD is not yet known by the K8s API server,
+					// skip verification during `kubectl apply --dry-run` since we expect the CRD
+					// to be created during app synchronization.
+					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, gvk.Group, gvk.Kind) {
+						sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip drip run for CRD")
+						task.skipDryRun = true
 					} else {
-						if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
-							sc.setResourceResultByObj(targetObj, syncPhase, ResultCodeSyncFailed, fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name))
-							successful = false
-						}
+						sc.setResourceResult(&task, result{sync: ResultCodeSyncFailed, message: err.Error()})
+						successful = false
+					}
+				} else {
+					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, serverRes.Namespaced) {
+						sc.setResourceResult(&task, result{sync: ResultCodeSyncFailed, message: fmt.Sprintf("Resource %s:%s is not permitted in project %s.", gvk.Group, gvk.Kind, sc.proj.Name)})
+						successful = false
+					}
 
-						if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: targetObj.GetNamespace(), Server: sc.server}) {
-							sc.setResourceResultByObj(targetObj, syncPhase, ResultCodeSyncFailed, fmt.Sprintf("namespace %v is not permitted in project '%s'", targetObj.GetNamespace(), sc.proj.Name))
-							successful = false
-						}
+					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: obj.GetNamespace(), Server: sc.server}) {
+						sc.setResourceResult(&task, result{sync: ResultCodeSyncFailed, message: fmt.Sprintf("namespace %v is not permitted in project '%s'", targetObj.GetNamespace(), sc.proj.Name)})
+						successful = false
 					}
 				}
 
-				syncTasks = append(syncTasks, newSyncTask(syncPhase, resourceState.Live, targetObj, skipDryRun))
+				tasks = append(tasks, task)
 			}
 		}
 	}
 
-	sort.Sort(syncTasks)
+	sort.Sort(tasks)
 
-	return syncTasks, successful
+	return tasks, successful
 }
 
 // applyObject performs a `kubectl apply` of a single resource
@@ -365,18 +421,20 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 // terminate looks for any running jobs/workflow hooks and deletes the resource
 func (sc *syncContext) terminate() {
 	terminateSuccessful := true
-
-	for _, res := range sc.syncRes.Resources {
-		if !res.IsHook || res.Completed() {
+	sc.log.Info("terminating")
+	tasks, _ := sc.getSyncTasks()
+	for _, task := range tasks {
+		if !task.isHook() || !task.result.operation.Completed() {
 			continue
 		}
-		if isRunnable(&res) {
-			err := sc.deleteHook(res.Name, res.Namespace, res.GroupVersionKind())
+		if isRunnable(task.groupVersionKind()) {
+			sc.log.WithFields(log.Fields{"task": task.String()}).Info("deleting task")
+			err := sc.deleteHook(task.getName(), task.getNamespace(), task.groupVersionKind())
 			if err != nil {
-				sc.setResourceResult(res.GroupVersionKind(), res.Namespace, res.Name, res.SyncPhase, ResultCodeSyncFailed, fmt.Sprintf("Failed to delete %s hook %s/%s: %v", res.SyncPhase, res.Kind, res.Name, err))
+				sc.setResourceResult(&task, result{operation: OperationFailed, message: fmt.Sprintf("Failed to delete: %v", err)})
 				terminateSuccessful = false
 			} else {
-				sc.setResourceResult(res.GroupVersionKind(), res.Namespace, res.Name, res.SyncPhase, ResultCodeSyncFailed, fmt.Sprintf("Deleted %s hook %s/%s", res.SyncPhase, res.Kind, res.Name))
+				sc.setResourceResult(&task, result{operation: OperationSucceeded, message: fmt.Sprintf("Deleted")})
 			}
 		}
 	}
@@ -398,29 +456,31 @@ func (sc *syncContext) deleteHook(name, namespace string, gvk schema.GroupVersio
 	return resIf.Delete(name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 }
 
-func (sc *syncContext) executeTasks(tasks syncTasks, dryRun bool) (successful bool) {
+func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) (successful bool) {
 
-	successful = true
 	dryRun = dryRun || sc.syncOp.DryRun
 
+	sc.log.WithFields(log.Fields{"numTasks": len(tasks), "dryRun": dryRun}).Info("running tasks")
+
+	successful = true
+	var skipTasks syncTasks
 	var createTasks syncTasks
 	var pruneTasks syncTasks
 
 	for _, task := range tasks {
-
-		sc.log.WithFields(log.Fields{"resource": task.getObj().GetName(), "syncPhase": task.syncPhase}).Info("task will be run shortly")
-
 		if hook.HasHook(task.getObj(), HookTypeSkip) {
-			if !dryRun {
-				sc.setResourceResultByObj(task.liveObj, task.syncPhase, ResultCodeSynced, "Skipped")
-			}
-			continue
-		}
-
-		if task.isPrune() {
+			skipTasks = append(skipTasks, task)
+		} else if task.isPrune() {
 			pruneTasks = append(pruneTasks, task)
 		} else {
 			createTasks = append(createTasks, task)
+		}
+	}
+
+	for _, task := range skipTasks {
+		sc.log.WithFields(log.Fields{"task": task.String()}).Info("skipping")
+		if !dryRun {
+			sc.setResourceResult(&task, result{sync: ResultCodeSynced, message: "Skipped"})
 		}
 	}
 
@@ -429,12 +489,13 @@ func (sc *syncContext) executeTasks(tasks syncTasks, dryRun bool) (successful bo
 		wg.Add(1)
 		go func(t syncTask) {
 			defer wg.Done()
-			resultCode, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
-			if resultCode == ResultCodeSyncFailed {
+			sc.log.WithFields(log.Fields{"task": t.String()}).Info("pruning")
+			status, message := sc.pruneObject(t.liveObj, sc.syncOp.Prune, dryRun)
+			if status == ResultCodeSyncFailed {
 				successful = false
 			}
-			if !dryRun || resultCode == ResultCodeSyncFailed {
-				sc.setResourceResultByObj(t.liveObj, t.syncPhase, resultCode, message)
+			if !dryRun || status == ResultCodeSyncFailed {
+				sc.setResourceResult(&t, result{sync: status, message: message})
 			}
 		}(task)
 	}
@@ -449,12 +510,13 @@ func (sc *syncContext) executeTasks(tasks syncTasks, dryRun bool) (successful bo
 			createWg.Add(1)
 			go func(t syncTask) {
 				defer createWg.Done()
-				resultCode, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
-				if resultCode == ResultCodeSyncFailed {
+				sc.log.WithFields(log.Fields{"task": t.String()}).Info("applying")
+				status, message := sc.applyObject(t.targetObj, dryRun, sc.syncOp.SyncStrategy.Force())
+				if status == ResultCodeSyncFailed {
 					successful = false
 				}
-				if !dryRun || resultCode == ResultCodeSyncFailed {
-					sc.setResourceResultByObj(t.targetObj, t.syncPhase, resultCode, message)
+				if !dryRun || status == ResultCodeSyncFailed {
+					sc.setResourceResult(&t, result{sync: status, message: message})
 				}
 			}(task)
 		}
@@ -478,40 +540,41 @@ func (sc *syncContext) executeTasks(tasks syncTasks, dryRun bool) (successful bo
 }
 
 // setResourceResult sets a resource details in the SyncResult.Resources list
-func (sc *syncContext) setResourceResult(gvk schema.GroupVersionKind, namespace, name string, syncPhase SyncPhase, result ResultCode, message string) {
+func (sc *syncContext) setResourceResult(task *syncTask, result result) {
 
-	res := ResourceResult{
-		Group:     gvk.Group,
-		Version:   gvk.Version,
-		Kind:      gvk.Kind,
-		Namespace: namespace,
-		Name:      name,
-		Status:    result,
-		Message:   message,
-		SyncPhase: syncPhase,
-	}
+	task.result = result
 
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
-	i, existing := sc.syncRes.Resources.Find(gvk.Group, gvk.Kind, namespace, name, syncPhase)
+	i, existing := sc.syncRes.Resources.Find(task.getGroup(), task.getKind(), task.getNamespace(), task.getName(), task.syncPhase)
+
+	res := ResourceResult{
+		Group:          task.getGroup(),
+		Version:        task.getVersion(),
+		Kind:           task.getKind(),
+		Namespace:      task.getNamespace(),
+		Name:           task.getName(),
+		Status:         task.result.sync,
+		Message:        task.result.message,
+		OperationPhase: task.result.operation,
+		SyncPhase:      task.syncPhase,
+	}
+
+	logCtx := sc.log.WithFields(log.Fields{"namespace": task.getNamespace(), "kind": task.getKind(), "name": task.getName()})
 
 	if existing != nil {
 		// update existing value
-		if res.Status != result {
-			sc.log.Infof("updated resource %s/%s/%s result: %s -> %s", gvk.Kind, namespace, name, res.Status, result)
+		if res.Status != existing.Status || res.OperationPhase != existing.OperationPhase {
+			logCtx.Infof("updated resource operationPhase: %s -> %s", existing.OperationPhase, res.OperationPhase)
 		}
-		if res.Message != message {
-			sc.log.Infof("updated resource %s/%s/%s message: %s -> %s", gvk.Kind, namespace, name, res.Message, message)
+		if res.Message != existing.Message {
+			logCtx.Infof("updated resource message: %s -> %s", existing.Message, res.Message)
 		}
 		sc.syncRes.Resources[i] = res
 	} else {
-		sc.log.Infof("added resource %s/%s result: %s, message: %s", gvk.Kind, name, res.Status, res.Message)
+		logCtx.Infof("added resource resultCode: %s, operationPhase: %s, message: %s", res.Status, res.OperationPhase, res.Message)
 		sc.syncRes.Resources = append(sc.syncRes.Resources, res)
 	}
-}
-
-func (sc *syncContext) setResourceResultByObj(obj *unstructured.Unstructured, syncPhase SyncPhase, result ResultCode, message string) {
-	sc.setResourceResult(obj.GroupVersionKind(), obj.GetNamespace(), obj.GetName(), syncPhase, result, message)
 }
 
 func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
