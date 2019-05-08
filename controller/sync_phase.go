@@ -8,18 +8,11 @@ import (
 )
 
 func syncPhases(obj *unstructured.Unstructured) (phases []SyncPhase) {
-	hookTypes := hook.Hooks(obj)
-	if len(hookTypes) > 0 {
-		for _, hookType := range hookTypes {
-			switch hookType {
-			case HookTypePreSync, HookTypePostSync:
-				phases = append(phases, SyncPhase(hookType))
-			default:
-				phases = append(phases, SyncPhaseSync)
-			}
+	for _, hookType := range hook.Hooks(obj) {
+		switch hookType {
+		case HookTypePreSync, HookTypeSync, HookTypePostSync:
+			phases = append(phases, SyncPhase(hookType))
 		}
-	} else {
-		phases = []SyncPhase{SyncPhaseSync}
 	}
 	return phases
 }

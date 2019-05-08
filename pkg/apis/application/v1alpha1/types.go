@@ -446,6 +446,15 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 	return 0, nil
 }
 
+func (r ResourceResults) PruningRequired() (num int) {
+	for _, res := range r {
+		if res.SyncStatus == ResultCodePruneSkipped {
+			num++
+		}
+	}
+	return num
+}
+
 // RevisionHistory contains information relevant to an application deployment
 type RevisionHistory struct {
 	Revision   string            `json:"revision" protobuf:"bytes,2,opt,name=revision"`

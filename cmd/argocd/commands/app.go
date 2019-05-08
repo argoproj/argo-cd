@@ -1150,12 +1150,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			// Only get resources to be pruned if sync was application-wide
 			if len(selectedResources) == 0 {
-				pruningRequired := 0
-				for _, resDetails := range app.Status.OperationState.SyncResult.Resources {
-					if resDetails.SyncStatus == argoappv1.ResultCodePruneSkipped {
-						pruningRequired++
-					}
-				}
+				pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
 				if pruningRequired > 0 {
 					log.Fatalf("%d resources require pruning", pruningRequired)
 				}

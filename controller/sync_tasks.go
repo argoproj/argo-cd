@@ -74,8 +74,8 @@ func (s syncTasks) Less(i, j int) bool {
 		return d < 0
 	}
 
-	a := tA.getObj()
-	b := tB.getObj()
+	a := tA.obj()
+	b := tB.obj()
 
 	// we take advantage of the fact that if the kind is not in the kindOrder map,
 	// then it will return the default int value of zero, which is the highest value

@@ -262,7 +262,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go ctrl.watchSettings(ctx)
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {
-		log.Error("Timed out waiting for caches to sync")
+		log.Error("Timed out waiting for caches to syncStatus")
 		return
 	}
 
@@ -468,9 +468,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}()
 	if isOperationInProgress(app) {
-		// If we get here, we are about process an operation but we notice it is already in progress.
+		// If we get here, we are about process an operationState but we notice it is already in progress.
 		// We need to detect if the app object we pulled off the informer is stale and doesn't
-		// reflect the fact that the operation is completed. We don't want to perform the operation
+		// reflect the fact that the operationState is completed. We don't want to perform the operationState
 		// again. To detect this, always retrieve the latest version to ensure it is not stale.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
@@ -478,16 +478,16 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			return
 		}
 		if !isOperationInProgress(freshApp) {
-			logCtx.Infof("Skipping operation on stale application state")
+			logCtx.Infof("Skipping operationState on stale application state")
 			return
 		}
 		app = freshApp
 		state = app.Status.OperationState.DeepCopy()
-		logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+		logCtx.Infof("Resuming in-progress operationState. phase: %s, message: %s", state.Phase, state.Message)
 	} else {
 		state = &appv1.OperationState{Phase: appv1.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 		ctrl.setOperationState(app, state)
-		logCtx.Infof("Initialized new operation: %v", *app.Operation)
+		logCtx.Infof("Initialized new operationState: %v", *app.Operation)
 	}
 	ctrl.appStateManager.SyncAppState(app, state)
 
@@ -498,7 +498,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		if err == nil {
 			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == appv1.OperationTerminating {
 				state.Phase = appv1.OperationTerminating
-				state.Message = "operation is terminating"
+				state.Message = "operationState is terminating"
 				// after this, we will get requeued to the workqueue, but next time the
 				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
 				// cleanup (e.g. delete jobs, workflows, etc...)
@@ -508,8 +508,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 	ctrl.setOperationState(app, state)
 	if state.Phase.Completed() {
-		// if we just completed an operation, force a refresh so that UI will report up-to-date
-		// sync/health information
+		// if we just completed an operationState, force a refresh so that UI will report up-to-date
+		// syncStatus/health information
 		ctrl.requestAppRefresh(app.ObjectMeta.Name, true)
 	}
 }
@@ -530,12 +530,12 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			},
 		}
 		if state.Phase.Completed() {
-			// If operation is completed, clear the operation field to indicate no operation is
+			// If operationState is completed, clear the operationState field to indicate no operationState is
 			// in progress.
-			patch["operation"] = nil
+			patch["operationState"] = nil
 		}
 		if reflect.DeepEqual(app.Status.OperationState, state) {
-			log.Infof("No operation updates necessary to '%s'. Skipping patch", app.Name)
+			log.Infof("No operationState updates necessary to '%s'. Skipping patch", app.Name)
 			return nil
 		}
 		patchJSON, err := json.Marshal(patch)
@@ -547,14 +547,14 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		if err != nil {
 			return err
 		}
-		log.Infof("updated '%s' operation (phase: %s)", app.Name, state.Phase)
+		log.Infof("updated '%s' operationState (phase: %s)", app.Name, state.Phase)
 		if state.Phase.Completed() {
 			eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
 			var messages []string
 			if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
-				messages = []string{"Partial sync operation"}
+				messages = []string{"Partial syncStatus operationState"}
 			} else {
-				messages = []string{"Sync operation"}
+				messages = []string{"Sync operationState"}
 			}
 			if state.SyncResult != nil {
 				messages = append(messages, "to", state.SyncResult.Revision)
@@ -570,7 +570,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			ctrl.metricsServer.IncSync(app, state)
 		}
 		return nil
-	}, "Update application operation state", context.Background(), updateOperationStateTimeout)
+	}, "Update application operationState state", context.Background(), updateOperationStateTimeout)
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -784,7 +784,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
 	logCtx := log.WithFields(log.Fields{"application": orig.Name})
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
-		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
+		message := fmt.Sprintf("Updated syncStatus status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
 		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message)
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
@@ -820,39 +820,39 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	}
 }
 
-// autoSync will initiate a sync operation for an application configured with automated sync
+// autoSync will initiate a syncStatus operationState for an application configured with automated syncStatus
 func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus) *appv1.ApplicationCondition {
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 		return nil
 	}
 	logCtx := log.WithFields(log.Fields{"application": app.Name})
 	if app.Operation != nil {
-		logCtx.Infof("Skipping auto-sync: another operation is in progress")
+		logCtx.Infof("Skipping auto-syncStatus: another operationState is in progress")
 		return nil
 	}
 	if app.DeletionTimestamp != nil && !app.DeletionTimestamp.IsZero() {
-		logCtx.Infof("Skipping auto-sync: deletion in progress")
+		logCtx.Infof("Skipping auto-syncStatus: deletion in progress")
 		return nil
 	}
-	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
-	// a sync when application is already in a Synced or Unknown state
+	// Only perform auto-syncStatus if we detect OutOfSync status. This is to prevent us from attempting
+	// a syncStatus when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
-		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
+		logCtx.Infof("Skipping auto-syncStatus: application status is %s", syncStatus.Status)
 		return nil
 	}
 	desiredCommitSHA := syncStatus.Revision
 
-	// It is possible for manifests to remain OutOfSync even after a sync/kubectl apply (e.g.
-	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
+	// It is possible for manifests to remain OutOfSync even after a syncStatus/kubectl apply (e.g.
+	// auto-syncStatus with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
-	// and parameter overrides are different from our most recent sync operation.
+	// and parameter overrides are different from our most recent syncStatus operationState.
 	if alreadyAttemptedSync(app, desiredCommitSHA) {
 		if app.Status.OperationState.Phase != appv1.OperationSucceeded {
-			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
-			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
+			logCtx.Warnf("Skipping auto-syncStatus: failed previous syncStatus attempt to %s", desiredCommitSHA)
+			message := fmt.Sprintf("Failed syncStatus attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
 		}
-		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
+		logCtx.Infof("Skipping auto-syncStatus: most recent syncStatus already to %s", desiredCommitSHA)
 		return nil
 	}
 
@@ -865,16 +865,16 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
-		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
+		logCtx.Errorf("Failed to initiate auto-syncStatus to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}
 	}
-	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
+	message := fmt.Sprintf("Initiated automated syncStatus to '%s'", desiredCommitSHA)
 	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil
 }
 
-// alreadyAttemptedSync returns whether or not the most recent sync was performed against the
+// alreadyAttemptedSync returns whether or not the most recent syncStatus was performed against the
 // commitSHA and with the same app source config which are currently set in the app
 func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
@@ -884,7 +884,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) bool {
 		return false
 	}
 	// Ignore differences in target revision, since we already just verified commitSHAs are equal,
-	// and we do not want to trigger auto-sync due to things like HEAD != master
+	// and we do not want to trigger auto-syncStatus due to things like HEAD != master
 	specSource := app.Spec.Source.DeepCopy()
 	specSource.TargetRevision = ""
 	syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
@@ -919,7 +919,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				newApp, newOK := new.(*appv1.Application)
 				if oldOK && newOK {
 					if toggledAutomatedSync(oldApp, newApp) {
-						log.WithField("application", newApp.Name).Info("Enabled automated sync")
+						log.WithField("application", newApp.Name).Info("Enabled automated syncStatus")
 						ctrl.requestAppRefresh(newApp.Name, true)
 					}
 				}
@@ -943,13 +943,13 @@ func isOperationInProgress(app *appv1.Application) bool {
 	return app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed()
 }
 
-// toggledAutomatedSync tests if an app went from auto-sync disabled to enabled.
+// toggledAutomatedSync tests if an app went from auto-syncStatus disabled to enabled.
 // if it was toggled to be enabled, the informer handler will force a refresh
 func toggledAutomatedSync(old *appv1.Application, new *appv1.Application) bool {
 	if new.Spec.SyncPolicy == nil || new.Spec.SyncPolicy.Automated == nil {
 		return false
 	}
-	// auto-sync is enabled. check if it was previously disabled
+	// auto-syncStatus is enabled. check if it was previously disabled
 	if old.Spec.SyncPolicy == nil || old.Spec.SyncPolicy.Automated == nil {
 		return true
 	}

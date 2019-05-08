@@ -11,45 +11,35 @@ import (
 	"github.com/argoproj/argo-cd/util/hook"
 )
 
-type result struct {
-	// whether or not the task is synced
-	sync ResultCode
-	// if the task ran correctly (maybe have synced ok)
-	operation OperationPhase
-	message   string
-}
-
-func (r result) running() bool {
-	return r.operation.Running()
-}
-
 // syncTask holds the live and target object. At least one should be non-nil. A targetObj of nil
 // indicates the live object needs to be pruned. A liveObj of nil indicates the object has yet to
 // be deployed
 type syncTask struct {
-	syncPhase  SyncPhase
-	liveObj    *unstructured.Unstructured
-	targetObj  *unstructured.Unstructured
-	skipDryRun bool
-	result     result
+	syncPhase      SyncPhase
+	liveObj        *unstructured.Unstructured
+	targetObj      *unstructured.Unstructured
+	skipDryRun     bool
+	syncStatus     ResultCode
+	operationState OperationPhase
+	message        string
 }
 
-func newSyncTask(phase SyncPhase, liveObj *unstructured.Unstructured, targetObj *unstructured.Unstructured, skipDryRun bool, result result) syncTask {
+func newSyncTask(phase SyncPhase, liveObj *unstructured.Unstructured, targetObj *unstructured.Unstructured, skipDryRun bool, syncStatus ResultCode, operationState OperationPhase, message string) syncTask {
 	if liveObj == nil && targetObj == nil {
 		panic("either liveObj or targetObj must not be nil")
 	}
-	return syncTask{phase, liveObj, targetObj, skipDryRun, result}
+	return syncTask{phase, liveObj, targetObj, skipDryRun, syncStatus, operationState, message}
 }
 
 func (t *syncTask) String() string {
-	return fmt.Sprintf("{syncPhase=%s,wave=%d,kind=%s,name=%s,result=%s}", t.syncPhase, t.wave(), t.kind(), t.name(), t.result)
+	return fmt.Sprintf("{syncPhase=%s,wave=%d,kind=%s,name=%s,syncState=%s,operationState=%s,message=%s}", t.syncPhase, t.wave(), t.kind(), t.name(), t.syncStatus, t.operationState, t.message)
 }
 
 func (t *syncTask) isPrune() bool {
 	return t.targetObj == nil
 }
 
-func (t *syncTask) getObj() *unstructured.Unstructured {
+func (t *syncTask) obj() *unstructured.Unstructured {
 	if t.targetObj != nil {
 		return t.targetObj
 	} else {
@@ -59,7 +49,7 @@ func (t *syncTask) getObj() *unstructured.Unstructured {
 
 func (t *syncTask) wave() int {
 
-	text := t.getObj().GetAnnotations()["argocd.argoproj.io/sync-wave"]
+	text := t.obj().GetAnnotations()["argocd.argoproj.io/syncStatus-wave"]
 	if text == "" {
 		return 0
 	}
@@ -73,7 +63,7 @@ func (t *syncTask) wave() int {
 }
 
 func (t *syncTask) isHook() bool {
-	return hook.IsArgoHook(t.getObj())
+	return hook.IsArgoHook(t.obj())
 }
 
 func (t *syncTask) group() string {
@@ -88,13 +78,17 @@ func (t *syncTask) version() string {
 }
 
 func (t *syncTask) groupVersionKind() schema.GroupVersionKind {
-	return t.getObj().GroupVersionKind()
+	return t.obj().GroupVersionKind()
 }
 
 func (t *syncTask) name() string {
-	return t.getObj().GetName()
+	return t.obj().GetName()
 }
 
 func (t *syncTask) namespace() string {
-	return t.getObj().GetNamespace()
+	return t.obj().GetNamespace()
+}
+
+func (t *syncTask) running() bool {
+	return t.operationState == "" || t.operationState == OperationRunning
 }

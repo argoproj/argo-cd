@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -18,7 +17,7 @@ func Test_getSyncPhases(t *testing.T) {
 	}{
 		{"TestPreSync", example("PreSync"), []SyncPhase{SyncPhasePreSync}},
 		{"TestSync", example("Sync"), []SyncPhase{SyncPhaseSync}},
-		{"TestSkip", example("Skip"), []SyncPhase{SyncPhaseSync}},
+		{"TestSkip", example("Skip"), nil},
 		{"TestPostSync", example("PostSync"), []SyncPhase{SyncPhasePostSync}},
 	}
 	for _, tt := range tests {
