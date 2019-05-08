@@ -29,7 +29,7 @@ export const ApplicationsTable = (props: {
             }>
                 <div className='row applications-list__table-row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
                     <div className='columns large-2 small-6'>
-                        <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name} <ApplicationURLs urls={app.status.externalURLs}/>
+                        <i className='icon argo-icon-application'/> {app.spec.project}/{app.metadata.name} <ApplicationURLs urls={app.status.summary.externalURLs}/>
                     </div>
                     <div className='columns large-4 show-for-large'>
                         {app.spec.source.repoURL}/{app.spec.source.path}

@@ -26,7 +26,7 @@ export const ApplicationTiles = ({applications, syncApplication, deleteApplicati
                     <div className='row' onClick={(e) => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, { event: e })}>
                         <div className='columns small-12 applications-list__info'>
                             <div className='applications-list__external-link'>
-                                <ApplicationURLs urls={app.status.externalURLs}/>
+                                <ApplicationURLs urls={app.status.summary.externalURLs}/>
                             </div>
                             <div className='row'>
                                 <div className='columns applications-list__title'>{app.metadata.name}</div>

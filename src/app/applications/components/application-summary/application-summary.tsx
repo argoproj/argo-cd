@@ -2,6 +2,8 @@ import { FormField, FormSelect, PopupApi } from 'argo-ui';
 import * as React from 'react';
 import { FormApi, Text } from 'react-form';
 
+require('./application-summary.scss');
+
 import { DataLoader, EditablePanel } from '../../../shared/components';
 import { Consumer } from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -70,13 +72,21 @@ export const ApplicationSummary = (props: {
             <span><HealthStatusIcon state={app.status.health}/> {app.status.health.status}</span>
         )},
     ];
-    const urls = app.status.externalURLs || [];
+    const urls = app.status.summary.externalURLs || [];
     if (urls.length > 0) {
         attributes.push({title: 'URLs', view: (
             <React.Fragment>
                 {urls.map((item) => <a key={item} href={item} target='__blank'>{item} &nbsp;</a>)}
             </React.Fragment>
         )});
+    }
+
+    if ((app.status.summary.images || []).length) {
+        attributes.push({title: 'IMAGES', view: (
+            <div className='application-summary__labels'>
+                {(app.status.summary.images || []).sort().map((image) => (<span className='application-summary__label' key={image}>{image}</span>))}
+            </div>
+        ) });
     }
 
     async function setAutoSync(ctx: { popup: PopupApi }, confirmationTitle: string, confirmationText: string, prune: boolean) {

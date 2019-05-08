@@ -1,4 +1,4 @@
-import { DropDown, Tooltip } from 'argo-ui';
+import { DropDown } from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -156,7 +156,6 @@ function renderResourceNode(props: ApplicationResourceTreeProps, fullName: strin
         healthState = node.health;
     }
     const kindIcon = ICON_CLASS_BY_KIND[node.kind.toLocaleLowerCase()] || 'fa fa-cogs';
-    const tooltip = node.images && node.images.join(', ') || '';
     return (
         <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={classNames('application-resource-tree__node', {
             active: fullName === props.selectedNodeFullName,
@@ -168,16 +167,14 @@ function renderResourceNode(props: ApplicationResourceTreeProps, fullName: strin
                 <i title={node.kind} className={`icon ${kindIcon}`} />
             </div>
             <div className='application-resource-tree__node-content'>
-                <Tooltip content={tooltip} key={fullName} isEnabled={tooltip !== ''}>
-                    <span className='application-resource-tree__node-title'>{node.name}</span>
-                </Tooltip>
+                <span className='application-resource-tree__node-title'>{node.name}</span>
                 <div className={classNames('application-resource-tree__node-status-icon', {
                     'application-resource-tree__node-status-icon--offset': isAppNode(node),
                 })}>
                     {node.hook && (<i title='Resource lifecycle hook' className='fa fa-anchor' />)}
                     {healthState != null && <HealthStatusIcon state={healthState}/>}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus}/>}
-                    <ApplicationURLs urls={isAppNode(node) ? props.app.status.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs}/>
+                    <ApplicationURLs urls={isAppNode(node) ? props.app.status.summary.externalURLs : node.networkingInfo && node.networkingInfo.externalURLs}/>
                 </div>
             </div>
             <div className='application-resource-tree__node-labels'>

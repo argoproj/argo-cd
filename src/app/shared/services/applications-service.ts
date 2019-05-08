@@ -172,6 +172,7 @@ export class ApplicationsService {
         delete app.spec.source.componentParameterOverrides;
         app.kind = app.kind || 'Application';
         app.status.resources = app.status.resources || [];
+        app.status.summary = app.status.summary || {};
         return app;
     }
 }

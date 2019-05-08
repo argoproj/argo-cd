@@ -280,6 +280,11 @@ export interface ApplicationCondition {
     message: string;
 }
 
+export interface ApplicationSummary {
+    externalURLs?: string[];
+    images?: string[];
+}
+
 export interface ApplicationStatus {
     observedAt: models.Time;
     resources: ResourceStatus[];
@@ -288,7 +293,7 @@ export interface ApplicationStatus {
     history: RevisionHistory[];
     health: HealthStatus;
     operationState?: OperationState;
-    externalURLs: string[];
+    summary?: ApplicationSummary;
 }
 
 export interface LogEntry {

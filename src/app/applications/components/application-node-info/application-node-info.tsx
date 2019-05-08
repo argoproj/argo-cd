@@ -15,11 +15,18 @@ export const ApplicationNodeInfo = (props: {
     live: models.State,
     controlled: { summary: models.ResourceStatus, state: models.ResourceDiff },
 }) => {
-    const attributes = [
+    const attributes: {title: string, value: any}[] = [
         {title: 'KIND', value: props.node.kind},
         {title: 'NAME', value: props.node.name},
         {title: 'NAMESPACE', value: props.node.namespace},
     ];
+    if ((props.node.images || []).length) {
+        attributes.push({title: 'IMAGES', value: (
+            <div className='application-node-info__labels'>
+                {(props.node.images || []).sort().map((image) => (<span className='application-node-info__label' key={image}>{image}</span>))}
+            </div>
+        ) });
+    }
     if (props.live) {
         if (props.node.kind === 'Pod') {
             const {reason, message} = getPodStateReason(props.live);
@@ -32,7 +39,7 @@ export const ApplicationNodeInfo = (props: {
             let hostNames = '';
             const status = props.live.status;
             if (status && status.loadBalancer && status.loadBalancer.ingress) {
-                hostNames = (status.loadBalancer.ingress || []).map((item: any) => item.hostname).join(', ');
+                hostNames = (status.loadBalancer.ingress || []).map((item: any) => item.hostname || item.ip).join(', ');
             }
             attributes.push({title: 'HOSTNAMES', value: hostNames});
         }
