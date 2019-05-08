@@ -20,6 +20,7 @@ import (
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
+	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
 	"github.com/argoproj/argo-cd/util"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -246,20 +247,6 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
 	})
-}
-
-func TestSyncWavesStopsOnDegraded(t *testing.T) {
-
-	app := fixture.NewApp(t, "sync-waves")
-
-	WaitUntil(app.ResourceSyncStatusIs("pod-1", v1alpha1.SyncStatusCodeSynced))
-	WaitUntil(app.ResourceHealthIs("pod-2", v1alpha1.HealthStatusMissing))
-}
-
-func TestHooks(t *testing.T) {
-	app := fixture.NewApp(t, "hooks")
-
-	WaitUntil(app.ResourceSyncStatusIs("job-1", v1alpha1.SyncStatusCodeSynced))
 }
 
 func TestManipulateApplicationResources(t *testing.T) {

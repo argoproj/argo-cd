@@ -1,4 +1,4 @@
-package e2e
+package fixtures
 
 import (
 	"context"
@@ -132,8 +132,8 @@ func (f *Fixture) RepoURL() string {
 	return fmt.Sprintf("file:///tmp/%s", f.repoDirectory)
 }
 
-// cleanup deletes test namespace resources.
-func (f *Fixture) cleanup() {
+// Cleanup deletes test namespace resources.
+func (f *Fixture) Cleanup() {
 	f.EnsureCleanState()
 	f.deleteDeploymentNamespace()
 	f.cleanupTestRepo()
@@ -256,13 +256,6 @@ func waitUntilE(condition wait.ConditionFunc) error {
 }
 
 // WaitUntil periodically executes specified condition until it returns true.
-func WaitUntil(t *testing.T, condition wait.ConditionFunc, msg ...string) {
-	switch len(msg) {
-	case 0:
-	case 1:
-		log.Info("waiting for " + msg[0])
-	case 2:
-		assert.FailNow(t, "only one msg allowed")
-	}
-	assert.NoError(t, waitUntilE(condition), msg)
+func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
+	assert.NoError(t, waitUntilE(condition))
 }
