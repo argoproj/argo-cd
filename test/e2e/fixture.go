@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-cd/errors"
 	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
 	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
@@ -254,9 +256,13 @@ func waitUntilE(condition wait.ConditionFunc) error {
 }
 
 // WaitUntil periodically executes specified condition until it returns true.
-func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
-	err := waitUntilE(condition)
-	if err != nil {
-		t.Fatalf("Failed to wait for expected condition: %v", err)
+func WaitUntil(t *testing.T, condition wait.ConditionFunc, msg ...string) {
+	switch len(msg) {
+	case 0:
+	case 1:
+		log.Info("waiting for " + msg[0])
+	case 2:
+		assert.FailNow(t, "only one msg allowed")
 	}
+	assert.NoError(t, waitUntilE(condition), msg)
 }

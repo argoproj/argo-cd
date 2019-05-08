@@ -248,37 +248,18 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 	})
 }
 
-func TestArgoSyncWaves(t *testing.T) {
-	fixture.EnsureCleanState()
+func TestSyncWavesStopsOnDegraded(t *testing.T) {
 
-	_, err := fixture.RunCli("app", "create", "sync-waves",
-		"--path", "sync-waves",
-		"--repo", fixture.RepoURL(),
-		"--path", "sync-waves",
-		"--dest-server", common.KubernetesInternalAPIServerAddr,
-		"--dest-namespace", fixture.DeploymentNamespace,
-		"--sync-policy", "automated")
-	assert.NoError(t, err)
+	app := fixture.NewApp(t, "sync-waves")
 
-	WaitUntil(t, func() (done bool, err error) {
-		app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get("sync-waves", metav1.GetOptions{})
-		return err == nil && getResource("pod-1", app.Status.Resources).Health.Status == v1alpha1.HealthStatusDegraded, err
-	})
-	assert.NoError(t, err)
-
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get("sync-waves", metav1.GetOptions{})
-	assert.NoError(t, err)
-
-	assert.Equal(t, v1alpha1.HealthStatusMissing, getResource("pod-2", app.Status.Resources).Health.Status)
+	WaitUntil(app.ResourceSyncStatusIs("pod-1", v1alpha1.SyncStatusCodeSynced))
+	WaitUntil(app.ResourceHealthIs("pod-2", v1alpha1.HealthStatusMissing))
 }
 
-func getResource(name string, resources []v1alpha1.ResourceStatus) v1alpha1.ResourceStatus {
-	for _, candidate := range resources {
-		if name == candidate.Name {
-			return candidate
-		}
-	}
-	panic(name)
+func TestHooks(t *testing.T) {
+	app := fixture.NewApp(t, "hooks")
+
+	WaitUntil(app.ResourceSyncStatusIs("job-1", v1alpha1.SyncStatusCodeSynced))
 }
 
 func TestManipulateApplicationResources(t *testing.T) {

@@ -226,11 +226,12 @@ func (sc *syncContext) sync() {
 			}
 		} else if !task.isPrune() {
 			healthStatus, message := sc.getHealthStatus(task.obj())
-			sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus}).Info("updating health status")
 			switch healthStatus {
 			case HealthStatusHealthy:
+				sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus}).Info("updating health status")
 				sc.setResourceResult(&task, task.syncStatus, OperationSucceeded, message)
 			case HealthStatusDegraded:
+				sc.log.WithFields(log.Fields{"task": task.String(), "healthStatus": healthStatus}).Info("updating health status")
 				sc.setResourceResult(&task, task.syncStatus, OperationFailed, message)
 			}
 		}

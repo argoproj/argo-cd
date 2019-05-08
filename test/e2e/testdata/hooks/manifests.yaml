@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hook-1
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  template:     
+    spec:
+      containers:
+      - name: sleep
+        image: alpine
+        command: ["sleep", "60"]
+      restartPolicy: Never
