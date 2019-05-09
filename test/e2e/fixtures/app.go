@@ -138,7 +138,7 @@ func (c *Consequences) resource(name string) ResourceStatus {
 	}
 }
 
-func (c *Consequences) Assert(block func(app *Application)) *Consequences {
+func (c *Consequences) And(block func(app *Application)) *Consequences {
 	block(c.app())
 	return c
 }

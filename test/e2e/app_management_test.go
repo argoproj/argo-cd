@@ -105,7 +105,7 @@ func TestAppCreation(t *testing.T) {
 		Create().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 			assert.Equal(t, appName, app.Name)
 			assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
@@ -140,7 +140,7 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Then().
 		Expect(Event(EventReasonResourceUpdated, "sync")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
 		}).
 		Expect(OperationPhaseIs(OperationSucceeded))
@@ -153,10 +153,10 @@ func TestAppRollbackSuccessful(t *testing.T) {
 		When().
 		Create().
 		Then().
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 			assert.NotEmpty(t, app.Status.Sync.Revision)
 		}).
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 			appWithHistory := app.DeepCopy()
 			appWithHistory.Status.History = []RevisionHistory{{
 				ID:         1,
@@ -182,7 +182,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 		}).
 		Expect(Event(EventReasonOperationStarted, "rollback")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 			assert.True(t, app.Status.OperationState.SyncResult != nil)
 			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
@@ -212,7 +212,7 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(HealthStatusHealthy)).
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
 			assert.NoError(t, err)
 		}).
@@ -230,7 +230,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 			manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
 			assert.NoError(t, err)
 			resources, err := kube.SplitYAML(manifests)
@@ -278,7 +278,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Create().
 		Sync().
 		Then().
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.NoError(t, err)
@@ -293,7 +293,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
 			assert.Error(t, err)
@@ -331,7 +331,7 @@ func TestResourceDiffing(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Assert(func(app *Application) {
+		And(func(app *Application) {
 
 			// Patch deployment
 			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace).Patch(
@@ -390,7 +390,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 				Create().
 				Sync().
 				Then().
-				Assert(func(app *Application) {
+				And(func(app *Application) {
 
 					closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 					assert.NoError(t, err)
