@@ -92,7 +92,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
                 })}>
 
                 {({application, tree, pref}: {application: appModels.Application, tree: appModels.ApplicationTree, pref: AppDetailsPreferences}) => {
-                    const kindsSet = new Set<string>((tree.nodes || []).map((item) => item.kind));
+                    tree.nodes = tree.nodes || [];
+                    const kindsSet = new Set<string>(tree.nodes.map((item) => item.kind));
                     const treeFilter = this.getTreeFilter(pref.resourceFilter);
                     treeFilter.kind.forEach((kind) => { kindsSet.add(kind); });
                     const kinds = Array.from(kindsSet);
@@ -378,7 +379,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
-        (tree.nodes || []).forEach((node) => nodeByKey.set(nodeKey(node), node));
+        tree.nodes.forEach((node) => nodeByKey.set(nodeKey(node), node));
         nodeByKey.set(nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
     }
