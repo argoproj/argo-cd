@@ -18,7 +18,7 @@ import (
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
-	"github.com/argoproj/argo-cd/test/e2e/fixtures/app"
+	. "github.com/argoproj/argo-cd/test/e2e/fixtures/app"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
@@ -33,13 +33,13 @@ func TestAppCreation(t *testing.T) {
 
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		Name(appName).
 		When().
 		Create().
 		Then().
-		Expect(app.SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, appName, app.Name)
 			assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
@@ -47,49 +47,49 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
-		Expect(app.Event(EventReasonResourceCreated, "create"))
+		Expect(Event(EventReasonResourceCreated, "create"))
 }
 
 func TestAppDeletion(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		When().
 		Create().
 		Then().
-		Expect(app.SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		Delete(true).
 		Then().
-		Expect(app.DoesNotExist()).
-		Expect(app.Event(EventReasonResourceDeleted, "delete"))
+		Expect(DoesNotExist()).
+		Expect(Event(EventReasonResourceDeleted, "delete"))
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		When().
 		Create().
 		Sync().
 		Then().
-		Expect(app.Event(EventReasonResourceUpdated, "sync")).
-		Expect(app.SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Event(EventReasonResourceUpdated, "sync")).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
 		}).
-		Expect(app.OperationPhaseIs(OperationSucceeded))
+		Expect(OperationPhaseIs(OperationSucceeded))
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		When().
 		Create().
 		Sync().
 		Then().
-		Expect(app.SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.NotEmpty(t, app.Status.Sync.Revision)
 		}).
@@ -117,8 +117,8 @@ func TestAppRollbackSuccessful(t *testing.T) {
 			assert.NoError(t, err)
 
 		}).
-		Expect(app.Event(EventReasonOperationStarted, "rollback")).
-		Expect(app.SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Event(EventReasonOperationStarted, "rollback")).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 			assert.NotNil(t, app.Status.OperationState.SyncResult)
@@ -130,25 +130,25 @@ func TestAppRollbackSuccessful(t *testing.T) {
 
 func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		DestServer("https://not-registered-cluster/api").
 		When().
 		Create().
 		Then().
-		Expect(app.DoesNotExist())
+		Expect(DoesNotExist())
 }
 
 func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		When().
 		Create().
 		Sync().
 		Then().
-		Expect(app.SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(app.HealthIs(HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
 			assert.NoError(t, err)
@@ -156,12 +156,12 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 		When().
 		Sync().
 		Then().
-		Expect(app.SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(app.HealthIs(HealthStatusDegraded))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusDegraded))
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		When().
 		Create().
@@ -199,7 +199,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 			})
 			assert.NoError(t, err)
 		}).
-		Expect(app.SyncStatusIs(SyncStatusCodeOutOfSync))
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
 func TestAppWithSecrets(t *testing.T) {
@@ -209,7 +209,7 @@ func TestAppWithSecrets(t *testing.T) {
 	defer util.Close(closer)
 	refresh := string(RefreshTypeNormal)
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path("secrets").
 		When().
 		Create().
@@ -229,7 +229,7 @@ func TestAppWithSecrets(t *testing.T) {
 			_, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 			assert.NoError(t, err)
 		}).
-		Expect(app.SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
@@ -261,13 +261,13 @@ func TestAppWithSecrets(t *testing.T) {
 
 func TestResourceDiffing(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		When().
 		Create().
 		Sync().
 		Then().
-		Expect(app.SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 
 			// Patch deployment
@@ -321,7 +321,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 
 	for name, appPath := range apps {
 		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
-			app.Given(fixture, t).
+			Given(fixture, t).
 				Path(appPath).
 				When().
 				Create().
@@ -348,7 +348,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 
 func TestKsonnetApp(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path("ksonnet").
 		Env("prod").
 		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
@@ -389,7 +389,7 @@ definitions:
 
 func TestResourceAction(t *testing.T) {
 
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		Name("test-app").
 		And(func() {
@@ -439,7 +439,7 @@ func TestResourceAction(t *testing.T) {
 }
 
 func TestSyncResourceByLabel(t *testing.T) {
-	app.Given(fixture, t).
+	Given(fixture, t).
 		Path(guestbookPath).
 		Name("test-app").
 		When().
