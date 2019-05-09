@@ -11,19 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/errors"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/server/application"
-	"github.com/argoproj/argo-cd/server/session"
-	"github.com/argoproj/argo-cd/util"
-	grpc_util "github.com/argoproj/argo-cd/util/grpc"
-	"github.com/argoproj/argo-cd/util/settings"
-
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +23,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/errors"
+	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/server/application"
+	"github.com/argoproj/argo-cd/server/session"
+	"github.com/argoproj/argo-cd/util"
+	grpc_util "github.com/argoproj/argo-cd/util/grpc"
+	"github.com/argoproj/argo-cd/util/settings"
 )
 
 const (
@@ -252,7 +251,7 @@ func waitUntilE(condition wait.ConditionFunc) error {
 		time.Sleep(TestTimeout)
 		makeSureClosed()
 	}()
-	return wait.PollUntil(time.Second, condition, stop)
+	return wait.PollUntil(3*time.Second, condition, stop)
 }
 
 // WaitUntil periodically executes specified condition until it returns true.

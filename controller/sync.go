@@ -21,7 +21,6 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/health"
-	"github.com/argoproj/argo-cd/util/hook"
 	"github.com/argoproj/argo-cd/util/kube"
 )
 
@@ -282,7 +281,7 @@ func (sc *syncContext) notStarted() bool {
 func (sc *syncContext) skipHooks() bool {
 	// All objects passed a `kubectl apply --dry-run`, so we are now ready to actually perform the sync.
 	// default sync strategy to hook if no strategy
-	return sc.syncOp.SyncStrategy != nil && sc.syncOp.SyncStrategy.Apply != nil
+	return sc.syncOp.SyncStrategy != nil && sc.syncOp.SyncStrategy.Apply != nil || sc.syncOp.IsSelectiveSync()
 }
 
 func (sc *syncContext) isSelectiveSyncResourceOrAll(resourceState managedResource) bool {
@@ -294,62 +293,90 @@ func (sc *syncContext) isSelectiveSyncResourceOrAll(resourceState managedResourc
 // generateSyncTasks() generates the list of sync tasks we will be performing during this syncStatus.
 func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	successful = true
-	for _, resourceState := range sc.compareResult.managedResources {
-		if sc.isSelectiveSyncResourceOrAll(resourceState) {
-			obj := resourceState.Target
-			if obj == nil {
-				obj = resourceState.Live
+
+	for _, resource := range sc.compareResult.managedResources {
+		if !sc.isSelectiveSyncResourceOrAll(resource) {
+			continue
+		}
+		tasks = append(tasks, syncTask{
+			phase:     SyncPhaseSync,
+			liveObj:   resource.Live,
+			targetObj: resource.Target,
+		})
+	}
+
+	for _, obj := range sc.compareResult.hooks {
+		// this essentially enforces the old "apply" behaviour
+		if sc.skipHooks() {
+			sc.log.WithFields(log.Fields{"name": obj.GetName()}).Info("skipping hook")
+			continue
+		}
+
+		for _, phase := range syncPhases(obj) {
+
+			// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
+			// or formulated at the time of the operation (metadata.generateName). If user specifies
+			// metadata.generateName, then we will generate a formulated metadata.name before submission.
+			if obj.GetName() == "" {
+				postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], phase, sc.opState.StartedAt.UTC().Unix()))
+				generateName := obj.GetGenerateName()
+				obj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 			}
 
-			// typically we'll have a single phase, but for some hooks, we may have more than one,
-			// for skipped resources - none
-			for _, syncPhase := range syncPhases(obj) {
+			tasks = append(tasks, syncTask{
+				phase:     phase,
+				liveObj:   nil,
+				targetObj: obj,
+			})
+		}
+	}
 
-				task := syncTask{
-					phase:     syncPhase,
-					liveObj:   resourceState.Live,
-					targetObj: sc.targetObject(resourceState, syncPhase),
-				}
+	for _, task := range tasks {
 
-				ns := task.namespace()
-				_, res := sc.syncRes.Resources.Find(task.group(), task.kind(), ns, task.name(), task.phase)
-				if res != nil {
-					task.syncStatus = res.SyncStatus
-					task.operationState = res.OperationState
-					task.message = res.Message
-				}
+		if task.targetObj == nil {
+			continue
+		}
 
-				// this essentially enforces the old "apply" behaviour
-				if task.isHook() && sc.skipHooks() {
-					sc.log.WithFields(log.Fields{"task": task.String()}).Info("skipping hook")
-					continue
-				}
+		if task.targetObj.GetNamespace() == "" {
+			// If target object's namespace is empty, we set namespace in the object. We do
+			// this even though it might be a cluster-scoped resource. This prevents any
+			// possibility of the resource from unintentionally becoming created in the
+			// namespace during the `kubectl apply`
+			task.targetObj.SetNamespace(sc.namespace)
+		}
+	}
 
-				serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
+	for _, task := range tasks {
+		_, res := sc.syncRes.Resources.Find(task.group(), task.kind(), task.namespace(), task.name(), task.phase)
+		if res != nil {
+			task.syncStatus = res.SyncStatus
+			task.operationState = res.OperationState
+			task.message = res.Message
+		}
+	}
 
-				if err != nil {
-					// Special case for custom resources: if CRD is not yet known by the K8s API server,
-					// skip verification during `kubectl apply --dry-run` since we expect the CRD
-					// to be created during app synchronization.
-					if apierr.IsNotFound(err) && hasCRDOfGroupKind(sc.compareResult.managedResources, task.group(), task.kind()) {
-						sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for customq resource")
-						task.skipDryRun = true
-					} else {
-						sc.setResourceResult(&task, ResultCodeSyncFailed, "", err.Error())
-						successful = false
-					}
-				} else {
-					if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
-						sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
-						successful = false
-					}
-					if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: task.namespace(), Server: sc.server}) {
-						sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
-						successful = false
-					}
-				}
+	for _, task := range tasks {
+		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
 
-				tasks = append(tasks, task)
+		if err != nil {
+			// Special case for custom resources: if CRD is not yet known by the K8s API server,
+			// skip verification during `kubectl apply --dry-run` since we expect the CRD
+			// to be created during app synchronization.
+			if apierr.IsNotFound(err) && sc.hasCRDOfGroupKind(task.group(), task.kind()) {
+				sc.log.WithFields(log.Fields{"task": task.String()}).Info("skip dry-run for customq resource")
+				task.skipDryRun = true
+			} else {
+				sc.setResourceResult(&task, ResultCodeSyncFailed, "", err.Error())
+				successful = false
+			}
+		} else {
+			if !sc.proj.IsResourcePermitted(metav1.GroupKind{Group: task.group(), Kind: task.kind()}, serverRes.Namespaced) {
+				sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("Resource %s:%s is not permitted in project %s.", task.group(), task.kind(), sc.proj.Name))
+				successful = false
+			}
+			if serverRes.Namespaced && !sc.proj.IsDestinationPermitted(ApplicationDestination{Namespace: task.namespace(), Server: sc.server}) {
+				sc.setResourceResult(&task, ResultCodeSyncFailed, "", fmt.Sprintf("namespace %v is not permitted in project '%s'", task.namespace(), sc.proj.Name))
+				successful = false
 			}
 		}
 	}
@@ -357,31 +384,6 @@ func (sc *syncContext) getSyncTasks() (tasks syncTasks, successful bool) {
 	sort.Sort(tasks)
 
 	return tasks, successful
-}
-
-func (sc *syncContext) targetObject(resourceState managedResource, syncPhase SyncPhase) (targetObj *unstructured.Unstructured) {
-	if resourceState.Target != nil {
-
-		targetObj = resourceState.Target.DeepCopy()
-
-		if targetObj.GetNamespace() == "" {
-			// If target object's namespace is empty, we set namespace in the object. We do
-			// this even though it might be a cluster-scoped resource. This prevents any
-			// possibility of the resource from unintentionally becoming created in the
-			// namespace during the `kubectl apply`
-			targetObj.SetNamespace(sc.namespace)
-		}
-
-		// Hook resources names are deterministic, whether they are defined by the user (metadata.name),
-		// or formulated at the time of the operation (metadata.generateName). If user specifies
-		// metadata.generateName, then we will generate a formulated metadata.name before submission.
-		if hook.IsHook(targetObj) && targetObj.GetName() == "" {
-			postfix := strings.ToLower(fmt.Sprintf("%s-%s-%d", sc.syncRes.Revision[0:7], syncPhase, sc.opState.StartedAt.UTC().Unix()))
-			generateName := targetObj.GetGenerateName()
-			targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
-		}
-	}
-	return targetObj
 }
 
 func (sc *syncContext) setOperationPhase(phase OperationPhase, message string) {
@@ -422,8 +424,8 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 	}
 }
 
-func hasCRDOfGroupKind(resources []managedResource, group string, kind string) bool {
-	for _, res := range resources {
+func (sc *syncContext) hasCRDOfGroupKind(group string, kind string) bool {
+	for _, res := range sc.compareResult.managedResources {
 		if res.Target != nil && kube.IsCRD(res.Target) {
 			crdGroup, ok, err := unstructured.NestedString(res.Target.Object, "spec", "group")
 			if err != nil || !ok {

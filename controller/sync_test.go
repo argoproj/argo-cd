@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	diff2 "github.com/argoproj/argo-cd/util/diff"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -74,8 +72,6 @@ func newTestSyncCtx(resources ...*v1.APIResourceList) *syncContext {
 	return &sc
 }
 
-var modified = diff2.DiffResult{Modified: true}
-
 func TestSyncNotPermittedNamespace(t *testing.T) {
 	syncCtx := newTestSyncCtx()
 	targetPod := test.NewPod()
@@ -84,11 +80,9 @@ func TestSyncNotPermittedNamespace(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: targetPod,
-			Diff:   modified,
 		}, {
 			Live:   nil,
 			Target: test.NewService(),
-			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -102,11 +96,9 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewPod(),
-			Diff:   modified,
 		}, {
 			Live:   nil,
 			Target: test.NewService(),
-			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -148,7 +140,6 @@ func TestSyncCreateNotWhitelistedClusterResources(t *testing.T) {
 			Target: kube.MustToUnstructured(&rbacv1.ClusterRole{
 				TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
 				ObjectMeta: metav1.ObjectMeta{Name: "argo-ui-cluster-role"}}),
-			Diff: modified,
 		}},
 	}
 	syncCtx.sync()
@@ -168,7 +159,6 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewDeployment(),
-			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -179,17 +169,13 @@ func TestSyncBlacklistedNamespacedResources(t *testing.T) {
 
 func TestSyncSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	pod := test.NewPod()
-	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: test.NewService(),
-			Diff:   modified,
 		}, {
-			Live:   pod,
+			Live:   test.NewPod(),
 			Target: nil,
-			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -208,19 +194,13 @@ func TestSyncSuccessfully(t *testing.T) {
 
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx()
-	service := test.NewService()
-	service.SetNamespace(test.FakeArgoCDNamespace)
-	pod := test.NewPod()
-	pod.SetNamespace(test.FakeArgoCDNamespace)
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
-			Live:   service,
+			Live:   test.NewService(),
 			Target: nil,
-			Diff:   modified,
 		}, {
-			Live:   pod,
+			Live:   test.NewPod(),
 			Target: nil,
-			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -252,7 +232,6 @@ func TestSyncCreateFailure(t *testing.T) {
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: testSvc,
-			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -271,13 +250,11 @@ func TestSyncPruneFailure(t *testing.T) {
 		},
 	}
 	testSvc := test.NewService()
-	testSvc.SetNamespace(test.FakeArgoCDNamespace)
 	testSvc.SetName("test-service")
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   testSvc,
 			Target: nil,
-			Diff:   modified,
 		}},
 	}
 	syncCtx.sync()
@@ -293,24 +270,22 @@ func TestDontSyncOrPruneHooks(t *testing.T) {
 	targetPod.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 	liveSvc := test.NewService()
 	liveSvc.SetName("dont-prune-me")
+	liveSvc.SetNamespace(test.FakeArgoCDNamespace)
 	liveSvc.SetAnnotations(map[string]string{common.AnnotationKeyHook: "PreSync"})
 
 	syncCtx.compareResult = &comparisonResult{
 		managedResources: []managedResource{{
 			Live:   nil,
 			Target: targetPod,
-			Diff:   modified,
 			Hook:   true,
 		}, {
 			Live:   liveSvc,
 			Target: nil,
-			Diff:   modified,
 			Hook:   true,
 		}},
 	}
 	syncCtx.sync()
-	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
-	assert.Len(t, syncCtx.syncRes.Resources, 0)
+	assert.Len(t, syncCtx.syncRes.Resources, 2)
 	syncCtx.sync()
 	assert.Equal(t, v1alpha1.OperationSucceeded, syncCtx.opState.Phase)
 }

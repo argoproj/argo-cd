@@ -11,15 +11,14 @@ spec:
       containers:
       - name: hook-pod
         image: alpine
-        command: ["sleep", "1"]
+        command: ["/bin/sleep", "1"]
+      restartPolicy: Never
 ---
 apiVersion: v1
 kind: Pod
 metadata:
   name: pod
-  deletionGracePeriodSeconds: 1
 spec:
   containers:
-    - name: pod
-      image: alpine
-      command: ["cat"]
+    - name: web
+      image: nginx

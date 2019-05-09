@@ -11,18 +11,18 @@ func TestSyncWavesStopsOnDegraded(t *testing.T) {
 	fixture.NewApp(t, "sync-waves").
 		Sync().
 		Error().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusDegraded)).
 		Expect(ResourceSyncStatusIs("pod-1", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("pod-2", HealthStatusMissing))
+		Expect(ResourceHealthIs("pod-2", HealthStatusMissing)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(HealthStatusMissing))
 }
 
 func TestHooks(t *testing.T) {
 	fixture.NewApp(t, "hooks/happy-path").
 		Sync().
 		Error().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(HealthStatusHealthy)).
 		Expect(ResourceHealthIs("hook", HealthStatusHealthy)).
-		Expect(ResourceHealthIs("pod", HealthStatusHealthy))
+		Expect(ResourceHealthIs("pod", HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy))
 }
