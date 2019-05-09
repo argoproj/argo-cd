@@ -1,0 +1,25 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hook
+  annotations:
+    argocd.argoproj.io/hook: Sync
+spec:
+  template:
+    spec:
+      containers:
+      - name: hook-pod
+        image: alpine
+        command: ["sleep", "1"]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod
+  deletionGracePeriodSeconds: 1
+spec:
+  containers:
+    - name: pod
+      image: alpine
+      command: ["cat"]
