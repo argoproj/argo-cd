@@ -495,16 +495,19 @@ func TestResourceAction(t *testing.T) {
 }
 
 func TestSyncResourceByLabel(t *testing.T) {
-	fixture.EnsureCleanState()
+	Given(fixture, t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			res, _ := fixture.RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=test-%s", strings.Split(app.Name, "-")[1]))
+			assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
 
-	app := createAndSyncDefault(t)
-
-	res, _ := fixture.RunCli("app", "sync", app.Name, "--label",
-		fmt.Sprintf("app.kubernetes.io/instance=test-%s", strings.Split(app.Name, "-")[1]))
-	assert.Contains(t, res, "guestbook-ui  Synced  Healthy")
-
-	res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-	assert.Contains(t, res, "level=fatal")
+			res, _ = fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			assert.Contains(t, res, "level=fatal")
+		})
 }
 
 func TestPermissions(t *testing.T) {
