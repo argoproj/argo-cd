@@ -223,21 +223,29 @@ func (f *Fixture) RunCli(args ...string) (string, error) {
 	if f.plainText {
 		args = append(args, "--plaintext")
 	}
-	cmd := exec.Command("../../dist/argocd", append(args, "--server", f.apiServerAddress, "--auth-token", f.token, "--insecure")...)
-	log.Infof("CLI: %s", strings.Join(cmd.Args, " "))
+
+	args = append(args, "--server", f.apiServerAddress, "--auth-token", f.token, "--insecure")
+
+	log.WithFields(log.Fields{"args": args}).Info("running command")
+
+	cmd := exec.Command("../../dist/argocd", args...)
 	outBytes, err := cmd.Output()
+	output := string(outBytes)
+
 	if err != nil {
 		exErr, ok := err.(*exec.ExitError)
-		if !ok {
-			return "", err
+		if ok {
+			output = output + string(exErr.Stderr)
 		}
-		errOutput := string(exErr.Stderr)
-		if outBytes != nil {
-			errOutput = string(outBytes) + "\n" + errOutput
-		}
-		return errOutput, fmt.Errorf(strings.TrimSpace(errOutput))
 	}
-	return string(outBytes), nil
+
+	for i, line := range strings.Split(output, "\n") {
+		log.WithFields(log.Fields{"line": line, "i": i}).Info("command output")
+	}
+
+	log.WithFields(log.Fields{"err": err}).Info("ran command")
+
+	return output, err
 }
 
 func (f *Fixture) Patch(path string, jsonPatch string) {

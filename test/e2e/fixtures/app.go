@@ -86,9 +86,7 @@ func (a *Actionable) Delete(cascade bool) *Actionable {
 }
 
 func (a *Actionable) runCli(args ...string) (output string, err error) {
-	output, err = a.context.fixture.RunCli(args...)
-	log.WithFields(log.Fields{"output": output, "err": err, "args": args}).Info("ran command")
-	return output, err
+	return a.context.fixture.RunCli(args...)
 }
 
 type Consequences struct {
