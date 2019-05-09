@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

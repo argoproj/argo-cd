@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
 )
 
 var (
@@ -18,7 +20,7 @@ func TestMain(m *testing.M) {
 		os.Exit(-1)
 	} else {
 		code := m.Run()
-		fixture.cleanup()
+		fixture.Close()
 		os.Exit(code)
 	}
 }
