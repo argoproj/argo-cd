@@ -384,24 +384,27 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 
 	for name, appPath := range apps {
 		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
-			fixture.EnsureCleanState()
+			Given(fixture, t).
+				Path(appPath).
+				When().
+				Create().
+				Sync().
+				Then().
+				Assert(func(app *Application) {
 
-			app := createAndSync(t, func(app *Application) {
-				app.Spec.Source.Path = appPath
-			})
+					closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+					assert.NoError(t, err)
+					defer util.Close(closer)
 
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
-			defer util.Close(closer)
+					refresh := string(RefreshTypeNormal)
+					app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+					assert.NoError(t, err)
 
-			refresh := string(RefreshTypeNormal)
-			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
-			assert.NoError(t, err)
-
-			assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
-			assert.Empty(t, diffOutput)
-			assert.NoError(t, err)
+					assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
+					diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+					assert.Empty(t, diffOutput)
+					assert.NoError(t, err)
+				})
 		})
 	}
 }
