@@ -81,6 +81,20 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded))
 }
 
+func TestPreSyncHookSuccessfullyRuns(t *testing.T) {
+
+	Given(fixture, t).
+		Path("hook").
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("pod", HealthStatusHealthy))
+}
+
 func TestAppRollbackSuccessful(t *testing.T) {
 
 	Given(fixture, t).

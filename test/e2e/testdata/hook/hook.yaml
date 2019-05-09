@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hook
+  annotations:
+    argocd.argoproj.io/hook: Sync
+spec:
+  containers:
+    - name: main
+      image: alpine:latest
+      command:
+        - "true"
+  restartPolicy: Never
