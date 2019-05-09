@@ -73,8 +73,19 @@ func TestIsSSHURL(t *testing.T) {
 		"ssh://git@github.com:test.git":          true,
 	}
 	for k, v := range data {
-		assert.Equal(t, v, IsSSHURL(k))
+		isSSH, _ := IsSSHURL(k)
+		assert.Equal(t, v, isSSH)
 	}
+}
+
+func TestIsSSHURLUserName(t *testing.T) {
+	isSSH, user := IsSSHURL("ssh://john@john-server.org:29418/project")
+	assert.True(t, isSSH)
+	assert.Equal(t, "john", user)
+
+	isSSH, user = IsSSHURL("john@john-server.org:29418/project")
+	assert.True(t, isSSH)
+	assert.Equal(t, "john", user)
 }
 
 func TestSameURL(t *testing.T) {

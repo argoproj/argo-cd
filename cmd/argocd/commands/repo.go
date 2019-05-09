@@ -68,7 +68,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// See issue #315
 			err := git.TestRepo(repo.Repo, "", "", repo.SSHPrivateKey, repo.InsecureIgnoreHostKey)
 			if err != nil {
-				if git.IsSSHURL(repo.Repo) {
+				if yes, _ := git.IsSSHURL(repo.Repo); yes {
 					// If we failed using git SSH credentials, then the repo is automatically bad
 					log.Fatal(err)
 				}
