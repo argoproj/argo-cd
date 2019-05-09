@@ -11,6 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ghodss/yaml"
+
+	jsonpatch "github.com/evanphx/json-patch"
+
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -139,7 +143,7 @@ func (f *Fixture) Cleanup() {
 }
 
 func (f *Fixture) cleanupTestRepo() {
-	err := os.RemoveAll(path.Join("/tmp", f.repoDirectory))
+	err := os.RemoveAll(path.Join(f.repoDirectory))
 	errors.CheckError(err)
 }
 
@@ -235,6 +239,38 @@ func (f *Fixture) RunCli(args ...string) (string, error) {
 		return errOutput, fmt.Errorf(strings.TrimSpace(errOutput))
 	}
 	return string(outBytes), nil
+}
+
+func (f *Fixture) Patch(path string, jsonPatch string) {
+
+	logCtx := log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch})
+	logCtx.Info("patching")
+
+	filename := "/tmp/" + f.repoDirectory + "/" + path
+	bytes, err := ioutil.ReadFile(filename)
+	errors.CheckError(err)
+
+	if strings.HasSuffix(filename, ".yaml") {
+		logCtx.Info("converting YAML to JSON")
+		bytes, err = yaml.YAMLToJSON(bytes)
+		errors.CheckError(err)
+	}
+
+	logCtx.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
+
+	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
+	errors.CheckError(err)
+
+	bytes, err = patch.Apply(bytes)
+	errors.CheckError(err)
+
+	err = ioutil.WriteFile(filename, bytes, 0644)
+	errors.CheckError(err)
+
+	logCtx.Info("committing")
+
+	_, err = argoexec.RunCommand("sh", "-c", fmt.Sprintf("cd /tmp/%s && git commit -am 'patch'", f.repoDirectory))
+	errors.CheckError(err)
 }
 
 func waitUntilE(condition wait.ConditionFunc) error {

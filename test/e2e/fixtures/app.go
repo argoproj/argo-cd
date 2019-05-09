@@ -15,8 +15,8 @@ import (
 type App struct {
 	fixture *Fixture
 	t       *testing.T
+	path    string
 	Name    string
-	err     error
 }
 
 func (f *Fixture) NewApp(t *testing.T, path string) *App {
@@ -25,35 +25,26 @@ func (f *Fixture) NewApp(t *testing.T, path string) *App {
 
 	name := strings.ReplaceAll(path, "/", "-")
 
-	_, err := f.RunCli("app", "create", name,
+	_, _ = f.RunCli("app", "create", name,
 		"--repo", f.RepoURL(),
 		"--path", path,
 		"--dest-server", common.KubernetesInternalAPIServerAddr,
 		"--dest-namespace", f.DeploymentNamespace)
 
-	return &App{f, t, name, err}
-}
-
-func (a *App) Error() *App {
-	assert.Error(a.t, a.err)
-	a.err = nil
-	return a
-}
-
-func (a *App) Ok() *App {
-	assert.NoError(a.t, a.err)
-	return a
+	return &App{f, t, path, name}
 }
 
 func (a *App) Sync() *App {
-	a.Ok()
-	_, err := a.fixture.RunCli("app", "sync", a.Name, "--timeout", "5")
-	a.err = err
+	_, _ = a.fixture.RunCli("app", "sync", a.Name, "--timeout", "5")
+	return a
+}
+
+func (a *App) TerminateOp() *App {
+	_, _ = a.fixture.RunCli("app", "terminate-op", a.Name)
 	return a
 }
 
 func (a *App) Expect(e Expectation) *App {
-	a.Ok()
 	WaitUntil(a.t, func() (done bool, err error) {
 		done, message := e(a)
 		if done {
@@ -62,6 +53,11 @@ func (a *App) Expect(e Expectation) *App {
 			return false, errors.New(message)
 		}
 	})
+	return a
+}
+
+func (a *App) Patch(file string, jsonPath string) *App {
+	a.fixture.Patch(a.path+"/"+file, jsonPath)
 	return a
 }
 

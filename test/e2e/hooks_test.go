@@ -10,17 +10,37 @@ import (
 func TestSyncWavesStopsOnDegraded(t *testing.T) {
 	fixture.NewApp(t, "sync-waves").
 		Sync().
-		Error().
 		Expect(ResourceSyncStatusIs("pod-1", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("pod-2", HealthStatusMissing)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(HealthStatusMissing))
 }
 
+func TestFixingDegradedApp(t *testing.T) {
+	fixture.NewApp(t, "sync-waves").
+		Sync().
+		Expect(ResourceSyncStatusIs("pod-1", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("pod-1", HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("pod-2", SyncStatusCodeOutOfSync)).
+		Expect(ResourceHealthIs("pod-2", HealthStatusMissing)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(HealthStatusMissing)).
+		TerminateOp().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Patch("pod-1.yaml", `[{"op": "replace", "path": "/spec/containers/0/image", "value": "nginx"}]`).
+		Sync().
+		Expect(ResourceSyncStatusIs("pod-1", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("pod-1", HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("pod-2", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("pod-2", HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Expect(OperationPhaseIs(OperationSucceeded))
+}
+
 func TestHooks(t *testing.T) {
 	fixture.NewApp(t, "hooks/happy-path").
 		Sync().
-		Error().
 		Expect(ResourceHealthIs("hook", HealthStatusHealthy)).
 		Expect(ResourceHealthIs("pod", HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

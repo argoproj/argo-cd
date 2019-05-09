@@ -8,6 +8,13 @@ import (
 
 type Expectation func(a *App) (done bool, message string)
 
+func OperationPhaseIs(expected OperationPhase) Expectation {
+	return func(a *App) (done bool, message string) {
+		actual := a.get().Status.OperationState.Phase
+		return actual == expected, fmt.Sprintf("expect app %s's operation phase to be %s, is %s", a.Name, expected, actual)
+	}
+}
+
 func SyncStatusIs(expected SyncStatusCode) Expectation {
 	return func(a *App) (done bool, message string) {
 		actual := a.get().Status.Sync.Status
