@@ -60,7 +60,7 @@ clientgen:
 	./hack/update-codegen.sh
 
 .PHONY: codegen
-codegen: protogen clientgen openapigen
+codegen: protogen clientgen openapigen manifests
 
 .PHONY: cli
 cli: clean-debug
