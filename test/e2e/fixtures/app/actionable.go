@@ -1,4 +1,4 @@
-package fixtures
+package app
 
 import (
 	"strconv"
@@ -34,7 +34,7 @@ func (a *Actionable) Create() *Actionable {
 }
 
 func (a *Actionable) Sync() *Actionable {
-	_, _ = a.runCli("app", "sync", a.context.name, "--timeout", "5")
+	_, _ = a.runCli("app", "sync", a.context.name, "--timeout", "5", "--prune", "true")
 	return a
 }
 
@@ -53,10 +53,10 @@ func (a *Actionable) Delete(cascade bool) *Actionable {
 	return a
 }
 
-func (a *Actionable) runCli(args ...string) (output string, err error) {
-	return a.context.fixture.RunCli(args...)
-}
-
 func (a *Actionable) Then() *Consequences {
 	return &Consequences{a.context, a}
+}
+
+func (a *Actionable) runCli(args ...string) (output string, err error) {
+	return a.context.fixture.RunCli(args...)
 }

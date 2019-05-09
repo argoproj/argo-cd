@@ -1,4 +1,4 @@
-package fixtures
+package app
 
 import (
 	"time"
@@ -32,6 +32,15 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	return c
 }
 
+func (c *Consequences) And(block func(app *Application)) *Consequences {
+	block(c.app())
+	return c
+}
+
+func (c *Consequences) When() *Actionable {
+	return c.actionable
+}
+
 func (c *Consequences) app() *Application {
 	app, err := c.get()
 	assert.NoError(c.context.t, err)
@@ -51,13 +60,4 @@ func (c *Consequences) resource(name string) ResourceStatus {
 	return ResourceStatus{
 		Health: &HealthStatus{Status: HealthStatusUnknown},
 	}
-}
-
-func (c *Consequences) And(block func(app *Application)) *Consequences {
-	block(c.app())
-	return c
-}
-
-func (c *Consequences) When() *Actionable {
-	return c.actionable
 }

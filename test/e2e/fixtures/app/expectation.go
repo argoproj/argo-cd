@@ -1,4 +1,4 @@
-package fixtures
+package app
 
 import (
 	"fmt"

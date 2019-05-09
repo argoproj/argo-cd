@@ -1,9 +1,10 @@
-package fixtures
+package app
 
 import (
 	"testing"
 
 	. "github.com/argoproj/argo-cd/common"
+	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
 )
 
 type Context struct {
@@ -18,7 +19,7 @@ type Context struct {
 
 func Given(f *Fixture, t *testing.T) *Context {
 	f.EnsureCleanState()
-	return &Context{f, t, "", "", "", KubernetesInternalAPIServerAddr, nil}
+	return &Context{fixture: f, t: t, destServer: KubernetesInternalAPIServerAddr}
 }
 
 func (c *Context) Path(path string) *Context {
