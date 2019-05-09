@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
@@ -29,25 +28,6 @@ import (
 const (
 	guestbookPath = "guestbook"
 )
-
-// DEPRECATED
-func assertAppHasEvent(t *testing.T, a *Application, message string, reason string) {
-	list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(map[string]string{
-			"involvedObject.name":      a.Name,
-			"involvedObject.uid":       string(a.UID),
-			"involvedObject.namespace": fixture.ArgoCDNamespace,
-		}).String(),
-	})
-	assert.NoError(t, err)
-	for i := range list.Items {
-		event := list.Items[i]
-		if event.Reason == reason && strings.Contains(event.Message, message) {
-			return
-		}
-	}
-	t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
-}
 
 // DEPRECATED
 func getTestApp() *Application {
@@ -152,7 +132,9 @@ func TestAppRollbackSuccessful(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		Create().
+		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.NotEmpty(t, app.Status.Sync.Revision)
 		}).
@@ -184,9 +166,9 @@ func TestAppRollbackSuccessful(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
-			assert.True(t, app.Status.OperationState.SyncResult != nil)
+			assert.NotNil(t, app.Status.OperationState.SyncResult)
 			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
-			assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
+			assert.Equal(t, OperationSucceeded, app.Status.OperationState.Phase)
 			assert.Equal(t, 3, len(app.Status.History))
 		})
 }
