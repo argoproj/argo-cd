@@ -101,11 +101,11 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 }
 
 func (c *Consequences) app() *Application {
-	app, err := c.get()
+	app, err := c.Get()
 	assert.NoError(c.context.t, err)
 	return app
 }
-func (c *Consequences) get() (*Application, error) {
+func (c *Consequences) Get() (*Application, error) {
 	return c.context.fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
 }
 

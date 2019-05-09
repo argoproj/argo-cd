@@ -148,53 +148,52 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
-	fixture.EnsureCleanState()
 
-	// create app and ensure it's comparison status is not SyncStatusCodeUnknown
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(getTestApp())
-	assert.NoError(t, err)
+	Given(fixture, t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Then().
+		Expect(App(func(app *Application) bool {
+			return app.Status.Sync.Revision != ""
+		}, "revision is not empty")).
+		Assert(func(app *Application) {
+			appWithHistory := app.DeepCopy()
+			appWithHistory.Status.History = []RevisionHistory{{
+				ID:         1,
+				Revision:   app.Status.Sync.Revision,
+				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-1 * time.Minute)},
+				Source:     app.Spec.Source,
+			}, {
+				ID:         2,
+				Revision:   "cdb",
+				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-2 * time.Minute)},
+				Source:     app.Spec.Source,
+			}}
+			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
+			assert.NoError(t, err)
 
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Revision != "", nil
-	})
+			app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Patch(app.Name, types.MergePatchType, patch)
+			assert.NoError(t, err)
 
-	appWithHistory := app.DeepCopy()
-	appWithHistory.Status.History = []RevisionHistory{{
-		ID:         1,
-		Revision:   app.Status.Sync.Revision,
-		DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-1 * time.Minute)},
-		Source:     app.Spec.Source,
-	}, {
-		ID:         2,
-		Revision:   "cdb",
-		DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-2 * time.Minute)},
-		Source:     app.Spec.Source,
-	}}
-	patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
-	assert.NoError(t, err)
+			// sync app and make sure it reaches InSync state
+			_, err = fixture.RunCli("app", "rollback", app.Name, "1")
+			assert.NoError(t, err)
 
-	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Patch(app.Name, types.MergePatchType, patch)
-	assert.NoError(t, err)
-
-	// sync app and make sure it reaches InSync state
-	_, err = fixture.RunCli("app", "rollback", app.Name, "1")
-	assert.NoError(t, err)
-
-	assertAppHasEvent(t, app, "rollback", EventReasonOperationStarted)
-
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == SyncStatusCodeSynced, err
-	})
-	assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
-	assert.True(t, app.Status.OperationState.SyncResult != nil)
-	assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
-	assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
-	assert.Equal(t, 3, len(app.Status.History))
+		}).
+		Expect(Event(EventReasonOperationStarted, "rollback")).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Assert(func(app *Application) {
+			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
+			assert.True(t, app.Status.OperationState.SyncResult != nil)
+			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
+			assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
+			assert.Equal(t, 3, len(app.Status.History))
+		})
 }
 
 func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
+
 	fixture.EnsureCleanState()
 
 	invalidApp := getTestApp()

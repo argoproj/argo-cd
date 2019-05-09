@@ -50,7 +50,7 @@ func ResourceHealthIs(resource string, expected HealthStatusCode) Expectation {
 
 func Deleted() Expectation {
 	return func(c *Consequences) (bool, string) {
-		_, err := c.get()
+		_, err := c.Get()
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return true, ""
@@ -59,6 +59,12 @@ func Deleted() Expectation {
 		}
 		return true, "not deleted"
 
+	}
+}
+
+func App(predicate func(app *Application) bool, message string) Expectation {
+	return func(c *Consequences) (bool, string) {
+		return predicate(c.app()), message
 	}
 }
 
