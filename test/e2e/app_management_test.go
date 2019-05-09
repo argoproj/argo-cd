@@ -225,45 +225,45 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
-	fixture.EnsureCleanState()
+	Given(fixture, t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Assert(func(app *Application) {
+			manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
+			assert.NoError(t, err)
+			resources, err := kube.SplitYAML(manifests)
+			assert.NoError(t, err)
 
-	app := createAndSyncDefault(t)
+			index := -1
+			for i := range resources {
+				if resources[i].GetKind() == kube.DeploymentKind {
+					index = i
+					break
+				}
+			}
 
-	manifests, err := fixture.RunCli("app", "manifests", app.Name, "--source", "live")
-	assert.NoError(t, err)
-	resources, err := kube.SplitYAML(manifests)
-	assert.NoError(t, err)
+			assert.True(t, index > -1)
 
-	index := -1
-	for i := range resources {
-		if resources[i].GetKind() == kube.DeploymentKind {
-			index = i
-			break
-		}
-	}
+			deployment := resources[index]
 
-	assert.True(t, index > -1)
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			assert.NoError(t, err)
+			defer util.Close(closer)
 
-	deployment := resources[index]
-
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-	assert.NoError(t, err)
-	defer util.Close(closer)
-
-	_, err = client.DeleteResource(context.Background(), &application.ApplicationResourceDeleteRequest{
-		Name:         &app.Name,
-		Group:        deployment.GroupVersionKind().Group,
-		Kind:         deployment.GroupVersionKind().Kind,
-		Version:      deployment.GroupVersionKind().Version,
-		Namespace:    deployment.GetNamespace(),
-		ResourceName: deployment.GetName(),
-	})
-	assert.NoError(t, err)
-
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == SyncStatusCodeOutOfSync, err
-	})
+			_, err = client.DeleteResource(context.Background(), &application.ApplicationResourceDeleteRequest{
+				Name:         &app.Name,
+				Group:        deployment.GroupVersionKind().Group,
+				Kind:         deployment.GroupVersionKind().Kind,
+				Version:      deployment.GroupVersionKind().Version,
+				Namespace:    deployment.GetNamespace(),
+				ResourceName: deployment.GetName(),
+			})
+			assert.NoError(t, err)
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
 func TestAppWithSecrets(t *testing.T) {
