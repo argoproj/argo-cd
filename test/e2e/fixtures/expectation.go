@@ -88,12 +88,6 @@ func DoesNotExist() Expectation {
 	}
 }
 
-func App(predicate func(app *Application) bool, message string) Expectation {
-	return func(c *Consequences) (state, string) {
-		return simple(predicate(c.app()), fmt.Sprintf(message))
-	}
-}
-
 func Event(reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
 		list, err := c.context.fixture.KubeClientset.CoreV1().Events(c.context.fixture.ArgoCDNamespace).List(metav1.ListOptions{

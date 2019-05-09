@@ -52,7 +52,7 @@ func (a *Actionable) Create() *Actionable {
 		a.context.name = strings.ReplaceAll(a.context.path, "/", "-")
 	}
 
-	a.runCli("app", "create", a.context.name,
+	_, _ = a.runCli("app", "create", a.context.name,
 		"--repo", a.context.fixture.RepoURL(),
 		"--path", a.context.path,
 		"--dest-server", a.context.destServer,
@@ -66,11 +66,13 @@ func (c *Context) When() *Actionable {
 }
 
 func (a *Actionable) Sync() *Actionable {
-	return a.runCli("app", "sync", a.context.name, "--timeout", "5")
+	_, _ = a.runCli("app", "sync", a.context.name, "--timeout", "5")
+	return a
 }
 
 func (a *Actionable) TerminateOp() *Actionable {
-	return a.runCli("app", "terminate-op", a.context.name)
+	_, _ = a.runCli("app", "terminate-op", a.context.name)
+	return a
 }
 
 func (a *Actionable) Patch(file string, jsonPath string) *Actionable {
@@ -79,13 +81,14 @@ func (a *Actionable) Patch(file string, jsonPath string) *Actionable {
 }
 
 func (a *Actionable) Delete(cascade bool) *Actionable {
-	return a.runCli("app", "delete", a.context.name, "--cascade", strconv.FormatBool(cascade))
+	_, _ = a.runCli("app", "delete", a.context.name, "--cascade", strconv.FormatBool(cascade))
+	return a
 }
 
-func (a *Actionable) runCli(args ...string) *Actionable {
-	output, err := a.context.fixture.RunCli(args...)
+func (a *Actionable) runCli(args ...string) (output string, err error) {
+	output, err = a.context.fixture.RunCli(args...)
 	log.WithFields(log.Fields{"output": output, "err": err, "args": args}).Info("ran command")
-	return a
+	return output, err
 }
 
 type Consequences struct {
