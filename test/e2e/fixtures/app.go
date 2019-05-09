@@ -40,12 +40,11 @@ type Actionable struct {
 
 func (a *Actionable) Create() *Actionable {
 
-	name := a.context.name
-	if name == "" {
-		name = strings.ReplaceAll(a.context.path, "/", "-")
+	if a.context.name == "" {
+		a.context.name = strings.ReplaceAll(a.context.path, "/", "-")
 	}
 
-	a.runCli("app", "create", name,
+	a.runCli("app", "create", a.context.name,
 		"--repo", a.context.fixture.RepoURL(),
 		"--path", a.context.path,
 		"--dest-server", common.KubernetesInternalAPIServerAddr,
@@ -66,13 +65,17 @@ func (a *Actionable) TerminateOp() *Actionable {
 	return a.runCli("app", "terminate-op", a.context.name)
 }
 
-func (a *Actionable) runCli(args ...string) *Actionable {
-	_, _ = a.context.fixture.RunCli(args...)
+func (a *Actionable) Patch(file string, jsonPath string) *Actionable {
+	a.context.fixture.Patch(a.context.path+"/"+file, jsonPath)
 	return a
 }
 
-func (a *Actionable) Patch(file string, jsonPath string) *Actionable {
-	a.context.fixture.Patch(a.context.path+"/"+file, jsonPath)
+func (a *Actionable) Delete() *Actionable {
+	return a.runCli("app", "delete", a.context.name)
+}
+
+func (a *Actionable) runCli(args ...string) *Actionable {
+	_, _ = a.context.fixture.RunCli(args...)
 	return a
 }
 
@@ -97,14 +100,17 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	return c
 }
 
-func (c *Consequences) get() *Application {
-	app, err := c.context.fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
-	assert.NoError(c.actionable.context.t, err)
+func (c *Consequences) app() *Application {
+	app, err := c.get()
+	assert.NoError(c.context.t, err)
 	return app
+}
+func (c *Consequences) get() (*Application, error) {
+	return c.context.fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
 }
 
 func (c *Consequences) resource(name string) ResourceStatus {
-	for _, r := range c.get().Status.Resources {
+	for _, r := range c.app().Status.Resources {
 		if r.Name == name {
 			return r
 		}
@@ -115,6 +121,10 @@ func (c *Consequences) resource(name string) ResourceStatus {
 }
 
 func (c *Consequences) Assert(block func(app *Application)) *Consequences {
-	block(c.get())
+	block(c.app())
 	return c
+}
+
+func (c *Consequences) When() *Actionable {
+	return c.actionable
 }

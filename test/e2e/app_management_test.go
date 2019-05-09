@@ -12,7 +12,6 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,6 +31,7 @@ const (
 	guestbookPath = "guestbook"
 )
 
+// DEPRECATED
 func assertAppHasEvent(t *testing.T, a *Application, message string, reason string) {
 	list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{
@@ -50,6 +50,7 @@ func assertAppHasEvent(t *testing.T, a *Application, message string, reason stri
 	t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
 }
 
+// DEPRECATED
 func getTestApp() *Application {
 	return &Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -68,6 +69,7 @@ func getTestApp() *Application {
 	}
 }
 
+// DEPRECATED
 func createAndSync(t *testing.T, beforeCreate func(app *Application)) *Application {
 	app := getTestApp()
 	beforeCreate(app)
@@ -86,6 +88,7 @@ func createAndSync(t *testing.T, beforeCreate func(app *Application)) *Applicati
 	return app
 }
 
+// DEPRECATED
 func createAndSyncDefault(t *testing.T) *Application {
 	return createAndSync(t, func(app *Application) {
 		app.Spec.Source.Path = guestbookPath
@@ -114,32 +117,18 @@ func TestAppCreation(t *testing.T) {
 }
 
 func TestAppDeletion(t *testing.T) {
-	fixture.EnsureCleanState()
 
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(getTestApp())
-	assert.NoError(t, err)
-
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == SyncStatusCodeOutOfSync, err
-	})
-
-	_, err = fixture.RunCli("app", "delete", app.Name)
-
-	assert.NoError(t, err)
-
-	WaitUntil(t, func() (bool, error) {
-		_, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		return false, nil
-	})
-
-	assertAppHasEvent(t, app, "delete", argo.EventReasonResourceDeleted)
+	Given(fixture, t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Delete().
+		Then().
+		Expect(Deleted()).
+		Expect(Event(argo.EventReasonResourceDeleted, "delete"))
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
