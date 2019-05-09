@@ -67,13 +67,6 @@ func createAndSync(t *testing.T, beforeCreate func(app *Application)) *Applicati
 	return app
 }
 
-// DEPRECATED
-func createAndSyncDefault(t *testing.T) *Application {
-	return createAndSync(t, func(app *Application) {
-		app.Spec.Source.Path = guestbookPath
-	})
-}
-
 func TestAppCreation(t *testing.T) {
 
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
@@ -271,7 +264,7 @@ func TestAppWithSecrets(t *testing.T) {
 				"test-secret", types.JSONPatchType, []byte(`[{"op": "remove", "path": "/data/username"}]`))
 			assert.NoError(t, err)
 
-			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
+			_, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 			assert.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).

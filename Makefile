@@ -136,7 +136,7 @@ lint:
 
 .PHONY: build
 build:
-	go build `go list ./... | grep -v resource_customizations`
+	go build `go list ./... | grep -v 'resource_customizations\|test/e2e'`
 
 .PHONY: test
 test:
