@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
@@ -32,7 +32,7 @@ const (
 	guestbookPath = "guestbook"
 )
 
-func assertAppHasEvent(t *testing.T, a *v1alpha1.Application, message string, reason string) {
+func assertAppHasEvent(t *testing.T, a *Application, message string, reason string) {
 	list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{
 			"involvedObject.name":      a.Name,
@@ -50,17 +50,17 @@ func assertAppHasEvent(t *testing.T, a *v1alpha1.Application, message string, re
 	t.Errorf("Unable to find event with reason=%s; message=%s", reason, message)
 }
 
-func getTestApp() *v1alpha1.Application {
-	return &v1alpha1.Application{
+func getTestApp() *Application {
+	return &Application{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "test-app",
 		},
-		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
+		Spec: ApplicationSpec{
+			Source: ApplicationSource{
 				RepoURL: fixture.RepoURL(),
 				Path:    guestbookPath,
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: ApplicationDestination{
 				Server:    common.KubernetesInternalAPIServerAddr,
 				Namespace: fixture.DeploymentNamespace,
 			},
@@ -68,7 +68,7 @@ func getTestApp() *v1alpha1.Application {
 	}
 }
 
-func createAndSync(t *testing.T, beforeCreate func(app *v1alpha1.Application)) *v1alpha1.Application {
+func createAndSync(t *testing.T, beforeCreate func(app *Application)) *Application {
 	app := getTestApp()
 	beforeCreate(app)
 
@@ -86,8 +86,8 @@ func createAndSync(t *testing.T, beforeCreate func(app *v1alpha1.Application)) *
 	return app
 }
 
-func createAndSyncDefault(t *testing.T) *v1alpha1.Application {
-	return createAndSync(t, func(app *v1alpha1.Application) {
+func createAndSyncDefault(t *testing.T) *Application {
+	return createAndSync(t, func(app *Application) {
 		app.Spec.Source.Path = guestbookPath
 	})
 }
@@ -104,10 +104,10 @@ func TestAppCreation(t *testing.T) {
 		"--dest-namespace", fixture.DeploymentNamespace)
 	assert.NoError(t, err)
 
-	var app *v1alpha1.Application
+	var app *Application
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(appName, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeOutOfSync, err
 	})
 
 	assert.Equal(t, appName, app.Name)
@@ -126,7 +126,7 @@ func TestAppDeletion(t *testing.T) {
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeOutOfSync, err
 	})
 
 	_, err = fixture.RunCli("app", "delete", app.Name)
@@ -153,9 +153,9 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 	app := createAndSyncDefault(t)
 
 	assertAppHasEvent(t, app, "sync", argo.EventReasonResourceUpdated)
-	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
+	assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 	assert.True(t, app.Status.OperationState.SyncResult != nil)
-	assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
+	assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
@@ -171,7 +171,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 	})
 
 	appWithHistory := app.DeepCopy()
-	appWithHistory.Status.History = []v1alpha1.RevisionHistory{{
+	appWithHistory.Status.History = []RevisionHistory{{
 		ID:         1,
 		Revision:   app.Status.Sync.Revision,
 		DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-1 * time.Minute)},
@@ -182,7 +182,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 		DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-2 * time.Minute)},
 		Source:     app.Spec.Source,
 	}}
-	patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &v1alpha1.Application{})
+	patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 	assert.NoError(t, err)
 
 	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Patch(app.Name, types.MergePatchType, patch)
@@ -196,12 +196,12 @@ func TestAppRollbackSuccessful(t *testing.T) {
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeSynced, err
 	})
-	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, app.Status.Sync.Status)
+	assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 	assert.True(t, app.Status.OperationState.SyncResult != nil)
 	assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
-	assert.True(t, app.Status.OperationState.Phase == v1alpha1.OperationSucceeded)
+	assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
 	assert.Equal(t, 3, len(app.Status.History))
 }
 
@@ -216,13 +216,13 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeUnknown && len(app.Status.Conditions) > 0, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeUnknown && len(app.Status.Conditions) > 0, err
 	})
 
 	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+	assert.Equal(t, ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 
 	_, err = fixture.RunCli("app", "delete", app.Name, "--cascade=false")
 	assert.NoError(t, err)
@@ -235,7 +235,7 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusHealthy, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeSynced && app.Status.Health.Status == HealthStatusHealthy, err
 	})
 
 	_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
@@ -246,7 +246,7 @@ func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced && app.Status.Health.Status == v1alpha1.HealthStatusDegraded, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeSynced && app.Status.Health.Status == HealthStatusDegraded, err
 	})
 }
 
@@ -288,14 +288,14 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeOutOfSync, err
 	})
 }
 
 func TestAppWithSecrets(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app := createAndSync(t, func(app *v1alpha1.Application) {
+	app := createAndSync(t, func(app *Application) {
 		app.Spec.Source.Path = "secrets"
 	})
 
@@ -312,13 +312,13 @@ func TestAppWithSecrets(t *testing.T) {
 	assert.NoError(t, err)
 	defer util.Close(closer)
 
-	refresh := string(v1alpha1.RefreshTypeNormal)
+	refresh := string(RefreshTypeNormal)
 	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 	assert.NoError(t, err)
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeOutOfSync, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeOutOfSync, err
 	})
 
 	diffOutput, err = fixture.RunCli("app", "diff", app.Name)
@@ -331,7 +331,7 @@ func TestAppWithSecrets(t *testing.T) {
 	assert.Empty(t, diffOutput)
 
 	// ignore missing field and make sure diff shows no difference
-	app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{{
+	app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
 		Kind: kube.SecretKind, JSONPointers: []string{"/data/username"},
 	}}
 	_, err = client.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: app.Spec})
@@ -340,7 +340,7 @@ func TestAppWithSecrets(t *testing.T) {
 
 	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 	assert.NoError(t, err)
-	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+	assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
 
 	diffOutput, err = fixture.RunCli("app", "diff", app.Name)
 	assert.NoError(t, err)
@@ -361,7 +361,7 @@ func TestResourceDiffing(t *testing.T) {
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced, err
+		return err == nil && app.Status.Sync.Status == SyncStatusCodeSynced, err
 	})
 
 	// Patch deployment
@@ -373,19 +373,19 @@ func TestResourceDiffing(t *testing.T) {
 	assert.NoError(t, err)
 	defer util.Close(closer)
 
-	refresh := string(v1alpha1.RefreshTypeNormal)
+	refresh := string(RefreshTypeNormal)
 	app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 	assert.NoError(t, err)
 
 	// Make sure application is out of sync due to deployment image difference
-	assert.Equal(t, string(v1alpha1.SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
+	assert.Equal(t, string(SyncStatusCodeOutOfSync), string(app.Status.Sync.Status))
 	diffOutput, _ := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 	assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", fixture.DeploymentNamespace))
 
 	// Update settings to ignore image difference
 	settings, err := fixture.SettingsManager.GetSettings()
 	assert.NoError(t, err)
-	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{
+	settings.ResourceOverrides = map[string]ResourceOverride{
 		"apps/Deployment": {IgnoreDifferences: ` jsonPointers: ["/spec/template/spec/containers/0/image"]`},
 	}
 	err = fixture.SettingsManager.SaveSettings(settings)
@@ -395,7 +395,7 @@ func TestResourceDiffing(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Make sure application is in synced state and CLI show no difference
-	assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+	assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
 
 	diffOutput, err = fixture.RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
 	assert.Empty(t, diffOutput)
@@ -415,7 +415,7 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 		t.Run(fmt.Sprintf("Test%s", name), func(t *testing.T) {
 			fixture.EnsureCleanState()
 
-			app := createAndSync(t, func(app *v1alpha1.Application) {
+			app := createAndSync(t, func(app *Application) {
 				app.Spec.Source.Path = appPath
 			})
 
@@ -423,11 +423,11 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 			assert.NoError(t, err)
 			defer util.Close(closer)
 
-			refresh := string(v1alpha1.RefreshTypeNormal)
+			refresh := string(RefreshTypeNormal)
 			app, err = client.Get(context.Background(), &application.ApplicationQuery{Name: &app.Name, Refresh: &refresh})
 			assert.NoError(t, err)
 
-			assert.Equal(t, string(v1alpha1.SyncStatusCodeSynced), string(app.Status.Sync.Status))
+			assert.Equal(t, string(SyncStatusCodeSynced), string(app.Status.Sync.Status))
 			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
@@ -438,11 +438,11 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 func TestKsonnetApp(t *testing.T) {
 	fixture.EnsureCleanState()
 
-	app := createAndSync(t, func(app *v1alpha1.Application) {
+	app := createAndSync(t, func(app *Application) {
 		app.Spec.Source.Path = "ksonnet"
-		app.Spec.Source.Ksonnet = &v1alpha1.ApplicationSourceKsonnet{
+		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
 			Environment: "prod",
-			Parameters: []v1alpha1.KsonnetParameter{{
+			Parameters: []KsonnetParameter{{
 				Component: "guestbook-ui",
 				Name:      "image",
 				Value:     "gcr.io/heptio-images/ks-guestbook-demo:0.1",
@@ -483,7 +483,7 @@ func TestResourceAction(t *testing.T) {
 	settings, err := fixture.SettingsManager.GetSettings()
 	assert.NoError(t, err)
 
-	settings.ResourceOverrides = map[string]v1alpha1.ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}
+	settings.ResourceOverrides = map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}
 	err = fixture.SettingsManager.SaveSettings(settings)
 	assert.NoError(t, err)
 
@@ -502,7 +502,7 @@ func TestResourceAction(t *testing.T) {
 		ResourceName: "guestbook-ui",
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, []v1alpha1.ResourceAction{{Name: "sample"}}, actions.Actions)
+	assert.Equal(t, []ResourceAction{{Name: "sample"}}, actions.Actions)
 
 	_, err = client.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{Name: &app.Name,
 		Group:        "apps",
@@ -552,7 +552,7 @@ func TestPermissions(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get("test", metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	proj.Spec.Destinations = []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}}
+	proj.Spec.Destinations = []ApplicationDestination{{Server: "*", Namespace: "*"}}
 	proj.Spec.SourceRepos = []string{"*"}
 	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(proj)
 	assert.NoError(t, err)
@@ -566,7 +566,7 @@ func TestPermissions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	proj.Spec.Destinations = []v1alpha1.ApplicationDestination{}
+	proj.Spec.Destinations = []ApplicationDestination{}
 	proj.Spec.SourceRepos = []string{}
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(proj)
 	assert.NoError(t, err)
@@ -574,7 +574,7 @@ func TestPermissions(t *testing.T) {
 	assert.NoError(t, err)
 	defer util.Close(closer)
 
-	refresh := string(v1alpha1.RefreshTypeNormal)
+	refresh := string(RefreshTypeNormal)
 	app, err := client.Get(context.Background(), &application.ApplicationQuery{Name: &appName, Refresh: &refresh})
 	assert.NoError(t, err)
 
