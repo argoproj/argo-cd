@@ -29,44 +29,6 @@ const (
 	guestbookPath = "guestbook"
 )
 
-// DEPRECATED
-func getTestApp() *Application {
-	return &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-app",
-		},
-		Spec: ApplicationSpec{
-			Source: ApplicationSource{
-				RepoURL: fixture.RepoURL(),
-				Path:    guestbookPath,
-			},
-			Destination: ApplicationDestination{
-				Server:    common.KubernetesInternalAPIServerAddr,
-				Namespace: fixture.DeploymentNamespace,
-			},
-		},
-	}
-}
-
-// DEPRECATED
-func createAndSync(t *testing.T, beforeCreate func(app *Application)) *Application {
-	app := getTestApp()
-	beforeCreate(app)
-
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(app)
-	assert.NoError(t, err)
-
-	_, err = fixture.RunCli("app", "sync", app.Name)
-	assert.NoError(t, err)
-
-	_, err = fixture.RunCli("app", "wait", app.Name, "--sync", "--timeout", "5")
-	assert.NoError(t, err)
-
-	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-	return app
-}
-
 func TestAppCreation(t *testing.T) {
 
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
@@ -385,38 +347,37 @@ func TestEdgeCasesApplicationResources(t *testing.T) {
 }
 
 func TestKsonnetApp(t *testing.T) {
-	fixture.EnsureCleanState()
 
-	app := createAndSync(t, func(app *Application) {
-		app.Spec.Source.Path = "ksonnet"
-		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
-			Environment: "prod",
-			Parameters: []KsonnetParameter{{
-				Component: "guestbook-ui",
-				Name:      "image",
-				Value:     "gcr.io/heptio-images/ks-guestbook-demo:0.1",
-			}},
-		}
-	})
-	closer, client, err := fixture.ArgoCDClientset.NewRepoClient()
-	assert.NoError(t, err)
-	defer util.Close(closer)
+	Given(fixture, t).
+		Path("ksonnet").
+		Env("prod").
+		Parameter("guestbook-ui=image=gcr.io/heptio-images/ks-guestbook-demo:0.1").
+		When().
+		Create().
+		Sync().
+		Then().
+		And(func(app *Application) {
 
-	details, err := client.GetAppDetails(context.Background(), &repository.RepoAppDetailsQuery{
-		Path:     app.Spec.Source.Path,
-		Repo:     app.Spec.Source.RepoURL,
-		Revision: app.Spec.Source.TargetRevision,
-		Ksonnet:  &argorepo.KsonnetAppDetailsQuery{Environment: "prod"},
-	})
-	assert.NoError(t, err)
+			closer, client, err := fixture.ArgoCDClientset.NewRepoClient()
+			assert.NoError(t, err)
+			defer util.Close(closer)
 
-	serviceType := ""
-	for _, param := range details.Ksonnet.Parameters {
-		if param.Name == "type" && param.Component == "guestbook-ui" {
-			serviceType = param.Value
-		}
-	}
-	assert.Equal(t, serviceType, "LoadBalancer")
+			details, err := client.GetAppDetails(context.Background(), &repository.RepoAppDetailsQuery{
+				Path:     app.Spec.Source.Path,
+				Repo:     app.Spec.Source.RepoURL,
+				Revision: app.Spec.Source.TargetRevision,
+				Ksonnet:  &argorepo.KsonnetAppDetailsQuery{Environment: "prod"},
+			})
+			assert.NoError(t, err)
+
+			serviceType := ""
+			for _, param := range details.Ksonnet.Parameters {
+				if param.Name == "type" && param.Component == "guestbook-ui" {
+					serviceType = param.Value
+				}
+			}
+			assert.Equal(t, serviceType, "LoadBalancer")
+		})
 }
 
 const actionsConfig = `discovery.lua: return { sample = {} }

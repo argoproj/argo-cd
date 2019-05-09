@@ -15,11 +15,20 @@ func (a *Actionable) Create() *Actionable {
 		a.context.name = strings.ReplaceAll(a.context.path, "/", "-")
 	}
 
-	_, _ = a.runCli("app", "create", a.context.name,
+	args := []string{
+		"app", "create", a.context.name,
 		"--repo", a.context.fixture.RepoURL(),
 		"--path", a.context.path,
 		"--dest-server", a.context.destServer,
-		"--dest-namespace", a.context.fixture.DeploymentNamespace)
+		"--dest-namespace", a.context.fixture.DeploymentNamespace,
+		"--env", a.context.env,
+	}
+
+	for _, parameter := range a.context.parameters {
+		args = append(args, "--parameter", parameter)
+	}
+
+	_, _ = a.runCli(args...)
 
 	return a
 }

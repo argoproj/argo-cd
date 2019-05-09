@@ -3,7 +3,7 @@ package fixtures
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/common"
+	. "github.com/argoproj/argo-cd/common"
 )
 
 type Context struct {
@@ -12,11 +12,13 @@ type Context struct {
 	path       string
 	name       string
 	destServer string
+	env        string
+	parameters []string
 }
 
 func Given(f *Fixture, t *testing.T) *Context {
 	f.EnsureCleanState()
-	return &Context{f, t, "", "", common.KubernetesInternalAPIServerAddr}
+	return &Context{f, t, "", "", "", KubernetesInternalAPIServerAddr, nil}
 }
 
 func (c *Context) Path(path string) *Context {
@@ -31,6 +33,16 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) DestServer(destServer string) *Context {
 	c.destServer = destServer
+	return c
+}
+
+func (c *Context) Env(env string) *Context {
+	c.env = env
+	return c
+}
+
+func (c *Context) Parameter(parameter string) *Context {
+	c.parameters = append(c.parameters, parameter)
 	return c
 }
 
