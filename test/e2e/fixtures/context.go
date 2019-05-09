@@ -34,6 +34,11 @@ func (c *Context) DestServer(destServer string) *Context {
 	return c
 }
 
+func (c *Context) And(block func()) *Context {
+	block()
+	return c
+}
+
 func (c *Context) When() *Actionable {
 	return &Actionable{c}
 }
