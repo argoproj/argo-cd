@@ -11,65 +11,91 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-type Expectation func(c *Consequences) (done bool, message string)
+type state = string
+
+const (
+	failed    = "failed"
+	pending   = "pending"
+	succeeded = "succeeded"
+)
+
+type Expectation func(c *Consequences) (state state, message string)
 
 func OperationPhaseIs(expected OperationPhase) Expectation {
-	return func(c *Consequences) (done bool, message string) {
+	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.OperationState.Phase
-		return actual == expected, fmt.Sprintf("expect app %s's operation phase to be %s, is %s", c.context.name, expected, actual)
+		return simple(actual == expected, fmt.Sprintf("expect app %s's operation phase to be %s, is %s", c.context.name, expected, actual))
+	}
+}
+
+func simple(success bool, message string) (state, string) {
+	if success {
+		return succeeded, ""
+	} else {
+		return pending, message
 	}
 }
 
 func SyncStatusIs(expected SyncStatusCode) Expectation {
-	return func(c *Consequences) (done bool, message string) {
+	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Sync.Status
-		return actual == expected, fmt.Sprintf("expect app %s's sync status to be %s, is %s", c.context.name, expected, actual)
+		return simple(actual == expected, fmt.Sprintf("expect app %s's sync status to be %s, is %s", c.context.name, expected, actual))
+	}
+}
+
+func Condition(conditionType ApplicationConditionType) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, condition := range c.app().Status.Conditions {
+			if conditionType == condition.Type {
+				return succeeded, ""
+			}
+		}
+		return failed, "failed"
 	}
 }
 
 func HealthIs(expected HealthStatusCode) Expectation {
-	return func(c *Consequences) (bool, string) {
+	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
-		return actual == expected, fmt.Sprintf("expect app %s's health to be %s, is %s", c.context.name, expected, actual)
+		return simple(actual == expected, fmt.Sprintf("expect app %s's health to be %s, is %s", c.context.name, expected, actual))
 	}
 }
 
 func ResourceSyncStatusIs(resource string, expected SyncStatusCode) Expectation {
-	return func(c *Consequences) (done bool, message string) {
+	return func(c *Consequences) (state, string) {
 		actual := c.resource(resource).Status
-		return actual == expected, fmt.Sprintf("expect app %s's resource %s sync status to be %s, is %s", c.context.name, resource, expected, actual)
+		return simple(actual == expected, fmt.Sprintf("expect app %s's resource %s sync status to be %s, is %s", c.context.name, resource, expected, actual))
 	}
 }
 
 func ResourceHealthIs(resource string, expected HealthStatusCode) Expectation {
-	return func(c *Consequences) (done bool, message string) {
+	return func(c *Consequences) (state, string) {
 		actual := c.resource(resource).Health.Status
-		return actual == expected, fmt.Sprintf("expect app %s's resource %s health to be %s, is %s", c.context.name, resource, expected, actual)
+		return simple(actual == expected, fmt.Sprintf("expect app %s's resource %s health to be %s, is %s", c.context.name, resource, expected, actual))
 	}
 }
 
-func Deleted() Expectation {
-	return func(c *Consequences) (bool, string) {
+func DoesNotExist() Expectation {
+	return func(c *Consequences) (state, string) {
 		_, err := c.Get()
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				return true, ""
+				return succeeded, ""
 			}
-			return true, err.Error()
+			return failed, err.Error()
 		}
-		return true, "not deleted"
-
+		return failed, "not deleted"
 	}
 }
 
 func App(predicate func(app *Application) bool, message string) Expectation {
-	return func(c *Consequences) (bool, string) {
-		return predicate(c.app()), message
+	return func(c *Consequences) (state, string) {
+		return simple(predicate(c.app()), fmt.Sprintf(message))
 	}
 }
 
 func Event(reason string, message string) Expectation {
-	return func(c *Consequences) (bool, string) {
+	return func(c *Consequences) (state, string) {
 		list, err := c.context.fixture.KubeClientset.CoreV1().Events(c.context.fixture.ArgoCDNamespace).List(metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
 				"involvedObject.name":      c.context.name,
@@ -77,15 +103,15 @@ func Event(reason string, message string) Expectation {
 			}).String(),
 		})
 		if err != nil {
-			return true, err.Error()
+			return failed, err.Error()
 		}
 
 		for i := range list.Items {
 			event := list.Items[i]
 			if event.Reason == reason && strings.Contains(event.Message, message) {
-				return true, ""
+				return succeeded, ""
 			}
 		}
-		return true, fmt.Sprintf("Unable to find event with reason=%s; message=%s", reason, message)
+		return failed, fmt.Sprintf("unable to find event with reason=%s; message=%s", reason, message)
 	}
 }

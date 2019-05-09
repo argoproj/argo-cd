@@ -1,9 +1,12 @@
 package fixtures
 
 import (
-	"errors"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,15 +16,16 @@ import (
 )
 
 type Context struct {
-	fixture *Fixture
-	t       *testing.T
-	path    string
-	name    string
+	fixture    *Fixture
+	t          *testing.T
+	path       string
+	name       string
+	destServer string
 }
 
 func Given(f *Fixture, t *testing.T) *Context {
 	f.EnsureCleanState()
-	return &Context{f, t, "", ""}
+	return &Context{f, t, "", "", common.KubernetesInternalAPIServerAddr}
 }
 
 func (c *Context) Path(path string) *Context {
@@ -31,6 +35,11 @@ func (c *Context) Path(path string) *Context {
 
 func (c *Context) Name(name string) *Context {
 	c.name = name
+	return c
+}
+
+func (c *Context) DestServer(destServer string) *Context {
+	c.destServer = destServer
 	return c
 }
 
@@ -47,7 +56,7 @@ func (a *Actionable) Create() *Actionable {
 	a.runCli("app", "create", a.context.name,
 		"--repo", a.context.fixture.RepoURL(),
 		"--path", a.context.path,
-		"--dest-server", common.KubernetesInternalAPIServerAddr,
+		"--dest-server", a.context.destServer,
 		"--dest-namespace", a.context.fixture.DeploymentNamespace)
 
 	return a
@@ -70,12 +79,13 @@ func (a *Actionable) Patch(file string, jsonPath string) *Actionable {
 	return a
 }
 
-func (a *Actionable) Delete() *Actionable {
-	return a.runCli("app", "delete", a.context.name)
+func (a *Actionable) Delete(cascade bool) *Actionable {
+	return a.runCli("app", "delete", a.context.name, "--cascade", strconv.FormatBool(cascade))
 }
 
 func (a *Actionable) runCli(args ...string) *Actionable {
-	_, _ = a.context.fixture.RunCli(args...)
+	output, err := a.context.fixture.RunCli(args...)
+	log.WithFields(log.Fields{"output": output, "err": err, "args": args}).Info("ran command")
 	return a
 }
 
@@ -89,14 +99,19 @@ func (a *Actionable) Then() *Consequences {
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
-	WaitUntil(c.context.t, func() (done bool, err error) {
-		done, message := e(c)
-		if done {
-			return true, nil
-		} else {
-			return false, errors.New(message)
+	var err error
+	for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(3 * time.Second) {
+		state, message := e(c)
+		log.WithFields(log.Fields{"message": message, "state": state}).Info("polling for expectation")
+		switch state {
+		case succeeded:
+			return c
+		case failed:
+			c.context.t.Error(message)
+			return c
 		}
-	})
+	}
+	c.context.t.Error(err)
 	return c
 }
 

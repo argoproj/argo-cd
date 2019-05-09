@@ -112,8 +112,8 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
-			assertAppHasEvent(t, app, "create", EventReasonResourceCreated)
-		})
+		}).
+		Expect(Event(EventReasonResourceCreated, "create"))
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -125,9 +125,9 @@ func TestAppDeletion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
-		Delete().
+		Delete(true).
 		Then().
-		Expect(Deleted()).
+		Expect(DoesNotExist()).
 		Expect(Event(EventReasonResourceDeleted, "delete"))
 }
 
@@ -142,9 +142,9 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(Event(EventReasonResourceUpdated, "sync")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Assert(func(app *Application) {
-			assert.True(t, app.Status.OperationState.SyncResult != nil)
-			assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
-		})
+			assert.NotNil(t, app.Status.OperationState.SyncResult)
+		}).
+		Expect(OperationPhaseIs(OperationSucceeded))
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
@@ -194,26 +194,13 @@ func TestAppRollbackSuccessful(t *testing.T) {
 
 func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 
-	fixture.EnsureCleanState()
-
-	invalidApp := getTestApp()
-	invalidApp.Spec.Destination.Server = "https://not-registered-cluster/api"
-
-	app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(invalidApp)
-	assert.NoError(t, err)
-
-	WaitUntil(t, func() (done bool, err error) {
-		app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == SyncStatusCodeUnknown && len(app.Status.Conditions) > 0, err
-	})
-
-	app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-	assert.NoError(t, err)
-
-	assert.Equal(t, ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
-
-	_, err = fixture.RunCli("app", "delete", app.Name, "--cascade=false")
-	assert.NoError(t, err)
+	Given(fixture, t).
+		Path(guestbookPath).
+		DestServer("https://not-registered-cluster/api").
+		When().
+		Create().
+		Then().
+		Expect(DoesNotExist())
 }
 
 func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
