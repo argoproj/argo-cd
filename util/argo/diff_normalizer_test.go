@@ -3,6 +3,7 @@ package argo
 import (
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -74,10 +75,31 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 	assert.False(t, has)
 }
 
+const testCRDYAML = `
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: certificates.certmanager.k8s.io
+spec:
+  group: certmanager.k8s.io
+  names:
+    kind: Certificate
+    listKind: CertificateList
+    plural: certificates
+    shortNames:
+      - cert
+      - certs
+    singular: certificate
+  scope: Namespaced
+  version: v1alpha1`
+
 func TestNormalizeMissingJsonPointer(t *testing.T) {
 	normalizer, err := NewDiffNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
 		"apps/Deployment": {
 			IgnoreDifferences: `jsonPointers: ["/garbage"]`,
+		},
+		"apiextensions.k8s.io/CustomResourceDefinition": {
+			IgnoreDifferences: `jsonPointers: ["/spec/additionalPrinterColumns/0/priority"]`,
 		},
 	})
 	assert.NoError(t, err)
@@ -85,5 +107,12 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 	deployment := kube.MustToUnstructured(test.DemoDeployment())
 
 	err = normalizer.Normalize(deployment)
+	assert.NoError(t, err)
+
+	crd := unstructured.Unstructured{}
+	err = yaml.Unmarshal([]byte(testCRDYAML), &crd)
+	assert.NoError(t, err)
+
+	err = normalizer.Normalize(&crd)
 	assert.NoError(t, err)
 }
