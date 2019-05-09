@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,7 +47,7 @@ func OperationPhaseIs(expected OperationPhase) Expectation {
 
 func simple(success bool, message string) (state, string) {
 	if success {
-		return succeeded, ""
+		return succeeded, message
 	} else {
 		return pending, message
 	}
@@ -62,33 +62,34 @@ func SyncStatusIs(expected SyncStatusCode) Expectation {
 
 func Condition(conditionType ApplicationConditionType) Expectation {
 	return func(c *Consequences) (state, string) {
+		message := fmt.Sprintf("condition of type %s", conditionType)
 		for _, condition := range c.app().Status.Conditions {
 			if conditionType == condition.Type {
-				return succeeded, ""
+				return succeeded, message
 			}
 		}
-		return failed, "failed"
+		return failed, message
 	}
 }
 
 func HealthIs(expected HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
-		return simple(actual == expected, fmt.Sprintf("expect app %s's health to be %s, is %s", c.context.name, expected, actual))
+		return simple(actual == expected, fmt.Sprintf("health to be %s, is %s", expected, actual))
 	}
 }
 
 func ResourceSyncStatusIs(resource string, expected SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(resource).Status
-		return simple(actual == expected, fmt.Sprintf("expect app %s's resource %s sync status to be %s, is %s", c.context.name, resource, expected, actual))
+		return simple(actual == expected, fmt.Sprintf("resource '%s' sync status to be %s, is %s", resource, expected, actual))
 	}
 }
 
 func ResourceHealthIs(resource string, expected HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(resource).Health.Status
-		return simple(actual == expected, fmt.Sprintf("expect app %s's resource %s health to be %s, is %s", c.context.name, resource, expected, actual))
+		return simple(actual == expected, fmt.Sprintf("resource '%s' health to be %s, is %s", resource, expected, actual))
 	}
 }
 
@@ -97,27 +98,27 @@ func DoesNotExist() Expectation {
 		_, err := c.get()
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				return succeeded, ""
+				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
 		}
-		return pending, ""
+		return pending, "app does not exist"
 	}
 }
 
 func Pod(predicate func(p v1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
-		app := c.app()
-		pods, err := c.context.fixture.KubeClientset.CoreV1().Pods(app.Namespace).List(metav1.ListOptions{})
+		c.context.fixture.KubeClientset.CoreV1()
+		pods, err := c.context.fixture.KubeClientset.CoreV1().Pods(c.context.fixture.DeploymentNamespace).List(metav1.ListOptions{})
 		if err != nil {
 			return failed, err.Error()
 		}
 		for _, pod := range pods.Items {
 			if predicate(pod) {
-				return succeeded, ""
+				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
 		}
-		return failed, ""
+		return pending, fmt.Sprintf("pod predicate did not match pods: %v", pods.Items)
 	}
 }
 
@@ -136,7 +137,7 @@ func Event(reason string, message string) Expectation {
 		for i := range list.Items {
 			event := list.Items[i]
 			if event.Reason == reason && strings.Contains(event.Message, message) {
-				return succeeded, ""
+				return succeeded, fmt.Sprintf("found event with reason=%s; message=%s", reason, message)
 			}
 		}
 		return failed, fmt.Sprintf("unable to find event with reason=%s; message=%s", reason, message)
