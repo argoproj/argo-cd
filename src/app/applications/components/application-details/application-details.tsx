@@ -378,7 +378,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{ na
 
     private groupAppNodesByKey(application: appModels.Application, tree: appModels.ApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();
-        tree.nodes.forEach((node) => nodeByKey.set(nodeKey(node), node));
+        (tree.nodes || []).forEach((node) => nodeByKey.set(nodeKey(node), node));
         nodeByKey.set(nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;
     }
