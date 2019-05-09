@@ -1,9 +1,5 @@
 package app
 
-import (
-	"strings"
-)
-
 // this implements the "when" part of given/when/then
 //
 // none of the func implement error checks, and that is complete intended, you should check for errors
@@ -13,10 +9,6 @@ type Actions struct {
 }
 
 func (a *Actions) Create() *Actions {
-
-	if a.context.name == "" {
-		a.context.name = strings.Replace(a.context.path, "/", "-", -1)
-	}
 
 	args := []string{
 		"app", "create", a.context.name,

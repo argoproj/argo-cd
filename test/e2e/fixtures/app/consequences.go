@@ -3,8 +3,9 @@ package app
 import (
 	"time"
 
+	"github.com/argoproj/argo-cd/errors"
+
 	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -17,19 +18,20 @@ type Consequences struct {
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
-	var err error
+	var message string
+	var state state
 	for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(3 * time.Second) {
-		state, message := e(c)
+		state, message = e(c)
 		log.WithFields(log.Fields{"message": message, "state": state}).Info("polling for expectation")
 		switch state {
 		case succeeded:
 			return c
 		case failed:
-			c.context.t.Error(message)
+			c.context.t.Fatal(message)
 			return c
 		}
 	}
-	c.context.t.Error(err)
+	c.context.t.Fatal("timeout waiting, " + message)
 	return c
 }
 
@@ -44,7 +46,7 @@ func (c *Consequences) When() *Actions {
 
 func (c *Consequences) app() *Application {
 	app, err := c.get()
-	assert.NoError(c.context.t, err)
+	errors.CheckError(err)
 	return app
 }
 

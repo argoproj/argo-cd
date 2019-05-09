@@ -167,13 +167,12 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Sync().
 		Then().
 		// TODO - I feel like this should be a failure, not success
-		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusIs("pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("pod", HealthStatusDegraded)).
-		Expect(Not(Pod(func(p v1.Pod) bool {
+		Expect(NotPod(func(p v1.Pod) bool {
 			return p.Name == "hook"
-		})))
+		}))
 }
 
 func TestHookDeletePolicyHookSucceeded(t *testing.T) {
@@ -181,14 +180,14 @@ func TestHookDeletePolicyHookSucceeded(t *testing.T) {
 	Given(fixture, t).
 		Path("hook").
 		When().
-		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook-delete-policy": "HookSucceeded"}}]`).
+		Patch("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "HookSucceeded"}]`).
 		Create().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(Not(Pod(func(p v1.Pod) bool {
+		Expect(NotPod(func(p v1.Pod) bool {
 			return p.Name == "hook"
-		})))
+		}))
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {

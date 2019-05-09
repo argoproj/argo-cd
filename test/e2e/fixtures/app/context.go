@@ -20,7 +20,7 @@ type Context struct {
 
 func Given(f *Fixture, t *testing.T) *Context {
 	f.EnsureCleanState()
-	return &Context{fixture: f, t: t, destServer: KubernetesInternalAPIServerAddr}
+	return &Context{fixture: f, t: t, destServer: KubernetesInternalAPIServerAddr, name: "test-app"}
 }
 
 func (c *Context) Path(path string) *Context {
