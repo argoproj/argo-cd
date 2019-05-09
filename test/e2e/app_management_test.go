@@ -93,29 +93,24 @@ func createAndSyncDefault(t *testing.T) *Application {
 }
 
 func TestAppCreation(t *testing.T) {
-	fixture.EnsureCleanState()
 
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
-	_, err := fixture.RunCli("app", "create",
-		"--name", appName,
-		"--repo", fixture.RepoURL(),
-		"--path", guestbookPath,
-		"--dest-server", common.KubernetesInternalAPIServerAddr,
-		"--dest-namespace", fixture.DeploymentNamespace)
-	assert.NoError(t, err)
 
-	var app *Application
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(appName, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == SyncStatusCodeOutOfSync, err
-	})
-
-	assert.Equal(t, appName, app.Name)
-	assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
-	assert.Equal(t, guestbookPath, app.Spec.Source.Path)
-	assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
-	assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
-	assertAppHasEvent(t, app, "create", argo.EventReasonResourceCreated)
+	Given(fixture, t).
+		Path(guestbookPath).
+		Name(appName).
+		When().
+		Create().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Assert(func(app *Application) {
+			assert.Equal(t, appName, app.Name)
+			assert.Equal(t, fixture.RepoURL(), app.Spec.Source.RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
+			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
+			assertAppHasEvent(t, app, "create", argo.EventReasonResourceCreated)
+		})
 }
 
 func TestAppDeletion(t *testing.T) {

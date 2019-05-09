@@ -12,63 +12,99 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
-type App struct {
+type Context struct {
 	fixture *Fixture
 	t       *testing.T
 	path    string
-	Name    string
+	name    string
 }
 
-func (f *Fixture) NewApp(t *testing.T, path string) *App {
-
+func Given(f *Fixture, t *testing.T) *Context {
 	f.EnsureCleanState()
+	return &Context{f, t, "", ""}
+}
 
-	name := strings.ReplaceAll(path, "/", "-")
+func (c *Context) Path(path string) *Context {
+	c.path = path
+	return c
+}
 
-	_, _ = f.RunCli("app", "create", name,
-		"--repo", f.RepoURL(),
-		"--path", path,
+func (c *Context) Name(name string) *Context {
+	c.name = name
+	return c
+}
+
+type Actionable struct {
+	context *Context
+}
+
+func (a *Actionable) Create() *Actionable {
+
+	name := a.context.name
+	if name == "" {
+		name = strings.ReplaceAll(a.context.path, "/", "-")
+	}
+
+	a.runCli("app", "create", name,
+		"--repo", a.context.fixture.RepoURL(),
+		"--path", a.context.path,
 		"--dest-server", common.KubernetesInternalAPIServerAddr,
-		"--dest-namespace", f.DeploymentNamespace)
+		"--dest-namespace", a.context.fixture.DeploymentNamespace)
 
-	return &App{f, t, path, name}
-}
-
-func (a *App) Sync() *App {
-	_, _ = a.fixture.RunCli("app", "sync", a.Name, "--timeout", "5")
 	return a
 }
 
-func (a *App) TerminateOp() *App {
-	_, _ = a.fixture.RunCli("app", "terminate-op", a.Name)
+func (c *Context) When() *Actionable {
+	return &Actionable{c}
+}
+
+func (a *Actionable) Sync() *Actionable {
+	return a.runCli("app", "sync", a.context.name, "--timeout", "5")
+}
+
+func (a *Actionable) TerminateOp() *Actionable {
+	return a.runCli("app", "terminate-op", a.context.name)
+}
+
+func (a *Actionable) runCli(args ...string) *Actionable {
+	_, _ = a.context.fixture.RunCli(args...)
 	return a
 }
 
-func (a *App) Expect(e Expectation) *App {
-	WaitUntil(a.t, func() (done bool, err error) {
-		done, message := e(a)
+func (a *Actionable) Patch(file string, jsonPath string) *Actionable {
+	a.context.fixture.Patch(a.context.path+"/"+file, jsonPath)
+	return a
+}
+
+type Consequences struct {
+	context    *Context
+	actionable *Actionable
+}
+
+func (a *Actionable) Then() *Consequences {
+	return &Consequences{a.context, a}
+}
+
+func (c *Consequences) Expect(e Expectation) *Consequences {
+	WaitUntil(c.context.t, func() (done bool, err error) {
+		done, message := e(c)
 		if done {
 			return true, nil
 		} else {
 			return false, errors.New(message)
 		}
 	})
-	return a
+	return c
 }
 
-func (a *App) Patch(file string, jsonPath string) *App {
-	a.fixture.Patch(a.path+"/"+file, jsonPath)
-	return a
+func (c *Consequences) get() *Application {
+	app, err := c.context.fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
+	assert.NoError(c.actionable.context.t, err)
+	return app
 }
 
-func (a *App) get() Application {
-	app, err := a.fixture.AppClientset.ArgoprojV1alpha1().Applications(a.fixture.ArgoCDNamespace).Get(a.Name, v1.GetOptions{})
-	assert.NoError(a.t, err)
-	return *app
-}
-
-func (a *App) resource(name string) ResourceStatus {
-	for _, r := range a.get().Status.Resources {
+func (c *Consequences) resource(name string) ResourceStatus {
+	for _, r := range c.get().Status.Resources {
 		if r.Name == name {
 			return r
 		}
@@ -76,4 +112,9 @@ func (a *App) resource(name string) ResourceStatus {
 	return ResourceStatus{
 		Health: &HealthStatus{Status: HealthStatusUnknown},
 	}
+}
+
+func (c *Consequences) Assert(block func(app *Application)) *Consequences {
+	block(c.get())
+	return c
 }
