@@ -136,6 +136,7 @@ func (f *Fixture) RepoURL() string {
 
 // Close deletes test namespace resources.
 func (f *Fixture) Close() {
+	log.Info("cleaning up")
 	f.EnsureCleanState()
 	f.deleteDeploymentNamespace()
 	f.cleanupTestRepo()
@@ -250,23 +251,22 @@ func (f *Fixture) RunCli(args ...string) (string, error) {
 
 func (f *Fixture) Patch(path string, jsonPatch string) {
 
-	logCtx := log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch})
-	logCtx.Info("patching")
+	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := "/tmp/" + f.repoDirectory + "/" + path
 	bytes, err := ioutil.ReadFile(filename)
 	errors.CheckError(err)
 
+	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
+	errors.CheckError(err)
+
 	if strings.HasSuffix(filename, ".yaml") {
-		logCtx.Info("converting YAML to JSON")
+		log.Info("converting YAML to JSON")
 		bytes, err = yaml.YAMLToJSON(bytes)
 		errors.CheckError(err)
 	}
 
-	logCtx.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
-
-	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
-	errors.CheckError(err)
+	log.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
 
 	bytes, err = patch.Apply(bytes)
 	errors.CheckError(err)
@@ -274,7 +274,7 @@ func (f *Fixture) Patch(path string, jsonPatch string) {
 	err = ioutil.WriteFile(filename, bytes, 0644)
 	errors.CheckError(err)
 
-	logCtx.Info("committing")
+	log.Info("committing")
 
 	_, err = argoexec.RunCommand("sh", "-c", fmt.Sprintf("cd /tmp/%s && git commit -am 'patch'", f.repoDirectory))
 	errors.CheckError(err)
