@@ -22,7 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
 	"github.com/argoproj/argo-cd/util"
-	"github.com/argoproj/argo-cd/util/argo"
+	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"
 	"github.com/argoproj/argo-cd/util/kube"
 )
@@ -112,7 +112,7 @@ func TestAppCreation(t *testing.T) {
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, fixture.DeploymentNamespace, app.Spec.Destination.Namespace)
 			assert.Equal(t, common.KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
-			assertAppHasEvent(t, app, "create", argo.EventReasonResourceCreated)
+			assertAppHasEvent(t, app, "create", EventReasonResourceCreated)
 		})
 }
 
@@ -128,18 +128,23 @@ func TestAppDeletion(t *testing.T) {
 		Delete().
 		Then().
 		Expect(Deleted()).
-		Expect(Event(argo.EventReasonResourceDeleted, "delete"))
+		Expect(Event(EventReasonResourceDeleted, "delete"))
 }
 
 func TestTrackAppStateAndSyncApp(t *testing.T) {
-	fixture.EnsureCleanState()
 
-	app := createAndSyncDefault(t)
-
-	assertAppHasEvent(t, app, "sync", argo.EventReasonResourceUpdated)
-	assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
-	assert.True(t, app.Status.OperationState.SyncResult != nil)
-	assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
+	Given(fixture, t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(Event(EventReasonResourceUpdated, "sync")).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Assert(func(app *Application) {
+			assert.True(t, app.Status.OperationState.SyncResult != nil)
+			assert.True(t, app.Status.OperationState.Phase == OperationSucceeded)
+		})
 }
 
 func TestAppRollbackSuccessful(t *testing.T) {
@@ -176,7 +181,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 	_, err = fixture.RunCli("app", "rollback", app.Name, "1")
 	assert.NoError(t, err)
 
-	assertAppHasEvent(t, app, "rollback", argo.EventReasonOperationStarted)
+	assertAppHasEvent(t, app, "rollback", EventReasonOperationStarted)
 
 	WaitUntil(t, func() (done bool, err error) {
 		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
