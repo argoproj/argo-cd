@@ -15,7 +15,7 @@ type Actions struct {
 func (a *Actions) Create() *Actions {
 
 	if a.context.name == "" {
-		a.context.name = strings.Replace(a.context.path, "/", "-", 0)
+		a.context.name = strings.Replace(a.context.path, "/", "-", -1)
 	}
 
 	args := []string{
