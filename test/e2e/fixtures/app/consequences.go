@@ -10,9 +10,10 @@ import (
 	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 )
 
+// this implements the "then" part of given/when/then
 type Consequences struct {
 	context    *Context
-	actionable *Actionable
+	actionable *Actions
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
@@ -37,7 +38,7 @@ func (c *Consequences) And(block func(app *Application)) *Consequences {
 	return c
 }
 
-func (c *Consequences) When() *Actionable {
+func (c *Consequences) When() *Actions {
 	return c.actionable
 }
 

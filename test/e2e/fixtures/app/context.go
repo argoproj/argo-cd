@@ -7,6 +7,7 @@ import (
 	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
 )
 
+// this implements the "given" part of given/when/then
 type Context struct {
 	fixture    *Fixture
 	t          *testing.T
@@ -52,6 +53,6 @@ func (c *Context) And(block func()) *Context {
 	return c
 }
 
-func (c *Context) When() *Actionable {
-	return &Actionable{c}
+func (c *Context) When() *Actions {
+	return &Actions{c}
 }

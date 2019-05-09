@@ -84,7 +84,7 @@ func DoesNotExist() Expectation {
 			}
 			return failed, err.Error()
 		}
-		return failed, "not deleted"
+		return pending, ""
 	}
 }
 
