@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/api/core/v1"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -20,6 +22,21 @@ const (
 )
 
 type Expectation func(c *Consequences) (state state, message string)
+
+func Not(e Expectation) Expectation {
+	return func(c *Consequences) (state, string) {
+		state, message := e(c)
+		message = "not " + message
+		switch state {
+		case succeeded:
+			return failed, message
+		case failed:
+			return succeeded, message
+		default:
+			return state, message
+		}
+	}
+}
 
 func OperationPhaseIs(expected OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
@@ -85,6 +102,22 @@ func DoesNotExist() Expectation {
 			return failed, err.Error()
 		}
 		return pending, ""
+	}
+}
+
+func Pod(predicate func(p v1.Pod) bool) Expectation {
+	return func(c *Consequences) (state, string) {
+		app := c.app()
+		pods, err := c.context.fixture.KubeClientset.CoreV1().Pods(app.Namespace).List(metav1.ListOptions{})
+		if err != nil {
+			return failed, err.Error()
+		}
+		for _, pod := range pods.Items {
+			if predicate(pod) {
+				return succeeded, ""
+			}
+		}
+		return failed, ""
 	}
 }
 
