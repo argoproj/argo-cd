@@ -204,25 +204,24 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 }
 
 func TestArgoCDWaitEnsureAppIsNotCrashing(t *testing.T) {
-	fixture.EnsureCleanState()
 
-	app := createAndSyncDefault(t)
-
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == SyncStatusCodeSynced && app.Status.Health.Status == HealthStatusHealthy, err
-	})
-
-	_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
-	assert.NoError(t, err)
-
-	_, err = fixture.RunCli("app", "sync", app.Name)
-	assert.NoError(t, err)
-
-	WaitUntil(t, func() (done bool, err error) {
-		app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(app.ObjectMeta.Name, metav1.GetOptions{})
-		return err == nil && app.Status.Sync.Status == SyncStatusCodeSynced && app.Status.Health.Status == HealthStatusDegraded, err
-	})
+	Given(fixture, t).
+		Path(guestbookPath).
+		When().
+		Create().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusHealthy)).
+		Assert(func(app *Application) {
+			_, err := fixture.RunCli("app", "set", app.Name, "--path", "crashing-guestbook")
+			assert.NoError(t, err)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(HealthStatusDegraded))
 }
 
 func TestManipulateApplicationResources(t *testing.T) {
