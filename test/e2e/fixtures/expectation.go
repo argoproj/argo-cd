@@ -77,7 +77,7 @@ func ResourceHealthIs(resource string, expected HealthStatusCode) Expectation {
 
 func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
-		_, err := c.Get()
+		_, err := c.get()
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return succeeded, ""

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -116,11 +115,12 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 }
 
 func (c *Consequences) app() *Application {
-	app, err := c.Get()
+	app, err := c.get()
 	assert.NoError(c.context.t, err)
 	return app
 }
-func (c *Consequences) Get() (*Application, error) {
+
+func (c *Consequences) get() (*Application, error) {
 	return c.context.fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.fixture.ArgoCDNamespace).Get(c.context.name, v1.GetOptions{})
 }
 

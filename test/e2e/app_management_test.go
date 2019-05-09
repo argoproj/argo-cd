@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
-
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -21,6 +19,7 @@ import (
 	argorepo "github.com/argoproj/argo-cd/reposerver/repository"
 	"github.com/argoproj/argo-cd/server/application"
 	"github.com/argoproj/argo-cd/server/repository"
+	. "github.com/argoproj/argo-cd/test/e2e/fixtures"
 	"github.com/argoproj/argo-cd/util"
 	. "github.com/argoproj/argo-cd/util/argo"
 	"github.com/argoproj/argo-cd/util/diff"

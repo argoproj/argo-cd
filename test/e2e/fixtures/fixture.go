@@ -17,7 +17,6 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,7 +142,7 @@ func (f *Fixture) Close() {
 }
 
 func (f *Fixture) cleanupTestRepo() {
-	err := os.RemoveAll(path.Join(f.repoDirectory))
+	err := os.RemoveAll(path.Join("/tmp", f.repoDirectory))
 	errors.CheckError(err)
 }
 
@@ -287,10 +286,13 @@ func waitUntilE(condition wait.ConditionFunc) error {
 		time.Sleep(TestTimeout)
 		makeSureClosed()
 	}()
-	return wait.PollUntil(3*time.Second, condition, stop)
+	return wait.PollUntil(time.Second, condition, stop)
 }
 
 // WaitUntil periodically executes specified condition until it returns true.
 func WaitUntil(t *testing.T, condition wait.ConditionFunc) {
-	assert.NoError(t, waitUntilE(condition))
+	err := waitUntilE(condition)
+	if err != nil {
+		t.Fatalf("Failed to wait for expected condition: %v", err)
+	}
 }
