@@ -59,7 +59,8 @@ ENV HELM_VERSION=2.12.1
 RUN wget https://storage.googleapis.com/kubernetes-helm/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     tar -C /tmp/ -xf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     mv /tmp/linux-amd64/helm /usr/local/bin/helm && \
-    helm version --client
+    helm version --client && \
+    helm init --client-only
 
 # Install kustomize
 ENV KUSTOMIZE1_VERSION=1.0.11

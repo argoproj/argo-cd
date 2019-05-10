@@ -18,7 +18,7 @@ jobs:
           name: Check nothing has changed
           command: git diff --exit-code
       - run:
-          name: Upload code coverage
+          name: Uploading code coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.out
           when: always
       - store_test_results:
