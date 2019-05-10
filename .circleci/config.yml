@@ -9,11 +9,6 @@ jobs:
       - restore_cache:
           key: vendor
       - run:
-          name: Tool test
-          command: |
-            protoc --version
-            swagger version
-      - run:
           name: Dependencies
           command: dep ensure
       - run:
