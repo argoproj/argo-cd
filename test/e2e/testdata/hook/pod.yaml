@@ -7,6 +7,5 @@ spec:
     - name: main
       image: alpine:latest
       command:
-        - sleep
-        - "30"
+        - "true"
   restartPolicy: Never
