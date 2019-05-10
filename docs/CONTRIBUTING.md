@@ -50,6 +50,7 @@ Install go dependencies:
 
 ```bash
 make install-deps
+dep ensure
 ```
 
 ## Building
