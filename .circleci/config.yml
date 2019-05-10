@@ -9,10 +9,10 @@ jobs:
       - restore_cache:
           key: vendor
       - run:
-          name: Run Pre-Commit Checks
+          name: Run pre-commit checks
           command: env PATH=/go/bin:$PATH ls /go/bin
       - run:
-          name: Check Nothing Has Changed
+          name: Check nothing has changed
           command: git diff --exit-code
       - store_test_results:
           path: test-results.xml
