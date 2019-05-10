@@ -18,6 +18,7 @@ jobs:
             go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
             go get -u github.com/mattn/goreman
             go get -u gotest.tools/gotestsum
+            dep ensure
       - run:
           command: make pre-commit
       - run:
