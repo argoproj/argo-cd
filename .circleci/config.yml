@@ -13,13 +13,12 @@ jobs:
       - run: make lint
       - run: git diff
       - run: make build
-      - run: make test | go-junit-report > ${TEST_RESULTS}/go-test-report.xml
+      - run: make test
       # TODO - need tokens
       # - run: bash <(curl -s https://codecov.io/bash) -f coverage.out
       - save_cache:
           key: vendor
           paths:
             - vendor
-      - store_artifacts:
-          path: tests.xml
-          destination: raw-test-output
+      - store_test_results:
+          path: test-results
