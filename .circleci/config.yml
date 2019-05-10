@@ -13,7 +13,7 @@ jobs:
           command: dep ensure
       - run:
           name: Generate code
-          command: make pre-commit
+          command: make codegen
       - run:
           name: Compile production code
           command: make build
