@@ -9,4 +9,4 @@ site/
 cmd/**/debug
 debug.test
 coverage.out
-/unit-tests.xml
+/tests.xml

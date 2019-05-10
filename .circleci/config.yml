@@ -5,7 +5,8 @@ jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: argoproj/argo-cd-ci-builder:v0.13.1
+      - image: circleci/golang:1.12
+      # - image: argoproj/argo-cd-ci-builder:v0.13.1
     steps:
       - checkout
       - run: dep ensure
@@ -15,3 +16,10 @@ jobs:
       - run: make test | go-junit-report > ${TEST_RESULTS}/go-test-report.xml
       # TODO - need tokens
       # - run: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - save_cache:
+          key: vendor
+          paths:
+            - vendor
+      - store_artifacts:
+          path: tests.xml
+          destination: raw-test-output
