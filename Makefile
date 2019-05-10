@@ -44,6 +44,10 @@ ifdef IMAGE_NAMESPACE
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
 endif
 
+.PHONY: install-deps
+install-deps:
+	./hack/install-deps.sh
+
 .PHONY: all
 all: cli image argocd-util
 

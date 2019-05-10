@@ -9,19 +9,13 @@ jobs:
       - restore_cache:
           key: vendor
       - run:
-          command: |
-            go get -u gotest.tools/gotestsum
-            go get -u github.com/golang/protobuf/protoc-gen-go
-            go get -u github.com/go-swagger/go-swagger/cmd/swagger
-            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
-            go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-            go get -u github.com/mattn/goreman
-            go get -u gotest.tools/gotestsum
-            dep ensure
+          name: Install Dependencies
+          command: make install-deps
       - run:
+          name: Run Pre-Commit Checks
           command: make pre-commit
       - run:
+          name: Check Nothing Has Changed
           command: git diff --exit-code
       - store_test_results:
           path: test-results.xml
