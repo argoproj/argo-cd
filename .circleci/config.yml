@@ -1,24 +1,29 @@
-# Use the latest 2.1 version of CircleCI pipeline processing engine, see https://circleci.com/docs/2.0/configuration-reference/
-version: 2.1
-
+version: 2
 jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
       - image: circleci/golang:1.12
-      # - image: argoproj/argo-cd-ci-builder:v0.13.1
     steps:
       - checkout
-      - run: dep ensure
-      - run: make lint
-      - run: git diff
-      - run: make build
-      - run: make test
-      # TODO - need tokens
-      # - run: bash <(curl -s https://codecov.io/bash) -f coverage.out
+      - run:
+          command: dep ensure
+      - run:
+          command: make lint
+      - run:
+          command: git diff
+      - run:
+          command: make build
+      - run:
+          command: make test
       - save_cache:
           key: vendor
           paths:
             - vendor
       - store_test_results:
           path: test-results.xml
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - build
