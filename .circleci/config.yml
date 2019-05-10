@@ -3,25 +3,23 @@ jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: circleci/golang:1.12
+      - image: argoproj/argo-cd-ci-builder:v0.13.1
     steps:
       - checkout
+      - restore_cache:
+          key: vendor
       - run:
-          command: dep ensure
+          command: go get -u gotest.tools/gotestsum
       - run:
-          command: make lint
+          command: make pre-commit
       - run:
-          command: git diff
-      - run:
-          command: make build
-      - run:
-          command: make test
+          command: git diff --exit-code
+      - store_test_results:
+          path: test-results.xml
       - save_cache:
           key: vendor
           paths:
             - vendor
-      - store_test_results:
-          path: test-results.xml
 workflows:
   version: 2
   workflow:
