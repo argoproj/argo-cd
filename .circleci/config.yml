@@ -12,8 +12,11 @@ jobs:
           name: Dependencies
           command: dep ensure
       - run:
+          name: List Vendor
+          command: find vendor -mindepth 2 -maxdepth 2 -type d
+      - run:
           name: Run pre-commit checks
-          command: env GOPATH=/go PATH=/go/bin:$PATH make pre-commit
+          command: env PATH=/go/bin:$PATH make pre-commit
       - run:
           name: Check nothing has changed
           command: git diff --exit-code

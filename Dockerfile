@@ -92,6 +92,7 @@ RUN cd ${GOPATH}/src/dummy && \
 
 RUN go get -u github.com/golang/protobuf/protoc-gen-go
 RUN go get -u github.com/go-swagger/go-swagger/cmd/swagger
+RUN go get -u github.com/gogo/protobuf/gogoproto
 RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
 RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
@@ -106,6 +107,13 @@ RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/d
     unzip protoc.zip include/* -d /usr/local/ && \
     protoc --version && \
     rm protoc.zip
+
+# Install GO Swagger
+# Install kustomize
+ENV GO_SWAGGER_VERSION=1.0.11
+RUN curl -L -o /usr/local/bin/swagger https://github.com/go-swagger/go-swagger/releases/download/v${GO_SWAGGER_VERSION}/swagger_linux_amd64 && \
+    chmod +x /usr/local/bin/swagger && \
+    swagger version
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
