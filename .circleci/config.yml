@@ -10,7 +10,7 @@ jobs:
           key: vendor
       - run:
           name: Run Pre-Commit Checks
-          command: env PATH=/go/bin:$PATH make pre-commit
+          command: env PATH=/go/bin:$PATH lis /go/bin
       - run:
           name: Check Nothing Has Changed
           command: git diff --exit-code
