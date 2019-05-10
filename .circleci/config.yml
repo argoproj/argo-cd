@@ -12,10 +12,10 @@ jobs:
           name: Dependencies
           command: dep ensure
       - run:
-          name: Generate cod
+          name: Generate code
           command: make pre-commit
       - run:
-          name: Build
+          name: Compile production code
           command: make build
       - run:
           name: Lint code
