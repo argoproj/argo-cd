@@ -49,7 +49,13 @@ cd ~/go/src/github.com/argoproj/argo-cd
 Install go dependencies:
 
 ```bash
-make install-deps
+go get -u github.com/golang/protobuf/protoc-gen-go
+go get -u github.com/go-swagger/go-swagger/cmd/swagger
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+go get -u github.com/mattn/goreman
+go get -u gotest.tools/gotestsum
 dep ensure
 ```
 
