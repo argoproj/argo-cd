@@ -120,6 +120,14 @@ RUN curl -L -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/downloa
     chmod +x /usr/local/bin/jq && \
     jq --version
 
+# Install K3S
+ENV K3S_VERSION=0.5.0
+RUN curl -L -o /usr/local/bin/k3s https://github.com/rancher/k3s/releases/download/v$K3S_VERSION/k3s && \
+    chmod +x /usr/local/bin/k3s && \
+    k3s version
+
+
+
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
 ####################################################################################################

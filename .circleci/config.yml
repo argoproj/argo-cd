@@ -4,7 +4,6 @@ jobs:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
       - image: argoproj/argo-cd-ci-builder:v1.0.0
-      - image: rancher/k3s:v0.5.0
     steps:
       - checkout
       - restore_cache:
