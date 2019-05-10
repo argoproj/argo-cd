@@ -98,6 +98,13 @@ RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 RUN go get -u github.com/mattn/goreman
 RUN go get -u gotest.tools/gotestsum
 
+RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.7.1/protoc-3.7.1-linux-x86_64.zip && \
+    unzip protoc.zip bin/protoc && \
+    mv bin/protoc /usr/local/bin/protoc && \
+    chmod +x /usr/local/bin/protoc  && \
+    protoc --version && \
+    rm protoc.zip
+
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
 ####################################################################################################
