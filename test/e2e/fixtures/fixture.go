@@ -105,15 +105,6 @@ func NewFixture() (*Fixture, error) {
 	})
 	errors.CheckError(err)
 
-	testRepo, err := ioutil.TempDir("/tmp", "argocd-e2e")
-	errors.CheckError(err)
-	testRepo = path.Base(testRepo)
-	errors.CheckError(err)
-	_, err = argoexec.RunCommand(
-		"sh", "-c",
-		fmt.Sprintf("cp -r testdata/* /tmp/%s && chmod 777 /tmp/%s && cd /tmp/%s && git init && git add . && git commit -m 'initial commit'", testRepo, testRepo, testRepo))
-	errors.CheckError(err)
-
 	fixture := &Fixture{
 		AppClientset:     appClient,
 		KubeClientset:    kubeClient,
@@ -122,12 +113,22 @@ func NewFixture() (*Fixture, error) {
 		SettingsManager:  settings.NewSettingsManager(context.Background(), kubeClient, "argocd-e2e"),
 		apiServerAddress: apiServerAddress,
 		token:            sessionResponse.Token,
-		repoDirectory:    testRepo,
+		repoDirectory:    "argocd-e2e",
 		plainText:        !tlsTestResult.TLS,
 	}
 
+	fixture.ensureTestRepo()
+
 	fixture.DeploymentNamespace = fixture.createDeploymentNamespace()
 	return fixture, nil
+}
+
+func (f *Fixture) ensureTestRepo() {
+	f.cleanupTestRepo()
+	_, err := argoexec.RunCommand(
+		"sh", "-c",
+		fmt.Sprintf("cp -R testdata/* /tmp/%s && chmod 777 /tmp/%s && cd /tmp/%s && git init && git add . && git commit -m 'initial commit'", f.repoDirectory, f.repoDirectory, f.repoDirectory))
+	errors.CheckError(err)
 }
 
 func (f *Fixture) RepoURL() string {
@@ -161,6 +162,7 @@ func (f *Fixture) createDeploymentNamespace() string {
 }
 
 func (f *Fixture) EnsureCleanState() {
+
 	argoSettings, err := f.SettingsManager.GetSettings()
 	errors.CheckError(err)
 
@@ -199,6 +201,8 @@ func (f *Fixture) EnsureCleanState() {
 		return f.AppClientset.ArgoprojV1alpha1().AppProjects(f.ArgoCDNamespace).Delete(projs.Items[i].Name, &v1.DeleteOptions{})
 	})
 	errors.CheckError(err)
+
+	f.ensureTestRepo()
 }
 
 func (f *Fixture) deleteDeploymentNamespace() {
