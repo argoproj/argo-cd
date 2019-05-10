@@ -4,9 +4,9 @@
 vendor/
 dist/
 site/
-test-results/
 *.iml
 # delve debug binaries
 cmd/**/debug
 debug.test
 coverage.out
+test-results.xml
