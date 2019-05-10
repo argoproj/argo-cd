@@ -39,6 +39,13 @@ export GOPATH=~/go
 export PATH=$PATH:$GOPATH/bin
 ```
 
+Checkout the code:
+
+```bash
+go get -u github.com/argoproj/argo-cd
+cd ~/go/src/github.com/argoproj/argo-cd
+```
+
 Install go dependencies:
 
 ```bash
@@ -48,8 +55,6 @@ make install-deps
 ## Building
 
 ```bash
-go get -u github.com/argoproj/argo-cd
-cd ~/go/src/github.com/argoproj/argo-cd
 make
 ```
 
@@ -171,10 +176,5 @@ Now you can set-up the port-forwarding and open the UI or CLI.
 Before you commit, make sure you've formatted and linted your code, or your PR will fail CI:
 
 ```bash
-STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$")
-
-gofmt -w $STAGED_GO_FILES
-
-make codgen
-make precommit ;# lint and test
+make precommit
 ```

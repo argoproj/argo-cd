@@ -14,6 +14,9 @@ jobs:
       - run:
           name: Run Pre-Commit Checks
           command: make pre-commit
+          environment:
+            GOPATH: /go
+            PATH: $PATH:$GOPATH/bin
       - run:
           name: Check Nothing Has Changed
           command: git diff --exit-code
