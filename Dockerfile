@@ -110,7 +110,7 @@ RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/d
 
 # Install GO Swagger
 # Install kustomize
-ENV GO_SWAGGER_VERSION=1.0.11
+ENV GO_SWAGGER_VERSION=0.19.0
 RUN curl -L -o /usr/local/bin/swagger https://github.com/go-swagger/go-swagger/releases/download/v${GO_SWAGGER_VERSION}/swagger_linux_amd64 && \
     chmod +x /usr/local/bin/swagger && \
     swagger version
