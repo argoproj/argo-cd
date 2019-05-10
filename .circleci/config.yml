@@ -10,7 +10,7 @@ jobs:
           key: vendor
       - run:
           name: Dependencies
-          command: dep ensure -vendor-only
+          command: dep ensure
       - run:
           name: Run pre-commit checks
           command: env PATH=/go/bin:$PATH make pre-commit
