@@ -12,8 +12,17 @@ jobs:
           name: Dependencies
           command: dep ensure
       - run:
-          name: Run pre-commit checks
-          command: env PATH=$PATH:/go/bin make pre-commit
+          name: Generate cod
+          command: make pre-commit
+      - run:
+          name: Build
+          command: make build
+      - run:
+          name: Lint code
+          command: make lint
+      - run:
+          name: Run unit tests
+          command: make test
       - run:
           name: Check nothing has changed
           command: git diff --exit-code
