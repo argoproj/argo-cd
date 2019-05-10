@@ -13,7 +13,7 @@ jobs:
           command: make install-deps
       - run:
           name: Run Pre-Commit Checks
-          command: env PATH=/go/bin make pre-commit
+          command: env PATH=/go/bin:$PATH make pre-commit
       - run:
           name: Check Nothing Has Changed
           command: git diff --exit-code
