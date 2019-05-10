@@ -108,11 +108,16 @@ RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/d
     rm protoc.zip
 
 # Install GO Swagger
-# Install kustomize
 ENV GO_SWAGGER_VERSION=0.19.0
 RUN curl -L -o /usr/local/bin/swagger https://github.com/go-swagger/go-swagger/releases/download/v${GO_SWAGGER_VERSION}/swagger_linux_amd64 && \
     chmod +x /usr/local/bin/swagger && \
     swagger version
+
+# Install JQ
+ENV JQ_VERSION=1.6
+RUN curl -L -o /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-linux64 && \
+    chmod +x /usr/local/bin/jq && \
+    jq --version
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
