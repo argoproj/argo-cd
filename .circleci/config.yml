@@ -3,14 +3,11 @@ jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
     docker:
-      - image: argoproj/argo-cd-ci-builder:v0.13.1
+      - image: argoproj/argo-cd-ci-builder:v1.0.0
     steps:
       - checkout
       - restore_cache:
           key: vendor
-      - run:
-          name: Install Dependencies
-          command: make install-deps
       - run:
           name: Run Pre-Commit Checks
           command: env PATH=/go/bin:$PATH make pre-commit

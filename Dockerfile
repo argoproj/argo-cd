@@ -90,6 +90,14 @@ RUN cd ${GOPATH}/src/dummy && \
     touch dummy.go \
     golangci-lint run
 
+RUN go get -u github.com/golang/protobuf/protoc-gen-go
+RUN go get -u github.com/go-swagger/go-swagger/cmd/swagger
+RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+RUN go get -u github.com/mattn/goreman
+RUN go get -u gotest.tools/gotestsum
+
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
 ####################################################################################################
