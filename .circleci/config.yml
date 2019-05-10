@@ -12,11 +12,17 @@ jobs:
           name: Dependencies
           command: dep ensure
       - run:
+          command: go get -u github.com/gogo/protobuf
+      - run:
           name: Run pre-commit checks
           command: env PATH=/go/bin:$PATH make pre-commit
       - run:
           name: Check nothing has changed
           command: git diff --exit-code
+      - run:
+          name: Upload code coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.out
+          when: always
       - store_test_results:
           path: test-results.xml
       - save_cache:
