@@ -9,7 +9,15 @@ jobs:
       - restore_cache:
           key: vendor
       - run:
-          command: go get -u gotest.tools/gotestsum
+          command: |
+            go get -u gotest.tools/gotestsum
+            go get -u github.com/golang/protobuf/protoc-gen-go
+            go get -u github.com/go-swagger/go-swagger/cmd/swagger
+            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+            go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+            go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get -u github.com/mattn/goreman
+            go get -u gotest.tools/gotestsum
       - run:
           command: make pre-commit
       - run:
@@ -20,6 +28,7 @@ jobs:
           key: vendor
           paths:
             - vendor
+          when: always
 workflows:
   version: 2
   workflow:
