@@ -91,7 +91,6 @@ RUN cd ${GOPATH}/src/dummy && \
     golangci-lint run
 
 RUN go get -u github.com/golang/protobuf/protoc-gen-go
-RUN go get -u github.com/go-swagger/go-swagger/cmd/swagger
 RUN go get -u github.com/gogo/protobuf/gogoproto
 RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 RUN go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger

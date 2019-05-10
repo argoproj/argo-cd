@@ -50,7 +50,6 @@ Install go dependencies:
 
 ```bash
 go get -u github.com/golang/protobuf/protoc-gen-go
-go get -u github.com/go-swagger/go-swagger/cmd/swagger
 go get -u github.com/gogo/protobuf/gogoproto
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger

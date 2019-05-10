@@ -9,11 +9,16 @@ jobs:
       - restore_cache:
           key: vendor
       - run:
+          name: Tool test
+          command: |
+            protoc --version
+            swagger version
+      - run:
           name: Dependencies
           command: dep ensure
       - run:
           name: Run pre-commit checks
-          command: env PATH=/go/bin:$PATH make pre-commit
+          command: env PATH=$PATH:/go/bin make pre-commit
       - run:
           name: Check nothing has changed
           command: git diff --exit-code
