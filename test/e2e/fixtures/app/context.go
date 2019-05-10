@@ -19,7 +19,7 @@ type Context struct {
 }
 
 func Given(f *Fixture, t *testing.T) *Context {
-	f.EnsureCleanState()
+	f.SetUp()
 	return &Context{fixture: f, t: t, destServer: KubernetesInternalAPIServerAddr, name: "test-app"}
 }
 

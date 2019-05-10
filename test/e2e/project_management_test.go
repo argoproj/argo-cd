@@ -36,7 +36,7 @@ func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, re
 }
 
 func TestProjectCreation(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.RunCli("proj", "create", projectName,
@@ -64,7 +64,7 @@ func TestProjectCreation(t *testing.T) {
 }
 
 func TestProjectDeletion(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
@@ -79,7 +79,7 @@ func TestProjectDeletion(t *testing.T) {
 }
 
 func TestSetProject(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
@@ -105,7 +105,7 @@ func TestSetProject(t *testing.T) {
 }
 
 func TestAddProjectDestination(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
@@ -140,7 +140,7 @@ func TestAddProjectDestination(t *testing.T) {
 }
 
 func TestRemoveProjectDestination(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{
@@ -183,7 +183,7 @@ func TestRemoveProjectDestination(t *testing.T) {
 }
 
 func TestAddProjectSource(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}})
@@ -209,7 +209,7 @@ func TestAddProjectSource(t *testing.T) {
 }
 
 func TestRemoveProjectSource(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(&v1alpha1.AppProject{
@@ -236,7 +236,7 @@ func TestRemoveProjectSource(t *testing.T) {
 }
 
 func TestUseJWTToken(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)

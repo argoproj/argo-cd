@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -113,39 +114,38 @@ func NewFixture() (*Fixture, error) {
 		SettingsManager:  settings.NewSettingsManager(context.Background(), kubeClient, "argocd-e2e"),
 		apiServerAddress: apiServerAddress,
 		token:            sessionResponse.Token,
-		repoDirectory:    "argocd-e2e",
+		repoDirectory:    "/tmp/argocd-e2e",
 		plainText:        !tlsTestResult.TLS,
 	}
 
-	fixture.ensureTestRepo()
+	fixture.setUpTestRepo()
 
 	fixture.DeploymentNamespace = fixture.createDeploymentNamespace()
 	return fixture, nil
 }
 
-func (f *Fixture) ensureTestRepo() {
-	f.cleanupTestRepo()
+func (f *Fixture) setUpTestRepo() {
+	f.teardownTestRepo()
 	_, err := argoexec.RunCommand(
 		"sh", "-c",
-		fmt.Sprintf("cp -R testdata/* /tmp/%s && chmod 777 /tmp/%s && cd /tmp/%s && git init && git add . && git commit -m 'initial commit'", f.repoDirectory, f.repoDirectory, f.repoDirectory))
+		fmt.Sprintf("mkdir %s && cp -R testdata/* %s && chmod 777 %s && cd %s && git init && git add . && git commit -m 'initial commit'", f.repoDirectory, f.repoDirectory, f.repoDirectory, f.repoDirectory))
 	errors.CheckError(err)
 }
 
 func (f *Fixture) RepoURL() string {
-	return fmt.Sprintf("file:///tmp/%s", f.repoDirectory)
+	return fmt.Sprintf("file:///%s", f.repoDirectory)
 }
 
-// Close deletes test namespace resources.
-func (f *Fixture) Close() {
+// Teardown deletes test namespace resources.
+func (f *Fixture) Teardown() {
 	log.Info("cleaning up")
-	f.EnsureCleanState()
+	f.SetUp()
 	f.deleteDeploymentNamespace()
-	f.cleanupTestRepo()
+	f.teardownTestRepo()
 }
 
-func (f *Fixture) cleanupTestRepo() {
-	err := os.RemoveAll(path.Join("/tmp", f.repoDirectory))
-	errors.CheckError(err)
+func (f *Fixture) teardownTestRepo() {
+	errors.CheckError(os.RemoveAll(path.Join(f.repoDirectory)))
 }
 
 func (f *Fixture) createDeploymentNamespace() string {
@@ -161,7 +161,7 @@ func (f *Fixture) createDeploymentNamespace() string {
 	return ns.Name
 }
 
-func (f *Fixture) EnsureCleanState() {
+func (f *Fixture) SetUp() {
 
 	argoSettings, err := f.SettingsManager.GetSettings()
 	errors.CheckError(err)
@@ -202,7 +202,7 @@ func (f *Fixture) EnsureCleanState() {
 	})
 	errors.CheckError(err)
 
-	f.ensureTestRepo()
+	f.setUpTestRepo()
 }
 
 func (f *Fixture) deleteDeploymentNamespace() {
@@ -257,7 +257,7 @@ func (f *Fixture) Patch(path string, jsonPatch string) {
 
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
-	filename := "/tmp/" + f.repoDirectory + "/" + path
+	filename := filepath.Join(f.repoDirectory, path)
 	bytes, err := ioutil.ReadFile(filename)
 	errors.CheckError(err)
 
@@ -280,7 +280,7 @@ func (f *Fixture) Patch(path string, jsonPatch string) {
 
 	log.Info("committing")
 
-	_, err = argoexec.RunCommand("sh", "-c", fmt.Sprintf("cd /tmp/%s && git commit -am 'patch'", f.repoDirectory))
+	_, err = argoexec.RunCommand("sh", "-c", fmt.Sprintf("cd %s && git commit -am 'patch'", f.repoDirectory))
 	errors.CheckError(err)
 }
 

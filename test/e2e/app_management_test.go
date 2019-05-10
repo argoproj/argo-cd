@@ -565,7 +565,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 }
 
 func TestPermissions(t *testing.T) {
-	fixture.EnsureCleanState()
+	fixture.SetUp()
 	appName := "test-app"
 	_, err := fixture.RunCli("proj", "create", "test")
 	assert.NoError(t, err)

@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 		os.Exit(-1)
 	} else {
 		code := m.Run()
-		fixture.Close()
+		fixture.Teardown()
 		os.Exit(code)
 	}
 }
