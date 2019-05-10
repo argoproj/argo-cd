@@ -100,10 +100,10 @@ RUN go get -u gotest.tools/gotestsum
 
 # Install Google's Protobuf Compiler
 ENV PROTOC_VERSION=3.7.1
-RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC-linux-x86_64.zip && \
-    unzip protoc.zip bin/protoc && \
-    mv bin/protoc /usr/local/bin/protoc && \
-    chmod +x /usr/local/bin/protoc  && \
+RUN curl -L -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
+    unzip protoc.zip bin/protoc -d /usr/local/ && \
+    chmod +x /usr/local/bin/protoc && \
+    unzip protoc.zip include/* -d /usr/local/ && \
     protoc --version && \
     rm protoc.zip
 
