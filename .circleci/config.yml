@@ -37,8 +37,17 @@ jobs:
           paths:
             - vendor
           when: always
+  k3s:
+    build:
+      working_directory: /go/src/github.com/argoproj/argo-cd
+      docker:
+        - image: argoproj/argo-cd-ci-builder:v1.0.0
+      steps:
+        - name: Start K3S
+          command: k3s kubectl get node
 workflows:
   version: 2
   workflow:
     jobs:
       - build
+      - k3s
