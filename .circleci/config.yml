@@ -2,8 +2,8 @@ version: 2
 jobs:
   build:
     working_directory: /go/src/github.com/argoproj/argo-cd
-    machine:
-      image: argoproj/argo-cd-ci-builder:v1.0.0
+    docker:
+      - image: argoproj/argo-cd-ci-builder:v1.0.0
     steps:
       - checkout
       - restore_cache:
@@ -42,8 +42,8 @@ jobs:
           command: k3s kubectl get node
   k3s:
     working_directory: /go/src/github.com/argoproj/argo-cd
-    machine:
-      image: rancher/k3s:v0.5.0
+    docker:
+      - image: rancher/k3s:v0.5.0
     steps:
       - run:
           name: Start K3S
