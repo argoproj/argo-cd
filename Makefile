@@ -132,7 +132,7 @@ dep-ensure:
 
 .PHONY: lint
 lint:
-	golangci-lint run --fix --verbose --concurrency 1
+	golangci-lint run --fix --verbose --concurrency 2
 
 .PHONY: build
 build:
